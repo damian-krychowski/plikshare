@@ -1,3 +1,5 @@
+<img alt="plikshare_dashboard" src="https://github.com/damian-krychowski/plikshare/blob/main/assets/dashboard_printscreen.png">
+
 # PlikShare
 
 PlikShare is a self-hosted file sharing application that allows you to securely share files with others.
