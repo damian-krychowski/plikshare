@@ -11,6 +11,12 @@ PlikShare is a self-hosted file sharing application that allows you to securely 
 - Files Encryption
 - Easy deployment
 
+## How to install
+
+All the necessery instructions can be found here: https://plikshare.com/download
+
+Docker image is available here: https://hub.docker.com/r/damiankrychowski/plikshare
+
 ## License
 
 PlikShare is developed and maintained by Damian Krychowski.
