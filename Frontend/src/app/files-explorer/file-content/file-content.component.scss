@@ -1,0 +1,26 @@
+.non-image-message {
+    padding: 1rem;
+    border: 1px dashed var(--company-grey-accent);
+    background-color: white;
+
+    &__file-name {
+        font-weight: 500;
+        font-size: 1.1rem;
+    }
+
+    &__desc {
+        color: var(--company-grey-font);
+        font-size: 0.9rem;
+    }
+}
+
+.file-content {
+    position: relative;
+
+    &__close-btn {
+        position: absolute;
+        right: 1rem;
+        top: 1rem;
+        z-index: 1;
+    }
+}

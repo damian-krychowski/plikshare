@@ -1,0 +1,89 @@
+@let storageVal = storage();
+
+<div class="item-bar flex-row">
+    <div class="item"
+        [class.item--highlighted]="isHighlighted()"  
+        [class.item--in-background]="areActionsVisible()"
+        (click)="onClicked()">
+        <i class="icon icon-xl icon-lucide-server"></i>   
+
+        <div class="item__details">
+            <app-editable-txt #nameTxt
+               [text]="storageVal.name()"
+               [isEditing]="isNameEditing()"
+               [canEdit]="!pickerMode()"
+               (valueChange)="saveStorageName($event)"
+               (editingStarted)="storage().isNameEditing.set(true)"
+               (editingStopped)="storage().isNameEditing.set(false)">                    
+           </app-editable-txt>
+
+            <div class="item__subtitle">
+                <span>Type: {{storageVal.type}}</span>                
+            </div>  
+
+            <div class="item__subtitle">
+                <span>Encryption: {{storageVal.encryptionType}}</span>
+            </div>  
+            
+            <div class="item__subtitle">
+                <span>Workspaces: {{storageVal.workspacesCount}}</span>
+            </div>
+            
+            @if(storageVal.details; as storageDetailsVal) {
+                <div class="item__subtitle">
+                    <span [innerHTML]="storageDetailsVal"></span>
+                </div> 
+            }
+        </div>
+    </div>
+
+    @if(!pickerMode()) {
+        <div class="item-bar__actions">
+            @if(isNameEditing()) {
+                <app-action-btn
+                    tooltip="Save name"
+                    icon="icon-lucide-check"
+                    (clicked)="nameTxt.save()">                    
+                </app-action-btn>
+            } @else {
+                <app-action-btn
+                    tooltip="Edit name"
+                    icon="icon-nucleo-pen"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    (clicked)="editStorageName()">                    
+                </app-action-btn>
+            
+                @if(storageVal.type !== 'hard-drive') {
+                    <app-action-btn
+                        tooltip="Edit details"
+                        icon="icon-lucide-key"
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        (clicked)="editStorageDetails()">                    
+                    </app-action-btn>
+                }
+            
+                @let hasWorkspaceOrIntegration = storageVal.workspacesCount > 0;
+
+                <app-action-btn
+                    tooltip="{{hasWorkspaceOrIntegration ? 'Cannot delete storage with workspaces' : 'Delete'}}"
+                    icon="icon-nucleo-remove"
+                    [disabled]="hasWorkspaceOrIntegration"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    [isOperationDisabled]="hasWorkspaceOrIntegration"
+                    [operationItem]="'this storage'"
+                    [verb]="'delete'"
+                    [isOperationDanger]="true"
+                    appConfirmOperation
+                    (confirmedClick)="deleteStorage()">                    
+                </app-action-btn>
+            
+                <app-action-btn
+                    tooltip="Actions"
+                    icon="icon-lucide-dots"
+                    class="d-none-on-desktop"
+                    (clicked)="toggleActions()">                    
+                </app-action-btn>
+            }            
+        </div> 
+    }           
+</div>            

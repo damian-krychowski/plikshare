@@ -1,0 +1,127 @@
+<div class="app-container">
+    <div class="top-bar">
+        <div class="top-bar__header">
+            <button class="top-nav-btn" 
+                aria-label="Account" 
+                mat-flat-button  
+                matTooltip="Go back to Account"
+                matTooltipPosition="below"
+                (click)="goToAccount()">                 
+                <div class="icon-merge">
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>   
+                    <i class="icon icon-xl icon-nucleo-mailbox icon-merge--front"></i>   
+                </div>
+            </button> 
+
+            <div class="flex-column">
+                <div class="top-bar__title">
+                    Email settings
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="content">   
+        <div class="mt-3"></div>
+
+        <div class="title-header"
+            [class.title-header--danger]="!isLoading() && !isAnyProviderActive()">  
+            <div>
+                Active email provider:
+            </div>
+        </div>  
+
+        <div class="mt-2"></div>   
+
+        @for(emailProvider of activeEmailProviders(); track emailProvider.externalId()) {
+            <app-email-provider-item
+                [emailProvider]="emailProvider"
+                (deleted)="onEmailProviderDelete($event, emailProvider)">                
+            </app-email-provider-item>
+        } @empty {
+            @if(isInitialized()){
+                <div class="explanation">
+                    No email provider is active right now and the system is currently unable to send any emails. 
+                    This affects critical functions like user registration, password resetting, 
+                    and sending invitations for workspaces and boxes. To ensure smooth operation, 
+                    make sure to set up an email provider as soon as possible. 
+                </div>
+    
+                <div class="mt-2"></div>
+    
+                <div class="explanation">
+                    To activate email provider:
+                    <ol>
+                        <li>Configure one of the available providers</li>
+                        <li>Confirm it with the received verification code <i class="icon icon-xl icon-nucleo-input-password-check"></i></li>
+                        <li>Activate it <i class="icon icon-xl icon-lucide-circle-check"></i></li>
+                    </ol>
+                </div>
+            }
+        }
+
+        <div class="mt-3"></div>
+
+        <div class="title-header">  
+            <div>
+                Email providers:
+            </div>
+
+            <div class="flex-row flex-gap-05 ml-auto">
+                <app-action-text-btn
+                    tooltip="Add SMTP"
+                    text="SMTP"
+                    (clicked)="onAddSmtp()">                        
+                </app-action-text-btn>
+
+                <app-action-btn
+                    tooltip="Add Resend"
+                    icon="icon-resend-logo"
+                    (clicked)="onAddResend()">                        
+                </app-action-btn>
+
+                <app-action-btn
+                    tooltip="Add AWS SES"
+                    icon="icon-aws-logo"
+                    (clicked)="onAddAwsSes()">                        
+                </app-action-btn>
+            </div>
+        </div>  
+
+        <div class="mt-2"></div>   
+
+        @for(emailProvider of notActiveEmailProviders(); track emailProvider.externalId()) {
+            <app-email-provider-item
+                [emailProvider]="emailProvider"
+                (deleted)="onEmailProviderDelete($event, emailProvider)"
+                (activated)="onEmailProviderActivated($event, emailProvider)">                
+            </app-email-provider-item>
+        }
+
+        <div class="mt-2"></div>   
+
+        <div class="add-storage-actions">          
+            <app-item-btn
+                title="Add SMTP Server"
+                subtitle="Click here to configure SMTP Server!"
+                icon="icon-nucleo-envelope-arrow-right"
+                (clicked)="onAddSmtp()">                
+            </app-item-btn>
+
+            <app-item-btn
+                title="Add Resend"
+                subtitle="Click here to configure Resend!"
+                icon="icon-resend-logo"
+                (clicked)="onAddResend()">                
+            </app-item-btn>
+
+            <app-item-btn
+                title="Add AWS SES"
+                subtitle="Click here to configure AWS SES!"
+                icon="icon-aws-logo"
+                (clicked)="onAddAwsSes()">                
+            </app-item-btn>
+        </div>
+    </div>
+</div>

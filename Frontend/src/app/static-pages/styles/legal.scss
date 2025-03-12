@@ -1,0 +1,128 @@
+@import "./../../../styles/variables.scss";
+
+.legal {
+    counter-reset: headercounter subheadercounter;
+
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1.2rem;
+    padding-right: 1.2rem;
+
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+
+    @media (max-width: $mobile-early-breakpoint) {
+        font-size: var(--company-small-font);
+    }
+
+    h1, h2, h3, h4, h5, h6, ol, ul {
+        margin: 0;
+    }
+
+    ol, ul {
+        @media (max-width: $mobile-early-breakpoint) {
+            padding-left: 1rem;
+        }
+    }
+
+    h1 {
+        @media (max-width: $mobile-early-breakpoint) {
+            font-size: 1.3rem;            
+        }
+    }
+
+    h2, h3 {
+        margin-top: 2rem;
+    }
+
+    h2 {
+        @media (max-width: $mobile-early-breakpoint) {
+            font-size: 1rem;            
+        }
+    }
+
+    h3 {
+        @media (max-width: $mobile-early-breakpoint) {
+            font-size: 0.9rem;            
+        }
+    }
+
+    li {
+        margin-top: 1rem;
+        padding-left: 0.5rem;
+    } 
+
+    table {
+        margin-top: 1rem;
+        width: 100%;
+        border: 1px solid gray;
+    }
+    
+    thead {
+        font-weight: 600;
+    }
+
+    th, td {
+        border: 1px solid gray;
+        padding: 10px;
+        vertical-align: top;
+    }
+    
+    .horizontal-scroll {
+        overflow-y: auto
+    }
+
+    .tight {
+        li {
+            margin-top: 0.3rem;
+        }
+    }
+
+    .header-numbered {
+        display: flex;
+        align-items: baseline;
+    }
+    
+    .header-numbered::before {
+        counter-increment: headercounter 1;
+        content: counter(headercounter);
+        display: inline-block;
+        /* customize below */
+        font-size: 1em;
+        margin-right: 0.6em;
+        width: 1.6em;
+        line-height: 1.6em;
+        text-align: center;
+        border-radius: 50%;
+        color: #FFF;
+        background: black;
+        flex-shrink: 0;
+    }
+
+    .subheader-numbered {
+        display: flex;
+        align-items: baseline;
+    }
+
+    .subheader-numbered::before {
+        counter-increment: subheadercounter 1;
+        content: counter(headercounter) "." counter(subheadercounter);
+        display: inline-block;
+        /* customize below */
+        font-size: 1em;
+        margin-left: 1rem;
+        margin-right: 0.6em;
+        width: 2.4em;
+        line-height: 1.6em;
+        text-align: center;
+        border-radius: 50%;
+        color: #FFF;
+        background: black;
+        flex-shrink: 0;
+    }
+}

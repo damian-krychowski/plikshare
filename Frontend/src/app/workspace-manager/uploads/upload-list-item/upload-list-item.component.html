@@ -1,0 +1,59 @@
+<div class="item-bar flex-row">
+    <div class="item flex-grow" [class.item-bar--opaque]="isPaused()">
+        <i class="icon icon-xl icon-{{ fileExtension() | fileIcon }}"></i>
+      
+        <div class="item__details">
+            <div class="item__title">
+                {{ fileNameWithExtensions() }}
+            </div>
+
+            <div class="item__subtitle">
+                {{ filePath() }}
+            </div>
+
+            <div class="upload-progress">
+                <mat-progress-bar 
+                    mode="determinate" 
+                    [value]="progressPercentage()">
+                </mat-progress-bar>
+
+                @if(isPaused()) {
+                    <div>Paused</div>
+                }
+            </div>                
+        </div>
+    </div>
+
+    <div class="item-bar__actions" (click)="$event.stopPropagation()">
+        @if(hasFileUpload()) {  
+            @if(isPaused()) {
+                <app-action-btn
+                    tooltip="Resume upload"
+                    icon="icon-nucleo-play"
+                    (clicked)="resumeFileUpload()">
+                </app-action-btn>  
+            } @else {
+                <app-action-btn
+                    tooltip="Pause upload"
+                    icon="icon-nucleo-pause"
+                    (clicked)="pauseFileUpload()">
+                </app-action-btn>                         
+            }
+        } @else {
+            <app-action-btn
+                tooltip="Resume upload"
+                icon="icon-nucleo-play"
+                (clicked)="resume(fileUpload)">
+            </app-action-btn>  
+        
+            <input type="file" class="file-input"                       
+                (change)="pickFileAndResumeUpload($event)" #fileUpload>
+        }
+        
+        <app-action-btn
+            tooltip="Abort upload"
+            icon="icon-lucide-xmark"
+            (clicked)="abortUpload()">
+        </app-action-btn>           
+    </div>
+</div>

@@ -1,0 +1,98 @@
+@import "./../../styles/app-header.scss";
+@import "./../../styles/nothing-to-show.scss";
+@import "./../../styles/item-bar.scss";
+@import "./../../styles/mobile-display.scss";
+@import "./../../styles/variables.scss";
+@import "./../../styles/drop-area.scss";
+
+.explorer-content {
+    position: relative;
+    z-index: 1;
+    overflow-y: auto;
+    padding-bottom: 1rem;
+
+    &--const-height {
+        height: 235px;
+        overflow: auto;
+        scrollbar-width: thin;
+
+        .drop-area__anchor {
+            min-height: auto !important;
+        }
+    }
+
+    &--no-overflow-y {
+        overflow-y: unset !important;
+    }
+}
+
+a.drag-over {
+    background-color: var(--company-blue-hover) !important;
+    font-weight: 700;
+}
+
+.context-bar {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    padding: 0.5rem 0.5rem 0 0.5rem;
+
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+}
+
+.context-item {
+    padding: 0 0.5rem;
+    display: inline-block;
+
+    &--clickable {
+        cursor: pointer;
+    }
+
+    &:hover {
+        background: var(--company-grey-accent-light);
+    }
+
+    &__value {
+        transition: filter 1s ease-in-out, opacity 1s ease-in-out;
+        filter: blur(0);
+        opacity: 1;
+    }
+
+    &__value--blur {
+        filter: blur(2px);
+        opacity: 0.7;
+    }
+
+    &--short {
+        padding: 0 0.2rem;
+    }
+}
+
+.sticky-wrapper {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: rgb(252, 252, 252);
+    padding-bottom: 0.5rem;
+
+    &--shadow {
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    }
+}
+
+.view-mode {
+    opacity: 0.5;
+
+    i {
+        display: none;
+    }
+
+    &--active {
+        opacity: 1;
+
+        i {
+            display: inline;
+        }
+    }
+}

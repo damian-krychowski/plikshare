@@ -1,0 +1,62 @@
+@let fileUrlValue = fileUrl();
+@let fileTypeValue = fileType();
+@let fileFullNameValue = fileFullName();
+@let fileVal = file();
+@let zipPreviewOperationsVal = zipPreviewOperations();
+
+<div class="file-content">
+    @if(fileTypeValue == 'image' && fileUrlValue) {
+        <app-image-preview
+            [fileName]="fileVal.name()"
+            [fileExtension]="fileVal.extension"
+            [fileUrl]="fileUrlValue">            
+        </app-image-preview>           
+    } @else if(fileTypeValue == 'video' && fileUrlValue) {
+        <app-video-preview
+            [fileUrl]="fileUrlValue">            
+        </app-video-preview>
+    } @else if(fileTypeValue == 'audio' && fileUrlValue) {
+        <app-audio-preview
+            [fileUrl]="fileUrlValue">            
+        </app-audio-preview>
+     } @else if(fileTypeValue == 'pdf' && fileUrlValue) {
+        <app-pdf-preview
+            [fileUrl]="fileUrlValue">            
+        </app-pdf-preview>        
+    } @else if((fileTypeValue == 'text' || forceFileTextDisplay()) && fileUrlValue) {
+        <app-text-preview
+            [fileUrl]="fileUrlValue">            
+        </app-text-preview>
+    } @else if(fileTypeValue == 'markdown' && fileUrlValue) {
+        <app-markdown-preview
+            [isEditMode]="isEditMode()"
+            [fileUrl]="fileUrlValue"
+            [commandsPipeline]="commandsPipeline()">            
+        </app-markdown-preview>
+    } @else if(fileTypeValue == 'archive' && zipPreviewOperationsVal) {
+        <app-zip-preview
+            [operations]="zipPreviewOperationsVal"
+            [fileName]="fileVal.name()"
+            [fileExtension]="fileVal.extension"
+            (zipEntryClicked)="zipEntryClicked.emit($event)">            
+        </app-zip-preview>
+    } @else {
+        <div  class="non-image-message">
+            <div class="flex-row flex-gap-05 flex-align-center">
+                <i class="icon icon-xl icon-{{ fileExtension() | fileIcon }}"></i>
+                <span class="non-image-message__file-name">{{fileFullNameValue}}</span>
+            </div>
+
+            @if(canOpenAsText()) {
+                <div class="non-image-message__desc mt-2">                
+                    This file type cannot be previewed. 
+                    To view the file, please download it first, or <a href="javascript:void(0)" (click)="openAsText()">click here</a> to open as text.
+                </div>
+            } @else {
+                <div class="non-image-message__desc mt-2">                
+                    This file type cannot be previewed. To view the file, please download it first.
+                </div>
+            }
+        </div>
+    }
+</div>

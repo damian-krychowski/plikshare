@@ -1,0 +1,66 @@
+<div class="flex-row flex-wrap flex-gap-05">
+    <app-permission-btn 
+        tooltip="Allow upload" 
+        icon="icon-nucleo-upload-2" 
+        [isSelected]="allowUpload()"
+        (clicked)="changePermissions('allowUpload')">
+    </app-permission-btn>
+
+    <app-permission-btn 
+        tooltip="Allow preview"
+        icon="icon-nucleo-explorer" 
+        [isSelected]="allowList()"
+        (clicked)="changePermissions('allowList')">
+    </app-permission-btn>
+
+    @if(allowList()) {
+        <app-permission-btn 
+            tooltip="Allow download" 
+            icon="icon-nucleo-download" 
+            [isSelected]="allowDownload()"
+            (clicked)="changePermissions('allowDownload')">
+        </app-permission-btn>
+
+        <app-permission-btn 
+            tooltip="Allow delete files"
+            icon="icon-nucleo-file-xmark" 
+            [isSelected]="allowDeleteFile()"
+            (clicked)="changePermissions('allowDeleteFile')">
+        </app-permission-btn>
+
+        <app-permission-btn 
+            tooltip="Allow rename files"
+            icon="icon-nucleo-file-pen" 
+            [isSelected]="allowRenameFile()"
+            (clicked)="changePermissions('allowRenameFile')">
+        </app-permission-btn>
+
+        <app-permission-btn 
+            tooltip="Allow create folders"
+            icon="icon-nucleo-folder-plus"
+            [isSelected]="allowCreateFolder()"
+            (clicked)="changePermissions('allowCreateFolder')">
+        </app-permission-btn>
+
+        <app-permission-btn 
+            tooltip="Allow delete folders"
+            icon="icon-nucleo-folder-xmark"
+            [isSelected]="allowDeleteFolder()"
+            (clicked)="changePermissions('allowDeleteFolder')">
+        </app-permission-btn>
+
+        <app-permission-btn 
+            tooltip="Allow rename folders"
+            icon="icon-nucleo-folder-pen"
+            [isSelected]="allowRenameFolder()"
+            (clicked)="changePermissions('allowRenameFolder')">
+        </app-permission-btn>
+
+        <app-permission-btn
+            tooltip="Allow move items" 
+            icon="icon-nucleo-folder-replace" 
+            [isSelected]="allowMoveItems()"
+            (clicked)="changePermissions('allowMoveItems')">
+        </app-permission-btn>
+    }
+</div>

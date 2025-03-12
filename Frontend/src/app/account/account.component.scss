@@ -1,0 +1,21 @@
+@import "./../../styles/hover-switch.scss";
+@import "./../../styles/app-header.scss";
+@import "./../../styles/top-bar.scss";
+@import "./../../styles/covered.scss";
+@import "./../../styles/top-nav-btn.scss";
+@import "./../../styles/action-text-btn.scss";
+@import "./../../styles/item-bar.scss";
+@import "./../../styles/icon-merge.scss";
+@import "./../../styles/variables.scss";
+
+.account-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 450px;
+    margin: 0 auto;
+
+    @media (max-width: $mobile-breakpoint) {
+        max-width: 100%;
+    }
+}

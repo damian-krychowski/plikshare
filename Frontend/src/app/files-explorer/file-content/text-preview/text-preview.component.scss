@@ -1,0 +1,35 @@
+.text-preview {
+    position: relative;
+    min-height: 200px;
+    overflow: auto;
+    
+    background-color: white;
+    padding: 1.5rem;
+    border: 1px solid var(--company-grey-accent-light);
+}
+
+.text-preview__content {
+    padding: 1rem;
+}
+
+.text-preview__loading {
+    padding: 1rem;
+    text-align: center;
+    color: #666;
+}
+
+.resize-handle {
+    height: 5px;
+    background: transparent;
+    cursor: ns-resize;
+}
+
+.resize-handle:hover {
+    background: var(--company-grey-active);
+}
+
+pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}

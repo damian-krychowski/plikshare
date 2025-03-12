@@ -1,0 +1,111 @@
+@let fileVal = file();
+
+<div class="item-bar flex-row"    
+    appCtrlClick (ctrlClick)="toggleSelection()"
+    [class.item-bar--selected]="fileVal.isSelected()"
+    [class.item-bar--opaque]="fileVal.isCut()"
+    [class.item-bar--clickable]="canPreview()"
+    [class.item-bar--locked]="fileVal.isLocked()"
+    (click)="!($event.ctrlKey || $event.metaKey) && canPreview() && showPreview()">
+    <div class="item flex-grow"
+        [class.item--highlighted]="isHighlighted()"  
+        [class.item--in-background]="areActionsVisible()">                
+        <i class="icon icon-xl icon-{{ fileVal.extension| fileIcon }}"></i>
+    
+        <div class="item__details">                   
+            <app-editable-txt #nameTxt
+                [text]="fileVal.name()"
+                [isEditing]="fileVal.isNameEditing()"                
+                [canEdit]="canEditFileName()"
+                (valueChange)="saveFileName($event)"
+                (editingStarted)="file().isNameEditing.set(true)"
+                (editingStopped)="file().isNameEditing.set(false)">                    
+            </app-editable-txt>
+
+            <div class="item__subtitle">
+                @if(showPath()) {
+                    <div>{{ filePath() || 'All files'}}</div>
+                }
+                @if(fileVal.extension) {
+                    <div> {{ fileVal.extension }} | {{ fileVal.sizeInBytes | storageSize }}</div>
+                } @else {
+                    <div> {{ fileVal.sizeInBytes | storageSize }}</div>
+                }
+            </div>    
+        </div>
+    </div>
+
+    @if(!hideActions() && !fileVal.isCut() && !fileVal.isLocked()) {
+        <div class="item-bar__actions" 
+            (click)="$event.stopPropagation()">
+    
+            @if(fileVal.isNameEditing()) {
+                <app-action-btn
+                    tooltip="Save name"
+                    icon="icon-lucide-check"
+                    (clicked)="nameTxt.save()">                    
+                </app-action-btn>
+            } @else {        
+                @if(canLocate()) {
+                    <app-action-btn
+                        tooltip="Locate"
+                        icon="icon-lucide-search"
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        (prefetch)="operations().prefetchFolderFunc(fileVal.folderExternalId)"
+                        (clicked)="locate()">                    
+                    </app-action-btn>
+                }
+            
+                @if(allowDownload()) {
+                    <app-action-btn
+                        tooltip="Download"
+                        icon="icon-nucleo-download"
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        (clicked)="downloadFile()">                    
+                    </app-action-btn>
+                }
+            
+                @if(canEditFileName()) {
+                    <app-action-btn
+                        tooltip="Edit name"
+                        icon="icon-nucleo-pen"
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        (clicked)="editName()">                    
+                    </app-action-btn>
+                }   
+            
+                @if(canDeleteFile()) {
+                    <app-action-btn
+                        tooltip="Delete"
+                        icon="icon-nucleo-remove"
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        [isOperationDanger]="true"
+                        [verb]="'delete'"
+                        [operationItem]="'this file'"
+                        appConfirmOperation
+                        (confirmedClick)="deleteFile()">                    
+                    </app-action-btn>
+                }     
+            
+                @if(canToggleActions()) {
+                    <app-action-btn
+                        tooltip="Actions"
+                        icon="icon-lucide-dots"
+                        class="d-none-on-desktop"
+                        (clicked)="toggleActions()">                    
+                    </app-action-btn>
+                }
+                
+                @if(isSelectCheckboxVisible()) {
+                    <div (click)="$event.stopPropagation()">
+                        <mat-checkbox 
+                            [class.d-none-on-mobile]="!areActionsVisible()"
+                            [ngModel]="fileVal.isSelected()"
+                            (change)="toggleSelection()">
+                        </mat-checkbox>
+                    </div>
+                }
+            }
+        </div>
+    }
+</div>

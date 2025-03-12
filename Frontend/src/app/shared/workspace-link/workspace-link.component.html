@@ -1,0 +1,7 @@
+@let workspaceVal = workspace();
+
+<span class="workspace-link workspace-link--clickable" 
+    (prefetch)="onPrefetch()"
+    (click)="onClick($event)">
+    {{workspaceVal.name}}
+</span>

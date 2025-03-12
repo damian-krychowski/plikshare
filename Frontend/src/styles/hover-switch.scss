@@ -1,0 +1,19 @@
+.hover-switch {
+    &:hover {
+        .hide-on-hover {
+            display: none;
+        }
+
+        .show-on-hover {
+            display: block;
+        }
+    }
+
+    .hide-on-hover {
+        display: block;
+    }
+
+    .show-on-hover {
+        display: none;
+    }
+}

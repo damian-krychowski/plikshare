@@ -1,0 +1,89 @@
+.ai-message-container {
+    position: relative;
+    box-shadow: lch(0 0 0 / 0.02) 0px 4px 4px -1px, lch(0 0 0 / 0.06) 0px 1px 1px 0px;
+    border-radius: 1rem;
+
+    .editor-container {
+        border-radius: 1rem !important;
+    }
+    
+    .editor-inner {
+        border-radius: 1rem !important;
+    }
+
+    .editor-input {
+        min-height: 40px !important;   
+        padding-right: 55px !important;
+        padding-left: 1rem !important;
+    }
+
+    .editor-placeholder  {
+        left: 1rem !important;
+    }
+
+    &--sent {
+        .editor-container {
+            border-top-left-radius: 0rem !important;
+            border-top-right-radius: 0rem !important;
+            border-top: none !important;            
+            border-bottom: 1px solid var(--company-grey-accent-light) !important;
+
+            border-bottom-left-radius: 1rem !important;
+            border-bottom-right-radius: 1rem !important;
+        }
+
+        .editor-input {
+            min-height: 40px !important;   
+            padding-bottom: 1.5rem !important;
+            padding-right: 1rem !important;
+            padding-left: 1rem !important;
+        }
+        
+        .editor-inner {
+            border-top-left-radius: 0rem !important;
+            border-top-right-radius: 0rem !important;
+            border-bottom-right-radius: 1rem !important;
+            border-bottom-left-radius: 1rem !important;
+        }
+    }   
+
+    app-action-btn {
+        button {
+            border: none !important;
+        }
+    }
+
+    .send-btn {
+        position: absolute;
+        right: 1rem;
+        bottom: 0.5rem;
+    }
+}
+
+.ai-message-header {
+    background-color: white;
+    border-left: 1px solid var(--company-grey-accent-light);
+    border-right: 1px solid var(--company-grey-accent-light);
+    border-top: 1px solid var(--company-grey-accent-light);
+    border-top-left-radius: 1rem;
+    border-top-right-radius: 1rem;
+    padding: 0.5rem 1rem 0 1rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    &__icon {
+        font-size: 1.3rem;
+    }
+
+    &__user {
+        font-size: 0.9rem;
+        padding-left: 0.5rem;
+    }
+
+    &__details {
+        font-size: 0.9rem;
+        color: var(--company-grey-font);
+        padding-left: 1.5rem;
+    }
+}

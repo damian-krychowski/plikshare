@@ -1,0 +1,80 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        Edit Cloudflare R2 Storage Details
+    </div>
+
+    <form class="questionaire__form" (submit)="onCreateStorage()" [formGroup]="formGroup">
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Access Key Id</mat-label>
+
+            <input 
+                id="accessKeyId"
+                type="text" 
+                matInput 
+                formControlName="accessKeyId">
+
+            @if ((accessKeyId.touched || wasSubmitted()) && accessKeyId.hasError('required')) {
+                <mat-error>Access Key Id is <strong>required</strong></mat-error>
+            }    
+        </mat-form-field>
+
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Secret Access Key</mat-label>
+
+            <input 
+                id="secretAccessKey"
+                type="text"
+                matInput 
+                appSecureInput
+                formControlName="secretAccessKey">                            
+            
+            @if ((secretAccessKey.touched || wasSubmitted()) && secretAccessKey.hasError('required')) {
+                <mat-error>Secret Access Key is <strong>required</strong></mat-error>
+            }
+        </mat-form-field>
+
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Url</mat-label>
+
+            <input 
+                id="url"
+                type="text" 
+                matInput 
+                appSecureInput
+                formControlName="url" >
+            
+            @if ((url.touched || wasSubmitted()) && url.hasError('required')) {
+                <mat-error>Url is <strong>required</strong></mat-error>
+            }
+
+            @if ((url.touched || wasSubmitted()) && url.hasError('invalidUrl')){
+                <mat-error>Url is <strong>not valid</strong></mat-error>        
+            }
+        </mat-form-field>
+
+        @if(couldNotConnect()){
+            <mat-error>
+                Storage credentials are incorrect - test connection has failed
+            </mat-error>        
+        }
+
+        <div class="mt-3 d-none-on-mobile"></div>
+
+        <div class="questionaire__actions"> 
+            <button type="button" class="questionaire__btn mr-1" mat-flat-button
+                aria-label="Cancel"
+                (click)="cancel()"
+                [disabled]="isLoading()">
+                Cancel
+            </button>
+            
+            <button type="submit" class="questionaire__btn" mat-flat-button
+                aria-label="Save changes"
+                [class.questionaire__btn--disabled]="formGroup.invalid"
+                [class.questionaire__btn--loading]="isLoading()"
+                [disabled]="isLoading()">
+                Save changes
+            </button>
+        </div>
+    </form>
+</div>

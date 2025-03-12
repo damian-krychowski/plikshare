@@ -1,0 +1,61 @@
+<div class="app-top-bar">
+    <div class="app-top-bar__container">
+        <a class="app-top-bar__logo" routerLink="/">
+            <div class="app-top-bar__logo-text">
+                <div class="app-top-bar__title">
+                    PlikShare
+                </div>
+        
+                <div class="app-top-bar__subtitle">
+                    Better way to share files
+                </div>
+            </div>
+        </a>
+
+        <div class="app-top-bar__links">
+            @if(entryPage.isSignUpAvailable()) {
+                <a class="app-top-bar__link" routerLink="/sign-up">Sign up</a>
+            }
+    
+            <a class="call-to-action-btn"
+                routerLink="/sign-in"
+                mat-flat-button>
+    
+                <span class="show-on-desktop">
+                    Sign in
+                </span>
+    
+                <span class="show-on-mobile">
+                    Sign in
+                </span>
+            </a>
+        </div>
+    
+        <button class="app-top-bar__menu-btn"
+            (click)="toggleMenu()"
+            aria-label="Menu" 
+            mat-flat-button  
+            matTooltip="{{isMenuOpen() ? 'Close menu' : 'Open menu'}}"
+            matTooltipPosition="above">
+            <i class="icon icon-lg {{isMenuOpen() ? 'icon-lucide-xmark' : 'icon-lucide-menu'}}"></i>
+        </button> 
+    </div>
+
+    @if(isMenuOpen()) {
+        <div class="app-menu mt-2" @menuAnimation>
+            @if(entryPage.isSignUpAvailable()) {
+                <a class="app-menu__link app-menu__link--light" routerLink="/sign-up"
+                    [class.app-menu__link--active]="isUrlActive('/sign-up')">
+                    Sign up
+                </a>
+            }
+
+            <a class="app-menu__link app-menu__link--light call" routerLink="/sign-in"
+                [class.app-menu__link--active]="isUrlActive('/sign-in')">
+                <strong>Sign in</strong>
+            </a>
+        </div>
+    }
+</div>
+
+

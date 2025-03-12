@@ -1,0 +1,91 @@
+<div class="item-bar flex-row">
+    <div class="item"
+        [class.item--highlighted]="isHighlighted()"  
+        [class.item--in-background]="areActionsVisible()"
+        (click)="onClicked()">
+        <i class="icon icon-xl icon-nucleo-mailbox"
+            [class.not-confirmed]="!isConfirmed()"></i>   
+
+        <div class="item__details">
+            <app-editable-txt #nameTxt
+                [text]="name()"
+                [isEditing]="isNameEditing()"
+                (valueChange)="saveName($event)"
+                (editingStarted)="emailProvider().isNameEditing.set(true)"
+                (editingStopped)="emailProvider().isNameEditing.set(false)">                    
+            </app-editable-txt>
+
+            @if(!isConfirmed()) {
+                <div class="item__subtitle">
+                    <span>Email provider is not confirmed</span>
+                </div>
+            }
+
+            <div class="item__subtitle">
+                <span>Type: {{type()}}</span>
+            </div>            
+            
+            <div class="item__subtitle">
+                <span>{{emailFrom()}}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="item-bar__actions">
+        @if(isNameEditing()) {
+            <app-action-btn
+                tooltip="Save name"
+                icon="icon-lucide-check"
+                (clicked)="nameTxt.save()">                    
+            </app-action-btn>
+        } @else {
+            <app-action-btn
+                tooltip="Edit name"
+                icon="icon-nucleo-pen"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                (clicked)="editName()">                    
+            </app-action-btn>       
+            
+            @if(!isConfirmed()) {
+                <app-action-btn
+                    tooltip="Confirm"
+                    icon="icon-nucleo-input-password-check"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    (clicked)="onConfirm()">                    
+                </app-action-btn>  
+            } @else if(!isActive()) {
+                <app-action-btn
+                    tooltip="Activate"
+                    icon="icon-lucide-circle-check"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    (clicked)="onActivate()">                    
+                </app-action-btn>  
+            } @else {
+                <app-action-btn
+                    tooltip="Deactivate"
+                    icon="icon-lucide-circle-xmark"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    (clicked)="onDeactivate()">                    
+                </app-action-btn>  
+            }
+
+            <app-action-btn
+                tooltip="Delete"
+                icon="icon-nucleo-remove"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                [operationItem]="'this email provider'"
+                [verb]="'delete'"
+                [isOperationDanger]="true"
+                appConfirmOperation
+                (confirmedClick)="delete()">                    
+            </app-action-btn>
+        
+            <app-action-btn
+                tooltip="Actions"
+                icon="icon-lucide-dots"
+                class="d-none-on-desktop"
+                (clicked)="toggleActions()">                    
+            </app-action-btn>
+        }            
+    </div>          
+</div>            

@@ -1,0 +1,49 @@
+<div class="item-bar flex-row hover-switch">
+    <div class="item flex-grow">
+        <i class="icon icon-xl icon-nucleo-workspace hide-on-hover"></i>    
+        <i class="icon icon-xl icon-nucleo-workspace-lock show-on-hover"></i>       
+
+        <div class="item__details">
+            <div class="item__title">
+                {{ name() }}
+            </div>
+
+            <div class="item__subtitle">
+                <app-user-link
+                    prefix="Invited by:"
+                    [user]="inviter()">                            
+                </app-user-link>
+            </div>
+        </div>
+    </div>
+
+    <div class="item-bar__actions" (click)="$event.stopPropagation()">
+        @if(!isAdminView()) {
+            <app-action-btn
+                tooltip="Accept"
+                icon="icon-lucide-check"
+                (clicked)="accepted.emit()">                    
+            </app-action-btn>   
+            
+            <app-action-btn
+                tooltip="Reject"
+                icon="icon-lucide-xmark"
+                [operationItem]="'this workspace invitation'"
+                [verb]="'reject'"
+                [isOperationDanger]="true"
+                appConfirmOperation
+                (confirmedClick)="rejected.emit()">                    
+            </app-action-btn> 
+        } @else {
+            <app-action-btn
+                tooltip="Cancel invitation"
+                icon="icon-lucide-xmark"
+                [operationItem]="'to this workspace'"
+                [verb]="'cancel invitation'"
+                [isOperationDanger]="true"
+                appConfirmOperation
+                (confirmedClick)="cancelled.emit()">                    
+            </app-action-btn>
+        }        
+    </div>            
+</div>

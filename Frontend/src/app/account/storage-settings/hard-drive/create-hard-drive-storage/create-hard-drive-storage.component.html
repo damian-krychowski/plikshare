@@ -1,0 +1,161 @@
+<div class="app-container">
+    <div class="top-bar">
+        <div class="top-bar__header">
+            <button class="top-nav-btn" 
+                aria-label="Account" 
+                mat-flat-button  
+                matTooltip="Go back to Account"
+                matTooltipPosition="below"
+                (click)="goToStorages()">                 
+                <div class="icon-merge">
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>   
+                    <i class="icon icon-xl icon-lucide-server icon-merge--front"></i>   
+                </div>
+            </button> 
+
+            <div class="flex-column">
+                <div class="top-bar__title">
+                    Storage settings
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="content"> 
+        <div class="mt-3"></div>
+
+        <div class="title-header">  
+            <div>
+                Add Hard Drive storage:
+            </div>
+        </div>  
+
+        <div class="mt-2"></div>   
+
+        <form class="page-form" (submit)="onCreateStorage()" [formGroup]="formGroup">
+            <div>
+                <mat-form-field class="page-form__field">
+                    <mat-label>Storage Name</mat-label>
+        
+                    <input 
+                        id="name"
+                        type="text" 
+                        formControlName="name"
+                        placeholder="My Hard Drive storage"
+                        matInput>
+        
+                    @if ((name.touched || wasSubmitted()) && name.hasError('required')) {
+                        <mat-error>Storage name is <strong>required</strong></mat-error>
+                    }
+        
+                    @if ((name.touched || wasSubmitted()) && name.hasError('notUnique')){
+                        <mat-error>Storage name is <strong>not unique</strong></mat-error>        
+                    }
+                </mat-form-field>
+        
+                <div class="page-form__info">
+                    Storage name will be displayed on list of storages. For example: My S3 storage
+                </div>
+            </div>
+    
+            <div class="page-form__section-title">
+                Configuration:
+            </div>
+    
+            <div>
+                <mat-form-field class="page-form__field">
+                    <mat-label>Volume</mat-label>
+        
+                    <mat-select
+                        id="volume"
+                        name="volume"                
+                        formControlName="volume"
+                        (valueChange)="onVolumeChange()">
+                        @for (volume of volumes(); track volume.path) {
+                        <mat-option [value]="volume.path">{{volume.path}}</mat-option>
+                        }
+                    </mat-select>
+        
+                    @if ((volume.touched || wasSubmitted()) && name.hasError('required')) {
+                        <mat-error>Volume is <strong>required</strong></mat-error>
+                    }
+                </mat-form-field>
+        
+                <div class="page-form__info">
+                    Volumes are directories on your host system that are mapped into the Docker container when Plikshare starts. This allows the application to access and store data on the host machine.
+                </div>
+            </div>
+    
+            <div>
+                <mat-form-field class="page-form__field">
+                    <mat-label>Storage Path</mat-label>
+        
+                    <input 
+                        id="storagePath"
+                        type="text" 
+                        formControlName="storagePath"
+                        placeholder="/storage/my-folder"
+                        matInput>
+                    
+                    @if ((storagePath.touched || wasSubmitted()) && storagePath.hasError('required')) {
+                        <mat-error>Storage path is <strong>required</strong></mat-error>
+                    } @else if ((storagePath.touched || wasSubmitted()) && storagePath.hasError('invalidPath')) {
+                        <mat-error>Invalid storage path format</mat-error>
+                    } @else if ((storagePath.touched || wasSubmitted()) && storagePath.hasError('restrictedPath')) {
+                        <mat-error>This path is restricted</mat-error>
+                    }
+                </mat-form-field>
+        
+                <div class="page-form__info">
+                    Specify the folder path on the selected volume where files will be created. For example: /storage/my-folder
+                </div>
+            </div>
+    
+            <div class="page-form__section-title">
+                Encryption:
+            </div>
+            
+            <div class="page-form__encryption">
+                <mat-radio-group
+                    formControlName="encryption"
+                    class="page-form__radio-group">
+                    
+                    <div class="page-form__radio-option">
+                        <mat-radio-button value="none">No encryption</mat-radio-button>
+                        <div class="page-form__info">
+                            No encryption is applied to stored files. This mode offers faster performance as no encryption/decryption operations are needed.
+                        </div>
+                    </div>
+            
+                    <div class="page-form__radio-option">
+                        <mat-radio-button value="managed">Managed encryption</mat-radio-button>
+                        <div class="page-form__info">
+                            Files are automatically encrypted/decrypted by the backend using a managed encryption key. Files are secured at rest while remaining transparent to users.
+                        </div>
+                    </div>
+                </mat-radio-group>
+            </div>
+    
+            <div class="mt-3 d-none-on-mobile"></div>
+    
+            <div class="page-form__actions"> 
+                <button type="button" class="page-form__btn mr-1" mat-flat-button
+                    aria-label="Cancel"
+                    (click)="goToStorages()"
+                    [disabled]="isLoading()">
+                    Cancel
+                </button>
+                
+                <button type="submit" 
+                    class="page-form__btn" mat-flat-button
+                    aria-label="Create storage"
+                    [class.page-form__btn--disabled]="formGroup.invalid"
+                    [class.page-form__btn--loading]="isLoading()"
+                    [disabled]="isLoading()">
+                    Create storage
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

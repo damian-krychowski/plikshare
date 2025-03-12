@@ -1,0 +1,41 @@
+@if(canEdit()) {
+    @if(isEditing()) {
+        <div class="txt-editor"             
+            (click)="$event.stopPropagation()">
+            <input class="txt-editor__input"
+                autofocus
+                type="text" 
+                inputmode="text"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+                selectAllText
+                [(ngModel)]="newValue"
+                (ngModelChange)="adjustInputWidth()"
+                (blur)="save()"
+                (keyup.enter)="save()"
+                (keyup.escape)="editingStopped.emit()"
+                [style.width.px]="inputWidth()">
+    
+                <span  #mirrorSpan
+                    class="txt-editor__mirror-span" 
+                    [innerText]="newValue">
+                </span>
+        </div>
+    } @else {
+        <div class="text text--desktop text--editable" 
+            (dblclick)="startEditing(); $event.stopPropagation()" 
+            (click)="$event.stopPropagation()">
+            {{ visibleText() }}
+        </div>
+
+        <div class="text text--mobile">
+            {{ visibleText() }}
+        </div>
+    }
+} @else {
+    <div class="text">
+        {{ visibleText() }}
+    </div>
+}

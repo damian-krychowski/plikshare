@@ -1,0 +1,80 @@
+<div class="ai-response-container">
+    <div class="ai-response-header">
+        <div>                                
+            <i class="icon icon-nucleo-robot ai-response-header__icon"></i> 
+
+            <span class="ai-response-header__user">{{createdBy()}}</span>
+
+            @if(createdAt(); as createdAtVal) {
+                <span class="ai-response-header__details">
+                    <app-relative-time [datetime]="createdAtVal"></app-relative-time>
+                </span>               
+            }
+        </div>
+    </div>
+
+    @if(isProcessing()) {
+        <div class="processing-animation">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+        </div>
+    } @else {
+        <div class="ai-response-container__markdown">
+            @for(chunk of contentChunks(); track $index) {
+                @if(chunk.type === 'plain-message') {
+                    <div class="plain-message">
+                        <markdown mermaid [data]="chunk.text"></markdown>
+                    </div>
+                }
+                
+                @if(chunk.type === 'nested-markdown') {
+                    <div class="nested-markdown">
+                        <div class="nested-markdown__header">
+                            <div class="nested-markdown__info">
+                                @if(chunk.filename) {
+                                    <span class="nested-markdown__filename">{{chunk.filename}}</span>
+                                }
+                                <span class="nested-markdown__language">{{chunk.language}}</span>
+                            </div>
+
+                            <div class="flex-row flex-gap-05 ml-auto">
+                                <app-action-btn
+                                    tooltip="Add to attachments"
+                                    icon="icon-nucleo-file-plus"
+                                    [isLoading]="chunk.isBeingUploaded()"
+                                    (clicked)="onUploadFileAttachment(chunk)">
+                                </app-action-btn>
+
+                                <app-action-btn
+                                    tooltip="Download"
+                                    icon="icon-nucleo-download"
+                                    (clicked)="onDownloadNestedMarkdown(chunk)">
+                                </app-action-btn>
+                                
+                                @if(chunk.isExpanded()) {
+                                    <app-action-btn
+                                        tooltip="Close"
+                                        icon="icon-lucide-xmark"
+                                        (clicked)="chunk.isExpanded.set(false)">
+                                    </app-action-btn>
+                                } @else {
+                                    <app-action-btn
+                                        tooltip="Expand"
+                                        icon="icon-lucide-chevron-down"
+                                        (clicked)="chunk.isExpanded.set(true)">
+                                    </app-action-btn>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="nested-markdown__content"
+                            [class.display-none]="!chunk.isExpanded()">
+                            <markdown mermaid [data]="chunk.text"></markdown>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    }  
+</div>

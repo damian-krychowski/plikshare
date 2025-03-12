@@ -1,0 +1,9 @@
+/PlikShare/wwwroot
+PlikShare.sln.DotSettings.user
+PlikShare.IntegrationTests/bin/
+PlikShare.IntegrationTests/obj/
+/.vs/PlikShare/config
+/.vs/PlikShare/DesignTimeBuild
+/.vs/PlikShare/FileContentIndex
+/.vs/PlikShare/v17
+/.vs/ProjectEvaluation

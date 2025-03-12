@@ -1,0 +1,11 @@
+@import "./../../../styles/variables.scss";
+
+.actions-bar {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+}
+
+.file-input {
+    display: none;
+}

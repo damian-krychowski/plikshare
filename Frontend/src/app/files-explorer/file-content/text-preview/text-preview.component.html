@@ -1,0 +1,18 @@
+@let textVal = fileText();
+
+<div>
+    <div class="text-preview" [style.height.px]="previewHeight()" #previewContainer>
+        @if(textVal) {
+            <div class="text-preview__content">
+                <pre><code>{{textVal}}</code></pre>
+            </div>
+        } @else {
+            <div class="text-preview__loading">
+                Loading...
+            </div>
+        }  
+    </div>    
+
+    <div class="resize-handle" #resizeHandle (mousedown)="startResize($event)">
+    </div>
+</div>

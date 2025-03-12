@@ -1,0 +1,127 @@
+@import "./../../../../styles/app-header.scss";
+@import "./../../../../styles/icon-merge.scss";
+@import "./../../../../styles/files-explorer-container.scss";
+@import "./../../../../styles/item-bar.scss";
+@import "./../../../../styles/mobile-display.scss";
+
+.box-details-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--company-grey-accent);
+    position: relative;
+
+    .item {
+        gap: 0.5rem;
+    }
+
+    @media (max-width: $mobile-breakpoint) {
+        padding-left: 0;
+
+        .item {
+            gap: 0;        
+        }
+
+        .icon-lg {
+            font-size: 1.3rem;        
+        }
+    }
+}
+
+.box-files-explorer-container {
+    @extend .files-explorer-container;
+}
+
+.nav-btn {
+    height: 40px !important;
+    min-width: 38px !important;
+    padding: 0px !important;
+    width: 55px !important;
+    border: 0px;
+    background-color: var(--company-background) !important;
+}
+
+.nav-tab-container {
+    display: flex;
+    flex-direction: row;
+
+    .nav-tab {
+        flex: 1;
+    }
+}
+
+.nav-tab {    
+    margin-top: 0.5rem;
+
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-radius: 0px;
+    background-color: var(--company-background) !important;
+    cursor: pointer;
+    border-top: 1px solid  var(--company-background);
+    border-left: 0px dotted var(--company-grey-accent);
+    border-right: 0px dotted var(--company-grey-accent);
+    border-bottom: 1px solid var(--company-grey-accent);
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    color: black;
+
+    &:first-of-type {
+        border-left: 0;
+        border-top-left-radius: 0;
+    }
+
+    &:last-of-type {
+        border-right: 0;
+        border-top-right-radius: 0;
+    }
+
+    &--active {
+        border-top: 1px solid var(--company-grey-accent);
+        border-left: 1px solid var(--company-grey-accent);
+        border-right: 1px solid var(--company-grey-accent);
+        border-bottom: 1px solid var(--company-background);
+        font-weight: 500;
+
+        &:hover {
+            background-color: var(--company-grey-hover);
+        }
+    }
+
+    &:hover {
+        background-color: var(--company-grey-hover);
+    }
+
+    &:active {
+        background-color: var(--company-background) !important;
+    }
+
+    &:focus {
+        background-color: var(--company-background) !important;
+    }
+
+    @media (max-width: $mobile-breakpoint) {
+        gap: 0.3rem;
+
+        .icon-xl {
+            font-size: 1.5rem;
+        }        
+    }
+}
+
+.missing-folder-warning {
+    display: flex;
+    flex-direction: column;
+    min-height: 100px;
+    justify-content: center;
+    border: 2px dashed var(--company-danger);
+    color: var(--company-danger);
+    align-items: center;
+    padding: 1rem;
+}

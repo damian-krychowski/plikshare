@@ -1,0 +1,12 @@
+@import "./../../../styles/app-header.scss";
+@import "./../../../styles/nothing-to-show.scss";
+@import "./../../../styles/variables.scss";
+
+
+.search-results {
+    padding-left: 2rem;
+
+    @media (max-width: $mobile-early-breakpoint) {
+        padding-left: 0;
+    }
+}

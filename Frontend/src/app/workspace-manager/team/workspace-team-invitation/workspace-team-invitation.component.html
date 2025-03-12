@@ -1,0 +1,23 @@
+<div class="item-bar flex-row">
+    <div class="item">
+        <i class="icon icon-xl icon-nucleo-user-clock"></i>     
+      
+        <div class="item__details">
+            <div class="item__title">
+                {{ memberEmail() }}
+            </div>
+
+            <div class="item__subtitle">
+                Invited by: {{ inviterEmail() }}
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-row ml-auto" (click)="$event.stopPropagation()">
+        <app-action-btn
+            tooltip="Cancel invitation"
+            icon="icon-lucide-xmark"
+            (clicked)="cancelled.emit()">            
+        </app-action-btn>             
+    </div>
+</div>

@@ -1,0 +1,36 @@
+.search {
+    position: relative;
+
+    &__input {
+        font-size: 1rem;
+        font-weight: normal;
+    
+        border: 1px solid var(--company-grey-accent);
+        margin-left: auto;
+    
+        flex-grow: 1;
+        min-width: 100px;
+        transition: flex-grow .15s ease-in-out;
+        
+        border-radius: 4px;
+        padding: 0.3rem 1rem;
+        opacity: 0.6;
+    
+        &:focus-visible {
+            outline: 2px solid var(--company-blue-hover);
+            border: 1px solid var(--company-grey-accent);
+        }
+    
+        &:focus {
+            opacity: 1;
+        }
+    }
+
+    &__count {
+        position: absolute;
+        font-size: var(--company-small-font);
+        color: var(--company-grey-accent);
+        bottom: -1.2rem;
+        right: 0rem;
+    }
+}

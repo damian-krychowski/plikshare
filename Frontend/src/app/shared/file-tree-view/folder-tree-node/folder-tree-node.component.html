@@ -1,0 +1,88 @@
+@let viewModeVal = viewMode();
+@let isSearchActiveVal = isSearchActive();
+@let node = folder();
+@let canSelectVal = canSelect();
+@let showFullPath = viewModeVal == 'show-only-selected' && node.item.isSelected();    
+@let isFolderSelected = (node.item.isSelected() || node.isParentSelected()) && !node.isExcluded() && !node.isParentExcluded();
+@let hasSearchedChildren = viewModeVal == 'show-all' && node.searchedChildrenCount() > 0;
+@let isFolderVisible = (viewModeVal == 'show-all' && (!isSearchActiveVal || node.isSearched() || node.searchedChildrenCount() > 0)) || (viewModeVal == 'show-only-selected' && isFolderSelected);
+@let isFolderMarkedAsSelected = viewModeVal == 'show-all' && isFolderSelected;
+@let isFolderExpanded = node.isExpanded() || hasSearchedChildren;
+
+@let fileClickedHandlerVal = fileClickedHandler();
+@let isSelectedChangedHandlerVal = isSelectedChangedHandler();
+@let isExcludedChangedHandlerVal = isExcludedChangedHandler();
+@let setFolderToRootHandlerVal = setFolderToRootHandler();
+
+
+<div class="tree-node tree-node--expandable" [class.invisible]="!isFolderVisible">
+    <div class="node-content" (prefetch)="prefetchFolder()"
+        [class.node-content--selected]="isFolderMarkedAsSelected"
+        [class.node-content--selected-children]="node.selectedChildrenCount() > 0 && !isFolderExpanded">
+        <div class="node-content__icon" (click)="expand()">                
+            @if(isFolderExpanded) {
+                <i class="icon icon-lg icon-lucide-chevron-down"></i>
+            } @else {
+                <i class="icon icon-lg icon-lucide-chevron-right"></i>
+            }
+        </div>
+
+        <div class="node-name"  [class.vertical-spacing]="showFullPath" (dblclick)="setFolderToRootHandlerVal(node)">
+            <div>
+                {{node.item.name()}}
+            </div>
+
+            @if(showFullPath) {
+                <div class="node-full-path">
+                    {{node.fullPath()}}
+                </div>
+            }
+        </div>
+        
+        <div class="ml-auto">
+            @if(canSelectVal && !isSearchActiveVal) {
+                <div (click)="$event.stopPropagation()">
+                    <app-tree-checkbox
+                        [isSelected]="node.item.isSelected()"
+                        [isExcluded]="node.isExcluded()"
+                        [isParentSelected]="node.isParentSelected()"
+                        [isParentExcluded]="node.isParentExcluded()"
+                        (isSelectedChange)="isSelectedChangedHandlerVal(node, $event)"
+                        (isExcludedChange)="isExcludedChangedHandlerVal(node, $event)">                            
+                    </app-tree-checkbox>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if(node.wasRendered()) {
+        <div class="nested-node" [class.invisible]="!isFolderExpanded">
+            @for (child of node.children(); track child.item.externalId) {
+                @if(child.type == 'file') {
+                    <app-file-tree-node
+                        [file]="child"
+                        [canSelect]="canSelectVal"
+                        [viewMode]="viewModeVal"
+                        [isSearchActive]="isSearchActiveVal"
+                        [fileClickedHandler]="fileClickedHandlerVal"
+                        [isSelectedChangedHandler]="isSelectedChangedHandlerVal"
+                        [isExcludedChangedHandler]="isExcludedChangedHandlerVal">                        
+                    </app-file-tree-node>
+                } @else {
+                    <app-folder-tree-node
+                        [folder]="child"
+                        [canSelect]="canSelectVal"
+                        [viewMode]="viewModeVal"
+                        [isSearchActive]="isSearchActiveVal"
+                        [fileClickedHandler]="fileClickedHandlerVal"
+                        [isSelectedChangedHandler]="isSelectedChangedHandlerVal"
+                        [isExcludedChangedHandler]="isExcludedChangedHandlerVal"
+                        [loadFolderChildrenHandler]="loadFolderChildrenHandler()"
+                        [prefetchFolderHandler]="prefetchFolderHandler()"
+                        [setFolderToRootHandler]="setFolderToRootHandler()">                        
+                    </app-folder-tree-node>
+                }
+            }
+        </div>
+    }
+</div>

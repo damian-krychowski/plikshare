@@ -1,0 +1,531 @@
+@let isTextractAvailableVal = isTextractAvailable();
+@let isTextractModeActiveVal = isTextractModeActive();
+@let allowNotesVal = allowPreviewNotes();
+@let allowCommentsVal = allowPreviewComments();
+@let aiConversationsVal = aiConversations();
+
+@let isAiAvailableVal = isAiAvailable();
+@let activeAiConversationVal = activeAiConversation();
+
+@let dependentFileInPreviewVal = dependentFileInPreview();
+@let dependentFileContentOperationsVal = dependentFileContentOperations();
+
+@let zipEntryInPreviewVal = zipEntryInPreview();
+@let zipEntryFileInPreviewVal = zipEntryFileInPreview();
+@let zipEntryFileContentOperationsVal = zipEntryFileContentOperations();
+
+@let fileVal = file();
+@let noteJsonVal = noteJson();
+
+@let aiResponseOperationsVal = aiResponseOperations();
+
+@let allAttachmentFilesVal = allAttachments();
+
+<div class="preview-container">
+    <div class="media-content"
+    [class.media-content--hidden]="dependentFileInPreviewVal || zipEntryFileInPreviewVal">
+        <app-file-content
+            [file]="fileVal"
+            [operations]="fileContentOperations()"
+            [isEditMode]="isInEditMode()"
+            [commandsPipeline]="commandsPipeline()"
+            (zipEntryClicked)="onZipEntryClicked($event)">        
+        </app-file-content>
+    </div>
+
+    @if(dependentFileInPreviewVal && dependentFileContentOperationsVal) {
+        @let isEditMode = dependentFileIsEditMode();
+
+        <div class="subtitle-header">
+            <div class="item">
+                <div class="item__details">
+                    <div class="item__title">
+                        {{dependentFileInPreviewVal.name()}}
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-row flex-gap-05 ml-auto">
+                @if(isEditMode) {
+                    <app-action-btn
+                        tooltip="Cancel"
+                        icon="icon-lucide-xmark"
+                        [disabled]="isDependentFileBeingSaved()"
+                        (clicked)="dependentFileCancelContentChanges()">
+                    </app-action-btn>
+
+                    <app-action-btn
+                        tooltip="Save"
+                        icon="icon-lucide-check"
+                        [isLoading]="isDependentFileBeingSaved()"
+                        [disabled]="isDependentFileBeingSaved()"
+                        (clicked)="fileInPreviewSaveContentChanges()">
+                    </app-action-btn>
+                } @else { 
+                    @if(dependentFileCanEdit()) {
+                        <app-action-btn
+                            tooltip="Edit file"
+                            icon="icon-nucleo-compose"
+                            (clicked)="dependentFileIsEditMode.set(true)">
+                        </app-action-btn>
+                    }
+
+                    <app-action-btn
+                        tooltip="Close preview"
+                        icon="icon-lucide-xmark"
+                        (clicked)="dependentFileInPreview.set(null)">
+                    </app-action-btn>
+                }
+               
+            </div>
+        </div>
+
+        <div class="media-content">
+            <app-file-content
+                [file]="dependentFileInPreviewVal"
+                [operations]="dependentFileContentOperationsVal"
+                [isEditMode]="isEditMode"
+                [commandsPipeline]="dependentFileCommandsPipeline">        
+            </app-file-content>
+        </div>
+    }
+
+    @if(zipEntryInPreviewVal && zipEntryFileInPreviewVal && zipEntryFileContentOperationsVal) {
+        <div class="subtitle-header">
+            <div class="item">
+                <div class="item__details">
+                    <div class="item__title">
+                        {{zipEntryFileInPreviewVal.name() + zipEntryFileInPreviewVal.extension}}
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-row flex-gap-05 ml-auto">
+                <app-action-btn
+                    tooltip="Close preview"
+                    icon="icon-lucide-xmark"
+                    (clicked)="zipEntryInPreview.set(null)">
+                </app-action-btn>
+            </div>
+        </div>
+
+        <div class="media-content">
+            <app-file-content
+                [file]="zipEntryFileInPreviewVal"
+                [operations]="zipEntryFileContentOperationsVal">        
+            </app-file-content>
+        </div>
+    }
+</div>
+
+@if(activeAiConversationVal) {
+    <div class="preview-bottom-section">
+        <div class="subtitle-header">
+            <div class="item">
+                <div class="item__details">
+                    <div class="item__title">
+                        AI Conversation:
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-row flex-gap-05 ml-auto">
+                <app-action-btn
+                    tooltip="Cancel"
+                    icon="icon-lucide-xmark"
+                    (clicked)="stopAiConversation()">
+                </app-action-btn>
+            </div>
+        </div>        
+        
+        @for (message of activeAiConversationMessages(); track message.externalId) {
+            @if(message.authorType === 'human') {
+                <app-ai-message
+                    [createdAt]="message.createdAt"
+                    [createdBy]="message.createdBy"
+                    [markdown]="message.message">                    
+                </app-ai-message>
+            } @else {
+                <app-ai-response
+                    [content]="message.message"
+                    [createdBy]="message.createdBy"
+                    [createdAt]="message.createdAt"
+                    [operations]="aiResponseOperationsVal"
+                    (onAttachmentCreated)="onAiResponseAttachmentCreated($event)">                    
+                </app-ai-response>
+            }
+        }
+
+        @let lastMessageVal = lastAiConversationMessage();
+        
+        @if(lastMessageVal?.authorType == 'human') {
+            <app-ai-response
+                [createdBy]="selectedChatGptIntegration()?.name ?? ''"
+                [isProcessing]="true"
+                [operations]="aiResponseOperationsVal">                
+            </app-ai-response>
+        } @else { 
+            <div>
+                <div class="flex-row flex-gap-1 mt-2">
+                    <mat-form-field>
+                        <mat-label>Integration</mat-label>
+                        <mat-select 
+                            [ngModel]="selectedChatGptIntegration()" 
+                            (selectionChange)="onChatGptIntegrationChange($event.value)">
+                            @for (integration of chatGptIntegrations(); track integration.externalId) {
+                                <mat-option [value]="integration">
+                                    {{integration.name}}
+                                </mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field>
+                        <mat-label>Model</mat-label>
+                        <mat-select 
+                            [ngModel]="selectedChatGptModelAlias()"
+                            [disabled]="!selectedChatGptIntegration()"
+                            (selectionChange)="selectedChatGptModelAlias.set($event.value)">
+                            @for (model of selectedChatGptIntegration()?.models || []; track model) {
+                                <mat-option [value]="model.alias">
+                                    {{model.alias}}
+                                </mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field class="flex-grow-1">
+                        <mat-label>Include in conversation</mat-label>
+
+                        @let selectableContent = filteredSelectableContentTypes();
+
+                        <mat-select 
+                            [ngModel]="selectedAiContentTypes()"
+                            [disabled]="!selectedChatGptModel()"
+                            (selectionChange)="selectedAiContentTypes.set($event.value)"
+                            multiple>
+                            
+                            <!-- Main file option -->
+                            @let isMainFileSelectable = selectableContent.includes('file:' + fileVal.externalId);
+                            @let mainFileLackOfCompatibilityReason = getFileLackOfCompatibilityReason(fileVal.extension, fileVal.sizeInBytes);
+
+                            <mat-option 
+                                [value]="'file:' + fileVal.externalId" 
+                                [disabled]="!isMainFileSelectable">
+                                <span>
+                                    {{fileVal.name() + fileVal.extension}}
+                                    
+                                    @if(!isMainFileSelectable) {
+                                        <span class="subtitle">
+                                            <br>(Not compatible with selected model - {{mainFileLackOfCompatibilityReason}})
+                                        </span>
+                                    }
+
+                                </span>
+                            </mat-option>
+                    
+                            <!-- Textract result files -->
+                            @if(allAttachmentFilesVal.length) {
+                                @for (file of allAttachmentFilesVal; track file.externalId) {
+                                    @let isFileSelectable = selectableContent.includes('file:' + file.externalId);
+                                    @let fileLackOfCompatibilityReason = getFileLackOfCompatibilityReason(file.extension, file.sizeInBytes);
+
+                                    <mat-option 
+                                        [value]="'file:' + file.externalId"
+                                        [disabled]="!isFileSelectable">
+                                        <span>
+                                            {{file.name() + file.extension}}
+
+                                            @if(!isFileSelectable) {
+                                                <span class="subtitle">
+                                                    <br>(Not compatible with selected model - {{fileLackOfCompatibilityReason}})
+                                                </span>
+                                            }
+                                        </span>
+                                    </mat-option>
+                                }
+                            }
+                        </mat-select>
+                        
+                        <!-- Add a hint with selected model limitations -->
+                        @if(selectedChatGptModel()) {
+                            <mat-hint class="subtitle">
+                                {{ selectedChatGptModel()?.alias }} supports: 
+                                {{ selectedChatGptModel()?.supportedFileTypes?.join(', ') }} files up to 
+                                {{ selectedChatGptModel()?.maxIncludeSizeInBytes | storageSize}}
+                            </mat-hint>
+                        }
+                    </mat-form-field>
+                </div>
+
+                <app-ai-message
+                    (sent)="aiMessageSent($event)">                
+                </app-ai-message>
+            </div>
+        }
+       
+    </div>
+}
+
+@if(aiConversationsVal.length || isAiAvailableVal) {
+    <div class="preview-bottom-section">
+        <div>
+            <div class="subtitle-header">
+                <div class="item">
+                    <div class="item__details">
+                        <div class="item__title">
+                            AI Conversations:
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-row flex-gap-05 ml-auto">
+                    @if(isAiAvailableVal && !activeAiConversationVal) {
+                        <app-action-btn
+                            tooltip="Start AI conversation"
+                            icon="icon-nucleo-chat-bot"
+                            (clicked)="startAiConversation()">
+                        </app-action-btn>
+                    }
+                </div>
+            </div>
+
+            <div class="flex-column mt-1">
+                @let aiConversationOperationsVal = aiConversationOperations();
+
+                @for (conversation of aiConversationsVal; track conversation.fileArtifactExternalId) {
+                    <app-ai-conversation-item
+                        [conversation]="conversation"
+                        [operations]="aiConversationOperationsVal"
+                        [activeConversationExternalId]="activeAiConversationVal?.aiConversationExternalId"
+                        (deleted)="onAiConversationDeleted(conversation, $event)"
+                        (prefetchRequested)="onAiConversationPrefetch(conversation)"
+                        (clicked)="onAiConversationOpened(conversation)"
+                        (continued)="onAiConversationOpened(conversation)">                            
+                    </app-ai-conversation-item>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+
+
+@if(isTextractModeActiveVal) {
+    <div class="preview-bottom-section">
+        <div class="subtitle-header">
+            <div class="item">
+                <div class="item__details">
+                    <div class="item__title">
+                        Textract:
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex-row flex-gap-05 ml-auto">
+                <app-action-btn
+                    [disabled]="!canStartTextractJob()"
+                    tooltip="Start analysis"
+                    icon="icon-nucleo-file-search"
+                    (clicked)="startTextractJob()">
+                </app-action-btn>
+                
+                @if(isTextractExplanationVisible()) {
+                    <app-action-btn
+                        tooltip="Hide explanation"
+                        icon="icon-lucide-xmark"
+                        (clicked)="isTextractExplanationVisible.set(false)">
+                    </app-action-btn>
+                } @else {
+                    <app-action-btn
+                        tooltip="What is textract?"
+                        icon="icon-lucide-question"
+                        (clicked)="isTextractExplanationVisible.set(true)">
+                    </app-action-btn>
+                }
+                
+                <app-action-btn
+                    tooltip="Cancel"
+                    icon="icon-lucide-xmark"
+                    (clicked)="isTextractModeActive.set(false)">
+                </app-action-btn>
+            </div>
+        </div>
+        
+        @if(isTextractExplanationVisible()) {
+            <div class="description-box">
+                Textract analyzes documents using AI to extract text, data, and relationships.
+
+                <br><br>
+                <strong>Layout:</strong> Identifies document structure and text placement, maintaining formatting and relationships between elements.
+                
+                <br><br>
+                <strong>Tables: </strong> Extracts tabular data while preserving row and column relationships for structured analysis.
+                
+                <br><br>
+                <strong>Forms:</strong> Detects and extracts form fields, checkboxes, and their values for automated processing.
+            </div>
+        }
+            
+        <div class="flex-row flex-gap-05">
+            @if(isTextractLayoutScanAvailable()) {
+                <mat-checkbox
+                    [ngModel]="textractLayoutScan()"
+                    (change)="textractLayoutScan.set(!textractLayoutScan())">
+                    Layout
+                </mat-checkbox> 
+            } 
+
+            @if(isTextractTablesScanAvailable()) {
+                <mat-checkbox
+                    [ngModel]="textractTablesScan()"
+                    (change)="textractTablesScan.set(!textractTablesScan())">
+                    Tables
+                </mat-checkbox>  
+            }
+            
+            @if(isTextractFormsScanAvailable()) {
+                <mat-checkbox
+                    [ngModel]="textractFormsScan()"
+                    (change)="textractFormsScan.set(!textractFormsScan())">
+                    Forms
+                </mat-checkbox>  
+            }
+        </div>
+
+        @let runningTextractJobsVal = runningTextractJobs();
+
+        @if(runningTextractJobsVal.length) {
+            <div class="flex-column flex-gap-1 textract-job-progress-container">
+                @for (textractJob of runningTextractJobsVal; track textractJob.externalId) {
+                    <div class="flex-column">
+                        <div class="flex-row textract-job-details">
+                            <div>
+                                @for (feature of textractJob.features; track $index) {
+                                    <span>{{feature}}</span>    
+                                }
+                            </div>
+
+                            <div class="ml-auto">{{textractJob.status()}}</div>
+                        </div>
+
+                        <div class="textract-job-progress">
+                            <mat-progress-bar 
+                                mode="determinate" 
+                                [value]="textractJob.progressPercentage()">
+                            </mat-progress-bar>
+                        </div>
+                    </div>
+                }
+            </div>
+        }               
+    </div>
+}
+    
+@if(allAttachmentFilesVal.length || isTextractAvailableVal) {
+    <div class="preview-bottom-section">
+        <div>
+            <div class="subtitle-header">
+                <div class="item">
+                    <div class="item__details">
+                        <div class="item__title">
+                            Attachments:
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-row flex-gap-05 ml-auto">
+                    @if(isTextractAvailableVal && !isTextractModeActiveVal){
+                        <app-action-btn
+                            tooltip="Start Textract analysis"
+                            icon="icon-nucleo-file-search"
+                            (clicked)="isTextractModeActive.set(true)">
+                        </app-action-btn>
+                    }
+                </div>
+            </div>
+
+            <div class="flex-column mt-1">
+                @for (file of allAttachmentFilesVal; track file.externalId) {
+                    <app-file-item
+                        [file]="file"
+                        [allowDelete]="true"
+                        [allowDownload]="true"
+                        [allowMoveItems]="false"
+                        [allowRename]="true"
+                        [canOpen]="true"
+                        [canSelect]="false"
+                        [operations]="fileOperations()"
+                        (previewed)="onTextractResultPreview(file)"
+                        (deleted)="onAttachmentDeleted(file)">                            
+                    </app-file-item>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@if(allowNotesVal || allowCommentsVal) { 
+    <div class="preview-bottom-section">
+        <div>            
+            @if(allowNotesVal) {            
+                <div class="subtitle-header">
+                    <div class="item">
+                        <div class="item__details">
+                            <div class="item__title">
+                                Notes:
+                            </div>
+                        </div>
+                    </div>
+                
+                    @if(noteJsonVal) {
+                        <div class="flex-row ml-auto">
+                            <div class="note-header">           
+                                Last change: {{noteChangedBy()}} | {{noteChangedWhen()}}
+                            </div>
+                        </div>
+                    }
+                </div>
+                
+                <div class="mt-2"></div>
+                
+                <app-rich-text-editor
+                    [placeholder]="'Add notes...'"
+                    [json]="noteJsonVal"
+                    [updateOperation]="fileNoteUpdateOperation()">    
+                </app-rich-text-editor>
+            }
+            
+            @if(allowCommentsVal) {
+                <div class="subtitle-header">
+                    <div class="item">
+                        <div class="item__details">
+                            <div class="item__title">
+                                Comments:
+                            </div>
+                        </div>
+                    </div>
+                
+                    <div class="flex-row ml-auto">
+                    </div>
+                </div>
+                
+                <div class="mt-2"></div>
+                
+                @for (comment of comments(); track comment.externalId) {
+                    <app-comment
+                        [comment]="comment"
+                        (edited)="commentEdited(comment)"
+                        (deleted)="commentDeleted(comment)">    
+                    </app-comment>
+                
+                    <div class="mt-2"></div>
+                }
+                
+                <app-comment
+                    (sent)="commentSent($event)">    
+                </app-comment>
+            }
+        </div>
+    </div>
+}

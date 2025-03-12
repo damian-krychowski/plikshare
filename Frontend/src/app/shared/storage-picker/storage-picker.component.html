@@ -1,0 +1,42 @@
+<div class="questionaire">
+    @if(hasAnyStorage()) {
+        <div class="questionaire__title">
+            Which storage do you want to use?
+        </div>
+    
+        <div class="questionaire__content" >
+            @for(storage of storages(); track storage.externalId) {
+                <app-storage-item 
+                    [storage]="storage"
+                    [pickerMode]="true"
+                    (clicked)="onStoragePicked(storage)">
+                </app-storage-item>
+            }
+        </div>
+    } @else {
+        <div class="questionaire__title">
+            {{data.noStoragesMessage ?? 'No storage was configured yet.'}}
+        </div>
+    
+        <div class="questionaire__content" >
+            <app-item-btn
+                title="Configure Storage"
+                subtitle="Click here to configure a storage!"
+                icon="icon-lucide-server"
+                (clicked)="onConfigureStorage()">                
+            </app-item-btn>
+        </div>
+    }
+
+    <div class="mt-3"></div>
+
+    <div class="questionaire__actions"> 
+        <button type="button" 
+            class="questionaire__btn mr-1"
+            mat-flat-button
+            aria-label="Cancel"
+            (click)="onCancel()">
+            Cancel
+        </button>
+    </div>
+</div>

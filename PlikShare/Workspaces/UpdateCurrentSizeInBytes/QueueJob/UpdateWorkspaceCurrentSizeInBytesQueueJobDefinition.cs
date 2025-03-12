@@ -1,0 +1,3 @@
+namespace PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
+
+public record UpdateWorkspaceCurrentSizeInBytesQueueJobDefinition(int WorkspaceId);

@@ -1,0 +1,75 @@
+@let commentVal = comment();
+
+<div class="comment-container"
+    [class.comment-container--sent]="commentVal">
+    @if(commentVal) {
+        <div class="comment-header">
+            <div>                
+                <i class="icon icon-circle-user comment-header__icon"></i> 
+                <span class="comment-header__user">{{commentVal.createdBy}}</span>
+                <span class="comment-header__details">
+                    <app-relative-time [datetime]="commentVal.createdAt"></app-relative-time>
+                    @if(wasEdited()) {                    
+                        | edited
+                    }
+                </span>
+
+               
+            </div>
+
+            <div class="flex-row ml-auto">
+                @if(isBeingEdited()) {
+                    <app-action-btn
+                        tooltip="Save"
+                        icon="icon-lucide-check"
+                        (clicked)="confirmEdit()">
+                    </app-action-btn>
+                    
+                    <app-action-btn
+                        tooltip="Cancel"
+                        icon="icon-lucide-xmark"
+                        (clicked)="cancelEdit()">
+                    </app-action-btn>
+                } @else {
+                    @if(isUserAuthor()) {
+                        <app-action-btn
+                            tooltip="Edit"
+                            icon="icon-nucleo-pen"
+                            (clicked)="startEdit()">
+                        </app-action-btn>
+                    }
+        
+                    @if(isUserAuthor() || auth.isAdmin()) {
+                        <app-action-btn
+                            tooltip="Delete"
+                            icon="icon-nucleo-remove"
+                            appConfirmOperation 
+                            [operationItem]="'this comment'"
+                            [verb]="'delete'"
+                            [isOperationDanger]="true"
+                            (confirmedClick)="deleteComment()">
+                        </app-action-btn>
+                    }
+                }                
+            </div>
+        </div>
+    }
+
+    <app-lexical-editor 
+        #editor
+        [placeholder]="'Leave a comment...'"
+        [isReadOnly]="commentVal != null && !isBeingEdited()"
+        [isToolbarFloating]="true"
+        [savedJsonState]="json()"
+        (editorStateChange)="editorStateChanged($event)">        
+    </app-lexical-editor>
+
+    @if(!commentVal) {
+        <app-action-btn
+            class="send-btn"
+            tooltip="Send"
+            icon="icon-nucleo-message-arrow-right"
+            (clicked)="sendComment()">
+        </app-action-btn>
+    }   
+</div>

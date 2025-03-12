@@ -1,0 +1,168 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        Add SMTP
+    </div>
+
+    <form class="questionaire__form" (submit)="onSubmitConfiguration()" [formGroup]="configFormGroup">
+        <div>
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>Name</mat-label>
+    
+                <input 
+                    id="name"
+                    type="text" 
+                    formControlName="name"
+                    placeholder="My SMTP server"
+                    matInput>
+    
+                @if ((name.touched || wasSubmitted()) && name.hasError('required')) {
+                    <mat-error>Name is <strong>required</strong></mat-error>
+                }
+    
+                @if ((name.touched || wasSubmitted()) && name.hasError('notUnique')){
+                    <mat-error>Name is <strong>not unique</strong></mat-error>        
+                }
+            </mat-form-field>
+        </div>
+
+        <div>
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>Send email from</mat-label>
+    
+                <input 
+                    id="emailFrom"
+                    type="text" 
+                    formControlName="emailFrom"
+                    placeholder="PlikShare <service@plikshare.com>"
+                    matInput>
+    
+                @if ((emailFrom.touched || wasSubmitted()) && name.hasError('required')) {
+                    <mat-error>Send email from is <strong>required</strong></mat-error>
+                }
+            </mat-form-field>
+    
+            <div class="questionaire__info">
+                This setting defines the &ldquo;From&rdquo; address displayed to recipients of system-generated emails, such as password reset requests or workspace invitations.
+                Expected format: <br> PlikShare &lt;service&#64;plikshare.com&gt;
+            </div>
+        </div>
+
+        <div class="questionaire__section-title">
+            Configuration:
+        </div>
+
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>SMTP Hostname</mat-label>
+
+            <input 
+                id="smtpHostname"
+                type="text" 
+                matInput 
+                appTrim
+                formControlName="smtpHostname">
+
+            @if ((smtpHostname.touched || wasSubmitted()) && smtpHostname.hasError('required')) {
+                <mat-error>Hostname is <strong>required</strong></mat-error>
+            }    
+        </mat-form-field>
+
+       <div class="flex-row flex-gap-05">
+            <mat-form-field class="questionaire__form-field smtp-port-form-field">
+                <mat-label>SMTP Port</mat-label>
+
+                <input 
+                    id="smtpPort"
+                    type="text" 
+                    matInput 
+                    appTrim
+                    formControlName="smtpPort">
+
+                @if ((smtpPort.touched || wasSubmitted()) && smtpPort.hasError('required')) {
+                    <mat-error>Port is <strong>required</strong></mat-error>
+                }    
+            </mat-form-field>
+
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>TLS / SSL</mat-label>
+
+                <mat-select
+                    id="sslMode"
+                    formControlName="sslMode">
+                    @for (mode of sslModes; track mode.value) {
+                        @if(mode.value === 'sslOnConnect' || mode.value === 'startTls') {
+                            <mat-option [value]="mode.value">
+                                <div class="show-security-tip">{{mode.name}}</div>
+                            </mat-option>
+                        } @else {
+                            <mat-option [value]="mode.value">
+                                {{mode.name}}
+                            </mat-option>
+                        }
+                    }
+                </mat-select>
+
+                @if ((sslMode.touched || wasSubmitted()) && sslMode.hasError('required')) {
+                    <mat-error>TLS/SSL Mode is <strong>required</strong></mat-error>
+                }    
+            </mat-form-field>
+       </div>
+
+       <mat-form-field class="questionaire__form-field">
+            <mat-label>Email / Username</mat-label>
+
+            <input 
+                id="username"
+                type="text" 
+                matInput 
+                appTrim
+                formControlName="username">
+
+            @if ((username.touched || wasSubmitted()) && username.hasError('required')) {
+                <mat-error>Username is <strong>required</strong></mat-error>
+            }    
+        </mat-form-field>
+
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Password</mat-label>
+
+            <input 
+                id="password"
+                type="text" 
+                matInput 
+                appSecureInput
+                appTrim
+                formControlName="password">
+
+            @if ((password.touched || wasSubmitted()) && password.hasError('required')) {
+                <mat-error>Password is <strong>required</strong></mat-error>
+            }    
+        </mat-form-field>
+
+        @if(couldNotConnect()){
+            <mat-error>Email Provider configuration is incorrect - sending confirmation email has failed.</mat-error>        
+        }
+
+        @if(connectionError(); as connectionErrorValue) {            
+            <mat-error>Error details: <br> {{connectionErrorValue}}</mat-error>        
+        }
+
+        <div class="mt-3 d-none-on-mobile"></div>
+
+        <div class="questionaire__actions"> 
+            <button type="button" class="questionaire__btn mr-1" mat-flat-button
+                aria-label="Cancel"
+                (click)="cancel()"
+                [disabled]="isLoading()">
+                Cancel
+            </button>
+            
+            <button type="submit" class="questionaire__btn" mat-flat-button
+                [class.questionaire__btn--disabled]="configFormGroup.invalid"
+                [class.questionaire__btn--loading]="isLoading()"
+                aria-label="Test configuration"
+                [disabled]="isLoading()">
+                Test configuration
+            </button>
+        </div>
+    </form>
+</div>

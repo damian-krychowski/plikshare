@@ -1,0 +1,31 @@
+@import "./../styles/spacer.scss";
+@import "./../styles/static-page-variables.scss";
+@import "./../../../styles/main-container.scss";
+@import "./../../../styles/variables.scss";
+
+.not-found-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    &__header {
+        font-size: 3rem;
+        font-family: $headerFontFamily;
+        font-weight: 400;
+        margin: 0;
+
+        @media (max-width: $mobile-breakpoint) {
+            font-size: 2rem;
+        }
+    }
+
+    .icon {
+        font-size: 10rem;
+
+        @media (max-width: $mobile-breakpoint) {
+            font-size: 5rem;
+        }
+    }
+
+}

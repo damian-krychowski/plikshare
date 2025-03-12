@@ -1,0 +1,46 @@
+@import "./../../../styles/files-explorer-container.scss";
+@import "./../../../styles/nothing-to-show.scss";
+
+.icon-danger {
+    color: var(--company-danger);
+}
+
+.warning-header-container {
+    background-color: white;
+    border-bottom: 1px solid #E0E0E0;
+}
+
+.warning {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0.3rem 0.5rem;
+
+    &__details {
+        display: flex;
+        align-items: center;
+        flex-direction: row;
+        gap: 0.5rem;
+    }
+
+    &__content {
+        display: flex;
+        flex-direction: row;
+        gap: 0.1rem;
+        padding: 0.3rem 0.5rem;
+    }
+}
+
+.external-link-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+
+    padding-top: 1rem;
+}
+
+.powered-by {    
+    padding-top: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--company-grey-font);
+}

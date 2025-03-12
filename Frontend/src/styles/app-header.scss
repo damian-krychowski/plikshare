@@ -1,0 +1,36 @@
+.app-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.5rem;
+}
+
+.title-header {
+    @extend .app-header;
+    min-height: 3.5rem;
+    border-bottom: 1px solid var(--company-grey-accent);
+
+    &--danger {
+        color: var(--company-danger);
+        border-color: var(--company-danger);
+    }
+}
+
+.title-header-explanation {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    padding-left: 0.5rem;
+}
+
+.subtitle-header {
+    @extend .app-header;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--company-grey-accent-light);
+}
+
+.explanation {
+    font-size: 0.9rem;
+    color: var(--company-grey-font);
+    padding-left: 0.5rem;
+}

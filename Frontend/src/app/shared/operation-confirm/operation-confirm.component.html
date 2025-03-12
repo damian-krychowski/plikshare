@@ -1,0 +1,21 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+       Are you sure you want to {{verb}} {{item}}?
+    </div>
+
+    <div class="questionaire__subtitle">
+        This operation cannot be reverted.
+    </div>
+
+    <div class="mt-5"></div>
+    
+    <div class="questionaire__actions"> 
+        <button class="questionaire__btn ml-2" (click)="onCancel()"  mat-flat-button>
+            Cancel
+        </button> 
+
+        <button class="questionaire__btn {{isDanger ? 'questionaire__btn--danger' : ''}} verb-btn" (click)="onConfirm()"  mat-flat-button cdkFocusInitial>
+            {{verb}}
+        </button>  
+    </div> 
+</div>

@@ -1,0 +1,250 @@
+<div class="app-container">
+    <div class="top-bar">
+        @if(!searchInput.isSearchActive()) {
+            <div class="top-bar__header">
+                <div class="top-nav-icon"> 
+                    <i class="icon icon-xl icon-nucleo-home"></i>  
+                </div>    
+    
+                <div class="flex-column">
+                    <div class="top-bar__title">
+                        Dashboard
+                    </div>
+    
+                    <div class="top-bar__subtitle">
+                         {{ auth.userEmail() }}
+                    </div>
+                </div>
+            </div>
+        }
+
+        <app-search-input #searchInput
+            class="ml-auto">            
+        </app-search-input>
+
+        @if(!searchInput.isSearchActive()) {
+            <app-settings-menu-btn
+                [isDanger]="!hasAnyStorage()">                
+            </app-settings-menu-btn>         
+        }    
+    </div>
+    
+    @if(searchInput.isSearchActive()){
+        <div class="overflow-hidden" @searchSlideAnimation>
+            <app-search>        
+            </app-search>
+        </div>
+    }
+
+    <div class="content" [class.covered]="searchInput.isSearchActive()"> 
+        @if(!isLoading() && !hasAnyStorage()) {
+            <div class="mt-3"></div>
+
+            <div class="title-header">  
+                <div>
+                    Welcome to PlikShare!
+                </div>
+            </div>  
+
+            <div class="mt-2"></div>
+
+            @if(auth.isAdmin()) {
+                <div class="setup-explanation">
+                    <p>Before you can start using PlikShare, you need to complete the configuration. Please follow these steps:</p>
+                    
+                    <div class="step">
+                        <p><span class="step__number">Step 1:</span> Go to the settings page
+                           <br>(Look for the red cog icon  <i class="icon icon-sm icon-nucleo-settings icon--danger"></i> in the top right corner)
+                        </p>
+                    </div>
+                    
+                    <div class="step">
+                        <p><span class="step__number">Step 2:</span> Configure Storage
+                           <br>Set up access to disk space for PlikShare
+                        </p>
+                    </div>
+                    
+                    <div class="step">
+                        <p><span class="step__number">Step 3:</span> Set Up Email
+                           <br>Enable PlikShare to send application messages (invitations, confirmations, etc.)
+                        </p>
+                    </div>
+
+                    <p>When that is done you can start creating your workspaces and invite some users. Good luck!</p>
+                </div>
+            } @else {
+                <div class="setup-explanation">
+                    <p>Before you can start using PlikShare, application configuration needs to be completed. Please contact the administrator to learn when it is planned</p>
+                </div>
+            }
+
+            <div class="mt-2"></div>
+        }
+
+        @if(showWorkspacesSection()) {
+            <div class="mt-3"></div>
+
+            <div class="title-header">  
+                <div>
+                    Your workspaces:
+                </div>
+
+                <div class="flex-row ml-auto">
+                    @if(canAddWorkspace()) {
+                        <app-action-btn
+                            tooltip="Create new workspace"
+                            icon="icon-nucleo-workspace-plus"
+                            (clicked)="createNewWorkspace()">                            
+                        </app-action-btn>
+                    }
+                </div>
+            </div>   
+
+            <div class="mt-2"></div>    
+        }   
+        
+        @for(workspace of workspaces(); track workspace.externalId()) {
+            <app-workspace-item 
+                [workspace]="workspace"
+                [canOpen]="!isAnyNameEditing()"
+                [isAdminView]="false"
+                [canLocate]="false"
+                (deleted)="onWorkspaceDelete(workspace)"
+                (ownerChanged)="onWorkspaceOwnerChange(workspace)">
+            </app-workspace-item>
+        }
+
+        @if(canAddWorkspace()) {
+            <div>
+                <div class="mt-2"></div>       
+
+                <app-item-btn
+                    title="Add new workspace"
+                    subtitle="Click here to create empty workspace!"
+                    icon="icon-nucleo-workspace-plus"
+                    (clicked)="createNewWorkspace()">                     
+                </app-item-btn>
+            </div>
+        }
+
+        @if(hasAnySharedWorkspace()) {
+            <div class="mt-3"></div>  
+
+            <div class="title-header mt-2">
+                Shared workspaces:
+            </div>          
+
+            <div class="mt-2"></div>
+            
+            @for(workspace of sharedWorkspaces(); track workspace.externalId()) {
+                <app-workspace-item 
+                    [workspace]="workspace"
+                    [canOpen]="!isAnyNameEditing()"
+                    [isAdminView]="false"
+                    [canLocate]="false"
+                    (left)="onSharedWorkspaceLeft(workspace)"
+                    (deleted)="onSharedWorkspaceDelete(workspace)"
+                    (ownerChanged)="onWorkspaceOwnerChange(workspace)">
+                </app-workspace-item>
+            }
+        }
+
+        @if(hasAnyIntegrationWorkspace()) {
+            <div class="mt-3"></div>  
+
+            <div class="title-header mt-2">
+                Integration workspaces:
+            </div> 
+
+            <div class="mt-2"></div>
+            
+            @for(workspace of integrationWorkspaces(); track workspace.externalId()) {
+                <app-workspace-item 
+                    [workspace]="workspace"
+                    [canOpen]="!isAnyNameEditing()"
+                    [isAdminView]="false"
+                    [canLocate]="false"
+                    (left)="onIntegrationWorkspaceLeft(workspace)"
+                    (deleted)="onIntegrationWorkspaceDelete(workspace)"
+                    (ownerChanged)="onWorkspaceOwnerChange(workspace)">
+                </app-workspace-item>
+            }
+        }
+
+        @if(hasAnySharedBox()) {
+            <div class="mt-3"></div>  
+
+            <div class="title-header mt-2">
+                Shared boxes:
+            </div>          
+
+            <div class="mt-2"></div>
+            
+            @for(box of sharedBoxes(); track box.boxExternalId()) {
+                <app-external-box-item
+                    [externalBox]="box"
+                    [canOpen]="!isAnyNameEditing()"
+                    (leave)="onExternalBoxLeft(box)">                        
+                </app-external-box-item>
+            }
+        }
+
+        @if(hasAnyInvitation()) {
+            <div class="mt-3"></div>  
+
+            <div class="title-header">
+                Invitations:
+            </div> 
+
+            <div class="mt-2"></div>
+            
+            @for(invitation of workspaceInvitations(); track invitation.externalId()) {
+                <app-workspace-invitation-item
+                    [invitation]="invitation"
+                    (accepted)="acceptWorkspaceInvitation(invitation)"
+                    (rejected)="rejectWorkspaceInvitation(invitation)">                
+                </app-workspace-invitation-item>
+            }
+
+            @for(invitation of boxInvitations(); track invitation.boxExternalId()) {
+                <app-box-invitation-item
+                    [invitation]="invitation"
+                    (accepted)="acceptBoxInvitation(invitation)"
+                    (rejected)="rejectBoxInvitation(invitation)"
+                    [isAdminView]="false">                    
+                </app-box-invitation-item>
+            }
+        } 
+
+        @if(hasAnyOtherWorkspace()) {
+            <div class="mt-3"></div>
+
+            <div class="title-header"> 
+                Other workspaces:           
+            </div>   
+
+            <div class="title-header-explanation">
+                You can see them because you are an Admin
+            </div>
+
+            <div class="mt-2"></div>    
+        }   
+        
+        @for(workspace of otherWorkspaces(); track workspace.externalId()) {
+            <app-workspace-item 
+                [workspace]="workspace"
+                [canOpen]="!isAnyNameEditing()"
+                [isAdminView]="false"
+                [canLocate]="false"
+                (deleted)="onOtherWorkspaceDelete(workspace)"
+                (ownerChanged)="onWorkspaceOwnerChange(workspace)">
+            </app-workspace-item>
+        }
+    </div>
+
+    <div class="mt-auto">
+        <app-footer
+            [mode]="'light'">
+        </app-footer>
+    </div>
+</div>    

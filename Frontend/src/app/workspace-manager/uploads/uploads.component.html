@@ -1,0 +1,18 @@
+<div class="title-header">
+    <div>
+        Your pending uploads:
+    </div>
+</div>    
+
+<div class="mt-2"></div>
+
+
+@if(fileUploadApi(); as fileUploadApiValue) {
+    @for(upload of uploads(); track upload.externalId()) {
+        <app-upload-list-item
+            [upload]="upload"
+            [fileUploadApi]="fileUploadApiValue"
+            (aborted)="onUploadAborted(upload)">        
+        </app-upload-list-item>    
+    }
+}

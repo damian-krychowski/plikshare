@@ -1,0 +1,15 @@
+<div class="main-container">
+    <app-top-bar></app-top-bar>
+
+    <div class="pdf-container">
+        @if(entryPage.termsOfServiceSafePath(); as safePath) {
+          <object [data]="safePath" type="application/pdf" class="pdf-object">
+            <p>Unable to display PDF file. <a [href]="safePath">Download</a> instead.</p>
+          </object>
+        }
+    </div>
+      
+    <div class="mt-auto">
+        <app-footer></app-footer>
+    </div>
+</div>

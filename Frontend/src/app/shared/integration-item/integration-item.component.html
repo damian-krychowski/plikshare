@@ -1,0 +1,79 @@
+@let integrationVal = integration();
+
+<div class="item-bar flex-row">
+    <div class="item"
+        [class.item--highlighted]="isHighlighted()"  
+        [class.item--in-background]="areActionsVisible()"
+        (click)="onClicked()">
+        <i class="icon icon-xl icon-nucleo-plug"></i>   
+
+        <div class="item__details">
+            <app-editable-txt #nameTxt
+                [text]="integrationVal.name()"
+                [isEditing]="integrationVal.isNameEditing()"
+                (valueChange)="saveName($event)"
+                (editingStarted)="integrationVal.isNameEditing.set(true)"
+                (editingStopped)="integrationVal.isNameEditing.set(false)">                    
+            </app-editable-txt>
+
+            <div class="item__subtitle">
+                <span>Type: {{integrationVal.type}}</span>
+            </div>            
+
+            <div class="item__subtitle">
+                Workspace: <app-workspace-link [workspace]="integrationVal.workspace"></app-workspace-link>
+            </div>  
+        </div>
+    </div>
+
+    <div class="item-bar__actions">
+        @if(integrationVal.isNameEditing()) {
+            <app-action-btn
+                tooltip="Save name"
+                icon="icon-lucide-check"
+                (clicked)="nameTxt.save()">                    
+            </app-action-btn>
+        } @else {
+            <app-action-btn
+                tooltip="Edit name"
+                icon="icon-nucleo-pen"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                (clicked)="editName()">                    
+            </app-action-btn>       
+            
+            @if(!integrationVal.isActive()) {
+                <app-action-btn
+                    tooltip="Activate"
+                    icon="icon-lucide-circle-check"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    (clicked)="onActivate()">                    
+                </app-action-btn>  
+            } @else {
+                <app-action-btn
+                    tooltip="Deactivate"
+                    icon="icon-lucide-circle-xmark"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    (clicked)="onDeactivate()">                    
+                </app-action-btn>  
+            }
+
+            <app-action-btn
+                tooltip="Delete"
+                icon="icon-nucleo-remove"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                [operationItem]="'this email provider'"
+                [verb]="'delete'"
+                [isOperationDanger]="true"
+                appConfirmOperation
+                (confirmedClick)="delete()">                    
+            </app-action-btn>
+        
+            <app-action-btn
+                tooltip="Actions"
+                icon="icon-lucide-dots"
+                class="d-none-on-desktop"
+                (clicked)="toggleActions()">                    
+            </app-action-btn>
+        }            
+    </div>          
+</div>            

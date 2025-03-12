@@ -1,0 +1,73 @@
+@import "./../../../../styles/variables.scss";
+
+.footer {
+    background-color: #18181B;
+    width: 100%;
+    color: rgb(161, 161, 170);
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 2rem;
+    padding-top: 4rem;
+
+    &--light {
+        background-color: var(--company-background);
+        color: black;
+
+        .powered-by-link {
+            color: black;
+        }
+
+        .footer__link {
+            color: black;
+        }
+    }
+
+    &__container {
+        width: 100%;
+        max-width: 1000px;
+        margin-left: auto;
+        margin-right: auto;
+        
+        padding-top: 2rem;
+
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5rem;
+        align-items: end;
+        
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+
+        border-top: 1px solid rgb(161, 161, 170);
+
+        @media (max-width: $mobile-breakpoint) {
+            flex-direction: column;
+            padding-top: 1rem;
+            font-size: var(--company-small-font);
+        }
+    }
+
+    &__links {
+        margin-left: auto;
+    }
+
+    &__link {
+        text-decoration: none;
+        color: rgb(161, 161, 170);
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+}
+
+.powered-by-link {
+    color: white;
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}

@@ -1,0 +1,163 @@
+<div class="app-container">
+    <div class="top-bar">
+        @if(!searchInput.isSearchActive()) {
+            <div class="top-bar__header">
+                <button class="top-nav-btn" 
+                    aria-label="Dashboard" 
+                    mat-flat-button  
+                    matTooltip="Go back to dashboard"
+                    matTooltipPosition="below"
+                    (prefetch)="dataStore.prefetchDashboardData()"
+                    (click)="goToDashboard()">                 
+                    <div class="icon-merge">
+                        <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>   
+                        <i class="icon icon-xl icon-nucleo-workspace  icon-merge--front"></i>   
+                    </div>
+                </button> 
+
+                <div class="flex-column">
+                    <div class="top-bar__title">
+                        {{ workspaceName() }}
+                    </div>
+
+                    <div class="top-bar__subtitle">
+                        Size: {{ currentSizeInBytes() | storageSize }}
+                    </div>
+                </div>
+            </div>
+
+
+            @if(anyPendingUploads()) {
+                <button class="top-nav-btn d-none-on-mobile-early" 
+                    [class.top-nav-btn--active]="isUploadsActive()"
+                    aria-label="Uploads" 
+                    mat-flat-button  
+                    matTooltip="Uploads"
+                    matTooltipPosition="below"
+                    [matBadge]="pendingUploadCount()"
+                    (prefetch)="prefetchUploads()"
+                    (click)="goToUploads()"> 
+                    <i class="icon icon-xl icon-nucleo-upload"></i>
+                </button> 
+            }
+
+            <button class="top-nav-btn d-none-on-mobile-early"
+                [class.top-nav-btn--active]="isExplorerActive()"
+                aria-label="Explorer" 
+                mat-flat-button  
+                matTooltip="Explorer"
+                matTooltipPosition="below"
+                (prefetch)="prefetchWorkspaceTopFolders()"
+                (click)="goToExplorer()"> 
+                <i class="icon icon-xl icon-nucleo-explorer"></i>    
+            </button> 
+
+            <button class="top-nav-btn d-none-on-mobile-early" 
+                [class.top-nav-btn--active]="isBoxesActive()"
+                aria-label="Boxes" 
+                mat-flat-button  
+                matTooltip="Boxes"
+                matTooltipPosition="below"
+                (prefetch)="prefetchBoxes()"
+                (click)="goToBoxes()"> 
+                <i class="icon icon-xl icon-nucleo-box"></i>
+            </button> 
+
+            @if(allowShare()) {
+                <button
+                    class="top-nav-btn d-none-on-mobile-early" 
+                    [class.top-nav-btn--active]="isTeamActive()"
+                    aria-label="Team" 
+                    mat-flat-button  
+                    matTooltip="Team"
+                    matTooltipPosition="below"
+                    (prefetch)="prefetchWorkspaceMemberList()"
+                    (click)="goToTeam()"> 
+                    <i class="icon icon-xl icon-nucleo-team"></i>
+                </button> 
+            }            
+
+            <div class="ml-2"></div>
+        }
+
+        <div class="ml-auto d-none-on-desktop-early">            
+        </div>
+
+        <app-search-input #searchInput>            
+        </app-search-input>
+
+        @if(!searchInput.isSearchActive()) {
+            <app-settings-menu-btn class="d-none-on-mobile-early">
+            </app-settings-menu-btn>   
+
+            <button class="top-nav-btn d-none-on-desktop-early"
+                (click)="toggleMenu()"
+                aria-label="Menu" 
+                mat-flat-button  
+                matTooltip="{{isMenuOpen() ? 'Close menu' : 'Open menu'}}"
+                matTooltipPosition="above">
+                <i class="icon icon-lg {{isMenuOpen() ? 'icon-lucide-xmark' : 'icon-lucide-menu'}}"></i>
+            </button> 
+        } 
+    </div>
+
+    @if(isMenuOpen()) {
+        <div class="app-menu" @menuAnimation>
+            <a class="app-menu__link" (click)="goToExplorer()"
+                [class.app-menu__link--active]="isExplorerActive()">
+                Files Explorer
+                <i class="icon icon-xl icon-nucleo-explorer"></i>    
+            </a>
+
+            <a class="app-menu__link" (click)="goToBoxes()"
+                [class.app-menu__link--active]="isBoxesActive()">
+                Boxes
+                <i class="icon icon-xl icon-nucleo-box"></i>
+            </a>
+
+            <a class="app-menu__link" (click)="goToTeam()"
+                [class.app-menu__link--active]="isTeamActive()">
+                Team
+                <i class="icon icon-xl icon-nucleo-team"></i>
+            </a>
+
+            @if(anyPendingUploads()) {
+                <a class="app-menu__link" (click)="goToUploads()"
+                    [class.app-menu__link--active]="isUploadsActive()">
+                    Uploads ({{ pendingUploadCount() }})
+                    <i class="icon icon-xl icon-nucleo-upload"></i>
+                </a>
+            }
+
+            <a class="app-menu__link" (click)="goToAccount()">
+                {{auth.canManageAnything() ? 'Settings' : 'Account'}}
+                <i class="icon icon-xl {{auth.canManageAnything() ? 'icon-nucleo-settings' : 'icon-nucleo-account'}}"></i>
+            </a>
+
+            <a class="app-menu__link" (click)="signOut()">
+                Sign out
+                <i class="icon icon-xl icon-nucleo-leave"></i>
+            </a>
+        </div>
+    }
+    
+    @if(searchInput.isSearchActive()) {
+        <div class="overflow-hidden" @searchSlideAnimation>
+            <app-search>        
+            </app-search>
+        </div>
+    }
+
+    @if(isFirstWorkspaceLoaded()) {
+        <div class="content" [class.covered]="searchInput.isSearchActive()">
+            <router-outlet>            
+            </router-outlet>
+        </div>
+    }
+
+    <div class="mt-auto">
+        <app-footer
+            [mode]="'light'">
+        </app-footer>
+    </div>
+</div>

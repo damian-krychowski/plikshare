@@ -1,0 +1,82 @@
+@let conversationVal = conversation();
+
+<div class="item-bar item-bar--clickable flex-row" 
+    [class.item-bar--selected]="isActive()" 
+    (prefetch)="prefetchRequested.emit()">
+
+    <div class="item"
+        [class.item--in-background]="areActionsVisible()"
+        (click)="onClicked()">
+        <i class="icon icon-xl icon-nucleo-robot"></i>   
+
+        <div class="item__details">
+            <app-editable-txt #nameTxt
+               [text]="conversationVal.name() ?? 'Untitled conversation'"
+               [isEditing]="isNameEditing()"
+               (valueChange)="saveName($event)"
+               (editingStarted)="conversationVal.isNameEditing.set(true)"
+               (editingStopped)="conversationVal.isNameEditing.set(false)">                    
+           </app-editable-txt>
+
+            <div class="item__subtitle">
+                <span>{{conversationVal.createdBy}} | <app-relative-time [datetime]="conversationVal.createdAt"></app-relative-time>
+                </span>                
+            </div>  
+
+            <div class="item__subtitle">
+                @let status = conversationVal.status();
+
+                <span>
+                    Messages: {{conversationVal.conversationCounter() + 1}}
+
+                    @if(status == 'has-new-messages-to-read') {
+                        +
+                    }
+                </span>
+                
+                @if(status == 'waits-for-ai-response') {
+                    <span class="blinking">processing</span>
+                } @else if(status == 'has-new-messages-to-read') {
+                    <span class="blinking">new messages</span>
+                }
+            </div>  
+        </div>
+    </div>
+
+    <div class="item-bar__actions">
+        @if(isNameEditing()) {
+            <app-action-btn
+                tooltip="Save name"
+                icon="icon-lucide-check"
+                (clicked)="nameTxt.save()">                    
+            </app-action-btn>
+        } @else {
+            <app-action-btn
+                tooltip="Edit name"
+                icon="icon-nucleo-pen"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                (clicked)="editName()">                    
+            </app-action-btn>
+        
+            <app-action-btn
+                tooltip="{{isActive() ? 'Cannot delete active conversation.' : 'Delete'}}"
+                icon="icon-nucleo-remove"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                [operationItem]="'this conversation'"
+                [verb]="'delete'"
+                [isOperationDanger]="true"
+                [isOperationDisabled]="isActive()"
+                [disabled]="isActive()"
+                appConfirmOperation
+                (confirmedClick)="delete()">                    
+            </app-action-btn>
+        
+            <app-action-btn
+                tooltip="Actions"
+                icon="icon-lucide-dots"
+                class="d-none-on-desktop"
+                (clicked)="toggleActions()">                    
+            </app-action-btn>
+        }            
+    </div>           
+</div>            

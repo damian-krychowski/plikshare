@@ -1,0 +1,54 @@
+<div class="mt-3"></div>
+
+<div class="title-header">
+    <div>
+        Your team members:
+    </div>
+
+    <div class="flex-row ml-auto">        
+        <app-action-btn
+            tooltip="Invite new members"
+            icon="icon-nucleo-user-plus"
+            (clicked)="createInvitation()">            
+        </app-action-btn>        
+    </div>
+</div>    
+
+<div class="mt-2"></div>
+
+<div class="uploads-container">
+    @for(member of workspaceMembers(); track member.memberExternalId()) {
+        <app-workspace-team-member
+            [member]="member"
+            (revoked)="revokeMember(member)">            
+        </app-workspace-team-member>
+    }
+</div>
+
+<div class="mt-2"></div>
+
+<app-item-btn
+    title="Invite new members"
+    subtitle="Click here to invite new members!"
+    icon="icon-nucleo-user-plus"
+    (clicked)="createInvitation()">    
+</app-item-btn>
+
+@if(hasAnyInvitation()) {    
+    <div class="mt-2"></div>
+
+    <div class="title-header">
+        <div>
+            Pending invitations:
+        </div>
+    </div>    
+
+    <div class="mt-2"></div>
+
+    @for(invitation of workspaceInvitations(); track invitation.memberExternalId()) {
+        <app-workspace-team-invitation
+            [invitation]="invitation"
+            (cancelled)="cancelInvitation(invitation)">            
+        </app-workspace-team-invitation>
+    }
+}

@@ -1,0 +1,81 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        Who do you want to invite?
+    </div>
+
+    <form #emailsForm="ngForm" class="questionaire__form" (submit)="onEmailPicked()" autocomplete="off">
+        <div class="users-list">
+            <div class="users-list__info">
+                Enter any email address - you can use suggestions from existing users or invite someone new.
+                Use plus button at the bottom of the dialog to add many users at once.
+            </div>
+
+            @for(email of emails(); track email.id) {
+                <mat-form-field class="questionaire__form-field">
+                    <mat-label>Email</mat-label>
+                    
+                    <input #emailInput="ngModel"
+                        [id]="email.id"
+                        [name]="email.id"
+                        [(ngModel)]="email.value"
+                        type="email" 
+                        matInput
+                        required
+                        [email]="true"
+                        [matAutocomplete]="auto"
+                        data-lpignore="true"
+                        placeholder="someone@example.com"
+                        autofocus>
+
+                    <mat-autocomplete #auto="matAutocomplete">
+                        @for (knownUser of email.filteredKnownUsers(); track knownUser.externalId) {
+                            <mat-option [value]="knownUser.email">
+                                <span [innerHTML]="knownUser.highlightedEmail"></span>
+                            </mat-option>
+                        }
+                    </mat-autocomplete>
+    
+                    @if(emailInput.hasError('email') && !emailInput.hasError('required')) {
+                        <mat-error>
+                            Please enter a valid email address
+                        </mat-error>
+                    }
+    
+                    @if(emailInput.hasError('required')) {
+                        <mat-error>
+                            Email is <strong>required</strong>
+                        </mat-error>
+                    }
+    
+                    @if(emails().length > 1) {
+                        <app-action-btn                    
+                            class="remove-email-btn"
+                            tooltip="Remove"
+                            tooltipPosition="left"
+                            icon="icon-lucide-xmark"
+                            (clicked)="removeEmail(email.id)">
+                        </app-action-btn>
+                    }
+                </mat-form-field>
+            }       
+        </div>
+
+        <div class="questionaire__actions">     
+            <app-action-btn 
+                [tooltip]="'Add email'"
+                icon="icon-lucide-plus"
+                (clicked)="addEmail()">                
+            </app-action-btn>
+
+            <button type="button" class="questionaire__btn mr-1" mat-flat-button
+                aria-label="Cancel"
+                (click)="onCancel()">
+                Cancel
+            </button>
+
+            <button type="submit" class="questionaire__btn" mat-flat-button [disabled]="!emailsForm.valid">
+                Invite
+            </button>  
+        </div>
+    </form>
+</div>

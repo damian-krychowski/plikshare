@@ -1,0 +1,57 @@
+@let viewModeVal = viewMode();
+@let isSearchActiveVal = isSearchActive();
+@let node = file();
+@let showFullPath = viewModeVal == 'show-only-selected' && node.item.isSelected();    
+@let isFileSelected = (node.item.isSelected() || node.isParentSelected()) && !node.isExcluded() && !node.isParentExcluded();
+@let isFileVisible = (viewModeVal == 'show-all' && (!isSearchActiveVal || node.isSearched())) || (viewModeVal == 'show-only-selected' && isFileSelected);
+@let isFileMarkedAsSelected = viewModeVal == 'show-all' && isFileSelected;
+
+@let fileClickedHandlerVal = fileClickedHandler();
+@let isSelectedChangedHandlerVal = isSelectedChangedHandler();
+@let isExcludedChangedHandlerVal = isExcludedChangedHandler();
+
+<div class="tree-node" [class.tree-node--clickable]="node.canPreview()" [class.invisible]="!isFileVisible">
+    <div class="node-content" [class.node-content--selected]="isFileMarkedAsSelected">
+        <div class="file-node" (click)="node.canPreview() && fileClickedHandlerVal(node)">   
+
+            <i class="icon icon-xl icon-{{ node.item.extension | fileIcon }}"></i>
+        
+            <div class="file-node__body" [class.vertical-spacing]="showFullPath">
+                <div class="file-node__details">   
+                    <div class="file-node__name">
+                        @if(node.isSearched()) { 
+                            <span [innerHTML]="node.nameWithHighlight()"></span>
+                        } @else {        
+                            {{node.item.name()}}{{node.item.extension}}
+                        }     
+                    </div>
+        
+                    <div class="file-node__subtitle ml-auto">
+                        {{ node.item.sizeInBytes | storageSize }}
+                    </div>    
+                </div>
+
+                @if(showFullPath) {
+                    <div class="node-full-path">
+                        {{node.fullPath()}}
+                    </div>
+                }
+            </div>
+        </div>
+        
+        <div class="ml-auto">
+            @if(canSelect()) {
+                <div (click)="$event.stopPropagation()">
+                    <app-tree-checkbox
+                        [isSelected]="node.item.isSelected()"
+                        [isExcluded]="node.isExcluded()"
+                        [isParentSelected]="node.isParentSelected()"
+                        [isParentExcluded]="node.isParentExcluded()"
+                        (isSelectedChange)="isSelectedChangedHandlerVal(node, $event)"
+                        (isExcludedChange)="isExcludedChangedHandlerVal(node, $event)">                            
+                    </app-tree-checkbox>
+                </div>
+            }
+        </div>
+    </div>
+</div>

@@ -1,0 +1,20 @@
+@import "./../../../styles/app-header.scss";
+@import "./../../../styles/top-bar.scss";
+@import "./../../../styles/top-nav-btn.scss";
+@import "./../../../styles/item-bar.scss";
+@import "./../../../styles/icon-merge.scss";
+@import "./../../../styles/variables.scss";
+
+.sign-up-radio {
+    display: flex;
+    flex-direction: column;
+    align-self: flex-start;
+    gap: 0.5rem;
+
+    .mat-mdc-radio-button.mat-accent {
+        --mdc-radio-selected-focus-icon-color: black !important;
+        --mdc-radio-selected-hover-icon-color: black !important;
+        --mdc-radio-selected-icon-color: black !important;
+        --mdc-radio-selected-pressed-icon-color: black !important;
+    }
+}  

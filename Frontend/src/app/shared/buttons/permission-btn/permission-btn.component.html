@@ -1,0 +1,10 @@
+<button
+    class="permission-btn {{isSelected() ? 'permission-btn--selected' : 'permission-btn--not-selected'}}"
+    [class.permission-btn--readonly]="isReadOnly()"
+    attr.aria-label="{{tooltip()}}" 
+    mat-flat-button  
+    [matTooltip]="tooltip()"
+    [matTooltipPosition]="tooltipPosition()"
+    (click)="onClicked($event)">
+    <i class="icon icon-sm {{icon()}}"></i>
+</button> 

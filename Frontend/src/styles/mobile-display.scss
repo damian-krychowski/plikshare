@@ -1,0 +1,32 @@
+@import "./variables.scss";
+
+.d-none-on-mobile {
+    @media (max-width: $mobile-breakpoint) {
+        display: none !important;
+    }
+}
+
+.d-none-on-mobile-early {
+    @media (max-width: $mobile-early-breakpoint) {
+        display: none !important;
+    }
+}
+
+.d-none-on-desktop {
+    @media (min-width: calc(#{$mobile-breakpoint} + 1px)) {
+        display: none !important;
+    }
+}
+
+.d-none-on-desktop-early {
+    @media (min-width: calc(#{$mobile-early-breakpoint} + 1px)) {
+        display: none !important;
+    }
+}
+
+.d-block-on-mobile {
+    @media (max-width: $mobile-breakpoint) {
+        display: block !important;
+    }
+}
+

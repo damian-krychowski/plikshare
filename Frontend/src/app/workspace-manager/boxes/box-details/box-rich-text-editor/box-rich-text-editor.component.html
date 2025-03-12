@@ -1,0 +1,67 @@
+<div class="subtitle-header" [class.full-border]="!isEnabled()">
+    <div class="item" [class.item--opaque]="!isEnabled()">
+        <div class="item__details">
+            <div class="item__title">
+                Box {{name()}}: {{isEnabled() ? '' : '(turned off)'}}
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-row ml-auto">
+        <mat-slide-toggle
+            class="slide-toggle"
+            matTooltip="Is {{name()}} visible"
+            matTooltipPosition="above"
+            [checked]="isEnabled()"
+            (change)="isEnabledChanged()">
+        </mat-slide-toggle>
+    </div>
+</div>
+
+@if(isEnabled()) {
+    <div class="flex-column">
+        <div class="mt-2"></div>
+    
+        <app-lexical-editor 
+            #editor
+            [isToolbarFloating]="false"
+            [savedJsonState]="json()"
+            (editorStateChange)="editorStateChanged($event)">        
+        </app-lexical-editor>
+    
+        <div class="mt-1"></div>
+    
+        <div class="flex-row ml-auto">
+            @switch (state()) {
+                @case ('saved') {
+                    <div class="editor-badge">
+                        <span class="editor-badge__text">
+                            All changes saved!
+                        </span>
+                    </div>
+                }
+                @case ('typing') {
+                    <div class="editor-badge">
+                        <span class="editor-badge__text">
+                            Typing...
+                        </span>
+                    </div>
+                }
+                @case ('saving') {
+                    <div class="editor-badge">
+                        <span class="editor-badge__text">
+                            Saving...
+                        </span>
+                    </div>
+                }
+                @default {
+                    <div class="editor-badge" style="visibility: hidden;">
+                        <span class="editor-badge__text">
+                            Nothing changed
+                        </span>
+                    </div>
+                }
+            } 
+        </div>
+    </div>
+}

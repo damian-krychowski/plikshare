@@ -1,0 +1,44 @@
+<div class="flex-column">
+    <app-lexical-editor 
+        #editor
+        [placeholder]="placeholder()"
+        [isToolbarFloating]="isToolbarFloating()"
+        [savedJsonState]="json()"
+        (editorStateChange)="editorStateChanged($event)">        
+    </app-lexical-editor>
+
+    <div class="mt-1"></div>
+        
+    <div class="flex-row ml-auto" [style.visibility]="showBadge() ? 'visible' : 'hidden'">       
+        @switch (state()) {
+            @case ('saved') {
+                <div class="editor-badge">
+                    <span class="editor-badge__text">
+                        All changes saved!
+                    </span>
+                </div>
+            }
+            @case ('typing') {
+                <div class="editor-badge">
+                    <span class="editor-badge__text">
+                        Typing...
+                    </span>
+                </div>
+            }
+            @case ('saving') {
+                <div class="editor-badge">
+                    <span class="editor-badge__text">
+                        Saving...
+                    </span>
+                </div>
+            }
+            @default {
+                <div class="editor-badge" style="visibility: hidden;">
+                    <span class="editor-badge__text">
+                        Nothing changed
+                    </span>
+                </div>
+            }
+        }         
+    </div>
+</div>

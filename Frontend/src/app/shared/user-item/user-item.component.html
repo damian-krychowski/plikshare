@@ -1,0 +1,106 @@
+<div class="item-bar item-bar--clickable flex-gap-1 {{pickerMode() ? 'flex-row' : 'flex-column'}}"
+    [class.hide-border]="hideBorder()"
+    (click)="onClicked()">
+    <div class="flex-row">
+        <div class="item"
+            [class.item--highlighted]="isHighlighted()"  
+            [class.logged-in-user]="isLoggedInUser()">
+            @if(isAppOwner()) {
+                <i class="icon icon-xl icon-nucleo-user-crown-bold"
+                    matTooltip="Application Owner"
+                    matTooltipPosition="above"></i>
+            } @else if(isAdmin()){
+                <i class="icon icon-xl icon-nucleo-user-crown"
+                    matTooltip="Admin"
+                    matTooltipPosition="above"></i>
+            } @else {
+                <i class="icon icon-xl icon-nucleo-user"
+                    matTooltip="User"
+                    matTooltipPosition="above"></i>
+            }
+
+            <div class="item__details">
+                <div class="item__title">
+                    <span [innerHTML]="userEmail()"></span>
+                </div>
+
+                <div class="item__subtitle">
+                    @if(isLoggedInUser()) {
+                        <strong class="mr-1">This is you!</strong>
+                    }
+
+                    @if(!isEmailConfirmed()) {
+                        <span class="mr-1">Email not confirmed</span>
+                    } @else {
+                        <span>Workspaces: {{userWorkspacesCount()}}</span>                
+                    }
+                </div>
+            </div>
+        </div>  
+
+        @if(!pickerMode()) {
+            <div class="item-bar__actions">
+                @if(canLocate()) {
+                    <app-action-btn
+                        tooltip="Locate"
+                        icon="icon-lucide-search"
+                        (clicked)="locate()">
+                    </app-action-btn>   
+                }
+                
+                @if(canGoToUserDetails()) {
+                    <app-action-btn
+                        tooltip="Details"
+                        icon="icon-nucleo-account"
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        (prefetch)="prefetchUserDetails()"
+                        (clicked)="goToUserDetails()">
+                    </app-action-btn>
+                }
+                
+                @if(canUserBeDeleted()) {
+                    <app-action-btn
+                        tooltip="{{hasAnyWorkspaces() ? 'Cannot delete user with workspaces. Delete or reassign his workspaces first.' : 'Delete'}}"
+                        icon="icon-nucleo-remove"
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        appConfirmOperation 
+                        [disabled]="hasAnyWorkspaces()"
+                        [isOperationDisabled]="hasAnyWorkspaces()"
+                        [operationItem]="'this user'"
+                        [verb]="'delete'"
+                        [isOperationDanger]="true"
+                        (confirmedClick)="deleteUser()">
+                    </app-action-btn>
+                }
+                
+                <app-action-btn
+                    tooltip="Actions"
+                    icon="icon-lucide-dots"
+                    [class.d-none-on-desktop]="true"
+                    (clicked)="toggleActions()">
+                </app-action-btn>            
+            </div> 
+        }  
+    </div>         
+    
+    @if(arePremissionsVisible()) {
+        <div class="item item--no-padding">
+            <i class="icon icon--placeholder icon-xl icon-nucleo-user-clock"></i>
+
+            <div class="item__details" [class.ml-auto]="pickerMode()">
+                @if(!pickerMode()){
+                    <div>
+                        Permissions:
+                    </div>
+    
+                    <div class="mt-1"></div>
+                }
+
+                <app-user-permissions-list
+                    [isReadOnly]="arePermissionsReadOnly()"
+                    [user]="user()">                            
+                </app-user-permissions-list>
+            </div>
+        </div>        
+    }
+</div>            

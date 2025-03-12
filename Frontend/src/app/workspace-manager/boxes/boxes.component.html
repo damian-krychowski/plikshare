@@ -1,0 +1,36 @@
+<div class="mt-3"></div>
+
+<div class="title-header">
+    <div>
+        Your boxes:
+    </div>
+
+    <div class="flex-row ml-auto">        
+        <app-action-btn
+            tooltip="Create new box"
+            icon="icon-nucleo-box-plus"
+            (clicked)="createNewBox()">
+        </app-action-btn>
+    </div>
+</div>    
+
+<div class="mt-2"></div>
+
+@for(box of boxes(); track box.externalId()) {
+    <app-box-item
+        [box]="box"
+        [canOpen]="!isAnyBoxEditing()"
+        (deleted)="onBoxDelete(box)">
+    </app-box-item>
+}
+
+<div>
+    <div class="mt-2"></div>
+    
+    <app-item-btn
+        title="Add new box"
+        subtitle="Click here to create an empty box!"
+        icon="icon-nucleo-box-plus"
+        (clicked)="createNewBox()">        
+    </app-item-btn>
+</div>

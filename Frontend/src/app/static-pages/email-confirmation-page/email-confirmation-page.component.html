@@ -1,0 +1,50 @@
+<div class="main-container">
+    <app-top-bar></app-top-bar>
+
+    <div class="auth-container ml-auto mr-auto">
+        <div class="auth-form">
+            @if(confirmationResultCode() == null) {                
+                <div>
+                    Wait a moment while we confirm your email address.
+                </div>
+            }
+
+            @if(confirmationResultCode() == 'email-confirmed') {
+                <div>
+                    Thank you for confirming your email address! 
+                </div>
+
+                <div>
+                    Now you can sign in to your account.
+                </div>
+            }
+
+            @if(confirmationResultCode() == 'invalid-token') {
+                <div>
+                    We were unable to confirm your email address. 
+                </div>
+
+                <div>
+                    The confirmation link is invalid or expired.
+                </div>
+                
+            }
+
+            @if(confirmationResultCode() != 'invalid-token') {
+                <button type="submit" class="auth-field__btn" mat-flat-button
+                    [class.auth-field__btn--loading]="isLoading()"
+                    aria-label="Go to login page"
+                    (click)="goToLoginPage()"
+                    [disabled]="isLoading()">
+                    Go to login page
+                </button>
+            }
+        </div>
+    </div>  
+
+    <div class="spacer"></div>
+
+    <div class="mt-auto">
+        <app-footer></app-footer>
+    </div>
+</div>

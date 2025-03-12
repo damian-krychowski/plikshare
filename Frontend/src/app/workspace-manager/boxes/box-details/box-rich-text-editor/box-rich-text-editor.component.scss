@@ -1,0 +1,27 @@
+@import "./../../../../../styles/app-header.scss";
+@import "./../../../../../styles/item-bar.scss";
+
+.full-border {
+    border: 1px solid var(--company-grey-accent-light);
+}
+
+.slide-toggle {
+    height: 36px;
+    display: flex;
+    align-items: center;
+}
+
+.text-btn {
+    border: 1px solid var(--company-grey-accent) !important;
+}
+
+.editor-badge {
+    font-size: var(--company-small-font);
+    border: 1px solid var(--company-grey-accent);
+    padding: 0.2rem 1rem;
+    border-radius: 5px;
+
+    &__text {
+        color: var(--company-grey-font);
+    }
+}

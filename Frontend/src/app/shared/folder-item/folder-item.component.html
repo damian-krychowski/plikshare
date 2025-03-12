@@ -1,0 +1,109 @@
+<div class="item-bar item-bar--clickable flex-row hover-switch"
+    appCtrlClick 
+    (ctrlClick)="toggleSelection()"   
+    [class.item-bar--selected]="isSelected()"
+    [class.item-bar--opaque]="isCut()"
+    (prefetch)="operations().prefetchFolderFunc(folderExternalId())"
+    (click)="!($event.ctrlKey || $event.metaKey) && openFolder()">
+    
+    @let canEditNamePermission = canEditName();
+    
+    <div class="item"  
+        [class.item--highlighted]="isHighlighted()"
+        [class.item--in-background]="areActionsVisible()"  >
+        <i class="icon icon-xl icon-nucleo-folder hide-on-hover"></i>
+        <i class="icon icon-xl icon-nucleo-folder-open show-on-hover"></i>
+
+        <div class="item__details">
+            <app-editable-txt #nameTxt
+                [text]="folderName()"
+                [isEditing]="isNameEditing()"
+                [canEdit]="canEditNamePermission.isOn"
+                (valueChange)="saveFolderName($event)"
+                (editingStarted)="folder().isNameEditing.set(true)"
+                (editingStopped)="folder().isNameEditing.set(false)">                    
+            </app-editable-txt>
+
+            @if(showPath()) {
+                <div class="item__subtitle">
+                    {{ folderPath() || 'All files'}}
+                </div>
+            }
+        </div>    
+    </div>
+
+    @if(!hideActions() && !isCut()) {
+        <div class="item-bar__actions" 
+            (click)="$event.stopPropagation()">    
+    
+            @if(isNameEditing()) {
+                <app-action-btn
+                    tooltip="Save name"
+                    icon="icon-lucide-check"
+                    (clicked)="nameTxt.save()">                    
+                </app-action-btn>
+            } @else {        
+                @if(canLocate()) {
+                    <app-action-btn
+                        tooltip="Locate"
+                        icon="icon-lucide-search"
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        (prefetch)="operations().prefetchFolderFunc(folderExternalId())"
+                        (clicked)="locate()">                    
+                    </app-action-btn>
+                }
+            
+                @if(canEditNamePermission.isOn) {
+                    <app-action-btn
+                        tooltip="Edit name"
+                        icon="icon-nucleo-pen"
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        [countdown]="canEditNamePermission.timeLeft"
+                        (clicked)="editName()">                    
+                    </app-action-btn>
+                }
+            
+                @if(allowShare()) {
+                    <app-action-btn
+                        tooltip="Share with box"
+                        icon="icon-nucleo-box"
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        (clicked)="createBox()">                    
+                    </app-action-btn>
+                } 
+            
+                @if(allowDelete()) {
+                    <app-action-btn
+                        tooltip="Delete"
+                        icon="icon-nucleo-remove"
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        [operationItem]="'this folder'"
+                        [verb]="'delete'"
+                        [isOperationDanger]="true"
+                        appConfirmOperation
+                        (confirmedClick)="deleteFolder()">                    
+                    </app-action-btn>
+                }          
+            
+                @if(canToggleActions()) {
+                    <app-action-btn
+                        tooltip="Actions"
+                        icon="icon-lucide-dots"
+                        class="d-none-on-desktop"
+                        (clicked)="toggleActions()">                    
+                    </app-action-btn>
+                }
+                
+                @if(allowMoveItems() || allowDownload() || allowDelete()) {
+                    <div (click)="$event.stopPropagation()">
+                        <mat-checkbox  
+                            [class.d-none-on-mobile]="!areActionsVisible()"                       
+                            [ngModel]="isSelected()"
+                            (change)="toggleSelection()">
+                        </mat-checkbox>
+                    </div>
+                }
+            }        
+        </div>
+    }
+</div>

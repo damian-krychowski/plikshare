@@ -1,0 +1,12 @@
+<div (click)="onDivClick()">
+    @if(isCheckboxExcluded()) {        
+        <mat-checkbox [style.visibility]="isParentExcluded() ? 'hidden' : 'visible'">            
+        </mat-checkbox>
+    } @else {
+        <mat-checkbox 
+            [checked]="isCheckboxSelected()"
+            [disabled]="isParentSelected()"
+            (change)="isSelectedChange.emit(!isSelected())">
+        </mat-checkbox>
+    }
+</div>

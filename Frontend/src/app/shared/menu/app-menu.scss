@@ -1,0 +1,44 @@
+@import "./../../../styles/variables.scss";
+
+.app-menu {
+    display: none;
+
+    &__link {
+        text-decoration: none;
+        color: black;
+        font-size: 1rem;
+        padding: 1rem;
+        transition: background-color 0.2s;
+        text-align: right;
+        border-bottom: 1px solid var(--company-grey-accent);
+
+        &:hover {
+            background-color: var(--company-grey-accent);
+        }
+
+        .icon {
+            padding-left: 0.5rem;
+        }
+
+        &--active {
+            background-color: var(--company-blue-selected);
+        }
+
+        &--light {
+            font-weight: 400;
+            text-align: center;
+            border-bottom: none;
+        }
+    }
+
+    @media (max-width: $mobile-early-breakpoint) {
+        display: flex;
+        flex-direction: column;
+    }
+
+    @media (max-width: $mobile-breakpoint) {
+        .icon-xl {
+            font-size: 1.7em;
+        }    
+    }
+}

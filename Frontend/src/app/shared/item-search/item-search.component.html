@@ -1,0 +1,20 @@
+<div class="search">
+    <input 
+        class="search__input"
+        type="text"
+        [value]="phrase()"
+        (debouncedChange)="onPerformSearch($event)"
+        [debounceTime]="debounce()"
+        data-lpignore="true"
+        (focus)="isFocused.set(true)"
+        (blur)="isFocused.set(false)"
+        placeholder="Search...">
+
+    @if(isFocused()) {
+        @if(count(); as countValue) {
+            <div class="search__count">
+                {{countValue.matchingItems}} / {{countValue.allItems}}
+            </div>
+        } 
+    }
+</div>

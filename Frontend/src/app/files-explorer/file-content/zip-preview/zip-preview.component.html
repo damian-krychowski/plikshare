@@ -1,0 +1,51 @@
+@let zipArchiveVal = zipArchive();
+
+<div  class="archive-box">
+    <div class="archive-box__header">
+        <div class="flex-row flex-gap-05 flex-align-center pl-1">
+            <i class="icon icon-xl icon-{{ fileExtension() | fileIcon }}"></i>
+            <span class="archive-box__file-name">{{fileFullName()}}</span>
+
+            <div class="ml-auto flex-row flex-gap-05">
+                @if(isArchiveOpened()) {
+                    <div class="search-container">
+                        <app-item-search
+                            (searched)="zipSearchPhrase.set($event)">                    
+                        </app-item-search>
+                        
+                        @if(zipSearchPhrase().length >= 1 && zipSearchPhrase().length < 3) {
+                            <div class="search-info">      
+                                At least 3 characters are required
+                            </div>
+                        }
+                    </div>
+
+                    <app-action-btn
+                        tooltip="Close"
+                        icon="icon-lucide-xmark"
+                        (clicked)="closeArchive()">
+                    </app-action-btn>
+                } @else {
+                    <app-action-btn
+                        tooltip="Open"
+                        icon="icon-nucleo-archive-search"
+                        [isLoading]="zipArchiveVal == null"
+                        (clicked)="isArchiveOpened.set(true)">
+                    </app-action-btn>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if(isArchiveOpened()) {
+        <div class="archive-box__content">
+            <app-zip-file-tree-view
+                [fileTree]="zipFileTreeNodes()"
+                [searchPhrase]="zipSearchPhrase()"
+                [canDownload]="true"
+                (fileClicked)="onZipEntryClick($event)"
+                (fileDownloadClicked)="onZipEntryDownloadClick($event)">
+            </app-zip-file-tree-view>
+        </div>
+    }
+</div>

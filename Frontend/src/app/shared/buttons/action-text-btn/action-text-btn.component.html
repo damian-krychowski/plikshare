@@ -1,0 +1,10 @@
+<button
+    class="action-text-btn"
+    attr.aria-label="{{tooltip()}}" 
+    [class.action-text-btn--disabled]="disabled()"
+    mat-flat-button  
+    [matTooltip]="tooltip()"
+    [matTooltipPosition]="tooltipPosition()"
+    (click)="onClick()">
+    {{text()}}
+</button> 

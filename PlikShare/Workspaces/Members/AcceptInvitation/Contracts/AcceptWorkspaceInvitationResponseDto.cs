@@ -1,0 +1,3 @@
+namespace PlikShare.Workspaces.Members.AcceptInvitation.Contracts;
+
+public record AcceptWorkspaceInvitationResponseDto(long WorkspaceCurrentSizeInBytes);

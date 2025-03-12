@@ -1,0 +1,9 @@
+.workspace-link {
+    &--clickable {
+        cursor: pointer;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+}

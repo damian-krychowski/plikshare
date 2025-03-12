@@ -1,0 +1,52 @@
+@import "./../../../styles/questionaire.scss";
+
+.email-picker {
+    padding: 2rem;   
+}
+
+.example-full-width {
+    width: 100%;
+}
+
+.remove-email-btn {
+    position: absolute;
+    right: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.questionaire__form {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+
+    
+    .questionaire__actions {
+        padding-top: 0 !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+
+        
+        .add-email-btn {
+            margin-left: unset !important;
+            margin-right: auto !important;
+        }
+    }
+}
+
+.users-list {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    min-height: 300px;
+    padding-left: 2rem;
+    padding-right: 2rem;
+
+    .action-btn {
+        border: none !important;
+    }
+
+    &__info {
+        font-size: 0.9rem;
+        color: var(--company-grey-font);
+        padding-bottom: 2rem;
+    }
+}

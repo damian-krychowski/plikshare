@@ -1,0 +1,29 @@
+.action-text-btn {
+    border: 1px solid var(--company-grey-accent) !important;     
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+
+    &__content {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .mdc-button__label {
+        width: 100%;
+    }
+
+    &--danger {
+        color: var(--company-danger) !important;
+    }
+
+    &__info {
+        font-size: 0.8rem;
+        color: var(--company-grey-font);
+
+        &--danger {
+            color: var(--company-danger) !important;
+        }
+    }
+}

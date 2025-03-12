@@ -1,0 +1,38 @@
+@import "./variables.scss";
+
+.top-nav-btn {
+    height: 50px !important;
+    width: 55px !important;
+    min-width: 38px !important;
+    padding: 0px !important;
+    border-radius: 0px !important;
+
+    &--active {
+        background-color: var(--company-blue-selected) !important;
+    }
+
+    &--danger {
+        color: var(--company-danger) !important;
+    }
+
+    @media (max-width: $mobile-breakpoint) {
+        height: 40px !important;
+        width: 40px !important;
+        min-width: 38px !important;
+
+        .icon-xl {
+            font-size: 1.7em;
+        }        
+
+        .icon-lg {
+            font-size: 1.3em;
+        }
+    }
+}
+
+.top-nav-icon {
+    @extend .top-nav-btn;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

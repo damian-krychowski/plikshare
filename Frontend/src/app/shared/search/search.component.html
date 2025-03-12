@@ -1,0 +1,166 @@
+@if(hasAnyResults()) {
+    @for(result of results(); track $index) {
+        @if(result.isEmpty) {
+            <div class="nothing-to-show">
+                <div class="nothing-to-show__label">
+                    There is nothing matching '{{result.phrase}}' phrase. Sorry!
+                </div>
+            </div>
+        } @else {
+            @if(result.dashboardItems.length > 0) {
+                <div class="title-header flex-row">  
+                    <i class="icon icon-xl icon-nucleo-home"></i>  
+    
+                    <div>
+                        Dashboard                         
+                    </div>
+
+                    <div class="opaque ml-auto">
+                        {{result.dashboardItems.length}} results for: '{{result.phrase}}'
+                    </div>
+                </div>   
+                
+                <div class="mt-2"></div>
+    
+                <div class="search-results">
+                    @for (item of result.dashboardItems; track item.externalId) {
+                        @if(item.type === 'workspace'){
+                            <app-workspace-item 
+                                [workspace]="item.workspace"
+                                [canOpen]="true"
+                                [canLocate]="true"
+                                [isAdminView]="false">
+                            </app-workspace-item>
+                        } @else if(item.type === 'external-box') {
+                            <app-external-box-item
+                                [externalBox]="item.box"
+                                [canOpen]="true"
+                                [canLocate]="true">                                
+                            </app-external-box-item>
+                        }
+                    }
+                </div>
+                
+                <div class="mt-4"></div>
+            }
+    
+            @for (group of result.workspaceGroups; track $index) {
+                <div class="title-header flex-row">  
+                    <i class="icon icon-xl icon-nucleo-workspace"></i> 
+    
+                    <div>
+                        {{group.name}} 
+                    </div>
+                        
+                    <div class="opaque ml-auto">
+                        {{group.items.length}} results for: '{{result.phrase}}'
+                    </div>
+                </div>   
+                
+                <div class="mt-2"></div>
+    
+                <div class="search-results">
+                    @for (item of group.items; track item.externalId) {
+                        @if (item.type === 'workspace-box') {
+                            <app-box-item 
+                                [box]="item.box"
+                                [canOpen]="true"
+                                [canLocate]="true"                                
+                                (deleted)="onGroupItemDeleted(group, item)">
+                            </app-box-item>
+                        } @else if (item.type === 'workspace-folder') {
+                            <app-folder-item 
+                                [allowDelete]="true"
+                                [allowRename]="true"
+                                [allowShare]="true"
+                                [folder]="item.folder"
+                                [canOpen]="true"
+                                [canLocate]="true"
+                                [showPath]="true"                                
+                                [operations]="item.operations"                                
+                                (deleted)="onGroupItemDeleted(group, item)">                    
+                            </app-folder-item>
+                        } @else if (item.type === 'workspace-file') {
+                            <app-file-item 
+                                [file]="item.file"
+                                [operations]="item.operations"
+                                [showPath]="true"
+                                [allowDelete]="true"
+                                [allowRename]="true"
+                                [allowDownload]="true"
+                                [canOpen]="true"
+                                [canLocate]="true"
+                                [canSelect]="false"
+                                (deleted)="onGroupItemDeleted(group, item)"
+                                (previewed)="workspaceFilePreview(item, group)">
+                            </app-file-item>
+                        }
+                    }
+                </div>
+
+                <div class="mt-4"></div>
+            }
+
+            @for (group of result.externalBoxGroups; track $index) {
+                <div class="title-header flex-row">  
+                    <i class="icon icon-xl icon-nucleo-box"></i> 
+    
+                    <div>
+                        {{group.name}} 
+                    </div>
+                        
+                    <div class="opaque ml-auto">
+                        {{group.items.length}} results for: '{{result.phrase}}'
+                    </div>
+                </div>   
+                
+                <div class="mt-2"></div>
+    
+                <div class="search-results">
+                    @for (item of group.items; track item.externalId) {
+                        @if (item.type === 'external-box-folder') {
+                            <app-folder-item 
+                                [allowDelete]="group.permissions.allowDeleteFolder"
+                                [allowRename]="group.permissions.allowRenameFolder"
+                                [allowShare]="false"
+                                [folder]="item.folder"
+                                [canOpen]="true"
+                                [canLocate]="true"
+                                [showPath]="true"
+                                [operations]="item.operations">                    
+                            </app-folder-item>
+                        } @else if (item.type === 'external-box-file') {
+                            <app-file-item 
+                                [file]="item.file"
+                                [operations]="item.operations"
+                                [showPath]="true"
+                                [allowDelete]="group.permissions.allowDeleteFile"
+                                [allowRename]="group.permissions.allowRenameFile"
+                                [allowDownload]="group.permissions.allowDownload"
+                                [canOpen]="true"
+                                [canLocate]="true"
+                                (previewed)="boxFilePreview(item, group)">
+                            </app-file-item>
+                        }
+                    }
+                </div>
+
+                <div class="mt-4"></div>
+            }
+        }
+    }
+} @else {
+    <div class="title-header">  
+        <div>
+            Your search results:
+        </div>
+    </div>   
+
+    <div class="mt-2"></div>
+
+    <div class="nothing-to-show">
+        <div class="nothing-to-show__label">
+            Nothing found yet.
+        </div>
+    </div>    
+}

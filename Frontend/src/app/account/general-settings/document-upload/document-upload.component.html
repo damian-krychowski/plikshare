@@ -1,0 +1,42 @@
+<input type="file" 
+    class="file-input" 
+    accept=".pdf"
+    (change)="onFilesSelected($event, fileUpload)" 
+    #fileUpload>
+
+<div class="document-container">
+    <div class="document">
+        <input
+            class="document__input"
+            [class.document__input--error]="hasDuplicatedFileNameError()"
+            type="text"
+            [ngModel]="fileName()" 
+            [placeholder]="placeholder()"
+            autocomplete="off"
+            readonly="true">
+    
+        <div class="document__btn-container">
+            @if(isUploaded()){
+                <app-action-btn
+                    tooltip="Delete"
+                    icon="icon-lucide-xmark"
+                    [disabled]="isLoading()"
+                    (clicked)="onDeleteFile(fileUpload)">
+                </app-action-btn>
+            }
+    
+            <app-action-btn
+                tooltip="Upload"
+                icon="icon-nucleo-upload-2"
+                [disabled]="isLoading()"
+                (clicked)="fileUpload.click()">                        
+            </app-action-btn>
+        </div>
+    </div>
+
+    @if(hasDuplicatedFileNameError()){
+        <mat-error class="document-container__error">
+            File '{{recentFileName()}}' is already used for different document
+        </mat-error>
+    }
+</div>

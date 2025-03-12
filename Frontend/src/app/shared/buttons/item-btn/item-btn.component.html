@@ -1,0 +1,19 @@
+<button 
+    class="item-btn" 
+    attr.aria-label="{{title()}}"
+    mat-flat-button  
+    (click)="clicked.emit()">
+    <div class="item-btn__content">
+        <i class="icon icon-xl {{icon()}}"></i>      
+
+        <div class="item-btn__details">
+            <div>
+                {{title()}}
+            </div>
+
+            <div class="item-btn__subtitle">
+                {{subtitle()}}
+            </div>
+        </div>
+    </div>
+</button>

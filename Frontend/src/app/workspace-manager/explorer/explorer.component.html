@@ -1,0 +1,43 @@
+<div class="mt-3"></div>
+
+@if(filesApi(); as filesApiValue) {
+    <app-files-explorer #filesExplorer
+        [filesApi]="filesApiValue"
+        [uploadsApi]="uploadsApi()"
+        
+        [allowList]="true"
+        [allowDownload]="true"
+        [allowUpload]="true"
+
+        [allowCreateFolder]="true"
+        [allowMoveItems]="true"
+
+        [allowFolderRename]="true"
+        [allowFolderDelete]="true"
+        [allowFolderShare]="true"
+
+        [allowFileRename]="true"
+        [allowFileDelete]="true"
+        [allowFileEdit]="true"
+
+        [allowPreviewComment]="true"
+        [allowPreviewNotes]="true"
+                
+        [itemToHighlight]="itemToHighlight()"
+
+        [initialContent]="null"
+        [integrations]="context.integrations()"
+        
+        [currentFolderExternalId]="currentFolderExternalId()"
+        (folderSelected)="onFolderSelected($event)"
+
+        [currentFileExternalIdInPreview]="currentFileExternalIdInPreview()"
+        (filePreviewed)="onFilePreviewed($event)"
+
+        (boxCreated)="onBoxCreated($event)">    
+    </app-files-explorer>    
+
+    <!-- <app-files-processor
+        [filesApi]="filesApiValue">            
+    </app-files-processor>   -->
+}

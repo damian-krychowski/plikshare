@@ -1,0 +1,22 @@
+<div class="footer"
+    [class.footer--light]="mode() == 'light'">
+    <div class="footer__container">
+        <div>
+            Powered by: <a class="powered-by-link" href="https://plikshare.com" target="_blank">plikshare.com</a>
+        </div>
+    
+       <div class="footer__links">
+            @if(entryPage.isTermsOfServiceAvailable()) {
+                <a class="footer__link mr-2" routerLink="/terms">
+                    Terms
+                </a>
+            }
+        
+            @if(entryPage.isPrivacyPolicyAvailable()){
+                <a class="footer__link" routerLink="/privacy-policy">
+                    Privacy Policy
+                </a>
+            }
+       </div>
+    </div>
+</div>

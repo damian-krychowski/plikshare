@@ -1,0 +1,25 @@
+.nothing-to-show {
+    padding: 3rem;
+    display: flex;
+    flex-direction: column;
+    min-height: 200px;
+    justify-content: center;
+
+    border: 2px dashed var(--company-grey-accent-light);
+
+    &__label {
+        margin-left: auto;
+        margin-right: auto;
+
+        font-size: 1.5rem;
+        color: var(--company-grey-accent);
+    }
+
+    &--danger {
+        border-color: var(--company-danger);
+
+        .nothing-to-show__label {
+            color: var(--company-danger);
+        }
+    }
+}

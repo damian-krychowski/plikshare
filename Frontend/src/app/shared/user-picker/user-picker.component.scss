@@ -1,0 +1,17 @@
+@import "./../../../styles/questionaire.scss";
+@import "./../../../styles/variables.scss";
+
+.email-picker {
+    padding: 2rem;   
+}
+
+.example-full-width {
+    width: 100%;
+}
+
+.remove-email-btn {
+    position: absolute;
+    right: -5px;
+    top: 50%;
+    transform: translateY(-50%);
+}

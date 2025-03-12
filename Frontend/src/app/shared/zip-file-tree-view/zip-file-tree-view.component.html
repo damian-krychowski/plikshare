@@ -1,0 +1,107 @@
+@let canDownloadVal = canDownload();
+
+<mat-tree class="mat-tree" [dataSource]="dataSource" [childrenAccessor]="childrenAccessor" [class.invisible]="isSearchActive()">
+    <mat-nested-tree-node *matTreeNodeDef="let node; when: isFolder">
+        <div class="tree-node tree-node--expandable">
+            <div class="node-content">
+                <div class="node-content__icon" (click)="expand(node)">                
+                    @if(!node.isExpanded()) {
+                        <i class="icon icon-lg icon-lucide-chevron-right"></i>
+                    } @else {
+                        <i class="icon icon-lg icon-lucide-chevron-down"></i>
+                    }
+                </div>
+
+                <div class="node-name">
+                    {{node.name}}
+                </div>
+            </div>
+
+            @if(node.wasRendered()) {
+                <div class="nested-node" [class.invisible]="!node.isExpanded()">
+                    <ng-container matTreeNodeOutlet></ng-container>
+                </div>
+            }
+        </div>
+    </mat-nested-tree-node>
+
+    <mat-nested-tree-node *matTreeNodeDef="let node; when: isFile">
+        <div class="tree-node">
+            <div class="node-content">
+                <div class="file-node" (click)="fileClicked.emit(node)">                
+                    <i class="icon icon-xl icon-{{ node.extension | fileIcon }}"></i>
+                
+                    <div class="file-node__details">                   
+                        <div class="file-node__name">
+                            {{node.fullName}}
+                        </div>
+            
+                        <div class="file-node__subtitle ml-auto">
+                            {{ node.sizeInBytes | storageSize }}
+                        </div>    
+                    </div>
+                </div>
+                
+                <div class="flex-row flex-gap-05 ml-auto">
+                    @if(canDownloadVal) {
+                        <app-action-btn
+                            icon="icon-nucleo-download"
+                            (clicked)="fileDownloadClicked.emit(node)">
+                        </app-action-btn>
+                    }                        
+                </div>
+            </div>
+        </div>
+    </mat-nested-tree-node>
+</mat-tree>
+
+@if(isSearchActive()) {
+    <mat-tree [dataSource]="searchResultDataSource" [childrenAccessor]="childrenAccessor">
+        <mat-nested-tree-node *matTreeNodeDef="let node; when: isFolder" [class.invisible]="!node.isVisible()">
+            <div class="tree-node tree-node--expandable">
+                <div class="node-content" (click)="expand(node)">
+                    @if(!node.isExpanded()) {
+                        <i class="icon icon-lg icon-lucide-chevron-right"></i>
+                    } @else {
+                        <i class="icon icon-lg icon-lucide-chevron-down"></i>
+                    }
+    
+                    <span class="node-name">{{node.name}}</span>
+                </div>
+    
+                <div class="nested-node" [class.invisible]="!node.isExpanded()">
+                    <ng-container matTreeNodeOutlet></ng-container>
+                </div>
+            </div>
+        </mat-nested-tree-node>
+    
+        <mat-nested-tree-node *matTreeNodeDef="let node; when: isFile" [class.invisible]="!node.isVisible()">
+            <div class="tree-node">
+                <div class="node-content">
+                    <div class="file-node" (click)="fileClicked.emit(node)">                
+                        <i class="icon icon-xl icon-{{ node.extension | fileIcon }}"></i>
+                    
+                        <div class="file-node__details">                   
+                            <div>
+                                <span [innerHTML]="node.fullName"></span>
+                            </div>
+                
+                            <div class="file-node__subtitle ml-auto">
+                                {{ node.sizeInBytes | storageSize }}
+                            </div>    
+                        </div>
+                    </div>
+    
+                    <div class="flex-row flex-gap-05 ml-auto">
+                        @if(canDownloadVal) {
+                            <app-action-btn
+                                icon="icon-nucleo-download"
+                                (clicked)="fileDownloadClicked.emit(node)">
+                            </app-action-btn>
+                        }
+                    </div>
+                </div>
+            </div>
+        </mat-nested-tree-node>
+    </mat-tree>
+}

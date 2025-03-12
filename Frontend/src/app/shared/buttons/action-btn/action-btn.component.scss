@@ -1,0 +1,81 @@
+.action-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    padding: 0px !important;
+    border: 1px solid var(--company-grey-accent);     
+    position: relative;
+
+    &--danger {
+        border-color: var(--company-danger) !important;
+        color: var(--company-danger) !important;
+    }
+
+    &--disabled {
+        color: var(--mdc-filled-button-disabled-label-text-color) !important;
+        background-color: var(--mdc-filled-button-disabled-container-color) !important;
+    }
+
+    &--countdown {
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            right: 0px;
+            bottom: 0px;
+            background: 
+                conic-gradient(
+                    from 0deg,
+                    transparent calc(100% - var(--progress)),
+                    var(--company-grey-accent) calc(100% - var(--progress))
+                );
+            pointer-events: none;
+            border-radius: inherit;
+        }
+
+        &::after {
+            content: '';
+            position: absolute;
+            top: 1.5px;
+            left: 1.5px;
+            right: 1.5px;
+            bottom: 1.5px;
+            background: white;
+            border-radius: 3px;
+            pointer-events: none;
+        }
+    }
+
+    &--loading {
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            right: 0px;
+            bottom: 0px;
+            border: 1px solid currentColor;
+            border-radius: inherit;
+            animation: rotate 1s linear infinite;
+          }
+        
+        @keyframes rotate {
+            0% {
+                clip-path: polygon(0% 0%, 15% 0%, 15% 100%, 0% 100%);
+            }
+            25% {
+                clip-path: polygon(0% 0%, 100% 0%, 100% 15%, 0% 15%);
+            }
+            50% {
+                clip-path: polygon(85% 0%, 100% 0%, 100% 100%, 85% 100%);
+            }
+            75% {
+                clip-path: polygon(0% 85%, 100% 85%, 100% 100%, 0% 100%);
+            }
+            100% {
+                clip-path: polygon(0% 0%, 15% 0%, 15% 100%, 0% 100%);
+            }
+        }
+    }
+}

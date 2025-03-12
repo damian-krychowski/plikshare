@@ -1,0 +1,47 @@
+.image-preview {
+    max-width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+    margin: 0 auto;
+    display: block;
+}
+
+.metadata {
+    background-color: white;
+    padding: 1.5rem;
+    border: 1px solid var(--company-grey-accent-light);
+
+    &__header {
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--company-grey-accent);
+    }
+
+    &__dimensions {
+        font-size: 1rem;
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    &__item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    &__label {
+        font-weight: 500;
+        color: var(--company-grey-font);;
+        font-size: 0.9rem;
+    }
+}
+
+.slide-toggle {
+    height: 36px;
+    display: flex;
+    align-items: center;
+}

@@ -1,0 +1,51 @@
+@let imageExifValue = imageExif();
+@let imageDimensionsValue = imageDimensions();
+@let objectUrlValue = objectUrl();
+
+@if(objectUrlValue) {
+    <img 
+        [src]="objectUrlValue"
+        [alt]="fileFullName()"
+        class="image-preview"
+        (load)="onImageLoad($event.target)"
+        (error)="handleMediaError($event)">    
+}       
+
+@if(imageExifValue || imageDimensionsValue) {
+    <div class="mt-2"></div>
+
+    <mat-slide-toggle
+        class="slide-toggle"
+        matTooltip="Metadata"
+        matTooltipPosition="above"
+        [checked]="isMetadataVisible()"
+        (change)="changeMetadataVisibility()">
+        Metadata
+    </mat-slide-toggle>  
+}
+
+@if((imageExifValue || imageDimensionsValue) && isMetadataVisible()) {
+    <div class="mt-2"></div>
+
+    <div class="metadata">
+        @if(imageDimensionsValue) {
+            <div class="metadata__header">
+                <div class="metadata__dimensions">
+                    <span class="metadata__label">Dimensions:</span>
+                    {{ imageDimensionsValue.width }} × {{ imageDimensionsValue.height }} px
+                </div>
+            </div>
+        }
+        
+        @if(imageExifValue) {
+            <div class="metadata__grid">
+                @for(item of getExifEntries(imageExifValue); track $index) {
+                    <div class="metadata__item">
+                        <span class="metadata__label">{{ item[0]}}:</span>
+                        <span>{{ item[1] }}</span>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}

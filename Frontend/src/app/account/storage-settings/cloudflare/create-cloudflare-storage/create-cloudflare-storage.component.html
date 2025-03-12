@@ -1,0 +1,176 @@
+<div class="app-container">
+    <div class="top-bar">
+        <div class="top-bar__header">
+            <button class="top-nav-btn" 
+                aria-label="Account" 
+                mat-flat-button  
+                matTooltip="Go back to Account"
+                matTooltipPosition="below"
+                (click)="goToStorages()">                 
+                <div class="icon-merge">
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>   
+                    <i class="icon icon-xl icon-lucide-server icon-merge--front"></i>   
+                </div>
+            </button> 
+
+            <div class="flex-column">
+                <div class="top-bar__title">
+                    Storage settings
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="content"> 
+        <div class="mt-3"></div>
+
+        <div class="title-header">  
+            <div>
+                Add Cloudflare R2 storage:
+            </div>
+        </div>  
+
+        <div class="mt-2"></div>   
+        
+        <form class="page-form" (submit)="onCreateStorage()" [formGroup]="formGroup">
+            <div>
+                <mat-form-field class="page-form__field">
+                    <mat-label>Storage Name</mat-label>
+        
+                    <input 
+                        id="name"
+                        type="text" 
+                        formControlName="name"
+                        placeholder="My R2 storage"
+                        matInput>
+        
+                    @if ((name.touched || wasSubmitted()) && name.hasError('required')) {
+                        <mat-error>Storage name is <strong>required</strong></mat-error>
+                    }
+        
+                    @if ((name.touched || wasSubmitted()) && name.hasError('notUnique')){
+                        <mat-error>Storage name is <strong>not unique</strong></mat-error>        
+                    }
+                </mat-form-field>
+        
+                <div class="page-form__info">
+                    Storage name will be displayed on list of storages. For example: My R2 storage
+                </div>
+            </div>
+
+            <div class="page-form__section-title">
+                Configuration:
+            </div>
+
+            <mat-form-field class="page-form__form-field">
+                <mat-label>Access Key Id</mat-label>
+
+                <input 
+                    id="accessKeyId"
+                    type="text" 
+                    matInput 
+                    appSecureInput
+                    formControlName="accessKeyId">
+
+                @if ((accessKeyId.touched || wasSubmitted()) && accessKeyId.hasError('required')) {
+                    <mat-error>Access Key Id is <strong>required</strong></mat-error>
+                }    
+            </mat-form-field>
+
+            <mat-form-field class="page-form__form-field">
+                <mat-label>Secret Access Key</mat-label>
+
+                <input 
+                    id="secretAccessKey"
+                    type="text"
+                    matInput 
+                    appSecureInput
+                    formControlName="secretAccessKey">                            
+                
+                @if ((secretAccessKey.touched || wasSubmitted()) && secretAccessKey.hasError('required')) {
+                    <mat-error>Secret Access Key is <strong>required</strong></mat-error>
+                }
+            </mat-form-field>
+
+            <mat-form-field class="page-form__form-field">
+                <mat-label>Url</mat-label>
+
+                <input 
+                    id="url"
+                    type="text" 
+                    matInput 
+                    formControlName="url" >
+                
+                @if ((url.touched || wasSubmitted()) && url.hasError('required')) {
+                    <mat-error>Url is <strong>required</strong></mat-error>
+                }
+
+                @if ((url.touched || wasSubmitted()) && url.hasError('invalidUrl')){
+                    <mat-error>Url is <strong>not valid</strong></mat-error>        
+                }
+            </mat-form-field>
+
+            @if(couldNotConnect()){
+                <mat-error>
+                    Storage credentials are incorrect - test connection has failed
+                </mat-error>        
+            }
+
+            <div class="page-form__section-title">
+                Encryption:
+            </div>
+            
+            <div class="page-form__encryption">
+                <mat-radio-group
+                    formControlName="encryption"
+                    class="page-form__radio-group">
+                    
+                    <div class="page-form__radio-option">
+                        <mat-radio-button value="none">No encryption</mat-radio-button>
+                        <div class="page-form__info">
+                            Files are transferred directly between the client and S3 using pre-signed URLs, bypassing your server entirely. This approach is more cost-effective as it:
+                            <ul>
+                                <li>Reduces your server's bandwidth costs and computational load</li>
+                                <li>Minimizes latency since files don't need to be processed</li>
+                                <li>Lowers your overall infrastructure costs</li>                        
+                            </ul>
+                            Choose this option when file security at rest is not a requirement and you want to optimize for performance and cost.
+                        </div>
+                    </div>
+            
+                    <div class="page-form__radio-option">
+                        <mat-radio-button value="managed">Managed encryption</mat-radio-button>
+                        <div class="page-form__info">
+                            Files are automatically encrypted before storage using a managed encryption key, providing security at rest. This option requires all file transfers to flow through your server for encryption/decryption, which:
+                            <ul>
+                                <li>Increases security by ensuring all data is encrypted before storage</li>
+                                <li>Requires additional server resources and bandwidth</li>
+                                <li>May incur higher infrastructure costs due to processing overhead</li>                        
+                            </ul>                        
+                            Choose this option when data security is a priority and you need to ensure files are encrypted at rest.
+                        </div>
+                    </div>
+                </mat-radio-group>
+            </div>
+            <div class="mt-3 d-none-on-mobile"></div>
+
+            <div class="page-form__actions"> 
+                <button type="button" class="page-form__btn mr-1" mat-flat-button
+                    aria-label="Cancel"
+                    (click)="goToStorages()"
+                    [disabled]="isLoading()">
+                    Cancel
+                </button>
+                
+                <button type="submit" class="page-form__btn" mat-flat-button
+                    aria-label="Create storage"
+                    [class.page-form__btn--disabled]="formGroup.invalid"
+                    [class.page-form__btn--loading]="isLoading()"
+                    [disabled]="isLoading()">
+                    Create storage
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,7 @@
+.spacer {
+    margin-top: 6rem;
+
+    @media (max-width: 768px) {
+        margin-top: 4rem;
+    }
+}

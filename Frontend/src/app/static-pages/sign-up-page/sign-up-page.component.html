@@ -1,0 +1,168 @@
+<div class="main-container">
+    <app-top-bar></app-top-bar>
+
+    <div class="auth-container ml-auto mr-auto">
+        @if(viewState() == 'sign-up') {            
+            <form class="auth-form" (submit)="onSignUp()" [formGroup]="formGroup">
+                <div class="auth-field">
+                    <label 
+                        class="auth-field__label"
+                        for="username">
+                        Email
+                    </label>
+
+                    <input
+                        class="auth-field__input"
+                        id="username"
+                        type="email" 
+                        placeholder="Enter your email"
+                        formControlName="username">
+
+                        @if(username.touched || wasSubmitted) {
+                            @if (username.hasError('required')) {
+                                <mat-error>Email is <strong>required</strong></mat-error>
+                            }
+                            @else if (username.hasError('email')) {
+                                <mat-error>Please enter a valid email address</mat-error>
+                            }
+                        }
+                </div>
+
+                <div class="auth-field">
+                    <label 
+                        class="auth-field__label"
+                        for="password">
+                        Password
+                    </label>
+        
+                    <input 
+                        class="auth-field__input"
+                        id="password"
+                        type="password" 
+                        appSecureInput
+                        placeholder="Enter your password"
+                        formControlName="password" >
+
+                    @if(password.touched || wasSubmitted) {
+                        @if (password.hasError('required')) {
+                            <mat-error>Password is <strong>required</strong></mat-error>
+                        }
+                        @else if (password.hasError('minlength')) {
+                            <mat-error>Password must be at least 8 characters long</mat-error>
+                        }
+                        @else if (password.hasError('pattern')) {
+                            <mat-error>Password must contain at least one lowercase and uppercase letter, one number and one special character</mat-error>
+                        }
+                    }
+                </div>
+
+                <div class="auth-field">
+                    <label 
+                        class="auth-field__label"
+                        for="confirmed-password">
+                        Confirm Password
+                    </label>
+
+                    <input 
+                        class="auth-field__input"
+                        id="confirmed-password"
+                        type="password" 
+                        appSecureInput
+                        placeholder="Confirm your password"
+                        formControlName="confirmedPassword">
+
+                    @if(confirmedPassword.touched || wasSubmitted) {
+                        @if (confirmedPassword.hasError('required')) {
+                            <mat-error>Confirmed password is <strong>required</strong></mat-error>
+                        }
+                        @else if (confirmedPassword.value !== password.value) {
+                            <mat-error>Passwords must match</mat-error>
+                        }
+                    }
+                </div>
+
+               @if(entryPage.isAtLeastOneLegalDocumentAvailable()) {
+                    <div>
+                        <mat-checkbox formControlName="acceptTerms">
+                            <span>
+                                <span>I declare that I have read the</span>&nbsp;
+                                @if(entryPage.isTermsOfServiceAvailable()) {
+                                    <a [routerLink]="['/terms']" target="_blank">Terms of Service</a>&nbsp;
+                                }
+
+                                @if(entryPage.areBothLegalDocumentsAvailable()){
+                                    <span>and the</span>&nbsp;
+                                }
+
+                                @if(entryPage.isPrivacyPolicyAvailable()) {
+                                    <a [routerLink]="['/privacy-policy']" target="_blank">Privacy Policy</a>&nbsp;
+                                }
+
+                                <span>of the application and accept their provisions.</span>
+                            </span>
+                        </mat-checkbox>
+
+                        @if(acceptTerms.touched || wasSubmitted) {
+                            @if (acceptTerms.value === false) {
+                                <mat-error>You must accept the terms and conditions</mat-error>
+                            }
+                        }
+                    </div>
+               }
+        
+                <button     
+                    type="submit" 
+                    class="auth-field__btn" 
+                    [class.auth-field__btn--loading]="isLoading()"
+                    mat-flat-button
+                    aria-label="Sign up"
+                    [disabled]="isLoading()">
+                    Sign up
+                </button>
+
+                @if (isInvitationRequired()) {
+                    <mat-error>Sorry, but only invited users can sing-up. Contact the administrator to get an invitation.</mat-error>
+                }
+            </form>
+        } @else {
+            <div class="auth-form">
+                <div>
+                    Thanks for signing up! 
+                </div>
+
+                <div>
+                    We've sent you an email with a confirmation link. Please click on the link to activate your account.
+                </div>
+
+
+                @let secondsLeft = countdown.secondsLeft();
+
+                <button     
+                    class="auth-field__btn" 
+                    [class.auth-field__btn--loading]="isLoading()"
+                    mat-flat-button
+                    aria-label="Resend confirmation email"
+                    (click)="resendConfirmationEmail()"
+                    [disabled]="isLoading() || secondsLeft > 0">
+                    @if(secondsLeft == 0) {
+                        <span>Resend confirmation email</span>
+                    } @else {
+                        <span>Resend confirmation email ({{secondsLeft}}s)</span>
+                    }
+                </button>
+
+                <button class="auth-field__btn-light" mat-flat-button
+                    aria-label="Go back"
+                    (click)="goBackFromConfirmationEmail()">
+                    Go back
+                </button>
+            </div>
+        }
+    </div>
+
+    <div class="spacer"></div>
+    
+    <div class="mt-auto">
+        <app-footer></app-footer>
+    </div>
+</div>

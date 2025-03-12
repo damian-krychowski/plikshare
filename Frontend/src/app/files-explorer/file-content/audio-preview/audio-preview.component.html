@@ -1,0 +1,8 @@
+<audio
+    [src]="fileUrl()"
+    class="audio-preview"
+    controls
+    controlsList="nodownload"
+    (error)="handleMediaError($event)">
+    Your browser does not support the audio tag.
+</audio>

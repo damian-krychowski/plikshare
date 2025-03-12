@@ -1,0 +1,148 @@
+
+
+<div class="item-bar item-bar--clickable flex-row hover-switch" 
+    (prefetch)="prefetchWorkspace()"
+    (click)="openWorkspace()">
+
+    <div class="item"
+        [class.item--highlighted]="isHighlighted()"   
+        [class.item--in-background]="areActionsVisible()">      
+        
+        <div class="icon-container">              
+            <i class="icon icon-xl icon-nucleo-workspace hide-on-hover"></i>   
+            
+            @if(isUsedByIntegration() && isBucketCreated()) {
+                <i class="icon icon-nucleo-plug icon-container__mini-icon hide-on-hover"></i>  
+            }
+            
+            @if(!isBucketCreated()) {
+                <i class="icon icon-nucleo-wrench icon-container__micro-icon"></i>  
+            }
+
+            <i class="icon icon-xl icon-nucleo-workspace-search show-on-hover"></i>               
+        </div>
+
+        <div class="item__details">
+            <app-editable-txt #nameTxt
+                [text]="name()"
+                [isEditing]="isNameEditing()"
+                (valueChange)="saveWorkspaceName($event)"
+                (editingStarted)="workspace().isNameEditing.set(true)"
+                (editingStopped)="workspace().isNameEditing.set(false)">                    
+            </app-editable-txt>
+
+            @if(hasCurrentSizeInBytes()){
+                <div class="item__subtitle">
+                    <span>Size: {{ currentSizeInBytes() | storageSize }}</span>
+                    
+                    @if(storageName(); as storageNameValue) {
+                        <span class="ml-1">Storage: {{storageNameValue}}</span>
+                    }
+
+                    @if(!isOwnedByUser()) {
+                        <app-user-link
+                            class="ml-1"
+                            prefix="Owner:"
+                            [user]="owner()">                            
+                        </app-user-link>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="item-bar__actions" (click)="$event.stopPropagation()">       
+        @if(isNameEditing()) {
+            <app-action-btn
+                tooltip="Save name"
+                icon="icon-lucide-check"
+                (clicked)="nameTxt.save()">
+            </app-action-btn>
+        } @else {
+            @if(canChangeOwner()) {
+                <app-action-btn
+                    tooltip="Change owner"
+                    icon="icon-nucleo-user-substitution"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    (prefetch)="prefetchUsers()"
+                    (clicked)="changeOwner()">
+                </app-action-btn>
+            }
+
+            @if(canLocate()) {
+                <app-action-btn
+                    tooltip="Locate"
+                    icon="icon-lucide-search"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    (prefetch)="prefetchDashboard()"
+                    (clicked)="locate()">
+                </app-action-btn>
+            }
+        
+            @if(canLeave()) {
+                <app-action-btn
+                    tooltip="Leave"
+                    icon="icon-nucleo-leave"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    [operationItem]="'this workspace'"
+                    [verb]="'leave'"
+                    [isOperationDanger]="true"
+                    appConfirmOperation
+                    (confirmedClick)="leaveWorkspace()">
+                </app-action-btn>
+            }
+        
+            @if(canRevokeAccess()) {
+                <app-action-btn
+                    tooltip="Revoke access"
+                    icon="icon-nucleo-user-xmark"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    [operationItem]="'to this workspace'"
+                    [verb]="'revoke access'"
+                    [isOperationDanger]="true"
+                    appConfirmOperation
+                    (confirmedClick)="accessRevoked.emit()">
+                </app-action-btn>
+            }
+        
+            @if(canShare()) {
+                <app-action-btn
+                    tooltip="Share"
+                    icon="icon-nucleo-share"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    (clicked)="shareWorkspace()">
+                </app-action-btn>
+            }
+        
+            <app-action-btn
+                tooltip="Edit name"
+                icon="icon-nucleo-pen"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                (clicked)="editName()">
+            </app-action-btn>
+        
+            @if(canDelete()) {
+                <app-action-btn
+                    tooltip="{{isUsedByIntegration() ? 'Cannot delete workspace used by integration' : 'Delete'}}"
+                    icon="icon-nucleo-remove"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    [operationItem]="'this workspace'"
+                    [verb]="'delete'"
+                    [isOperationDanger]="true"
+                    [disabled]="isUsedByIntegration()"
+                    [isOperationDisabled]="isUsedByIntegration()"
+                    appConfirmOperation
+                    (confirmedClick)="deleteWorkspace()">
+                </app-action-btn>
+            }
+        
+            <app-action-btn
+                tooltip="Actions"
+                icon="icon-lucide-dots"
+                class="d-none-on-desktop"
+                (clicked)="toggleActions()">
+            </app-action-btn>
+        }
+          
+    </div>    
+</div>

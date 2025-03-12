@@ -1,0 +1,48 @@
+@import "./../../../../../../styles/page-form.scss";
+@import "./../../../../../../styles/mobile-display.scss";
+@import "./../../../../../../styles/app-header.scss";
+@import "./../../../../../../styles/top-bar.scss";
+@import "./../../../../../../styles/top-nav-btn.scss";
+@import "./../../../../../../styles/item-bar.scss";
+@import "./../../../../../../styles/icon-merge.scss";
+@import "./../../../../../../styles/variables.scss";
+
+.email-picker {
+    padding: 2rem;
+}
+
+.mat-mdc-form-field-error-wrapper {
+    padding: 0 !important;
+}
+
+.description-box {
+    border: 1px solid var(--company-grey-accent-light);
+    font-size: 0.9rem;
+    color: var(--company-grey-font);
+    background-color: white;
+    padding: 1rem;
+
+    &--danger {
+        color: var(--company-danger);
+    }
+}
+
+
+.test-image-container {
+    display: flex;
+    align-items: center;
+}
+
+.test-image {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--company-grey-accent-light);
+}
+
+.test-result-container {
+    display: flex;
+    align-items: center;
+    border: 1px dashed var(--company-grey-accent-light);
+    background-color: white;
+    padding: 1rem;
+}

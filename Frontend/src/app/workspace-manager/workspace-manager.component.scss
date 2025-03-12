@@ -1,0 +1,22 @@
+@import "./../../styles/top-bar.scss";
+@import "./../../styles/covered.scss";
+@import "./../../styles/icon-merge.scss";
+@import "./../../styles/top-nav-btn.scss";
+@import "./../../styles/item-bar.scss";
+@import "./../../styles/mobile-display.scss";
+@import "./../shared/menu/app-menu.scss";
+
+.top-bar {
+    .top-nav-btn:first-of-type {
+        margin-left: auto;
+    }
+}
+
+.mat-badge-content {
+    font-size: var(--company-small-font) !important;
+    bottom: 15px !important;
+    left: 43px !important;
+    z-index: 1 !important;
+    background-color: var(--company-blue-selected) !important;
+    color: black !important;
+}

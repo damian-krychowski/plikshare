@@ -1,0 +1,107 @@
+<div class="item-bar flex-column">
+    <div class="flex-row">
+        <div class="item flex-grow" 
+            [class.item--opaque]="!isEnabled()"
+            [class.item--in-background]="areActionsVisible()">
+            <i class="icon icon-xl icon-nucleo-link"></i>
+          
+            <div class="item__details">
+                <app-editable-txt #linkNameTxt
+                    [text]="name()"
+                    [textToDisplay]="nameToDisplay()"
+                    [isEditing]="isNameEditing()"
+                    (valueChange)="saveLinkName($event)"
+                    (editingStarted)="link().isNameEditing.set(true)"
+                    (editingStopped)="link().isNameEditing.set(false)">                                
+                </app-editable-txt>
+
+                <div class="item__subtitle url" (click)="copyToClipboard()"
+                    matTooltip="Copy to clipboard"
+                    matTooltipPosition="below">
+
+                    {{ url() }} <i class="icon icon-sm icon-nucleo-copy"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-row flex-gap-05 ml-auto" (click)="$event.stopPropagation()">
+            @if(isNameEditing()) {
+                <app-action-btn
+                    tooltip="Save name"
+                    icon="icon-lucide-check"
+                    (clicked)="linkNameTxt.save()">
+                </app-action-btn>
+            } @else {
+                <mat-slide-toggle
+                    matTooltip="Is enabled"
+                    matTooltipPosition="above"
+                    [class.d-none-on-mobile]="!areActionsVisible()"                 
+                    [checked]="isEnabled()"
+                    (change)="changeLinkIsEnabled()">
+                </mat-slide-toggle>
+            
+                <app-action-btn
+                    tooltip="Regenerate link"
+                    icon="icon-nucleo-reload"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    [operationItem]="'this box link'"
+                    [verb]="'regenerate'"
+                    [isOperationDanger]="true"
+                    appConfirmOperation
+                    (confirmedClick)="regenerateLinkAccessCode()">
+                </app-action-btn>
+            
+                <app-action-btn
+                    tooltip="Open link"
+                    icon="icon-nucleo-eye"
+                    class="d-none-on-mobile"
+                    (clicked)="openLink()">
+                </app-action-btn>
+            
+                <app-action-btn
+                    tooltip="Edit name"
+                    icon="icon-nucleo-pen"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    (clicked)="editName()">
+                </app-action-btn>
+            
+                <app-action-btn
+                    tooltip="Delete"
+                    icon="icon-nucleo-remove"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    [operationItem]="'this box link'"
+                    [verb]="'delete'"
+                    [isOperationDanger]="true"
+                    appConfirmOperation
+                    (confirmedClick)="deleteLink()">
+                </app-action-btn>
+            
+                <app-action-btn
+                    tooltip="Actions"
+                    icon="icon-lucide-dots"
+                    class="d-none-on-desktop"
+                    (clicked)="toggleActions()">
+                </app-action-btn>
+            }            
+        </div>
+    </div>    
+
+    <div class="mt-2"></div>
+
+    <div class="item item--no-padding">
+        <i class="icon icon--placeholder icon-xl icon-nucleo-user-clock"></i>
+
+        <div class="item__details">
+            <div>
+                Permissions:
+            </div>
+
+            <div class="mt-1"></div>
+
+            <app-box-permissions-list
+                [permissions]="permissions()"
+                (changed)="changeLinkPermissions()">                            
+            </app-box-permissions-list>
+        </div>
+    </div>                
+</div>

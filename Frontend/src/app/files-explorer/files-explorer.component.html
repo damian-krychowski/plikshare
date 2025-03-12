@@ -1,0 +1,536 @@
+@let fileInPreviewVal = fileInPreview();
+@let pendingBulkUploadVal = pendingBulkUpload();
+@let uploadApiVal = uploadsApi();
+@let viewModeVal = viewMode();
+@let isListViewMode =viewModeVal == 'list-view';
+
+<input #fileUpload
+    type="file" 
+    class="file-input"
+    multiple="multiple"
+    (change)="onFilesSelected($event, fileUpload)">
+
+<div #stickyWrapper class="sticky-wrapper">
+    @if(fileInPreviewVal) {
+        <div class="title-header">
+            <div>
+                <app-editable-txt #nameTxt
+                    [text]="fileInPreviewVal.name()"
+                    [isEditing]="fileInPreviewVal.isNameEditing()"                
+                    [canEdit]="allowFileRename() || fileInPreviewVal.wasUploadedByUser"
+                    (valueChange)="saveFileName(fileInPreviewVal, $event)"
+                    (editingStarted)="fileInPreviewVal.isNameEditing.set(true)"
+                    (editingStopped)="fileInPreviewVal.isNameEditing.set(false)">                    
+                </app-editable-txt>
+            </div>
+
+            <div class="flex-row flex-gap-05 ml-auto">      
+                @if(fileInPreviewIsEditMode()) {
+                    <app-action-btn
+                        tooltip="Cancel"
+                        icon="icon-lucide-xmark"
+                        [disabled]="isFileInPreviewBeingSaved()"
+                        (clicked)="fileInPreviewCancelContentChanges()">
+                    </app-action-btn>
+                    
+                    <app-action-btn
+                        tooltip="Save"
+                        icon="icon-lucide-check"
+                        [isLoading]="isFileInPreviewBeingSaved()"
+                        [disabled]="isFileInPreviewBeingSaved()"
+                        (clicked)="fileInPreviewSaveContentChanges()">
+                    </app-action-btn>
+                } @else {
+                    @if(fileInPreviewVal.isNameEditing()) {
+                        <app-action-btn
+                            tooltip="Save name"
+                            icon="icon-lucide-check"
+                            (clicked)="nameTxt.save()">                    
+                        </app-action-btn>
+                    } @else {
+                        @if(fileInPreviewCanEdit()) {
+                            <app-action-btn
+                                tooltip="Edit file"
+                                icon="icon-nucleo-compose"
+                                (clicked)="fileInPreviewIsEditMode.set(true)">
+                            </app-action-btn>
+                        }
+
+                        @if(allowDownload() || fileInPreviewVal.wasUploadedByUser) {
+                            <app-action-btn
+                                tooltip="Download"
+                                icon="icon-nucleo-download"
+                                (clicked)="downloadFile(fileInPreviewVal)">
+                            </app-action-btn>
+                        }
+        
+                        @if(allowFileDelete() || fileInPreviewVal.wasUploadedByUser) {
+                            <app-action-btn
+                                tooltip="Delete"
+                                icon="icon-nucleo-remove"
+                                appConfirmOperation 
+                                [operationItem]="'the file'"
+                                [verb]="'delete'"
+                                [isOperationDanger]="true"
+                                (confirmedClick)="deleteFile(fileInPreviewVal)">
+                            </app-action-btn>
+                        }
+        
+                        <div class="ml-1 flex-row flex-gap-05">  
+                            <app-action-btn
+                                tooltip="Show previous"
+                                icon="icon-lucide-chevron-left"        
+                                [(isMouseOver)]="isMouseOverPreviewPreviousBtn"                                              
+                                [disabled]="!isPreviousForPreviewAvailable()"
+                                (clicked)="showPreviousInPreview()">
+                            </app-action-btn>
+        
+                            <app-action-btn
+                                tooltip="Close preview"
+                                icon="icon-lucide-xmark"
+                                (clicked)="closeFilePreview()">
+                            </app-action-btn>
+        
+                            <app-action-btn
+                                tooltip="Show next"
+                                icon="icon-lucide-chevron-right"      
+                                [(isMouseOver)]="isMouseOverPreviewNextBtn"                  
+                                [disabled]="!isNextForPreviewAvailable()"
+                                (clicked)="showNextInPreview()">
+                            </app-action-btn>
+                        </div>
+                    }
+                }                
+            </div>
+        </div>
+
+        <div class="context-bar">        
+            <app-folder-path
+                [topFolderExternalId]="topFolderExternalId()"
+                [selectedFolder]="selectedFolder()"
+                (prefetchFolder)="prefetchFolder($event)"
+                (openFolder)="openFolderByExternalId($event)"
+                (currentFolderClick)="closeFilePreview()">        
+            </app-folder-path>
+
+            <div class="ml-auto">
+                @if(isMouseOverPreviewPreviousBtn() && isPreviousForPreviewAvailable()) {
+                    <strong>Previous:</strong> {{previousForPreview()?.name()}} 
+                } @else if(isMouseOverPreviewNextBtn() && isNextForPreviewAvailable()) {
+                    <strong>Next: </strong> {{nextForPreview()?.name()}}
+                } @else {
+                    {{ fileInPreviewVal.extension }} | {{ fileInPreviewVal.sizeInBytes| storageSize }}    
+                }
+            </div>           
+        </div>
+    } @else if(pendingBulkUploadVal) {
+        <div class="title-header">
+            <div>
+                Bulk upload overview
+            </div>
+
+            <div class="flex-row flex-gap-05 ml-auto">      
+                @if(!pendingBulkUploadVal.isStarted()) {
+                    <app-action-btn                    
+                        tooltip="Start upload"
+                        icon="icon-nucleo-upload-2"
+                        [disabled]="!pendingBulkUploadVal.isUploadEnabled()"
+                        (clicked)="runBulkUpload()">
+                    </app-action-btn>     
+                } 
+
+                <app-action-btn
+                    tooltip="Cancel"
+                    icon="icon-lucide-xmark"
+                    (clicked)="closePendingBulkUpload()">
+                </app-action-btn>
+            </div>
+        </div>
+
+        <div class="context-bar">        
+            <app-folder-path
+                [topFolderExternalId]="topFolderExternalId()"
+                [selectedFolder]="selectedFolder()"
+                (prefetchFolder)="prefetchFolder($event)"
+                (openFolder)="openFolderByExternalId($event)"
+                (currentFolderClick)="closePendingBulkUpload()">        
+            </app-folder-path>    
+
+            <div class="ml-auto">
+                Total upload size: {{totalBulkUploadSize() | storageSize}}
+            </div>      
+        </div>
+    } @else {        
+        <div class="title-header">
+            <app-folder-path
+                [topFolderExternalId]="topFolderExternalId()"
+                [selectedFolder]="selectedFolder()"
+                (prefetchFolder)="prefetchFolder($event)"
+                (openFolder)="openFolderByExternalId($event)">        
+            </app-folder-path>
+
+            <div class="flex-row flex-gap-05 ml-auto">   
+                @if(isListViewMode) {   
+                    @if(canBulkDownload()) {
+                        <app-action-btn
+                            tooltip="Bulk Download"
+                            icon="icon-nucleo-download"
+                            (clicked)="downloadSelectedItems()">
+                        </app-action-btn>
+                    }
+
+                    @if(canBulkDelete()) {
+                        <app-action-btn
+                            tooltip="Delete"
+                            icon="icon-nucleo-remove"
+                            appConfirmOperation 
+                            [operationItem]="'selected items'"
+                            [verb]="'delete'"
+                            [isOperationDanger]="true"
+                            (confirmedClick)="deleteSelectedItems()">
+                        </app-action-btn>
+                    }
+    
+                    @if(canCutItems()){
+                        <app-action-btn
+                            tooltip="Cut"
+                            icon="icon-nucleo-cut"                
+                            (clicked)="cutSelectedItems()">
+                        </app-action-btn>
+                    }
+    
+                    @if(canPasteItems()){
+                        <app-action-btn
+                            tooltip="Paste"
+                            icon="icon-nucleo-clipboard"
+                            (clicked)="pasteCutItems()">
+                        </app-action-btn>
+                    }
+    
+                    @if(allowCreateFolder() && !isAnyItemSelected()) {
+                        <app-action-btn
+                            tooltip="Create new folder"
+                            icon="icon-nucleo-folder-plus"
+                            (clicked)="createNewFolder()">
+                        </app-action-btn>
+                    }
+    
+                    @if(allowUpload() && !isAnyItemSelected()){
+                        <app-action-btn
+                            tooltip="Upload files"
+                            icon="icon-nucleo-upload-2"
+                            (clicked)="startUpload(fileUpload)">
+                        </app-action-btn>             
+                    }          
+
+                    @if(canSelectAll()) {
+                        <mat-checkbox 
+                            [matTooltip]="isAnyItemNotSelected() ? 'Select all' : 'Unselect all'"
+                            [ngModel]="itemsCount() > 0 && !isAnyItemNotSelected()"
+                            (change)="toggleAllItemsSelection()">
+                        </mat-checkbox>
+                    }
+                } @else {     
+                    @if(canBulkTreeDownload()) {
+                        <app-action-btn
+                            tooltip="Bulk Download"
+                            icon="icon-nucleo-download"
+                            (clicked)="downloadSelectedTreeItems()">
+                        </app-action-btn>
+                    }                    
+
+                    @if(canBulkTreeDelete()) {
+                        <app-action-btn
+                            tooltip="Delete"
+                            icon="icon-nucleo-remove"
+                            appConfirmOperation 
+                            [operationItem]="'selected items'"
+                            [verb]="'delete'"
+                            [isOperationDanger]="true"
+                            (confirmedClick)="triggerSelectedTreeItemsDelete()">
+                        </app-action-btn>
+                    }
+
+                    <app-item-search
+                        [phrase]="treeSearchPhrase()"
+                        [debounce]="0"
+                        [minimalLength]="3"
+                        (searched)="treeSearchPhrase.set($event)">                    
+                    </app-item-search>
+                }
+            </div>
+        </div>
+
+        @if(!hideContextBar()) {            
+            <div class="context-bar">        
+                @if(allowList()) {
+                    <div>
+                        <span class="context-item view-mode context-item--clickable" 
+                            [class.view-mode--active]="viewModeVal == 'list-view'"
+                            (click)="setViewMode('list-view')"> 
+                            List view
+                            <i class="icon icon-lucide-check"></i>
+                        </span>
+    
+                        |
+                        
+                        <span class="context-item view-mode context-item--clickable" 
+                            [class.view-mode--active]="viewModeVal == 'tree-view'"
+                            (click)="setViewMode('tree-view')">
+                            <i class="icon icon-lucide-check"></i>
+                            Tree view
+                        </span>
+                    </div>   
+                }
+
+                <div class="ml-auto">
+                    @if(isListViewMode) {                        
+                        @if(fileUploadManager.pendingQueueSize() > 0) {
+                            <span class="context-item">
+                                Queued Uploads: {{fileUploadManager.pendingQueueSize()}} 
+                            </span> | 
+                        }
+
+                        <span class="context-item context-item--clickable" (click)="toggleAllFolders()">
+                            @if(isAnyItemSelected()) {
+                                Folders: {{selectedFoldersCount()}}/{{foldersCount()}}
+                            } @else {
+                                Folders: {{foldersCount()}}
+                            }
+                        </span> | 
+
+                        <span class="context-item context-item--clickable" (click)="toggleAllFiles()">
+                            @if(isAnyItemSelected()) {
+                                Files: {{selectedFilesCount()}}/{{filesCount()}}
+                            } @else {
+                                Files: {{filesCount()}}
+                            }
+                        </span> | 
+
+                        <span class="context-item context-item--clickable" (click)="toggleAllUploads()">            
+                            @if(isAnyItemSelected()) {
+                                Uploads: {{selectedUploadsCount()}}/{{uploadsCount()}}
+                            } @else {
+                                Uploads: {{uploadsCount()}}
+                            }
+                        </span>
+                    } @else {
+                        @let selectionSummary = treeSelectionSummary();
+
+                        @if(selectionSummary.selectedFilesCount > 0 || selectionSummary.selectedFoldersCount > 0) {
+                            <span class="context-item">
+                                Selection: {{selectionSummary.selectedFilesCount}} {{selectionSummary.selectedFilesCount == 1 ? 'file' : 'files'}} ({{selectionSummary.totalSizeInBytes | storageSize}})
+                            </span> 
+
+                            <div class="context-item context-item--short context-item--clickable" 
+                                [matTooltip]="'Cancel selection'"
+                                (click)="cancelTreeSelection()">
+                                <i class="icon icon-lg icon-lucide-xmark"></i>
+                            </div>
+                            |
+                        }       
+
+                        @let searchedFilesSelection = treeSearchedFilesSelection();
+
+                        @if(searchedFilesSelection) {
+                            <span class="context-item context-item--clickable" (click)="toggleTreeSearchedFilesSelection()">            
+                                @if(searchedFilesSelection.selectedFiles > 0) {
+                                    Matching files: {{searchedFilesSelection.selectedFiles}}/{{searchedFilesSelection.matchingFiles}}
+                                } @else {
+                                    Matching files: {{searchedFilesSelection.matchingFiles}}
+                                }
+                            </span> |
+                        }
+
+                        @let treeViewModeVal = treeViewMode();
+
+                        @if(treeViewModeVal=='show-all') {
+                            <div class="context-item context-item--clickable" 
+                                [matTooltip]="'Show only selected'"
+                                (click)="treeViewMode.set('show-only-selected')">
+                                <i class="icon icon-xl icon-nucleo-selected-and-not"></i>
+                            </div>
+                        } @else {
+                            <div class="context-item context-item--clickable"
+                                [matTooltip]="'Show all'"
+                                (click)="treeViewMode.set('show-all')">                                    
+                                <i class="icon icon-xl icon-nucleo-only-selected"></i>
+                            </div>
+                        }           
+                    }
+                </div>
+                
+            </div>
+        }
+    }
+</div>
+
+<div class="mt-1"></div>
+
+
+<div class="explorer-content" 
+    [class.explorer-content--const-height]="constHeightMode()"
+    [class.explorer-content--no-overflow-y]="fileInPreviewVal">
+
+    @if(fileInPreviewVal) {
+        <app-file-inline-preview
+            [file]="fileInPreviewVal"
+            [operations]="operations"
+            [fileOperations]="operations"
+            [allowFileEdit]="allowFileEdit()"
+            [allowPreviewComments]="allowPreviewComment()"
+            [allowPreviewNotes]="allowPreviewNotes()"
+            [integrations]="integrations()"
+            [textractJobsStatusService]="textractJobStatusService"
+            [isInEditMode]="fileInPreviewIsEditMode()"
+            [commandsPipeline]="fileInlinePreviewCommandsPipeline">            
+        </app-file-inline-preview>
+    }
+
+    @if(pendingBulkUploadVal && uploadApiVal) {
+        <app-bulk-upload-preview
+            [bulkUpload]="pendingBulkUploadVal"
+            [folderExternalId]="selectedFolder()?.externalId ?? null"
+            [uploadsApi]="uploadApiVal"
+            [foldersApi]="filesApi()"
+            (foldersCreated)="addFoldersCreatedInBulkUpload($event)"
+            (closed)="closePendingBulkUpload()">            
+        </app-bulk-upload-preview>
+    }
+
+    <div [style.display]="(fileInPreviewVal || pendingBulkUploadVal || !isListViewMode) ? 'none' : 'unset'">
+        @for(folder of folders(); track folder.externalId) {
+            <app-folder-item     
+                (appDragOverStay)="operations.openFolderFunc(folder.externalId, null)"    
+                [folder]="folder"
+                [operations]="operations"
+                [showPath]="false"
+                [hideActions]="hideItemsActions()"
+                [allowDelete]="allowFolderDelete()"
+                [allowRename]="allowFolderRename()"
+                [allowShare]="allowFolderShare()"
+                [allowMoveItems]="allowMoveItems()"
+                [allowDownload]="allowDownload()"
+                [canOpen]="!isAnyNameEditPending()"
+                (deleted)="onFolderDeleted(folder)"
+                (boxCreated)="createBoxFromFolder(folder)">            
+            </app-folder-item>
+        }   
+    
+        <div [class.drop-area__anchor]="allowUpload()">
+            <div>
+                <div class="mt-2"></div>
+            
+                @if(allowCreateFolder()){
+                    <app-item-btn
+                        title="Add new folder"
+                        subtitle="Click here to create an empty folder!"
+                        icon="icon-nucleo-folder-plus"
+                        (clicked)="createNewFolder()">                    
+                    </app-item-btn>
+                }
+            </div>
+    
+            @if(hasFiles()) {
+                <div class="mt-2"></div>
+            }
+        
+            @for(file of files(); track file.externalId) {
+                <app-file-item
+                    [file]="file"
+                    [operations]="operations"
+                    [hideActions]="hideItemsActions()"
+                    [allowDelete]="allowFileDelete()"
+                    [allowRename]="allowFileRename()"
+                    [allowDownload]="allowDownload()"
+                    [allowMoveItems]="allowMoveItems()"
+                    [canOpen]="!isAnyNameEditPending()"
+                    (deleted)="onFileDeleted(file)"
+                    (previewed)="onFilePreviewed(file)">
+                </app-file-item>    
+            }
+            
+            @if(hasUploads()) {
+                <div class="mt-2"></div>
+            }
+        
+            @if(canUpload()) {       
+                @for(upload of uploads(); track upload.externalId) {
+                    <app-upload-item 
+                        [fileUploadApi]="uploadApiVal"
+                        [upload]="upload"   
+                        [hideActions]="hideItemsActions()"
+                        (aborted)="onUploadAborted(upload)"
+                        (isSelectedChange)="upload.isSelected.set($event)">
+                    </app-upload-item>
+                }
+        
+                <div>
+                    <div class="mt-2"></div>
+        
+                    <app-item-btn
+                        title="Upload some files"
+                        subtitle="Click here to upload more files!"
+                        icon="icon-nucleo-upload-2"
+                        (clicked)="startUpload(fileUpload)">                    
+                    </app-item-btn>
+
+                    @if(uploadApiVal && allowCreateFolder()) {
+                        <div class="mt-2"></div>
+                               
+                        <app-item-btn
+                            title="Bulk zip upload"
+                            subtitle="Click here to upload files in bulk!"
+                            icon="icon-nucleo-file-zip"
+                            (clicked)="startBulkUpload()">                    
+                        </app-item-btn>
+                    }
+                </div>
+        
+                @if(isDragging()) {
+                    <div class="drop-area" 
+                        appDropFiles 
+                        (filesDropped)="onFilesDropped($event)">
+                        <i class="icon icon-nucleo-upload-2"></i>   
+            
+                        <div class="drop-area__message">
+                            Drop files here!
+                        </div>
+                    </div>
+                }
+            }
+    
+            @if(isEmptyMessageVisible()){
+                <div class="nothing-to-show">
+                    <div class="nothing-to-show__label">
+                        This folder is empty
+                    </div>
+                </div>
+            
+                <div class="mt-2"></div>
+            }
+        </div>   
+    </div>
+
+    @let isFileTreeViewActive = !(fileInPreviewVal || pendingBulkUploadVal || isListViewMode);
+
+    <div [style.display]="isFileTreeViewActive ? 'unset' : 'none'">
+        <app-file-tree-view  #fileTreeView
+            [topLevelItems]="explorerTreeItems()"
+            [canSelect]="canSelectItems()"
+            [allowDownload]="allowDownload()"
+            [isActive]="isFileTreeViewActive"
+            [viewMode]="treeViewMode()"
+            [searchPhrase]="treeSearchPhrase()"
+            (fileClicked)="onFilePreviewed($event)"
+            (fileDownloadClicked)="onDownloadFile($event)"
+            (folderPrefetchRequested)="onFolderTreePrefetchRequested($event)"
+            (folderLoadRequested)="onFolderTreeLoadRequested($event)"
+            (folderSetToRoot)="onFolderTreeSetToRoot($event)"
+            (selectionStateChanged)="onFileTreeSelectionStateChanged($event)"
+            (itemsDeleted)="onFileTreeSelectedItemsDelete($event)"
+            (searchRequested)="onTreeSearchRequested($event)"
+            (searchedFilesSelectionChanged)="onTreeSearchedFilesSelectionChanged($event)">
+        </app-file-tree-view>
+    </div>   
+</div>

@@ -1,0 +1,104 @@
+<div class="app-container">
+    <div class="top-bar">
+        <div class="top-bar__header">
+            <button class="top-nav-btn" 
+                aria-label="Account" 
+                mat-flat-button  
+                matTooltip="Go back to Account"
+                matTooltipPosition="below"
+                (click)="goToAccount()">                 
+                <div class="icon-merge">
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>   
+                    <i class="icon icon-xl icon-lucide-server icon-merge--front"></i>   
+                </div>
+            </button> 
+
+            <div class="flex-column">
+                <div class="top-bar__title">
+                    Storage settings
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="content"> 
+        <div class="mt-3"></div>
+
+        <div class="title-header">  
+            <div>
+                Storage settings:
+            </div>
+
+            <div class="flex-row flex-gap-05 ml-auto d-none-on-mobile">
+                <app-action-btn
+                    tooltip="Create Hard Drive storage"
+                    icon="icon-nucleo-hard-drive"
+                    (clicked)="onAddHardDriveStorage()">                        
+                </app-action-btn>
+
+                <app-action-btn
+                    tooltip="Create Cloudflare R2 storage"
+                    icon="icon-cloudflare-logo"
+                    (clicked)="onAddCoudlfareR2Storage()">                        
+                </app-action-btn>
+
+                <app-action-btn
+                    tooltip="Create AWS S3 storage"
+                    icon="icon-aws-logo"
+                    (clicked)="onAddAwsS3Storage()">                        
+                </app-action-btn>
+
+                <app-action-btn
+                    tooltip="Create DigitalOcean Spaces storage"
+                    icon="icon-digitalocean"
+                    (clicked)="onAddDigitalOceanSpacesStorage()">                        
+                </app-action-btn>
+            </div>
+        </div>  
+
+        <div class="mt-2"></div>   
+
+        @for(storage of storages(); track storage.externalId) {
+            <app-storage-item 
+                [storage]="storage"
+                (deleted)="onStorageDelete(storage)"
+                (edited)="onStorageEdit(storage)">
+            </app-storage-item>
+        } 
+
+        <div class="mt-2"></div>   
+
+        <div class="add-storage-actions">                
+            <app-item-btn
+                title="Add Hard Drive"
+                subtitle="Click here to configure Hard Drive storage!"
+                icon="icon-nucleo-hard-drive"
+                (clicked)="onAddHardDriveStorage()">                
+            </app-item-btn>
+
+            <app-item-btn
+                title="Add Cloudflare R2"
+                subtitle="Click here to configure Cloudflare R2!"
+                icon="icon-cloudflare-logo"
+                (clicked)="onAddCoudlfareR2Storage()">                
+            </app-item-btn>
+
+            <app-item-btn
+                title="Add AWS S3"
+                subtitle="Click here to configure AWS S3!"
+                icon="icon-aws-logo"
+                (clicked)="onAddAwsS3Storage()">                
+            </app-item-btn>
+
+            <app-item-btn
+                title="Add DigitalOcean Spaces"
+                subtitle="Click here to configure DigitalOcean Spaces!"
+                icon="icon-digitalocean"
+                (clicked)="onAddDigitalOceanSpacesStorage()">                
+            </app-item-btn>
+        </div>
+
+        <div class="bottom-spacer"></div>
+    </div>
+</div>

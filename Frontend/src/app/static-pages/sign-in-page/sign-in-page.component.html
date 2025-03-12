@@ -1,0 +1,265 @@
+<div class="main-container">
+    <app-top-bar></app-top-bar>
+
+    <div class="auth-container ml-auto mr-auto">
+        @if(viewState() === 'sign-in'){
+            <form class="auth-form" (submit)="onSignIn()" [formGroup]="signInForm">
+                <div class="auth-field">
+                    <label 
+                        class="auth-field__label"
+                        for="username">
+                        Email
+                    </label>
+    
+                    <input
+                        class="auth-field__input"
+                        id="username"
+                        type="email" 
+                        placeholder="Enter your email"
+                        autocomplete="username"
+                        formControlName="email">
+    
+                    @if(email.touched || wasSignInSubmitted) {
+                        @if (email.hasError('required')) {
+                            <mat-error>Email is <strong>required</strong></mat-error>
+                        }
+                        @else if (email.hasError('email')) {
+                            <mat-error>Please enter a valid email address</mat-error>
+                        }
+                    }
+                </div>
+    
+                <div class="auth-field">
+                    <label 
+                        class="auth-field__label"
+                        for="password">
+                        Password
+                    </label>
+        
+                    <input 
+                        class="auth-field__input"
+                        id="password"
+                        type="password" 
+                        appSecureInput
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                        formControlName="password">
+    
+                    @if(password.touched || wasSignInSubmitted) {
+                        @if (password.hasError('required')) {
+                            <mat-error>Password is <strong>required</strong></mat-error>
+                        }
+                    }
+                </div>
+    
+                <div>
+                    <mat-checkbox formControlName="rememberMe">Remember me</mat-checkbox>
+                </div>
+        
+                <button type="submit" 
+                    class="auth-field__btn" 
+                    [class.auth-field__btn--loading]="isLoading()"
+                    mat-flat-button
+                    aria-label="Sign in"
+                    [disabled]="isLoading()">
+                    Sign in
+                </button>
+    
+                @if(showLoginError()) {
+                    <mat-error>
+                        Email or password is incorrect or the account was not yet confirmed.
+                    </mat-error>
+                }
+    
+                <button type="button"
+                    class="auth-field__btn-light" 
+                    mat-flat-button
+                    aria-label="Forgot password?"
+                    (click)="goToForgotPassword()">
+                    Forgot your password?
+                </button>
+            </form>
+        }
+        @else if(viewState() === '2fa-required'){
+            <form class="auth-form" (submit)="onConfirm2FaCode()" [formGroup]="confirm2FaCodeForm">   
+                <div class="auth-field">
+                    <label 
+                        class="auth-field__label"
+                        for="password">
+                        One Time Code
+                    </label>
+        
+                    <input 
+                        class="auth-field__input"
+                        id="oneTimeCode"
+                        type="text" 
+                        placeholder="Enter 6-digit code"
+                        formControlName="oneTimeCode">
+    
+                    @if(oneTimeCode.touched || wasConfirm2FaSubmitted) {
+                        @if (oneTimeCode.hasError('required')) {
+                            <mat-error>Code is <strong>required</strong></mat-error>
+                        }
+                    }
+                </div>
+    
+                <div>
+                    <mat-checkbox formControlName="rememberDevice">Remember this device</mat-checkbox>
+                </div>
+        
+                <button type="submit" 
+                    class="auth-field__btn" 
+                    [class.auth-field__btn--loading]="isLoading()"
+                    mat-flat-button
+                    aria-label="Confirm"
+                    [disabled]="isLoading()">
+                    Confirm
+                </button>
+    
+                @if(show2FaCodeError()) {
+                    <mat-error>
+                        One time code is invalid
+                    </mat-error>
+                }
+                    
+                <div class="flex-column">
+                    <button type="button"
+                        class="auth-field__btn-light" 
+                        mat-flat-button
+                        aria-label="Use recovery code"
+                        (click)="goToUseRecoveryCode()">
+                        Use recovery code
+                    </button>
+        
+                    <button type="button" 
+                        class="auth-field__btn-light"
+                        mat-flat-button
+                        aria-label="Go back"
+                        (click)="goToSignIn()">
+                        Go back
+                    </button>
+                </div>
+            </form>
+        }
+        @else if(viewState() === 'use-recovery-code'){
+            <form class="auth-form" (submit)="onConfirmRecoveryCode()" [formGroup]="recoveryCodeForm">   
+                <div class="auth-field">
+                    <label 
+                        class="auth-field__label"
+                        for="password">
+                        Recovery Code
+                    </label>
+        
+                    <input 
+                        class="auth-field__input"
+                        id="recoveryCode"
+                        type="text" 
+                        placeholder="Enter your recovery code"
+                        formControlName="recoveryCode">
+    
+                    @if(recoveryCode.touched || wasRecoveryCodeSubmitted) {
+                        @if (recoveryCode.hasError('required')) {
+                            <mat-error>Recovery Code is <strong>required</strong></mat-error>
+                        }
+                    }
+                </div>
+
+                <button type="submit" 
+                    class="auth-field__btn" 
+                    [class.auth-field__btn--loading]="isLoading()"
+                    mat-flat-button
+                    aria-label="Confirm"
+                    [disabled]="isLoading()">
+                    Confirm
+                </button>
+    
+                @if(showRecoveryCodeError()) {
+                    <mat-error>
+                        Recovery code is invalid
+                    </mat-error>
+                }    
+
+                <button type="button" 
+                    class="auth-field__btn-light" 
+                    mat-flat-button
+                    aria-label="Go back"
+                    (click)="goToSignIn()">
+                    Go back
+                </button>
+            </form>
+        }
+        @else if(viewState() === 'forgot-password'){
+            <form class="auth-form" (submit)="onForgotPassword()" [formGroup]="forgotPasswordForm">
+                <div class="auth-field">
+                    <label 
+                        class="auth-field__label"
+                        for="username">
+                        Email
+                    </label>
+    
+                    <input
+                        class="auth-field__input"
+                        id="username"
+                        type="email" 
+                        placeholder="Enter your email"
+                        autocomplete="username"
+                        formControlName="email">
+    
+                    @if(forgotPasswordEmail.touched || wasForgotPasswordSubmitted) {
+                        @if (forgotPasswordEmail.hasError('required')) {
+                            <mat-error>Email is <strong>required</strong></mat-error>
+                        }
+                        @else if (forgotPasswordEmail.hasError('email')) {
+                            <mat-error>Please enter a valid email address</mat-error>
+                        }
+                    }
+                </div>
+    
+                <button type="submit" 
+                    class="auth-field__btn" 
+                    [class.auth-field__btn--loading]="isLoading()"
+                    mat-flat-button
+                    aria-label="Reset password"
+                    [disabled]="isLoading()">
+                    Reset Password
+                </button>
+        
+                <button  type="button"
+                    class="auth-field__btn-light" 
+                    mat-flat-button
+                    aria-label="Forgot password?"
+                    (click)="goToSignIn()">
+                    Go back
+                </button>
+            </form>
+        }
+        @else {
+            <div class="auth-form">
+                <div>
+                    We've sent you an email with a reset password link. Please click on the link to reset your password.
+                </div>
+
+                <button class="auth-field__btn-light" 
+                    mat-flat-button
+                    aria-label="Go back"
+                    (click)="goToSignIn()">
+                    Go back
+                </button>
+            </div>        
+        }
+
+        <div class="mt-2"></div>
+
+        @if(entryPage.isSignUpAvailable()){
+            <div class="text-center">
+                Don't have an account? <a routerLink="/sign-up">Sign up</a>
+            </div>
+        }
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="mt-auto">
+        <app-footer></app-footer>
+    </div>
+</div>

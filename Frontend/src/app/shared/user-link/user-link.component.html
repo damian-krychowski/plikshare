@@ -1,0 +1,6 @@
+<span class="user-link" 
+    [class.user-link--clickable]="isClickable()"
+    (prefetch)="onPrefetch()"
+    (click)="onClick($event)">
+    {{prefix()}} {{email()}}
+</span>

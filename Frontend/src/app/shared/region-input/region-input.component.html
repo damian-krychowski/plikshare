@@ -1,0 +1,22 @@
+<mat-form-field>
+    <mat-label>Region</mat-label>
+
+    <input 
+        id="region"
+        type="text" 
+        name="region_selector"
+        matInput 
+        [formControl]="regionControl"
+        [matAutocomplete]="auto"
+        data-lpignore="true">
+
+    <mat-autocomplete #auto="matAutocomplete">
+        @for (region of filteredRegions(); track region) {
+            <mat-option [value]="region">{{region}}</mat-option>
+        }
+    </mat-autocomplete>
+
+    @if ((regionControl.touched || wasSubmitted()) && regionControl.hasError('required')) {
+        <mat-error>Region is <strong>required</strong></mat-error>
+    }
+</mat-form-field>

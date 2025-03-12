@@ -1,0 +1,92 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        Confirm Email Provider
+    </div>
+
+    <form class="questionaire__form" (submit)="onConfirmConfiguration()" [formGroup]="confirmationFormGroup">          
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Verification code</mat-label>
+
+            <input 
+                id="verificationCode"
+                type="text" 
+                formControlName="verificationCode"
+                matInput>
+
+            @if ((verificationCode.touched || wasSubmitted()) && verificationCode.hasError('required')) {
+                <mat-error>Verification code is <strong>required</strong></mat-error>
+            }
+
+            @if ((verificationCode.touched || wasSubmitted()) && verificationCode.hasError('wrongCode')){
+                <mat-error>Wrong verification code</mat-error>        
+            }
+        </mat-form-field>    
+
+        <div class="questionaire__info">
+            To make sure the configuration is correct, we sent you a verification email with a unique code. Once you receive it, enter the code here to finalize your setup. The verification code was sent to: <strong>{{emailSentTo()}}</strong>
+        </div>
+        
+        <div class="questionaire__actions"> 
+            <button type="button" class="questionaire__btn mr-1" mat-flat-button
+                aria-label="Cancel"
+                (click)="cancel()"
+                [disabled]="isLoading()">
+                Cancel
+            </button>
+            
+            <button type="submit" class="questionaire__btn" mat-flat-button
+                [class.questionaire__btn--disabled]="confirmationFormGroup.invalid"
+                [class.questionaire__btn--loading]="isLoading()"
+                aria-label="Test configuration"
+                [disabled]="isLoading()">
+                Confirm
+            </button>
+        </div>
+    </form>
+
+    <div class="mt-3"></div>
+
+    <form class="questionaire__form" (submit)="resendConfirmationEmail()" [formGroup]="resendFormGroup">          
+           
+        <div class="questionaire__info">
+            If you have not received the email, system can send it again. Set the email address where the verification code should be delivered and click <strong>Resend</strong> button once it's available.
+        </div>     
+
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Send verification code to</mat-label>
+
+            <input 
+                id="email"
+                type="email" 
+                formControlName="email"
+                matInput>
+
+            @if ((email.touched || wasResendRequested()) && email.hasError('required')) {
+                <mat-error>Email is <strong>required</strong></mat-error>
+            }
+
+            @if ((email.touched || wasResendRequested()) && email.hasError('email')) {
+                <mat-error>Please enter a valid email address</mat-error>
+            }
+        </mat-form-field>  
+        
+        <div class="questionaire__actions"> 
+            @let secondsLeft = countdown.secondsLeft();
+
+            <button
+                type="submit"
+                class="questionaire__btn" 
+                [class.questionaire__btn--disabled]="resendFormGroup.invalid || secondsLeft > 0"
+                [class.questionaire__btn--loading]="isLoading()"
+                mat-flat-button
+                aria-label="Resend confirmation email"
+                [disabled]="isLoading()">
+                @if(secondsLeft == 0) {
+                    <span>Resend</span>
+                } @else {
+                    <span>Resend ({{secondsLeft}}s)</span>
+                }
+            </button>
+        </div>
+    </form>
+</div>

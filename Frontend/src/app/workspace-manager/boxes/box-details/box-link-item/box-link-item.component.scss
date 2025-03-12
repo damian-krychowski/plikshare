@@ -1,0 +1,30 @@
+@import "./../../../../../styles/item-bar.scss";
+@import "./../../../../../styles/mobile-display.scss";
+
+.url {    
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.3s ease;
+
+    &:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+
+    &:hover .copy-tooltip {
+        opacity: 1;
+    }
+}
+
+@keyframes copyAnimation {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.copy-animation {
+    animation: copyAnimation 0.3s ease;
+}

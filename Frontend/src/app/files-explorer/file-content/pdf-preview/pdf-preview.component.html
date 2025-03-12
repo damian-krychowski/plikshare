@@ -1,0 +1,11 @@
+<div class="pdf-container">
+    <object
+        [data]="safeFileDataUrl()"
+        type="application/pdf"
+        class="pdf-object">
+        <div>
+            <p>It appears you don't have a PDF plugin for this browser. 
+            You can <a [href]="fileUrl()" target="_blank">click here to download the PDF file.</a></p>
+        </div>
+    </object>
+</div>

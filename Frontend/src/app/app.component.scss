@@ -1,0 +1,73 @@
+:host {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0; 
+}
+
+
+.page-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+}
+
+.content-container {
+    flex-grow: 1;
+}
+
+.router {
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+.settings-btn {    
+    background-color: white;
+    border-radius: 50%;
+    height: 50px;
+    width: 50px;
+    padding: 0;
+
+    i {
+        color: white;
+        font-size: 2rem;
+        transition: all 0.1s ease-in-out;
+    }
+
+    &:hover {
+        background-color: white;
+        transition: all 0.1s ease-in-out;
+
+        i {
+            color:white;
+            transition: all 0.1s ease-in-out;
+        }
+    }
+}
+
+.prod-mode {
+    border-bottom: 3px solid transparent;
+}
+
+.icon-login-btn {
+    height: 37px;
+    line-height: 37px;
+    font-size: 30px;
+    padding-left: 3px;
+    padding-right: 9px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+}
+
+.footer-navbar {
+    @media (min-width: 992px) {
+        font-size: 1rem;
+    }
+
+    @media (max-width: 992px) {
+        font-size: 0.9rem;
+    }
+}

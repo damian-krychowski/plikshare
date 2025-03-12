@@ -1,0 +1,36 @@
+.archive-box {
+    border-top: 1px dashed var(--company-grey-accent);
+    border-left: 1px dashed var(--company-grey-accent);
+    border-right: 1px dashed var(--company-grey-accent);
+    background-color: white;
+
+    &__header {
+        padding: 1rem;
+        border-bottom: 1px dashed var(--company-grey-accent);
+    }
+
+    &__content {
+        padding: 1rem 0.5rem 1rem 1rem;
+        border-bottom: 1px dashed var(--company-grey-accent);
+    }
+
+    &__file-name {
+        font-weight: 500;
+        font-size: 1.1rem;
+    }
+}
+
+.search-container {
+    position: relative;
+}
+
+.search-info {
+    position: absolute;
+    bottom: -1rem;
+    left: 0px;
+    font-size: 0.6rem;
+    color: var(--company-grey-font);
+    opacity: 0;
+    animation: fadeIn 0s ease-in forwards;
+    animation-delay: 2s;
+}

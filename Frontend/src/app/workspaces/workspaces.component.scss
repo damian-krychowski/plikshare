@@ -1,0 +1,19 @@
+@import "./../../styles/hover-switch.scss";
+@import "./../../styles/app-header.scss";
+@import "./../../styles/top-bar.scss";
+@import "./../../styles/covered.scss";
+@import "./../../styles/top-nav-btn.scss";
+
+.setup-explanation {
+    font-size: 1rem;
+    opacity: 0.8;
+    padding-left: 0.5rem;
+}
+
+.step {
+    padding-left: 1rem;
+
+    &__number {
+        font-weight: 600;
+    }
+}

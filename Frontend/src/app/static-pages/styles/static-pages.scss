@@ -1,0 +1,19 @@
+@import "./static-page-variables.scss";
+
+
+.call-to-action-btn {
+    border-radius: 100px !important;
+    color: white !important;
+    background: var(--company-blue) !important;
+    padding: 1rem 1.6rem !important;
+    font-size: 1.2rem !important;
+    text-decoration: none;
+
+    &:hover {
+       background: var(--company-blue-dark) !important;
+    }
+
+    @media (max-width: 768px) {
+        font-size: 1rem !important;
+    }
+}

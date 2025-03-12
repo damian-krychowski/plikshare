@@ -1,0 +1,68 @@
+<div class="app-container external-link-container">
+    @if(isBoxLoaded()) {
+        @if(isTurnedOn()){
+            @if(headerHtml(); as headerHtmlValue) {
+                <div [innerHTML]="headerHtmlValue"></div>
+                <div class="mt-4"></div>
+            }
+            
+            <div class="files-explorer-container">
+                <app-files-explorer #filesExplorer
+                    [filesApi]="filesApi()"
+                    [uploadsApi]="uploadsApi()"
+
+                    [initialContent]="initialBoxContent()"
+    
+                    [allowList]="allowList()"
+                    [allowCreateFolder]="allowCreateFolder()"
+                    [allowUpload]="allowUpload()"
+                    [allowMoveItems]="allowMoveItems()"
+
+                    [allowFolderRename]="allowRenameFolder()"
+                    [allowFolderDelete]="allowDeleteFolder()"
+
+                    [allowFileRename]="allowRenameFile()"
+                    [allowFileDelete]="allowDeleteFile()"
+                    [allowDownload]="allowDownload()"
+    
+                    [currentFolderExternalId]="currentFolderExternalId()"
+                    (folderSelected)="onFolderSelected($event)"
+
+                    [currentFileExternalIdInPreview]="currentFileExternalIdInPreview()"
+                    (filePreviewed)="onFilePreviewed($event)">    
+                </app-files-explorer>
+            </div>
+           
+            <div class="powered-by">
+                Powered by: <a class="powered-by-link" href="https://plikshare.com" target="_blank">plikshare.com</a>
+            </div>
+                    
+            <div class="mt-4"></div>
+    
+            @if(footerHtml(); as footerHtmlValue) {
+                <div [innerHTML]="footerHtmlValue"></div>
+                <div class="mt-4"></div>
+            }
+        } @else {
+            <div class="mt-4"></div>
+
+            <div class="warning-header-container">
+                <div class="warning">
+                    <div class="warning__details">
+                        <div class="warning__content">
+                            Box was temporarily disabled by the owner
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-3"></div>
+
+            <div class="nothing-to-show nothing-to-show--danger">
+                <div class="nothing-to-show__label">
+                    This box was disabled
+                </div>
+            </div>
+        }
+    }
+</div>

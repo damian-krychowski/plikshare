@@ -1,0 +1,135 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Compile Remove="Files\PreSignedLinks\NewFolder\**" />
+      <Compile Remove="Integrations\Aws\Textract\Jobs\StartJob\NewFolder\**" />
+      <Compile Remove="Storages\FileCopying\FinalizeCopyFileUpload\**" />
+      <Compile Remove="Storages\FileCopying\Processing\**" />
+      <Compile Remove="Uploads\CompleteFileUpload\DbWriteQueue\**" />
+      <Compile Remove="Uploads\DbProcessingQueue\**" />
+      <Compile Remove="Uploads\Initiate\Bulk\**" />
+      <Compile Remove="Uploads\Initiate\DbWriteQueue\**" />
+      <Compile Remove="Uploads\Initiate\NewFolder\**" />
+      <Content Remove="Files\PreSignedLinks\NewFolder\**" />
+      <Content Remove="Integrations\Aws\Textract\Jobs\StartJob\NewFolder\**" />
+      <Content Remove="Storages\FileCopying\FinalizeCopyFileUpload\**" />
+      <Content Remove="Storages\FileCopying\Processing\**" />
+      <Content Remove="Uploads\CompleteFileUpload\DbWriteQueue\**" />
+      <Content Remove="Uploads\DbProcessingQueue\**" />
+      <Content Remove="Uploads\Initiate\Bulk\**" />
+      <Content Remove="Uploads\Initiate\DbWriteQueue\**" />
+      <Content Remove="Uploads\Initiate\NewFolder\**" />
+      <EmbeddedResource Remove="Files\PreSignedLinks\NewFolder\**" />
+      <EmbeddedResource Remove="Integrations\Aws\Textract\Jobs\StartJob\NewFolder\**" />
+      <EmbeddedResource Remove="Storages\FileCopying\FinalizeCopyFileUpload\**" />
+      <EmbeddedResource Remove="Storages\FileCopying\Processing\**" />
+      <EmbeddedResource Remove="Uploads\CompleteFileUpload\DbWriteQueue\**" />
+      <EmbeddedResource Remove="Uploads\DbProcessingQueue\**" />
+      <EmbeddedResource Remove="Uploads\Initiate\Bulk\**" />
+      <EmbeddedResource Remove="Uploads\Initiate\DbWriteQueue\**" />
+      <EmbeddedResource Remove="Uploads\Initiate\NewFolder\**" />
+      <None Remove="Files\PreSignedLinks\NewFolder\**" />
+      <None Remove="Integrations\Aws\Textract\Jobs\StartJob\NewFolder\**" />
+      <None Remove="Storages\FileCopying\FinalizeCopyFileUpload\**" />
+      <None Remove="Storages\FileCopying\Processing\**" />
+      <None Remove="Uploads\CompleteFileUpload\DbWriteQueue\**" />
+      <None Remove="Uploads\DbProcessingQueue\**" />
+      <None Remove="Uploads\Initiate\Bulk\**" />
+      <None Remove="Uploads\Initiate\DbWriteQueue\**" />
+      <None Remove="Uploads\Initiate\NewFolder\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.400" />
+        <PackageReference Include="AWSSDK.S3" Version="3.7.415.16" />
+        <PackageReference Include="AWSSDK.SimpleEmailV2" Version="3.7.408.14" />
+        <PackageReference Include="AWSSDK.Textract" Version="3.7.400.111" />
+        <PackageReference Include="CommunityToolkit.HighPerformance" Version="8.4.0" />
+        <PackageReference Include="FluentValidation" Version="11.11.0" />
+        <PackageReference Include="Flurl" Version="4.0.0" />
+        <PackageReference Include="MailKit" Version="4.11.0" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.3" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.3" />
+        <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.3" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.3.0" />
+        <PackageReference Include="OpenAI" Version="2.1.0" />
+        <PackageReference Include="protobuf-net" Version="3.2.46" />
+        <PackageReference Include="Serilog" Version="4.2.0" />
+        <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+        <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Include="Core\Database\AiDatabase\Migrations\01_initial_ai_db_structure_migration.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\14_workspace_id_added_to_integrations_table.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\13_files_and_folders_lookup_indices_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\12_queue_sagas_table_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\11_file_uploads_parent_file_id_and_metadata_columns_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\10_files_metadata_column_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\09_files_parent_file_id_column_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\08_copy_file_queue_table_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\07_integrations_textract_jobs_table_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\06_integrations_table_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\05_file_artifacts_table_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\04_file_upload_is_completed_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\03_storage_encryption_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Emails\Templates\alert-email.html">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Emails\Templates\generic-email.html">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <None Remove="Core\Database\MainDatabase\Migrations\01_initial_db_structure_migration.sql" />
+      <None Remove="Integrations\Aws\Textract\plikshare_is_the_best.png" />
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\01_initial_db_structure_migration.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <None Remove="Core\Database\MainDatabase\Migrations\02_files_created_at_folders_created_at_and_creator.sql" />
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\02_files_created_at_folders_created_at_and_creator.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Integrations\Aws\Textract\TestConfiguration\plikshare_is_the_best.png">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Storages\HardDrive\RangeFileReader\" />
+      <Folder Include="wwwroot\" />
+    </ItemGroup>
+
+</Project>

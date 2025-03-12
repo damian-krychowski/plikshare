@@ -1,0 +1,92 @@
+@let uploadVal = this.upload();
+@let fileUploadVal = uploadVal.fileUpload();
+@let isPaused = fileUploadVal?.isPaused() ?? true;
+
+<div class="item-bar flex-row" 
+    appCtrlClick 
+    (ctrlClick)="toggleSelection()"
+    [class.item-bar--selected]="uploadVal.isSelected()"
+    [class.item-bar--opaque]="uploadVal.isCut()">
+    <div class="item flex-grow" 
+        [class.item--in-background]="areActionsVisible()"
+        [class.item-bar--opaque]="isPaused">
+        <i class="icon icon-xl icon-{{ uploadVal.fileExtension| fileIcon }}"></i>
+      
+        <div class="item__details">
+            <div class="item__title">
+                {{ fileNameWithExtension() }}
+            </div>
+
+            <div class="upload-progress">
+                <mat-progress-bar 
+                    mode="determinate" 
+                    [value]="progressPercentage()">
+                </mat-progress-bar>
+    
+                @if(isPaused) {
+                    <div>Paused</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if(!hideActions() && !uploadVal.isCut()) {
+        <div class="item-bar__actions" (click)="$event.stopPropagation()">
+            @if(fileUploadVal) {  
+                @if(isPaused) {
+                    <app-action-btn
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        tooltip="Resume upload"
+                        icon="icon-nucleo-play"
+                        (clicked)="resumeUpload()">                    
+                    </app-action-btn>
+                } @else {
+                    <app-action-btn
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        tooltip="Pause upload"
+                        icon="icon-nucleo-pause"
+                        (clicked)="pauseUpload()">                    
+                    </app-action-btn>  
+                }    
+            } @else {
+                <app-action-btn
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    tooltip="Resume upload"
+                    icon="icon-nucleo-play"
+                    (clicked)="uploadFile(fileUpload)">                    
+                </app-action-btn>
+    
+    
+                <input type="file" class="file-input"                       
+                    (change)="pickFileAndResumeUpload($event)" #fileUpload>
+            }       
+            
+            <app-action-btn
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                tooltip="Abort upload"
+                icon="icon-lucide-xmark"
+                appConfirmOperation
+                [isOperationDanger]="true"
+                [verb]="'abort'"
+                [operationItem]="'this file upload'"
+                (confirmedClick)="abortUpload()">                    
+            </app-action-btn>
+    
+            <app-action-btn
+                class="d-none-on-desktop"
+                tooltip="Actions"
+                icon="icon-lucide-dots"
+                class="d-none-on-desktop"
+                (clicked)="toggleActions()">                    
+            </app-action-btn>
+    
+            <div (click)="$event.stopPropagation()">
+                <mat-checkbox 
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    [ngModel]="uploadVal.isSelected()"
+                    (change)="toggleSelection()">
+                </mat-checkbox>
+            </div>
+        </div>
+    }
+</div>

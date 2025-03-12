@@ -1,0 +1,314 @@
+/*
+ * This icon font contains icons from multiple sources:
+ * 
+ * 1. Icons with 'lucide-' prefix are from Lucide (https://lucide.dev)
+ *    ISC License
+ *    Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT).
+ *    All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+ *
+ * 2. Icons with 'nucleo-' prefix:
+ *    Copyright © Nucleo
+ *    Version 1.3, January 3, 2024
+ *    Nucleo Icons
+ *    https://nucleoapp.com/
+ *    - Redistribution of icons is prohibited.
+ *    - Icons are restricted for use only within the product they are bundled with.
+ *    For more details:
+ *    https://nucleoapp.com/license
+ */
+
+@font-face {
+  font-family: 'PlikShare';
+  src: url('./fonts/PlikShare.eot');
+  src: url('./fonts/PlikShare.eot') format('embedded-opentype'),
+       url('./fonts/PlikShare.woff2') format('woff2'),
+       url('./fonts/PlikShare.woff') format('woff'),
+       url('./fonts/PlikShare.ttf') format('truetype'),
+       url('./fonts/PlikShare.svg') format('svg');
+}
+
+/* base class */
+.icon {
+  display: inline-block;
+  font: normal normal normal 1em/1 'PlikShare';
+  color: inherit;
+  flex-shrink: 0;
+  vertical-align: middle;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icon--placeholder {
+  visibility: hidden;
+}
+
+.icon--danger {
+  color: var(--company-danger);
+}
+
+/* size examples - relative units */
+.icon-sm {
+  font-size: 1.3em;
+}
+
+.icon-lg {
+  font-size: 1.2em;
+}
+
+.icon-xl {
+  font-size: 1.5em;
+}
+
+/* rotate the icon infinitely */
+.icon-is-spinning {
+  animation: icon-spin 0.5s infinite linear;
+}
+
+.icon-is-spinning-slow {
+  animation: icon-spin 1s infinite linear;
+}
+
+@keyframes icon-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.icon-is-blinking {
+  animation: icon-blink 0.5s infinite;
+}
+
+.icon-is-blinking-slow {
+  animation: icon-blink 1s infinite;
+}
+
+@keyframes icon-blink {
+  0% {
+    opacity: 1;
+  }
+
+  10% {
+    opacity: 0.8;
+  }
+
+  20% {
+    opacity: 0.6;
+  }
+
+  30% {
+    opacity: 0.4;
+  }
+
+  40% {
+    opacity: 0.2;
+  }
+
+  50% {
+    opacity: 0;
+  }
+
+  60% {
+    opacity: 0.2;
+  }
+
+  70% {
+    opacity: 0.4;
+  }
+
+  80% {
+    opacity: 0.6;
+  }
+
+  90% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+/* transform */
+.icon-rotate-90 {
+  transform: rotate(90deg);
+}
+
+.icon-rotate-180 {
+  transform: rotate(180deg);
+}
+
+.icon-rotate-270 {
+  transform: rotate(270deg);
+}
+
+.icon-flip-y {
+  transform: scaleY(-1);
+}
+
+.icon-flip-x {
+  transform: scaleX(-1);
+}
+
+$icons: (
+  'nucleo-box': 'ea02',
+  'nucleo-upload': 'ea03',
+  'nucleo-team': 'ea04',
+  'nucleo-file': 'ea05',
+  'nucleo-explorer': 'ea06',
+  'nucleo-workspace-plus': 'ea09',
+  'nucleo-pen': 'ea0a',
+  'nucleo-cut': 'ea0b',
+  'nucleo-share': 'ea0c',
+  'nucleo-workspace': 'ea0d',
+  'nucleo-pause': 'ea0e',
+  'nucleo-download': 'ea0f',
+  'nucleo-play': 'ea10',
+  'nucleo-leave': 'ea11',
+  'nucleo-settings': 'ea12',
+  'nucleo-account': 'ea13',
+  'nucleo-user-plus': 'ea14',
+  'nucleo-remove': 'ea15',
+  'nucleo-folder-plus': 'ea17',
+  'nucleo-folder': 'ea18',
+  'nucleo-video': 'ea19',
+  'nucleo-image': 'ea1a',
+  'nucleo-file-zip': 'ea1b',
+  'nucleo-file-txt': 'ea1c',
+  'nucleo-file-music': 'ea1e',
+  'nucleo-folder-search': 'ea20',
+  'nucleo-workspace-lock': 'ea21',
+  'nucleo-workspace-search': 'ea22',
+  'nucleo-folder-open': 'ea23',
+  'nucleo-home': 'ea24',
+  'nucleo-clipboard': 'ea25',
+  'nucleo-upload-2': 'ea26',
+  'nucleo-eye': 'ea27',
+  'nucleo-user-clock': 'ea39',
+  'nucleo-user': 'ea3a',
+  'nucleo-link-plus': 'ea3c',
+  'nucleo-link': 'ea3d',
+  'nucleo-reload': 'ea3e',
+  'nucleo-folder-replace': 'ea3f',
+  'nucleo-folder-xmark': 'ea40',
+  'nucleo-folder-pen': 'ea41',
+  'nucleo-file-xmark': 'ea42',
+  'nucleo-file-pen': 'ea43',
+  'nucleo-copy': 'ea49',
+  'nucleo-user-crown': 'ea51',
+  'nucleo-user-xmark': 'ea52',
+  'aws-logo': 'ea53',
+  'cloudflare-logo': 'ea54',
+  'nucleo-users-plus': 'ea55',
+  'nucleo-users-settings': 'ea56',
+  'nucleo-mailbox': 'ea57',
+  'nucleo-app-settings': 'ea58',
+  'nucleo-user-substitution': 'ea59',
+  'resend-logo': 'ea5a',
+  'nucleo-input-password-check': 'ea5b',
+  'nucleo-box-search': 'ea5e',
+  'nucleo-box-plus': 'ea5f',
+  'nucleo-envelope-arrow-right': 'ea60',
+  'nucleo-eye-slash': 'ea61',
+  'nucleo-user-crown-bold': 'ea67',
+  'nucleo-hard-drive': 'ea6d',
+  'digitalocean': 'ea6e',
+  'nucleo-message-arrow-right': 'ea6f',
+  'nucleo-circle-user': 'ea72',
+  'nucleo-archive-search': 'ea76',
+  'nucleo-archive': 'ea77',
+  'nucleo-plug': 'ea78',
+  'nucleo-file-search': 'ea79',
+  'nucleo-wrench': 'ea7c',
+  'nucleo-selected-and-not': 'ea80',
+  'nucleo-only-selected': 'ea81',
+  'openai-logo': 'ea82',
+  'nucleo-compose': 'ea83',
+  'nucleo-chat-bot': 'ea84',
+  'nucleo-robot': 'ea86',
+  'nucleo-file-plus': 'ea88',
+  'lucide-text-bold': 'ea89',
+  'lucide-text-normal': 'ea8a',
+  'lucide-heading-1': 'ea8b',
+  'lucide-heading-2': 'ea8c',
+  'lucide-heading-3': 'ea8d',
+  'lucide-unordered-list': 'ea8e',
+  'lucide-ordered-list': 'ea8f',
+  'lucide-message-quote': 'ea90',
+  'lucide-undo': 'ea91',
+  'lucide-redo': 'ea92',
+  'lucide-text-italic': 'ea93',
+  'lucide-text-underline': 'ea94',
+  'lucide-text-strikethrough': 'ea95',
+  'lucide-code': 'ea96',
+  'lucide-text-link': 'ea97',
+  'lucide-text-align-center': 'ea98',
+  'lucide-text-align-justify': 'ea99',
+  'lucide-text-align-left': 'ea9a',
+  'lucide-text-align-right': 'ea9b',
+  'lucide-text-size-decrease': 'ea9c',
+  'lucide-text-size-increase': 'ea9d',
+  'lucide-plus': 'ea9e',
+  'lucide-xmark': 'ea9f',
+  'lucide-chevron-left': 'eaa0',
+  'lucide-chevron-right': 'eaa1',
+  'lucide-chevron-up': 'eaa2',
+  'lucide-chevron-down': 'eaa3',
+  'lucide-dots': 'eaa4',
+  'lucide-question': 'eaa5',
+  'lucide-check': 'eaa6',
+  'lucide-circle-check': 'eaa7',
+  'lucide-circle-xmark': 'eaa8',
+  'lucide-search': 'eaa9',
+  'lucide-menu': 'eaaa',
+  'lucide-mobile': 'eaab',
+  'lucide-key': 'eaac',
+  'lucide-server': 'eaad',
+
+);
+
+@function unicode($str) {
+  @return unquote("\"\\#{$str}\"");
+}
+
+@each $name, $code in $icons {
+  .icon-#{""+$name}::before {
+    content: unicode($code);
+  }
+}
+
+.icon-thin {
+  //some nucleo icons cannot be made thinner, so that opacity gives the illusion of a thinner icon
+  opacity: 0.7;
+}
+
+
+.icon-container {
+  position: relative;
+
+  &__mini-icon {
+    position: absolute;
+    bottom: -6px;
+    right: -6px;
+    background: white;
+    border-radius: 50%;
+    font-size: 1.1rem;
+  }
+
+  &__micro-icon {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    background: white;
+    border-radius: 50%;
+    font-size: 0.9rem;
+    padding: 1px;
+  }
+
+  &--blinking {
+    animation: blink 1s infinite;
+  }
+}

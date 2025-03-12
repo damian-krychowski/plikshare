@@ -1,0 +1,151 @@
+@let archiveVal = archive();
+@let archiveFileTreeVal = archiveFileTree();
+
+<input #bulkFileUpload
+    type="file" 
+    class="file-input"
+    accept=".zip"
+    (change)="onFilesSelected($event, bulkFileUpload)">
+
+<div class="media-content" >
+    <div class="description-box">
+        Select and review your ZIP archive before uploading its content to your workspace. 
+        The system will preserve the folder structure when extracting files from it.
+    </div>
+
+    @if(archiveVal) {
+        <div  class="archive-box"  [class.archive-box--broken]="archiveVal.isBroken()">
+            <div class="archive-box__header">
+                <div class="flex-row flex-gap-05 flex-align-center pl-1">
+                    <i class="icon icon-xl icon-{{ archiveVal.fileExtension | fileIcon }}"></i>
+
+                    <div class="flex-column">
+                        <div class="archive-box__file-name">{{archiveVal.fullFileName}}</div>
+                        <div class="archive-box__subtitle">
+                            @if(archiveVal.isBroken()) {
+                                This archive seems to be broken
+                            } @else {
+                                {{archiveVal.fileSize | storageSize}} 
+                                {{archiveVal.doesIncludeDeflateCompression() ? '| compressed' : ''}}
+                                | folders: {{archiveVal.archive()?.foldersCount ?? 0}}
+                                | files: @if(isUploadStarted()) {
+                                    {{alreadyUploadedFiles()}} / {{archiveVal.entries()?.length ?? 0}}
+                                    | upload time: {{elapsedUploadSeconds() | elapsedTime}}
+                                } @else {
+                                    {{archiveVal.entries()?.length ?? 0}}
+                                }
+                            }
+                        </div>
+                    </div>
+    
+                    <div class="ml-auto flex-row flex-gap-05 ">
+                        @if(archiveVal.isOpened()) {
+                            <app-item-search
+                                (searched)="archiveVal.searchPhrase.set($event)">                    
+                            </app-item-search>
+    
+                            <app-action-btn
+                                tooltip="Close"
+                                icon="icon-lucide-xmark"
+                                (clicked)="closeArchive(archiveVal)">
+                            </app-action-btn>
+                        } @else if(!archiveVal.isBroken()) {                            
+                            <app-action-btn
+                                tooltip="Open"
+                                icon="icon-nucleo-archive-search"
+                                [isLoading]="archiveVal.entries() == null"
+                                (clicked)="archiveVal.isOpened.set(true)">
+                            </app-action-btn>
+                        }                        
+    
+                        @if(!isUploadStarted()) {
+                            <app-action-btn
+                                tooltip="Remove"
+                                icon="icon-nucleo-remove"
+                                (clicked)="removeArchive(archiveVal)">
+                            </app-action-btn>
+                        }
+                    </div>
+                </div>
+
+                <div class="upload-progress">
+                    <mat-progress-bar 
+                        mode="determinate" 
+                        [value]="progressPercentage()">
+                    </mat-progress-bar>
+                </div>
+            </div>
+    
+            @if(archiveVal.isOpened() && archiveFileTreeVal) {
+                <div class="archive-box__content">
+                    <app-zip-file-tree-view 
+                        [fileTree]="archiveFileTreeVal"
+                        [canDownload]="false"
+                        [searchPhrase]="archiveVal.searchPhrase()">
+                    </app-zip-file-tree-view >
+                </div>
+            }
+        </div>
+
+        <div class="mt-2"></div>
+    }   
+    
+    @if(!archiveVal) {           
+        <div class="drop-area__anchor">
+            <app-item-btn
+                title="Add zip archive"
+                subtitle="Click here to pick the archive!"
+                icon="icon-nucleo-file-zip"
+                (clicked)="addZipArchive(bulkFileUpload)">                    
+            </app-item-btn>
+
+            @if(isDragging() && !fileDropTooManyFiles() && !fileDropWrongExtension()) {
+                <div class="drop-area" 
+                    appDropFiles 
+                    (filesDropped)="onFilesDropped($event)">
+                    <i class="icon icon-nucleo-upload-2"></i>   
+        
+                    <div class="drop-area__message">
+                        Drop archive here!
+                    </div>
+                </div>
+            }
+
+            @if(fileDropTooManyFiles()) {
+                <div class="drop-area drop-area--invalid">
+                    <i class="icon icon-nucleo-upload-2"></i>   
+        
+                    <div class="drop-area__message">
+                        Too many files!
+                    </div>
+                </div>
+            }
+            
+            @if(fileDropWrongExtension()) {
+                <div class="drop-area drop-area--invalid">
+                    <i class="icon icon-nucleo-upload-2"></i>   
+        
+                    <div class="drop-area__message">
+                        Wrong file type!
+                    </div>
+                </div>
+            }
+        </div>           
+    } @else if(!isUploadStarted()) {   
+        <app-item-btn
+            title="Start upload"
+            subtitle="Click here start the process!"
+            icon="icon-nucleo-upload-2"
+            (clicked)="runBulkUpload()">                    
+        </app-item-btn>
+    } @else {
+        @if(isUploadCompleted()) {
+            <app-item-btn
+                title="Finish"
+                subtitle="Everything was uploaded!"
+                icon="icon-lucide-check"
+                (clicked)="onCancel()">                    
+            </app-item-btn>
+        }
+    }
+</div>

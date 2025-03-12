@@ -1,0 +1,33 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        Which folder do you want to share?
+    </div>
+
+    <div class="questionaire__content">
+        <app-files-explorer
+            [filesApi]="filesApi()"
+            [uploadsApi]="uploadsApi()"
+
+            [initialContent]="null"
+            [currentFolderExternalId]="currentFolderExternalId()"
+            [currentFileExternalIdInPreview]="null"
+
+            [allowList]="true"
+            [allowCreateFolder]="true"
+            [allowFolderShare]="true"
+
+            [hideContextBar]="true"
+            [hideSelectAll]="true"
+
+            (boxCreated)="onBoxCreated($event)">    
+        </app-files-explorer>
+    </div>
+
+    <div class="questionaire__actions"> 
+        <button type="button" class="questionaire__btn mr-1" mat-flat-button
+            aria-label="Cancel"
+            (click)="onCancel()">
+            Cancel
+        </button>
+    </div>
+</div>

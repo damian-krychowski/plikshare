@@ -1,0 +1,25 @@
+@let textVal = fileText();
+
+<div class="markdown-preview" [style.height.px]="previewHeight()" #previewContainer>
+    @if(textVal) {
+        @if(isEditMode()) {
+            <app-markdown-editor 
+                [markdownRaw]="textVal"
+                (markdownChange)="onContentChange($event)">                    
+            </app-markdown-editor>
+        } @else {
+            <markdown
+                mermaid
+                clipboard
+                [data]="textVal">
+            </markdown>
+        }
+    } @else {
+        <div class="markdown-preview__loading">
+            Loading...
+        </div>
+    }  
+</div>    
+
+<div class="resize-handle" #resizeHandle (mousedown)="startResize($event)">
+</div>

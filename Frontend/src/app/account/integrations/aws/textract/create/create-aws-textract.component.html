@@ -1,0 +1,267 @@
+@let testImageUrlVal = testImageUrl();
+@let selectedStorageVal = selectedStorage();
+
+<div class="app-container">
+    <div class="top-bar">
+        <div class="top-bar__header">
+            <button class="top-nav-btn" 
+                aria-label="Account" 
+                mat-flat-button  
+                matTooltip="Go back to Account"
+                matTooltipPosition="below"
+                (click)="goToIntegrations()">                 
+                <div class="icon-merge">
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>   
+                    <i class="icon icon-xl icon-nucleo-plug icon-merge--front"></i>   
+                </div>
+            </button> 
+
+            <div class="flex-column">
+                <div class="top-bar__title">
+                    Integrations
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <div class="content"> 
+        <div class="mt-3"></div>
+
+        <div class="title-header">  
+            <div>
+                Add AWS Textract:
+            </div>
+        </div>  
+
+        <div class="mt-2"></div>   
+
+        <div class="description-box">
+            AWS Textract is an OCR service that automatically extracts text, handwriting, and data from scanned documents. 
+            Once enabled, PlikShare will allow you to extract text from your PDF, PNG, and other image files stored in your workspaces.
+        </div>
+
+        <div class="mt-2"></div>   
+        
+        <form class="page-form" (submit)="onConfigurationSubmit()" [formGroup]="formGroup">
+            <div>
+                <mat-form-field class="page-form__field">
+                    <mat-label>Integration Name</mat-label>
+        
+                    <input 
+                        id="name"
+                        type="text" 
+                        formControlName="name"
+                        placeholder="My Aws Textract"
+                        matInput>
+        
+                    @if ((name.touched || wasSubmitted()) && name.hasError('required')) {
+                        <mat-error>Integration name is <strong>required</strong></mat-error>
+                    }
+        
+                    @if ((name.touched || wasSubmitted()) && name.hasError('notUnique')){
+                        <mat-error>Integration name is <strong>not unique</strong></mat-error>        
+                    }
+                </mat-form-field>
+        
+                <div class="page-form__info">
+                    Integration name will be displayed on list of integrations. For example: My Aws Textract
+                </div>
+            </div>
+
+            <div class="page-form__section-title">
+                Configuration:
+            </div>
+            
+            <div class="description-box">
+                The provided AWS credentials must have IAM permissions to:
+                <ul>
+                    <li>Execute Textract operations (textract:StartDocumentAnalysis, textract:GetDocumentAnalysis)</li>
+                    <li>Access S3 buckets (s3:GetObject, s3:ListBucket) for retrieving files during asynchronous Textract analysis</li>
+                </ul>
+                <p>Please ensure your IAM user or role has the appropriate policies attached before proceeding.</p>
+            </div>
+
+            <mat-form-field class="page-form__form-field">
+                <mat-label>Access key</mat-label>
+
+                <input 
+                    id="accessKey"
+                    type="text" 
+                    matInput 
+                    appSecureInput
+                    formControlName="accessKey">
+
+                @if ((accessKey.touched || wasSubmitted()) && accessKey.hasError('required')) {
+                    <mat-error>Access key is <strong>required</strong></mat-error>
+                }    
+            </mat-form-field>
+
+            <mat-form-field class="page-form__form-field">
+                <mat-label>Secret access key</mat-label>
+
+                <input 
+                    id="secretAccessKey"
+                    type="text"
+                    matInput 
+                    appSecureInput
+                    formControlName="secretAccessKey">                            
+                
+                @if ((secretAccessKey.touched || wasSubmitted()) && secretAccessKey.hasError('required')) {
+                    <mat-error>Secret access key is <strong>required</strong></mat-error>
+                }
+            </mat-form-field>
+
+            <app-region-input class="page-form__form-field"
+                [regions]="awsRegions"
+                [wasSubmitted]="wasSubmitted()"
+                formControlName="region">                    
+            </app-region-input>
+
+            @if(textractAccessWasDenied(); as textractAccessWasDeniedVal){
+                <mat-error>
+                    Access to Textract was denied:
+                    <div class="description-box description-box--danger mt-1">
+                        {{textractAccessWasDeniedVal}}
+                    </div>
+                </mat-error>                
+            }
+
+            @if(textractInvalidSecretAccessKey(); as textractInvalidSecretAccessKeyVal){
+                <mat-error>
+                    Provided secret access key is invalid:
+                    <div class="description-box description-box--danger mt-1">
+                        {{textractInvalidSecretAccessKeyVal}}
+                    </div>
+                </mat-error>                
+            }
+
+            
+            @if(textractUnrecognizedAccessKey(); as textractUnrecognizedAccessKeyVal){
+                <mat-error>
+                    Provided access key was not recognized:
+                    <div class="description-box description-box--danger mt-1">
+                        {{textractUnrecognizedAccessKeyVal}}
+                    </div>
+                </mat-error>                
+            }
+            
+            @if(s3AccessWasDenied(); as s3AccessWasDeniedVal){
+                <mat-error>
+                    Access to S3 was denied:
+                    <div class="description-box description-box--danger mt-1">
+                        {{s3AccessWasDeniedVal}}
+                    </div>
+                </mat-error>                
+            }
+
+            <div class="page-form__section-title">
+                AWS S3 Storage:
+            </div>
+
+            <div class="description-box">
+                Textract can operate in two modes - for small files it can process the content directly, but for larger files or asynchronous operations, 
+                it requires the file to be available in an S3 bucket in the same region. You'll need to select a storage for this purpose. 
+                If no storage is available, go to storage settings and create an AWS S3 bucket.
+                
+                <br><br>
+                <strong>How does it work:</strong> All files stored in PlikShare can be processed with Textract. 
+                Files already stored in AWS S3 buckets in the Textract region will be processed directly without copying. 
+                All other files (stored on Hard Drive, in Cloudflare R2, etc.) will be copied to the AWS S3 bucket, processed with Textract, 
+                and then removed from the Textract bucket once processing completes.
+                
+                <br><br>
+                <strong>Warning!</strong> If files are encrypted with PlikShare managed storage encryption, 
+                they will be decrypted before upload to the Textract bucket. 
+                This also applies to files stored in AWS S3 buckets - since Textract cannot process encrypted files, PlikShare must decrypt them before processing.
+                
+                <br><br>
+                <strong>Conclusion:</strong> For optimal performance when processing large volumes of documents with Textract, 
+                store your files in a non-encrypted AWS S3 bucket in the same region as Textract - that will allow to avoid a necessity to copy the files between S3 buckets.
+            </div>
+
+            @if(selectedStorageVal) {
+                <div>
+                    <app-storage-item
+                        [storage]="selectedStorageVal"
+                        [pickerMode]="true">                        
+                    </app-storage-item>
+                </div>
+            }
+
+            <div>
+                <button type="button" class="page-form__btn" mat-flat-button
+                    aria-label="Pick storage"
+                    [class.page-form__btn--disabled]="!region.value"
+                    [class.page-form__btn--danger]="wasSubmitted() && !selectedStorageVal"
+                    (click)="pickStorage()"
+                    [disabled]="isLoading()">
+                    Pick storage
+                </button>
+            </div>
+
+
+            <div class="page-form__section-title">
+                Configuration test:
+            </div>
+        
+            <div class="description-box">
+                To validate your AWS credentials, we'll perform a quick test extraction on a sample image. 
+                Click the "Test configuration" button to verify your setup. 
+                You'll be able to save and complete the integration once the test is successful.
+            </div>
+            
+            <div class="page-form__section-title">
+                Test image:
+            </div>
+
+            <div class="test-image-container mt-2">
+                @if (testImageUrlVal) {
+                    <img [src]="testImageUrlVal" 
+                         alt="Test image for AWS Textract" 
+                         class="test-image"
+                         width="495"
+                         height="86">
+                } @else {
+                    <mat-progress-spinner 
+                        diameter="40"
+                        mode="indeterminate">
+                    </mat-progress-spinner>
+                }
+            </div>
+
+            @if(isConfigurationTested()) {
+                <div class="page-form__section-title">
+                    Test result:
+                </div>
+    
+                <div class="test-result-container mt-2">
+                    @for(line of detectedLines(); track $index) {
+                        <span class="mr-1">{{line}}</span>
+                    }
+                </div>
+            }
+                      
+            <div class="mt-3 d-none-on-mobile"></div>
+
+            <div class="page-form__actions"> 
+                <button type="button" class="page-form__btn mr-1" mat-flat-button
+                    aria-label="Cancel"
+                    (click)="goToIntegrations()"
+                    [disabled]="isLoading()">
+                    Cancel
+                </button>
+
+                @let submitBtnLabel = isConfigurationTested() ? 'Create integration' : 'Test configuration';
+
+                <button type="submit" class="page-form__btn" mat-flat-button
+                    [class.page-form__btn--disabled]="formGroup.invalid || !selectedStorageVal"
+                    [class.page-form__btn--loading]="isLoading()"
+                    [disabled]="isLoading()">
+                    {{submitBtnLabel}}
+                </button>
+                
+            </div>
+        </form>
+    </div>
+</div>

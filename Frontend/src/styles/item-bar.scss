@@ -1,0 +1,125 @@
+@import "./variables.scss";
+
+.item-bar {
+    padding: 0.75rem 0.5rem;
+    border: 1px solid var(--company-background);
+    border-bottom: 1px solid var(--company-grey-accent-light);
+    width: 100%;
+    position: relative;
+    min-height: 60px;
+
+    &:hover {
+        border: 1px solid var(--company-grey-accent);
+        background-color: var(--company-blue-hover);
+    }
+
+    &--opaque {
+        opacity: 0.5;
+    }
+
+    &--selected {
+        background-color: var(--company-blue-selected);
+    }
+
+    &__actions {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+
+        @media (max-width: $mobile-breakpoint) {
+            position: absolute;
+            right: 0.5rem;
+        }
+    }
+
+    &--clickable {
+        cursor: pointer;
+    }
+
+    &--locked {
+        i {
+            animation: blink 1s linear infinite;
+        }
+    }
+}
+
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+
+@keyframes highlight {
+    0%, 100% { background-color: $company-blue-hover; }
+    50% { background-color: transparent; }
+}
+
+.item {
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    flex-grow: 1;
+    gap: 1rem;
+    overflow: hidden;
+    z-index: 0;
+
+    @media(max-width: $mobile-breakpoint) {
+        .icon-xl {
+            font-size: 1.5rem;
+        }
+
+        padding-right: 55px;
+    }
+
+    &--no-padding {
+        padding: 0 !important;
+    }
+
+    &--highlighted {
+        position: relative;
+
+        &::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0.5rem;
+            animation: highlight 1s infinite;
+        }
+    }
+
+    &__details {
+        display: flex;
+        flex-direction: column;
+        z-index: 1;
+    }
+
+    &__title {
+        z-index: 1;
+    }
+
+    app-editable-txt + .item__subtitle {
+        margin-top: -0.2rem;
+    }
+
+    &__subtitle {
+        font-size: var(--company-small-font);
+        color: var(--company-grey-font);
+    
+        &--danger {
+            color: var(--company-danger);
+        }
+    }    
+    
+    &--opaque {
+        opacity: 0.5;
+    }
+
+    &--in-background {
+        @media (max-width: $mobile-breakpoint){         
+            opacity: 0.2;
+        }
+    }
+}

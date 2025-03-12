@@ -1,0 +1,67 @@
+@import "./../../../styles/variables.scss";
+
+:host {
+    display: flex;
+}
+
+.text {
+    position: relative;
+    line-height: 30px;
+    
+    &:hover{
+        cursor: pointer;
+    }
+
+    &--editable {
+        &:hover {
+            &::after {
+                content: '';
+                position: absolute;
+                top: 0px;
+                left: -3px;
+                right: -20px;
+                bottom: 0px;
+                min-width: 110px;
+                border: 1px dashed var(--company-grey-accent);
+                border-radius: 4px;
+                z-index: 10;
+                cursor: text;
+            }
+        }
+    }
+
+    &--desktop {
+        @media (max-width: $mobile-breakpoint) {
+            display: none;            
+        }    
+    }
+
+    &--mobile {
+        display: none;
+
+        @media (max-width: $mobile-breakpoint) {
+            display: block;
+        }    
+    }
+}
+
+.txt-editor {
+    display: inline-block;
+    z-index: 1000;
+    white-space: nowrap;
+    position: relative;
+    max-width: 100%;
+
+    &__input {
+        min-width: 100px; 
+        box-sizing: content-box;
+    }
+
+    &__mirror-span {
+        position: absolute;
+        top: 0;
+        left: 0;
+        white-space: nowrap;
+        visibility: hidden;
+    }
+}

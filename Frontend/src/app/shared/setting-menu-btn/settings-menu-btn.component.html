@@ -1,0 +1,9 @@
+<button class="top-nav-btn" 
+    [class.top-nav-btn--danger]="isDanger()"
+    aria-label="Settings" 
+    mat-flat-button  
+    matTooltip="{{auth.canManageAnything() ? 'Settings' : 'Account'}}"
+    matTooltipPosition="below"
+    (click)="goToAccount()"> 
+    <i class="icon icon-xl {{auth.canManageAnything() ? 'icon-nucleo-settings' : 'icon-nucleo-account'}}"></i>
+</button>     

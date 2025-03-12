@@ -1,0 +1,3 @@
+namespace PlikShare.EmailProviders.ResendConfirmationEmail.Contracts;
+
+public record ResendEmailProviderConfirmationEmailRequestDto(string? EmailTo);

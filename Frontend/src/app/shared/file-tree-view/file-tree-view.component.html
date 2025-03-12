@@ -1,0 +1,61 @@
+@let viewModeVal = viewMode();
+
+@for (node of dataSource(); track node.item.externalId) {
+    @if(node.type == 'file') {
+        <app-file-tree-node
+            [file]="node"
+            [canSelect]="canSelect()"
+            [viewMode]="viewModeVal"
+            [isSearchActive]="isSearchActive()"
+            [fileClickedHandler]="fileClickedHandler"
+            [isSelectedChangedHandler]="isSelectedChangedHandler"
+            [isExcludedChangedHandler]="isExcludedChangedHandler">                        
+        </app-file-tree-node>
+    } @else {
+        <app-folder-tree-node
+            [folder]="node"
+            [canSelect]="canSelect()"
+            [viewMode]="viewModeVal"
+            [isSearchActive]="isSearchActive()"
+            [fileClickedHandler]="fileClickedHandler"
+            [isSelectedChangedHandler]="isSelectedChangedHandler"
+            [isExcludedChangedHandler]="isExcludedChangedHandler"
+            [loadFolderChildrenHandler]="loadFolderChildrenHandler"
+            [prefetchFolderHandler]="prefetchFolderHandler"
+            [setFolderToRootHandler]="setFolderToRootHandler">                        
+        </app-folder-tree-node>
+    }
+}
+
+
+@if(viewModeVal == 'show-only-selected' && !isAnyItemSelected()) {
+    <div class="nothing-to-show">
+        <div class="nothing-to-show__label">
+            Nothing is selected
+        </div>
+    </div>
+}
+
+@if(viewModeVal == 'show-all') {
+    @let searchTooManyResultsCounterVal = searchTooManyResultsCounter();
+
+    @if(nodesCount() == 0) {
+        <div class="nothing-to-show">
+            <div class="nothing-to-show__label">
+                There are no files
+            </div>
+        </div>
+    } @else if(searchTooManyResultsCounterVal > 0) {
+        <div class="nothing-to-show">
+            <div class="nothing-to-show__label">
+                There are too many results ({{searchTooManyResultsCounterVal}}). Please be more specific.
+            </div>
+        </div>
+    } @else if(hasSearchGivenNoResults()) {
+        <div class="nothing-to-show">
+            <div class="nothing-to-show__label">
+                No files matching search query
+            </div>
+        </div>
+    }
+}

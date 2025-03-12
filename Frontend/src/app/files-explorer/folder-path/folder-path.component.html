@@ -1,0 +1,30 @@
+@let lastHiddenSegmentVal = lastHiddenSegment();
+
+<div class="folder-path">
+    @if(lastHiddenSegmentVal) {
+        <a>
+            <i class="icon icon-lg icon-lucide-dots" 
+                (prefetch)="onFolderPrefetch(lastHiddenSegmentVal.externalId)"
+                (click)="onFolderClick(lastHiddenSegmentVal.externalId)"
+                (appDragOverStay)="onFolderDragOver(lastHiddenSegmentVal.externalId)"></i>
+        </a>
+
+        <i class="icon icon-lg icon-lucide-chevron-right"></i>
+    }
+
+    @for(segment of visiblePathSegments(); track segment.externalId) {
+        <div class="folder-path__item"> 
+            <a  (prefetch)="onFolderPrefetch(segment.externalId)"
+                (click)="onFolderClick(segment.externalId)"
+                (appDragOverStay)="onFolderDragOver(segment.externalId)">
+                <div class="folder-path__segment">
+                    {{segment.name}}
+                </div>
+            </a>
+
+            @if(!$last) {
+                <i class="icon icon-lg icon-lucide-chevron-right"></i>
+            }
+        </div>
+    }
+</div>

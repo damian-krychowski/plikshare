@@ -1,0 +1,101 @@
+<div class="item-bar item-bar--clickable flex-row hover-switch" 
+    (prefetch)="prefetchBox()"
+    (click)="openBox()">
+
+    <div class="item" 
+        [class.item--opaque]="!isEnabled()"
+        [class.item--highlighted]="isHighlighted()"  
+        [class.item--in-background]="areActionsVisible()">
+        <i class="icon icon-xl icon-nucleo-box hide-on-hover"></i>   
+        <i class="icon icon-xl icon-nucleo-box-search show-on-hover"></i>  
+
+        <div class="item__details">
+            <app-editable-txt #nameTxt
+                [text]="boxName()"
+                [textToDisplay]="nameToDisplay()"
+                [isEditing]="isNameEditing()"
+                (valueChange)="saveBoxName($event)"
+                (editingStarted)="box().isNameEditing.set(true)"
+                (editingStopped)="box().isNameEditing.set(false)">
+            </app-editable-txt>
+
+            @if(folderExternalId()) {
+                <div class="item__subtitle">
+                    {{ folderPath() }}
+                </div>
+            } @else {
+                <div class="item__subtitle item__subtitle--danger">
+                    Folder is missing
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="item-bar__actions" (click)="$event.stopPropagation()">
+        @if(isNameEditing()) {
+            <app-action-btn
+                tooltip="Save name"
+                icon="icon-lucide-check"
+                (clicked)="nameTxt.save()">                    
+            </app-action-btn>
+        } @else {
+            <mat-slide-toggle
+                matTooltip="Is enabled"
+                matTooltipPosition="above"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                [checked]="isEnabled()"
+                (change)="changeBoxIsEnabled()">
+            </mat-slide-toggle>
+
+            @if(canLocate()){
+                <app-action-btn
+                    tooltip="Locate"
+                    icon="icon-lucide-search"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    (prefetch)="prefetchBoxes()"
+                    (clicked)="locate()">                    
+                </app-action-btn>  
+            } 
+
+            <app-action-btn
+                tooltip="Change box folder"
+                icon="icon-nucleo-folder"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                (clicked)="changeBoxFolder()">                    
+            </app-action-btn>             
+
+            <app-action-btn
+                tooltip="Preview"
+                icon="icon-nucleo-eye"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                (prefetch)="prefetchExternalBox()"
+                (clicked)="previewBox()">                    
+            </app-action-btn>
+
+            <app-action-btn
+                tooltip="Edit box name"
+                icon="icon-nucleo-pen"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                (clicked)="editName()">                    
+            </app-action-btn>
+
+            <app-action-btn
+                tooltip="Delete"
+                icon="icon-nucleo-remove"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                [isOperationDanger]="true"
+                [verb]="'delete'"
+                [operationItem]="'this box'"
+                appConfirmOperation
+                (confirmedClick)="deleteBox()">                    
+            </app-action-btn>
+    
+            <app-action-btn
+                tooltip="Actions"
+                icon="icon-lucide-dots"
+                class="d-none-on-desktop"
+                (clicked)="toggleActions()">                    
+            </app-action-btn>
+        }            
+    </div>
+</div>

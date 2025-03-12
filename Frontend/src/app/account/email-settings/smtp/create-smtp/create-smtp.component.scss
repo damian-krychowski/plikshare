@@ -1,0 +1,34 @@
+@import "./../../../../../styles/questionaire.scss";
+@import "./../../../../../styles/mobile-display.scss";
+
+.email-picker {
+    padding: 2rem;   
+}
+
+.example-full-width {
+    width: 100%;
+}
+
+.mat-mdc-form-field-error-wrapper {
+    padding: 0 !important;
+}
+
+.smtp-port-form-field {
+    max-width: 150px;
+}
+
+.show-security-tip {
+    position: relative;
+    
+    &::after {
+        position: absolute;
+        content: "most secure";
+        font-size: var(--company-small-font);
+        color: var(--company-grey-font);
+        margin-top: -5px;
+        left: 0;
+        bottom: -0.7rem;
+        white-space: nowrap;
+    }
+}
+

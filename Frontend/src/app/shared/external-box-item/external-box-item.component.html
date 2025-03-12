@@ -1,0 +1,91 @@
+<div class="item-bar item-bar--clickable flex-column hover-switch" 
+    (prefetch)="prefetchExternalBox()"
+    (click)="openExternalBox()">
+    <div class="flex-row">
+        <div class="item"
+            [class.item--highlighted]="isHighlighted()"  >
+            <i class="icon icon-xl icon-nucleo-box hide-on-hover"></i>   
+            <i class="icon icon-xl icon-nucleo-box-search show-on-hover"></i>  
+
+            <div class="item__details">
+                <div class="item__title">
+                    {{ name() }}
+                </div>
+
+                <div class="item__subtitle">
+                    @if(workspace(); as workspace) {
+                        <span class="mr-1">Workspace: {{workspace.name()}}</span>                   
+                        <span class="mr-1">Storage: {{workspace.storageName()}}</span> <br>
+                    }
+                    <app-user-link
+                        prefix="Owner:"
+                        [user]="owner()">                        
+                    </app-user-link>
+                </div>
+            </div>
+        </div>
+
+        <div class="item-bar__actions" (click)="$event.stopPropagation()">
+            @if(isAdminView()) {
+                @if(this.workspaceExternalId(); as wExtId) {
+                    <app-action-btn
+                        tooltip="Locate in workspace"
+                        icon="icon-nucleo-workspace-search"
+                        (prefetch)="dataStore.prefetchWorkspace(wExtId)"
+                        (clicked)="locateInWorkspace()">                    
+                    </app-action-btn>
+                }
+
+                <app-action-btn
+                    tooltip="Revoke access"
+                    icon="icon-nucleo-user-xmark"
+                    [isOperationDanger]="true"
+                    [verb]="'revoke access'"
+                    [operationItem]="'to this box'"
+                    appConfirmOperation
+                    (confirmedClick)="accessRevoked.emit()">                    
+                </app-action-btn>
+            } @else {  
+                @if(canLocate()) {
+                    <app-action-btn
+                        tooltip="Locate"
+                        icon="icon-lucide-search"
+                        (prefetch)="dataStore.prefetchDashboardData()"
+                        (clicked)="locate()">                    
+                    </app-action-btn>   
+                }
+    
+                <app-action-btn
+                    tooltip="Leave"
+                    icon="icon-nucleo-leave"
+                    [isOperationDanger]="true"
+                    [verb]="'leave'"
+                    [operationItem]="'this box'"
+                    appConfirmOperation
+                    (confirmedClick)="leaveBox()">                    
+                </app-action-btn>               
+            }     
+        </div>   
+   </div>
+
+   @if(isAdminView()) {
+        <div class="mt-2"></div>
+
+        <div class="item item--no-padding" (click)="$event.stopPropagation()">
+            <i class="icon icon--placeholder icon-xl icon-nucleo-user-clock"></i>
+
+            <div class="item__details">
+                <div>
+                    Permissions:
+                </div>
+
+                <div class="mt-1"></div>
+
+                <app-box-permissions-list
+                    [permissions]="permissions()"
+                    (changed)="permissionsChange.emit()">                            
+                </app-box-permissions-list>
+            </div>
+        </div>       
+   }
+</div>            

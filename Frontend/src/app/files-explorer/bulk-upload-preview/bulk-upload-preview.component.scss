@@ -1,0 +1,71 @@
+@import "./../../../styles/variables.scss";
+@import "./../../../styles/app-header.scss";
+@import "./../../../styles/item-bar.scss";
+@import "./../../../styles/drop-area.scss";
+
+.media-content {
+    padding-top: 1rem;
+}
+
+//todo unify with file preview archive box
+.archive-box {
+    border-top: 1px dashed var(--company-grey-accent);
+    border-left: 1px dashed var(--company-grey-accent);
+    border-right: 1px dashed var(--company-grey-accent);
+    background-color: white;
+ 
+    &__header {
+        padding: 1rem;
+        border-bottom: 1px dashed var(--company-grey-accent);
+    }
+ 
+    &__content {
+        padding: 1rem 0.5rem 1rem 1rem;
+        border-bottom: 1px dashed var(--company-grey-accent);
+    }
+ 
+    &__file-name {
+        font-weight: 500;
+        font-size: 1.1rem;
+    }
+
+    &__subtitle {
+        font-size: 0.8rem;
+        color: var(--company-grey-font);
+    }
+
+    &--broken {
+        border-color: var(--company-danger);
+        color: var(--company-danger);
+
+        .archive-box__header {
+            border-color: var(--company-danger);            
+        }
+
+        .archive-box__subtitle {
+            color: var(--company-danger);
+        }
+    }
+ }
+
+ .preview-bottom-section {
+    padding-top: 1rem;
+ }
+
+ .description-box {
+    border: 1px solid var(--company-grey-accent-light);
+    font-size: 0.9rem;
+    color: var(--company-grey-font);
+    background-color: white;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+ }
+
+ .upload-progress {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    height: 1rem;
+    padding-top: 0.5rem;
+}

@@ -1,0 +1,50 @@
+.document {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    position: relative;
+
+    &__input {
+        width: 100%;
+        padding: 0.6rem 1rem;
+        border: 1px solid var(--company-grey-accent);
+        border-radius: var(--mdc-filled-button-container-shape);
+    
+        &:active {
+            outline: 1px solid var(--company-grey-accent);
+        }
+    
+        &:focus {
+            outline: 1px solid var(--company-grey-accent);
+        }
+
+        &--error {
+            border-color: var(--company-danger);
+        }
+    }
+
+    &__btn-container {
+        position: absolute;
+        right: 1px;
+        top: 50%;
+        transform: translateY(-50%);
+
+        display: flex;
+        flex-direction: row;
+        gap: 5px;
+
+        padding-left: 5px;
+        padding-right: 4px;
+        background-color: white;
+    }
+}
+
+.document-container {
+    position: relative;
+    padding-bottom: 1.2rem;
+
+    &__error {
+        position: absolute;
+        bottom: 0px;
+    }
+}

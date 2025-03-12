@@ -1,0 +1,66 @@
+@import "./../../../styles/top-nav-btn.scss";
+@import "./../../../styles/item-bar.scss";
+@import "./../../../styles/variables.scss";
+
+:host {
+    display: flex;
+    flex-direction: row;
+}
+
+.search {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 0;
+    margin-left: auto;
+
+    &--active {
+        flex-grow: 1;
+        transition: flex-grow .15s ease-in-out;
+
+        .search__input {
+            opacity: 1;
+        }
+
+        @media(max-width: $mobile-early-breakpoint){
+            .search__input {
+                display: block !important;
+            }
+        }
+    }
+
+    &__input {
+        border: 1px solid var(--company-grey-accent);
+        margin-left: auto;
+        margin-right: 0.5rem;
+
+        flex-grow: 1;
+        min-width: 100px;
+        transition: flex-grow .15s ease-in-out;
+        
+        border-radius: 4px;
+        padding: 0.3rem 1rem;
+        opacity: 0.3;
+
+        &:focus-visible {
+            outline: 2px solid var(--company-blue-hover);
+            border: 1px solid var(--company-grey-accent);
+        }
+
+        @media(max-width: $mobile-early-breakpoint) {
+            display: none;        
+        }
+    }
+
+    &__btn {
+        @media(min-width: calc(#{$mobile-early-breakpoint} + 1px)) {
+            display: none;
+        }
+    }
+}
+
+.search-icon {
+    @media(max-width:  $mobile-breakpoint) {
+        display: none;
+    }
+}

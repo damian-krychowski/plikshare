@@ -1,0 +1,15 @@
+@import "./../../../styles/app-header.scss";
+@import "./../../../styles/top-bar.scss";
+@import "./../../../styles/top-nav-btn.scss";
+@import "./../../../styles/item-bar.scss";
+@import "./../../../styles/icon-merge.scss";
+@import "./../../../styles/variables.scss";
+@import "./../../../styles/mobile-display.scss";
+
+
+.add-storage-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+}

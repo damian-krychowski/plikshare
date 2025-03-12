@@ -1,0 +1,12 @@
+.relative-time {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    padding-left: 0.1rem;
+    padding-right: 0.1rem;
+
+    &:hover {
+        background: var(--company-grey-accent-light);
+    }
+
+    cursor: default;
+}

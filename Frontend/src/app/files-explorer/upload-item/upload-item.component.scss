@@ -1,0 +1,10 @@
+@import "./../../../styles/item-bar.scss";
+@import "./../../../styles/mobile-display.scss";
+
+.upload-progress {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    height: 1rem;
+}

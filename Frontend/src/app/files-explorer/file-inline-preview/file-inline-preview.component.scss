@@ -1,0 +1,92 @@
+@import "./../../../styles/variables.scss";
+@import "./../../../styles/app-header.scss";
+@import "./../../../styles/item-bar.scss";
+
+.preview-header {
+    display: flex;
+    flex-direction: column;
+    padding-left: 1rem;
+    padding-bottom: 1rem;
+
+    &__title {
+        z-index: 1;
+    }
+
+    &__subtitle {
+        font-size: var(--company-small-font);
+        color: var(--company-grey-font);
+
+        &--danger {
+            color: var(--company-danger);
+        }
+    }
+}
+
+.preview-image {
+    width: 100%;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.note-header {
+    color: var(--company-grey-font);
+    font-size: 0.9rem;
+}
+
+.preview-bottom-section {
+    padding-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.description-box {
+    border: 1px solid var(--company-grey-accent-light);
+    font-size: 0.9rem;
+    color: var(--company-grey-font);
+    background-color: white;
+    padding: 1rem;
+}
+
+.textract-job-progress {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.3rem;
+}
+
+.textract-job-details {
+    font-size: 0.8rem;
+    color: var(--company-grey-font);
+}
+
+.textract-job-progress-container {
+    padding: 0.5rem;
+}
+
+.media-content {
+    padding-top: 1rem;
+
+    &--hidden {
+        display: none;
+    }
+}
+
+.subtitle {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+}

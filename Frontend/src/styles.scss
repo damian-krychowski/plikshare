@@ -1,0 +1,251 @@
+// Custom Theming for Angular Material
+// For more information: https://material.angular.io/guide/theming
+@use '@angular/material' as mat;
+// Plus imports for other components in your app.
+
+// Include the common styles for Angular Material. We include this here so that you only
+// have to load a single css file for Angular Material in your app.
+// Be sure that you only ever include this mixin once!
+@include mat.core();
+
+// Define the palettes for your theme using the Material Design palettes available in palette.scss
+// (imported above). For each palette, you can optionally specify a default, lighter, and darker
+// hue. Available color palettes: https://material.io/design/color/
+$PlikShare-primary: mat.m2-define-palette(mat.$m2-indigo-palette);
+$PlikShare-accent: mat.m2-define-palette(mat.$m2-blue-gray-palette, A200, A100, A400);
+
+// The warn palette is optional (defaults to red).
+$PlikShare-warn: mat.m2-define-palette(mat.$m2-red-palette);
+
+// Create the theme object. A theme consists of configurations for individual
+// theming systems such as "color" or "typography".
+$PlikShare-theme: mat.m2-define-light-theme((color: (
+    primary: $PlikShare-primary,
+    accent: $PlikShare-accent,
+    warn: $PlikShare-warn,
+)));
+
+// Include theme styles for core and each component used in your app.
+// Alternatively, you can import and @include the theme mixins for each component
+// that you are using.
+@include mat.all-component-themes($PlikShare-theme);
+
+@import '../node_modules/ngx-toastr/toastr';
+@import './icons/icons.scss';
+@import './styles/margins.scss';
+@import './styles/variables.scss';
+
+html {
+    height: 100%;
+    overflow-y: scroll;
+    scrollbar-width: thin;
+}
+
+html:focus-within {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    text-rendering: optimizeSpeed;
+    line-height: 1.5;
+    font-family: "Inter", sans-serif;
+    background-color: var(--company-background);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+input,
+button,
+textarea,
+select {
+    font: inherit;
+}
+
+:root {
+    --company-grey-hover: #F5F5F5;
+    --company-grey-active: #E0E0E0;
+    --company-grey-accent: #B0BEC5;
+    --company-grey-accent-light: #eeeff1;
+    --company-grey-font: #61676b;
+    --company-grey-dark: #444;
+    --company-blue: #303cdb;
+    --company-blue-dark: #1a1d9c;
+    --company-blue-hover: #ecf2f7;
+    --company-blue-selected: #ecf2f7;
+    --company-danger: #FF4D4F;
+    --company-danger-light: #FF7A7A;
+    --company-background: #FCFCFC;
+
+    --mdc-checkbox-state-layer-size: 36px;
+    --company-small-font: 0.8rem;
+}
+
+.app-container {
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1.2rem;
+    padding-right: 1.2rem;
+    
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.flex-grow-1 {
+    flex-grow: 1;
+}
+
+.flex-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.flex-column {
+    display: flex;
+    flex-direction: column;
+}
+
+.flex-align-center {
+    align-items: center;
+}
+
+.flex-gap-05 {
+    gap: 0.5rem !important;
+}
+
+.flex-gap-1 {
+    gap: 1rem !important;
+}
+
+.w-100 {
+    width: 100% !important;
+}
+
+.file-input {
+    display: none;
+}
+
+.opaque {
+    opacity: 0.5;
+}
+
+.content {
+    position: relative;
+    background-color: var(--company-background);
+    z-index: 20;
+}
+
+.flex-grow {
+    flex-grow: 1;
+}
+
+.overflow-hidden {
+    overflow: hidden;
+}
+
+.color-danger {
+    color: var(--company-danger);
+}
+
+.drag-over {
+    .item-bar {
+        position: relative;
+        border: 1px dashed var(--company-grey-accent) !important;
+    }
+}
+
+.display-none {
+    display: none;
+}
+
+.mat-mdc-form-field-error {
+    font-size: var(--company-small-font) !important;
+    color: var(--company-danger) !important;
+}
+
+.mat-mdc-dialog-container {
+    @media (max-width: $mobile-breakpoint) {
+        position: fixed !important;
+        top: 5px !important;
+        left: 5px !important;
+        right: 5px !important;
+        bottom: 5px !important;
+        max-height: unset !important;
+        max-width: unset !important;
+        width: unset !important;
+        height: unset !important;
+    }
+}
+
+.preview-dialog-container {
+    .mat-mdc-dialog-container {
+        @media (max-width: 1000px) {
+            position: fixed !important;
+            top: 5px !important;
+            left: 5px !important;
+            right: 5px !important;
+            bottom: 5px !important;
+            max-height: unset !important;
+            max-width: unset !important;
+            width: unset !important;
+            height: unset !important;
+        }
+    }
+}
+
+.secure-input {
+    position: relative;
+
+    //in case secure-input is inside mat-form-field we want to position
+    //the button against the mat-form-field container rather than against 
+    //the div that secure input directive creates
+    .mat-mdc-form-field-infix & {
+        position: unset;
+    }
+
+    &--on {
+        text-security: disc; /* IE/Safari */
+        -moz-text-security: disc; /* FireFox */
+        -webkit-text-security: disc; /* Chrome/Safari  */
+    }
+
+    &__btn {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+
+        .mat-mdc-form-field-infix & {
+            right: 0;
+        }
+
+        &:hover {
+            background-color: var(--company-grey-active);
+        }
+    }
+}
+
+
+.snackbar-danger {
+    .mat-mdc-snackbar-surface {
+        background-color: var(--company-danger) !important;
+        font-weight: 500 !important;
+    }
+}
+
+.bottom-spacer{
+    padding-bottom: 4rem;
+}

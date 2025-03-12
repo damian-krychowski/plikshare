@@ -1,0 +1,17 @@
+<button 
+    type="button"
+    class="action-btn"
+    attr.aria-label="{{tooltip()}}" 
+    [class.action-btn--disabled]="disabled()"
+    [class.action-btn--danger]="danger()"
+    [class.action-btn--countdown]="countdown()"
+    [class.action-btn--loading]="isLoading()"
+    [style.--progress.%]="countdownProgress()"
+    mat-flat-button  
+    [matTooltip]="tooltip()"
+    [matTooltipPosition]="tooltipPosition()"
+    (click)="onClick()"
+    (mouseenter)="isMouseOver.set(true)"
+    (mouseleave)="isMouseOver.set(false)">
+    <i class="icon icon-lg {{icon()}}"></i>
+</button> 

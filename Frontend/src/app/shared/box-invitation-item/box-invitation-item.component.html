@@ -1,0 +1,80 @@
+<div class="item-bar flex-column">
+    <div class="flex-row">
+        <div class="item flex-grow">
+            <i class="icon icon-xl icon-nucleo-box"></i>   
+
+            <div class="item__details">
+                <div class="item__title">
+                    {{ invitation().boxName() }}
+                </div>
+
+                <div class="item__subtitle">
+                    <app-user-link
+                        prefix="Invited by:"
+                        [user]="invitation().inviter()">                        
+                    </app-user-link>
+                </div>
+            </div>
+        </div>
+
+        <div class="item-bar__actions" (click)="$event.stopPropagation()">
+            @if(!isAdminView()) {
+                <app-action-btn
+                    tooltip="Accept invitation"
+                    icon="icon-lucide-check"
+                    (clicked)="accepted.emit()">                    
+                </app-action-btn>   
+                
+                <app-action-btn
+                    tooltip="Reject invitation"
+                    icon="icon-lucide-xmark"
+                    [isOperationDanger]="true"
+                    [verb]="'reject'"
+                    [operationItem]="'this box invitation'"
+                    appConfirmOperation
+                    (confirmedClick)="rejected.emit()">                    
+                </app-action-btn>
+            } @else {
+                @if(workspaceExternalId(); as externalId) {
+                    <app-action-btn
+                        tooltip="Locate in workspace"
+                        icon="icon-nucleo-workspace-search"
+                        (prefetch)="dataStore.prefetchWorkspace(externalId)"
+                        (clicked)="locateInWorkspace()">                    
+                    </app-action-btn>
+                }
+
+                <app-action-btn
+                    tooltip="Cancel invitation"
+                    icon="icon-lucide-xmark"
+                    [isOperationDanger]="true"
+                    [verb]="'cancel invitation'"
+                    [operationItem]="'to this box'"
+                    appConfirmOperation
+                    (confirmedClick)="cancelled.emit()">                    
+                </app-action-btn>
+            }
+        </div> 
+    </div>   
+    
+    @if(isAdminView()) {
+        <div class="mt-2"></div>
+
+        <div class="item item--no-padding">
+            <i class="icon icon--placeholder icon-xl icon-nucleo-user-clock"></i>
+
+            <div class="item__details">
+                <div>
+                    Permissions:
+                </div>
+
+                <div class="mt-1"></div>
+
+                <app-box-permissions-list
+                    [permissions]="invitation().permissions()"
+                    (changed)="permissionsChange.emit()">                            
+                </app-box-permissions-list>
+            </div>
+        </div>       
+   }
+</div>

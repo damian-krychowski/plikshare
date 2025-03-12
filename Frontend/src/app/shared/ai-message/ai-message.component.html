@@ -1,0 +1,41 @@
+@let markdownVal = markdown();
+@let createdAtVal = createdAt();
+@let createdByVal = createdBy();
+
+<div class="ai-message-container"
+    [class.ai-message-container--sent]="markdownVal">
+
+    @if(createdByVal) {
+        <div class="ai-message-header">
+            <div>                
+                <i class="icon icon-circle-user ai-message-header__icon"></i> 
+                <span class="ai-message-header__user">{{createdByVal}}</span>
+
+                @if(createdAtVal) {
+                    <span class="ai-message-header__details">
+                        <app-relative-time [datetime]="createdAtVal"></app-relative-time>
+                    </span>               
+                }
+            </div>
+        </div>
+    }
+
+    <app-lexical-editor 
+        #editor
+        [placeholder]="'Prepare a message...'"
+        [isReadOnly]="markdownVal != null"
+        [isToolbarFloating]="true"
+        [savedJsonState]="null"
+        [savedMarkdownState]="markdownVal"
+        (editorStateChange)="editorStateChanged($event)">        
+    </app-lexical-editor>
+
+    @if(!markdownVal) {
+        <app-action-btn
+            class="send-btn"
+            tooltip="Send"
+            icon="icon-nucleo-message-arrow-right"
+            (clicked)="sendMessage()">
+        </app-action-btn>
+    }   
+</div>

@@ -1,0 +1,18 @@
+@import "./../../../styles/item-bar.scss";
+@import "./../../../styles/mobile-display.scss";
+
+.logged-in-user {
+    i {
+        padding: 10px 0px;
+        border-radius: 10px;
+        background: var(--company-grey-accent-light); 
+    }
+}
+
+.hide-border.item-bar {
+    border-bottom-color: white;
+
+    &:hover {
+        border-bottom-color: var(--company-grey-accent);
+    }
+}

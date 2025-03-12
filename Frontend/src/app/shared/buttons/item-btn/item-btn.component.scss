@@ -1,0 +1,42 @@
+@import "./../../../../styles/variables.scss";
+
+
+:host {
+    @media (max-width: $mobile-breakpoint) {
+        min-width: 100%;
+    }
+}
+
+.item-btn {
+    text-align: left;
+    padding: 0.5rem 0.5rem !important;
+    height: unset !important;
+    border: 1px solid var(--company-grey-accent) !important;    
+    justify-content: left;
+    min-width: 330px;
+
+    @media (max-width: $mobile-breakpoint) {
+        min-width: 100%;
+    }
+
+    &--danger {
+        color: var(--company-danger) !important;
+    }
+
+    &__content {
+        display: flex;
+        align-items: center;
+        flex-direction: row;
+        gap: 1rem;
+    }
+
+    &__details {
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__subtitle {
+        font-size: var(--company-small-font);
+        color: var(--company-grey-font);
+    }
+}

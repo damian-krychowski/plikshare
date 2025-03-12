@@ -1,0 +1,66 @@
+@import "./variables.scss";
+
+.drop-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+
+    background-color:  transparentize($company-blue-hover, .7);
+    backdrop-filter: blur(3px);
+
+    border: 4px dashed var(--company-grey-accent);
+    border-radius: 0.5rem;
+    padding: 2rem;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+
+    z-index: 100;
+
+    &__anchor {
+        position: relative;
+        min-height: 200px;
+    }
+
+    &--drag-over {
+        background-color:  transparentize($company-blue-hover, .3);
+        
+        .drop-area__message {
+            color: black
+        }
+
+        .icon {
+            color: black !important;
+        }
+    }
+
+    &--invalid {        
+        border-color: $company-danger !important;
+
+        .drop-area__message {
+            color: $company-danger !important;
+        }
+
+        .icon {
+            color: $company-danger !important;
+        }
+    }
+
+    &__message {
+        font-size: 1.5rem;
+        font-weight: 500;
+        color: var(--company-grey-accent);
+        pointer-events: none;
+    }
+
+    .icon {
+        font-size: 3rem;
+        color: var(--company-grey-accent);
+        pointer-events: none;
+    }
+}

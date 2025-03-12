@@ -1,0 +1,11 @@
+.app-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    padding: 0px !important;
+
+    &--disabled {
+        color: var(--mdc-filled-button-disabled-label-text-color) !important;
+        background-color: var(--mdc-filled-button-disabled-container-color) !important;
+    }
+}

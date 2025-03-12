@@ -1,0 +1,40 @@
+<div class="item-bar flex-column">
+    <div class="flex-row">
+        <div class="item flex-grow item--no-padding">
+            <i class="icon icon-xl icon-nucleo-user"></i>
+          
+            <div class="item__details">
+                <div class="item__title">
+                    {{ memberEmail() }}
+                </div>
+            </div>
+        </div>
+
+        <div class="item-bar__actions" (click)="$event.stopPropagation()">
+            <app-action-btn
+                tooltip="Revoke access"
+                icon="icon-lucide-xmark"
+                (clicked)="revoked.emit()">
+            </app-action-btn>              
+        </div>
+    </div> 
+    
+    <div class="mt-2"></div>
+
+    <div class="item item--no-padding">
+        <i class="icon icon--placeholder icon-xl icon-nucleo-user-clock"></i>
+
+        <div class="item__details">
+            <div>
+                Permissions:
+            </div>
+
+            <div class="mt-1"></div>
+
+            <app-box-permissions-list
+                [permissions]="permissions()"
+                (changed)="permissionsChanged.emit()">                            
+            </app-box-permissions-list>
+        </div>
+    </div>           
+</div>

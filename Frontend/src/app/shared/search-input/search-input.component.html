@@ -1,0 +1,41 @@
+@if(isSearchActive()) {
+    <div class="top-nav-icon search-icon"> 
+        <i class="icon icon-xl icon-lucide-search"
+            [class.icon-is-blinking]="searchService.isSearching()">                        
+        </i>  
+    </div>    
+}
+
+<div class="search"
+    [class.search--active]="isSearchActive()"
+    (keydown.escape)="deactivateSearch()">
+    
+    <input 
+        #searchInput
+        class="search__input"
+        type="text"
+        [value]="displayedSearchPhrase()"
+        (debouncedChange)="performSearch($event)"
+        (focus)="activateSearch()"            
+        placeholder="Search...">
+    
+    @if(isSearchActive()) {
+        <button class="top-nav-btn" 
+            aria-label="Close search" 
+            mat-flat-button  
+            matTooltip="Close search"
+            matTooltipPosition="below"
+            (click)="deactivateSearch()"> 
+            <i class="icon icon-xl icon-lucide-xmark"></i>
+        </button>  
+    } @else {
+        <button class="top-nav-btn search__btn"
+            aria-label="Search" 
+            mat-flat-button  
+            matTooltip="Search"
+            matTooltipPosition="below"
+            (click)="activateSearch()"> 
+            <i class="icon icon-xl icon-lucide-search"></i>
+        </button>
+    }
+</div>

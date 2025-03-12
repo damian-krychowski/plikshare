@@ -1,0 +1,51 @@
+<div class="flex-row flex-wrap flex-gap-05 permissions-list" (click)="$event.stopImmediatePropagation()">
+    <app-permission-btn
+        tooltip="Is admin"
+        icon="icon-nucleo-user-crown"
+        [isSelected]="isAdmin()"
+        [isReadOnly]="isAdminReadOnly()"
+        (clicked)="onIsAdminChange()">
+    </app-permission-btn>
+
+    @if (!isAdmin()) {
+        <app-permission-btn
+            tooltip="Can add workspace"
+            icon="icon-nucleo-workspace-plus"
+            [isSelected]="canAddWorkspace()"
+            [isReadOnly]="isCanAddWorkspaceReadOnly()"
+            (clicked)="onCanAddWorkspaceChange()">
+        </app-permission-btn>
+    } @else {        
+        <app-permission-btn
+            tooltip="Can manage general settings"
+            icon="icon-nucleo-app-settings"
+            [isSelected]="canManageGeneralSettings()"
+            [isReadOnly]="isCanManageGeneralSettingsReadOnly()"
+            (clicked)="onCanManageGeneralSettingsChange()">
+        </app-permission-btn>
+    
+        <app-permission-btn
+            tooltip="Can manage users"
+            icon="icon-nucleo-users-settings"
+            [isSelected]="canManageUsers()"
+            [isReadOnly]="isCanManageUsersReadOnly()"
+            (clicked)="onCanManageUsersChange()">
+        </app-permission-btn>
+    
+        <app-permission-btn
+            tooltip="Can manage storages"
+            icon="icon-lucide-server"
+            [isSelected]="canManageStorages()"
+            [isReadOnly]="isCanManageStoragesReadOnly()"
+            (clicked)="onCanManageStoragesChange()">
+        </app-permission-btn>
+    
+        <app-permission-btn
+            tooltip="Can manage email providers"
+            icon="icon-nucleo-mailbox"
+            [isSelected]="canManageEmailProviders()"
+            [isReadOnly]="isCanManageEmailProvidersReadOnly()"
+            (clicked)="onCanManageEmailProvidersChange()">
+        </app-permission-btn>
+    }
+</div>

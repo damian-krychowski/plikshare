@@ -1,0 +1,33 @@
+<div class="questionaire">
+    <div class="questionaire__title flex-row">
+        Choose user
+
+        <app-item-search
+            class="ml-auto"
+            [count]="searchCount()"
+            (searched)="performSearch($event)">            
+        </app-item-search>
+    </div>
+
+    <div class="questionaire__content" >
+        @for(user of users(); track user.externalId()) {
+            <app-user-item
+                [pickerMode]="true"
+                [user]="user"
+                [searchPhrase]="searchPhrase()"
+                (clicked)="onUserPicked(user)">                    
+            </app-user-item> 
+        }
+        <div class="mt-3"></div>     
+    </div>
+    
+    <div class="questionaire__actions"> 
+        <button type="button" 
+            class="questionaire__btn mr-1"
+            mat-flat-button
+            aria-label="Cancel"
+            (click)="onCancel()">
+            Cancel
+        </button>
+    </div>
+</div>

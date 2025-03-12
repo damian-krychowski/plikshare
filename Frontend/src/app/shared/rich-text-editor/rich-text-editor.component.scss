@@ -1,0 +1,14 @@
+.text-btn {
+    border: 1px solid var(--company-grey-accent) !important;
+}
+
+.editor-badge {
+    font-size: var(--company-small-font);
+    border: 1px solid var(--company-grey-accent);
+    padding: 0.2rem 1rem;
+    border-radius: 5px;
+
+    &__text {
+        color: var(--company-grey-font);
+    }
+}

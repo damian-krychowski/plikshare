@@ -1,0 +1,18 @@
+.icon-merge {
+    position: relative;
+    margin-right: -15px;
+  
+    &--back {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      left: -18px;
+      z-index: 1;
+    }
+  
+    &--front {
+      position: relative;
+      z-index: 2;
+      overflow: hidden;
+    }
+}

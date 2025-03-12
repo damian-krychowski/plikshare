@@ -1,0 +1,22 @@
+.permission-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+
+    &--readonly {
+        border:  none !important;
+        cursor: default !important
+    }
+
+    &--selected {
+        border: 1px solid var(--company-grey-accent);
+        padding: 5px;
+        border-radius: 5px;
+    }
+
+    &--not-selected {
+        i {
+            opacity: 0.3;
+        }
+    }
+}
