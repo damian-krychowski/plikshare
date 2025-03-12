@@ -413,7 +413,9 @@ prompt_for_additional_volumes() {
         fi
     done
     
-    printf '%s\n' "${volumes[@]}"
+    if [ ${#volumes[@]} -gt 0 ]; then
+        printf '%s\n' "${volumes[@]}"
+    fi
 }
 
 generate_docker_compose() {
@@ -437,10 +439,10 @@ EOF
 
     # Add additional volumes to the environment variables
     if [ ${#additional_volumes[@]} -gt 0 ]; then
-         for i in "${!additional_volumes[@]}"; do
-             IFS=':' read -r path name <<< "${additional_volumes[$i]}"
-             echo "      - PlikShare_Volumes__Other__${i}__Path=$name" >> docker-compose.yml
-         done
+        for i in "${!additional_volumes[@]}"; do
+            IFS=':' read -r path name <<< "${additional_volumes[$i]}"
+            echo "      - PlikShare_Volumes__Other__${i}__Path=$name" >> docker-compose.yml
+        done
     fi
 
     # Continue with the rest of the Docker Compose file
