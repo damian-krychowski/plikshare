@@ -205,7 +205,7 @@ public static class ZipEntryReader
             while (toSkip > 0)
             {
                 var readResult = await reader.ReadAsync(
-                cancellationToken);
+                    cancellationToken);
 
                 if (readResult.IsCanceled)
                     throw new OperationCanceledException(
@@ -219,7 +219,10 @@ public static class ZipEntryReader
                 reader.AdvanceTo(readResult.Buffer.GetPosition(bytesToSkip));
                 toSkip -= bytesToSkip;
 
-                if (readResult.IsCompleted)
+                //if readResul is completed but toSkip is already equal to null it means 
+                //that there may be no more data to read, but we still may have unconsumed data in the buffer
+                //that's why we don't want to return here, but we want to continue processing to consume this remaining data
+                if (readResult.IsCompleted && toSkip > 0)
                     return;
             }
 
