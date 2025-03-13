@@ -8,6 +8,7 @@ import { TreeCheckobxComponent } from "../tree-checkbox/tree-checkbox.component"
 import { FileTreeItem, FolderTreeItem, TreeItem, TreeViewMode } from "../tree-item";
 import { toggle } from "../../signal-utils";
 import { FileTreeNodeComponent } from "../file-tree-node/file-tree-node.component";
+import { PrefetchDirective } from "../../prefetch.directive";
 
 @Component({
     selector: 'app-folder-tree-node',
@@ -18,7 +19,8 @@ import { FileTreeNodeComponent } from "../file-tree-node/file-tree-node.componen
         MatIconModule,
         MatButtonModule,
         TreeCheckobxComponent,
-        FileTreeNodeComponent
+        FileTreeNodeComponent,
+        PrefetchDirective
     ],
     templateUrl: './folder-tree-node.component.html',
     styleUrls: ['./folder-tree-node.component.scss']
@@ -37,7 +39,9 @@ export class FolderTreeNodeComponent {
     isExcludedChangedHandler = input.required<(node: TreeItem, isExcluded: boolean) => void>();
 
     prefetchFolder() {
-        if(this.folder().wasLoaded)
+        const folder = this.folder();
+
+        if(folder.wasLoaded)
             return;
 
         this.prefetchFolderHandler()(this.folder());
