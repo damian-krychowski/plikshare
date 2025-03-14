@@ -41,6 +41,11 @@ The fastes way is to create zip archive out of the files you want to upload and 
 
 <video src='https://github.com/user-attachments/assets/3752a954-8d33-4d89-9ba1-69b922fb45e3' width=180></video>
 
+## How to download files
+My favorite way to download files from PlikShare is to use explorer tree view - there you pick files and folders you want to have in your final archive and download them at once.
+
+<video src='https://github.com/user-attachments/assets/8839b973-3aac-4e25-8a77-13ecaaec204c' width=180></video>
+
 ## Contact Information
 Having trouble with self-hosting or interested in a managed version with support?
 - **Schedule a call**: [https://cal.com/damian.krychowski](https://cal.com/damian.krychowski)
