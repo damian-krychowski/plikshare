@@ -66,6 +66,14 @@ This structured approach provides a secure and flexible way to share your files 
 <video src='https://github.com/user-attachments/assets/87fe5b20-23fa-409f-bfef-3d7f787702e8' width=180></video>
 
 
+## How to preview files
+PlikShare includes a built-in preview function for various file formats. You can open videos, audio files, text files, PDFs, and it can render markdown files directly in the browser.
+
+I couldn't resist implementing ZIP file browsing capabilities as well. This feature allows you to navigate through ZIP archives and even preview files contained within them without having to extract the archive first.
+
+<video src='https://github.com/user-attachments/assets/8ad6da6d-1f71-4794-857f-d0333acd7f52' width=180></video>
+
+
 ## Contact Information
 Having trouble with self-hosting or interested in a managed version with support?
 - **Schedule a call**: [https://cal.com/damian.krychowski](https://cal.com/damian.krychowski)
