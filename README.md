@@ -34,7 +34,7 @@ To start using PlikShare you need to do two things:
 - Configure an email client (so that PlikShare can send notifications, confirm user emails etc.)
 - Configure a storage
 
-<video src='https://github.com/user-attachments/assets/4a599cb3-13f4-4676-89bb-6734358bee25' width=180/>
+<video src='https://github.com/user-attachments/assets/4a599cb3-13f4-4676-89bb-6734358bee25' width=180></video>
 
 ## Contact Information
 Having trouble with self-hosting or interested in a managed version with support?
