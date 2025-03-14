@@ -19,6 +19,11 @@ All the necessery instructions can be found here: https://plikshare.com/download
 
 Docker image is available here: https://hub.docker.com/r/damiankrychowski/plikshare
 
+## Contact Information
+Having trouble with self-hosting or interested in a managed version with support?
+- **Schedule a call**: [https://cal.com/damian.krychowski](https://cal.com/damian.krychowski)
+- **Email**: damian.krychowski@hey.com
+
 ## License
 
 PlikShare is developed and maintained by Damian Krychowski.
