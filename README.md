@@ -36,6 +36,11 @@ To start using PlikShare you need to do two things:
 
 <video src='https://github.com/user-attachments/assets/4a599cb3-13f4-4676-89bb-6734358bee25' width=180></video>
 
+## How to upload files
+The fastes way is to create zip archive out of the files you want to upload and them use PlikShare bulk upload feature!
+
+<video src='https://github.com/user-attachments/assets/3752a954-8d33-4d89-9ba1-69b922fb45e3' width=180></video>
+
 ## Contact Information
 Having trouble with self-hosting or interested in a managed version with support?
 - **Schedule a call**: [https://cal.com/damian.krychowski](https://cal.com/damian.krychowski)
