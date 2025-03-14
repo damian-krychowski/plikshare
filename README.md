@@ -13,12 +13,6 @@ PlikShare is a self-hosted file sharing application that allows you to securely 
 - Files Encryption
 - Easy deployment
 
-## How to install
-
-All the necessery instructions can be found here: https://plikshare.com/download
-
-Docker image is available here: https://hub.docker.com/r/damiankrychowski/plikshare
-
 ## Hey Claude, how to pronounce it?
 ![claude_pronunciation](https://github.com/damian-krychowski/plikshare/blob/main/assets/how_to_pronounce.png)
 
@@ -27,6 +21,20 @@ I double-checked - he made no mistake this time. It's "pleek-share" (plēk-shâr
 Where "Plik" in ancient Polish means "file".
 
 (Yeap, it's hard to find good domain name these times 🥲)
+
+## How to install
+
+All the necessery instructions can be found here: https://plikshare.com/download
+
+Docker image is available here: https://hub.docker.com/r/damiankrychowski/plikshare
+
+## How to setup
+
+To start using PlikShare you need to do two things: 
+- Configure an email client (so that PlikShare can send notifications, confirm user emails etc.)
+- Configure a storage
+
+<video src='https://github.com/user-attachments/assets/4a599cb3-13f4-4676-89bb-6734358bee25' width=180/>
 
 ## Contact Information
 Having trouble with self-hosting or interested in a managed version with support?
