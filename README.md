@@ -83,6 +83,19 @@ Why? It's connected with my development plans for the app. My long-term goal is 
 <video src='https://github.com/user-attachments/assets/8038cc92-8833-47c6-a851-09f8fad383c8' width=180></video>
 
 
+## Integration: AWS Textract (OCR)
+The first integration I added to PlikShare is Textract - it allows users to extract text from PDFs (or images). To configure Textract, we first need to configure AWS S3 as storage, because Textract operates on files stored there.
+<video src='https://github.com/user-attachments/assets/82080e71-1920-44e1-93e0-a2797f567812' width=180></video>
+
+When S3 is configured, we need to add the Textract integration (it's important to prepare access keys with appropriate permissions - but in case of any mistakes, the configuration test should fail and inform us what is wrong).
+<video src='https://github.com/user-attachments/assets/d5312f98-a10c-4d1b-97c9-b492dee90b8f' width=180></video>
+
+And finally, when everything is ready, we can extract text from a PDF:
+<video src='https://github.com/user-attachments/assets/ad330b07-db89-46bb-b468-1cf06777c1d3' width=180></video>
+
+How does it work? Behind the scenes, PlikShare copies a file into the Textract storage, triggers the extraction, copies the result back into the original workspace, and then removes the file from AWS S3. Fancy!
+
+
 ## Contact Information
 Having trouble with self-hosting or interested in a managed version with support?
 - **Schedule a call**: [https://cal.com/damian.krychowski](https://cal.com/damian.krychowski)
