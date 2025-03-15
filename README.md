@@ -74,6 +74,15 @@ I couldn't resist implementing ZIP file browsing capabilities as well. This feat
 <video src='https://github.com/user-attachments/assets/8ad6da6d-1f71-4794-857f-d0333acd7f52' width=180></video>
 
 
+## Markdown Files
+PlikShare can render markdown files and it supports [mermaid diagrams](https://mermaid.js.org/intro/). Markdown files are also the only files in PlikShare (for now!) that can be directly edited.
+
+Why? It's connected with my development plans for the app. My long-term goal is to integrate PlikShare seamlessly with AI such as ChatGPT, Claude, etc., and markdown seems like a natural choice for a file format that is both easy for people to write and for AI to understand.
+
+
+<video src='https://github.com/user-attachments/assets/8038cc92-8833-47c6-a851-09f8fad383c8' width=180></video>
+
+
 ## Contact Information
 Having trouble with self-hosting or interested in a managed version with support?
 - **Schedule a call**: [https://cal.com/damian.krychowski](https://cal.com/damian.krychowski)
