@@ -42,7 +42,7 @@ To start using PlikShare you need to do two things:
 
 
 ## How to upload files
-The fastes way is to create zip archive out of the files you want to upload and them use PlikShare bulk upload feature!
+The fastes way is to create zip archive out of the files you want to upload and then use PlikShare bulk upload feature!
 
 <video src='https://github.com/user-attachments/assets/3752a954-8d33-4d89-9ba1-69b922fb45e3' width=180></video>
 
