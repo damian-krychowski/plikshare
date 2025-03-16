@@ -96,6 +96,18 @@ And finally, when everything is ready, we can extract text from a PDF:
 How does it work? Behind the scenes, PlikShare copies a file into the Textract storage, triggers the extraction, copies the result back into the original workspace, and then removes the file from AWS S3. Fancy!
 
 
+## Integration: Chat GPT
+The second integration is the possibility to use your text files with ChatGPT and run queries against them. That's why I started with OCR so that I can have an easy way to convert PDF -> text and not worry about how to push PDF into AI directly as these are still very early stages of these integrations. 
+
+To use ChatGPT, we need to configure it first, and then an additional option at the file preview level is available to talk to chat and to include the file (or its attachments) in the query. What is convenient is the possibility to convert all files produced by AI into file attachments - just as Textract results were stored as attachments.
+<video src='https://github.com/user-attachments/assets/bcd6eaea-97c0-4350-99cb-b7e68f8fdf32' width=180></video>
+
+
+
+
+
+
+
 ## Contact Information
 Having trouble with self-hosting or interested in a managed version with support?
 - **Schedule a call**: [https://cal.com/damian.krychowski](https://cal.com/damian.krychowski)
