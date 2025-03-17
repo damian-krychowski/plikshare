@@ -74,7 +74,7 @@ public class GetStoragesQuery(
                             Name = name,
                             WorkspacesCount = workspacesCount,
 
-                            AccessKey = details!.AccessKey,
+                            AccessKey = Obfuscate(details!.AccessKey),
                             Region = details.Region
                         };
                     }
@@ -91,7 +91,7 @@ public class GetStoragesQuery(
                             Name = name,
                             WorkspacesCount = workspacesCount,
 
-                            AccessKeyId = details!.AccessKeyId,
+                            AccessKeyId = Obfuscate(details!.AccessKeyId),
                             Url = details.Url
                         };
                     }
@@ -109,7 +109,7 @@ public class GetStoragesQuery(
                             WorkspacesCount = workspacesCount,
 
                             Url = details!.Url,
-                            AccessKey = details.AccessKey
+                            AccessKey = Obfuscate(details.AccessKey)
                         };
                     }
 
@@ -118,6 +118,29 @@ public class GetStoragesQuery(
                         message: $"Unknown storage type: '{type}'");
                 })
             .Execute();
+    }
+
+    public static string Obfuscate(string accessKey)
+    {
+        if (string.IsNullOrEmpty(accessKey) || accessKey.Length < 8)
+        {
+            return accessKey;
+        }
+
+        var charsToShowAtEnds = 4;
+        var charsToObfuscate = accessKey.Length - (charsToShowAtEnds * 2);
+
+        if (charsToObfuscate < 1)
+        {
+            charsToShowAtEnds = accessKey.Length / 4;
+            charsToObfuscate = accessKey.Length - (charsToShowAtEnds * 2);
+        }
+
+        var beginning = accessKey.Substring(0, charsToShowAtEnds);
+        var asterisks = new string('*', charsToObfuscate);
+        var ending = accessKey.Substring(accessKey.Length - charsToShowAtEnds);
+
+        return beginning + asterisks + ending;
     }
 
     private TDetails? GetStorageDetails<TDetails>(byte[] encryptedDetails)

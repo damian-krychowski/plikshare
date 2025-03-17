@@ -9,7 +9,7 @@
                 <mat-label>Name</mat-label>
     
                 <input 
-                    id="name"
+                    id="smtp-name"
                     type="text" 
                     formControlName="name"
                     placeholder="My SMTP server"
@@ -145,8 +145,6 @@
         @if(connectionError(); as connectionErrorValue) {            
             <mat-error>Error details: <br> {{connectionErrorValue}}</mat-error>        
         }
-
-        <div class="mt-3 d-none-on-mobile"></div>
 
         <div class="questionaire__actions"> 
             <button type="button" class="questionaire__btn mr-1" mat-flat-button

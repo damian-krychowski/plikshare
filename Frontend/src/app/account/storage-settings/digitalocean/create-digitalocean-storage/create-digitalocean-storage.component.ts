@@ -11,6 +11,7 @@ import { SecureInputDirective } from '../../../../shared/secure-input.directive'
 import { DigitalOceanRegions } from '../../../../services/digitalocean-regions';
 import { MatRadioModule } from '@angular/material/radio';
 import { Router } from '@angular/router';
+import { DataStore } from '../../../../services/data-store.service';
 
 @Component({
     selector: 'app-create-digitalocean-storage',
@@ -45,6 +46,7 @@ export class CreateDigitalOceanStorageComponent{
       
 
     constructor(
+        private _dataStore: DataStore,
         private _storagesApi: StoragesApi,        
         private _router: Router) {    
             
@@ -76,6 +78,7 @@ export class CreateDigitalOceanStorageComponent{
                 encryptionType: encryptionType
             });
 
+            this._dataStore.clearDashboardData();
             this.goToStorages();
         } catch (err: any) {
             if (err.error.code === 'storage-connection-failed') {

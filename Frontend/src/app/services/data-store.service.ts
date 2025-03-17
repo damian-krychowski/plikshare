@@ -161,6 +161,10 @@ export class DataStore {
             () => this._workspacesApi.getWorkspace(workspaceExternalId));
     }
 
+    public clearWorkspaceDetails(workspaceExternalId: string) {
+        this._data.delete(this.workspaceDetailsKey(workspaceExternalId));
+    }
+
     public prefetchWorkspaceAiMessages(workspaceExternalId: string, fileExternalId: string, fileArtifactExternalId: string): void {
         this.prefetch<GetAiMessagesResponse>(
             this.workspaceAiMessagesKey(workspaceExternalId, fileExternalId, fileArtifactExternalId),
@@ -201,7 +205,7 @@ export class DataStore {
 
     public workspaceDetailsKey(workspaceExternalId: string): string {
         return `workspaces/${workspaceExternalId}/details`;
-    }
+    }   
 
     public topFolderKey(workspaceExternalId: string): string {
         return `workspaces/${workspaceExternalId}/folders`;

@@ -157,6 +157,8 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
             externalId, {
             name: newName
         });
+
+        this.dataStore.clearWorkspaceDetails(externalId);
     }
 
     shareWorkspace() {

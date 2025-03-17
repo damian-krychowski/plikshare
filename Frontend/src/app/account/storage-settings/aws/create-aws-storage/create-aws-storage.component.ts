@@ -9,6 +9,7 @@ import { AwsRegions } from '../../../../services/aws-regions';
 import { SecureInputDirective } from '../../../../shared/secure-input.directive';
 import { MatRadioModule } from '@angular/material/radio';
 import { Router } from '@angular/router';
+import { DataStore } from '../../../../services/data-store.service';
 
 @Component({
     selector: 'app-create-aws-storage',
@@ -43,6 +44,7 @@ export class CreateAwsStorageComponent{
       
 
     constructor(
+        private _dataStore: DataStore,
         private _storagesApi: StoragesApi,        
         private _router: Router) {    
             
@@ -73,6 +75,7 @@ export class CreateAwsStorageComponent{
                 encryptionType: encryptionType
             });
 
+            this._dataStore.clearDashboardData();
             this.goToStorages();
         } catch (err: any) {
             if (err.error.code === 'storage-connection-failed') {

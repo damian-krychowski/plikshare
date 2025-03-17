@@ -9,6 +9,7 @@ import { AppStorage } from '../../../../shared/storage-item/storage-item.compone
 import { SecureInputDirective } from '../../../../shared/secure-input.directive';
 import { MatRadioModule } from '@angular/material/radio';
 import { Router } from '@angular/router';
+import { DataStore } from '../../../../services/data-store.service';
 
 @Component({
     selector: 'app-create-cloudflare-storage',
@@ -40,6 +41,7 @@ export class CreateCloudflareStorageComponent{
       
 
     constructor(
+        private _dataStore: DataStore,
         private _storagesApi: StoragesApi,  
         private _router: Router) {    
             
@@ -71,6 +73,7 @@ export class CreateCloudflareStorageComponent{
                 encryptionType: encryptionType
             });
 
+            this._dataStore.clearDashboardData();
             this.goToStorages();
         } catch (err: any) {
             if(err.error.code === 'storage-url-invalid'){
