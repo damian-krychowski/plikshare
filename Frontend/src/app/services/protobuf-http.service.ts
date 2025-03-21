@@ -2,6 +2,7 @@ import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import * as protobuf from "protobufjs";
 import { firstValueFrom } from "rxjs";
+import { XSRF_TOKEN_HEADER_NAME } from "../shared/xsrf";
 
 @Injectable({
     providedIn: 'root'
@@ -33,20 +34,27 @@ export class ProtoHttp {
             route: string, 
             request: TRequest,
             requestProtoType: protobuf.Type, 
-            responseProtoType: protobuf.Type 
+            responseProtoType: protobuf.Type,
+            xsrfToken?: string
         }
     ): Promise<TResponse> {
 
         const requestBuffer = args.requestProtoType.encode(args.request as any).finish();
         const blob = new Blob([requestBuffer], { type: 'application/x-protobuf' });
         
+        let headers = new HttpHeaders({
+            'Content-Type': 'application/x-protobuf',
+            'Accept': 'application/x-protobuf',
+            'Accept-Encoding': 'gzip'
+        });
+
+        if (args.xsrfToken) {
+            headers = headers.set(XSRF_TOKEN_HEADER_NAME, args.xsrfToken);
+        }
+
         const call = this._http.post(args.route, blob, {
             responseType: 'arraybuffer',
-            headers: new HttpHeaders({
-                'Content-Type': 'application/x-protobuf',
-                'Accept': 'application/x-protobuf',
-                'Accept-Encoding': 'gzip'
-            }),
+            headers: headers,
         });
 
         // Handle response
@@ -61,16 +69,23 @@ export class ProtoHttp {
         args: { 
             route: string, 
             request: TRequest,
-            responseProtoType: protobuf.Type 
+            responseProtoType: protobuf.Type ,
+            xsrfToken?: string
         }
-    ): Promise<TResponse> {        
+    ): Promise<TResponse> {      
+        let headers = new HttpHeaders({
+            'Content-Type': 'application/json',
+            'Accept': 'application/x-protobuf',
+            'Accept-Encoding': 'gzip'
+        });
+        
+        if (args.xsrfToken) {
+            headers = headers.set(XSRF_TOKEN_HEADER_NAME, args.xsrfToken);
+        }
+
         const call = this._http.post(args.route, args.request, {
             responseType: 'arraybuffer',
-            headers: new HttpHeaders({
-                'Content-Type': 'application/json',
-                'Accept': 'application/x-protobuf',
-                'Accept-Encoding': 'gzip'
-            }),
+            headers: headers,
         });
 
         // Handle response

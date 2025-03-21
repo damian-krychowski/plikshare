@@ -1,6 +1,7 @@
 import { computed, Injectable, signal, WritableSignal } from '@angular/core';
 import { AccountApi, GetAccountDetailsResponse } from './account.api';
 import { AppUser } from '../shared/app-user';
+import { AntiforgeryApi } from './antiforgery.api';
 
 @Injectable({
     providedIn: 'root',
@@ -29,7 +30,8 @@ export class AuthService {
     private _userDetails: Promise<GetAccountDetailsResponse> | null = null;
 
     constructor(
-        private _accountApi: AccountApi) {
+        private _accountApi: AccountApi,
+        private _antiforgeryApi: AntiforgeryApi) {
     }
 
     public async isAuthenticatedAsync(): Promise<boolean> {
@@ -54,7 +56,8 @@ export class AuthService {
         }
     }
 
-    public async initiateSession() {
+    public async initiateSession() {        
+        await this._antiforgeryApi.fetchForAnonymousOrInternal();
         this._userDetails = this._accountApi.getDetails();
 
         const details = await this._userDetails;        
@@ -64,12 +67,13 @@ export class AuthService {
 
     public async signOut() {
         await this._accountApi.signOut();
+        await this._antiforgeryApi.fetchForAnonymousOrInternal();
         this._userDetails = null;
     }
 
     public async getUserEmail(): Promise<string> {
         try {
-            this.initiateSessionIfNeeded();            
+            await this.initiateSessionIfNeeded();            
             return (await this._userDetails)!.email;
         } catch (error) {
             console.error("Error getting user email", error);
@@ -79,7 +83,7 @@ export class AuthService {
 
     public async getUser(): Promise<AppUser> {
         try {
-            this.initiateSessionIfNeeded();         
+            await this.initiateSessionIfNeeded();         
             const details = await this._userDetails;
             
             if(!details)

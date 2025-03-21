@@ -1,6 +1,7 @@
 import { Signal, signal, computed } from "@angular/core";
 import { IFileUpload } from "./file-upload-manager";
 import { FileUploadDetails, MAXIMUM_PARALLEL_UPLOADS } from "./file-upload-utils";
+import { XSRF_TOKEN_HEADER_NAME } from "../../shared/xsrf";
 
 export class MultiFileDirectFileUpload implements IFileUpload {
     public type = 'MultiFileDirectFileUpload';
@@ -14,7 +15,8 @@ export class MultiFileDirectFileUpload implements IFileUpload {
 
     constructor(
         private _activeUploads: Promise<void>[],
-        public detailsList: FileUploadDetails[]
+        public detailsList: FileUploadDetails[],
+        private _getXsrfTokenFunc: () => string
     ) {
     }
 
@@ -79,10 +81,11 @@ export class MultiFileDirectFileUpload implements IFileUpload {
 
                 directUploadPromise = fetch(preSignedUploadLink, {
                     method: 'POST',
-                    headers: new Headers({
+                    headers: {
                         'x-total-size-in-bytes': totalSizeInBytes.toString(),
-                        'x-number-of-files': this.detailsList.length.toString()
-                    }),
+                        'x-number-of-files': this.detailsList.length.toString(),
+                        [XSRF_TOKEN_HEADER_NAME]: this._getXsrfTokenFunc()
+                    },
                     body: formData,
                     signal: abortSignal
                 })

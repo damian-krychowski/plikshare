@@ -7,6 +7,7 @@ import { DataStore } from '../../services/data-store.service';
 import { FoldersAndFilesSetApi } from '../../services/folders-and-files.api';
 import { AppUploadListItem, UploadListItemComponent } from './upload-list-item/upload-list-item.component';
 import { removeItems } from '../../shared/signal-utils';
+import { CookieUtils } from '../../shared/cookies';
 
 @Component({
     selector: 'app-uploads',
@@ -138,6 +139,8 @@ export class UploadsComponent implements OnInit, OnDestroy {
                     fileExternalIds: []
                 });
             },
+            
+            getXsrfToken: () => CookieUtils.GetXsrfToken()
         }
     }
 }

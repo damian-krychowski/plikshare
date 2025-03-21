@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.Account;
 using PlikShare.Account.GetKnownUsers;
+using PlikShare.Antiforgery;
 using PlikShare.ApplicationSettings;
 using PlikShare.ApplicationSettings.GetStatus;
 using PlikShare.ArtificialIntelligence;
@@ -612,6 +613,9 @@ public class Startup
 
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseAntiforgery();
+        app.UseMiddleware<AutoAntiforgeryMiddleware>();
+
         //app.UseMiddleware<UserLoggingMiddleware>();
 
         app.UseMiddleware<AngularRoutingMiddleware>();
@@ -647,6 +651,7 @@ public class Startup
         app.MapTextractEndpoints();
         app.MapChatGptEndpoints();
         app.MapAiEndpoints();
+        app.MapAntiforgeryEndpoints();
         
         //core functionality
         app.InitializeSqLite();

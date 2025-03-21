@@ -1,3 +1,4 @@
+import { XSRF_TOKEN_HEADER_NAME } from "../../shared/xsrf";
 import { IFileSlicer } from "./file-upload-manager";
 
 export const MAXIMUM_PARALLEL_UPLOADS = 5;
@@ -18,14 +19,21 @@ export class FileUploadUtils {
         return partNumbers;
     }
 
-    public static async uploadBlob(url: string, file: Blob, contentType: string, signal: AbortSignal): Promise<Response> {
-        const response = await fetch(url, {
+    public static async uploadBlob(args: {
+        url: string, 
+        file: Blob, 
+        contentType: string, 
+        abortSignal: AbortSignal, 
+        xsrfToken: string
+    }): Promise<Response> {              
+        const response = await fetch(args.url, {
             method: 'PUT',
-            body: file,
+            body: args.file,
             headers: {
-                'Content-Type': contentType
+                'Content-Type': args.contentType,
+                [XSRF_TOKEN_HEADER_NAME]: args.xsrfToken
             },
-            signal: signal
+            signal: args.abortSignal
         });
 
         if (!response.ok) {
@@ -35,6 +43,8 @@ export class FileUploadUtils {
         return response;
     }
 }
+
+
 
 export type FileUploadDetails = {
     uploadExternalId: string;

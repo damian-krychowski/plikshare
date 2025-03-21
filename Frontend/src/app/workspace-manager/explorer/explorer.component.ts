@@ -12,6 +12,7 @@ import { WorkspaceFilesExplorerApi } from '../../services/workspace-files-explor
 import { AppFolderItem } from '../../shared/folder-item/folder-item.component';
 import { AppFileItem } from '../../shared/file-item/file-item.component';
 import { WorkspaceContextService } from '../workspace-context.service';
+import { CookieUtils } from '../../shared/cookies';
 
 @Component({
     selector: 'app-explorer',
@@ -214,7 +215,9 @@ export class ExplorerComponent implements OnInit, OnDestroy {
                 workspaceExternalId,
                 uploadExternalId),
 
-            abort: (uploadExternalId: string) => this.filesApi()!.bulkDelete([],[],[uploadExternalId])
+            abort: (uploadExternalId: string) => this.filesApi()!.bulkDelete([],[],[uploadExternalId]),
+
+            getXsrfToken: () => CookieUtils.GetXsrfToken()
         }
     }
 

@@ -36,6 +36,11 @@ public static class AuthorizationStartupExtensions
 
         app.Services.AddSingleton(
             GetAppOwnersOrThrow(app));
+
+        app.Services.AddAntiforgery(options =>
+        {
+            options.HeaderName = "X-XSRF-TOKEN";
+        });
         
         app.Services.AddAuthorization(options =>
         {

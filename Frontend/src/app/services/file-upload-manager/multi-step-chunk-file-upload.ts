@@ -121,11 +121,13 @@ export class MultiStepChunkFileUpload implements IFileUpload  {
                 initiatePartUploadResult.startsAtByte,
                 initiatePartUploadResult.endsAtByte + 1);
 
-            const partUpload: any = await FileUploadUtils.uploadBlob(
-                initiatePartUploadResult.uploadPreSignedUrl,
-                partBlob,
-                this.details.contentType,
-                abortSignal);           
+            const partUpload: any = await FileUploadUtils.uploadBlob({
+                url:initiatePartUploadResult.uploadPreSignedUrl,
+                file: partBlob,
+                contentType: this.details.contentType,
+                abortSignal: abortSignal,
+                xsrfToken: this._uploadsApi.getXsrfToken()
+            });           
 
             this.markPartNumberAsUploaded(partNumber);
             

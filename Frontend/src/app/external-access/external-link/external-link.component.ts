@@ -11,9 +11,9 @@ import { filter, Subscription } from 'rxjs';
 import { DataStore } from '../../services/data-store.service';
 import { AppFolderItem } from '../../shared/folder-item/folder-item.component';
 import { AppFileItem } from '../../shared/file-item/file-item.component';
-import { ZipPreviewDetails } from '../../files-explorer/file-inline-preview/file-inline-preview.component';
 import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, ContentDisposition, CountSelectedItemsRequest, CreateFolderRequest, FilePreviewDetailsField, GetBulkDownloadLinkRequest, GetFolderResponse, SearchFilesTreeRequest, SendAiFileMessageRequest, StartTextractJobRequest, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
-import { BulkInitiateFileUploadRequest, InitiateFileUploadRequest } from '../../services/uploads.api';
+import { BulkInitiateFileUploadRequest } from '../../services/uploads.api';
+import { CookieUtils } from '../../shared/cookies';
 
 @Component({
     selector: 'app-external-link',
@@ -65,7 +65,7 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
         private _activatedRoute: ActivatedRoute,
         private _router: Router,
         private _sanitizer: DomSanitizer,
-        private _dataStore: DataStore
+        private _dataStore: DataStore,
     ) { 
         this.filesApi = signal(this.getFilesExplorerApi());
         this.uploadsApi = signal(this.getFileUploadApi());
@@ -90,10 +90,8 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
         const oldAccessCode = this._accessCode;
         this._accessCode = accessCode;
 
-        await Promise.all([
-            this.loadBox(oldAccessCode, accessCode, folderExternalId, fileExternalId),
-            this.loadHtml(oldAccessCode, accessCode)
-        ]);        
+        await this.loadBox(oldAccessCode, accessCode, folderExternalId, fileExternalId),
+        await this.loadHtml(oldAccessCode, accessCode)     
     }
 
     private async loadBox(oldAccessCode: string | null, accessCode: string, folderExternalId: string | null, fileExternalId: string | null) {
@@ -236,6 +234,8 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
                 folderExternalIds: [],
                 fileUploadExternalIds: [uploadExternalId]
             }),
+            
+            getXsrfToken: () => CookieUtils.GetXsrfBoxLinkToken()
         }
     }
 

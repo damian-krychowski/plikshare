@@ -30,14 +30,14 @@ public static class BoxLinkAccessCodesEndpoints
 {
     public static void MapBoxLinkAccessCodesEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/access-codes")
-            .WithTags("BoxLinkAccessCodes")
-            .RequireAuthorization(policyNames: AuthPolicy.BoxLinkCookie);
-
-        group.MapPost("/start-session", StartSession)
-            .WithName("BoxLink_StartSession")
+        app.MapPost("/api/access-codes/start-session", StartSession)
+            .WithTags("BoxLink_StartSession")
             .AllowAnonymous();
 
+        var group = app.MapGroup("/api/access-codes")
+                .RequireAuthorization(policyNames: AuthPolicy.BoxLinkCookie)
+                .WithTags("BoxLinkAccessCodes");
+       
         group.MapGet("/{accessCode}/html", GetBoxHtml)
             .WithName("BoxLink_GetBoxHtml")
             .AddEndpointFilter(new ValidateAccessCodeFilter());
@@ -57,7 +57,7 @@ public static class BoxLinkAccessCodesEndpoints
             .AddEndpointFilter(new ValidateAccessCodeFilter(
                 BoxPermission.AllowList,
                 BoxPermission.AllowDownload));
-        
+
         group.MapPost("/{accessCode}/files/bulk-download-link", GetBulkDownloadLink)
             .WithName("BoxLink_GetBulkDownloadLink")
             .AddEndpointFilter(new ValidateAccessCodeFilter(
@@ -71,7 +71,7 @@ public static class BoxLinkAccessCodesEndpoints
         group.MapPost("/{accessCode}/bulk-delete", DeleteFile)
             .WithName("BoxLink_DeleteFile")
             .AddEndpointFilter(new ValidateAccessCodeFilter());
-        
+
         group.MapPost("/{accessCode}/folders", CreateFolder)
             .WithName("BoxLink_CreateFolder")
             .AddEndpointFilter(new ValidateAccessCodeFilter(
@@ -130,7 +130,7 @@ public static class BoxLinkAccessCodesEndpoints
             .WithName("BoxLink_GetFileUploadDetails")
             .AddEndpointFilter(new ValidateAccessCodeFilter(
                 BoxPermission.AllowUpload));
-        
+
         group.MapPost("/{accessCode}/uploads/{fileUploadExternalId}/parts/{partNumber:int}/initiate", InitiateFilePartUpload)
             .WithName("BoxLink_InitiateFilePartUpload")
             .AddEndpointFilter(new ValidateAccessCodeFilter(

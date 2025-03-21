@@ -5,6 +5,7 @@ import { Observable, of, throwError, catchError, from, switchMap } from "rxjs";
 import { ToastrService } from 'ngx-toastr';
 import { AccessCodesApi } from "../external-access/external-link/access-codes.api";
 import { SignOutService } from "./sign-out.service";
+import { AntiforgeryApi } from "./antiforgery.api";
 
 @Injectable({
     providedIn: 'root'
@@ -14,7 +15,8 @@ export class AuthInterceptor implements HttpInterceptor {
         private _router: Router, 
         private _signOutService: SignOutService,
         private _toastr: ToastrService,
-        private _accessCodesApi: AccessCodesApi
+        private _accessCodesApi: AccessCodesApi,
+        private _antiforgeryApi: AntiforgeryApi
         ){}
 
     intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
@@ -43,7 +45,11 @@ export class AuthInterceptor implements HttpInterceptor {
         if (err.status === 401) {
             return from(this._accessCodesApi.startSession()).pipe(
                 switchMap(() => {
-                    return next.handle(req);
+                    return from(this._antiforgeryApi.fetchForBoxLink()).pipe(
+                        switchMap(() => {
+                            return next.handle(req);
+                        })
+                    );
                 })
             );
         } else if(err.status === 404) {
@@ -57,7 +63,6 @@ export class AuthInterceptor implements HttpInterceptor {
     }
 
     private handleError(err: HttpErrorResponse): Observable<any> {
-        //handle your auth error or rethrow
         if (err.status === 401) {
             this._signOutService.signOutAndNavigateByUrl(`/sign-in`);
 

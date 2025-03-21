@@ -46,6 +46,8 @@ export interface FileUploadApi {
     }>;
 
     abort(externalId: string): Promise<void>;
+
+    getXsrfToken(): string;
 }
 
 export type UploadCompletedEvent = {
@@ -251,7 +253,8 @@ export class FileUploadManager {
 
                         var multiFileDirectUpload = new MultiFileDirectFileUpload(
                             this._activeUploads,
-                            fileUploadDetails);
+                            fileUploadDetails,
+                            () => uploadsApi.getXsrfToken());
 
                         var promise = multiFileDirectUpload.upload(
                             bulkUploadInitiateResult.preSignedMultiFileDirectUploadLink!);

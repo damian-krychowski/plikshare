@@ -26,6 +26,15 @@ public class HttpErrorWithDetails : HttpError
 
 public static class HttpErrors
 {
+    public static class Antiforgery
+    {
+        public static HttpError InvalidAntiforgeryToken() => new()
+        {
+            Code = "invalid-anti-forgery-token",
+            Message = "The provided anti-forgery token was invalid or missing"
+        };
+    }
+
     public static class Workspace
     {
         public static BadRequest<HttpError> BrokenExternalId(string externalId) =>

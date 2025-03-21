@@ -19,6 +19,7 @@ import { SignOutService } from '../../services/sign-out.service';
 import { AppFileItem } from '../../shared/file-item/file-item.component';
 import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, ContentDisposition, CountSelectedItemsRequest, CreateFolderRequest, FilePreviewDetailsField, GetBulkDownloadLinkRequest, GetFolderResponse, SearchFilesTreeRequest, SendAiFileMessageRequest, StartTextractJobRequest, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
 import { BulkInitiateFileUploadRequest } from '../../services/uploads.api';
+import { CookieUtils } from '../../shared/cookies';
 
 @Component({
     selector: 'app-external-box',
@@ -304,6 +305,8 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
                 folderExternalIds: [],
                 fileUploadExternalIds: [uploadExternalId]
             }),
+
+            getXsrfToken: () => CookieUtils.GetXsrfToken()
         }
     }
 

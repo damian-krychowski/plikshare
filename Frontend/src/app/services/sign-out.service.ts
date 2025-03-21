@@ -14,14 +14,17 @@ export class SignOutService {
     ) {}
 
     async signOut() {
-        await this._auth.signOut();
-        this._dataStore.clear();
+        await this.executeSignOut();
         await this._router.navigate(['']);
     }
 
     async signOutAndNavigateByUrl(url: string) {
-        await this._auth.signOut();
-        this._dataStore.clear();
+        await this.executeSignOut();
         await this._router.navigateByUrl(url)
+    }
+
+    private async executeSignOut() {
+        await this._auth.signOut();
+        this._dataStore.clear();        
     }
 }

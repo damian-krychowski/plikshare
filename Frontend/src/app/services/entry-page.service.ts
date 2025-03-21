@@ -52,7 +52,7 @@ export class EntryPageService {
         && this.isPrivacyPolicyAvailable());
 
     constructor( 
-        private _sanitizer: DomSanitizer,
+        private _sanitizer: DomSanitizer,    
         private _http: HttpClient) {        
     }
 

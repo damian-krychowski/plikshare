@@ -11,6 +11,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { SecureInputDirective } from '../../shared/secure-input.directive';
 import { EntryPageService } from '../../services/entry-page.service';
+import { AntiforgeryApi } from '../../services/antiforgery.api';
 
 type ViewState = 'sign-in' | '2fa-required' | 'forgot-password' | 'forgot-password-confirmation' | 'use-recovery-code';
 
@@ -62,6 +63,7 @@ export class SignInPageComponent implements OnInit {
     constructor(
         public entryPage: EntryPageService,
         private _authApi: AuthApi,
+        private _antiforgeryApi: AntiforgeryApi,
         private _authService: AuthService,
         private router: Router) {
 
@@ -106,8 +108,8 @@ export class SignInPageComponent implements OnInit {
                 rememberMe: this.rememberMe.value ?? false
             });
 
-            if(result.code == 'signed-in'){
-                this._authService.initiateSession();
+            if(result.code == 'signed-in'){                
+                await this._authService.initiateSession();
                 await this.router.navigate(['workspaces']);
             }
             else if(result.code == '2fa-required') {
@@ -160,7 +162,7 @@ export class SignInPageComponent implements OnInit {
             });
 
             if(result.code == 'signed-in'){
-                this._authService.initiateSession();
+                await this._authService.initiateSession();
                 await this.router.navigate(['workspaces']);
             }
             else if(result.code == 'invalid-verification-code') {
@@ -190,7 +192,7 @@ export class SignInPageComponent implements OnInit {
             });
 
             if(result.code == 'signed-in'){
-                this._authService.initiateSession();
+                await this._authService.initiateSession();
                 await this.router.navigate(['workspaces']);
             }
             else if(result.code == 'invalid-recovery-code') {

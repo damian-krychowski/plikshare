@@ -66,11 +66,13 @@ export class SingleChunkFileUpload implements IFileUpload {
                     .details.fileSlicer
                     .takeWhole();
 
-                singleChunkUploadPromise = FileUploadUtils.uploadBlob(
-                    preSignedUploadLink, 
-                    wholeBlob, 
-                    this.details.contentType, 
-                    abortSignal);                    
+                singleChunkUploadPromise = FileUploadUtils.uploadBlob({
+                    url: preSignedUploadLink,
+                    file: wholeBlob,
+                    contentType: this.details.contentType,
+                    abortSignal: abortSignal,
+                    xsrfToken: this._uploadsApi.getXsrfToken()
+                });                    
                    
                 const uploadPromise = singleChunkUploadPromise
                     .then(() => {})
