@@ -138,9 +138,7 @@ export class UploadsComponent implements OnInit, OnDestroy {
                     folderExternalIds: [],
                     fileExternalIds: []
                 });
-            },
-            
-            getXsrfToken: () => CookieUtils.GetXsrfToken()
+            }
         }
     }
 }

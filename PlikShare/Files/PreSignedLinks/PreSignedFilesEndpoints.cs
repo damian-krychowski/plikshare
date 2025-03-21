@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Net.Http.Headers;
+using PlikShare.Antiforgery;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
 using PlikShare.Core.Encryption;
@@ -45,18 +46,24 @@ public static class PreSignedFilesEndpoints
         var group = app.MapGroup("/api/files")
             .WithTags("PreSignedFiles")
             .RequireAuthorization(policyNames: AuthPolicy.InternalOrBoxLink);
-
-        group.MapPost("/multi-file/{protectedPayload}", MultiFileDirectUpload)
-            .WithName("MultiFileDirectUpload")
-            .AddEndpointFilter<ValidateProtectedMultiFileDirectUploadPayloadFilter>();
-
-        group.MapPut("/{protectedPayload}", UploadFile)
-            .WithName("UploadFiles")
-            .AddEndpointFilter<ValidateProtectedUploadPayloadFilter>();
-
+        
         group.MapGet("/{protectedPayload}", DownloadFile)
             .WithName("DownloadFile")
             .AddEndpointFilter<ValidateProtectedDownloadPayloadFilter>();
+
+        //antiforgery is disabled for upload endpoints because the links are already
+        //pre-signed with endpoint for which antiforgery is on.
+        //also S3 pre-signed links does not support antiforgery so these endpoints will stick to that
+
+        group.MapPost("/multi-file/{protectedPayload}", MultiFileDirectUpload)
+            .WithName("MultiFileDirectUpload")
+            .AddEndpointFilter<ValidateProtectedMultiFileDirectUploadPayloadFilter>()
+            .WithMetadata(new DisableAutoAntiforgeryCheck());
+
+        group.MapPut("/{protectedPayload}", UploadFile)
+            .WithName("UploadFiles")
+            .AddEndpointFilter<ValidateProtectedUploadPayloadFilter>()
+            .WithMetadata(new DisableAutoAntiforgeryCheck());
     }
 
     public static void MapPreSignedZipFilesEndpoints(this WebApplication app)

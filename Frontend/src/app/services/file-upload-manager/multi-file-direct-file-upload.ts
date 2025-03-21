@@ -15,8 +15,7 @@ export class MultiFileDirectFileUpload implements IFileUpload {
 
     constructor(
         private _activeUploads: Promise<void>[],
-        public detailsList: FileUploadDetails[],
-        private _getXsrfTokenFunc: () => string
+        public detailsList: FileUploadDetails[]
     ) {
     }
 
@@ -83,8 +82,7 @@ export class MultiFileDirectFileUpload implements IFileUpload {
                     method: 'POST',
                     headers: {
                         'x-total-size-in-bytes': totalSizeInBytes.toString(),
-                        'x-number-of-files': this.detailsList.length.toString(),
-                        [XSRF_TOKEN_HEADER_NAME]: this._getXsrfTokenFunc()
+                        'x-number-of-files': this.detailsList.length.toString()
                     },
                     body: formData,
                     signal: abortSignal

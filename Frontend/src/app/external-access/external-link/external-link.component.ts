@@ -233,9 +233,7 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
                 fileExternalIds: [],
                 folderExternalIds: [],
                 fileUploadExternalIds: [uploadExternalId]
-            }),
-            
-            getXsrfToken: () => CookieUtils.GetXsrfBoxLinkToken()
+            })
         }
     }
 

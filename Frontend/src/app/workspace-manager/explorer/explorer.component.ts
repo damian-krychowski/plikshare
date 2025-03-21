@@ -215,9 +215,7 @@ export class ExplorerComponent implements OnInit, OnDestroy {
                 workspaceExternalId,
                 uploadExternalId),
 
-            abort: (uploadExternalId: string) => this.filesApi()!.bulkDelete([],[],[uploadExternalId]),
-
-            getXsrfToken: () => CookieUtils.GetXsrfToken()
+            abort: (uploadExternalId: string) => this.filesApi()!.bulkDelete([],[],[uploadExternalId])
         }
     }
 

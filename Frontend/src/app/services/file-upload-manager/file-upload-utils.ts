@@ -23,15 +23,13 @@ export class FileUploadUtils {
         url: string, 
         file: Blob, 
         contentType: string, 
-        abortSignal: AbortSignal, 
-        xsrfToken: string
+        abortSignal: AbortSignal
     }): Promise<Response> {              
         const response = await fetch(args.url, {
             method: 'PUT',
             body: args.file,
             headers: {
-                'Content-Type': args.contentType,
-                [XSRF_TOKEN_HEADER_NAME]: args.xsrfToken
+                'Content-Type': args.contentType
             },
             signal: args.abortSignal
         });

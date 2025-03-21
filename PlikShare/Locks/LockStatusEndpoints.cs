@@ -1,4 +1,5 @@
-﻿using PlikShare.Core.Authorization;
+﻿using PlikShare.Antiforgery;
+using PlikShare.Core.Authorization;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Locks.CheckFileLocks.Contracts;
@@ -14,7 +15,8 @@ public static class LockStatusEndpoints
             .RequireAuthorization(policyNames: AuthPolicy.InternalOrBoxLink);
 
         group.MapPost("/files", CheckFileLocks)
-            .WithName("CheckFileLocks");
+            .WithName("CheckFileLocks")
+            .WithMetadata(new DisableAutoAntiforgeryCheck());
     }
 
     private static CheckFileLocksResponseDto CheckFileLocks(

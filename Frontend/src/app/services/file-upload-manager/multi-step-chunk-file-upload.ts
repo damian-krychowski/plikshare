@@ -125,8 +125,7 @@ export class MultiStepChunkFileUpload implements IFileUpload  {
                 url:initiatePartUploadResult.uploadPreSignedUrl,
                 file: partBlob,
                 contentType: this.details.contentType,
-                abortSignal: abortSignal,
-                xsrfToken: this._uploadsApi.getXsrfToken()
+                abortSignal: abortSignal
             });           
 
             this.markPartNumberAsUploaded(partNumber);

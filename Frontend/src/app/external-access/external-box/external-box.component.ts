@@ -304,9 +304,7 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
                 fileExternalIds: [],
                 folderExternalIds: [],
                 fileUploadExternalIds: [uploadExternalId]
-            }),
-
-            getXsrfToken: () => CookieUtils.GetXsrfToken()
+            })
         }
     }
 

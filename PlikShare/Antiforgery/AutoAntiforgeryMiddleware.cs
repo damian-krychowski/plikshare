@@ -8,9 +8,7 @@ public class AutoAntiforgeryMiddleware(RequestDelegate next, IAntiforgery antifo
 {
     public async Task InvokeAsync(HttpContext context)
     {
-        // Skip validation for non-state-changing methods
-        var method = context.Request.Method;
-        if (method == HttpMethods.Get || method == HttpMethods.Head || method == HttpMethods.Options || method == HttpMethods.Trace)
+        if (IsMethodExcluded(context) || IsEndpointExcluded(context))
         {
             await next(context);
             return;
@@ -34,4 +32,28 @@ public class AutoAntiforgeryMiddleware(RequestDelegate next, IAntiforgery antifo
             await context.Response.WriteAsync(problem);
         }
     }
+
+    private static bool IsMethodExcluded(HttpContext context)
+    {
+        var method = context.Request.Method;
+
+        return method == HttpMethods.Get || 
+               method == HttpMethods.Head ||
+               method == HttpMethods.Options || 
+               method == HttpMethods.Trace;
+    }
+
+    private static bool IsEndpointExcluded(HttpContext context)
+    {
+        var endpoint = context.GetEndpoint();
+
+        if (endpoint is null)
+            return false;
+
+        return endpoint
+            .Metadata
+            .FirstOrDefault(m => m is DisableAutoAntiforgeryCheck) != null;
+    }
 }
+
+public class DisableAutoAntiforgeryCheck;

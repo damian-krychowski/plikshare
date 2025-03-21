@@ -70,8 +70,7 @@ export class SingleChunkFileUpload implements IFileUpload {
                     url: preSignedUploadLink,
                     file: wholeBlob,
                     contentType: this.details.contentType,
-                    abortSignal: abortSignal,
-                    xsrfToken: this._uploadsApi.getXsrfToken()
+                    abortSignal: abortSignal
                 });                    
                    
                 const uploadPromise = singleChunkUploadPromise
