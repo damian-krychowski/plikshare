@@ -23,6 +23,14 @@ public class GetOrCreateFolderQuery(
         bool ensureUniqueNames,
         CancellationToken cancellationToken = default)
     {
+        if (folderTreeItems.Count == 0)
+            return new BulkResult(
+                Code: ResultCode.Ok,
+                Response: new BulkCreateFolderResponseDto
+                {
+                    Items = []
+                });
+
         var duplicatedTemporaryIds = CheckForDuplicatedTemporaryIds(
             folderTreeItems: folderTreeItems);
 

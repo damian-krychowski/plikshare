@@ -12,7 +12,7 @@ public class BulkCreateFolderRequestDto
     public required bool EnsureUniqueNames { get; init; }
 
     [ProtoMember(3)]
-    public required List<FolderTreeDto> FolderTrees { get; init; }
+    public required List<FolderTreeDto>? FolderTrees { get; init; }
 }
 
 [ProtoContract]

@@ -66,7 +66,7 @@ public static class FoldersEndpoints
             parentFolderExternalId: parentFolderExternalId,
             boxFolderId: null,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
-            folderTreeItems: request.FolderTrees,
+            folderTreeItems: request.FolderTrees ?? [],
             ensureUniqueNames: request.EnsureUniqueNames,
             cancellationToken: cancellationToken);
 
