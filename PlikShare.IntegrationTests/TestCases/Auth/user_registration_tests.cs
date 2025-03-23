@@ -25,10 +25,13 @@ public class user_registration_tests : TestFixture
 
         //when
         var (signUpResponse, cookie) = await Api.Auth.SignUp(
-            request: new SignUpUserRequestDto(
-                Email: invitedUser.Email,
-                Password: Random.Password(),
-                InvitationCode: invitedUser.InvitationCode));
+            request: new SignUpUserRequestDto
+            {
+                Email = invitedUser.Email,
+                Password = Random.Password(),
+                InvitationCode = invitedUser.InvitationCode,
+                SelectedCheckboxIds = []
+            });
 
         //then
         signUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.SingedUpAndSignedIn);
@@ -43,10 +46,13 @@ public class user_registration_tests : TestFixture
             cookie: AppOwner.Cookie);
         
         var (_, cookie) = await Api.Auth.SignUp(
-            request: new SignUpUserRequestDto(
-                Email: invitedUser.Email,
-                Password: Random.Password(),
-                InvitationCode: invitedUser.InvitationCode));
+            request: new SignUpUserRequestDto
+            {
+                Email = invitedUser.Email,
+                Password = Random.Password(),
+                InvitationCode = invitedUser.InvitationCode,
+                SelectedCheckboxIds = []
+            });
 
         //when
         var accountDetails = await Api.Account.GetDetails(
@@ -76,10 +82,13 @@ public class user_registration_tests : TestFixture
 
         //when
         var (signUpResponse, cookie) = await Api.Auth.SignUp(
-            request: new SignUpUserRequestDto(
-                Email: invitedUser.Email,
-                Password: Random.Password(),
-                InvitationCode: Random.InvitationCode("wrong-code")));
+            request: new SignUpUserRequestDto
+            {
+                Email = invitedUser.Email,
+                Password = Random.Password(),
+                InvitationCode = Random.InvitationCode("wrong-code"),
+                SelectedCheckboxIds = []
+            });
 
         //then
         signUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.InvitationRequired);
@@ -95,10 +104,13 @@ public class user_registration_tests : TestFixture
 
         //when
         var (signUpResponse, cookie) = await Api.Auth.SignUp(
-            request: new SignUpUserRequestDto(
-                Email: Random.Email("wrong-email"),
-                Password: Random.Password(),
-                InvitationCode: invitedUser.InvitationCode));
+            request: new SignUpUserRequestDto
+            {
+                Email = Random.Email("wrong-email"),
+                Password = Random.Password(),
+                InvitationCode = invitedUser.InvitationCode,
+                SelectedCheckboxIds = []
+            });
 
         //then
         signUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.InvitationRequired);

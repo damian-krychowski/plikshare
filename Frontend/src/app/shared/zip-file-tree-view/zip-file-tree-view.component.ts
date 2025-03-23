@@ -5,7 +5,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { CommonModule } from '@angular/common';
 import { StorageSizePipe } from '../storage-size.pipe';
 import { ActionButtonComponent } from '../buttons/action-btn/action-btn.component';
-import { EntryPageService } from '../../services/entry-page.service';
 import { FileIconPipe } from '../../files-explorer/file-icon-pipe/file-icon.pipe';
 import { toggle } from '../signal-utils';
 import { NGramSearch } from '../../services/n-gram-search';
@@ -84,8 +83,7 @@ export class ZipFileTreeViewComponent implements OnChanges {
         return [];
     }
 
-    constructor(
-        public entryPage: EntryPageService){
+    constructor(){
         }
 
     dataSource = new MatTreeNestedDataSource<ZipTreeNode>();

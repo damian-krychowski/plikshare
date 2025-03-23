@@ -12,7 +12,6 @@ import { FileIconPipe } from "../../files-explorer/file-icon-pipe/file-icon.pipe
 import { InAppSharing } from "../../services/in-app-sharing.service";
 import { NavigationExtras } from "@angular/router";
 import { ActionButtonComponent } from "../buttons/action-btn/action-btn.component";
-import { EntryPageService } from "../../services/entry-page.service";
 import { FileLockService } from "../../services/file-lock.service";
 import { observeIsHighlighted } from "../../services/is-highlighted-utils";
 import { ContentDisposition } from "../../services/folders-and-files.api";
@@ -106,7 +105,6 @@ export class FileItemComponent implements OnInit, OnDestroy {
         || this.file().wasUploadedByUser));
 
     constructor(
-        public entryPage: EntryPageService,
         private _inAppSharing: InAppSharing,
         private _fileLockService: FileLockService        
     ){}

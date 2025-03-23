@@ -120,6 +120,8 @@ using PlikShare.GeneralSettings;
 using PlikShare.GeneralSettings.LegalFiles;
 using PlikShare.GeneralSettings.LegalFiles.DeleteLegalFile;
 using PlikShare.GeneralSettings.LegalFiles.UploadLegalFile;
+using PlikShare.GeneralSettings.SignUpCheckboxes.CreateOrUpdate;
+using PlikShare.GeneralSettings.SignUpCheckboxes.Delete;
 using PlikShare.HealthCheck;
 using PlikShare.Integrations;
 using PlikShare.Integrations.Activate;
@@ -264,8 +266,8 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_13_FilesAndFoldersLookupIndicesIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_14_WorkspaceIdAddedToIntegrationsTable>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_15_ReencryptDatabaseFromAesCcmToAesGcm>();
-
-
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_16_SignUpCheckboxesIntroduced>();
+        
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 
         builder.UseAppSettings();
@@ -591,6 +593,9 @@ public class Startup
         builder.Services.AddSingleton<MarkFileAsUploadedQuery>();
         builder.Services.AddSingleton<IQueueLongRunningJobExecutor, SendAiMessageQueueJobExecutor>();
         builder.Services.AddSingleton<IQueueNormalJobExecutor, DeleteAiConversationQueueJobExecutor>();
+
+        builder.Services.AddSingleton<CreateOrUpdateSignUpCheckboxQuery>();
+        builder.Services.AddSingleton<DeleteSignUpCheckboxQuery>();
     }
 
     public static void InitializeWebApp(WebApplication app)

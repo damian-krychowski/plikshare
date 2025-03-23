@@ -9,6 +9,13 @@ export interface GetApplicationSettingsResponse {
     termsOfService: string | null;
     privacyPolicy: string | null;
     applicationName: string | null;
+    signUpCheckboxes: SignUpCheckboxDto[];
+}
+
+export interface SignUpCheckboxDto {
+    id: number;
+    text: string;
+    isRequired: boolean;
 }
 
 export interface SetApplicationSignUpRequest {
@@ -19,12 +26,39 @@ export interface SetApplicationNameRequest {
     value: string | null;
 }
 
+export interface CreateOrUpdateSignUpCheckboxRequest {
+    id: number | null;
+    text: string;
+    isRequired: boolean;
+}
+
+export interface CreateOrUpdateSignUpCheckboxResponse {
+    newId: number;
+}
+
 @Injectable({
     providedIn: 'root'
 })
 export class GeneralSettingsApi {
     constructor(
         private _http: HttpClient) {        
+    }
+
+    public async deleteSignUpCheckobx(id: number) {
+        const response = this
+            ._http
+            .delete(`/api/general-settings/sign-up-checkboxes/${id}`);
+
+        await firstValueFrom(response);
+    }
+
+    public async createOrUpdateSignUpCheckbox(request: CreateOrUpdateSignUpCheckboxRequest): Promise<CreateOrUpdateSignUpCheckboxResponse> {
+        const response = this
+            ._http
+            .post<CreateOrUpdateSignUpCheckboxResponse>(
+                `/api/general-settings/sign-up-checkboxes`, request);
+
+        return await firstValueFrom(response);
     }
 
     public async getAppSettings(): Promise<GetApplicationSettingsResponse> {

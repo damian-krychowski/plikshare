@@ -18,3 +18,54 @@
         --mdc-radio-selected-pressed-icon-color: black !important;
     }
 }  
+
+.sign-up-checkbox {
+    display: flex;
+    flex-direction: row;
+    align-self: center;
+    gap: 0.5rem;
+    width: 100%;
+
+    &__input-container {
+        flex-grow: 1;
+        display: flex;
+        align-items: center;
+        padding-right: 2rem;
+        position: relative;
+    }
+
+    &__input {
+        width: 100%;
+        padding: 0.1rem 0.5rem;
+        border: 1px solid var(--company-grey-accent);
+        border-radius: var(--mdc-filled-button-container-shape);
+    
+        &:active {
+            outline: 1px solid var(--company-grey-accent);
+        }
+    
+        &:focus {
+            outline: 1px solid var(--company-grey-accent);
+        }
+
+        &--error {
+            border-color: var(--company-danger);
+        }
+    }
+
+    &__info {
+        position: absolute;
+        bottom: -1rem;
+
+        font-size: var(--company-small-font);
+        color: var(--company-grey-font);
+    }
+
+    &__btn-container {
+        display: flex;
+        flex-direction: row;
+        gap: 5px;
+        align-items: center;
+        padding-right: 0.5rem;
+    }
+}

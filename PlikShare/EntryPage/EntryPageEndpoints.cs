@@ -29,6 +29,8 @@ public static class EntryPageEndpoints
             PrivacyPolicyFilePath = appSettings.PrivacyPolicy.FileName is null
                 ? null
                 : "api/legal-files/privacy-policy",
+
+            SignUpCheckboxes = appSettings.SignUpCheckboxes.ToList()
         };
     }
 }

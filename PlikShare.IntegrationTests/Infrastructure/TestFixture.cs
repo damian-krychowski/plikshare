@@ -388,10 +388,13 @@ public class TestFixture: IAsyncLifetime
         var password = Random.Password();
 
         var (_, userCookie) = await Api.Auth.SignUp(
-            request: new SignUpUserRequestDto(
-                Email: invitedUser.Email,
-                Password: password,
-                InvitationCode: invitedUser.InvitationCode));
+            request: new SignUpUserRequestDto
+            {
+                Email = invitedUser.Email,
+                Password = password,
+                InvitationCode = invitedUser.InvitationCode,
+                SelectedCheckboxIds = []
+            });
 
         return new AppSignedInUser(
             ExternalId: invitedUser.ExternalId,

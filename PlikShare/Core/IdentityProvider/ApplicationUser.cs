@@ -5,6 +5,7 @@ namespace PlikShare.Core.IdentityProvider;
 public class ApplicationUser: IdentityUser
 {
     public int DatabaseId { get; set; }
+    public List<int> SelectedCheckboxIds { get; set; }
 
     public ApplicationUser()
     {

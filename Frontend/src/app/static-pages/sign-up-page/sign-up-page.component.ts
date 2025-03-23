@@ -1,18 +1,19 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, WritableSignal, computed, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { Component, NgZone, OnDestroy, OnInit, WritableSignal, signal } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TopBarComponent } from '../shared/top-bar/top-bar.component';
 import { FooterComponent } from '../shared/footer/footer.component';
 import { AuthApi } from '../../services/auth.api';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { Subscription, takeWhile, timer } from 'rxjs';
+import { Subscription } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { Countdown } from '../../services/countdown';
 import { SecureInputDirective } from '../../shared/secure-input.directive';
 import { EntryPageService } from '../../services/entry-page.service';
+import { SignUpCheckboxDto } from '../../services/general-settings.api';
 
 type ViewState = 'sign-up' | 'confirm-email';
 
@@ -33,7 +34,7 @@ type ViewState = 'sign-up' | 'confirm-email';
     templateUrl: './sign-up-page.component.html',
     styleUrl: './sign-up-page.component.scss'
 })
-export class SignUpPageComponent implements OnInit {
+export class SignUpPageComponent implements OnInit, OnDestroy {
     viewState: WritableSignal<ViewState> = signal('sign-up');
     isLoading = signal(false);
     isInvitationRequired = signal(false);
@@ -52,35 +53,86 @@ export class SignUpPageComponent implements OnInit {
 
     formGroup: FormGroup;
     wasSubmitted = false;
+    checkboxes: FormArray<FormControl<boolean | null>>;
 
     countdown = new Countdown(60);
 
-    private _subscription: Subscription| null = null;
+    private _subscriptions: Subscription[] = [];
     private _invitationCode: string | null = null;
 
     constructor(
         public entryPage: EntryPageService,
+        private _formBuilder: FormBuilder,
         private _authService: AuthService,
         private _authApi: AuthApi,
         private _activatedRoute: ActivatedRoute,
-        private router: Router) {
+        private _router: Router) {
+
+        this.checkboxes = this._formBuilder.array<FormControl<boolean | null>>([]);
 
         this.formGroup = new FormGroup({
             username: this.username,
             password: this.password,
             confirmedPassword: this.confirmedPassword,
-            acceptTerms: this.acceptTerms
+            acceptTerms: this.acceptTerms,
+            checkboxes: this.checkboxes
         });
     }
 
     async ngOnInit(): Promise<void> {
+        this.isLoading.set(true);
+
         if(await this._authService.isAuthenticatedAsync()) {
-            this.router.navigate(['workspaces']);
+            this._router.navigate(['workspaces']);
         }
 
-        this._subscription = this._activatedRoute.queryParams.subscribe(async (params) => {
+        const routeSub = this._activatedRoute.queryParams.subscribe(async (params) => {
             this._invitationCode = params['invitationCode'];
         });
+        this._subscriptions.push(routeSub);
+
+        const loadedSub = this.entryPage.loaded$.subscribe((result) => {
+            if(!result)
+                return;
+
+            if (result.success) {
+                this.initCheckboxes();
+            } else {
+                console.error('Failed to load entry page data', result.error);
+            }
+
+            this.isLoading.set(false);     
+        });
+        this._subscriptions.push(loadedSub);
+    }
+
+    ngOnDestroy(): void {
+        this._subscriptions.forEach(sub => sub.unsubscribe());
+        this._subscriptions = [];
+    }
+
+    private initCheckboxes(): void {    
+        this.checkboxes.clear();
+
+        this.entryPage.signUpCheckboxes().forEach(checkbox => {
+            const validator = checkbox.isRequired 
+                ? Validators.requiredTrue 
+                : null;
+
+            this.checkboxes.push(new FormControl(false, validator));
+        });
+    }
+
+    getSelectedCheckboxIds(): number[] {
+        const selectedIds: number[] = [];
+
+        this.entryPage.signUpCheckboxes().forEach((checkbox, index) => {
+            if (this.checkboxes.at(index).value === true) {
+                selectedIds.push(checkbox.id);
+            }
+        });
+
+        return selectedIds;
     }
 
     async onSignUp() {
@@ -95,7 +147,8 @@ export class SignUpPageComponent implements OnInit {
             const result = await this._authApi.signUp({
                 email: this.username.value!,
                 password: this.password.value!,
-                invitationCode: this._invitationCode
+                invitationCode: this._invitationCode || null,
+                selectedCheckboxIds: this.getSelectedCheckboxIds()
             });
 
             if (result.code == 'confirmation-email-sent') {
@@ -105,7 +158,7 @@ export class SignUpPageComponent implements OnInit {
                 this.isInvitationRequired.set(true);
             } else if(result.code === 'signed-up-and-signed-in'){
                 this._authService.initiateSession();
-                await this.router.navigate(['workspaces']);
+                await this._router.navigate(['workspaces']);
             }
         } catch (err: any) {
             console.error(err);
@@ -134,5 +187,3 @@ export class SignUpPageComponent implements OnInit {
         this.viewState.set('sign-up');
     }
 }
-
-

@@ -1,10 +1,10 @@
-import { Component, model, OnInit, signal } from "@angular/core";
+import { Component, computed, model, OnInit, Signal, signal, WritableSignal } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { MatRadioChange, MatRadioModule } from "@angular/material/radio";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { Router } from "@angular/router";
 import { AuthService } from "../../services/auth.service";
-import { ApplicationSingUp, GeneralSettingsApi } from "../../services/general-settings.api";
+import { ApplicationSingUp, GeneralSettingsApi, SignUpCheckboxDto } from "../../services/general-settings.api";
 import { Debouncer } from "../../services/debouncer";
 import { DocumentUploadApi, DocumentUploadComponent } from "./document-upload/document-upload.component";
 import { OptimisticOperation } from "../../services/optimistic-operation";
@@ -12,17 +12,38 @@ import { EntryPageService } from "../../services/entry-page.service";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { FormsModule } from "@angular/forms";
+import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
+import { insertItem, pushItems, removeItem, toggle } from "../../shared/signal-utils";
+import { MatSlideToggle } from "@angular/material/slide-toggle";
+import { ConfirmOperationDirective } from "../../shared/operation-confirm/confirm-operation.directive";
+import { MatCheckboxModule } from "@angular/material/checkbox";
+
+type SignUpCheckbox = {
+    id: WritableSignal<number | null>;
+    text: WritableSignal<string>;
+    savedText: WritableSignal<string | null>;
+
+    isRequired: WritableSignal<boolean>;
+    savedIsRequired: WritableSignal<boolean>;
+    
+    isSaving: WritableSignal<boolean>;
+    isChanged: Signal<boolean>;
+}
 
 @Component({
     selector: 'app-general-settings',
     imports: [
         FormsModule,
         MatButtonModule,
+        MatCheckboxModule,
+        MatSlideToggle,
         MatTooltipModule,
         MatFormFieldModule,
         MatInputModule,
         MatRadioModule,
         DocumentUploadComponent,
+        ActionButtonComponent,
+        ConfirmOperationDirective
     ],
     templateUrl: './general-settings.component.html',
     styleUrl: './general-settings.component.scss'
@@ -47,6 +68,8 @@ export class GeneralSettingsComponent implements OnInit {
     };
 
     applicationName = model<string|null>(null);
+
+    signUpCheckboxes = signal<SignUpCheckbox[]>([]);
 
     constructor(
         private _entryPage: EntryPageService,
@@ -80,6 +103,10 @@ export class GeneralSettingsComponent implements OnInit {
         this.termsOfServiceFileName.set(result.termsOfService);
         this.privacyPolicyFileName.set(result.privacyPolicy);
         this.applicationName.set(result.applicationName);
+        this.signUpCheckboxes.set(result
+            .signUpCheckboxes
+            .map(chk => this.mapSignUpCheckboxDto(chk))
+        );
     }
 
     goToAccount() {
@@ -146,5 +173,94 @@ export class GeneralSettingsComponent implements OnInit {
         } else {
             await this._entryPage.reload();
         }   
+    }
+
+    public onAddSignUpCheckobox(){
+        const textSignal = signal('');
+        const savedTextSignal = signal(null);
+        const isRequiredSignal = signal(true);
+        const savedIsRequiredSignal = signal(true);
+
+        pushItems(this.signUpCheckboxes, { 
+            id: signal(null), 
+            text: textSignal,
+            savedText: savedTextSignal,             
+            isRequired: isRequiredSignal,
+            savedIsRequired: savedIsRequiredSignal,
+            isSaving: signal(false),
+            isChanged: computed(() => textSignal() !== savedTextSignal() || isRequiredSignal() !== savedIsRequiredSignal())
+        });
+    }
+
+    private mapSignUpCheckboxDto(dto: SignUpCheckboxDto): SignUpCheckbox {
+        const textSignal = signal(dto.text);
+        const savedTextSignal = signal(dto.text);
+        const isRequiredSignal = signal(dto.isRequired);
+        const savedIsRequiredSignal = signal(dto.isRequired);
+
+        return { 
+            id: signal(dto.id), 
+            text: textSignal,
+            savedText: savedTextSignal,             
+            isRequired: isRequiredSignal,
+            savedIsRequired: savedIsRequiredSignal,
+            isSaving: signal(false),
+            isChanged: computed(() => textSignal() !== savedTextSignal() || isRequiredSignal() !== savedIsRequiredSignal())
+        };
+    }
+
+    public changeSignUpCheckboxIsRequired(checkbox: SignUpCheckbox){
+        toggle(checkbox.isRequired);
+    }
+
+    public async saveSignUpCheckbox(signUpCheckbox: SignUpCheckbox) {
+        signUpCheckbox.isSaving.set(true);
+
+        try {
+            const isRequired = signUpCheckbox.isRequired();
+            const text = signUpCheckbox.text();
+
+            const response = await this._settingsApi.createOrUpdateSignUpCheckbox({
+                id: signUpCheckbox.id(),
+                isRequired: isRequired,
+                text: text
+            });
+
+            signUpCheckbox.id.set(response.newId);
+            signUpCheckbox.savedIsRequired.set(isRequired);
+            signUpCheckbox.savedText.set(text);
+
+            await this._entryPage.reload();
+        } catch (error) {
+            console.error(error);
+        } finally {
+            signUpCheckbox.isSaving.set(false);
+        }
+    }
+
+    public async deleteSignUpCheckbox(signUpCheckbox: SignUpCheckbox) {
+        const id = signUpCheckbox.id();
+
+        if(!id) {
+            removeItem(this.signUpCheckboxes, signUpCheckbox);
+            return;
+        }
+
+        signUpCheckbox.isSaving.set(true);
+        let index = 0;
+
+        try {
+            await this._settingsApi.deleteSignUpCheckobx(id);
+
+            const result = removeItem(this.signUpCheckboxes, signUpCheckbox);
+            index = result.index;
+
+            await this._entryPage.reload();
+        } catch (error) {
+            console.error(error);
+            insertItem(this.signUpCheckboxes, signUpCheckbox, index)
+        } finally {
+            signUpCheckbox.isSaving.set(false);
+        }
     }
 }

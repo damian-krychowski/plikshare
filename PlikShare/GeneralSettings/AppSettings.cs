@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 
@@ -5,6 +6,13 @@ namespace PlikShare.GeneralSettings;
 
 public class AppSettings(PlikShareDb plikShareDb)
 {
+    public class SignUpCheckbox
+    {
+        public required int Id { get; init; }
+        public required string Text { get; init; }
+        public required bool IsRequired { get; init; }
+    }
+
     public record ApplicationNameSetting(string Name)
     {
         public const string Key = "application-name";
@@ -68,6 +76,10 @@ public class AppSettings(PlikShareDb plikShareDb)
         public override string ToString() => Value;
     }
 
+    private volatile List<SignUpCheckbox> _signUpCheckboxes = [];
+    public IReadOnlyList<SignUpCheckbox> SignUpCheckboxes => _signUpCheckboxes;
+    public IEnumerable<int> RequiredSignUpCheckboxesIds => SignUpCheckboxes.Where(x => x.IsRequired).Select(x => x.Id);
+ 
     private volatile SignUpSetting _applicationSignUp = SignUpSetting.Default;
     public SignUpSetting ApplicationSignUp => _applicationSignUp;
 
@@ -82,7 +94,6 @@ public class AppSettings(PlikShareDb plikShareDb)
 
     private volatile ApplicationNameSetting _applicationName = ApplicationNameSetting.Default;
     public ApplicationNameSetting ApplicationName => _applicationName;
-
 
     public void SetApplicationName(string? name)
     {
@@ -119,11 +130,31 @@ public class AppSettings(PlikShareDb plikShareDb)
 
         _applicationSignUp = signUp;
     }
+
+    public void RefreshSingUpCheckboxes()
+    {
+        using var connection = plikShareDb.OpenConnection();
+
+        _signUpCheckboxes = GetSignUpCheckboxes(connection);
+    }
     
     public void Initialize()
     {
         using var connection = plikShareDb.OpenConnection();
+        
+        _signUpCheckboxes = GetSignUpCheckboxes(connection);
+        
+        var settings = GetSettings(connection);
 
+        _applicationSignUp = GetApplicationSignUpOrDefault(settings);
+        _termsOfService = GetTermsOfServiceOrDefault(settings);
+        _privacyPolicy = GetPrivacyPolicyOrDefault(settings);
+        _applicationName = GetApplicationNameOrDefault(settings);
+    }
+    
+    private static List<Setting> GetSettings(
+        SqliteConnection connection)
+    {
         var settings = connection
             .Cmd(
                 sql: """
@@ -134,11 +165,31 @@ public class AppSettings(PlikShareDb plikShareDb)
                     Key: reader.GetString(0),
                     Value: reader.GetStringOrNull(1)))
             .Execute();
-        
-        _applicationSignUp = GetApplicationSignUpOrDefault(settings);
-        _termsOfService = GetTermsOfServiceOrDefault(settings);
-        _privacyPolicy = GetPrivacyPolicyOrDefault(settings);
-        _applicationName = GetApplicationNameOrDefault(settings);
+        return settings;
+    }
+
+    private List<SignUpCheckbox> GetSignUpCheckboxes(
+        SqliteConnection connection)
+    {
+        return connection
+            .Cmd(
+                sql: """
+                     SELECT
+                        suc_id,
+                        suc_text,
+                        suc_is_required
+                     FROM 
+                        suc_sign_up_checkboxes
+                     WHERE 
+                        suc_is_deleted = FALSE
+                     """,
+                readRowFunc: reader => new SignUpCheckbox
+                {
+                    Id = reader.GetInt32(0),
+                    Text = reader.GetString(1),
+                    IsRequired = reader.GetBoolean(2)
+                })
+            .Execute();
     }
 
     private SignUpSetting GetApplicationSignUpOrDefault(IEnumerable<Setting> settings)

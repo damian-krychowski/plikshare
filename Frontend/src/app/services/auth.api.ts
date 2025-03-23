@@ -35,6 +35,13 @@ export interface SignInRecoveryCodeResponse {
     code: 'signed-in' | 'sign-in-failed' | 'invalid-recovery-code'
 }
 
+export interface SignUpRequest {
+    email: string;
+    password: string;
+    selectedCheckboxIds: number[];
+    invitationCode: string | null;
+}
+
 @Injectable({
     providedIn: 'root'
 })
@@ -43,15 +50,11 @@ export class AuthApi {
         private _http: HttpClient) {        
     }
 
-    public async signUp(args: {
-        email: string;
-        password: string;
-        invitationCode: string | null;
-    }): Promise<SignUpResponse> {
+    public async signUp(request: SignUpRequest): Promise<SignUpResponse> {
         const call = this
             ._http
             .post<SignUpResponse>(
-                `/api/auth/sign-up`, args, {
+                `/api/auth/sign-up`, request, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
                 })

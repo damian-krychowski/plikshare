@@ -108,16 +108,16 @@ namespace PlikShare.Core.IdentityProvider
             {
                 var wasUserInvited = connection
                     .OneRowCmd(
-                        sql: @"
-                            SELECT 
-                                u_id,
-                                u_external_id
-                            FROM u_users                            
-                            WHERE 
-                                u_normalized_user_name = $normalizedUserName
-                                AND u_is_invitation = TRUE
-                            LIMIT 1                        
-                        ",
+                        sql: """
+                             SELECT 
+                                 u_id,
+                                 u_external_id
+                             FROM u_users                            
+                             WHERE 
+                                 u_normalized_user_name = $normalizedUserName
+                                 AND u_is_invitation = TRUE
+                             LIMIT 1                 
+                             """,
                         readRowFunc: reader => new
                         {
                             Id = reader.GetInt32(0),
@@ -135,44 +135,44 @@ namespace PlikShare.Core.IdentityProvider
                     
                     result = connection
                         .OneRowCmd(
-                            sql: @"
-                            INSERT INTO u_users(
-                                u_external_id,
-                                u_user_name,
-                                u_normalized_user_name,
-                                u_email,
-                                u_normalized_email,
-                                u_email_confirmed,
-                                u_password_hash,
-                                u_security_stamp,
-                                u_concurrency_stamp,
-                                u_phone_number,
-                                u_phone_number_confirmed,
-                                u_two_factor_enabled,
-                                u_lockout_end,
-                                u_lockout_enabled,
-                                u_access_failed_count,
-                                u_is_invitation
-                            ) VALUES (
-                                $externalId,
-                                $userName,
-                                $normalizedUserName,
-                                $email,
-                                $normalizedEmail,
-                                $emailConfirmed,
-                                $passwordHash,
-                                $securityStamp,
-                                $concurrencyStamp,
-                                $phoneNumber,
-                                $phoneNumberConfirmed,
-                                $twoFactorEnabled,
-                                $lockoutEnd,
-                                $lockoutEnabled,
-                                $accessFailedCount,
-                                FALSE
-                            )
-                            RETURNING u_id;
-                        ",
+                            sql: """
+                                 INSERT INTO u_users(
+                                     u_external_id,
+                                     u_user_name,
+                                     u_normalized_user_name,
+                                     u_email,
+                                     u_normalized_email,
+                                     u_email_confirmed,
+                                     u_password_hash,
+                                     u_security_stamp,
+                                     u_concurrency_stamp,
+                                     u_phone_number,
+                                     u_phone_number_confirmed,
+                                     u_two_factor_enabled,
+                                     u_lockout_end,
+                                     u_lockout_enabled,
+                                     u_access_failed_count,
+                                     u_is_invitation
+                                 ) VALUES (
+                                     $externalId,
+                                     $userName,
+                                     $normalizedUserName,
+                                     $email,
+                                     $normalizedEmail,
+                                     $emailConfirmed,
+                                     $passwordHash,
+                                     $securityStamp,
+                                     $concurrencyStamp,
+                                     $phoneNumber,
+                                     $phoneNumberConfirmed,
+                                     $twoFactorEnabled,
+                                     $lockoutEnd,
+                                     $lockoutEnabled,
+                                     $accessFailedCount,
+                                     FALSE
+                                 )
+                                 RETURNING u_id;
+                                 """,
                             readRowFunc: reader => reader.GetInt32(0),
                             transaction: transaction)
                         .WithParameter("$externalId", user.Id)
@@ -198,27 +198,27 @@ namespace PlikShare.Core.IdentityProvider
                     
                     result = connection
                         .OneRowCmd(
-                            sql: @"
-                            UPDATE u_users
-                            SET 
-                                u_user_name = $userName,
-                                u_normalized_user_name = $normalizedUserName,
-                                u_email = $email,
-                                u_normalized_email = $normalizedEmail,
-                                u_email_confirmed = $emailConfirmed,
-                                u_password_hash = $passwordHash,
-                                u_security_stamp = $securityStamp,
-                                u_concurrency_stamp = $concurrencyStamp,
-                                u_phone_number = $phoneNumber,
-                                u_phone_number_confirmed = $phoneNumberConfirmed,
-                                u_two_factor_enabled = $twoFactorEnabled,
-                                u_lockout_end = $lockoutEnd,
-                                u_lockout_enabled = $lockoutEnabled,
-                                u_access_failed_count = $accessFailedCount,
-                                u_is_invitation = FALSE
-                            WHERE u_id = $invitedUserId
-                            RETURNING u_id;
-                        ",
+                            sql: """
+                                 UPDATE u_users
+                                 SET 
+                                     u_user_name = $userName,
+                                     u_normalized_user_name = $normalizedUserName,
+                                     u_email = $email,
+                                     u_normalized_email = $normalizedEmail,
+                                     u_email_confirmed = $emailConfirmed,
+                                     u_password_hash = $passwordHash,
+                                     u_security_stamp = $securityStamp,
+                                     u_concurrency_stamp = $concurrencyStamp,
+                                     u_phone_number = $phoneNumber,
+                                     u_phone_number_confirmed = $phoneNumberConfirmed,
+                                     u_two_factor_enabled = $twoFactorEnabled,
+                                     u_lockout_end = $lockoutEnd,
+                                     u_lockout_enabled = $lockoutEnabled,
+                                     u_access_failed_count = $accessFailedCount,
+                                     u_is_invitation = FALSE
+                                 WHERE u_id = $invitedUserId
+                                 RETURNING u_id;
+                                 """,
                             readRowFunc: reader => reader.GetInt32(0),
                             transaction: transaction)
                         .WithParameter("$invitedUserId", wasUserInvited.Value.Id)
@@ -243,7 +243,30 @@ namespace PlikShare.Core.IdentityProvider
                 {
                     throw new InvalidOperationException("Something went wrong while creating new user");
                 }
-                
+
+                if (user.SelectedCheckboxIds is { Count: > 0 })
+                {
+                    connection
+                        .Cmd(sql: """
+                                  INSERT INTO usuc_user_sign_up_checkboxes (
+                                     usuc_user_id,
+                                     usuc_sign_up_checkbox_id
+                                  )
+                                  SELECT
+                                     $userId,
+                                     value
+                                  FROM 
+                                     json_each($checkboxIds)
+                                  RETURNING
+                                     usuc_sign_up_checkbox_id
+                                  """,
+                            readRowFunc: reader => reader.GetInt32(0),
+                            transaction: transaction)
+                        .WithParameter("$userId", result.Value)
+                        .WithJsonParameter("$checkboxIds", user.SelectedCheckboxIds)
+                        .Execute();
+                }
+
                 transaction.Commit();
 
                 user.DatabaseId = result.Value;

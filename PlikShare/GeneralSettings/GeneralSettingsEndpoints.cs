@@ -6,6 +6,9 @@ using PlikShare.Core.Utils;
 using PlikShare.GeneralSettings.Contracts;
 using PlikShare.GeneralSettings.LegalFiles.DeleteLegalFile;
 using PlikShare.GeneralSettings.LegalFiles.UploadLegalFile;
+using PlikShare.GeneralSettings.SignUpCheckboxes.CreateOrUpdate;
+using PlikShare.GeneralSettings.SignUpCheckboxes.CreateOrUpdate.Contracts;
+using PlikShare.GeneralSettings.SignUpCheckboxes.Delete;
 
 namespace PlikShare.GeneralSettings;
 
@@ -42,6 +45,40 @@ public static class GeneralSettingsEndpoints
 
         group.MapDelete("/privacy-policy", DeletePrivacyPolicy)
             .WithName("DeletePrivacyPolicy");
+
+        group.MapPost("/sign-up-checkboxes", CreateOrUpdateSignUpCheckbox)
+            .WithName("CreateOrUpdateSignUpCheckbox");
+
+        group.MapDelete("/sign-up-checkboxes/{signUpCheckboxId}", DeleteSignUpCheckbox)
+            .WithName("DeleteSignUpCheckbox");
+    }
+
+    private static async Task DeleteSignUpCheckbox(
+        [FromRoute] int signUpCheckboxId,
+        DeleteSignUpCheckboxQuery deleteSignUpCheckboxQuery,
+        AppSettings appSettings,
+        CancellationToken cancellationToken)
+    {
+       await deleteSignUpCheckboxQuery.Execute(
+            signUpCheckboxId,
+            cancellationToken);
+
+        appSettings.RefreshSingUpCheckboxes();
+    }
+
+    private static async Task<CreateOrUpdateSignUpCheckboxResponseDto> CreateOrUpdateSignUpCheckbox(
+        [FromBody] CreateOrUpdateSignUpCheckboxRequestDto request,
+        CreateOrUpdateSignUpCheckboxQuery createOrUpdateSignUpCheckboxQuery,
+        AppSettings appSettings,
+        CancellationToken cancellationToken)
+    {
+        var response =  await createOrUpdateSignUpCheckboxQuery.Execute(
+            request,
+            cancellationToken);
+
+        appSettings.RefreshSingUpCheckboxes();
+
+        return response;
     }
 
     private static GetApplicationSettingsResponse GetSettings(
@@ -52,7 +89,8 @@ public static class GeneralSettingsEndpoints
             ApplicationName = appSettings.ApplicationName.Name,
             ApplicationSignUp = appSettings.ApplicationSignUp.Value,
             PrivacyPolicy = appSettings.PrivacyPolicy.FileName,
-            TermsOfService = appSettings.TermsOfService.FileName
+            TermsOfService = appSettings.TermsOfService.FileName,
+            SignUpCheckboxes = appSettings.SignUpCheckboxes.ToList()
         };
     }
 

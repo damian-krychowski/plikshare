@@ -99,6 +99,7 @@
                                 }
 
                                 <span>of the application and accept their provisions.</span>
+                                <span class="required">&nbsp;*</span>
                             </span>
                         </mat-checkbox>
 
@@ -109,7 +110,32 @@
                         }
                     </div>
                }
-        
+
+               @let signUpCheckboxesValue = entryPage.signUpCheckboxes();
+
+               @for(checkbox of signUpCheckboxesValue; track checkbox.id; let i = $index) {
+                    @let checkboxControl = checkboxes.at(i);
+
+                    @if(checkboxControl) {
+                        <div class="checkbox-item">
+                            <mat-checkbox [formControl]="checkboxControl">
+                                <span class="checkbox-text">
+                                    <span>{{checkbox.text}}</span>
+                                    @if(checkbox.isRequired) {
+                                        <span class="required">&nbsp;*</span>
+                                    }
+                                </span>
+                            </mat-checkbox>
+                            
+                            @if(checkboxControl.touched || wasSubmitted) {
+                                @if (checkbox.isRequired && checkboxControl.value === false) {
+                                    <mat-error>This checkbox is required</mat-error>
+                                }
+                            }
+                        </div>
+                    }
+                }
+            
                 <button     
                     type="submit" 
                     class="auth-field__btn" 

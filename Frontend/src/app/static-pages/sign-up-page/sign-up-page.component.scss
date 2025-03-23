@@ -4,3 +4,13 @@
 @import "./../styles/static-page-variables.scss";
 @import "./../styles/auth.scss";
 
+.checkbox-text {
+    white-space: normal;
+    display: inline;
+}
+
+.required {    
+    color: var(--company-danger);
+    display: inline;
+    white-space: nowrap;
+}

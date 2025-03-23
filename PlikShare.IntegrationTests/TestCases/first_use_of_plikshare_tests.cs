@@ -53,7 +53,8 @@ public class first_use_of_plikshare_tests: TestFixture, IClassFixture<HostFixtur
             ApplicationSignUp = AppSettings.SignUpSetting.OnlyInvitedUsers.Value,
             TermsOfService = null,
             ApplicationName = AppSettings.ApplicationNameSetting.Default.Name,
-            PrivacyPolicy = null
+            PrivacyPolicy = null,
+            SignUpCheckboxes = []
         });
     }
     

@@ -102,6 +102,92 @@
             (deleted)="onPrivacyPolicyDeleted($event)">            
         </app-document-upload>
 
+        <div class="mt-3"></div>
+
+        <div class="title-header">  
+            <div>
+                Other sign-up checkboxes
+            </div>
+
+            <div class="flex-row flex-gap-05 ml-auto">
+                <app-action-btn
+                    icon="icon-lucide-plus"
+                    tooltip="Add sign-up checkbox"
+                    (clicked)="onAddSignUpCheckobox()">                    
+                </app-action-btn>
+            </div>
+        </div>
+
+        <div class="mt-2"></div>
+
+        <div class="explanation">
+            You can define additional terms that require user agreement below. 
+            These can be marked as either required or optional, and you can customize the text of each message.
+        </div>
+
+        <div class="mt-2"></div>
+
+        @for (signUpCheckbox of signUpCheckboxes(); track $index) {
+            <div class="sign-up-checkbox">
+                <mat-checkbox [disabled]="true"></mat-checkbox>
+
+                <div class="sign-up-checkbox__input-container">
+                    <input
+                        class="sign-up-checkbox__input"
+                        type="text"
+                        [(ngModel)]="signUpCheckbox.text"
+                        autocomplete="off">                        
+
+                    <div class="sign-up-checkbox__info">
+                        @if(signUpCheckbox.isRequired()) {
+                            Required
+                        } @else {
+                            Optional
+                        }
+                    </div>
+                </div>
+
+                <div class="sign-up-checkbox__btn-container">
+                    <mat-slide-toggle
+                        matTooltip="Is required"
+                        matTooltipPosition="above"
+                        [checked]="signUpCheckbox.isRequired()"
+                        (change)="changeSignUpCheckboxIsRequired(signUpCheckbox)">
+                    </mat-slide-toggle>
+
+                    @if(signUpCheckbox.isChanged()) {
+                        <app-action-btn
+                            tooltip="Save"
+                            icon="icon-lucide-check"                        
+                            [disabled]="isLoading() || !signUpCheckbox.text()"
+                            [isLoading]="signUpCheckbox.isSaving()"
+                            (clicked)="saveSignUpCheckbox(signUpCheckbox)">                        
+                        </app-action-btn>
+                    } @else {
+                        <app-action-btn
+                            tooltip="Delete"
+                            icon="icon-nucleo-remove"
+                            [operationItem]="'this checkbox'"
+                            [verb]="'delete'"
+                            [isOperationDanger]="true"
+                            appConfirmOperation
+                            (confirmedClick)="deleteSignUpCheckbox(signUpCheckbox)">
+                        </app-action-btn>
+                    }
+                    
+                    @if(!signUpCheckbox.id()) {
+                        <app-action-btn
+                            tooltip="Delete"
+                            icon="icon-nucleo-remove"
+                            (clicked)="deleteSignUpCheckbox(signUpCheckbox)">
+                        </app-action-btn>
+                    }
+                </div>
+            </div>
+
+            <div class="mt-2"></div>
+        }
+
         <div class="mt-5"></div>
     </div>
 </div>

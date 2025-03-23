@@ -9,7 +9,6 @@ import { DragOverStayDirective } from './directives/drag-over-stay.directive';
 import { FolderPathComponent } from './folder-path/folder-path.component';
 import { ItemButtonComponent } from '../shared/buttons/item-btn/item-btn.component';
 import { ActionButtonComponent } from '../shared/buttons/action-btn/action-btn.component';
-import { EntryPageService } from '../services/entry-page.service';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
@@ -419,8 +418,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
     constructor(
         public fileUploadManager: FileUploadManager,
-        private _renderer: Renderer2,
-        public entryPage: EntryPageService) {
+        private _renderer: Renderer2) {
     }
 
     ngOnInit(): void {

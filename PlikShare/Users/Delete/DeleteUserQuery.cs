@@ -27,6 +27,18 @@ public class DeleteUserQuery(DbWriteQueue dbWriteQueue)
 
         try
         {
+            var deletedUserCheckboxes = dbWriteContext
+                .Cmd(
+                    sql: """
+                        DELETE FROM usuc_user_sign_up_checkboxes
+                        WHERE usuc_user_id = $userId
+                        RETURNING usuc_sign_up_checkbox_id
+                        """,
+                    readRowFunc: reader => reader.GetInt32(0),
+                    transaction: transaction)
+                .WithParameter("$userId", user.Id)
+                .Execute();
+
             var deletedBoxMemberships = dbWriteContext
                 .Cmd(
                     sql: """
@@ -153,7 +165,8 @@ public class DeleteUserQuery(DbWriteQueue dbWriteQueue)
                     deletedUserRoles,
                     deletedUserLogins,
                     deletedUserClaims,
-                    deletedUserTokens
+                    deletedUserTokens,
+                    deletedUserCheckboxes
                 });
 
             return new Result(

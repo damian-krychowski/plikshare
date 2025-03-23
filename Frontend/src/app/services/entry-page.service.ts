@@ -1,13 +1,19 @@
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { computed, Injectable, signal } from "@angular/core";
-import { firstValueFrom } from "rxjs";
-import { ApplicationSingUp } from "./general-settings.api";
+import { BehaviorSubject, firstValueFrom, Subject } from "rxjs";
+import { ApplicationSingUp, SignUpCheckboxDto } from "./general-settings.api";
 import { DomSanitizer } from "@angular/platform-browser";
 
 export interface GetEntryPageSettingsResponse {
     applicationSignUp: ApplicationSingUp;
     termsOfServiceFilePath: string | null;
     privacyPolicyFilePath: string | null;
+    signUpCheckboxes: SignUpCheckboxDto[];
+}
+
+export interface ReloadResult {
+    success: boolean;
+    error?: any;
 }
 
 @Injectable({
@@ -16,6 +22,7 @@ export interface GetEntryPageSettingsResponse {
 export class EntryPageService {
     applicationSignUp = signal<ApplicationSingUp>('only-invited-users');
     isSignUpAvailable = computed(() => this.applicationSignUp() == 'everyone');
+    signUpCheckboxes = signal<SignUpCheckboxDto[]>([]);
 
     termsOfServiceFilePath = signal<string | null>(null);
     isTermsOfServiceAvailable = computed(() => this.termsOfServiceFilePath() != null);
@@ -50,6 +57,9 @@ export class EntryPageService {
     areBothLegalDocumentsAvailable = computed(() => 
         this.isTermsOfServiceAvailable()
         && this.isPrivacyPolicyAvailable());
+        
+    private _loaded = new BehaviorSubject<ReloadResult | null>(null);
+    public loaded$ = this._loaded.asObservable();
 
     constructor( 
         private _sanitizer: DomSanitizer,    
@@ -63,8 +73,17 @@ export class EntryPageService {
             this.applicationSignUp.set(result.applicationSignUp);
             this.termsOfServiceFilePath.set(result.termsOfServiceFilePath);
             this.privacyPolicyFilePath.set(result.privacyPolicyFilePath);
+            this.signUpCheckboxes.set(result.signUpCheckboxes);
+            
+            this._loaded.next({ success: true });
+            
+            return result;
         } catch (error) {
             console.error(error);
+            
+            this._loaded.next({ success: false, error });
+            
+            throw error;
         }
     }
 

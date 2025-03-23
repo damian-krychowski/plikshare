@@ -2,7 +2,6 @@ import { Component, computed, input, OnChanges, output, signal, SimpleChanges, V
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { CommonModule } from '@angular/common';
-import { EntryPageService } from '../../services/entry-page.service';
 import { toggle } from '../signal-utils';
 import { AppFolderAncestor, AppFolderItem } from '../folder-item/folder-item.component';
 import { AppFileItem, AppFileItems } from '../file-item/file-item.component';
@@ -205,8 +204,7 @@ export class FileTreeViewComponent implements OnChanges {
 
     dataSource = signal<TreeItem[]>([]);
 
-    constructor(
-        public entryPage: EntryPageService){
+    constructor(){
         }
 
     ngOnChanges(changes: SimpleChanges) {

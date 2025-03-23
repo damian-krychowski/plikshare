@@ -71,6 +71,9 @@
       <EmbeddedResource Include="Core\Database\AiDatabase\Migrations\01_initial_ai_db_structure_migration.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\16_sign_up_checkboxes_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\14_workspace_id_added_to_integrations_table.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>

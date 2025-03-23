@@ -66,6 +66,13 @@ public static class AuthEndpoints
         CheckUserInvitationCodeQuery checkUserInvitationCodeQuery,
         CancellationToken cancellationToken)
     {
+        var areAllRequiredCheckboxesPresent = appSettings
+            .RequiredSignUpCheckboxesIds
+            .All(request.SelectedCheckboxIds.Contains);
+
+        if(!areAllRequiredCheckboxesPresent)
+            return SignUpUserResponseDto.SignUpCheckboxesMissing;
+
         if (appSettings.ApplicationSignUp == AppSettings.SignUpSetting.OnlyInvitedUsers)
         {
             if (string.IsNullOrWhiteSpace(request.InvitationCode))
@@ -79,7 +86,10 @@ public static class AuthEndpoints
                 return SignUpUserResponseDto.InvitationRequired;
         }
 
-        var user = new ApplicationUser();
+        var user = new ApplicationUser
+        {
+            SelectedCheckboxIds = request.SelectedCheckboxIds
+        };
 
         await userStore.SetUserNameAsync(
             user,
