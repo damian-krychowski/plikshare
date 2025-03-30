@@ -46,7 +46,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         // when
         var (status, _) = await Api.Account.Get2FaStatus(
@@ -63,7 +63,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         // when
         var (status, newCookie) = await Api.Account.Get2FaStatus(
@@ -75,7 +75,8 @@ public class account_tests : TestFixture
         var (enableResult, _) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         // then
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
@@ -87,7 +88,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         // when
         var (_, newCookie) = await Api.Account.Get2FaStatus(
@@ -97,7 +98,8 @@ public class account_tests : TestFixture
         var (enableResult, _) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: "000000"),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         // then
         enableResult.Code.Should().Be(Enable2FaResponseDto.InvalidVerificationCode.Code);
@@ -109,7 +111,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         var (status, newCookie) = await Api.Account.Get2FaStatus(
             cookie: user.Cookie);
@@ -121,7 +123,8 @@ public class account_tests : TestFixture
         var (enableResult, newestCookie) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
 
@@ -134,7 +137,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         var (status, newCookie) = await Api.Account.Get2FaStatus(
             cookie: user.Cookie);
@@ -145,14 +148,17 @@ public class account_tests : TestFixture
         var (enableResult, _) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
-        
+
         // when
+
         var (signInResponse, _, _) = await Api.Auth.SignIn(
             email: user.Email,
-            password: user.Password);
+            password: user.Password,
+            antiforgeryCookies: await Api.Antiforgery.GetToken());
         
         // then
         signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
@@ -163,7 +169,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         var (status, newCookie) = await Api.Account.Get2FaStatus(
             cookie: user.Cookie);
@@ -174,14 +180,18 @@ public class account_tests : TestFixture
         var (enableResult, _) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
 
         // when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         var (signInResponse, _, twoFactorCookie) = await Api.Auth.SignIn(
             email: user.Email,
-            password: user.Password);
+            password: user.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
         
         signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
 
@@ -193,7 +203,8 @@ public class account_tests : TestFixture
                 VerificationCode: loginTotp,
                 RememberDevice: false,
                 RememberMe: false),
-            cookie: twoFactorCookie);
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         // then
         signIn2FaResponse.Should().Be(SignInUser2FaResponseDto.Successful);
@@ -208,7 +219,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         var (status, newCookie) = await Api.Account.Get2FaStatus(
             cookie: user.Cookie);
@@ -219,14 +230,18 @@ public class account_tests : TestFixture
         var (enableResult, _) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
 
         // when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         var (signInResponse, _, twoFactorCookie) = await Api.Auth.SignIn(
             email: user.Email,
-            password: user.Password);
+            password: user.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
         
@@ -235,7 +250,8 @@ public class account_tests : TestFixture
                 VerificationCode: "000000",
                 RememberDevice: false,
                 RememberMe: false),
-            cookie: twoFactorCookie);
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         // then
         signIn2FaResponse.Should().Be(SignInUser2FaResponseDto.InvalidVerificationCode);
@@ -248,7 +264,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         var (status, newCookie) = await Api.Account.Get2FaStatus(
             cookie: user.Cookie);
@@ -259,21 +275,26 @@ public class account_tests : TestFixture
         var (enableResult, _) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
 
         // when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         var (signInResponse, _, twoFactorCookie) = await Api.Auth.SignIn(
             email: user.Email,
-            password: user.Password);
+            password: user.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
         
         var (signIn2FaResponse, signIn2FaCookie) = await Api.Auth.SignInRecoveryCode(
             request: new SignInUserRecoveryCodeRequestDto(
                 RecoveryCode: enableResult.RecoveryCodes[0]),
-            cookie: twoFactorCookie);
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         // then
         signIn2FaResponse.Should().Be(SignInUserRecoveryCodeResponseDto.Successful);
@@ -287,7 +308,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         var (status, newCookie) = await Api.Account.Get2FaStatus(
             cookie: user.Cookie);
@@ -298,21 +319,26 @@ public class account_tests : TestFixture
         var (enableResult, _) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
 
         // when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         var (signInResponse, _, twoFactorCookie) = await Api.Auth.SignIn(
             email: user.Email,
-            password: user.Password);
+            password: user.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
 
         var (signIn2FaResponse, signIn2FaCookie) = await Api.Auth.SignInRecoveryCode(
             request: new SignInUserRecoveryCodeRequestDto(
                 RecoveryCode: "0000-0000"),
-            cookie: twoFactorCookie);
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         // then
         signIn2FaResponse.Should().Be(SignInUserRecoveryCodeResponseDto.InvalidRecoveryCode);
@@ -324,7 +350,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         var (status, newCookie) = await Api.Account.Get2FaStatus(
             cookie: user.Cookie);
@@ -335,20 +361,25 @@ public class account_tests : TestFixture
         var (enableResult, _) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
 
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         var (signInResponse, _, twoFactorCookie) = await Api.Auth.SignIn(
             email: user.Email,
-            password: user.Password);
+            password: user.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
 
         var (signIn2FaResponse, _) = await Api.Auth.SignInRecoveryCode(
             request: new SignInUserRecoveryCodeRequestDto(
                 RecoveryCode: enableResult.RecoveryCodes[0]),
-            cookie: twoFactorCookie);
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         signIn2FaResponse.Should().Be(SignInUserRecoveryCodeResponseDto.Successful);
 
@@ -356,7 +387,8 @@ public class account_tests : TestFixture
         var (secondSignIn2FaResponse, _) = await Api.Auth.SignInRecoveryCode(
             request: new SignInUserRecoveryCodeRequestDto(
                 RecoveryCode: enableResult.RecoveryCodes[0]),
-            cookie: twoFactorCookie);
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         // then
         secondSignIn2FaResponse.Should().Be(SignInUserRecoveryCodeResponseDto.InvalidRecoveryCode);
@@ -368,7 +400,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         var (status, newCookie) = await Api.Account.Get2FaStatus(
             cookie: user.Cookie);
@@ -379,20 +411,25 @@ public class account_tests : TestFixture
         var (enableResult, _) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
 
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         var (signInResponse, _, twoFactorCookie) = await Api.Auth.SignIn(
             email: user.Email,
-            password: user.Password);
+            password: user.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
 
         var (signIn2FaResponse, newestCookie) = await Api.Auth.SignInRecoveryCode(
             request: new SignInUserRecoveryCodeRequestDto(
                 RecoveryCode: enableResult.RecoveryCodes[0]),
-            cookie: twoFactorCookie);
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         signIn2FaResponse.Should().Be(SignInUserRecoveryCodeResponseDto.Successful);
 
@@ -412,7 +449,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         var (status, newCookie) = await Api.Account.Get2FaStatus(
             cookie: user.Cookie);
@@ -423,25 +460,31 @@ public class account_tests : TestFixture
         var (enableResult, newestCookie) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
 
         // when
         var recoveryCodes = await Api.Account.GenerateRecoveryCode(
-            cookie: newestCookie);
+            cookie: newestCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         // then
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         var (signInResponse, _, twoFactorCookie) = await Api.Auth.SignIn(
             email: user.Email,
-            password: user.Password);
+            password: user.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
 
         var (signIn2FaResponse, signIn2FaCookie) = await Api.Auth.SignInRecoveryCode(
             request: new SignInUserRecoveryCodeRequestDto(
                 RecoveryCode: recoveryCodes.RecoveryCodes[0]),
-            cookie: twoFactorCookie);
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         signIn2FaResponse.Should().Be(SignInUserRecoveryCodeResponseDto.Successful);
         signIn2FaCookie.Should().NotBeNull();
@@ -454,7 +497,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         var (status, newCookie) = await Api.Account.Get2FaStatus(
             cookie: user.Cookie);
@@ -465,25 +508,31 @@ public class account_tests : TestFixture
         var (enableResult, newestCookie) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
 
         // when
         await Api.Account.GenerateRecoveryCode(
-            cookie: newestCookie);
+            cookie: newestCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         // then
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         var (signInResponse, _, twoFactorCookie) = await Api.Auth.SignIn(
             email: user.Email,
-            password: user.Password);
+            password: user.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
 
         var (signIn2FaResponse, signIn2FaCookie) = await Api.Auth.SignInRecoveryCode(
             request: new SignInUserRecoveryCodeRequestDto(
                 RecoveryCode: enableResult.RecoveryCodes[0]),
-            cookie: twoFactorCookie);
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         signIn2FaResponse.Should().Be(SignInUserRecoveryCodeResponseDto.InvalidRecoveryCode);
         signIn2FaCookie.Should().BeNull();
@@ -494,7 +543,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         var (status, newCookie) = await Api.Account.Get2FaStatus(
             cookie: user.Cookie);
@@ -505,20 +554,24 @@ public class account_tests : TestFixture
         var (enableResult, newestCookie) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
 
         // when
         var (disableResult, _) = await Api.Account.Disable2Fa(
-            cookie: newestCookie);
+            cookie: newestCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         // then
         disableResult.Should().BeEquivalentTo(Disable2FaResponseDto.Disabled);
 
+
         var (signInResponse, theNewestCookie, _) = await Api.Auth.SignIn(
             email: user.Email,
-            password: user.Password);
+            password: user.Password,
+            antiforgeryCookies: await Api.Antiforgery.GetToken());
 
         signInResponse.Code.Should().Be(SignInUserResponseDto.Successful.Code);
 
@@ -532,7 +585,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         var (status, newCookie) = await Api.Account.Get2FaStatus(
             cookie: user.Cookie);
@@ -543,13 +596,15 @@ public class account_tests : TestFixture
         var (enableResult, newestCookie) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
 
         // when
         var (disableResult, theNewestCookie) = await Api.Account.Disable2Fa(
-            cookie: newestCookie);
+            cookie: newestCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         // then
         disableResult.Should().BeEquivalentTo(Disable2FaResponseDto.Disabled);
@@ -565,7 +620,7 @@ public class account_tests : TestFixture
     {
         //given
         var user = await InviteAndRegisterUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         var (status, newCookie) = await Api.Account.Get2FaStatus(
             cookie: user.Cookie);
@@ -576,13 +631,17 @@ public class account_tests : TestFixture
         var (enableResult, _) = await Api.Account.Enable2Fa(
             request: new Enable2FaRequestDto(
                 VerificationCode: totp),
-            cookie: newCookie);
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
 
         enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
 
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         var (signInResponse, _, twoFactorCookie) = await Api.Auth.SignIn(
             email: user.Email,
-            password: user.Password);
+            password: user.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
 
@@ -594,7 +653,8 @@ public class account_tests : TestFixture
                 VerificationCode: loginTotp,
                 RememberDevice: true,
                 RememberMe: false),
-            cookie: twoFactorCookie);
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
         
         signIn2FaResponse.Should().Be(SignInUser2FaResponseDto.Successful);
         signIn2FaCookie.Should().NotBeNull();
@@ -604,6 +664,7 @@ public class account_tests : TestFixture
         var (singInResponse, singInCookie, _) = await Api.Auth.SignIn(
             email: user.Email,
             password: user.Password,
+            antiforgeryCookies: await Api.Antiforgery.GetToken(),
             twoFactorRememberMeCookie: twoFactorRememberMeCookie);
         
         // then

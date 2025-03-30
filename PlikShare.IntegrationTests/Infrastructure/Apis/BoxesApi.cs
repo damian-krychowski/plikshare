@@ -17,13 +17,15 @@ public class BoxesApi(IFlurlClient flurlClient, string appUrl)
     public async Task<CreateBoxResponseDto> Create(
         WorkspaceExtId workspaceExternalId,
         CreateBoxRequestDto request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         return await flurlClient.ExecutePost<CreateBoxResponseDto, CreateBoxRequestDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/boxes",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
     
     public async Task<GetBoxesResponseDto> GetList(
@@ -51,64 +53,79 @@ public class BoxesApi(IFlurlClient flurlClient, string appUrl)
         WorkspaceExtId workspaceExternalId,
         BoxExtId boxExternalId,
         UpdateBoxHeaderIsEnabledRequestDto request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/boxes/{boxExternalId}/header/is-enabled",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
     
     public async Task UpdateHeader(
         WorkspaceExtId workspaceExternalId,
         BoxExtId boxExternalId,
         UpdateBoxHeaderRequestDto request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/boxes/{boxExternalId}/header",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
     
     public async Task UpdateFooterIsEnabled(
         WorkspaceExtId workspaceExternalId,
         BoxExtId boxExternalId,
         UpdateBoxFooterIsEnabledRequestDto request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/boxes/{boxExternalId}/footer/is-enabled",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
     
     public async Task UpdateFooter(
         WorkspaceExtId workspaceExternalId,
         BoxExtId boxExternalId,
         UpdateBoxFooterRequestDto request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/boxes/{boxExternalId}/footer",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
 
     public async Task<CreateBoxLinkResponseDto> CreateBoxLink(
         WorkspaceExtId workspaceExternalId,
         BoxExtId boxExternalId,
         CreateBoxLinkRequestDto request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         return await flurlClient.ExecutePost<CreateBoxLinkResponseDto, CreateBoxLinkRequestDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/boxes/{boxExternalId}/box-links",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    internal async Task UpdateFooter(WorkspaceExtId workspaceExternalId, BoxExtId boxExternalId, UpdateBoxFooterRequestDto request, object cookie)
+    {
+        throw new NotImplementedException();
     }
 }

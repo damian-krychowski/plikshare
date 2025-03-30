@@ -11,25 +11,29 @@ public class FoldersApi(IFlurlClient flurlClient, string appUrl)
     public async Task<CreateFolderResponseDto> Create(
         CreateFolderRequestDto request,
         WorkspaceExtId workspaceExternalId,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         return await flurlClient.ExecutePost<CreateFolderResponseDto, CreateFolderRequestDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/folders",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
 
     public async Task<BulkCreateFolderResponseDto> BulkCreate(
         BulkCreateFolderRequestDto request,
         WorkspaceExtId workspaceExternalId,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         return await flurlClient.ExecutePost<BulkCreateFolderResponseDto, BulkCreateFolderRequestDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/folders/bulk",
             request: request,
             cookie: cookie,
+            antiforgery: antiforgery,
             isRequestInProtobuf: true,
             isResponseInProtobuf: true);
     }

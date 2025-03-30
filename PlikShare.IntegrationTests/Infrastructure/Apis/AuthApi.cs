@@ -10,11 +10,13 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
     public async Task<(SignInUserResponseDto, SessionAuthCookie?, TwoFactorUserIdCookie?)> SignIn(
         string email,
         string password,
+        AntiforgeryCookies antiforgeryCookies,
         TwoFactorRememberMeCookie? twoFactorRememberMeCookie = null)
     {
         var request = flurlClient
             .Request(appUrl, "api/auth/sign-in")
-            .AllowAnyHttpStatus();
+            .AllowAnyHttpStatus()
+            .WithAntiforgery(antiforgeryCookies);
 
         if (twoFactorRememberMeCookie is not null)
         {
@@ -67,12 +69,14 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
 
     public async Task<(SignInUser2FaResponseDto, SessionAuthCookie?, TwoFactorRememberMeCookie?)> SignIn2Fa(
         SignInUser2FaRequestDto request,
-        TwoFactorUserIdCookie cookie)
+        TwoFactorUserIdCookie cookie,
+        AntiforgeryCookies antiforgeryCookies)
     {
         var response = await flurlClient
             .Request(appUrl, "api/auth/sign-in-2fa")
             .AllowAnyHttpStatus()
             .WithCookie(cookie.Name, cookie.Value)
+            .WithAntiforgery(antiforgeryCookies)
             .PostJsonAsync(request);
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
@@ -112,12 +116,14 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
 
     public async Task<(SignInUserRecoveryCodeResponseDto, SessionAuthCookie?)> SignInRecoveryCode(
         SignInUserRecoveryCodeRequestDto request,
-        TwoFactorUserIdCookie cookie)
+        TwoFactorUserIdCookie cookie,
+        AntiforgeryCookies antiforgeryCookies)
     {
         var response = await flurlClient
             .Request(appUrl, "api/auth/sign-in-recovery-code")
             .AllowAnyHttpStatus()
             .WithCookie(cookie.Name, cookie.Value)
+            .WithAntiforgery(antiforgeryCookies)
             .PostJsonAsync(request);
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
@@ -146,11 +152,14 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
         return (responseBody, null);
     }
 
-    public async Task<SessionAuthCookie> SignInOrThrow(User user)
+    public async Task<SessionAuthCookie> SignInOrThrow(
+        User user,
+        AntiforgeryCookies antiforgeryCookies)
     {
         var response = await flurlClient
             .Request(appUrl, "api/auth/sign-in")
             .AllowAnyHttpStatus()
+            .WithAntiforgery(antiforgeryCookies)
             .PostJsonAsync(new SignInUserRequestDto(
                 Email: user.Email,
                 Password: user.Password,
@@ -182,11 +191,13 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
     }
 
     public async Task<(SignUpUserResponseDto, SessionAuthCookie?)> SignUp(
-        SignUpUserRequestDto request)
+        SignUpUserRequestDto request,
+        AntiforgeryCookies antiforgeryCookies)
     {
         var response = await flurlClient
             .Request(appUrl, "api/auth/sign-up")
             .AllowAnyHttpStatus()
+            .WithAntiforgery(antiforgeryCookies)
             .PostJsonAsync(request);
 
         if (!response.ResponseMessage.IsSuccessStatusCode)

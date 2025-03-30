@@ -11,12 +11,14 @@ public class BoxLinksApi(IFlurlClient flurlClient, string appUrl)
         WorkspaceExtId workspaceExternalId,
         BoxLinkExtId boxLinkExternalId,
         UpdateBoxLinkPermissionsRequestDto request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/box-links/{boxLinkExternalId}/permissions",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
 }

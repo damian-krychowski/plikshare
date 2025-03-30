@@ -97,14 +97,19 @@ public class api_access_without_logging_in: TestFixture
         {
             // when
             var apiError = await Assert.ThrowsAsync<TestApiCallException>(
-                async () => await Api.Storages.CreateHardDriveStorage(
-                    request: new CreateHardDriveStorageRequestDto(
-                        Name: "some-name",
-                        VolumePath: "some-volume-path",
-                        FolderPath: "some-folder-path",
-                        EncryptionType: StorageEncryptionType.None),
-                    cookie: null)
-            );
+                async () =>
+                {
+                    var antiforgery = await Api.Antiforgery.GetToken();
+
+                    await Api.Storages.CreateHardDriveStorage(
+                        request: new CreateHardDriveStorageRequestDto(
+                            Name: "some-name",
+                            VolumePath: "some-volume-path",
+                            FolderPath: "some-folder-path",
+                            EncryptionType: StorageEncryptionType.None),
+                        cookie: null,
+                        antiforgery: antiforgery);
+                });
     
             // then
             apiError.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
@@ -182,12 +187,17 @@ public class api_access_without_logging_in: TestFixture
         {
             // when
             var apiError = await Assert.ThrowsAsync<TestApiCallException>(
-                async () => await Api.Workspaces.Create(
-                    request: new CreateWorkspaceRequestDto(
-                        StorageExternalId: StorageExtId.NewId(),
-                        Name: "some-workspace-name"),
-                    cookie: null)
-            );
+                async () =>
+                {
+                    var antiforgery = await Api.Antiforgery.GetToken();
+
+                    await Api.Workspaces.Create(
+                        request: new CreateWorkspaceRequestDto(
+                            StorageExternalId: StorageExtId.NewId(),
+                            Name: "some-workspace-name"),
+                        cookie: null,
+                        antiforgery: antiforgery);
+                });
 
             // then
             apiError.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
@@ -203,16 +213,21 @@ public class api_access_without_logging_in: TestFixture
         {
             // when
             var apiError = await Assert.ThrowsAsync<TestApiCallException>(
-                async () => await Api.Folders.Create(
-                    request: new CreateFolderRequestDto
-                    {
-                        ExternalId = FolderExtId.NewId(),
-                        ParentExternalId = null,
-                        Name = "some-folder-name"
-                    },
-                    workspaceExternalId: WorkspaceExtId.NewId(), 
-                    cookie: null)
-            );
+                async () =>
+                {
+                    var antiforgery = await Api.Antiforgery.GetToken();
+
+                    await Api.Folders.Create(
+                        request: new CreateFolderRequestDto
+                        {
+                            ExternalId = FolderExtId.NewId(),
+                            ParentExternalId = null,
+                            Name = "some-folder-name"
+                        },
+                        workspaceExternalId: WorkspaceExtId.NewId(),
+                        cookie: null,
+                        antiforgery: antiforgery);
+                });
 
             // then
             apiError.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
@@ -258,13 +273,18 @@ public class api_access_without_logging_in: TestFixture
         {
             // when
             var apiError = await Assert.ThrowsAsync<TestApiCallException>(
-                async () => await Api.Boxes.Create(
-                    request: new CreateBoxRequestDto(
-                        FolderExternalId: FolderExtId.NewId(), 
-                        Name: "some-folder-name"),
-                    workspaceExternalId: WorkspaceExtId.NewId(), 
-                    cookie: null)
-            );
+                async () =>
+                {
+                    var antiforgery = await Api.Antiforgery.GetToken();
+
+                    await Api.Boxes.Create(
+                        request: new CreateBoxRequestDto(
+                            FolderExternalId: FolderExtId.NewId(),
+                            Name: "some-folder-name"),
+                        workspaceExternalId: WorkspaceExtId.NewId(),
+                        cookie: null,
+                        antiforgery: antiforgery);
+                });
 
             // then
             apiError.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
@@ -305,14 +325,19 @@ public class api_access_without_logging_in: TestFixture
         {
             // when
             var apiError = await Assert.ThrowsAsync<TestApiCallException>(
-                async () => await Api.Boxes.UpdateHeader(
-                    workspaceExternalId: WorkspaceExtId.NewId(),
-                    boxExternalId: BoxExtId.NewId(),
-                    request: new UpdateBoxHeaderRequestDto(
-                        Json: "some-json",
-                        Html: "some-html"),
-                    cookie: null)
-            );
+                async () =>
+                {
+                    var antiforgery = await Api.Antiforgery.GetToken();
+
+                    await Api.Boxes.UpdateHeader(
+                        workspaceExternalId: WorkspaceExtId.NewId(),
+                        boxExternalId: BoxExtId.NewId(),
+                        request: new UpdateBoxHeaderRequestDto(
+                            Json: "some-json",
+                            Html: "some-html"),
+                        cookie: null,
+                        antiforgery: antiforgery);
+                });
 
             // then
             apiError.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
@@ -323,14 +348,19 @@ public class api_access_without_logging_in: TestFixture
         {
             // when
             var apiError = await Assert.ThrowsAsync<TestApiCallException>(
-                async () => await Api.Boxes.UpdateFooter(
-                    workspaceExternalId: WorkspaceExtId.NewId(),
-                    boxExternalId: BoxExtId.NewId(),
-                    request: new UpdateBoxFooterRequestDto(
-                        Json: "some-json",
-                        Html: "some-html"),
-                    cookie: null)
-            );
+                async () =>
+                {
+                    var antiforgery = await Api.Antiforgery.GetToken();
+
+                    await Api.Boxes.UpdateFooter(
+                        workspaceExternalId: WorkspaceExtId.NewId(),
+                        boxExternalId: BoxExtId.NewId(),
+                        request: new UpdateBoxFooterRequestDto(
+                            Json: "some-json",
+                            Html: "some-html"),
+                        cookie: null,
+                        antiforgery: antiforgery);
+                });
 
             // then
             apiError.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
@@ -341,13 +371,18 @@ public class api_access_without_logging_in: TestFixture
         {
             // when
             var apiError = await Assert.ThrowsAsync<TestApiCallException>(
-                async () => await Api.Boxes.UpdateHeaderIsEnabled(
-                    workspaceExternalId: WorkspaceExtId.NewId(),
-                    boxExternalId: BoxExtId.NewId(),
-                    request: new UpdateBoxHeaderIsEnabledRequestDto(
-                        IsEnabled: true),
-                    cookie: null)
-            );
+                async () =>
+                {
+                    var antiforgery = await Api.Antiforgery.GetToken();
+
+                    await Api.Boxes.UpdateHeaderIsEnabled(
+                        workspaceExternalId: WorkspaceExtId.NewId(),
+                        boxExternalId: BoxExtId.NewId(),
+                        request: new UpdateBoxHeaderIsEnabledRequestDto(
+                            IsEnabled: true),
+                        cookie: null,
+                        antiforgery: antiforgery);
+                });
 
             // then
             apiError.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
@@ -358,13 +393,18 @@ public class api_access_without_logging_in: TestFixture
         {
             // when
             var apiError = await Assert.ThrowsAsync<TestApiCallException>(
-                async () => await Api.Boxes.UpdateFooterIsEnabled(
-                    workspaceExternalId: WorkspaceExtId.NewId(),
-                    boxExternalId: BoxExtId.NewId(),
-                    request: new UpdateBoxFooterIsEnabledRequestDto(
-                        IsEnabled: true),
-                    cookie: null)
-            );
+                async () =>
+                {
+                    var antiforgery = await Api.Antiforgery.GetToken();
+
+                    await Api.Boxes.UpdateFooterIsEnabled(
+                        workspaceExternalId: WorkspaceExtId.NewId(),
+                        boxExternalId: BoxExtId.NewId(),
+                        request: new UpdateBoxFooterIsEnabledRequestDto(
+                            IsEnabled: true),
+                        cookie: null,
+                        antiforgery: antiforgery);
+                });
 
             // then
             apiError.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
@@ -375,13 +415,18 @@ public class api_access_without_logging_in: TestFixture
         {
             // when
             var apiError = await Assert.ThrowsAsync<TestApiCallException>(
-                async () => await Api.Boxes.CreateBoxLink(
-                    workspaceExternalId: WorkspaceExtId.NewId(),
-                    boxExternalId: BoxExtId.NewId(),
-                    request: new CreateBoxLinkRequestDto(
-                        Name: "some-box-link-name"),
-                    cookie: null)
-            );
+                async () =>
+                {
+                    var antiforgery = await Api.Antiforgery.GetToken();
+
+                    await Api.Boxes.CreateBoxLink(
+                        workspaceExternalId: WorkspaceExtId.NewId(),
+                        boxExternalId: BoxExtId.NewId(),
+                        request: new CreateBoxLinkRequestDto(
+                            Name: "some-box-link-name"),
+                        cookie: null,
+                        antiforgery: antiforgery);
+                });
 
             // then
             apiError.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);
@@ -416,12 +461,26 @@ public class api_access_without_logging_in: TestFixture
         {
             // when
             var apiError = await Assert.ThrowsAsync<TestApiCallException>(
-                async () => await Api.BoxLinks.UpdatePermissions(
-                    workspaceExternalId: WorkspaceExtId.NewId(),
-                    boxLinkExternalId: BoxLinkExtId.NewId(), 
-                    request: new UpdateBoxLinkPermissionsRequestDto(true, true,true, true, true, true, true, true, true),
-                    cookie: null)
-            );
+                async () =>
+                {
+                    var antiforgery = await Api.Antiforgery.GetToken();
+
+                    await Api.BoxLinks.UpdatePermissions(
+                        workspaceExternalId: WorkspaceExtId.NewId(),
+                        boxLinkExternalId: BoxLinkExtId.NewId(),
+                        request: new UpdateBoxLinkPermissionsRequestDto(
+                            true, 
+                            true, 
+                            true, 
+                            true, 
+                            true, 
+                            true, 
+                            true, 
+                            true, 
+                            true),
+                        cookie: null,
+                        antiforgery: antiforgery);
+                });
 
             // then
             apiError.StatusCode.Should().Be(StatusCodes.Status401Unauthorized);

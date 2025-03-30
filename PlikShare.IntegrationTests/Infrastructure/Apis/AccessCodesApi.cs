@@ -9,11 +9,13 @@ namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
 public class AccessCodesApi(IFlurlClient flurlClient, string appUrl)
 {
-    public async Task<BoxLinkAuthCookie> StartSession()
+    public async Task<BoxLinkAuthCookie> StartSession(
+        AntiforgeryCookies antiforgeryCookies)
     {
         var response = await flurlClient
             .Request(appUrl, "api/access-codes/start-session")
             .AllowAnyHttpStatus()
+            .WithAntiforgery(antiforgeryCookies)
             .PostAsync();
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
@@ -48,25 +50,29 @@ public class AccessCodesApi(IFlurlClient flurlClient, string appUrl)
     public async Task<CreateFolderResponseDto> CreateFolder(
         string accessCode,
         CreateFolderRequestDto request,
-        BoxLinkAuthCookie? cookie)
+        BoxLinkAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         return await flurlClient.ExecutePost<CreateFolderResponseDto, CreateFolderRequestDto>(
             appUrl: appUrl,
             apiPath: $"api/access-codes/{accessCode}/folders",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
     
     public async Task UpdateFolderName(
         string accessCode,
         FolderExtId folderExternalId,
         UpdateBoxFolderNameRequestDto request,
-        BoxLinkAuthCookie? cookie)
+        BoxLinkAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
             apiPath: $"api/access-codes/{accessCode}/folders/{folderExternalId}/name",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
 }

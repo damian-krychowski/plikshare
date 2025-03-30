@@ -39,7 +39,8 @@ public class create_resend_email_providers_tests: TestFixture
                 Name: emailProviderName,
                 EmailFrom: emailFrom,
                 ApiKey: apiKey),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var (expectedTitle, expectedContent) = Emails.EmailProviderConfirmation(
@@ -80,7 +81,8 @@ public class create_resend_email_providers_tests: TestFixture
                 Name: emailProviderName,
                 EmailFrom: emailFrom,
                 ApiKey: apiKey),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var emailProviders = await Api.EmailProviders.Get(
@@ -118,14 +120,16 @@ public class create_resend_email_providers_tests: TestFixture
                 Name: emailProviderName,
                 EmailFrom: emailFrom,
                 ApiKey: apiKey),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         //when
         await Api.EmailProviders.Confirm(
             emailProviderExternalId: provider.ExternalId,
             request: new ConfirmEmailProviderRequestDto(
                 ConfirmationCode: confirmationCode),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         //then
         var emailProviders = await Api.EmailProviders.Get(
@@ -164,18 +168,21 @@ public class create_resend_email_providers_tests: TestFixture
                 Name: emailProviderName,
                 EmailFrom: emailFrom,
                 ApiKey: apiKey),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         await Api.EmailProviders.Confirm(
             emailProviderExternalId: provider.ExternalId,
             request: new ConfirmEmailProviderRequestDto(
                 ConfirmationCode: confirmationCode),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         //when
         await Api.EmailProviders.Activate(
             emailProviderExternalId: provider.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         //then
         var emailProviders = await Api.EmailProviders.Get(
@@ -215,17 +222,20 @@ public class create_resend_email_providers_tests: TestFixture
                 Name: emailProviderName1,
                 EmailFrom: emailFrom,
                 ApiKey: apiKey),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         await Api.EmailProviders.Confirm(
             emailProviderExternalId: provider1.ExternalId,
             request: new ConfirmEmailProviderRequestDto(
                 ConfirmationCode: confirmationCode1),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         await Api.EmailProviders.Activate(
             emailProviderExternalId: provider1.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         //when
         OneTimeCode.NextCodeToGenerate(confirmationCode2);
@@ -235,17 +245,20 @@ public class create_resend_email_providers_tests: TestFixture
                 Name: emailProviderName2,
                 EmailFrom: emailFrom,
                 ApiKey: apiKey),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         await Api.EmailProviders.Confirm(
             emailProviderExternalId: provider2.ExternalId,
             request: new ConfirmEmailProviderRequestDto(
                 ConfirmationCode: confirmationCode2),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         await Api.EmailProviders.Activate(
             emailProviderExternalId: provider2.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         //then
         var emailProviders = await Api.EmailProviders.Get(

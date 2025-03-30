@@ -16,7 +16,7 @@ public class user_invitation_tests : TestFixture
     public user_invitation_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
         AppOwner = SignIn(user: Users.AppOwner).Result;
-        EmailProvider = CreateAndActivateEmailProviderIfMissing(cookie: AppOwner.Cookie).Result;
+        EmailProvider = CreateAndActivateEmailProviderIfMissing(user: AppOwner).Result;
     }
 
     [Fact]
@@ -32,7 +32,8 @@ public class user_invitation_tests : TestFixture
                 user1Email,
                 user2Email
             ]),
-            cookie: AppOwner.Cookie);
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
 
         //then
         invitationResult.Should().BeEquivalentTo(new InviteUsersResponseDto([
@@ -73,7 +74,8 @@ public class user_invitation_tests : TestFixture
                 user1.Email,
                 user2.Email
             ]),
-            cookie: AppOwner.Cookie);
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
 
         //then
         var (expectedTitle1, expectedContent1) = Emails.UserInvitation(

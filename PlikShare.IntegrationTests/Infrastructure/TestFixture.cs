@@ -116,23 +116,32 @@ public class TestFixture: IAsyncLifetime
     
     protected async Task<AppSignedInUser> SignIn(User user)
     {
-        var cookie = await Api
+        var anonymousAntiforgeryCookies = await Api
+            .Antiforgery
+            .GetToken();
+
+        var sessionAuthCookie = await Api
             .Auth
-            .SignInOrThrow(user);
-        
+            .SignInOrThrow(user, anonymousAntiforgeryCookies);
+
+        var loggedInAntiforgeryCookies = await Api
+            .Antiforgery
+            .GetToken(sessionAuthCookie);
+
         var details = await Api
             .Account
-            .GetDetails(cookie);
+            .GetDetails(sessionAuthCookie);
 
         return new AppSignedInUser(
             ExternalId: details.ExternalId,
             Email: user.Email,
             Password: user.Password,
-            Cookie: cookie);
+            Cookie: sessionAuthCookie,
+            Antiforgery: loggedInAntiforgeryCookies);
     }
 
     protected async Task<AppStorage> CreateHardDriveStorage(
-        SessionAuthCookie cookie)
+        AppSignedInUser user)
     {
         var hardDriveName = $"hard-drive-{Guid.NewGuid().ToBase62()}"; 
         
@@ -142,7 +151,8 @@ public class TestFixture: IAsyncLifetime
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{hardDriveName}",
                 EncryptionType: StorageEncryptionType.None),
-            cookie: cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         return new AppStorage(
             ExternalId: hardDriveStorageResponse.ExternalId,
@@ -153,7 +163,7 @@ public class TestFixture: IAsyncLifetime
 
     protected async Task<AppWorkspace> CreateWorkspace(
         AppStorage storage,
-        SessionAuthCookie cookie)
+        AppSignedInUser user)
     {
         var workspaceName = $"workspace-{Guid.NewGuid().ToBase62()}";
 
@@ -161,7 +171,8 @@ public class TestFixture: IAsyncLifetime
             request: new CreateWorkspaceRequestDto(
                 StorageExternalId: storage.ExternalId,
                 Name: workspaceName),
-            cookie: cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         return new AppWorkspace(
             ExternalId: result.ExternalId,
@@ -169,10 +180,10 @@ public class TestFixture: IAsyncLifetime
     }
     
     protected async Task<AppWorkspace> CreateWorkspace(
-        SessionAuthCookie cookie)
+        AppSignedInUser user)
     {
         var storage = await CreateHardDriveStorage(
-            cookie: cookie);
+            user);
         
         var workspaceName = $"workspace-{Guid.NewGuid().ToBase62()}";
 
@@ -180,7 +191,8 @@ public class TestFixture: IAsyncLifetime
             request: new CreateWorkspaceRequestDto(
                 StorageExternalId: storage.ExternalId,
                 Name: workspaceName),
-            cookie: cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         return new AppWorkspace(
             ExternalId: result.ExternalId,
@@ -190,7 +202,7 @@ public class TestFixture: IAsyncLifetime
     protected async Task<AppFolder> CreateFolder(
         AppFolder? parent,
         AppWorkspace workspace,
-        SessionAuthCookie cookie)
+        AppSignedInUser user)
     {
         var folderName = $"folder-{Guid.NewGuid().ToBase62()}";
         
@@ -202,7 +214,8 @@ public class TestFixture: IAsyncLifetime
                 Name = folderName
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         return new AppFolder(
             ExternalId: folderResponse.ExternalId,
@@ -212,29 +225,29 @@ public class TestFixture: IAsyncLifetime
     
     protected async Task<AppFolder> CreateFolder(
         AppWorkspace workspace,
-        SessionAuthCookie cookie)
+        AppSignedInUser user)
     {
         return await CreateFolder(
             parent: null,
             workspace: workspace,
-            cookie: cookie);
+            user: user);
     }
     
     protected async Task<AppFolder> CreateFolder(
-        SessionAuthCookie cookie)
+        AppSignedInUser user)
     {
         var workspace = await CreateWorkspace(
-            cookie: cookie);
+            user);
 
         return await CreateFolder(
             parent: null,
             workspace: workspace,
-            cookie: cookie);
+            user: user);
     }
 
     protected async Task<AppBox> CreateBox(
         AppFolder folder,
-        SessionAuthCookie cookie)
+        AppSignedInUser user)
     {
         var boxName = $"box-{Guid.NewGuid().ToBase62()}";
         
@@ -243,7 +256,8 @@ public class TestFixture: IAsyncLifetime
             request: new CreateBoxRequestDto(
                 Name: boxName,
                 FolderExternalId: folder.ExternalId),
-            cookie: cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         return new AppBox(
             ExternalId: box.ExternalId,
@@ -253,19 +267,19 @@ public class TestFixture: IAsyncLifetime
     }
     
     protected async Task<AppBox> CreateBox(
-        SessionAuthCookie cookie)
+        AppSignedInUser user)
     {
         var folder = await CreateFolder(
-            cookie: cookie);
+            user);
 
         return await CreateBox(
             folder: folder,
-            cookie: cookie);
+            user: user);
     }
     
     protected async Task<AppBoxLink> CreateBoxLink(
         AppBox box,
-        SessionAuthCookie cookie,
+        AppSignedInUser user,
         AppBoxLinkPermissions? permissions = null)
     {
         var boxLinkName = $"box-link-{Guid.NewGuid().ToBase62()}";
@@ -275,7 +289,8 @@ public class TestFixture: IAsyncLifetime
             boxExternalId: box.ExternalId,
             request: new CreateBoxLinkRequestDto(
                 Name: boxLinkName),
-            cookie: cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         if(permissions is not null)
         {
@@ -292,7 +307,8 @@ public class TestFixture: IAsyncLifetime
                     AllowCreateFolder: permissions.AllowCreateFolder,
                     AllowRenameFolder: permissions.AllowRenameFolder,
                     AllowDeleteFolder: permissions.AllowDeleteFolder),
-                cookie: cookie);
+                cookie: user.Cookie,
+                antiforgery: user.Antiforgery);
         }
         
         return new AppBoxLink(
@@ -304,22 +320,22 @@ public class TestFixture: IAsyncLifetime
     }
     
     protected async Task<AppBoxLink> CreateBoxLink(
-        SessionAuthCookie cookie,
+        AppSignedInUser user,
         AppBoxLinkPermissions? permissions = null)
     {
-        var box = await CreateBox(cookie);
+        var box = await CreateBox(user);
 
         return await CreateBoxLink(
             box: box,
-            cookie: cookie,
+            user: user,
             permissions: permissions);
     }
 
     protected async Task<AppEmailProvider> CreateAndActivateEmailProviderIfMissing(
-        SessionAuthCookie cookie)
+        AppSignedInUser user)
     {
         var emailProviders = await Api.EmailProviders.Get(
-            cookie: cookie);
+            cookie: user.Cookie);
 
         var activeEmailProvider = emailProviders
             .Items
@@ -342,17 +358,20 @@ public class TestFixture: IAsyncLifetime
                 Name: emailProviderName,
                 EmailFrom: emailFrom,
                 ApiKey: Guid.NewGuid().ToBase62()),
-            cookie: cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         await Api.EmailProviders.Confirm(
             emailProviderExternalId: provider.ExternalId,
             request: new ConfirmEmailProviderRequestDto(
                 ConfirmationCode: confirmationCode),
-            cookie: cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         await Api.EmailProviders.Activate(
             emailProviderExternalId: provider.ExternalId,
-            cookie: cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         return new AppEmailProvider(
             ExternalId: provider.ExternalId,
@@ -362,7 +381,7 @@ public class TestFixture: IAsyncLifetime
     }
 
     protected async Task<AppInvitedUser> InviteUser(
-        SessionAuthCookie cookie)
+        AppSignedInUser user)
     {
         var email = Random.Email();
         var invitationCode = Random.InvitationCode();
@@ -373,7 +392,8 @@ public class TestFixture: IAsyncLifetime
             request: new InviteUsersRequestDto([
                 email,
             ]),
-            cookie: cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         return new AppInvitedUser(
             ExternalId: invitationResponse.Users[0].ExternalId,
@@ -382,10 +402,14 @@ public class TestFixture: IAsyncLifetime
     }
 
     protected async Task<AppSignedInUser> InviteAndRegisterUser(
-        SessionAuthCookie cookie)
+        AppSignedInUser user)
     {
-        var invitedUser = await InviteUser(cookie);
+        var invitedUser = await InviteUser(user);
         var password = Random.Password();
+
+        var anonymousAntiforgeryCookies = await Api
+            .Antiforgery
+            .GetToken();
 
         var (_, userCookie) = await Api.Auth.SignUp(
             request: new SignUpUserRequestDto
@@ -394,13 +418,37 @@ public class TestFixture: IAsyncLifetime
                 Password = password,
                 InvitationCode = invitedUser.InvitationCode,
                 SelectedCheckboxIds = []
-            });
+            },
+            antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        var loggedInAntiforgeryCookies = await Api
+            .Antiforgery
+            .GetToken(userCookie);
 
         return new AppSignedInUser(
             ExternalId: invitedUser.ExternalId,
             Email: invitedUser.Email,
             Password: password,
-            Cookie: userCookie!);
+            Cookie: userCookie!,
+            Antiforgery: loggedInAntiforgeryCookies);
+    }
+
+    protected async Task<BoxLinkSession> StartBoxLinkSession()
+    {
+        var anonymousAntiforgeryCookies = await Api
+           .Antiforgery
+           .GetToken();
+
+        var boxLinkCookie = await Api.AccessCodesApi.StartSession(
+            anonymousAntiforgeryCookies);
+
+        var boxLinkAntiforgeryCookies = await Api
+            .Antiforgery
+            .GetBoxLinkToken(boxLinkCookie);
+
+        return new BoxLinkSession(
+            Cookie: boxLinkCookie,
+            Antiforgery: boxLinkAntiforgeryCookies);
     }
 
     protected record AppBoxLinkPermissions(
@@ -443,7 +491,8 @@ public class TestFixture: IAsyncLifetime
         UserExtId ExternalId,
         string Email,
         string Password,
-        SessionAuthCookie Cookie);
+        SessionAuthCookie Cookie,
+        AntiforgeryCookies Antiforgery);
 
     public record AppVolume(string Path);
 
@@ -463,4 +512,8 @@ public class TestFixture: IAsyncLifetime
         UserExtId ExternalId,
         string Email,
         string InvitationCode);
+
+    public record BoxLinkSession(
+        BoxLinkAuthCookie Cookie,
+        AntiforgeryCookies Antiforgery);
 }

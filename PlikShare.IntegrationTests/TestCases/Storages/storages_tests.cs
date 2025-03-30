@@ -32,7 +32,8 @@ public class storages_tests(
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
                 EncryptionType: StorageEncryptionType.None),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var allStorages = await Api.Storages.Get(
@@ -65,14 +66,16 @@ public class storages_tests(
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
                 EncryptionType: StorageEncryptionType.None),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //when
         await Api.Workspaces.Create(
             request: new CreateWorkspaceRequestDto(
                 StorageExternalId: hardDrive.ExternalId,
                 Name: "my first workspace"),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var storages = await Api.Storages.Get(
@@ -105,12 +108,14 @@ public class storages_tests(
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
                 EncryptionType: StorageEncryptionType.None),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //when
         await Api.Storages.DeleteStorage(
             externalId: hardDrive.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var allStorages = await Api.Storages.Get(
@@ -134,19 +139,22 @@ public class storages_tests(
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
                 EncryptionType: StorageEncryptionType.None),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         await Api.Workspaces.Create(
             request: new CreateWorkspaceRequestDto(
                 StorageExternalId: hardDrive.ExternalId,
                 Name: "my first workspace"),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //when
         var apiError = await Assert.ThrowsAsync<TestApiCallException>(
             async () => await Api.Storages.DeleteStorage(
                 externalId: hardDrive.ExternalId,
-                cookie: user.Cookie)
+                cookie: user.Cookie,
+                antiforgery: user.Antiforgery)
             );
 
         //then

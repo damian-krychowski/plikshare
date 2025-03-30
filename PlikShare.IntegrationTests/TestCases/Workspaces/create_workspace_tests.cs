@@ -21,14 +21,15 @@ public class create_workspace_tests(
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         //when
         var workspaceResponse = await Api.Workspaces.Create(
             request: new CreateWorkspaceRequestDto(
                 StorageExternalId: hardDrive.ExternalId,
                 Name: "my first workspace"),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var dashboard = await Api.Dashboard.Get(
@@ -63,14 +64,15 @@ public class create_workspace_tests(
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         //when
         var workspaceResponse = await Api.Workspaces.Create(
             request: new CreateWorkspaceRequestDto(
                 StorageExternalId: hardDrive.ExternalId,
                 Name: "my first workspace"),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var details = await Api.Workspaces.GetDetails(

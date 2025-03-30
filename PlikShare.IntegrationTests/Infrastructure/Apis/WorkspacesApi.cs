@@ -9,13 +9,15 @@ public class WorkspacesApi(IFlurlClient flurlClient, string appUrl)
 {
     public async Task<CreateWorkspaceResponseDto> Create(
         CreateWorkspaceRequestDto request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         return await flurlClient.ExecutePost<CreateWorkspaceResponseDto, CreateWorkspaceRequestDto>(
             appUrl: appUrl,
             apiPath: "api/workspaces",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
 
     public async Task<GetWorkspaceDetailsResponseDto> GetDetails(

@@ -22,11 +22,11 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
-            cookie: user.Cookie);
+            user: user);
 
         //when
         var folderResponse = await Api.Folders.Create(
@@ -37,7 +37,8 @@ public class create_folder_tests: TestFixture
                 Name = "my first folder"
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var topFolders = await Api.Folders.GetTop(
@@ -72,11 +73,11 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
-            cookie: user.Cookie);
+            user: user);
 
         //when
         var folder1Response = await Api.Folders.Create(
@@ -87,7 +88,8 @@ public class create_folder_tests: TestFixture
                 Name = "my first folder"
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         var folder2Response = await Api.Folders.Create(
             request: new CreateFolderRequestDto
@@ -97,7 +99,8 @@ public class create_folder_tests: TestFixture
                 Name = "my second folder"
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         var folder3Response = await Api.Folders.Create(
             request: new CreateFolderRequestDto
@@ -107,7 +110,8 @@ public class create_folder_tests: TestFixture
                 Name = "my third folder"
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         //then
         var topFolders = await Api.Folders.GetTop(
@@ -156,11 +160,11 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
-            cookie: user.Cookie);
+            user: user);
 
         //when
         var folderResponse = await Api.Folders.Create(
@@ -171,7 +175,8 @@ public class create_folder_tests: TestFixture
                 Name = "my first folder"
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var folderContent = await Api.Folders.Get(
@@ -203,15 +208,15 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
-            cookie: user.Cookie);
+            user: user);
 
         var parentFolder = await CreateFolder(
             workspace: workspace,
-            cookie: user.Cookie);
+            user: user);
         
         //when
         var subfolder = await Api.Folders.Create(
@@ -222,7 +227,8 @@ public class create_folder_tests: TestFixture
                 Name = "my subfolder"
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var parentContent = await Api.Folders.Get(
@@ -260,15 +266,15 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
-            cookie: user.Cookie);
+            user: user);
 
         var parentFolder = await CreateFolder(
             workspace: workspace,
-            cookie: user.Cookie);
+            user: user);
         
         //when
         var subfolder = await Api.Folders.Create(
@@ -279,7 +285,8 @@ public class create_folder_tests: TestFixture
                 Name = "my subfolder"
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var subfolderContent = await Api.Folders.Get(
@@ -315,11 +322,11 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
-            cookie: user.Cookie);
+            user: user);
 
         //when
         var folderResponse = await Api.Folders.Create(
@@ -330,7 +337,8 @@ public class create_folder_tests: TestFixture
                 Name = "my first folder"
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var topFolders = await Api.Folders.GetTop(
@@ -365,11 +373,11 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
-            cookie: user.Cookie);
+            user: user);
         
         var originalFolderResponse = await Api.Folders.Create(
             request: new CreateFolderRequestDto
@@ -379,7 +387,8 @@ public class create_folder_tests: TestFixture
                 Name = "my first folder"
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //when
         var folderResponse = await Api.Folders.BulkCreate(
@@ -397,7 +406,8 @@ public class create_folder_tests: TestFixture
                     ]
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         folderResponse.Items.Should().BeEquivalentTo([
@@ -440,15 +450,15 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
-            cookie: user.Cookie);
+            user: user);
 
         var parentFolder = await CreateFolder(
             workspace: workspace,
-            cookie: user.Cookie);
+            user: user);
 
         //when
         var subfolder = await Api.Folders.Create(
@@ -459,7 +469,8 @@ public class create_folder_tests: TestFixture
                 Name = "my subfolder"
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var parentContent = await Api.Folders.Get(
@@ -497,15 +508,15 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
-            cookie: user.Cookie);
+            user: user);
 
         var parentFolder = await CreateFolder(
             workspace: workspace,
-            cookie: user.Cookie);
+            user: user);
         
         var originalSubfolder = await Api.Folders.Create(
             request: new CreateFolderRequestDto
@@ -515,7 +526,8 @@ public class create_folder_tests: TestFixture
                 Name = "my subfolder"
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //when
         var response = await Api.Folders.BulkCreate(
@@ -534,7 +546,8 @@ public class create_folder_tests: TestFixture
                 ]
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         response.Items.Should().BeEquivalentTo([
@@ -580,11 +593,11 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
-            cookie: user.Cookie);
+            user: user);
 
         //when
         var bulkResponse = await Api.Folders.BulkCreate(
@@ -676,7 +689,8 @@ public class create_folder_tests: TestFixture
                 ]
             },
             workspaceExternalId: workspace.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var topFolders = await Api.Folders.GetTop(

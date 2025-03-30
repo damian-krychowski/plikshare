@@ -27,7 +27,7 @@ public static class AntiforgeryEndpoints
         var tokens = antiforgery.GetAndStoreTokens(context);
 
         context.Response.Cookies.Append(
-            "XSRF-TOKEN", //this token name is automatically intercepted by angular on the frontend and converted into request header
+            CookieName.Antiforgery, //this token name is automatically intercepted by angular on the frontend and converted into request header
             tokens.RequestToken!,
             new CookieOptions
             {
@@ -43,7 +43,7 @@ public static class AntiforgeryEndpoints
         var tokens = antiforgery.GetAndStoreTokens(context);
 
         context.Response.Cookies.Append(
-            "XSRF-TOKEN-BOX-LINK",
+            CookieName.BoxLinkAntiforgery,
             tokens.RequestToken!,
             new CookieOptions
             {

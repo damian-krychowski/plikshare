@@ -21,7 +21,7 @@ public class box_external_access_tests: TestFixture
         
         //when
         var box = await CreateBox(
-            cookie: user.Cookie);
+            user: user);
 
         //then
         var boxHtml = await Api.BoxExternalAccess.GetHtml(
@@ -41,14 +41,15 @@ public class box_external_access_tests: TestFixture
             user: Users.AppOwner);
         
         var box = await CreateBox(
-            cookie: user.Cookie);
+            user: user);
         
         //when
         await Api.Boxes.UpdateHeaderIsEnabled(
             workspaceExternalId: box.WorkspaceExternalId,
             boxExternalId: box.ExternalId,
             request: new UpdateBoxHeaderIsEnabledRequestDto(IsEnabled: true),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var boxHtml = await Api.BoxExternalAccess.GetHtml(
@@ -68,14 +69,15 @@ public class box_external_access_tests: TestFixture
             user: Users.AppOwner);
         
         var box = await CreateBox(
-            cookie: user.Cookie);
+            user: user);
         
         //when
         await Api.Boxes.UpdateHeaderIsEnabled(
             workspaceExternalId: box.WorkspaceExternalId,
             boxExternalId: box.ExternalId,
             request: new UpdateBoxHeaderIsEnabledRequestDto(IsEnabled: true),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         await Api.Boxes.UpdateHeader(
             workspaceExternalId: box.WorkspaceExternalId,
@@ -83,7 +85,8 @@ public class box_external_access_tests: TestFixture
             request: new UpdateBoxHeaderRequestDto(
                 Json: "new-header-json",
                 Html: "new-header-html"),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var boxHtml = await Api.BoxExternalAccess.GetHtml(
@@ -103,7 +106,7 @@ public class box_external_access_tests: TestFixture
             user: Users.AppOwner);
         
         var box = await CreateBox(
-            cookie: user.Cookie);
+            user: user);
         
         //when
         await Api.Boxes.UpdateHeader(
@@ -112,7 +115,8 @@ public class box_external_access_tests: TestFixture
             request: new UpdateBoxHeaderRequestDto(
                 Json: "new-header-json",
                 Html: "new-header-html"),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var boxHtml = await Api.BoxExternalAccess.GetHtml(
@@ -132,14 +136,15 @@ public class box_external_access_tests: TestFixture
             user: Users.AppOwner);
         
         var box = await CreateBox(
-            cookie: user.Cookie);
+            user: user);
         
         //when
         await Api.Boxes.UpdateFooterIsEnabled(
             workspaceExternalId: box.WorkspaceExternalId,
             boxExternalId: box.ExternalId,
             request: new UpdateBoxFooterIsEnabledRequestDto(IsEnabled: true),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var boxHtml = await Api.BoxExternalAccess.GetHtml(
@@ -159,14 +164,15 @@ public class box_external_access_tests: TestFixture
             user: Users.AppOwner);
         
         var box = await CreateBox(
-            cookie: user.Cookie);
+            user: user);
         
         //when
         await Api.Boxes.UpdateFooterIsEnabled(
             workspaceExternalId: box.WorkspaceExternalId,
             boxExternalId: box.ExternalId,
             request: new UpdateBoxFooterIsEnabledRequestDto(IsEnabled: true),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
         
         await Api.Boxes.UpdateFooter(
             workspaceExternalId: box.WorkspaceExternalId,
@@ -174,7 +180,8 @@ public class box_external_access_tests: TestFixture
             request: new UpdateBoxFooterRequestDto(
                 Json: "new-footer-json",
                 Html: "new-footer-html"),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var boxHtml = await Api.BoxExternalAccess.GetHtml(
@@ -194,7 +201,7 @@ public class box_external_access_tests: TestFixture
             user: Users.AppOwner);
         
         var box = await CreateBox(
-            cookie: user.Cookie);
+            user: user);
         
         //when
         await Api.Boxes.UpdateFooter(
@@ -203,7 +210,8 @@ public class box_external_access_tests: TestFixture
             request: new UpdateBoxFooterRequestDto(
                 Json: "new-footer-json",
                 Html: "new-footer-html"),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var boxHtml = await Api.BoxExternalAccess.GetHtml(

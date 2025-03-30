@@ -16,12 +16,14 @@ public class UsersApi(IFlurlClient flurlClient, string appUrl)
 
     public async Task<InviteUsersResponseDto> InviteUsers(
         InviteUsersRequestDto request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         return await flurlClient.ExecutePost<InviteUsersResponseDto, InviteUsersRequestDto>(
             appUrl: appUrl,
             apiPath: "api/users",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
 }

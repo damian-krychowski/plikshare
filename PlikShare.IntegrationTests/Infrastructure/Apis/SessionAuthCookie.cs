@@ -25,3 +25,9 @@ public class TwoFactorRememberMeCookie(string value) : Cookie
     public override string Name => CookieName.TwoFactorRememberMe;
     public override string Value { get; } = value;
 }
+
+public class GenericCookie(string name, string value): Cookie
+{
+    public override string Name { get; } = name;
+    public override string Value { get; } = value;
+}

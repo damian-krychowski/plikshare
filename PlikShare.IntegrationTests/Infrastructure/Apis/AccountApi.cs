@@ -58,11 +58,13 @@ public class AccountApi(IFlurlClient flurlClient, string appUrl)
 
     public async Task<(Enable2FaResponseDto, SessionAuthCookie? cookie)> Enable2Fa(
         Enable2FaRequestDto request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgeryCookies)
     {
         var flurlRequest = flurlClient
             .Request(appUrl, "api/account/2fa/enable")
-            .AllowAnyHttpStatus();
+            .AllowAnyHttpStatus()
+            .WithAntiforgery(antiforgeryCookies);
 
         if (cookie is not null)
         {
@@ -98,11 +100,13 @@ public class AccountApi(IFlurlClient flurlClient, string appUrl)
     }
 
     public async Task<(Disable2FaResponseDto, SessionAuthCookie? cookie)> Disable2Fa(
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgeryCookies)
     {
         var flurlRequest = flurlClient
             .Request(appUrl, "api/account/2fa/disable")
-            .AllowAnyHttpStatus();
+            .AllowAnyHttpStatus()
+            .WithAntiforgery(antiforgeryCookies);
 
         if (cookie is not null)
         {
@@ -138,12 +142,14 @@ public class AccountApi(IFlurlClient flurlClient, string appUrl)
     }
 
     public async Task<GenerateRecoveryCodesResponseDto> GenerateRecoveryCode(
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgeryCookies)
     {
         return await flurlClient.ExecutePost<GenerateRecoveryCodesResponseDto, object>(
             appUrl: appUrl,
             apiPath: "api/account/2fa/generate-recovery-codes",
             request: new object(),
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgeryCookies);
     }
 }

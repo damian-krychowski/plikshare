@@ -18,15 +18,15 @@ public class create_box_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
-            cookie: user.Cookie);
+            user: user);
 
         var folder = await CreateFolder(
             workspace: workspace,
-            cookie: user.Cookie);
+            user: user);
         
         //when
         var box = await Api.Boxes.Create(
@@ -34,7 +34,8 @@ public class create_box_tests: TestFixture
             request: new CreateBoxRequestDto(
                 Name: "my first box",
                 FolderExternalId: folder.ExternalId),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var boxes = await Api.Boxes.GetList(
@@ -70,15 +71,15 @@ public class create_box_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            cookie: user.Cookie);
+            user: user);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
-            cookie: user.Cookie);
+            user: user);
 
         var folder = await CreateFolder(
             workspace: workspace,
-            cookie: user.Cookie);
+            user: user);
         
         //when
         var box = await Api.Boxes.Create(
@@ -86,7 +87,8 @@ public class create_box_tests: TestFixture
             request: new CreateBoxRequestDto(
                 Name: "my first box",
                 FolderExternalId: folder.ExternalId),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var boxContent = await Api.Boxes.Get(

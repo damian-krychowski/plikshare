@@ -26,6 +26,14 @@ public static class CookieName
     public const string BoxLinkAuth ="BoxLinkAuth";
     public const string TwoFactorUserId = "Identity.TwoFactorUserId";
     public const string TwoFactorRememberMe = "Identity.TwoFactorRememberMe";
+
+    public const string Antiforgery = "XSRF-TOKEN";
+    public const string BoxLinkAntiforgery = "XSRF-TOKEN-BOX-LINK";
+}
+
+public static class HeaderName
+{
+    public const string Antiforgery = "X-XSRF-TOKEN";
 }
 
 public static class AuthorizationStartupExtensions
@@ -39,7 +47,7 @@ public static class AuthorizationStartupExtensions
 
         app.Services.AddAntiforgery(options =>
         {
-            options.HeaderName = "X-XSRF-TOKEN";
+            options.HeaderName = HeaderName.Antiforgery;
         });
         
         app.Services.AddAuthorization(options =>

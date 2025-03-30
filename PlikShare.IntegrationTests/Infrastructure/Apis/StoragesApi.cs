@@ -26,22 +26,26 @@ public class StoragesApi(IFlurlClient flurlClient, string appUrl)
 
     public async Task<CreateHardDriveStorageResponseDto> CreateHardDriveStorage(
         CreateHardDriveStorageRequestDto request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         return await flurlClient.ExecutePost<CreateHardDriveStorageResponseDto,CreateHardDriveStorageRequestDto>(
             appUrl: appUrl,
             apiPath: "api/storages/hard-drive",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
 
     public async Task DeleteStorage(
         StorageExtId externalId,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         await flurlClient.ExecuteDelete(
             appUrl: appUrl,
             apiPath: $"api/storages/{externalId}",
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
 }

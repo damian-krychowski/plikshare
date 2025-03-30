@@ -11,10 +11,14 @@ public class auth_tests : TestFixture
     [Fact]
     public async Task logging_in_with_wrong_password_should_fail()
     {
+        //given
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         //when
         var (result, sessionAuthCookie, _) = await Api.Auth.SignIn(
             email: Users.AppOwner.Email,
-            password: "wrong-password");
+            password: "wrong-password",
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         //then
         result.Should().BeEquivalentTo(
@@ -26,10 +30,14 @@ public class auth_tests : TestFixture
     [Fact]
     public async Task logging_in_with_wrong_email_should_fail()
     {
+        //given
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         //when
         var (result, sessionAuthCookie, _) = await Api.Auth.SignIn(
             email: "wrongemail@integrationtests.com",
-            password: Users.AppOwner.Password);
+            password: Users.AppOwner.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         //then
         result.Should().BeEquivalentTo(
@@ -41,10 +49,14 @@ public class auth_tests : TestFixture
     [Fact]
     public async Task can_login_as_application_owner()
     {
+        //given
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         //when
         var (result, sessionAuthCookie, _) = await Api.Auth.SignIn(
             email: Users.AppOwner.Email,
-            password: Users.AppOwner.Password);
+            password: Users.AppOwner.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         //then
         result.Should().BeEquivalentTo(

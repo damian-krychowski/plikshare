@@ -8,7 +8,8 @@ namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
 public class EmailProvidersApi(IFlurlClient flurlClient, string appUrl)
 {
-    public async Task<GetEmailProvidersResponseDto> Get(SessionAuthCookie? cookie)
+    public async Task<GetEmailProvidersResponseDto> Get(
+        SessionAuthCookie? cookie)
     {
         return await flurlClient.ExecuteGet<GetEmailProvidersResponseDto>(
             appUrl: appUrl,
@@ -18,35 +19,41 @@ public class EmailProvidersApi(IFlurlClient flurlClient, string appUrl)
 
     public async Task<CreateResendEmailProviderResponseDto> CreateResend(
         CreateResendEmailProviderRequestDto request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         return await flurlClient.ExecutePost<CreateResendEmailProviderResponseDto, CreateResendEmailProviderRequestDto>(
             appUrl: appUrl,
             apiPath: "api/email-providers/resend",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
     
     public async Task Confirm(
         EmailProviderExtId emailProviderExternalId,
         ConfirmEmailProviderRequestDto request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         await flurlClient.ExecutePost(
             appUrl: appUrl,
             apiPath: $"api/email-providers/{emailProviderExternalId}/confirm",
             request: request,
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
     
     public async Task Activate(
         EmailProviderExtId emailProviderExternalId,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         await flurlClient.ExecutePost(
             appUrl: appUrl,
             apiPath: $"api/email-providers/{emailProviderExternalId}/activate",
             request: new object(),
-            cookie: cookie);
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
 }

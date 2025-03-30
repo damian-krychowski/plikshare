@@ -6,6 +6,7 @@ public class Api(IFlurlClient flurlClient, string appUrl)
 {
     public DashboardApi Dashboard { get; } = new(flurlClient, appUrl);
     public AuthApi Auth { get; } = new(flurlClient, appUrl);
+    public AntiforgeryApi Antiforgery { get; } = new(flurlClient, appUrl);
     public EntryPageApi EntryPage { get; } = new(flurlClient, appUrl);
     public AccountApi Account { get; } = new(flurlClient, appUrl);
     public GeneralSettingsApi GeneralSettings { get; } = new(flurlClient, appUrl);

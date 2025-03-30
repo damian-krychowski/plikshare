@@ -21,9 +21,11 @@ public class user_registration_tests : TestFixture
     {
         //given
         var invitedUser = await InviteUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         //when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         var (signUpResponse, cookie) = await Api.Auth.SignUp(
             request: new SignUpUserRequestDto
             {
@@ -31,7 +33,8 @@ public class user_registration_tests : TestFixture
                 Password = Random.Password(),
                 InvitationCode = invitedUser.InvitationCode,
                 SelectedCheckboxIds = []
-            });
+            },
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         //then
         signUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.SingedUpAndSignedIn);
@@ -43,8 +46,10 @@ public class user_registration_tests : TestFixture
     {
         //given
         var invitedUser = await InviteUser(
-            cookie: AppOwner.Cookie);
-        
+            user: AppOwner);
+
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         var (_, cookie) = await Api.Auth.SignUp(
             request: new SignUpUserRequestDto
             {
@@ -52,7 +57,8 @@ public class user_registration_tests : TestFixture
                 Password = Random.Password(),
                 InvitationCode = invitedUser.InvitationCode,
                 SelectedCheckboxIds = []
-            });
+            },
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         //when
         var accountDetails = await Api.Account.GetDetails(
@@ -78,9 +84,11 @@ public class user_registration_tests : TestFixture
     {
         //given
         var invitedUser = await InviteUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         //when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         var (signUpResponse, cookie) = await Api.Auth.SignUp(
             request: new SignUpUserRequestDto
             {
@@ -88,7 +96,8 @@ public class user_registration_tests : TestFixture
                 Password = Random.Password(),
                 InvitationCode = Random.InvitationCode("wrong-code"),
                 SelectedCheckboxIds = []
-            });
+            },
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         //then
         signUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.InvitationRequired);
@@ -100,9 +109,11 @@ public class user_registration_tests : TestFixture
     {
         //given
         var invitedUser = await InviteUser(
-            cookie: AppOwner.Cookie);
+            user: AppOwner);
 
         //when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
         var (signUpResponse, cookie) = await Api.Auth.SignUp(
             request: new SignUpUserRequestDto
             {
@@ -110,7 +121,8 @@ public class user_registration_tests : TestFixture
                 Password = Random.Password(),
                 InvitationCode = invitedUser.InvitationCode,
                 SelectedCheckboxIds = []
-            });
+            },
+            antiforgeryCookies: anonymousAntiforgeryCookies);
 
         //then
         signUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.InvitationRequired);

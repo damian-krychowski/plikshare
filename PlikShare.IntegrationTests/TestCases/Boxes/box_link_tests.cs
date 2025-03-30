@@ -18,7 +18,7 @@ public class box_link_tests: TestFixture
             user: Users.AppOwner);
 
         var box = await CreateBox(
-            cookie: user.Cookie);
+            user: user);
         
         //when
         var boxLink = await Api.Boxes.CreateBoxLink(
@@ -26,7 +26,8 @@ public class box_link_tests: TestFixture
             boxExternalId: box.ExternalId,
             request: new CreateBoxLinkRequestDto(
                 Name: "my first box link"),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var boxContent = await Api.Boxes.Get(
@@ -66,7 +67,7 @@ public class box_link_tests: TestFixture
             user: Users.AppOwner);
 
         var boxLink = await CreateBoxLink(
-            cookie: user.Cookie);
+            user: user);
         
         //when
         await Api.BoxLinks.UpdatePermissions(
@@ -82,7 +83,8 @@ public class box_link_tests: TestFixture
                 AllowRenameFile: true,
                 AllowRenameFolder: true,
                 AllowDownload: true),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //then
         var boxContent = await Api.Boxes.Get(

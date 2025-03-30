@@ -24,41 +24,41 @@ public class box_link_external_access_tests: TestFixture
             user: Users.AppOwner);
 
         var workspace = await CreateWorkspace(
-            cookie: user.Cookie);
+            user: user);
 
         var boxFolder = await CreateFolder(
             workspace: workspace,
-            cookie: user.Cookie);
+            user: user);
 
         var subFolderA = await CreateFolder(
             parent: boxFolder,
             workspace: workspace,
-            cookie: user.Cookie);
+            user: user);
 
         var subFolderB = await CreateFolder(
             parent: boxFolder,
             workspace: workspace,
-            cookie: user.Cookie);
+            user: user);
         
         var subFolderC = await CreateFolder(
             parent: boxFolder,
             workspace: workspace,
-            cookie: user.Cookie);
+            user: user);
 
         var box = await CreateBox(
             folder: boxFolder,
-            cookie: user.Cookie);
+            user: user);
 
         var boxLink = await CreateBoxLink(
             box: box,
-            cookie: user.Cookie);
+            user: user);
 
         //when
-        var boxLinkCookie = await Api.AccessCodesApi.StartSession();
+        var boxLinkSession = await StartBoxLinkSession();
 
         var boxContent = await Api.AccessCodesApi.GetBoxDetailsAndContent(
             accessCode: boxLink.AccessCode,
-            cookie: boxLinkCookie);
+            cookie: boxLinkSession.Cookie);
 
         //then
         boxContent.Should().BeEquivalentTo(new GetBoxDetailsAndContentResponseDto
@@ -122,7 +122,7 @@ public class box_link_external_access_tests: TestFixture
             user: Users.AppOwner);
 
         var boxLink = await CreateBoxLink(
-            cookie: user.Cookie);
+            user: user);
 
         await Api.BoxLinks.UpdatePermissions(
             workspaceExternalId: boxLink.WorkspaceExternalId,
@@ -130,10 +130,11 @@ public class box_link_external_access_tests: TestFixture
             request: new UpdateBoxLinkPermissionsRequestDto(
                 AllowList: true,
                 AllowCreateFolder: true),
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
 
         //when
-        var boxLinkCookie = await Api.AccessCodesApi.StartSession();
+        var boxLinkSession = await StartBoxLinkSession();
 
         var folder = await Api.AccessCodesApi.CreateFolder(
             accessCode: boxLink.AccessCode,
@@ -143,12 +144,13 @@ public class box_link_external_access_tests: TestFixture
                 ParentExternalId = null,
                 Name = "my new box folder",
             },
-            cookie: boxLinkCookie);
+            cookie: boxLinkSession.Cookie,
+            antiforgery: boxLinkSession.Antiforgery);
        
         //then
         var boxContent = await Api.AccessCodesApi.GetBoxDetailsAndContent(
             accessCode: boxLink.AccessCode,
-            cookie: boxLinkCookie);
+            cookie: boxLinkSession.Cookie);
         
         boxContent.Should().BeEquivalentTo(new GetBoxDetailsAndContentResponseDto
         {
@@ -201,9 +203,9 @@ public class box_link_external_access_tests: TestFixture
                 AllowList: true,
                 AllowCreateFolder: true,
                 AllowRenameFolder: false),
-            cookie: user.Cookie);
-        
-        var boxLinkCookie = await Api.AccessCodesApi.StartSession();
+            user: user);
+
+        var boxLinkSession = await StartBoxLinkSession();
 
         var folder = await Api.AccessCodesApi.CreateFolder(
             accessCode: boxLink.AccessCode,
@@ -213,7 +215,8 @@ public class box_link_external_access_tests: TestFixture
                 ParentExternalId= null,
                 Name= "my new box folder", 
             },
-            cookie: boxLinkCookie);
+            cookie: boxLinkSession.Cookie,
+            antiforgery: boxLinkSession.Antiforgery);
 
         //when
         var littleLater = createdAtTime.AddMinutes(3);
@@ -224,12 +227,13 @@ public class box_link_external_access_tests: TestFixture
             folderExternalId: folder.ExternalId,
             request: new UpdateBoxFolderNameRequestDto(
                 Name: "new name for my box folder"),
-            cookie: boxLinkCookie);
+            cookie: boxLinkSession.Cookie,
+            antiforgery: boxLinkSession.Antiforgery);
         
         //then
         var boxContent = await Api.AccessCodesApi.GetBoxDetailsAndContent(
             accessCode: boxLink.AccessCode,
-            cookie: boxLinkCookie);
+            cookie: boxLinkSession.Cookie);
 
         boxContent.Subfolders.Should().BeEquivalentTo(
         [
@@ -258,9 +262,9 @@ public class box_link_external_access_tests: TestFixture
                 AllowList: true,
                 AllowCreateFolder: true,
                 AllowRenameFolder: false),
-            cookie: user.Cookie);
-        
-        var boxLinkCookie = await Api.AccessCodesApi.StartSession();
+            user: user);
+
+        var boxLinkSession = await StartBoxLinkSession();
 
         var folder = await Api.AccessCodesApi.CreateFolder(
             accessCode: boxLink.AccessCode,
@@ -270,7 +274,8 @@ public class box_link_external_access_tests: TestFixture
                 ParentExternalId= null,
                 Name = "my new box folder",
             },
-            cookie: boxLinkCookie);
+            cookie: boxLinkSession.Cookie,
+            antiforgery: boxLinkSession.Antiforgery);
 
         //when
         var tooLate = createdAtTime.AddMinutes(5).AddSeconds(1);
@@ -282,7 +287,8 @@ public class box_link_external_access_tests: TestFixture
                 folderExternalId: folder.ExternalId,
                 request: new UpdateBoxFolderNameRequestDto(
                     Name: "new name for my box folder"),
-                cookie: boxLinkCookie)
+            cookie: boxLinkSession.Cookie,
+            antiforgery: boxLinkSession.Antiforgery)
         );
         
         //then

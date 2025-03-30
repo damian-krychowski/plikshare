@@ -1,11 +1,14 @@
+using System.Net;
 using Flurl.Http;
+using Microsoft.Net.Http.Headers;
+using PlikShare.Core.Authorization;
 using ProtoBuf;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
 public static class FlurlRequestExtensions
 {
-    private static IFlurlRequest WithCookie(
+    public static IFlurlRequest WithCookie(
         this IFlurlRequest request,
         Cookie? cookie)
     {
@@ -18,7 +21,35 @@ public static class FlurlRequestExtensions
 
         return request;
     }
-    
+
+    public static IFlurlRequest WithHeader(
+        this IFlurlRequest request,
+        string name,
+        string value)
+    {
+        request.Headers.Add(name, value);
+
+        return request;
+    }
+
+    public static IFlurlRequest WithAntiforgeryHeader(
+        this IFlurlRequest request,
+        string value)
+    {
+        return request.WithHeader(
+            name: HeaderName.Antiforgery,
+            value: value);
+    }
+
+    public static IFlurlRequest WithAntiforgery(
+        this IFlurlRequest request,
+        AntiforgeryCookies antiforgeryCookies)
+    {
+        return request
+            .WithCookie(antiforgeryCookies.AspNetAntiforgery)
+            .WithAntiforgeryHeader(antiforgeryCookies.AntiforgeryToken.Value);
+    }
+
     public static async Task<TResponse> ExecuteGet<TResponse>(
         this IFlurlClient client,
         string appUrl,
@@ -70,11 +101,13 @@ public static class FlurlRequestExtensions
         string apiPath,
         TRequest request,
         Cookie? cookie,
+        AntiforgeryCookies antiforgery,
         bool isRequestInProtobuf = false,
         bool isResponseInProtobuf = false)
     {
         var flurlRequest = client
             .Request(appUrl, apiPath)
+            .WithAntiforgery(antiforgery)
             .AllowAnyHttpStatus()
             .WithCookie(cookie);
         
@@ -130,12 +163,14 @@ public static class FlurlRequestExtensions
         string appUrl,
         string apiPath,
         TRequest request,
-        Cookie? cookie)
+        Cookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
             .WithCookie(cookie)
+            .WithAntiforgery(antiforgery)
             .PostJsonAsync(request);
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
@@ -153,12 +188,14 @@ public static class FlurlRequestExtensions
         string appUrl,
         string apiPath,
         TRequest request,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
             .WithCookie(cookie)
+            .WithAntiforgery(antiforgery)
             .PatchJsonAsync(request);
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
@@ -186,12 +223,14 @@ public static class FlurlRequestExtensions
         string appUrl,
         string apiPath,
         TRequest request,
-        Cookie? cookie)
+        Cookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
             .WithCookie(cookie)
+            .WithAntiforgery(antiforgery)
             .PatchJsonAsync(request);
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
@@ -208,12 +247,14 @@ public static class FlurlRequestExtensions
         this IFlurlClient client,
         string appUrl,
         string apiPath,
-        Cookie? cookie)
+        Cookie? cookie,
+        AntiforgeryCookies antiforgery)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
             .WithCookie(cookie)
+            .WithAntiforgery(antiforgery)
             .DeleteAsync();
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
