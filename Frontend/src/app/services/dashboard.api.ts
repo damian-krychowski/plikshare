@@ -19,6 +19,7 @@ export interface GetDashboardDataResponse {
         externalId: string;
         name: string;
         currentSizeInBytes: number;
+        maxSizeInBytes: number | null;
         owner: {
             externalId: string;
             email: string;
@@ -35,6 +36,7 @@ export interface GetDashboardDataResponse {
         externalId: string;
         name: string;
         currentSizeInBytes: number;
+        maxSizeInBytes: number | null;
         owner: {
             externalId: string;
             email: string;

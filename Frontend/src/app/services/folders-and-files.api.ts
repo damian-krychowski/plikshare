@@ -341,6 +341,10 @@ export interface AiMessageDto {
 
 export type AiMessageAuthorType = 'human' | 'ai';
 
+export interface BulkDeleteResponse {
+    newWorkspaceSizeInBytes: number | null;
+}
+
 const zipFileDetailsDtoProtobuf = getZipFileDetailsDtoProtobuf();
 const folderContentDtoProtobuf = getFolderContentDtoProtobuf();
 const topFolderContentDtoProtobuf = getTopFolderContetDtoProtobuf();
@@ -505,10 +509,10 @@ export class FoldersAndFilesSetApi {
         fileExternalIds: string[],
         folderExternalIds: string[],
         fileUploadExternalIds: string[]
-    }): Promise<void> {
+    }): Promise<BulkDeleteResponse> {
         const call = this
             ._http
-            .post<void>(`/api/workspaces/${args.workspaceExternalId}/bulk-delete`, {
+            .post<BulkDeleteResponse>(`/api/workspaces/${args.workspaceExternalId}/bulk-delete`, {
                 fileExternalIds: args.fileExternalIds,
                 folderExternalIds: args.folderExternalIds,
                 fileUploadExternalIds: args.fileUploadExternalIds

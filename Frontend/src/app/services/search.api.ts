@@ -37,6 +37,7 @@ export interface SearchWorkspaceItemDto {
     externalId: string;
     name: string;
     currentSizeInBytes: number;
+    maxSizeInBytes: number;
     ownerEmail: string;
     ownerExternalId: string;
     isOwnedByUser: boolean;

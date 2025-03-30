@@ -176,6 +176,7 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
                 IsUsedByIntegration = w.IsUsedByIntegration,
                 AllowShare = w.AllowShare,
                 CurrentSizeInBytes = w.CurrentSizeInBytes,
+                MaxSizeInBytes = w.MaxSizeInBytes ?? -1,
                 IsBucketCreated = w.IsBucketCreated,
                 IsOwnedByUser = w.IsOwnedByUser
             })
@@ -505,65 +506,6 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
             .Execute();
     }
 
-    private static List<SearchResponseDto.Workspace> SearchWorkspaces(
-        UserContext user,
-        List<int> workspaceIds,
-        string query,
-        SqliteConnection connection)
-    {
-        return connection
-            .Cmd(
-                sql: """
-                     SELECT
-                        w_external_id,
-                        w_name,
-                        w_current_size_in_bytes, 
-                        u_email,
-                        u_external_id,
-                        (u_id = $userId) AS is_owned_by_user,
-                        (CASE
-                             WHEN w_owner_id = $userId THEN TRUE
-                             ELSE (
-                                 SELECT wm_allow_share
-                                 FROM wm_workspace_membership
-                                 WHERE wm_workspace_id = w_id
-                                     AND wm_member_id = $userId
-                             )
-                         END) AS allow_share,
-                         (
-                             SELECT EXISTS (       
-                                 SELECT 1
-                                 FROM i_integrations
-                                 WHERE i_workspace_id = w_id
-                             )
-                         ) AS is_used_by_integration,
-                         w_is_bucket_created
-                     FROM w_workspaces
-                     INNER JOIN u_users
-                         ON u_id = w_owner_id
-                     WHERE 
-                         w_id IN (SELECT value FROM json_each($workspaceIds))
-                         AND w_name LIKE $query
-                     """,
-                readRowFunc: reader => new SearchResponseDto.Workspace
-                {
-                    ExternalId = reader.GetString(0),
-                    Name = reader.GetString(1),
-                    CurrentSizeInBytes = reader.GetInt64(2),
-                    OwnerEmail = reader.GetString(3),
-                    OwnerExternalId = reader.GetString(4),
-                    IsOwnedByUser = reader.GetBoolean(5),
-                    AllowShare = reader.GetBoolean(6),
-                    IsUsedByIntegration = reader.GetBoolean(7),
-                    IsBucketCreated = reader.GetBoolean(8)
-                })
-            .WithParameter("$userId", user.Id)
-            .WithParameter("$userExternalId", user.ExternalId.Value)
-            .WithJsonParameter("$workspaceIds", workspaceIds)
-            .WithParameter("$query", query)
-            .Execute();
-    }
-
     private static List<Workspace> GetWorkspacesAvailableToUser(
         UserContext user,
         string[] workspaceExternalIds,
@@ -601,6 +543,7 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
                         w_external_id,
                         w_name,
                         w_current_size_in_bytes, 
+                        w_max_size_in_bytes,
                         u_email,
                         u_external_id,
                         (u_id = $userId) AS is_owned_by_user,
@@ -633,12 +576,13 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
                     ExternalId = reader.GetString(1),
                     Name = reader.GetString(2),
                     CurrentSizeInBytes = reader.GetInt64(3),
-                    OwnerEmail = reader.GetString(4),
-                    OwnerExternalId = reader.GetString(5),
-                    IsOwnedByUser = reader.GetBoolean(6),
-                    AllowShare = reader.GetBoolean(7),
-                    IsUsedByIntegration = reader.GetBoolean(8),
-                    IsBucketCreated = reader.GetBoolean(9)
+                    MaxSizeInBytes = reader.GetInt64OrNull(4),
+                    OwnerEmail = reader.GetString(5),
+                    OwnerExternalId = reader.GetString(6),
+                    IsOwnedByUser = reader.GetBoolean(7),
+                    AllowShare = reader.GetBoolean(8),
+                    IsUsedByIntegration = reader.GetBoolean(9),
+                    IsBucketCreated = reader.GetBoolean(10)
                 })
             .WithParameter("$userId", user.Id)
             .WithJsonParameter("$workspaceExternalIds", workspaceExternalIds)
@@ -720,6 +664,7 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
 
         public required string Name { get; init; }
         public required long CurrentSizeInBytes { get; init; }
+        public required long? MaxSizeInBytes { get; init; }
         public required string OwnerEmail { get; init; }
         public required string OwnerExternalId { get; init; }
         public required bool IsOwnedByUser { get; init; }

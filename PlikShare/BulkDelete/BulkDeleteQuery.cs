@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using PlikShare.BulkDelete.Contracts;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
@@ -14,6 +15,7 @@ using PlikShare.Storages.FileCopying.Delete;
 using PlikShare.Uploads.Delete;
 using PlikShare.Uploads.Id;
 using PlikShare.Workspaces.Cache;
+using PlikShare.Workspaces.GetSize;
 using PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
 using Serilog;
 using Serilog.Events;
@@ -27,9 +29,10 @@ public class BulkDeleteQuery(
     DeleteFilesSubQuery deleteFilesSubQuery,
     DeleteFileUploadsSubQuery deleteFileUploadsSubQuery,
     DeleteCopyFileQueueJobsSubQuery deleteCopyFileQueueJobsSubQuery,
-    DeleteTextractJobsSubQuery deleteTextractJobsSubQuery)
+    DeleteTextractJobsSubQuery deleteTextractJobsSubQuery,
+    GetWorkspaceSizeQuery getWorkspaceSizeQuery)
 {
-    public Task Execute(
+    public async Task<BulkDeleteResponseDto> Execute(
         WorkspaceContext workspace,
         FileExtId[] fileExternalIds,
         FolderExtId[] folderExternalIds,
@@ -40,7 +43,7 @@ public class BulkDeleteQuery(
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        return dbWriteQueue.Execute(
+        await dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
                 workspace: workspace, 
@@ -52,6 +55,22 @@ public class BulkDeleteQuery(
                 isFileDeleteAllowedByBoxPermissions: isFileDeleteAllowedByBoxPermissions, 
                 correlationId: correlationId),
             cancellationToken: cancellationToken);
+
+        if(boxFolderId is null)
+        {
+            var workspaceSize = getWorkspaceSizeQuery.Execute(
+                workspace);
+
+            return new BulkDeleteResponseDto
+            {
+                NewWorkspaceSizeInBytes = workspaceSize
+            };
+        }
+
+        return new BulkDeleteResponseDto
+        {
+            NewWorkspaceSizeInBytes = null
+        };
     }
 
 
@@ -143,15 +162,11 @@ public class BulkDeleteQuery(
                 executeAfterDate: clock.UtcNow,
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);
-            
-            var updateWorkspaceCurrentSizeJob = queue.EnqueueOrThrow(
+
+            var updateWorkspaceCurrentSizeJob = queue.EnqueueWorkspaceSizeUpdateJob(
+                clock: clock,
+                workspaceId: workspace.Id,
                 correlationId: correlationId,
-                jobType: UpdateWorkspaceCurrentSizeInBytesQueueJobType.Value,
-                definition: new UpdateWorkspaceCurrentSizeInBytesQueueJobDefinition(
-                    WorkspaceId: workspace.Id),
-                executeAfterDate: clock.UtcNow.AddSeconds(10),
-                debounceId: $"update_workspace_current_size_in_bytes_{workspace.Id}",
-                sagaId: null,
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);
 

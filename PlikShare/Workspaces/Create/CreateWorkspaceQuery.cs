@@ -103,30 +103,32 @@ public class CreateWorkspaceQuery(
 
         var insertWorkspaceResult = dbWriteContext
             .OneRowCmd(
-                sql: @"
-                     INSERT INTO w_workspaces(
-                        w_external_id,
-                        w_owner_id,
-                        w_storage_id,
-                        w_name,
-                        w_current_size_in_bytes,
-                        w_is_bucket_created,
-                        w_bucket_name,
-                        w_is_being_deleted
-                    ) VALUES (
-                        $externalId,
-                        $userId,
-                        (SELECT s_id FROM s_storages WHERE s_external_id = $storageExternalId LIMIT 1),
-                        $name,
-                        0,
-                        FALSE,
-                        $bucketName,
-                        FALSE
-                    )   
-                    RETURNING 
-                        w_id,
-                        w_storage_id
-                ",
+                sql: """
+                      INSERT INTO w_workspaces(
+                         w_external_id,
+                         w_owner_id,
+                         w_storage_id,
+                         w_name,
+                         w_current_size_in_bytes,
+                         w_is_bucket_created,
+                         w_bucket_name,
+                         w_is_being_deleted,
+                         w_max_size_in_bytes
+                     ) VALUES (
+                         $externalId,
+                         $userId,
+                         (SELECT s_id FROM s_storages WHERE s_external_id = $storageExternalId LIMIT 1),
+                         $name,
+                         0,
+                         FALSE,
+                         $bucketName,
+                         FALSE,
+                         NULL
+                     )   
+                     RETURNING 
+                         w_id,
+                         w_storage_id
+                     """,
                 readRowFunc: reader => new
                 {
                     WorkspaceId = reader.GetInt32(0),

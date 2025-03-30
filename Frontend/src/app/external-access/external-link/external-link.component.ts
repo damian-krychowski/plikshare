@@ -228,12 +228,14 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
                 this._accessCodeValue, 
                 uploadExternalId),
 
-            abort: (uploadExternalId: string) => this._accessCodesApi.bulkDelete({
-                accessCode: this._accessCodeValue,
-                fileExternalIds: [],
-                folderExternalIds: [],
-                fileUploadExternalIds: [uploadExternalId]
-            })
+            abort: async (uploadExternalId: string) => {
+                await this._accessCodesApi.bulkDelete({
+                    accessCode: this._accessCodeValue,
+                    fileExternalIds: [],
+                    folderExternalIds: [],
+                    fileUploadExternalIds: [uploadExternalId]
+                });
+            }
         }
     }
 

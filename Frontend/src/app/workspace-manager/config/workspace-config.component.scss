@@ -1,0 +1,12 @@
+@import "./../../../styles/app-header.scss";
+@import "./../../../styles/page-form.scss";
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    
+    &__size-field {
+        flex-grow: 1;
+    }
+}

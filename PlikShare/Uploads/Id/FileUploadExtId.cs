@@ -33,4 +33,6 @@ public readonly record struct FileUploadExtId(string Value): IExternalId<FileUpl
     }
     
     public override string ToString() => Value;
+
+    public bool Equals(string value) => Value.Equals(value, StringComparison.InvariantCultureIgnoreCase);
 }

@@ -1,5 +1,5 @@
 import { Component, InputSignal, OnChanges, OnDestroy, OnInit, Renderer2, Signal, SimpleChanges, ViewChild, WritableSignal, computed, input, output, signal } from '@angular/core';
-import { FileToUpload, FileUploadApi, FileUploadManager, UploadCompletedEvent, UploadsInitiatedEvent } from '../services/file-upload-manager/file-upload-manager';
+import { FileToUpload, FileUploadApi, FileUploadManager, UploadsAbortedEvent, UploadCompletedEvent, UploadsInitiatedEvent } from '../services/file-upload-manager/file-upload-manager';
 import { AppUploadItem, UploadItemComponent } from './upload-item/upload-item.component';
 import { ConfirmOperationDirective } from '../shared/operation-confirm/confirm-operation.directive';
 import { AppFolderItem, FolderItemComponent, FolderOperations } from '../shared/folder-item/folder-item.component';
@@ -17,7 +17,7 @@ import { FileInlinePreviewComponent, FilePreviewOperations, ZipPreviewDetails } 
 import { StorageSizePipe } from '../shared/storage-size.pipe';
 import { EditableTxtComponent } from '../shared/editable-txt/editable-txt.component';
 import { BulkUploadPreviewComponent, BulkFileUpload, SingleBulkFileUpload, CreatedFolder } from './bulk-upload-preview/bulk-upload-preview.component';
-import { BulkCreateFolderRequest, BulkCreateFolderResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFilesTreeResponseDto, GetFolderResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, UpdateAiConversationNameRequest, UploadDto, UploadFileAttachmentRequest } from '../services/folders-and-files.api';
+import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFilesTreeResponseDto, GetFolderResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, UpdateAiConversationNameRequest, UploadDto, UploadFileAttachmentRequest } from '../services/folders-and-files.api';
 import { ZipEntry } from '../services/zip';
 import { FileSlicer } from '../services/file-upload-manager/file-slicer';
 import { TextractJobStatusService } from '../services/textract-job-status.service';
@@ -51,7 +51,7 @@ export interface FilesExplorerApi {
     updateFileName: (fileExternalId: string, request: { name: string }) => Promise<void>;
     getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => Promise<GetFileDownloadLinkResponse>;
     getFilePreviewDetails: (fileExternalId: string, fields: FilePreviewDetailsField[] | null) => Promise<GetFilePreviewDetailsResponse>;
-    bulkDelete: (fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[]) => Promise<void>;
+    bulkDelete: (fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[]) => Promise<BulkDeleteResponse>;
     getBulkDownloadLink: (request: GetBulkDownloadLinkRequest) => Promise<GetBulkDownloadLinkResponse>;    
     countSelectedItems: (request: CountSelectedItemsRequest) => Promise<CountSelectedItemsResponse>;
     searchFilesTree: (request: SearchFilesTreeRequest) => Promise<SearchFilesTreeResponse>;
@@ -162,6 +162,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     folderSelected = output<AppFolderItem | null>();
     boxCreated = output<AppFolderItem>();
     filePreviewed = output<AppFileItem | null>();
+    workspaceSizeUpdated = output<number>();
 
     isLoadingFolders = signal(false);
     isDeleting = signal(false);
@@ -338,14 +339,23 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
             if (!folderExternalId)
                 return;
 
-            await this.filesApi().bulkDelete([], [folderExternalId], []);
+            const result = await this.filesApi().bulkDelete([], [folderExternalId], []);
+
+            if(result.newWorkspaceSizeInBytes != null) {
+                this.workspaceSizeUpdated.emit(result.newWorkspaceSizeInBytes);
+            }
         },
 
         saveFileNameFunc: (fileExternalId: string, newName: string) => 
             this.filesApi().updateFileName(fileExternalId, {name: newName}),
 
-        deleteFileFunc: (fileExternalId: string) => 
-            this.filesApi().bulkDelete([fileExternalId], [], []),
+        deleteFileFunc: async (fileExternalId: string) => {            
+            const result = await this.filesApi().bulkDelete([fileExternalId], [], []);
+            
+            if(result.newWorkspaceSizeInBytes != null) {
+                this.workspaceSizeUpdated.emit(result.newWorkspaceSizeInBytes);
+            }
+        },
 
         getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => 
             this.filesApi().getDownloadLink(fileExternalId, contentDisposition),
@@ -406,6 +416,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
     private _uploadsCompletedSubscription: Subscription | null = null;
     private _uploadsInitiatedSubscription: Subscription | null = null;
+    private _uploadsAbortedSubscription: Subscription | null = null;
+    private _workspaceSizeUpdatedSubscription: Subscription | null = null;
 
     viewMode = signal<ViewMode>('list-view');
     treeViewMode = signal<TreeViewMode>('show-all');
@@ -435,11 +447,21 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         this._uploadsInitiatedSubscription = this.fileUploadManager.uploadsInitiated.subscribe({
             next: (uploadsInitiatedEvent) => this.onUploadsInitiated(uploadsInitiatedEvent)
         });
+
+        this._uploadsAbortedSubscription = this.fileUploadManager.uploadsAborted.subscribe({
+            next: (uploadsAbortedEvent) => this.onUploadsAborted(uploadsAbortedEvent)
+        });
+
+        this._workspaceSizeUpdatedSubscription = this.fileUploadManager.workspaceSizeUpdated.subscribe({
+            next: (workspaceSizeUpdatedEvent) => this.workspaceSizeUpdated.emit(workspaceSizeUpdatedEvent.newWorkpsaceSizeInBytes)
+        });
     }
 
     ngOnDestroy(): void {
         this._uploadsCompletedSubscription?.unsubscribe();
         this._uploadsInitiatedSubscription?.unsubscribe();
+        this._uploadsAbortedSubscription?.unsubscribe();
+        this._workspaceSizeUpdatedSubscription?.unsubscribe();
     }
 
     private onDragEnter(event: DragEvent): void {
@@ -957,6 +979,10 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         this.files.update(values => [...values, newFile]);
     }
 
+    public onUploadsAborted(event: UploadsAbortedEvent) {
+        this.uploads.update(values => values.filter(u => !event.uploadExternalIds.includes(u.externalId)));
+    }
+
     public prefetchTopFolders() {
         this.filesApi().prefetchTopFolders();
     }
@@ -1025,11 +1051,15 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
                 uploadsToDelete);
         }
 
-        await this.filesApi().bulkDelete(
+        const result = await this.filesApi().bulkDelete(
             filesToDelete,
             foldersToDelete,
             uploadsToDelete
         );
+
+        if(result.newWorkspaceSizeInBytes != null) {
+            this.workspaceSizeUpdated.emit(result.newWorkspaceSizeInBytes);
+        }
     }
 
     async deleteFile(file: AppFileItem) {
@@ -1038,9 +1068,13 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
         this.files.update(values => values.filter(f => f.externalId !== file.externalId))
 
-        await this.filesApi().bulkDelete(
+        const result = await this.filesApi().bulkDelete(
             [file.externalId], [], []
         );
+        
+        if(result.newWorkspaceSizeInBytes != null) {
+            this.workspaceSizeUpdated.emit(result.newWorkspaceSizeInBytes);
+        }
     }
 
     async downloadSelectedItems() {        
@@ -1392,11 +1426,15 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         this.files.update(values => values.filter(f => state.selectedFileExternalIds.indexOf(f.externalId) == -1))        
         this.folders.update(values => values.filter((f) => state.selectedFolderExternalIds.indexOf(f.externalId) == -1));
 
-        await this.filesApi().bulkDelete(
+        const result = await this.filesApi().bulkDelete(
             state.selectedFileExternalIds,
             state.selectedFolderExternalIds,
             []
-        );
+        );       
+
+        if(result.newWorkspaceSizeInBytes != null) {
+            this.workspaceSizeUpdated.emit(result.newWorkspaceSizeInBytes);
+        }
     }
 
     async onTreeSearchRequested(request: FileTreeSearchRequest) {

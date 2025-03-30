@@ -19,5 +19,6 @@ export function getBulkInitiateFileUploadResponseDtoProtobuf() {
         .add(multiStepChunkUploads)
         .add(new protobuf.Field("directUploads", 1, "BulkInitiateDirectUploadsResponseDto"))
         .add(new protobuf.Field("singleChunkUploads", 2, "BulkInitiateSingleChunkUploadResponseDto", "repeated"))
-        .add(new protobuf.Field("multiStepChunkUploads", 3, "BulkInitiateMultiStepChunkUploadResponseDto", "repeated"));
+        .add(new protobuf.Field("multiStepChunkUploads", 3, "BulkInitiateMultiStepChunkUploadResponseDto", "repeated"))
+        .add(new protobuf.Field("newWorkspaceSizeInBytes", 4, "int64"));
 }

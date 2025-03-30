@@ -4,7 +4,14 @@ using PlikShare.Uploads.Id;
 
 namespace PlikShare.BulkDelete.Contracts;
 
-public record BulkDeleteRequestDto(
-    List<FileExtId> FileExternalIds,
-    List<FolderExtId> FolderExternalIds,
-    List<FileUploadExtId> FileUploadExternalIds);
+public class BulkDeleteRequestDto
+{
+    public required List<FileExtId> FileExternalIds { get; init; }
+    public required List<FolderExtId> FolderExternalIds { get; init; }
+    public required List<FileUploadExtId> FileUploadExternalIds { get; init; }
+}
+
+public class BulkDeleteResponseDto
+{
+    public required long? NewWorkspaceSizeInBytes { get; init; }
+}

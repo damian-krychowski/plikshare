@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
@@ -12,6 +13,7 @@ using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.Id;
 using PlikShare.Uploads.Initiate.Contracts;
 using PlikShare.Workspaces.Cache;
+using PlikShare.Workspaces.GetSize;
 using Serilog;
 
 namespace PlikShare.Uploads.Initiate;
@@ -21,6 +23,7 @@ public class BulkInitiateFileUploadOperation(
     FileUploadCache fileUploadCache,
     PreSignedUrlsService preSignedUrlsService,
     BulkInsertFileUploadQuery bulkInsertFileUploadQuery,
+    GetWorkspaceSizeQuery getWorkspaceSizeQuery,
     IClock clock)
 {
     /// <summary>
@@ -34,6 +37,16 @@ public class BulkInitiateFileUploadOperation(
         int? boxFolderId,
         CancellationToken cancellationToken = default)
     {
+        var isBoxMode = boxFolderId is not null;
+
+        var workspaceSpace = CheckWorkspaceSpace(
+            workspace: workspace,
+            fileDetailsList: fileDetailsList,
+            isBoxMode: isBoxMode);
+
+        if (!workspaceSpace.IsAvailable)
+            return new Result(Code: ResultCode.NotEnoughSpace);
+
         var (folderValidationResultCode, folderValidationResults) = ValidateFolders(
             workspace: workspace,
             fileDetailsList: fileDetailsList,
@@ -77,6 +90,7 @@ public class BulkInitiateFileUploadOperation(
             userIdentity,
             batchUploadResults,
             folderValidationResults,
+            workspaceSpace.NewWorkspaceSizeInBytes,
             cancellationToken);
 
         if (insertFileUploadsResult.Code == BulkInsertFileUploadQuery.ResultCode.FolderNotFound)
@@ -99,21 +113,52 @@ public class BulkInitiateFileUploadOperation(
             batchUploadResults,
             insertFileUploadsResult,
             cancellationToken);
-        
+
         var response = PrepareResponse(
-            workspace: workspace, 
-            userIdentity: userIdentity, 
-            batchUploadResults: batchUploadResults);
+            workspace: workspace,
+            userIdentity: userIdentity,
+            batchUploadResults: batchUploadResults,
+            newWorkspaceSizeInBytes: isBoxMode 
+                ? null 
+                : workspaceSpace.NewWorkspaceSizeInBytes);
 
         return new Result(
             Code: ResultCode.Ok,
             Response: response);
     }
 
+    private WorkspaceSpace CheckWorkspaceSpace(
+        WorkspaceContext workspace,
+        BulkInitiateFileUploadItemDto[] fileDetailsList,
+        bool isBoxMode)
+    {
+        //for now for box we do not return size of the workspace
+        //not to reveale this information to unauthorized users
+        if (workspace.MaxSizeInBytes is null && isBoxMode)
+            return new WorkspaceSpace(
+                IsAvailable: true,
+                NewWorkspaceSizeInBytes: -1);
+
+        var newFilesSizeInBytes = fileDetailsList
+            .Aggregate(0L, (requiredSpace, file) => requiredSpace + file.FileSizeInBytes);
+
+        var workspaceTotalSizeInBytes = getWorkspaceSizeQuery.Execute(
+            workspace);
+
+        var newWorkspaceSizeInBytes = workspaceTotalSizeInBytes + newFilesSizeInBytes;
+
+        return new WorkspaceSpace(
+            IsAvailable: workspace.MaxSizeInBytes is null
+                || newWorkspaceSizeInBytes <= workspace.MaxSizeInBytes,
+            NewWorkspaceSizeInBytes: newWorkspaceSizeInBytes);
+    }
+
+
     private BulkInitiateFileUploadResponseDto PrepareResponse(
         WorkspaceContext workspace, 
         IUserIdentity userIdentity,
-        List<UploadDetails> batchUploadResults)
+        List<UploadDetails> batchUploadResults,
+        long? newWorkspaceSizeInBytes)
     {
         var directUploadsCount = 0;
         var singleChunkUploads = new List<BulkInitiateSingleChunkUploadResponseDto>();
@@ -170,7 +215,9 @@ public class BulkInitiateFileUploadOperation(
                 }
                 : null,
             MultiStepChunkUploads = multiStepChunkUploads,
-            SingleChunkUploads = singleChunkUploads
+            SingleChunkUploads = singleChunkUploads,
+
+            NewWorkspaceSizeInBytes = newWorkspaceSizeInBytes ?? -1
         };
 
         return response;
@@ -367,6 +414,7 @@ public class BulkInitiateFileUploadOperation(
         IUserIdentity userIdentity,
         List<UploadDetails> batchUploadResults,
         Dictionary<string, FolderValidationResult> folderValidationResults,
+        long newWorkspaceSizeInBytes,
         CancellationToken cancellationToken)
     {
         var uploadsToInsert = batchUploadResults
@@ -397,6 +445,7 @@ public class BulkInitiateFileUploadOperation(
             workspace: workspace,
             userIdentity: userIdentity,
             entities: uploadsToInsert,
+            newWorkspaceSizeInBytes: newWorkspaceSizeInBytes,
             cancellationToken: cancellationToken);
 
         return insertFileUploadsResult;
@@ -611,14 +660,15 @@ public class BulkInitiateFileUploadOperation(
 
     public record Result(
         ResultCode Code,
-        BulkInitiateFileUploadResponseDto? Response = default,
-        List<string>? MissingFolders = default);
+        BulkInitiateFileUploadResponseDto? Response = null,
+        List<string>? MissingFolders = null);
 
     public enum ResultCode
     {
         Ok = 0,
         FoldersNotFound,
-        TopFolderUnauthorizedAccess
+        TopFolderUnauthorizedAccess,
+        NotEnoughSpace
     }
 
 
@@ -651,4 +701,8 @@ public class BulkInitiateFileUploadOperation(
         public required S3FileKey S3Key { get; init; }
         public required StorageUploadDetails StorageUploadDetails { get; init; }
     }
+
+    private readonly record struct WorkspaceSpace(
+        bool IsAvailable,
+        long NewWorkspaceSizeInBytes);
 }

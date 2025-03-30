@@ -39,6 +39,9 @@ public class BulkInitiateFileUploadResponseDto
 
     [ProtoMember(3)]
     public required List<BulkInitiateMultiStepChunkUploadResponseDto> MultiStepChunkUploads { get; init; }
+
+    [ProtoMember(4)]
+    public required long? NewWorkspaceSizeInBytes { get; init; }
 }
 
 [ProtoContract]

@@ -1,5 +1,4 @@
-﻿using Microsoft.Data.Sqlite;
-using PlikShare.Core.Clock;
+﻿using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
@@ -129,12 +128,6 @@ public class BulkConvertDirectFileUploadsToFilesQuery(
                     "Successfully deleted file uploads. FileUploadIds: {FileUploadIds}",
                     fileUploadIds);
             }
-            
-            EnqueueWorkspaceSizeUpdateJob(
-                dbWriteContext: dbWriteContext,
-                workspaceId:  workspaceId,
-                correlationId: correlationId,
-                transaction: transaction);
 
             transaction.Commit();
 
@@ -154,25 +147,6 @@ public class BulkConvertDirectFileUploadsToFilesQuery(
 
             throw;
         }
-    }
-
-
-    private QueueJobId EnqueueWorkspaceSizeUpdateJob(
-        DbWriteQueue.Context dbWriteContext,
-        int workspaceId,
-        Guid correlationId,
-        SqliteTransaction transaction)
-    {
-        return queue.EnqueueOrThrow(
-            correlationId: correlationId,
-            jobType: UpdateWorkspaceCurrentSizeInBytesQueueJobType.Value,
-            definition: new UpdateWorkspaceCurrentSizeInBytesQueueJobDefinition(
-                WorkspaceId: workspaceId),
-            executeAfterDate: clock.UtcNow.AddSeconds(10),
-            debounceId: $"update_workspace_current_size_in_bytes_{workspaceId}",
-            sagaId: null,
-            dbWriteContext: dbWriteContext,
-            transaction: transaction);
     }
     
     public enum ResultCode

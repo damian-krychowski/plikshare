@@ -10,31 +10,32 @@ public class GetUsersQuery(
     PlikShareDb plikShareDb,
     AppOwners appOwners)
 {
+    private static readonly string Sql = $"""
+                                          SELECT
+                                              u_external_id,
+                                              u_email,
+                                              u_email_confirmed,
+                                              (
+                                                  SELECT COUNT(*)
+                                                  FROM w_workspaces
+                                                  WHERE w_owner_id = u_id
+                                              ) AS u_workspaces_count,
+                                          	  ({UserSql.HasRole(Roles.Admin)}) AS u_is_admin,
+                                              ({UserSql.HasClaim(Claims.Permission, Permissions.AddWorkspace)}) AS u_can_add_workspace,
+                                              ({UserSql.HasClaim(Claims.Permission, Permissions.ManageGeneralSettings)}) AS u_can_manage_general_settings,
+                                              ({UserSql.HasClaim(Claims.Permission, Permissions.ManageUsers)}) AS u_can_manage_users,
+                                              ({UserSql.HasClaim(Claims.Permission, Permissions.ManageStorages)}) AS u_can_manage_storages,
+                                              ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers
+                                          FROM u_users
+                                          ORDER BY u_id ASC
+                                          """;
     public List<User> Execute()
     {
         using var connection = plikShareDb.OpenConnection();
 
         return connection
             .Cmd(
-                sql: $@"
-                    SELECT
-                        u_external_id,
-                        u_email,
-                        u_email_confirmed,
-                        (
-                            SELECT COUNT(*)
-                            FROM w_workspaces
-                            WHERE w_owner_id = u_id
-                        ) AS u_workspaces_count,
-				        ({UserSql.HasRole(Roles.Admin)}) AS u_is_admin,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.AddWorkspace)}) AS u_can_add_workspace,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.ManageGeneralSettings)}) AS u_can_manage_general_settings,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.ManageUsers)}) AS u_can_manage_users,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.ManageStorages)}) AS u_can_manage_storages,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers
-                    FROM u_users
-                    ORDER BY u_id ASC
-                ",
+                sql: Sql,
                 readRowFunc: reader =>
                 {
                     var externalId = reader.GetExtId<UserExtId>(0);

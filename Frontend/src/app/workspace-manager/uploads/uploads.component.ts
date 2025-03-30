@@ -8,6 +8,7 @@ import { FoldersAndFilesSetApi } from '../../services/folders-and-files.api';
 import { AppUploadListItem, UploadListItemComponent } from './upload-list-item/upload-list-item.component';
 import { removeItems } from '../../shared/signal-utils';
 import { CookieUtils } from '../../shared/cookies';
+import { WorkspaceContextService } from '../workspace-context.service';
 
 @Component({
     selector: 'app-uploads',
@@ -39,7 +40,8 @@ export class UploadsComponent implements OnInit, OnDestroy {
         private _uploadsApi: UploadsApi,
         public fileUploadManager: FileUploadManager,
         private _activatedRoute: ActivatedRoute,
-        private _dataStore: DataStore
+        private _dataStore: DataStore,
+        private _workspaceContext: WorkspaceContextService
     ) {
 
     }
@@ -101,12 +103,16 @@ export class UploadsComponent implements OnInit, OnDestroy {
     async onUploadAborted(upload: AppUploadListItem) {
         removeItems(this.uploads, upload);
 
-        await this._foldersAndFilesSetApi.bulkDelete({
+        const result = await this._foldersAndFilesSetApi.bulkDelete({
             workspaceExternalId: this._workspaceExternalId,
             fileUploadExternalIds: [upload.externalId()],
             folderExternalIds: [],
             fileExternalIds: []
         });
+
+        if(result.newWorkspaceSizeInBytes != null){
+            this._workspaceContext.updateWorkspaceSize(result.newWorkspaceSizeInBytes);
+        }
     }    
 
     private getFileUploadApi(): FileUploadApi {
@@ -131,8 +137,8 @@ export class UploadsComponent implements OnInit, OnDestroy {
                 return this._uploadsApi.completeUpload(this._workspaceExternalId, uploadExternalId);
             },
 
-            abort: (uploadExternalId: string) => {
-                return this._foldersAndFilesSetApi.bulkDelete({
+            abort: async (uploadExternalId: string) => {
+                await this._foldersAndFilesSetApi.bulkDelete({
                     workspaceExternalId: this._workspaceExternalId,
                     fileUploadExternalIds: [uploadExternalId],
                     folderExternalIds: [],

@@ -1,0 +1,5 @@
+ALTER TABLE w_workspaces ADD COLUMN w_max_size_in_bytes INTEGER NULL;
+
+-- Create optimized indexes for workspace size calculation
+CREATE INDEX index__fu_file_uploads__fu_workspace_id__fu_file_size_in_bytes__fu_folder_id ON fu_file_uploads(fu_workspace_id, fu_file_size_in_bytes, fu_folder_id);
+CREATE INDEX index__fi_files__fi_workspace_id__fi_size_in_bytes__fi_folder_id ON fi_files(fi_workspace_id, fi_size_in_bytes, fi_folder_id);

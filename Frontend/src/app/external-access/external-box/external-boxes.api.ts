@@ -4,7 +4,7 @@ import { Observable, firstValueFrom } from "rxjs";
 import { BoxMoveItemsToFolderRequest, BoxUpdateFolderNameRequest, BoxUpdateFileNameRequest, GetBoxDetailsAndFolderResponse, BoxCompleteFilePartUploadRequest, BoxInitiateFilePartUploadResponse, BoxCompleteFileUploadResponse, BoxGetUploadListResponse, GetBoxHtmlResponse, BoxGetFileUploadDetailsResponse } from "../contracts/external-access.contracts";
 import { DataStore } from "../../services/data-store.service";
 import { ZipPreviewDetails } from "../../files-explorer/file-inline-preview/file-inline-preview.component";
-import { BulkCreateFolderRequest, BulkCreateFolderResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFolderResponse, SearchFilesTreeRequest, SearchFilesTreeResponse } from "../../services/folders-and-files.api";
+import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFolderResponse, SearchFilesTreeRequest, SearchFilesTreeResponse } from "../../services/folders-and-files.api";
 import { ZipEntry } from "../../services/zip";
 import { BulkInitiateFileUploadRequest, BulkInitiateFileUploadResponse, BulkInitiateFileUploadResponseRaw, deserializeBulkUploadResponse, InitiateFileUploadRequest, InitiateFileUploadResponse } from "../../services/uploads.api";
 import { getZipFileDetailsDtoProtobuf } from "../../protobuf/zip-file-details-dto.protobuf";
@@ -88,20 +88,22 @@ export class ExternalBoxesSetApi {
         fileExternalIds: string[],
         folderExternalIds: string[],
         fileUploadExternalIds: string[]
-    }): Promise<void> {
+    }): Promise<BulkDeleteResponse> {
         const call = this
             ._http
-            .post(`/api/boxes/${args.boxExternalId}/bulk-delete`, {
+            .post<BulkDeleteResponse>(`/api/boxes/${args.boxExternalId}/bulk-delete`, {
                 fileExternalIds: args.fileExternalIds,
                 folderExternalIds: args.folderExternalIds,
                 fileUploadExternalIds: args.fileUploadExternalIds
             });
 
-        await firstValueFrom(call);
+        const response = await firstValueFrom(call);
 
         this._dataStore.invalidateEntries(
             key => key.startsWith(this._dataStore.externalBoxKeysPrefix(args.boxExternalId))
         );
+
+        return response;
     }
     
     public async updateFolderName(boxExternalId: string, folderExternalId: string, request: BoxUpdateFolderNameRequest): Promise<void> {

@@ -6,6 +6,7 @@ using PlikShare.Boxes.Permissions;
 using PlikShare.BoxExternalAccess.Authorization;
 using PlikShare.BoxExternalAccess.Contracts;
 using PlikShare.BoxExternalAccess.Handler;
+using PlikShare.BulkDelete.Contracts;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
 using PlikShare.Core.Protobuf;
@@ -326,7 +327,7 @@ public static class BoxLinkAccessCodesEndpoints
             cancellationToken: cancellationToken);
     }
 
-    private static Task<Results<Ok, StatusCodeHttpResult>> DeleteFile(
+    private static Task<Results<Ok<BulkDeleteResponseDto>, StatusCodeHttpResult>> DeleteFile(
         [FromBody] BoxBulkDeleteRequestDto request,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,

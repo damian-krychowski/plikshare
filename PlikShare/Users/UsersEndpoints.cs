@@ -115,78 +115,10 @@ public static class UsersEndpoints
         if (user is null)
             return HttpErrors.User.NotFound(userExternalId);
 
-        var result = getUserDetailsQuery.Execute(
+        var response = getUserDetailsQuery.Execute(
             user: user);
 
-        return TypedResults.Ok(new GetUserDetails.ResponseDto(
-            User: new GetUserDetails.UserDetailsDto(
-                ExternalId: user.ExternalId,
-                Email: user.Email.Value,
-                IsEmailConfirmed: user.IsEmailConfirmed,
-                Roles: new GetUserDetails.UserRolesDto(
-                    IsAppOwner: user.Roles.IsAppOwner,
-                    IsAdmin: user.Roles.IsAdmin),
-                Permissions: new GetUserDetails.UserPermissionsDto(
-                    CanAddWorkspace: user.Permissions.CanAddWorkspace,
-                    CanManageGeneralSettings: user.Permissions.CanManageGeneralSettings,
-                    CanManageUsers: user.Permissions.CanManageUsers,
-                    CanManageStorages: user.Permissions.CanManageStorages,
-                    CanManageEmailProviders: user.Permissions.CanManageEmailProviders)),
-
-            Workspaces: result.Workspaces
-                .Select(w => new GetUserDetails.WorkspaceDto(
-                    ExternalId: w.ExternalId,
-                    Name: w.Name,
-                    StorageName: w.StorageName,
-                    CurrentSizeInBytes: w.CurrentSizeInBytes,
-                    IsUsedByIntegration: w.IsUsedByIntegration,
-                    IsBucketCreated: w.IsBucketCreated))
-                .ToList(),
-
-            SharedWorkspaces: result.SharedWorkspaces
-                .Select(w => new GetUserDetails.SharedWorkspaceDto(
-                    ExternalId: w.ExternalId,
-                    Name: w.Name,
-                    StorageName: w.StorageName,
-                    CurrentSizeInBytes: w.CurrentSizeInBytes,
-                    Owner: new GetUserDetails.UserDto(
-                        ExternalId: w.OwnerExternalId,
-                        Email: w.OwnerEmail),
-                    Inviter: new GetUserDetails.UserDto(
-                        ExternalId: w.InviterExternalId,
-                        Email: w.InviterEmail),
-                    WasInvitationAccepted: w.WasInvitationAccepted,
-                    Permissions: new GetUserDetails.WorkspacePermissionsDto(
-                        AllowShare: w.AllowShare),
-                    IsUsedByIntegration: w.IsUsedByIntegration,
-                    IsBucketCreated: w.IsBucketCreated))
-                .ToList(),
-
-            SharedBoxes: result.SharedBoxes
-                .Select(b => new GetUserDetails.SharedBoxDto(
-                    WorkspaceExternalId: b.WorkspaceExternalId,
-                    WorkspaceName: b.WorkspaceName,
-                    StorageName: b.StorageName,
-                    Owner: new GetUserDetails.UserDto(
-                        ExternalId: b.OwnerExternalId,
-                        Email: b.OwnerEmail),
-                    BoxExternalId: b.BoxExternalId,
-                    BoxName: b.BoxName,
-                    Inviter: new GetUserDetails.UserDto(
-                        ExternalId: b.InviterExternalId,
-                        Email: b.InviterEmail),
-                    WasInvitationAccepted: b.WasInvitationAccepted,
-                    Permissions: new GetUserDetails.BoxPermissionsDto(
-                        AllowDownload: b.AllowDownload,
-                        AllowUpload: b.AllowUpload,
-                        AllowList: b.AllowList,
-                        AllowDeleteFile: b.AllowDeleteFile,
-                        AllowRenameFile: b.AllowRenameFile,
-                        AllowMoveItems: b.AllowMoveItems,
-                        AllowCreateFolder: b.AllowCreateFolder,
-                        AllowRenameFolder: b.AllowRenameFolder,
-                        AllowDeleteFolder: b.AllowDeleteFolder)))
-                .ToList()));
+        return TypedResults.Ok(response);
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateIsAdmin(

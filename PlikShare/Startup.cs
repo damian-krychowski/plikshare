@@ -202,6 +202,7 @@ using PlikShare.Workspaces.CreateBucket;
 using PlikShare.Workspaces.Delete;
 using PlikShare.Workspaces.Delete.QueueJob;
 using PlikShare.Workspaces.DeleteBucket;
+using PlikShare.Workspaces.GetSize;
 using PlikShare.Workspaces.Members.AcceptInvitation;
 using PlikShare.Workspaces.Members.CreateInvitation;
 using PlikShare.Workspaces.Members.LeaveWorkspace;
@@ -211,6 +212,7 @@ using PlikShare.Workspaces.Members.Revoke;
 using PlikShare.Workspaces.Members.UpdatePermissions;
 using PlikShare.Workspaces.SearchFilesTree;
 using PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
+using PlikShare.Workspaces.UpdateMaxSize;
 using PlikShare.Workspaces.UpdateName;
 using Serilog;
 using Serilog.Events;
@@ -267,6 +269,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_14_WorkspaceIdAddedToIntegrationsTable>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_15_ReencryptDatabaseFromAesCcmToAesGcm>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_16_SignUpCheckboxesIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_17_WorkspaceMaxSizeColumnIntroduced>();
         
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 
@@ -370,6 +373,7 @@ public class Startup
         builder.Services.AddSingleton<IQueueNormalJobExecutor, CreateWorkspaceBucketJobExecutor>();
         builder.Services.AddSingleton<CreateWorkspaceQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceNameQuery>();
+        builder.Services.AddSingleton<UpdateWorkspaceMaxSizeQuery>();
         builder.Services.AddSingleton<CreateWorkspaceMemberInvitationQuery>();
         builder.Services.AddSingleton<CreateWorkspaceMemberInvitationOperation>();
         builder.Services.AddSingleton<UpdateWorkspaceIsBucketCreatedQuery>();
@@ -383,10 +387,10 @@ public class Startup
         builder.Services.AddSingleton<DeleteWorkspaceWithDependenciesQuery>();
         builder.Services.AddSingleton<IQueueDbOnlyJobExecutor, DeleteWorkspaceQueueJobExecutor>();
         builder.Services.AddSingleton<IQueueNormalJobExecutor, DeleteBucketJobExecutor>();
-        builder.Services.AddSingleton<UpdateWorkspaceCurrentSizeInBytesQuery>();
         builder.Services.AddSingleton<IQueueDbOnlyJobExecutor, UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor>();
         builder.Services.AddSingleton<BulkDeleteQuery>();
         builder.Services.AddSingleton<ChangeWorkspaceOwnerQuery>();
+        builder.Services.AddSingleton<GetWorkspaceSizeQuery>();
 
         builder.Services.AddSingleton<UserService>();
         builder.Services.AddSingleton<UserCache>();

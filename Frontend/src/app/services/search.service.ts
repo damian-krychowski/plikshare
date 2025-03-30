@@ -489,7 +489,8 @@ export class SearchService {
             type: 'app-workspace',
             externalId: signal(item.externalId),
             name: signal(item.name),
-            currentSizeInBytes: signal(item.currentSizeInBytes),            
+            currentSizeInBytes: signal(item.currentSizeInBytes),        
+            maxSizeInBytes: item.maxSizeInBytes,    
             owner: signal({
                 email: signal(item.ownerEmail),
                 externalId: item.ownerExternalId,
@@ -566,12 +567,14 @@ export class SearchService {
                 }
             ),
 
-            deleteFileFunc: async (fileExternalId: string) => this._foldersAndFilesSetApi.bulkDelete({
-                workspaceExternalId: workspaceExternalId, 
-                fileExternalIds: [fileExternalId],
-                folderExternalIds: [],
-                fileUploadExternalIds: []
-            }),
+            deleteFileFunc: async (fileExternalId: string) => {
+                await this._foldersAndFilesSetApi.bulkDelete({
+                    workspaceExternalId: workspaceExternalId, 
+                    fileExternalIds: [fileExternalId],
+                    folderExternalIds: [],
+                    fileUploadExternalIds: []
+                });
+            },
 
             getDownloadLink: async (fileExternalId: string, contentDisposition: ContentDisposition) => this._foldersAndfilesGetApi.getDownloadLink(
                 workspaceExternalId, 
@@ -635,12 +638,14 @@ export class SearchService {
                 }
             ),
 
-            deleteFileFunc: (fileExternalId: string) => this._externalBoxesSetApi.bulkDelete({
-                boxExternalId: boxExternalId,
-                fileExternalIds: [fileExternalId],
-                folderExternalIds: [],
-                fileUploadExternalIds: []
-            }),
+            deleteFileFunc: async (fileExternalId: string) => {
+                await this._externalBoxesSetApi.bulkDelete({
+                    boxExternalId: boxExternalId,
+                    fileExternalIds: [fileExternalId],
+                    folderExternalIds: [],
+                    fileUploadExternalIds: []
+                });
+            },
 
             getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => this._externalBoxesGetApi.getDownloadLink(
                 boxExternalId, 

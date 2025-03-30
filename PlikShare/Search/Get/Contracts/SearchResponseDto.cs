@@ -46,21 +46,24 @@ public class SearchResponseDto
         public required long CurrentSizeInBytes { get; init; }
 
         [ProtoMember(4)]
-        public required string OwnerEmail { get; init; }
+        public required long MaxSizeInBytes { get; init; }
 
         [ProtoMember(5)]
-        public required string OwnerExternalId { get; init; }
+        public required string OwnerEmail { get; init; }
 
         [ProtoMember(6)]
-        public required bool IsOwnedByUser { get; init; }
+        public required string OwnerExternalId { get; init; }
 
         [ProtoMember(7)]
-        public required bool AllowShare { get; init; }
+        public required bool IsOwnedByUser { get; init; }
 
         [ProtoMember(8)]
-        public required bool IsUsedByIntegration { get; init; }
+        public required bool AllowShare { get; init; }
 
         [ProtoMember(9)]
+        public required bool IsUsedByIntegration { get; init; }
+
+        [ProtoMember(10)]
         public required bool IsBucketCreated { get; init; }
     }
 

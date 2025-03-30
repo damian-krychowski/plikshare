@@ -157,6 +157,10 @@ export class ExplorerComponent implements OnInit, OnDestroy {
         this.setRoute(folderExternalId, undefined);
     }
 
+    public onWorkspaceSizeUpdated(newWorkspaceSizeInBytes: number) {
+        this.context.updateWorkspaceSize(newWorkspaceSizeInBytes);
+    }
+
     public onFilePreviewed(file: AppFileItem | null) {
         if(this._workspaceExternalId == null) {
             throw new Error('Workspace is not set');
@@ -215,7 +219,13 @@ export class ExplorerComponent implements OnInit, OnDestroy {
                 workspaceExternalId,
                 uploadExternalId),
 
-            abort: (uploadExternalId: string) => this.filesApi()!.bulkDelete([],[],[uploadExternalId])
+            abort: async (uploadExternalId: string) => {
+                const result = await this.filesApi()!.bulkDelete([],[],[uploadExternalId])
+
+                if(result.newWorkspaceSizeInBytes != null){
+                    this.context.updateWorkspaceSize(result.newWorkspaceSizeInBytes);
+                }
+            }
         }
     }
 

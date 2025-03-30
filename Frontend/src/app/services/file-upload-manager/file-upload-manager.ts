@@ -8,6 +8,9 @@ import { SingleChunkFileUpload } from "./single-chunk-file-upload";
 import { toNameAndExtension } from "../filte-type";
 import { getBase62Guid } from "../guid-base-62";
 import { MultiFileDirectFileUpload } from "./multi-file-direct-file-upload";
+import { HttpErrorResponse } from "@angular/common/http";
+import { MatDialog } from "@angular/material/dialog";
+import { NotEnoughSpaceComponent } from "../../shared/not-enough-space/not-enough-space.component";
 
 export type UploadAlgorithm = "direct-upload" | "single-chunk-upload" | "multi-step-chunk-upload";
 
@@ -58,8 +61,12 @@ export type UploadsInitiatedEvent = {
     uploads: AppUploadItem[];
 }
 
-export type UploadAbortedEvent = {
+export type UploadsAbortedEvent = {
     uploadExternalIds: string[];
+}
+
+export type WorkspaceSizeUpdatedEvent = {
+    newWorkpsaceSizeInBytes: number;
 }
 
 export interface IFileUpload {
@@ -126,9 +133,11 @@ export class FileUploadManager {
 
     public uploadsInitiated: Subject<UploadsInitiatedEvent> = new Subject();
     public uploadCompleted: Subject<UploadCompletedEvent> = new Subject();
-    public uploadAborted: Subject<UploadAbortedEvent> = new Subject();
+    public uploadsAborted: Subject<UploadsAbortedEvent> = new Subject();
+    public workspaceSizeUpdated: Subject<WorkspaceSizeUpdatedEvent> = new Subject();
 
-    //todo passing uploadsApi like here wont work on cross workspace/boxes scenarios -gonna to figure it out later
+    constructor(private _dialog: MatDialog) { }
+
     public addFiles(files: FileToUpload[], uploadsApi: FileUploadApi) {
         for (const file of files) {
             if (file.size <= SMALL_FILE_THRESHOLD) {
@@ -192,9 +201,11 @@ export class FileUploadManager {
 
             const batchToUpload = this.selectBatch();
             
+            let preInitiationFileToUploadsMap: Map<string, PreInitiationFileToUpload> | null = null;
+
             try {
                 //todo that can be improved
-                const preInitiationFileToUploadsMap = this.mapToUploadItems(
+                preInitiationFileToUploadsMap = this.mapToUploadItems(
                     batchToUpload);
 
                 this.uploadsInitiated.next({
@@ -218,6 +229,12 @@ export class FileUploadManager {
                             return request;
                         })
                 });
+
+                if(bulkUploadInitiateResult.newWorkspaceSizeInBytes !== null) {
+                    this.workspaceSizeUpdated.next({
+                        newWorkpsaceSizeInBytes: bulkUploadInitiateResult.newWorkspaceSizeInBytes 
+                    });
+                }
 
                 var initiatedFileToUploads = this.mapInitiatedFileToUploads(
                     preInitiationFileToUploadsMap,
@@ -269,7 +286,32 @@ export class FileUploadManager {
                         uploadsApi: uploadsApi
                     });   
                 }
-            } catch (error) {
+            } catch (error: any) {
+                const parsedError = this.tryParseErrorResponse(error);
+
+                if(parsedError?.code === 'not-enough-space-available') {
+                    this.clearQueue();
+                    this.isProcessing = false;   
+                    
+                    if(preInitiationFileToUploadsMap) {
+                        this.uploadsAborted.next({
+                            uploadExternalIds:  Array.from(
+                                preInitiationFileToUploadsMap.values(), 
+                                item => item.uploadItem.externalId)
+                        });
+                    }
+
+                    this._dialog.open(NotEnoughSpaceComponent, {
+                        width: '400px',
+                        maxHeight: '600px',
+                        position: {
+                            top: '100px'
+                        }
+                    });
+                            
+                    return;
+                }
+
                 console.error('Failed to initiate batch:', error);
                 // Return failed files to appropriate queues
                 for (const file of batchToUpload) {
@@ -285,6 +327,28 @@ export class FileUploadManager {
         }
 
         this.isProcessing = false;
+    }
+
+    private clearQueue() {
+        this.smallFilesQueue = [];
+        this.largeFilesQueue = [];
+        this.updateQueueSize();
+    }
+
+    private tryParseErrorResponse(error: any): {message: string, code: string} | null {
+        if (error.error instanceof ArrayBuffer) {
+            const errorText = new TextDecoder().decode(error.error);
+
+            try {
+                const errorJson = JSON.parse(errorText);
+
+                return errorJson;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -476,7 +540,7 @@ export class FileUploadManager {
         const completedResult = await args.uploadPromise;
 
         if (completedResult === null) {
-            this.uploadAborted.next({
+            this.uploadsAborted.next({
                 uploadExternalIds: [args.fileUpload.details.uploadExternalId]
             });
         } else {
@@ -498,7 +562,7 @@ export class FileUploadManager {
         const completedResults = await args.uploadPromise;
 
         if (completedResults === null) {
-            this.uploadAborted.next({
+            this.uploadsAborted.next({
                 uploadExternalIds: args.fileUpload.detailsList.map(d => d.uploadExternalId)
             });
         } else {

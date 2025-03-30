@@ -46,6 +46,7 @@ export interface BulkInitiateFileUploadRequest {
 export interface BulkInitiateFileUploadResponse {
     items: InitiateFileUploadResponse[];
     preSignedMultiFileDirectUploadLink: string | null;
+    newWorkspaceSizeInBytes: number | null;
 }   
 
 export interface BulkInitiateFileUploadResponseRaw {
@@ -63,6 +64,8 @@ export interface BulkInitiateFileUploadResponseRaw {
         fileUploadExternalId: string;
         expectedPartsCount: number;
     }[];
+
+    newWorkspaceSizeInBytes: number | null;
 }
 
 export function deserializeBulkUploadResponse(
@@ -117,7 +120,10 @@ export function deserializeBulkUploadResponse(
  
     return {
         items: results,
-        preSignedMultiFileDirectUploadLink: response.directUploads?.preSignedMultiFileDirectUploadLink ?? null
+        preSignedMultiFileDirectUploadLink: response.directUploads?.preSignedMultiFileDirectUploadLink ?? null,
+        newWorkspaceSizeInBytes: response.newWorkspaceSizeInBytes === -1
+            ? null
+            : response.newWorkspaceSizeInBytes
     };
  }
 

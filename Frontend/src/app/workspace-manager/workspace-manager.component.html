@@ -21,7 +21,11 @@
                     </div>
 
                     <div class="top-bar__subtitle">
-                        Size: {{ currentSizeInBytes() | storageSize }}
+                        Size: 
+                        <app-workspace-size
+                            [currentSizeInBytes]="currentSizeInBytes()"
+                            [maxSizeInBytes]="maxSizeInBytes()">
+                        </app-workspace-size>
                     </div>
                 </div>
             </div>
@@ -75,7 +79,23 @@
                     (click)="goToTeam()"> 
                     <i class="icon icon-xl icon-nucleo-team"></i>
                 </button> 
-            }            
+            }     
+            
+            @if(auth.canManageUsers()) {
+                <button
+                    class="top-nav-btn d-none-on-mobile-early" 
+                    [class.top-nav-btn--active]="isWorkspaceConfigActive()"
+                    aria-label="Workspace Config" 
+                    mat-flat-button  
+                    matTooltip="Workspace Config"
+                    matTooltipPosition="below"
+                    (click)="goToWorkspaceConfig()"> 
+                    <div class="icon-container">              
+                        <i class="icon icon-xl icon-nucleo-workspace"></i>   
+                        <i class="icon icon-nucleo-settings icon-container__mini-icon"></i>  
+                    </div>        
+                </button> 
+            }
 
             <div class="ml-2"></div>
         }
@@ -120,6 +140,17 @@
                 Team
                 <i class="icon icon-xl icon-nucleo-team"></i>
             </a>
+
+            @if(auth.canManageUsers()) {
+                <a class="app-menu__link" (click)="goToWorkspaceConfig()"
+                    [class.app-menu__link--active]="isWorkspaceConfigActive()">
+                    Workspace Config
+                    <div class="icon-container">              
+                        <i class="icon icon-xl icon-nucleo-workspace"></i>   
+                        <i class="icon icon-nucleo-settings icon-container__mini-icon"></i>  
+                    </div>  
+                </a>
+            }
 
             @if(anyPendingUploads()) {
                 <a class="app-menu__link" (click)="goToUploads()"

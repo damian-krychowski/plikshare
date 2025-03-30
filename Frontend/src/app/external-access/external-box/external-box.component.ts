@@ -299,12 +299,14 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
                 this._boxExternalIdValue, 
                 uploadExternalId),
 
-            abort: (uploadExternalId: string) => this._externalBoxesSetApi.bulkDelete({
-                boxExternalId: this._boxExternalIdValue,
-                fileExternalIds: [],
-                folderExternalIds: [],
-                fileUploadExternalIds: [uploadExternalId]
-            })
+            abort: async (uploadExternalId: string) => {
+                await this._externalBoxesSetApi.bulkDelete({
+                    boxExternalId: this._boxExternalIdValue,
+                    fileExternalIds: [],
+                    folderExternalIds: [],
+                    fileUploadExternalIds: [uploadExternalId]
+                });
+            }
         }
     }
 

@@ -25,6 +25,7 @@ export interface GetUserDetailsResponse {
         name: string;
         storageName: string;
         currentSizeInBytes: number;
+        maxSizeInBytes: number | null;
         isUsedByIntegration: boolean;
         isBucketCreated: boolean;
     }[];
@@ -34,6 +35,7 @@ export interface GetUserDetailsResponse {
         name: string;
         storageName: string;
         currentSizeInBytes: number;
+        maxSizeInBytes: number | null;
         owner: {
             externalId: string;
             email:string;

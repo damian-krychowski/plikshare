@@ -10,6 +10,7 @@ export type WorkspaceDto = {
     externalId: string;
     name: string;
     currentSizeInBytes: number;
+    maxSizeInBytes: number | null;
     owner: {
         externalId: string;
         email: string;
@@ -50,6 +51,10 @@ export interface UpdateWorkspaceNameRequest {
 
 export interface UpdateWorkspaceOwnerRequest {
     newOwnerExternalId: string;
+}
+
+export interface UpdateWorkspaceMaxSizeRequest {
+    maxSizeInBytes: number | null;
 }
 
 export interface CreateWorkspaceRequest {
@@ -101,8 +106,7 @@ export interface GetWorkspaceBucketStatusResponse {
 })
 export class WorkspacesApi {
     constructor(
-        private _http: HttpClient,
-        private _protoHttp: ProtoHttp) {        
+        private _http: HttpClient) {        
     }
 
     public async deleteWorkspace(workspaceExternalId: string): Promise<void> {
@@ -188,6 +192,19 @@ export class WorkspacesApi {
             ._http
             .patch(
                 `/api/workspaces/${externalId}/owner`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async updateMaxSize(externalId: string, request: UpdateWorkspaceMaxSizeRequest): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/workspaces/${externalId}/max-size`, request, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
                 })

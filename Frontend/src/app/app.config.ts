@@ -124,6 +124,9 @@ export const routes: Routes = [{
     }, {
         path: 'team',
         loadComponent: () => import('./workspace-manager/team/team.component').then(m => m.TeamComponent)
+    }, {
+        path: 'config',
+        loadComponent: () => import('./workspace-manager/config/workspace-config.component').then(m => m.WorkspaceConfigComponent)
     }]
 }, {
     path: 'link/:accessCode/:folderExternalId',

@@ -72,10 +72,11 @@ public class ConvertFileUploadToFileQuery(
                     message: $"Unknown File Upload algorithm value: '{fileUpload.UploadAlgorithm}'")
             };
 
-            EnqueueWorkspaceSizeUpdateJob(
-                dbWriteContext: dbWriteContext,
+            queue.EnqueueWorkspaceSizeUpdateJob(
+                clock: clock,
                 workspaceId: workspace.Id,
                 correlationId: correlationId,
+                dbWriteContext: dbWriteContext,
                 transaction: transaction);
 
             transaction.Commit();
@@ -338,24 +339,6 @@ public class ConvertFileUploadToFileQuery(
             Code: ResultCode.Ok,
             Details: new Details(
                 FileId: fileId.Value));
-    }
-
-    private QueueJobId EnqueueWorkspaceSizeUpdateJob(
-        DbWriteQueue.Context dbWriteContext,
-        int workspaceId,
-        Guid correlationId,
-        SqliteTransaction transaction)
-    {
-        return queue.EnqueueOrThrow(
-            correlationId: correlationId,
-            jobType: UpdateWorkspaceCurrentSizeInBytesQueueJobType.Value,
-            definition: new UpdateWorkspaceCurrentSizeInBytesQueueJobDefinition(
-                WorkspaceId: workspaceId),
-            executeAfterDate: clock.UtcNow.AddSeconds(10),
-            debounceId: $"update_workspace_current_size_in_bytes_{workspaceId}",
-            sagaId: null,
-            dbWriteContext: dbWriteContext,
-            transaction: transaction);
     }
 
     private QueueJobId EnqueueCompleteFileUploadJob(

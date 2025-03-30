@@ -1,0 +1,15 @@
+<mat-form-field>
+    <mat-label>Storage Unit</mat-label>
+    <mat-select 
+        id="storageUnit"
+        name="storage_unit_selector"
+        [formControl]="storageUnitControl"
+        (selectionChange)="changed.emit()">
+        @for (unit of storageUnits; track unit) {
+            <mat-option [value]="unit">{{unit}}</mat-option>
+        }
+    </mat-select>
+    @if ((storageUnitControl.touched || wasSubmitted()) && storageUnitControl.hasError('required')) {
+        <mat-error>Storage unit is <strong>required</strong></mat-error>
+    }
+</mat-form-field>

@@ -186,6 +186,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                     externalId: signal(item.externalId),
                     name: signal(item.name),
                     currentSizeInBytes: signal(item.currentSizeInBytes),
+                    maxSizeInBytes: item.maxSizeInBytes,
                     owner: signal({
                         email: signal(item.owner.email),
                         externalId: item.owner.externalId
@@ -223,6 +224,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                 externalId: signal(item.externalId),
                 name: signal(item.name),
                 currentSizeInBytes: signal(item.currentSizeInBytes),
+                maxSizeInBytes: item.maxSizeInBytes,
                 owner: signal({
                     email: signal(item.owner.email),
                     externalId: item.owner.externalId
@@ -340,6 +342,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                 name: signal('Untitled workspace'),
                 owner: signal(await this.auth.getUser()),
                 currentSizeInBytes: signal(0),
+                maxSizeInBytes: null,
                 wasUserInvited: signal(false),
                 isUsedByIntegration: false,
                 isBucketCreated: signal(false),
@@ -375,6 +378,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                 externalId: invitation.externalId,
                 name: signal(invitation.name),
                 currentSizeInBytes: signal(0),
+                maxSizeInBytes: null,
                 owner: signal(invitation.owner), 
                 wasUserInvited: signal(true),
                 permissions: invitation.permissions,

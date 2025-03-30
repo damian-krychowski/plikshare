@@ -129,14 +129,10 @@ public class BulkDeleteFoldersWithDependenciesQuery(
             dbWriteContext: dbWriteContext,
             transaction: transaction);
 
-        var updateWorkspaceCurrentSizeJob = queue.EnqueueOrThrow(
+        var updateWorkspaceCurrentSizeJob = queue.EnqueueWorkspaceSizeUpdateJob(
+            clock: clock,
+            workspaceId: workspaceId,
             correlationId: correlationId,
-            jobType: UpdateWorkspaceCurrentSizeInBytesQueueJobType.Value,
-            definition: new UpdateWorkspaceCurrentSizeInBytesQueueJobDefinition(
-                WorkspaceId: workspaceId),
-            executeAfterDate: clock.UtcNow.AddSeconds(10),
-            debounceId: $"update_workspace_current_size_in_bytes_{workspaceId}",
-            sagaId: null,
             dbWriteContext: dbWriteContext,
             transaction: transaction);
 

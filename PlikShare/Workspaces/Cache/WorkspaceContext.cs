@@ -12,6 +12,7 @@ public sealed class WorkspaceContext
     public required WorkspaceExtId ExternalId { get; init; }
     public required string Name { get; init; }
     public required long CurrentSizeInBytes { get; init; }
+    public required long? MaxSizeInBytes { get; init; }
     public required string BucketName { get; init; }
     public required bool IsBucketCreated { get; init; }
     public required bool IsBeingDeleted { get; init; } 

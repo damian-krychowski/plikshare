@@ -153,10 +153,11 @@ public class FinalizeCopyFileUploadQuery(
                     deletedFileUploadId);
             }
 
-            EnqueueWorkspaceSizeUpdateJob(
-                dbWriteContext: dbWriteContext,
+            queue.EnqueueWorkspaceSizeUpdateJob(
+                clock: clock,
                 workspaceId: result.WorkspaceId,
                 correlationId: deletedCfq.CorrelationId,
+                dbWriteContext: dbWriteContext,
                 transaction: transaction);
 
             var onCompletedHandler = onCompletedHandlers
@@ -196,24 +197,6 @@ public class FinalizeCopyFileUploadQuery(
 
             throw;
         }
-    }
-
-    private QueueJobId EnqueueWorkspaceSizeUpdateJob(
-        DbWriteQueue.Context dbWriteContext,
-        int workspaceId,
-        Guid correlationId,
-        SqliteTransaction transaction)
-    {
-        return queue.EnqueueOrThrow(
-            correlationId: correlationId,
-            jobType: UpdateWorkspaceCurrentSizeInBytesQueueJobType.Value,
-            definition: new UpdateWorkspaceCurrentSizeInBytesQueueJobDefinition(
-                WorkspaceId: workspaceId),
-            executeAfterDate: clock.UtcNow.AddSeconds(10),
-            debounceId: $"update_workspace_current_size_in_bytes_{workspaceId}",
-            sagaId: null,
-            dbWriteContext: dbWriteContext,
-            transaction: transaction);
     }
 
     public enum ResultCode

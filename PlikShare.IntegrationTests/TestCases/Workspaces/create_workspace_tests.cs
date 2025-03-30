@@ -50,7 +50,8 @@ public class create_workspace_tests(
             },
             StorageName = hardDrive.Name,
             IsBucketCreated = false,
-            IsUsedByIntegration = false
+            IsUsedByIntegration = false,
+            MaxSizeInBytes = -1,
         });
     }
     
@@ -94,7 +95,8 @@ public class create_workspace_tests(
                 ChatGpt = [],
                 Textract = null
             },
-            IsBucketCreated = false
+            IsBucketCreated = false,
+            MaxSizeInBytes = null
         });
     }
 }

@@ -1,4 +1,4 @@
-import { Directive, Input, Output, EventEmitter, HostListener, output, input } from '@angular/core';
+import { Directive, HostListener, output, input } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { OperationConfirmComponent } from './operation-confirm.component';
 

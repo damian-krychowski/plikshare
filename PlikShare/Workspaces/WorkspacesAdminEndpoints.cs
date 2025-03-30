@@ -7,6 +7,8 @@ using PlikShare.Users.Cache;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.ChangeOwner;
 using PlikShare.Workspaces.ChangeOwner.Contracts;
+using PlikShare.Workspaces.UpdateMaxSize;
+using PlikShare.Workspaces.UpdateMaxSize.Contracts;
 using PlikShare.Workspaces.Validation;
 
 namespace PlikShare.Workspaces;
@@ -15,17 +17,53 @@ public static class WorkspacesAdminEndpoints
 {
     public static void MapWorkspacesAdminEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/workspaces")
+        app.MapPatch("/api/workspaces/{workspaceExternalId}/owner", UpdateWorkspaceOwner)
             .WithTags("Workspaces Admin")
+            .WithName("UpdateWorkspaceOwner")
             .RequireAuthorization(new AuthorizeAttribute
             {
                 Policy = AuthPolicy.Internal,
                 Roles = $"{Roles.Admin}"
-            });
-
-        group.MapPatch("/{workspaceExternalId}/owner", UpdateWorkspaceOwner)
-            .WithName("UpdateWorkspaceOwner")
+            })
             .AddEndpointFilter<ValidateWorkspaceFilter>();
+
+        app.MapPatch("/api/workspaces/{workspaceExternalId}/max-size", UpdateWorkspaceMaxSize)
+            .WithTags("Workspaces Admin")
+            .WithName("UpdateWorkspaceMaxSize")
+            .RequireAuthorization(new AuthorizeAttribute
+            {
+                Policy = AuthPolicy.Internal,
+                Roles = $"{Roles.Admin}"
+            })
+            .AddEndpointFilter(new RequireAdminPermissionEndpointFilter(
+                Core.Authorization.Permissions.ManageUsers))
+            .AddEndpointFilter<ValidateWorkspaceFilter>();
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>>> UpdateWorkspaceMaxSize(
+        [FromBody] UpdateWorkspaceMaxSizeDto request,
+        HttpContext httpContext,
+        UserCache userCache,
+        WorkspaceCache workspaceCache,
+        UpdateWorkspaceMaxSizeQuery updateWorkspaceMaxSizeQuery,
+        CancellationToken cancellationToken)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        
+        var result = await updateWorkspaceMaxSizeQuery.Execute(
+            workspace: workspaceMembership.Workspace,
+            request: request,
+            cancellationToken: cancellationToken);
+
+        if (result == UpdateWorkspaceMaxSizeQuery.ResultCode.NotFound)
+            return HttpErrors.Workspace.NotFound(
+                workspaceMembership.Workspace.ExternalId);
+
+        await workspaceCache.InvalidateEntry(
+            workspaceMembership.Workspace.ExternalId,
+            cancellationToken: cancellationToken);
+
+        return TypedResults.Ok();
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>>> UpdateWorkspaceOwner(

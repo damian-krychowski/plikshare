@@ -34,7 +34,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
     {
         var workspace = dbWriteContext
             .OneRowCmd(
-                sql: @"
+                sql: """
                     SELECT
                         w_name,
                         w_external_id,
@@ -44,7 +44,8 @@ public class DeleteWorkspaceWithDependenciesQuery(
                         w_workspaces
                     WHERE
                         w_id = $workspaceId
-                    LIMIT 1",
+                    LIMIT 1
+                    """,
                 readRowFunc: reader => new
                 {
                     Name = reader.GetString(0),

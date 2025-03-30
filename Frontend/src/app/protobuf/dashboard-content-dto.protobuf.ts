@@ -30,11 +30,12 @@ export function getDashboardContentDtoProtobuf() {
         .add(new protobuf.Field("externalId", 1, "string"))
         .add(new protobuf.Field("name", 2, "string"))
         .add(new protobuf.Field("currentSizeInBytes", 3, "int64"))
-        .add(new protobuf.Field("owner", 4, "User"))
-        .add(new protobuf.Field("storageName", 5, "string"))
-        .add(new protobuf.Field("permissions", 6, "WorkspacePermissions"))
-        .add(new protobuf.Field("isUsedByIntegration", 7, "bool"))
-        .add(new protobuf.Field("isBucketCreated", 8, "bool"));
+        .add(new protobuf.Field("maxSizeInBytes", 4, "int64"))
+        .add(new protobuf.Field("owner", 5, "User"))
+        .add(new protobuf.Field("storageName", 6, "string"))
+        .add(new protobuf.Field("permissions", 7, "WorkspacePermissions"))
+        .add(new protobuf.Field("isUsedByIntegration", 8, "bool"))
+        .add(new protobuf.Field("isBucketCreated", 9, "bool"));
 
     const workspaceInvitationType = new protobuf.Type("WorkspaceInvitation")
         .add(new protobuf.Field("workspaceExternalId", 1, "string"))

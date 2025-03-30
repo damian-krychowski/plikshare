@@ -1,5 +1,3 @@
-
-
 <div class="item-bar item-bar--clickable flex-row hover-switch" 
     (prefetch)="prefetchWorkspace()"
     (click)="openWorkspace()">
@@ -33,7 +31,22 @@
 
             @if(hasCurrentSizeInBytes()){
                 <div class="item__subtitle">
-                    <span>Size: {{ currentSizeInBytes() | storageSize }}</span>
+                    @let currentSizeInBytesVal = currentSizeInBytes();
+                    @let maxSizeInBytesVal = maxSizeInBytes();
+
+                    <span>
+                        Size: 
+                        
+                        @if(maxSizeInBytesVal == null) {
+                            {{ currentSizeInBytesVal | storageSize }}
+                        } @else {
+                            @let isMaxSizeExceeded = currentSizeInBytesVal > maxSizeInBytesVal;
+
+                            <span [class.color-danger]="isMaxSizeExceeded">
+                                {{ currentSizeInBytesVal | storageSize }} / {{maxSizeInBytesVal | storageSize}}
+                            </span>
+                        }                  
+                    </span>
                     
                     @if(storageName(); as storageNameValue) {
                         <span class="ml-1">Storage: {{storageNameValue}}</span>

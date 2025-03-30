@@ -210,6 +210,7 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                         w_external_id,
                         w_name,
                         w_current_size_in_bytes,
+                        w_max_size_in_bytes,
                         owner.u_email AS w_owner_email,
                         owner.u_external_id AS w_owner_external_id,
                         inviter.u_email AS w_inviter_email,
@@ -258,21 +259,22 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                     ExternalId = reader.GetString(0),
                     Name = reader.GetString(1),
                     CurrentSizeInBytes = reader.GetInt64(2),
+                    MaxSizeInBytes = reader.GetInt64OrNull(3),
                     Owner = new User
                     {
-                        Email = reader.GetString(3),
-                        ExternalId = reader.GetString(4),
+                        Email = reader.GetString(4),
+                        ExternalId = reader.GetString(5),
                     },
-                    InviterEmail = reader.GetStringOrNull(5),
-                    InviterExternalId = reader.GetStringOrNull(6),
+                    InviterEmail = reader.GetStringOrNull(6),
+                    InviterExternalId = reader.GetStringOrNull(7),
                     Permissions = new WorkspacePermissions
                     {
-                        AllowShare = reader.GetBoolean(7)
+                        AllowShare = reader.GetBoolean(8)
                     },
-                    StorageName = reader.GetStringOrNull(8),
-                    IsUsedByIntegration = reader.GetBoolean(9),
-                    IsBucketCreated = reader.GetBoolean(10),
-                    TypeDelimiter = reader.GetInt32(11)
+                    StorageName = reader.GetStringOrNull(9),
+                    IsUsedByIntegration = reader.GetBoolean(10),
+                    IsBucketCreated = reader.GetBoolean(11),
+                    TypeDelimiter = reader.GetInt32(12)
                 })
             .WithParameter("$userId", user.Id)
             .WithParameter("$isUserAdmin", user.Roles.IsAppOwner || user.Roles.IsAdmin)
@@ -289,6 +291,7 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                         ExternalId = entity.ExternalId,
                         Name = entity.Name,
                         CurrentSizeInBytes = entity.CurrentSizeInBytes,
+                        MaxSizeInBytes = entity.MaxSizeInBytes ?? -1, //to represent null on protobuf the easiest way
                         Owner = entity.Owner,
                         StorageName = entity.StorageName,
                         Permissions = entity.Permissions,
@@ -323,6 +326,7 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                         ExternalId = entity.ExternalId,
                         Name = entity.Name,
                         CurrentSizeInBytes = entity.CurrentSizeInBytes,
+                        MaxSizeInBytes = entity.MaxSizeInBytes ?? -1, //to represent null on protobuf the easiest way
                         Owner = entity.Owner,
                         StorageName = entity.StorageName,
                         Permissions = entity.Permissions,

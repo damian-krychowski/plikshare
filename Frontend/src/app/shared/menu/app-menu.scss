@@ -4,6 +4,10 @@
     display: none;
 
     &__link {
+        display: flex;
+        justify-content: end;
+        gap: 1rem;
+
         text-decoration: none;
         color: black;
         font-size: 1rem;
@@ -16,10 +20,6 @@
             background-color: var(--company-grey-accent);
         }
 
-        .icon {
-            padding-left: 0.5rem;
-        }
-
         &--active {
             background-color: var(--company-blue-selected);
         }
@@ -28,6 +28,10 @@
             font-weight: 400;
             text-align: center;
             border-bottom: none;
+        }
+
+        .icon-container {
+            display: inline-block;
         }
     }
 

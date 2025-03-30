@@ -34,7 +34,8 @@
         [currentFileExternalIdInPreview]="currentFileExternalIdInPreview()"
         (filePreviewed)="onFilePreviewed($event)"
 
-        (boxCreated)="onBoxCreated($event)">    
+        (boxCreated)="onBoxCreated($event)"
+        (workspaceSizeUpdated)="onWorkspaceSizeUpdated($event)">    
     </app-files-explorer>    
 
     <!-- <app-files-processor

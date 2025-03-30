@@ -23,6 +23,7 @@ using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.Id;
 using PlikShare.Uploads.Initiate;
 using PlikShare.Workspaces.Cache;
+using PlikShare.Workspaces.GetSize;
 using PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
 using Serilog;
 
@@ -34,6 +35,7 @@ public class DownloadTextractAnalysisQueueJobExecutor(
     TextractClientStore textractClientStore,
     WorkspaceCache workspaceCache,
     BulkInsertFileUploadQuery bulkInsertFileUploadQuery,
+    GetWorkspaceSizeQuery getWorkspaceSizeQuery,
     IQueue queue,
     IClock clock,
     TextractResultTemporaryStore textractResultTemporaryStore) : IQueueLongRunningJobExecutor
@@ -117,29 +119,26 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 textractClient,
                 textractJob,
                 cancellationToken);
-            
-            var fullJsonFileUpload = await SaveFullJsonResultFile(
-                textractJob, 
-                originalFileWorkspace, 
-                completeAnalysis,
-                cancellationToken);
 
-            var simplifiedMarkdownFileUpload = await SaveMarkdownFile(
-                textractJob, 
-                originalFileWorkspace, 
-                completeAnalysis, 
+            var (markdownFileUploadId, jsonFileUploadId) = await SaveResultFiles(
+                textractJob,
+                originalFileWorkspace,
+                completeAnalysis,
                 textractDerivedInfo,
                 cancellationToken);
 
             await FinalizeTextractJob(
-                fileUploadIds:
-                [
-                    fullJsonFileUpload.Id,
-                    simplifiedMarkdownFileUpload.Id
+                fileUploadIds: [
+                    markdownFileUploadId,
+                    jsonFileUploadId
                 ],
                 textractJob: textractJob,
                 correlationId: correlationId,
                 textractWorkspace: textractWorkspace,
+                cancellationToken: cancellationToken);
+
+            await workspaceCache.InvalidateEntry(
+                workspaceId: originalFileWorkspace.Id,
                 cancellationToken: cancellationToken);
 
             return QueueJobResult.Success;
@@ -160,90 +159,72 @@ public class DownloadTextractAnalysisQueueJobExecutor(
         }
     }
 
-    private async Task<BulkInsertFileUploadQuery.FileUpload> SaveFullJsonResultFile(
-        TextractJob textractJob, 
-        WorkspaceContext workspace,
-        TextractAnalysisResult completeAnalysis,
-        CancellationToken cancellationToken)
-    {
-        var jsonContent = Json.SerializeWithIndentation(
-            completeAnalysis);
-
-        var contentBytes = Encoding.UTF8.GetBytes(
-            jsonContent);
-
-        var (fileUpload, fileToInsert) = await InitiateFileUpload(
-            fileName: TextractAnalysisRawResult,
-            fileExtension: ContentTypeHelper.Json,
-            textractJob: textractJob,
-            originalFileWorkspace: workspace,
-            fileSizeInBytes: contentBytes.Length,
-            cancellationToken: cancellationToken);
-
-        await FileWriter.Write(
-            file: new FileToUploadDetails
-            {
-                SizeInBytes = contentBytes.Length,
-                Encryption = fileToInsert.EncryptionKeyVersion is null
-                    ? new FileEncryption
-                    {
-                        EncryptionType = StorageEncryptionType.None
-                    }
-                    : new FileEncryption
-                    {
-                        EncryptionType = StorageEncryptionType.Managed,
-                        Metadata = new FileEncryptionMetadata
-                        {
-                            KeyVersion = fileToInsert.EncryptionKeyVersion.Value,
-                            NoncePrefix = fileToInsert.EncryptionNoncePrefix!,
-                            Salt = fileToInsert.EncryptionSalt!
-                        }
-                    },
-                S3FileKey = new S3FileKey
-                {
-                    FileExternalId = FileExtId.Parse(fileToInsert.FileExternalId),
-                    S3KeySecretPart = fileToInsert.S3KeySecretPart
-                },
-                S3UploadId = fileToInsert.S3UploadId
-            },
-            part: FilePartDetails.First(
-                sizeInBytes: contentBytes.Length,
-                uploadAlgorithm: UploadAlgorithm.DirectUpload),
-            workspace: workspace,
-            input: PipeReader.Create(
-                contentBytes.AsMemory().AsStream()),
-            cancellationToken: cancellationToken);
-
-        return fileUpload;
-    }
-
-    private async Task<BulkInsertFileUploadQuery.FileUpload> SaveMarkdownFile(
+    private async Task<(int MarkdownFileUploadId, int JsonFileUploadId)> SaveResultFiles(
         TextractJob textractJob,
-        WorkspaceContext workspace,
+        WorkspaceContext originalFileWorkspace,
         TextractAnalysisResult textractAnalysis,
         TextractAnalysisDerivedInfo textractDerivedInfo,
         CancellationToken cancellationToken)
     {
+        var jsonContent = Json.SerializeWithIndentation(
+            textractAnalysis);
+
+        var jsonContentBytes = Encoding.UTF8.GetBytes(
+            jsonContent);
+
         var markdown = TextractMarkdownConverter.ToMarkdown(
             textractAnalysis: textractAnalysis,
             textractAnalysisDerivedInfo: textractDerivedInfo);
 
-        var contentBytes = Encoding.UTF8.GetBytes(
+        var markdownContentBytes = Encoding.UTF8.GetBytes(
             markdown);
 
-        var (fileUpload, fileToInsert) = await InitiateFileUpload(
-            fileName: TextractMarkdown,
-            fileExtension: ContentTypeHelper.Markdown,
+        var (markdownFile, fullJsonFile) = await InitiateResultFilesUpload(
+            markdownFile: new ResultFile(
+                Name: TextractMarkdown,
+                Extension: ContentTypeHelper.Markdown,
+                SizeInBytes: markdownContentBytes.Length),
+            fullJsonFile: new ResultFile(
+                Name: TextractAnalysisRawResult,
+                Extension: ContentTypeHelper.Markdown,
+                SizeInBytes: jsonContentBytes.Length),
             textractJob: textractJob,
-            originalFileWorkspace: workspace,
-            fileSizeInBytes: contentBytes.Length,
+            originalFileWorkspace: originalFileWorkspace,
             cancellationToken: cancellationToken);
 
+        var writeMarkdownFileTask = WriteFile(
+            originalFileWorkspace,
+            markdownFile.InsertEntity,
+            markdownContentBytes,
+            cancellationToken);
+
+        var writeJsonFileTask = WriteFile(
+            originalFileWorkspace,
+            fullJsonFile.InsertEntity,
+            jsonContentBytes, 
+            cancellationToken);
+
+        await Task.WhenAll(
+            writeMarkdownFileTask,
+            writeJsonFileTask);
+
+        return (
+            MarkdownFileUploadId: markdownFile.FileUploadId, 
+            JsonFileUploadId: fullJsonFile.FileUploadId
+        );
+    }
+
+    private static async Task WriteFile(
+        WorkspaceContext originalFileWorkspace,
+        BulkInsertFileUploadQuery.InsertEntity fileInsertEntity,
+        byte[] contentBytes, 
+        CancellationToken cancellationToken)
+    {
         await FileWriter.Write(
             file: new FileToUploadDetails
             {
                 SizeInBytes = contentBytes.Length,
-                Encryption = fileToInsert.EncryptionKeyVersion is null
+                Encryption = fileInsertEntity.EncryptionKeyVersion is null
                     ? new FileEncryption
                     {
                         EncryptionType = StorageEncryptionType.None
@@ -253,27 +234,25 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                         EncryptionType = StorageEncryptionType.Managed,
                         Metadata = new FileEncryptionMetadata
                         {
-                            KeyVersion = fileToInsert.EncryptionKeyVersion.Value,
-                            NoncePrefix = fileToInsert.EncryptionNoncePrefix!,
-                            Salt = fileToInsert.EncryptionSalt!
+                            KeyVersion = fileInsertEntity.EncryptionKeyVersion.Value,
+                            NoncePrefix = fileInsertEntity.EncryptionNoncePrefix!,
+                            Salt = fileInsertEntity.EncryptionSalt!
                         }
                     },
                 S3FileKey = new S3FileKey
                 {
-                    FileExternalId = FileExtId.Parse(fileToInsert.FileExternalId),
-                    S3KeySecretPart = fileToInsert.S3KeySecretPart
+                    FileExternalId = FileExtId.Parse(fileInsertEntity.FileExternalId),
+                    S3KeySecretPart = fileInsertEntity.S3KeySecretPart
                 },
-                S3UploadId = fileToInsert.S3UploadId
+                S3UploadId = fileInsertEntity.S3UploadId
             },
             part: FilePartDetails.First(
-                sizeInBytes: contentBytes.Length, 
+                sizeInBytes: contentBytes.Length,
                 uploadAlgorithm: UploadAlgorithm.DirectUpload),
-            workspace: workspace,
+            workspace: originalFileWorkspace,
             input: PipeReader.Create(
                 contentBytes.AsMemory().AsStream()),
             cancellationToken: cancellationToken);
-
-        return fileUpload;
     }
 
     private async Task<(TextractAnalysisResult, TextractAnalysisDerivedInfo)> GetCompleteAnalysis(
@@ -349,26 +328,72 @@ public class DownloadTextractAnalysisQueueJobExecutor(
             cancellationToken: cancellationToken);
     }
 
-    private async Task<(BulkInsertFileUploadQuery.FileUpload, BulkInsertFileUploadQuery.InsertEntity)> InitiateFileUpload(
-        string fileName,
-        string fileExtension,
+    private async Task<(ResultFileUpload MarkdownFile, ResultFileUpload FullJsonFile)> InitiateResultFilesUpload(
+        ResultFile markdownFile,
+        ResultFile fullJsonFile,
         TextractJob textractJob,
         WorkspaceContext originalFileWorkspace,
-        long fileSizeInBytes,
         CancellationToken cancellationToken)
     {
-        var storage = originalFileWorkspace.Storage;
+        var markdownFileUploadToInsert = MapToBulkInsertEntity(
+            markdownFile, 
+            textractJob,
+            originalFileWorkspace.Storage);
+
+        var fullJsonFileUploadToInsert = MapToBulkInsertEntity(
+            fullJsonFile,
+            textractJob,
+            originalFileWorkspace.Storage);
+
+        var workspaceSize = getWorkspaceSizeQuery.Execute(
+            workspace: originalFileWorkspace);
+
+        var result = await bulkInsertFileUploadQuery.Execute(
+            workspace: originalFileWorkspace,
+            userIdentity: textractJob.UserIdentity,
+            entities: [
+                markdownFileUploadToInsert,
+                fullJsonFileUploadToInsert
+            ],
+            newWorkspaceSizeInBytes: workspaceSize + markdownFile.SizeInBytes + fullJsonFile.SizeInBytes,
+            cancellationToken: cancellationToken);
+
+        var markdownFileUpload = result
+            .FileUploads
+            !.First(x => x.ExternalId.Equals(markdownFileUploadToInsert.FileUploadExternalId));
+
+        var fullJsonFileUpload = result
+            .FileUploads
+            !.First(x => x.ExternalId.Equals(fullJsonFileUploadToInsert.FileUploadExternalId));
+
+        return (
+            MarkdownFile: new ResultFileUpload(
+                FileUploadId: markdownFileUpload.Id,
+                InsertEntity: markdownFileUploadToInsert
+            ),
+
+            FullJsonFile: new ResultFileUpload(
+                FileUploadId: fullJsonFileUpload.Id,
+                InsertEntity: fullJsonFileUploadToInsert)
+        );
+    }
+
+    private static BulkInsertFileUploadQuery.InsertEntity MapToBulkInsertEntity(
+        ResultFile file, 
+        TextractJob textractJob, 
+        IStorageClient storage)
+    {
         var encryption = storage.GenerateFileEncryptionDetails();
 
-        var fileUploadToInsert = new BulkInsertFileUploadQuery.InsertEntity
+        return new BulkInsertFileUploadQuery.InsertEntity
         {
             FileUploadExternalId = FileUploadExtId.NewId().Value,
             FileExternalId = FileExtId.NewId().Value,
             FolderId = null, //todo think where it should go
-            FileName = fileName,
-            FileContentType = ContentTypeHelper.GetContentTypeFromExtension(fileExtension),
-            FileExtension = fileExtension,
-            FileSizeInBytes = fileSizeInBytes,
+            FileName = file.Name,
+            FileContentType = ContentTypeHelper.GetContentTypeFromExtension(file.Extension),
+            FileExtension = file.Extension,
+            FileSizeInBytes = file.SizeInBytes,
             S3KeySecretPart = storage.GenerateFileS3KeySecretPart(),
 
             S3UploadId = string.Empty,
@@ -383,15 +408,16 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 Features = textractJob.Features
             })
         };
-
-        var fileUpload = await bulkInsertFileUploadQuery.Execute(
-            workspace: originalFileWorkspace,
-            userIdentity: textractJob.UserIdentity,
-            entities: [fileUploadToInsert],
-            cancellationToken: cancellationToken);
-
-        return (fileUpload.FileUploads![0], fileUploadToInsert);
     }
+
+    private record ResultFile(
+        string Name,
+        string Extension,
+        long SizeInBytes);
+
+    private record ResultFileUpload(
+        int FileUploadId,
+        BulkInsertFileUploadQuery.InsertEntity InsertEntity);
 
     private TextractJob? TryGetTextractJob(
         int textractJobId,
@@ -609,16 +635,18 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                         }
                     }
                     
-                    EnqueueWorkspaceSizeUpdateJob(
-                        dbWriteContext: dbWriteContext,
+                    queue.EnqueueWorkspaceSizeUpdateJob(
+                        clock: clock,
                         workspaceId: textractJob.OriginalWorkspaceId,
                         correlationId: correlationId,
+                        dbWriteContext: dbWriteContext,
                         transaction: transaction);
 
-                    EnqueueWorkspaceSizeUpdateJob(
-                        dbWriteContext: dbWriteContext,
+                    queue.EnqueueWorkspaceSizeUpdateJob(
+                        clock: clock,
                         workspaceId: textractJob.TextractWorkspaceId,
                         correlationId: correlationId,
+                        dbWriteContext: dbWriteContext,
                         transaction: transaction);
 
                     transaction.Commit();
@@ -659,25 +687,7 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 S3KeySecretPart = fileKey.S3KeySecretPart
             },
             executeAfterDate: clock.UtcNow.AddSeconds(10),
-            debounceId: $"update_workspace_current_size_in_bytes_{textractWorkspace.Id}",
-            sagaId: null,
-            dbWriteContext: dbWriteContext,
-            transaction: transaction);
-    }
-
-    private QueueJobId EnqueueWorkspaceSizeUpdateJob(
-        DbWriteQueue.Context dbWriteContext,
-        int workspaceId,
-        Guid correlationId,
-        SqliteTransaction transaction)
-    {
-        return queue.EnqueueOrThrow(
-            correlationId: correlationId,
-            jobType: UpdateWorkspaceCurrentSizeInBytesQueueJobType.Value,
-            definition: new UpdateWorkspaceCurrentSizeInBytesQueueJobDefinition(
-                WorkspaceId: workspaceId),
-            executeAfterDate: clock.UtcNow.AddSeconds(10),
-            debounceId: $"update_workspace_current_size_in_bytes_{workspaceId}",
+            debounceId: null,
             sagaId: null,
             dbWriteContext: dbWriteContext,
             transaction: transaction);

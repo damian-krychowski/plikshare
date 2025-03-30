@@ -3,12 +3,12 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
 using PlikShare.Core.Utils;
 using PlikShare.Workspaces.Cache;
+using PlikShare.Workspaces.GetSize;
 using Serilog;
 
 namespace PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
 
 public class UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor(
-    UpdateWorkspaceCurrentSizeInBytesQuery updateWorkspaceCurrentSizeInBytes,
     WorkspaceCache workspaceCache) : IQueueDbOnlyJobExecutor
 {
     public string JobType => UpdateWorkspaceCurrentSizeInBytesQueueJobType.Value;
@@ -29,11 +29,17 @@ public class UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor(
                 $"Job '{definitionJson}' cannot be parsed to correct '{nameof(UpdateWorkspaceCurrentSizeInBytesQueueJobDefinition)}'");
         }
         
-        Log.Information("Workspace '{WorkspaceId}' current size in bytes update started.",
+        Log.Debug("Workspace#{WorkspaceId} current size in bytes update started.",
             definition.WorkspaceId);
 
-        var result = updateWorkspaceCurrentSizeInBytes.Execute(
+        var currentWorkspaceSizeInBytes = GetWorkspaceSizeQuery.Execute(
+            definition.WorkspaceId,
+            dbWriteContext,
+            transaction);
+
+        var result = UpdateWorkspaceCurrentSizeInBytesQuery.Execute(
             workspaceId: definition.WorkspaceId,
+            currentSizeInBytes: currentWorkspaceSizeInBytes,
             dbWriteContext: dbWriteContext,
             transaction: transaction);
 

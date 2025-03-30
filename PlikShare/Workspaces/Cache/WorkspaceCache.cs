@@ -63,6 +63,7 @@ public class WorkspaceCache(
             ExternalId = workspaceCached.ExternalId,
             Name = workspaceCached.Name,
             CurrentSizeInBytes = workspaceCached.CurrentSizeInBytes,
+            MaxSizeInBytes = workspaceCached.MaxSizeInBytes,
             BucketName = workspaceCached.BucketName,
             IsBucketCreated = workspaceCached.IsBucketCreated,
             IsBeingDeleted = workspaceCached.IsBeingDeleted,
@@ -84,31 +85,35 @@ public class WorkspaceCache(
 
         var (isEmpty, workspace) = connection
             .OneRowCmd(
-                sql: @"
-                    SELECT
-		                w_id,
-		                w_external_id,		                
-		                w_owner_id,
-		                w_name,
-		                w_current_size_in_bytes,
-		                w_bucket_name,
-		                w_is_bucket_created,
-		                w_is_being_deleted,
-		                w_storage_id
-	                FROM w_workspaces
-	                WHERE w_external_id = $workspaceExternalId
-			        LIMIT 1
-                ",
-                readRowFunc: reader => new WorkspaceCached(
-                    Id: reader.GetInt32(0),
-                    ExternalId: reader.GetExtId<WorkspaceExtId>(1),
-                    OwnerId: reader.GetInt32(2),
-                    Name: reader.GetString(3),
-                    CurrentSizeInBytes: reader.GetInt64(4),
-                    BucketName: reader.GetString(5),
-                    IsBucketCreated: reader.GetBoolean(6),
-                    IsBeingDeleted: reader.GetBoolean(7),
-                    StorageId: reader.GetInt32(8)))
+                sql: """
+                     SELECT
+                     	w_id,
+                     	w_external_id,		                
+                     	w_owner_id,
+                     	w_name,
+                     	w_current_size_in_bytes,
+                        w_max_size_in_bytes,
+                     	w_bucket_name,
+                     	w_is_bucket_created,
+                     	w_is_being_deleted,
+                     	w_storage_id
+                     FROM w_workspaces
+                     WHERE w_external_id = $workspaceExternalId
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => new WorkspaceCached
+                {
+                    Id = reader.GetInt32(0),
+                    ExternalId = reader.GetExtId<WorkspaceExtId>(1),
+                    OwnerId = reader.GetInt32(2),
+                    Name = reader.GetString(3),
+                    CurrentSizeInBytes = reader.GetInt64(4),
+                    MaxSizeInBytes = reader.GetInt64OrNull(5),
+                    BucketName = reader.GetString(6),
+                    IsBucketCreated = reader.GetBoolean(7),
+                    IsBeingDeleted = reader.GetBoolean(8),
+                    StorageId = reader.GetInt32(9)
+                })
             .WithParameter("$workspaceExternalId", workspaceExternalId.Value)
             .Execute();
 
@@ -118,7 +123,7 @@ public class WorkspaceCache(
         UpdateIdMap(
             workspaceId: workspace.Id,
             workspaceExternalId: workspace.ExternalId);
-
+        
         return workspace;
     }
 
@@ -133,31 +138,35 @@ public class WorkspaceCache(
         
         var (isEmpty, workspace) = connection
             .OneRowCmd(
-                sql: @"
-                    SELECT
-		                w_id,
-		                w_external_id,		                
-		                w_owner_id,
-		                w_name,
-		                w_current_size_in_bytes,
-		                w_bucket_name,
-		                w_is_bucket_created,
-		                w_is_being_deleted,
-		                w_storage_id
-	                FROM w_workspaces
-	                WHERE w_id = $workspaceId
-			        LIMIT 1
-                ",
-                readRowFunc: reader => new WorkspaceCached(
-                    Id: reader.GetInt32(0),
-                    ExternalId: reader.GetExtId<WorkspaceExtId>(1),
-                    OwnerId: reader.GetInt32(2),
-                    Name: reader.GetString(3),
-                    CurrentSizeInBytes: reader.GetInt64(4),
-                    BucketName: reader.GetString(5),
-                    IsBucketCreated: reader.GetBoolean(6),
-                    IsBeingDeleted: reader.GetBoolean(7),
-                    StorageId: reader.GetInt32(8)))
+                sql: """
+                     SELECT
+                     	w_id,
+                     	w_external_id,		                
+                     	w_owner_id,
+                     	w_name,
+                     	w_current_size_in_bytes,
+                        w_max_size_in_bytes,
+                     	w_bucket_name,
+                     	w_is_bucket_created,
+                     	w_is_being_deleted,
+                      	w_storage_id
+                     FROM w_workspaces
+                     WHERE w_id = $workspaceId
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => new WorkspaceCached
+                {
+                    Id = reader.GetInt32(0),
+                    ExternalId = reader.GetExtId<WorkspaceExtId>(1),
+                    OwnerId = reader.GetInt32(2),
+                    Name = reader.GetString(3),
+                    CurrentSizeInBytes = reader.GetInt64(4),
+                    MaxSizeInBytes = reader.GetInt64OrNull(5),
+                    BucketName = reader.GetString(6),
+                    IsBucketCreated = reader.GetBoolean(7), 
+                    IsBeingDeleted = reader.GetBoolean(8),
+                    StorageId = reader.GetInt32(9)
+                })
             .WithParameter("$workspaceId", workspaceId)
             .Execute();
 
@@ -201,6 +210,7 @@ public class WorkspaceCache(
             ExternalId = workspace.ExternalId,
             Name = workspace.Name,
             CurrentSizeInBytes = workspace.CurrentSizeInBytes,
+            MaxSizeInBytes = workspace.MaxSizeInBytes,
             BucketName = workspace.BucketName,
             IsBucketCreated = workspace.IsBucketCreated,
             IsBeingDeleted = workspace.IsBeingDeleted,
@@ -247,14 +257,17 @@ public class WorkspaceCache(
     }
 
     [ImmutableObject(true)]
-    public sealed record WorkspaceCached(
-        int Id,
-        WorkspaceExtId ExternalId,
-        int OwnerId,
-        string Name,
-        long CurrentSizeInBytes,
-        string BucketName,
-        bool IsBucketCreated,
-        bool IsBeingDeleted,
-        int StorageId);
+    public sealed class WorkspaceCached
+    {
+        public required int Id { get; init; }
+        public required WorkspaceExtId ExternalId { get; init; }
+        public required int OwnerId { get; init; }
+        public required string Name { get; init; }
+        public required long CurrentSizeInBytes { get; init; }
+        public required long? MaxSizeInBytes { get; init; }
+        public required string BucketName { get; init; }
+        public required bool IsBucketCreated { get; init; }
+        public required bool IsBeingDeleted { get; init; }
+        public required int StorageId { get; init; }
+    }
 }

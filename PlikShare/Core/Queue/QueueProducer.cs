@@ -366,19 +366,19 @@ public sealed class QueueProducer : BackgroundService
     {
         var command = connection.CreateCommand();
 
-        command.CommandText = @"
-            DELETE FROM qs_queue_sagas
-            WHERE NOT EXISTS (
-                SELECT 1
-                FROM q_queue
-                WHERE q_saga_id = qs_id
-            )
-            RETURNING
-                qs_id,
-                qs_on_completed_queue_job_type,
-                qs_on_completed_queue_job_definition,
-                qs_correlation_id
-            ";
+        command.CommandText = """
+        DELETE FROM qs_queue_sagas
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM q_queue
+            WHERE q_saga_id = qs_id
+        )
+        RETURNING
+            qs_id,
+            qs_on_completed_queue_job_type,
+            qs_on_completed_queue_job_definition,
+            qs_correlation_id                        
+        """;
 
         return command;
     }

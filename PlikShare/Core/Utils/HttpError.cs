@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using PlikShare.Boxes.Id;
 using PlikShare.Core.Encryption;
+using PlikShare.Core.ExternalIds;
 using PlikShare.EmailProviders.Id;
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
@@ -37,6 +38,13 @@ public static class HttpErrors
 
     public static class Workspace
     {
+        public static BadRequest<HttpError> NotEnoughSpace(WorkspaceExtId externalId) =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "not-enough-space-available",
+                Message = $"Workspace with externalId '{externalId}' does not have enough space available."
+            });
+
         public static BadRequest<HttpError> BrokenExternalId(string externalId) =>
             TypedResults.BadRequest(new HttpError
             {
@@ -517,6 +525,13 @@ public static class HttpErrors
 
     public static class Box
     {
+        public static BadRequest<HttpError> NotEnoughSpace() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "not-enough-space-available",
+                Message = "Box does not have enough space available."
+            });
+
         public static NotFound<HttpError> NotFound(BoxExtId externalId) =>
             TypedResults.NotFound(new HttpError
             {

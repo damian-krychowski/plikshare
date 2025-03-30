@@ -9,6 +9,7 @@ using PlikShare.BoxExternalAccess.Handler;
 using PlikShare.BoxExternalAccess.Invitations.Accept;
 using PlikShare.BoxExternalAccess.Invitations.Reject;
 using PlikShare.BoxExternalAccess.LeaveBox;
+using PlikShare.BulkDelete.Contracts;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
 using PlikShare.Core.Protobuf;
@@ -25,6 +26,7 @@ using PlikShare.Uploads.Id;
 using PlikShare.Uploads.Initiate.Contracts;
 using PlikShare.Uploads.List.Contracts;
 using PlikShare.Users.Middleware;
+using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.CountSelectedItems.Contracts;
 using PlikShare.Workspaces.SearchFilesTree.Contracts;
 
@@ -342,7 +344,7 @@ public static class BoxExternalAccessEndpoints
             cancellationToken: cancellationToken);
     }
 
-    private static Task<Results<Ok, StatusCodeHttpResult>> DeleteFile(
+    private static Task<Results<Ok<BulkDeleteResponseDto>, StatusCodeHttpResult>> DeleteFile(
         [FromBody] BoxBulkDeleteRequestDto request,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,

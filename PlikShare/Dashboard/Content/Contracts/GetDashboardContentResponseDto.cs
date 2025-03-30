@@ -58,18 +58,21 @@ public class GetDashboardContentResponseDto
         public required long CurrentSizeInBytes { get; init; }
 
         [ProtoMember(4)]
-        public required User Owner { get; init; }
+        public required long MaxSizeInBytes { get; init; }
 
         [ProtoMember(5)]
-        public required string? StorageName { get; init; }
+        public required User Owner { get; init; }
 
         [ProtoMember(6)]
-        public required WorkspacePermissions Permissions { get; init; }
+        public required string? StorageName { get; init; }
 
         [ProtoMember(7)]
-        public required bool IsUsedByIntegration { get; init; }
+        public required WorkspacePermissions Permissions { get; init; }
 
         [ProtoMember(8)]
+        public required bool IsUsedByIntegration { get; init; }
+
+        [ProtoMember(9)]
         public required bool IsBucketCreated { get; init; }
     }
 

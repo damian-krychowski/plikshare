@@ -11,6 +11,7 @@ public record GetWorkspaceDetailsResponseDto
     public required WorkspaceExtId ExternalId { get; init; }
     public required string Name { get; init; }
     public required long CurrentSizeInBytes { get; init; }
+    public required long? MaxSizeInBytes { get; init; }
     public required WorkspaceOwnerDto Owner { get; init; }
     public required int PendingUploadsCount { get; init; }
     public required WorkspacePermissions Permissions { get; init; }

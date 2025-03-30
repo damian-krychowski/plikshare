@@ -317,6 +317,7 @@ public static class WorkspacesEndpoints
             ExternalId = workspaceMembership.Workspace.ExternalId,
             Name = workspaceMembership.Workspace.Name,
             CurrentSizeInBytes = workspaceMembership.Workspace.CurrentSizeInBytes,
+            MaxSizeInBytes = workspaceMembership.Workspace.MaxSizeInBytes,
             Owner = new WorkspaceOwnerDto
             {
                 ExternalId = workspaceMembership.Workspace.Owner.ExternalId,
@@ -582,7 +583,7 @@ public static class WorkspacesEndpoints
         }
     }
     
-    private static Task BulkDelete(
+    private static Task<BulkDeleteResponseDto> BulkDelete(
         [FromBody] BulkDeleteRequestDto request,
         HttpContext httpContext,
         BulkDeleteQuery bulkDeleteQuery,

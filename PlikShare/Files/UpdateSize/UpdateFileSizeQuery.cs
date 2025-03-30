@@ -52,14 +52,10 @@ public class UpdateFileSizeQuery(
                 .WithParameter("$sizeInBytes", newSizeInBytes)
                 .ExecuteOrThrow();
 
-            queue.EnqueueOrThrow(
+            queue.EnqueueWorkspaceSizeUpdateJob(
+                clock: clock,
+                workspaceId: workspaceId,
                 correlationId: correlationId,
-                jobType: UpdateWorkspaceCurrentSizeInBytesQueueJobType.Value,
-                definition: new UpdateWorkspaceCurrentSizeInBytesQueueJobDefinition(
-                    WorkspaceId: workspaceId),
-                executeAfterDate: clock.UtcNow.AddSeconds(10),
-                debounceId: $"update_workspace_current_size_in_bytes_{workspaceId}",
-                sagaId: null,
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);
 

@@ -9,12 +9,13 @@ export function getSearchResponseDtoProtobuf() {
         .add(new protobuf.Field("externalId", 1, "string"))
         .add(new protobuf.Field("name", 2, "string"))
         .add(new protobuf.Field("currentSizeInBytes", 3, "int64"))
-        .add(new protobuf.Field("ownerEmail", 4, "string"))
-        .add(new protobuf.Field("ownerExternalId", 5, "string"))
-        .add(new protobuf.Field("isOwnedByUser", 6, "bool"))
-        .add(new protobuf.Field("allowShare", 7, "bool"))
-        .add(new protobuf.Field("isUsedByIntegration", 8, "bool"))
-        .add(new protobuf.Field("isBucketCreated", 9, "bool"));
+        .add(new protobuf.Field("maxSizeInBytes", 4, "int64"))
+        .add(new protobuf.Field("ownerEmail", 5, "string"))
+        .add(new protobuf.Field("ownerExternalId", 6, "string"))
+        .add(new protobuf.Field("isOwnedByUser", 7, "bool"))
+        .add(new protobuf.Field("allowShare", 8, "bool"))
+        .add(new protobuf.Field("isUsedByIntegration", 9, "bool"))
+        .add(new protobuf.Field("isBucketCreated", 10, "bool"));
 
     const workspaceFolderType = new protobuf.Type("WorkspaceFolder")
         .add(new protobuf.Field("externalId", 1, "string"))

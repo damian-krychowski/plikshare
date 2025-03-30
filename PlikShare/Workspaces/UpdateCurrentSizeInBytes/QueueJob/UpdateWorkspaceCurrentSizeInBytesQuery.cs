@@ -6,51 +6,44 @@ using Serilog;
 
 namespace PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
 
-public class UpdateWorkspaceCurrentSizeInBytesQuery
+public static class UpdateWorkspaceCurrentSizeInBytesQuery
 {
-    public Result Execute(
+    public static Result Execute(
         int workspaceId,
+        long currentSizeInBytes,
         DbWriteQueue.Context dbWriteContext,
         SqliteTransaction transaction)
     {
         var result = dbWriteContext
             .OneRowCmd(
-                sql: @"
-                    UPDATE w_workspaces
-                    SET w_current_size_in_bytes =  COALESCE((
-                        SELECT SUM(fi_size_in_bytes)
-                        FROM fi_files
-                        WHERE fi_workspace_id = $workspaceId
-                    ), 0)
-                    WHERE w_id = $workspaceId
-                    RETURNING
-                        w_external_id, 
-                        w_current_size_in_bytes
-                ",
-                readRowFunc: reader => new QueryResult(
-                    ExternalId: reader.GetExtId<WorkspaceExtId>(0),
-                    CurrentSizeInBytes: reader.GetInt64(1)),
+                sql: """
+                     UPDATE w_workspaces
+                     SET w_current_size_in_bytes = $currentSizeInBytes
+                     WHERE w_id = $workspaceId
+                     RETURNING w_external_id
+                     """,
+                readRowFunc: reader => reader.GetExtId<WorkspaceExtId>(0),
                 transaction: transaction)
             .WithParameter("$workspaceId", workspaceId)
+            .WithParameter("$currentSizeInBytes", currentSizeInBytes)
             .Execute();
 
         if (result.IsEmpty)
         {
-            Log.Warning("Could not update Workspace '{WorkspaceId}' current size in bytes because it was not found.",
+            Log.Warning("Could not update Workspace#{WorkspaceId} current size in bytes because it was not found.",
                 workspaceId);
 
             return new Result(
                 Code: ResultCode.WorkspaceNotFound);
         }
 
-        Log.Information("Workspace '{WorkspaceId}' current size in bytes was updated." +
-                        "Result: {@QueryResult}",
+        Log.Information("Workspace#{WorkspaceId} current size in bytes was updated to {CurrentSizeInBytes} bytes.",
             workspaceId,
-            result.Value);
+            currentSizeInBytes);
 
         return new Result(
             Code: ResultCode.Ok,
-            WorkspaceExternalId: result.Value.ExternalId);
+            WorkspaceExternalId: result.Value);
     }
 
     public enum ResultCode
@@ -62,8 +55,4 @@ public class UpdateWorkspaceCurrentSizeInBytesQuery
     public readonly record struct Result(
         ResultCode Code,
         WorkspaceExtId WorkspaceExternalId = default);
-    
-    private readonly record struct QueryResult(
-        WorkspaceExtId ExternalId,
-        long CurrentSizeInBytes);
 }

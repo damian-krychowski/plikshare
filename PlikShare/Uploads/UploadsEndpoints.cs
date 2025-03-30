@@ -20,6 +20,7 @@ using PlikShare.Uploads.Initiate;
 using PlikShare.Uploads.Initiate.Contracts;
 using PlikShare.Uploads.List;
 using PlikShare.Uploads.List.Contracts;
+using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Validation;
 
 namespace PlikShare.Uploads;
@@ -63,6 +64,7 @@ public static class UploadsEndpoints
     private static async Task<Results<Ok<BulkInitiateFileUploadResponseDto>, NotFound<HttpError>, BadRequest<HttpError>>> BulkInitiateFileUpload(
         HttpContext httpContext,
         BulkInitiateFileUploadOperation bulkInitiateFileUploadOperation,
+        WorkspaceCache workspaceCache,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -80,11 +82,21 @@ public static class UploadsEndpoints
             boxFolderId: null,
             cancellationToken: cancellationToken);
 
+        await workspaceCache.InvalidateEntry(
+            workspaceId: workspaceMembership.Workspace.Id,
+            cancellationToken: cancellationToken);
+
         return result.Code switch
         {
-            BulkInitiateFileUploadOperation.ResultCode.Ok => TypedResults.Ok(result.Response),
-            BulkInitiateFileUploadOperation.ResultCode.FoldersNotFound => HttpErrors.Folder.NotFound(result.MissingFolders),
+            BulkInitiateFileUploadOperation.ResultCode.Ok => TypedResults.Ok(
+                result.Response),
 
+            BulkInitiateFileUploadOperation.ResultCode.FoldersNotFound => HttpErrors.Folder.NotFound(
+                result.MissingFolders),
+
+            BulkInitiateFileUploadOperation.ResultCode.NotEnoughSpace => HttpErrors.Workspace.NotEnoughSpace(
+                workspaceMembership.Workspace.ExternalId),
+                
             _ => throw new UnexpectedOperationResultException(
                 operationName: nameof(BulkInitiateFileUploadOperation),
                 resultValueStr: result.Code.ToString())

@@ -4,6 +4,7 @@ using PlikShare.BoxExternalAccess.Contracts;
 using PlikShare.BoxExternalAccess.Handler.GetContent;
 using PlikShare.BoxExternalAccess.Handler.GetHtml;
 using PlikShare.BulkDelete;
+using PlikShare.BulkDelete.Contracts;
 using PlikShare.Core.Utils;
 using PlikShare.Files.BulkDownload;
 using PlikShare.Files.BulkDownload.Contracts;
@@ -31,6 +32,7 @@ using PlikShare.Uploads.Initiate;
 using PlikShare.Uploads.Initiate.Contracts;
 using PlikShare.Uploads.List;
 using PlikShare.Uploads.List.Contracts;
+using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.CountSelectedItems;
 using PlikShare.Workspaces.CountSelectedItems.Contracts;
 using PlikShare.Workspaces.SearchFilesTree;
@@ -58,7 +60,8 @@ public class BoxExternalAccessHandler(
     GetOrCreateFolderQuery getOrCreateFolderQuery,
     CreateFolderQuery createFolderQuery,
     CountSelectedItemsQuery countSelectedItemsQuery,
-    SearchFilesTreeQuery searchFilesTreeQuery)
+    SearchFilesTreeQuery searchFilesTreeQuery,
+    WorkspaceCache workspaceCache)
 {
     public Results<Ok<GetBoxHtmlResponseDto>, NotFound<HttpError>> GetBoxHtml(
         BoxAccess boxAccess)
@@ -301,7 +304,7 @@ public class BoxExternalAccessHandler(
         };
     }
 
-    public async Task<Results<Ok, StatusCodeHttpResult>>  BulkDelete(
+    public async Task<Results<Ok<BulkDeleteResponseDto>, StatusCodeHttpResult>>  BulkDelete(
         FileExtId[] fileExternalIds,
         FolderExtId[] folderExternalIds,
         FileUploadExtId[] fileUploadExternalIds,
@@ -315,7 +318,7 @@ public class BoxExternalAccessHandler(
         if(folderExternalIds.Length > 0 && boxAccess.Permissions is not { AllowList: true, AllowDeleteFolder: true })
             return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
         
-        await bulkDeleteQuery.Execute(
+        var response = await bulkDeleteQuery.Execute(
             workspace: boxAccess.Box.Workspace,
             fileExternalIds: fileExternalIds,
             folderExternalIds: folderExternalIds,
@@ -326,7 +329,7 @@ public class BoxExternalAccessHandler(
             correlationId: correlationId,
             cancellationToken: cancellationToken);
         
-        return TypedResults.Ok();
+        return TypedResults.Ok(response);
     }
 
     public async Task<Results<Ok<BulkCreateFolderResponseDto>, BadRequest<HttpError>, NotFound<HttpError>, StatusCodeHttpResult>> BulkCreateFolders(
@@ -514,6 +517,10 @@ public class BoxExternalAccessHandler(
             boxFolderId: boxAccess.Box.Folder.Id,
             cancellationToken: cancellationToken);
 
+        await workspaceCache.InvalidateEntry(
+            workspaceId: boxAccess.Box.Workspace.Id,
+            cancellationToken: cancellationToken);
+
         return result.Code switch
         {
             BulkInitiateFileUploadOperation.ResultCode.Ok => 
@@ -523,6 +530,9 @@ public class BoxExternalAccessHandler(
             BulkInitiateFileUploadOperation.ResultCode.FoldersNotFound => 
                 HttpErrors.Folder.NotFound(
                     result.MissingFolders),
+
+            BulkInitiateFileUploadOperation.ResultCode.NotEnoughSpace =>
+                HttpErrors.Box.NotEnoughSpace(),
 
             _ => throw new UnexpectedOperationResultException(
                 operationName: nameof(BulkInitiateFileUploadOperation),

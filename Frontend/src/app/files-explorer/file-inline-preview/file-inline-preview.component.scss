@@ -33,7 +33,7 @@
 
 .note-header {
     color: var(--company-grey-font);
-    font-size: 0.9rem;
+    font-size: var(--company-medium-font);
 }
 
 .preview-bottom-section {
@@ -55,7 +55,7 @@
 
 .description-box {
     border: 1px solid var(--company-grey-accent-light);
-    font-size: 0.9rem;
+    font-size: var(--company-medium-font);
     color: var(--company-grey-font);
     background-color: white;
     padding: 1rem;
