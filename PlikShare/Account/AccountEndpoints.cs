@@ -86,7 +86,8 @@ public static class AccountEndpoints
                 CanManageGeneralSettings: user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageGeneralSettings),
                 CanManageUsers: user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageUsers),
                 CanManageStorages: user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageStorages),
-                CanManageEmailProviders: user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageEmailProviders)));
+                CanManageEmailProviders: user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageEmailProviders)),
+            MaxWorkspaceNumber: user.MaxWorkspaceNumber);
     }
 
     private static async Task<ChangePasswordResponseDto> ChangePassword(

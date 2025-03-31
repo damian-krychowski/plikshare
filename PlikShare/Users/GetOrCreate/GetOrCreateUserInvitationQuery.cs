@@ -125,7 +125,9 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
                          u_lockout_enabled,
                          u_access_failed_count,
                          u_is_invitation,
-                         u_invitation_code
+                         u_invitation_code,
+                         u_max_workspace_number,
+                         u_default_max_workspace_size_in_bytes
                      ) VALUES (
                          $externalId,
                          $userName,
@@ -143,7 +145,9 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
                          FALSE,
                          0,
                          TRUE,
-                         $invitationCode
+                         $invitationCode,
+                         NULL,
+                         NULL
                      )
                      ON CONFLICT(u_normalized_email) DO NOTHING
                      RETURNING
@@ -164,6 +168,8 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
                     CanManageUsers: false,
                     CanManageStorages: false,
                     CanManageEmailProviders: false,
+                    MaxWorkspaceNumber: null,
+                    DefaultMaxWorkspaceSizeInBytes: null,
                     WasJustCreated: true),
                 transaction: transaction)
             .WithParameter("$externalId", UserExtId.NewId().Value)
@@ -198,7 +204,9 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
                           ({UserSql.HasClaim(Claims.Permission, Permissions.ManageGeneralSettings)}) AS u_can_manage_general_settings,
                           ({UserSql.HasClaim(Claims.Permission, Permissions.ManageUsers)}) AS u_can_manage_users,
                           ({UserSql.HasClaim(Claims.Permission, Permissions.ManageStorages)}) AS u_can_manage_storages,
-                          ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers
+                          ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
+                          u_max_workspace_number,
+                          u_default_max_workspace_size_in_bytes   
                       FROM u_users
                       WHERE u_normalized_email = $userNormalizedEmail
                       LIMIT 1
@@ -217,13 +225,15 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
                     CanManageUsers: reader.GetBoolean(10),
                     CanManageStorages: reader.GetBoolean(11),
                     CanManageEmailProviders: reader.GetBoolean(12),
+                    MaxWorkspaceNumber: reader.GetInt32OrNull(13),
+                    DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(14),
                     WasJustCreated: false),
                 transaction: transaction)
             .WithParameter("$userNormalizedEmail", email.Normalized)
             .Execute();
     }
 
-    public readonly record struct User(
+    public record User(
         int Id,
         UserExtId ExternalId,
         bool IsEmailConfirmed,
@@ -237,5 +247,7 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
         bool CanManageUsers,
         bool CanManageStorages,
         bool CanManageEmailProviders,
+        int? MaxWorkspaceNumber,
+        long? DefaultMaxWorkspaceSizeInBytes,
         bool WasJustCreated);
 }

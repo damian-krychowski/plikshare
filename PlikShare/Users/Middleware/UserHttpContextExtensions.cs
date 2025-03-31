@@ -16,7 +16,7 @@ public static class UserHttpContextExtensions
             return userContext;
         }
 
-        //when user is present in httpcontext it meanst that it must have already accepted an invitation
+        //when user is present in httpcontext it means that it must have already accepted an invitation
         //or registered himself, thus the status is always Registered at this moment and Invitation is always NULL
         var context = new UserContext(
             Status: UserStatus.Registered,
@@ -36,7 +36,9 @@ public static class UserHttpContextExtensions
                 CanManageUsers: httpContext.User.HasPermission(Permissions.ManageUsers),
                 CanManageStorages: httpContext.User.HasPermission(Permissions.ManageStorages),
                 CanManageEmailProviders: httpContext.User.HasPermission(Permissions.ManageEmailProviders)),
-            Invitation: null);
+            Invitation: null,
+            MaxWorkspaceNumber: httpContext.User.GetMaxWorkspaceNumber(),
+            DefaultMaxWorkspaceSizeInBytes: httpContext.User.GetDefaultMaxWorkspaceSizeInBytes());
 
         httpContext.Items[UserContext] = context;
 

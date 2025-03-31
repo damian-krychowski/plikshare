@@ -12,16 +12,18 @@ import { ActionButtonComponent } from "../buttons/action-btn/action-btn.componen
 import { Operations, OptimisticOperation } from "../../services/optimistic-operation";
 import { UsersApi } from "../../services/users.api";
 import { observeIsHighlighted } from "../../services/is-highlighted-utils";
+import { MaxWorkspaceSizePipe } from "../storage-size.pipe";
 
 @Component({
     selector: 'app-user-item',
     imports: [
-        MatTooltipModule,
-        ConfirmOperationDirective,
-        PrefetchDirective,
-        UserPermissionsListComponent,
-        ActionButtonComponent
-    ],
+    MatTooltipModule,
+    ConfirmOperationDirective,
+    PrefetchDirective,
+    UserPermissionsListComponent,
+    ActionButtonComponent,
+    MaxWorkspaceSizePipe
+],
     templateUrl: './user-item.component.html',
     styleUrl: './user-item.component.scss'
 })
@@ -39,12 +41,16 @@ export class UserItemComponent {
     userEmail = computed(() => this.getUserEmailWithHighlight(this.user(), this.searchPhrase()));
     userWorkspacesCount = computed(() => this.user().workspacesCount());
     hasAnyWorkspaces = computed(() => this.userWorkspacesCount() > 0);
+    
+    canAddWorkspace = computed(() => this.user()?.permissions.canAddWorkspace() ?? false);
+    maxWorkspaceNumber  = computed(() => this.user()?.maxWorkspaceNumber());    
+    defaultMaxWorkspaceSizeInBytes  = computed(() => this.user()?.defaultMaxWorkspaceSizeInBytes());
 
     isAdmin = computed(() => this.user().roles.isAdmin());
     isAppOwner = computed(() => this.user().roles.isAppOwner());
     isLoggedInUser = computed(() => this.userExternalId() == this._auth.userExternalId());
     isHighlighted = observeIsHighlighted(this.user);
-    isEmailConfirmed = computed(() => this.user().isEmailConfirmed());    
+    isEmailConfirmed = computed(() => this.user().isEmailConfirmed()); 
 
     canGoToUserDetails = computed(() => this.userExternalId() != null);
 

@@ -25,7 +25,7 @@ export type AppWorkspace = {
     externalId: WritableSignal<string | null>;
     name: WritableSignal<string>;
     currentSizeInBytes: WritableSignal<number>;
-    maxSizeInBytes: number | null;
+    maxSizeInBytes: WritableSignal<number | null>;
     owner: WritableSignal<AppUser>;
     wasUserInvited: Signal<boolean>;
     permissions: {
@@ -68,20 +68,7 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
     externalId = computed(() => this.workspace().externalId());
     name = computed(() => this.workspace().name());
     currentSizeInBytes = computed(() => this.workspace().currentSizeInBytes());
-    
-    maxSizeInBytes = computed(() => {
-        const workspace = this.workspace();
-
-        if(workspace.maxSizeInBytes == null)
-            return null;
-
-        //the easies way not send null over protobuf is to mark it as -1 
-        // (otherwise null on c# side is converted to 0 in js which interferes with normal 0)
-        if(workspace.maxSizeInBytes == -1)
-            return null;
-
-        return workspace.maxSizeInBytes;
-    });
+    maxSizeInBytes = computed(() => this.workspace().maxSizeInBytes());
 
     storageName = computed(() => this.workspace().storageName());
     owner = computed(() => this.workspace().owner());

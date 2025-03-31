@@ -690,6 +690,7 @@ public class account_tests : TestFixture
                 CanManageEmailProviders: false,
                 CanManageGeneralSettings: false,
                 CanManageStorages: false,
-                CanManageUsers: false)));
+                CanManageUsers: false),
+            MaxWorkspaceNumber: null));
     }
 }

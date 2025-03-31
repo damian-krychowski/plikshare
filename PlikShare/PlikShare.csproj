@@ -71,6 +71,9 @@
       <EmbeddedResource Include="Core\Database\AiDatabase\Migrations\01_initial_ai_db_structure_migration.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\18_user_max_workspace_number_and_max_workspace_size_columns_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\17_workspace_max_size_column_introduced.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>

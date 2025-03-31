@@ -34,6 +34,7 @@ export interface GetAccountDetailsResponse {
     email: string,
     roles: AccountRoles,
     permissions: AccountPermissions;
+    maxWorkspaceNumber: number | null;
 }
 
 export interface AccountRoles {

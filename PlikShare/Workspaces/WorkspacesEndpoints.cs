@@ -5,6 +5,7 @@ using PlikShare.BulkDelete;
 using PlikShare.BulkDelete.Contracts;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
+using PlikShare.Core.ExternalIds;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.Queue;
 using PlikShare.Core.UserIdentity;
@@ -146,7 +147,7 @@ public static class WorkspacesEndpoints
         return response;
     }
 
-    private static async Task<Results<Ok<CreateWorkspaceResponseDto>, NotFound<HttpError>>> CreateWorkspace(
+    private static async Task<Results<Ok<CreateWorkspaceResponseDto>, NotFound<HttpError>, BadRequest<HttpError>>> CreateWorkspace(
         [FromBody] CreateWorkspaceRequestDto request,
         HttpContext httpContext,
         CreateWorkspaceQuery createWorkspaceQuery,
@@ -157,7 +158,7 @@ public static class WorkspacesEndpoints
 
         var result = await createWorkspaceQuery.Execute(
             storageExternalId: request.StorageExternalId,
-            ownerId: user.Id,
+            user: user,
             name: request.Name,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
@@ -165,8 +166,14 @@ public static class WorkspacesEndpoints
         if (result.Code == CreateWorkspaceQuery.ResultCode.StorageNotFound)
             return HttpErrors.Storage.NotFound(request.StorageExternalId);
 
-        return TypedResults.Ok(new CreateWorkspaceResponseDto(
-            ExternalId: result.Workspace.ExternalId));
+        if (result.Code == CreateWorkspaceQuery.ResultCode.MaxNumberOfWorkspacesReached)
+            return HttpErrors.User.MaxNumberOfWorkspacesReached(user.ExternalId, user.MaxWorkspaceNumber);
+
+        return TypedResults.Ok(new CreateWorkspaceResponseDto
+        {
+            ExternalId = result.Workspace.ExternalId,
+            MaxSizeInBytes = result.Workspace.MaxSizeInBytes
+        });
     }
 
     private static async ValueTask<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> DeleteWorkspace(
@@ -242,8 +249,11 @@ public static class WorkspacesEndpoints
                     workspaceMembership,
                     cancellationToken);
 
-                return TypedResults.Ok(new AcceptWorkspaceInvitationResponseDto(
-                    WorkspaceCurrentSizeInBytes: workspaceMembership.Workspace.CurrentSizeInBytes));
+                return TypedResults.Ok(new AcceptWorkspaceInvitationResponseDto
+                {
+                    WorkspaceCurrentSizeInBytes = workspaceMembership.Workspace.CurrentSizeInBytes,
+                    WorkspaceMaxSizeInBytes = workspaceMembership.Workspace.MaxSizeInBytes
+                });
 
             case AcceptWorkspaceInvitationQuery.ResultCode.MembershipNotFound:
                 return HttpErrors.Workspace.InvitationNotFound(workspaceExternalId);

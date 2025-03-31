@@ -1,0 +1,61 @@
+@import "./../../../styles/top-nav-btn.scss";
+@import "./../../../styles/item-bar.scss";
+@import "./../../../styles/variables.scss";
+
+:host {
+    display: flex;
+    flex-direction: row;
+}
+
+.workspace-config {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+    gap: 0.5rem;
+
+    &__input {
+        border: 1px solid var(--company-grey-accent);
+
+        flex-grow: 1;
+        min-width: 100px;
+        max-width: 200px;
+        height: 36px;
+        transition: flex-grow .15s ease-in-out;
+        
+        border-radius: 4px;
+        padding: 0.3rem 1rem;
+
+        &:focus-visible {
+            outline: 2px solid var(--company-blue-hover);
+            border: 1px solid var(--company-grey-accent);
+        }
+        
+        &--error {
+            border-color: var(--company-danger);
+        }
+    }
+
+    &__select {
+        min-width: 50px;
+        max-width: 100px;
+        border: 1px solid var(--company-grey-accent);
+        border-radius: 4px;
+        background-color: white;
+        height: 36px;
+        line-height: 36px;
+        padding-right: 0.5rem;
+        text-align: center;
+
+        &--wide {
+            max-width: 200px;
+        }
+    }
+    
+    &__error {
+        color: var(--company-danger);
+        font-size: 12px;
+        position: absolute;
+        margin-top: 2px;
+    }
+}

@@ -48,6 +48,8 @@ public class UserService(
                 CanManageEmailProviders: user.CanManageEmailProviders),
             Invitation: user.IsInvitation
                 ? new UserInvitation(Code: user.InvitationCode!)
-                : null);
+                : null,
+            MaxWorkspaceNumber: user.MaxWorkspaceNumber,
+            DefaultMaxWorkspaceSizeInBytes: user.DefaultMaxWorkspaceSizeInBytes);
     }    
 }

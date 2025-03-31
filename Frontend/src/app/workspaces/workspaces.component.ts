@@ -21,6 +21,7 @@ import { ItemButtonComponent } from '../shared/buttons/item-btn/item-btn.compone
 import { ActionButtonComponent } from '../shared/buttons/action-btn/action-btn.component';
 import { removeItems, unshiftItems } from '../shared/signal-utils';
 import { FooterComponent } from '../static-pages/shared/footer/footer.component';
+import { GenericDialogService } from '../shared/generic-message-dialog/generic-dialog-service';
 
 
 @Component({
@@ -63,7 +64,18 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
     hasAnyInvitation = computed(() => this.hasAnyWorkspaceInvitation() || this.hasAnyBoxInvitation());
     hasAnyOtherWorkspace = computed(() => this.otherWorkspaces().length > 0);
 
-    canAddWorkspace = computed(() => this.auth.canAddWorkspace() && this.hasAnyStorage());
+    hasReachedMaxWorkspaceNumber = computed(() => {
+        const maxWorkspaceNumber = this.auth.maxWorkspaceNumber();
+
+        if(maxWorkspaceNumber == null)
+            return false;
+
+        const workspacesCount = this.workspaces().length;
+
+        return workspacesCount >= maxWorkspaceNumber;
+    });
+
+    canAddWorkspace = computed(() => this.auth.canAddWorkspace() && this.hasAnyStorage() && !this.hasReachedMaxWorkspaceNumber());
     
     showWorkspacesSection = computed(() => this.hasAnyWorkspace() || this.canAddWorkspace() );
 
@@ -82,7 +94,8 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
         private _boxExternalAccessApi: BoxExternalAccessApi,
         private _inAppSharing: InAppSharing,
         private _dataStore: DataStore,
-        private _dialog: MatDialog
+        private _dialog: MatDialog,
+        private _genericDialogService: GenericDialogService
     ) { 
     }
 
@@ -186,7 +199,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                     externalId: signal(item.externalId),
                     name: signal(item.name),
                     currentSizeInBytes: signal(item.currentSizeInBytes),
-                    maxSizeInBytes: item.maxSizeInBytes,
+                    maxSizeInBytes: signal(item.maxSizeInBytes == -1 ? null : item.maxSizeInBytes),
                     owner: signal({
                         email: signal(item.owner.email),
                         externalId: item.owner.externalId
@@ -224,7 +237,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                 externalId: signal(item.externalId),
                 name: signal(item.name),
                 currentSizeInBytes: signal(item.currentSizeInBytes),
-                maxSizeInBytes: item.maxSizeInBytes,
+                maxSizeInBytes: signal(item.maxSizeInBytes == -1 ? null : item.maxSizeInBytes),
                 owner: signal({
                     email: signal(item.owner.email),
                     externalId: item.owner.externalId
@@ -333,37 +346,43 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
         if(!storage)
             return;
 
+        const workspace: AppWorkspace = {
+            type: 'app-workspace',
+            externalId: signal(null),
+            name: signal('Untitled workspace'),
+            owner: signal(await this.auth.getUser()),
+            currentSizeInBytes: signal(0),
+            maxSizeInBytes: signal(null),
+            wasUserInvited: signal(false),
+            isUsedByIntegration: false,
+            isBucketCreated: signal(false),
+            permissions: {
+                allowShare: true
+            },
+            storageName: signal(storage.name()),
+            isNameEditing: signal(true),
+            isHighlighted: signal(false)
+        };
+
+        this.workspaces.update(values => [...values,workspace]);
+
         try {
             this.isLoading.set(true);
-
-            const workspace: AppWorkspace = {
-                type: 'app-workspace',
-                externalId: signal(null),
-                name: signal('Untitled workspace'),
-                owner: signal(await this.auth.getUser()),
-                currentSizeInBytes: signal(0),
-                maxSizeInBytes: null,
-                wasUserInvited: signal(false),
-                isUsedByIntegration: false,
-                isBucketCreated: signal(false),
-                permissions: {
-                    allowShare: true
-                },
-                storageName: signal(storage.name()),
-                isNameEditing: signal(true),
-                isHighlighted: signal(false)
-            };
-
-            this.workspaces.update(values => [...values,workspace]);
-
+           
             const response = await this._workspacesApi.createWorkspace({
                 storageExternalId: storage.externalId,
                 name: 'Untitled workspace'
             });
 
             workspace.externalId.set(response.externalId);
-        } catch (error) {
-            console.error(error);
+            workspace.maxSizeInBytes.set(response.maxSizeInBytes)
+        } catch (error: any) {
+            if(error?.error?.code === 'user-max-number-of-workspaces-reached') {
+                removeItems(this.workspaces, workspace);
+                this._genericDialogService.openMaxWorkspacesReachedDialog();
+            } else {
+                console.error(error);
+            }
         } finally {
             this.isLoading.set(false);
         }
@@ -378,7 +397,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                 externalId: invitation.externalId,
                 name: signal(invitation.name),
                 currentSizeInBytes: signal(0),
-                maxSizeInBytes: null,
+                maxSizeInBytes: signal(null),
                 owner: signal(invitation.owner), 
                 wasUserInvited: signal(true),
                 permissions: invitation.permissions,
@@ -402,6 +421,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
             );
 
             workspace.currentSizeInBytes.set(response.workspaceCurrentSizeInBytes);
+            workspace.maxSizeInBytes.set(response.workspaceMaxSizeInBytes);
         } catch (error) {
             console.error(error);
         } finally {

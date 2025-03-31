@@ -64,6 +64,7 @@ export interface CreateWorkspaceRequest {
 
 export interface CreateWorkspaceResponse {
     externalId: string;
+    maxSizeInBytes: number | null;
 }
 
 export interface CreateWorkspaceMemberInvitationRequest {
@@ -95,6 +96,7 @@ export interface UpdateWorkspaceMemberPermissionsRequest {
 
 export type AcceptWorkspaceInvitationResponse = {
     workspaceCurrentSizeInBytes: number;
+    workspaceMaxSizeInBytes: number | null;
 };
 
 export interface GetWorkspaceBucketStatusResponse {

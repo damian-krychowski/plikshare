@@ -7,6 +7,8 @@ export type AppUserDetails = {
     workspacesCount: Signal<number>;
     roles: AppUserRoles;
     permissions: AppUserPermissions;
+    maxWorkspaceNumber: WritableSignal<number | null>;
+    defaultMaxWorkspaceSizeInBytes: WritableSignal<number | null>;
 
     isHighlighted: WritableSignal<boolean>;
 }

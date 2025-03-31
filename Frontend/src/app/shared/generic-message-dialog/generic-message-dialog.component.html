@@ -1,0 +1,27 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        {{ data.title }}
+    </div>
+
+    <div class="questionaire__subtitle">
+        {{ data.message }}
+    </div>
+
+    <div class="mt-5"></div>
+    
+    <div class="questionaire__actions"> 
+        <button class="questionaire__btn verb-btn" 
+            [class.danger-btn]="data.isDanger" 
+            (click)="onConfirm()" 
+            mat-flat-button 
+            cdkFocusInitial>
+            {{ data.confirmButtonText || 'Ok' }}
+        </button>
+
+        @if(data.showCancelButton) {
+            <button class="questionaire__btn" (click)="onCancel()" mat-flat-button>
+                {{ data.cancelButtonText || 'Cancel' }}
+            </button>
+        }
+    </div> 
+</div>

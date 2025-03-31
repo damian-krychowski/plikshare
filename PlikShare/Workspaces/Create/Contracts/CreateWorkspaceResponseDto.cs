@@ -2,4 +2,8 @@ using PlikShare.Workspaces.Id;
 
 namespace PlikShare.Workspaces.Create.Contracts;
 
-public record CreateWorkspaceResponseDto(WorkspaceExtId ExternalId);
+public class CreateWorkspaceResponseDto
+{
+    public required WorkspaceExtId ExternalId { get; init; }
+    public required long? MaxSizeInBytes { get; init; }
+}

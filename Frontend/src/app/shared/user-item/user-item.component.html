@@ -32,7 +32,12 @@
                     @if(!isEmailConfirmed()) {
                         <span class="mr-1">Email not confirmed</span>
                     } @else {
-                        <span>Workspaces: {{userWorkspacesCount()}}</span>                
+                        <span>Workspaces: {{userWorkspacesCount()}}</span>                      
+                            
+                        @if(canAddWorkspace()) {
+                            | <span>Max workspace number: {{maxWorkspaceNumber() ?? 'unlimited'}}</span>  
+                            | <span>Default max workspace size: {{defaultMaxWorkspaceSizeInBytes() | maxWorkspaceSize}}</span>  
+                        }
                     }
                 </div>
             </div>

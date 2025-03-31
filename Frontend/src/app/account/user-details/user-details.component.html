@@ -79,7 +79,7 @@
                         @if(!isEmailConfirmed()) {
                             <span class="mr-1">Email not confirmed</span>
                         } @else {
-                            <span>Workspaces: {{workspacesCount()}}</span>                
+                            <span>Workspaces: {{workspacesCount()}}</span>  
                         }
                     </div>
                 </div>
@@ -100,7 +100,41 @@
                     <app-user-permissions-list
                         [user]="userValue">                            
                     </app-user-permissions-list>
+                </div> 
+                
+                <div class="mt-3"></div>
+
+                <div class="title-header">  
+                    <div>
+                        Max number of workspaces:
+                    </div>
                 </div>
+
+                <div class="mt-2"></div>
+                
+                <div class="user-details">
+                    <app-max-workspace-number-config
+                        [maxNumber]="maxWorkspaceNumber()"
+                        (configChanged)="onMaxWorkspaceNumberChange($event)">                        
+                    </app-max-workspace-number-config>
+                </div>   
+
+                <div class="mt-3"></div>
+
+                <div class="title-header">  
+                    <div>
+                        Default workspace configuration:
+                    </div>
+                </div>
+
+                <div class="mt-2"></div>
+                
+                <div class="user-details">
+                    <app-workspace-size-config
+                        [maxSizeInBytes]="defaultMaxWorkspaceSizeInBytes()"
+                        (configChanged)="onDefaultMaxWorkspaceSizeInBytesChange($event)">                        
+                    </app-workspace-size-config>
+                </div>              
             }
         }
 

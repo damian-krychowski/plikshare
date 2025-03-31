@@ -75,64 +75,57 @@ public class UserCache(
         
         var result = connection
             .OneRowCmd(
-                sql: $@"
-                    SELECT
-	                    u_external_id,
-				        u_email,
-				        u_email_confirmed,
-				        u_is_invitation,
-				        u_security_stamp,
-				        u_concurrency_stamp,
-				        ({UserSql.HasRole(Roles.Admin)}) AS u_is_admin,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.AddWorkspace)}) AS u_can_add_workspace,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.ManageGeneralSettings)}) AS u_can_manage_general_settings,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.ManageUsers)}) AS u_can_manage_users,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.ManageStorages)}) AS u_can_manage_storages,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
-				        u_invitation_code
-	                FROM u_users
-	                WHERE u_id = $userId
-			        LIMIT 1
-                ",
+                sql: $"""
+                SELECT
+                	u_email,
+                	u_is_invitation,
+                	u_external_id,
+                	u_email_confirmed,
+                	u_security_stamp,
+                	u_concurrency_stamp,
+                	({UserSql.HasRole(Roles.Admin)}) AS u_is_admin,
+                    ({UserSql.HasClaim(Claims.Permission, Permissions.AddWorkspace)}) AS u_can_add_workspace,
+                    ({UserSql.HasClaim(Claims.Permission, Permissions.ManageGeneralSettings)}) AS u_can_manage_general_settings,
+                    ({UserSql.HasClaim(Claims.Permission, Permissions.ManageUsers)}) AS u_can_manage_users,
+                    ({UserSql.HasClaim(Claims.Permission, Permissions.ManageStorages)}) AS u_can_manage_storages,
+                    ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
+                	u_invitation_code,
+                    u_max_workspace_number,
+                    u_default_max_workspace_size_in_bytes   
+                FROM u_users
+                WHERE u_id = $userId
+                LIMIT 1
+                """,
                 readRowFunc: reader =>
                 {
-                    var externalId = reader.GetExtId<UserExtId>(0);
-                    var email = reader.GetEmail(1);
-                    var isEmailConfirmed = reader.GetBoolean(2);
-                    var isInvitation = reader.GetBoolean(3);
-                    var securityStamp = reader.GetString(4);
-                    var concurrencyStamp = reader.GetString(5);
-                    var isAdmin = reader.GetBoolean(6);
-                    var canAddWorkspace = reader.GetBoolean(7);
-                    var canManageGeneralSettings = reader.GetBoolean(8);
-                    var canManageUsers = reader.GetBoolean(9);
-                    var canManageStorages = reader.GetBoolean(10);
-                    var canManageEmailProviders = reader.GetBoolean(11);
+                    var email = reader.GetEmail(0);
 
                     return new UserContext(
-                        Status: isInvitation 
+                        Status: reader.GetBoolean(1)
                             ? UserStatus.Invitation 
                             : UserStatus.Registered,
                         Id: userId,
-                        ExternalId: externalId,
+                        ExternalId: reader.GetExtId<UserExtId>(2),
                         Email: email,
-                        IsEmailConfirmed: isEmailConfirmed,
+                        IsEmailConfirmed: reader.GetBoolean(3),
                         Stamps: new UserSecurityStamps(
-                            Security: securityStamp,
-                            Concurrency: concurrencyStamp),
+                            Security: reader.GetString(4),
+                            Concurrency: reader.GetString(5)),
                         Roles: new UserRoles(
                             IsAppOwner: appOwners.IsAppOwner(email),
-                            IsAdmin: isAdmin),
+                            IsAdmin: reader.GetBoolean(6)),
                         Permissions: new UserPermissions(
-                            CanAddWorkspace: canAddWorkspace,
-                            CanManageGeneralSettings: canManageGeneralSettings,
-                            CanManageUsers: canManageUsers,
-                            CanManageStorages: canManageStorages,
-                            CanManageEmailProviders: canManageEmailProviders),
-                        Invitation: isInvitation 
+                            CanAddWorkspace: reader.GetBoolean(7),
+                            CanManageGeneralSettings: reader.GetBoolean(8),
+                            CanManageUsers: reader.GetBoolean(9),
+                            CanManageStorages: reader.GetBoolean(10),
+                            CanManageEmailProviders: reader.GetBoolean(11)),
+                        Invitation: reader.GetBoolean(1)
                             ? new UserInvitation(
                                 Code: reader.GetString(12)) 
-                            : null);
+                            : null,
+                        MaxWorkspaceNumber: reader.GetInt32OrNull(13),
+                        DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(14));
                 })
             .WithParameter("$userId", userId)
             .Execute();
@@ -166,64 +159,55 @@ public class UserCache(
         
         var result = connection
             .OneRowCmd(
-                sql: $@"
-                    SELECT
-	                    u_id,
-				        u_email,
-				        u_email_confirmed,
-				        u_is_invitation,				        
-				        u_security_stamp,
-				        u_concurrency_stamp,
-				        ({UserSql.HasRole(Roles.Admin)}) AS u_is_admin,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.AddWorkspace)}) AS u_can_add_workspace,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.ManageGeneralSettings)}) AS u_can_manage_general_settings,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.ManageUsers)}) AS u_can_manage_users,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.ManageStorages)}) AS u_can_manage_storages,
-                        ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
-				        u_invitation_code
-	                FROM u_users
-	                WHERE u_external_id = $userExternalId
-			        LIMIT 1
-                ",
-                readRowFunc: reader => 
+                sql: $"""
+                SELECT
+                	u_email,
+                	u_is_invitation,	
+                	u_id,
+                	u_email_confirmed,			        
+                	u_security_stamp,
+                	u_concurrency_stamp,
+                	({UserSql.HasRole(Roles.Admin)}) AS u_is_admin,
+                    ({UserSql.HasClaim(Claims.Permission, Permissions.AddWorkspace)}) AS u_can_add_workspace,
+                    ({UserSql.HasClaim(Claims.Permission, Permissions.ManageGeneralSettings)}) AS u_can_manage_general_settings,
+                    ({UserSql.HasClaim(Claims.Permission, Permissions.ManageUsers)}) AS u_can_manage_users,
+                    ({UserSql.HasClaim(Claims.Permission, Permissions.ManageStorages)}) AS u_can_manage_storages,
+                    ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
+                	u_invitation_code,
+                    u_max_workspace_number,
+                    u_default_max_workspace_size_in_bytes   
+                FROM u_users
+                WHERE u_external_id = $userExternalId
+                LIMIT 1
+                """,
+                readRowFunc: reader =>
                 {
-                    var id = reader.GetInt32(0);
-                    var email = reader.GetEmail(1);
-                    var isEmailConfirmed = reader.GetBoolean(2);
-                    var isInvitation = reader.GetBoolean(3);
-                    var securityStamp = reader.GetString(4);
-                    var concurrencyStamp = reader.GetString(5);
-                    var isAdmin = reader.GetBoolean(6);
-                    var canAddWorkspace = reader.GetBoolean(7);
-                    var canManageGeneralSettings = reader.GetBoolean(8);
-                    var canManageUsers = reader.GetBoolean(9);
-                    var canManageStorages = reader.GetBoolean(10);
-                    var canManageEmailProviders = reader.GetBoolean(11);
-                    
+                    var email = reader.GetEmail(0);
+
                     return new UserContext(
-                        Status: isInvitation 
-                            ? UserStatus.Invitation 
-                            : UserStatus.Registered,
-                        Id: id,
+                        Status: reader.GetBoolean(1) ? UserStatus.Invitation : UserStatus.Registered,
+                        Id: reader.GetInt32(2),
                         ExternalId: externalId,
                         Email: email,
-                        IsEmailConfirmed: isEmailConfirmed,
+                        IsEmailConfirmed: reader.GetBoolean(3),
                         Stamps: new UserSecurityStamps(
-                            Security: securityStamp,
-                            Concurrency: concurrencyStamp),
+                            Security: reader.GetString(4),
+                            Concurrency: reader.GetString(5)),
                         Roles: new UserRoles(
                             IsAppOwner: appOwners.IsAppOwner(email),
-                            IsAdmin: isAdmin),
+                            IsAdmin: reader.GetBoolean(6)),
                         Permissions: new UserPermissions(
-                            CanAddWorkspace: canAddWorkspace,
-                            CanManageGeneralSettings: canManageGeneralSettings,
-                            CanManageUsers: canManageUsers,
-                            CanManageStorages: canManageStorages,
-                            CanManageEmailProviders: canManageEmailProviders),
-                        Invitation: isInvitation 
+                            CanAddWorkspace: reader.GetBoolean(7),
+                            CanManageGeneralSettings: reader.GetBoolean(8),
+                            CanManageUsers: reader.GetBoolean(9),
+                            CanManageStorages: reader.GetBoolean(10),
+                            CanManageEmailProviders: reader.GetBoolean(11)),
+                        Invitation: reader.GetBoolean(1)
                             ? new UserInvitation(
-                                Code: reader.GetString(12)) 
-                            : null);
+                                Code: reader.GetString(12))
+                            : null,
+                        MaxWorkspaceNumber: reader.GetInt32OrNull(13),
+                        DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(14));
                 })
             .WithParameter("$userExternalId", externalId.Value)
             .Execute();

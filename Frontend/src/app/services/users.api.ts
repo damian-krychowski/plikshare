@@ -18,6 +18,8 @@ export interface GetUserDetailsResponse {
             canManageStorages: boolean;
             canManageEmailProviders: boolean;
         };
+        maxWorkspaceNumber: number | null;
+        defaultMaxWorkspaceSizeInBytes: number | null;
     };
 
     workspaces: {
@@ -101,6 +103,8 @@ export interface UserItemDto {
         canManageStorages: boolean;
         canManageEmailProviders: boolean;
     };
+    maxWorkspaceNumber: number | null;
+    defaultMaxWorkspaceSizeInBytes: number | null;
 }
 
 export interface SetIsAdminRequest {
@@ -128,6 +132,14 @@ export interface InviteUsersResponse {
         email: string;
         externalId: string;
     }[];
+}
+
+export interface UpdateUserDefaultMaxWorkspaceSizeInBytesRequest {
+    defaultMaxWorkspaceSizeInBytes: number | null;
+}
+
+export interface UpdateUserMaxWorkspaceNumberRequest {
+    maxWorkspaceNumber: number | null;
 }
 
 @Injectable({
@@ -196,6 +208,32 @@ export class UsersApi {
             ._http
             .patch(
                 `/api/users/${userExternalId}/permission`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async updateUserMaxWorkspaceNumber(userExternalId: string, request: UpdateUserMaxWorkspaceNumberRequest) {
+        const call = this
+            ._http
+            .patch(
+                `/api/users/${userExternalId}/max-workspace-number`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async updateUserDefaultMaxWorkspaceSizeInBytes(userExternalId: string, request: UpdateUserDefaultMaxWorkspaceSizeInBytesRequest) {
+        const call = this
+            ._http
+            .patch(
+                `/api/users/${userExternalId}/default-max-workspace-size-in-bytes`, request, {
                 headers: new HttpHeaders({
                     'Content-Type': 'application/json'
                 })

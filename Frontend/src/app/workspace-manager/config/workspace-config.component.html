@@ -8,73 +8,7 @@
 
 <div class="mt-2"></div>
 
-<form class="page-form" (submit)="onSaveConfig()" [formGroup]="formGroup">
-    @let isLimitedVal = isLimited.value;
-
-    <div class="form-row">
-        <mat-slide-toggle 
-            formControlName="isLimited" 
-            (change)="onFormChanges()">
-            <span class="pl-1">                
-                @if(isLimitedVal) {
-                    Workspace size is limited
-                } @else {
-                    Workspace doesn't have size limit
-                }
-            </span>
-        </mat-slide-toggle >
-    </div>
-
-    <div class="mt-2"></div>
-
-    @if(isLimitedVal){        
-        <div class="form-row">
-            <mat-form-field class="form-row__size-field">
-                <mat-label>Maximum size</mat-label>
-    
-                <input 
-                    id="maxSize"
-                    type="number" 
-                    formControlName="maxSize"
-                    placeholder="100"
-                    matInput
-                    (change)="onFormChanges()">
-    
-                @if ((maxSize.touched || wasSubmitted()) && maxSize.hasError('required')) {
-                    <mat-error>Maximum size is <strong>required</strong></mat-error>
-                }
-    
-                @if ((maxSize.touched || wasSubmitted()) && maxSize.hasError('min')) {
-                    <mat-error>Maximum size must be at least 0</mat-error>
-                }
-
-                @if ((maxSize.touched || wasSubmitted()) && maxSize.hasError('max')) {
-                    <mat-error>Maximum size cannot exceed {{ getCurrentMaxValue() }} {{ unit.value }}</mat-error>
-                }
-            </mat-form-field>
-            
-            <app-storage-unit-input class="form-row__unit-field"
-                [wasSubmitted]="wasSubmitted()"
-                formControlName="unit"
-                (changed)="onFormChanges()">                    
-            </app-storage-unit-input>
-        </div>
-    }   
-
-    <div class="page-form__info">
-        Set the maximum storage size for this workspace. Files exceeding this limit will be rejected.
-        Select unlimited storage to remove size restrictions.
-    </div>
-    
-    <div class="page-form__actions">     
-        @if(wasMaxSizeInBytesChanged()) { 
-            <button type="submit" class="page-form__btn" mat-flat-button
-                aria-label="Create storage"
-                [class.page-form__btn--disabled]="formGroup.invalid"
-                [class.page-form__btn--loading]="isLoading()"
-                [disabled]="isLoading()">
-                Save configuration
-            </button>
-        }   
-    </div>
-</form>
+<app-workspace-size-config
+    [maxSizeInBytes]="maxSizeInBytes()"
+    (configChanged)="onMaxSizeInBytesChange($event)">
+</app-workspace-size-config>

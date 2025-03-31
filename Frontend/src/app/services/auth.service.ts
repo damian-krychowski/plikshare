@@ -21,6 +21,8 @@ export class AuthService {
     public canManageStorages = computed(() => this.userDetails()?.permissions?.canManageStorages ?? false);  
     public canManageEmailProviders = computed(() => this.userDetails()?.permissions?.canManageEmailProviders ?? false);
 
+    public maxWorkspaceNumber = computed(() => this.userDetails()?.maxWorkspaceNumber ?? null);
+
     public canManageAnything = computed(() => 
         this.canManageGeneralSettings() 
         || this.canManageUsers()

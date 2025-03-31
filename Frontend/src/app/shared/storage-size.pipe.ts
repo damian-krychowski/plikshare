@@ -108,6 +108,19 @@ export class StorageSizePipe implements PipeTransform {
 }
 
 @Pipe({
+    name: 'maxWorkspaceSize',
+    standalone: true
+})
+export class MaxWorkspaceSizePipe implements PipeTransform {
+    transform(value: any, ...args: unknown[]): unknown {
+        if(value === null)
+            return 'unlimited'
+        
+        return StorageSizeUtils.formatSize(value);
+    }
+}
+
+@Pipe({
     name: 'storageSizeValue',
     standalone: true
 })

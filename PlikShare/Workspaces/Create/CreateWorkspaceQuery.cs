@@ -4,6 +4,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Storages.Id;
+using PlikShare.Users.Cache;
 using PlikShare.Workspaces.CreateBucket;
 using PlikShare.Workspaces.Id;
 using Serilog;
@@ -11,26 +12,55 @@ using Serilog;
 namespace PlikShare.Workspaces.Create;
 
 public class CreateWorkspaceQuery(
+    PlikShareDb plikShareDb,
     IClock clock,
     IQueue queue,
     DbWriteQueue dbWriteQueue)
 {
-    public Task<Result> Execute(
+    public async Task<Result> Execute(
         StorageExtId storageExternalId,
-        int ownerId,
+        UserContext user,
         string name,
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        return dbWriteQueue.Execute(
+        if(user.MaxWorkspaceNumber.HasValue)
+        {
+            var currentNumber = GetCurrentNumberOfWorkspaces(
+                ownerId: user.Id);
+
+            if (currentNumber >= user.MaxWorkspaceNumber)
+                return new Result(Code: ResultCode.MaxNumberOfWorkspacesReached);
+        }
+
+        return await dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context, 
                 storageExternalId: 
                 storageExternalId, 
-                ownerId: ownerId, 
+                ownerId: user.Id, 
                 name: name, 
+                maxSizeInBytes: user.DefaultMaxWorkspaceSizeInBytes,
                 correlationId: correlationId),
             cancellationToken: cancellationToken);
+    }
+
+    private int GetCurrentNumberOfWorkspaces(int ownerId)
+    {
+        using var connection = plikShareDb.OpenConnection();
+
+        return connection
+            .OneRowCmd(
+                sql: """
+                SELECT COUNT(*)
+                FROM w_workspaces
+                WHERE w_owner_id = $ownerId
+                    AND w_is_being_deleted = FALSE
+                """,
+                readRowFunc: reader => reader.GetInt32(0)
+            )
+            .WithParameter("$ownerId", ownerId)
+            .ExecuteOrThrow();
     }
 
     private Result ExecuteOperation(
@@ -38,6 +68,7 @@ public class CreateWorkspaceQuery(
         StorageExtId storageExternalId,
         int ownerId,
         string name,
+        long? maxSizeInBytes,
         Guid correlationId)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
@@ -49,6 +80,7 @@ public class CreateWorkspaceQuery(
                 storageExternalId: storageExternalId, 
                 ownerId: ownerId, 
                 name: name, 
+                maxSizeInBytes: maxSizeInBytes,
                 correlationId: correlationId, 
                 transaction: transaction);
             
@@ -95,6 +127,7 @@ public class CreateWorkspaceQuery(
         StorageExtId storageExternalId, 
         int ownerId, 
         string name,
+        long? maxSizeInBytes,
         Guid correlationId, 
         SqliteTransaction transaction)
     {
@@ -123,7 +156,7 @@ public class CreateWorkspaceQuery(
                          FALSE,
                          $bucketName,
                          FALSE,
-                         NULL
+                         $maxSizeInBytes
                      )   
                      RETURNING 
                          w_id,
@@ -140,6 +173,7 @@ public class CreateWorkspaceQuery(
             .WithParameter("$userId", ownerId)
             .WithParameter("$name", name)
             .WithParameter("$bucketName", finalBucketName)
+            .WithParameter("$maxSizeInBytes", maxSizeInBytes)
             .Execute();
 
         if (insertWorkspaceResult.IsEmpty)
@@ -172,13 +206,15 @@ public class CreateWorkspaceQuery(
             Workspace: new Workspace(
                 Id: insertWorkspaceResult.Value.WorkspaceId,
                 ExternalId: workspaceExternalId,
-                BucketName: finalBucketName));
+                BucketName: finalBucketName,
+                MaxSizeInBytes: maxSizeInBytes));
     }
 
     public enum ResultCode
     {
         Ok = 0,
-        StorageNotFound
+        StorageNotFound,
+        MaxNumberOfWorkspacesReached
     }
     
     public readonly record struct Result(
@@ -188,5 +224,6 @@ public class CreateWorkspaceQuery(
     public readonly record struct Workspace(
         int Id,
         WorkspaceExtId ExternalId,
-        string BucketName);
+        string BucketName,
+        long? MaxSizeInBytes);
 }

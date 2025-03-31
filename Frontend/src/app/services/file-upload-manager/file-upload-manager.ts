@@ -8,9 +8,8 @@ import { SingleChunkFileUpload } from "./single-chunk-file-upload";
 import { toNameAndExtension } from "../filte-type";
 import { getBase62Guid } from "../guid-base-62";
 import { MultiFileDirectFileUpload } from "./multi-file-direct-file-upload";
-import { HttpErrorResponse } from "@angular/common/http";
 import { MatDialog } from "@angular/material/dialog";
-import { NotEnoughSpaceComponent } from "../../shared/not-enough-space/not-enough-space.component";
+import { GenericDialogService } from "../../shared/generic-message-dialog/generic-dialog-service";
 
 export type UploadAlgorithm = "direct-upload" | "single-chunk-upload" | "multi-step-chunk-upload";
 
@@ -136,7 +135,7 @@ export class FileUploadManager {
     public uploadsAborted: Subject<UploadsAbortedEvent> = new Subject();
     public workspaceSizeUpdated: Subject<WorkspaceSizeUpdatedEvent> = new Subject();
 
-    constructor(private _dialog: MatDialog) { }
+    constructor(private _genericDialogService: GenericDialogService) { }
 
     public addFiles(files: FileToUpload[], uploadsApi: FileUploadApi) {
         for (const file of files) {
@@ -301,13 +300,7 @@ export class FileUploadManager {
                         });
                     }
 
-                    this._dialog.open(NotEnoughSpaceComponent, {
-                        width: '400px',
-                        maxHeight: '600px',
-                        position: {
-                            top: '100px'
-                        }
-                    });
+                    this._genericDialogService.openNotEnoughSpaceDialog();
                             
                     return;
                 }

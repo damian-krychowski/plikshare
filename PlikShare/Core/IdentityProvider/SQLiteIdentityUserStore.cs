@@ -90,7 +90,7 @@ namespace PlikShare.Core.IdentityProvider
             if (roleEntity == null) {
                 throw new InvalidOperationException($"Role '{normalizedRoleName}' was not found.");
             }
-            
+                
             throw new NotImplementedException();
         }
         
@@ -137,39 +137,45 @@ namespace PlikShare.Core.IdentityProvider
                         .OneRowCmd(
                             sql: """
                                  INSERT INTO u_users(
-                                     u_external_id,
-                                     u_user_name,
-                                     u_normalized_user_name,
-                                     u_email,
-                                     u_normalized_email,
-                                     u_email_confirmed,
-                                     u_password_hash,
-                                     u_security_stamp,
-                                     u_concurrency_stamp,
-                                     u_phone_number,
-                                     u_phone_number_confirmed,
-                                     u_two_factor_enabled,
-                                     u_lockout_end,
-                                     u_lockout_enabled,
-                                     u_access_failed_count,
-                                     u_is_invitation
+                                    u_external_id,
+                                    u_user_name,
+                                    u_normalized_user_name,
+                                    u_email,
+                                    u_normalized_email,
+                                    u_email_confirmed,
+                                    u_password_hash,
+                                    u_security_stamp,
+                                    u_concurrency_stamp,
+                                    u_phone_number,
+                                    u_phone_number_confirmed,
+                                    u_two_factor_enabled,
+                                    u_lockout_end,
+                                    u_lockout_enabled,
+                                    u_access_failed_count,
+                                    u_is_invitation,
+                                    u_invitation_code,
+                                    u_max_workspace_number,
+                                    u_default_max_workspace_size_in_bytes
                                  ) VALUES (
-                                     $externalId,
-                                     $userName,
-                                     $normalizedUserName,
-                                     $email,
-                                     $normalizedEmail,
-                                     $emailConfirmed,
-                                     $passwordHash,
-                                     $securityStamp,
-                                     $concurrencyStamp,
-                                     $phoneNumber,
-                                     $phoneNumberConfirmed,
-                                     $twoFactorEnabled,
-                                     $lockoutEnd,
-                                     $lockoutEnabled,
-                                     $accessFailedCount,
-                                     FALSE
+                                    $externalId,
+                                    $userName,
+                                    $normalizedUserName,
+                                    $email,
+                                    $normalizedEmail,
+                                    $emailConfirmed,
+                                    $passwordHash,
+                                    $securityStamp,
+                                    $concurrencyStamp,
+                                    $phoneNumber,
+                                    $phoneNumberConfirmed,
+                                    $twoFactorEnabled,
+                                    $lockoutEnd,
+                                    $lockoutEnabled,
+                                    $accessFailedCount,
+                                    FALSE,
+                                    NULL,
+                                    NULL,
+                                    NULL
                                  )
                                  RETURNING u_id;
                                  """,

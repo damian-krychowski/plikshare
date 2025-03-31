@@ -490,7 +490,7 @@ export class SearchService {
             externalId: signal(item.externalId),
             name: signal(item.name),
             currentSizeInBytes: signal(item.currentSizeInBytes),        
-            maxSizeInBytes: item.maxSizeInBytes,    
+            maxSizeInBytes: signal(item.maxSizeInBytes == -1 ? null : item.maxSizeInBytes),    
             owner: signal({
                 email: signal(item.ownerEmail),
                 externalId: item.ownerExternalId,

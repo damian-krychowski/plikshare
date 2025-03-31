@@ -21,6 +21,8 @@ public static class GetUserDetails
         public required bool IsEmailConfirmed { get; init; }
         public required UserRolesDto Roles { get; init; }
         public required UserPermissionsDto Permissions { get; init; }
+        public required int? MaxWorkspaceNumber { get; init; }
+        public required long? DefaultMaxWorkspaceSizeInBytes { get; init; }
     }
 
     public class UserRolesDto

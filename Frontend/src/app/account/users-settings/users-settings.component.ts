@@ -92,7 +92,10 @@ export class UsersSettingsComponent implements OnInit {
                     canManageStorages: signal(u.permissions.canManageStorages),
                     canManageEmailProviders: signal(u.permissions.canManageEmailProviders)
                 },
-                isHighlighted: signal(false)
+                maxWorkspaceNumber: signal(u.maxWorkspaceNumber),
+                defaultMaxWorkspaceSizeInBytes: signal(u.defaultMaxWorkspaceSizeInBytes),
+
+                isHighlighted: signal(false),            
             };
 
             return user;
@@ -141,7 +144,9 @@ export class UsersSettingsComponent implements OnInit {
                     isAdmin: signal(false),
                     isAppOwner: signal(false)
                 },
-                workspacesCount: signal(0)
+                workspacesCount: signal(0),
+                maxWorkspaceNumber: signal(null),
+                defaultMaxWorkspaceSizeInBytes: signal(null)
             };
 
             return newUser;

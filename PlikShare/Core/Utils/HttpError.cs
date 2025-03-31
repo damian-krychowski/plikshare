@@ -281,6 +281,20 @@ public static class HttpErrors
 
     public static class User
     {
+        public static BadRequest<HttpError> BrokenExternalId(string externalId) =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "broken-user-external-id",
+                Message = $"UserExternalId is in wrong format: '{externalId}'."
+            });
+
+        public static BadRequest<HttpError> MissingExternalId() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "missing-user-external-id",
+                Message = "UserExternalId is missing"
+            });
+
         public static NotFound<HttpError> NotFound(UserExtId externalId) =>
             TypedResults.NotFound(new HttpError
             {
@@ -308,6 +322,13 @@ public static class HttpErrors
                 Code = "user-has-outstanding-dependencies",
                 Message =
                     $"User with externalId '{externalId}' has some outstanding dependencies (like workspaces) and cannot be deleted."
+            });
+
+        public static BadRequest<HttpError> MaxNumberOfWorkspacesReached(UserExtId externalId, int? maxNumberOfWorkspaces) =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "user-max-number-of-workspaces-reached",
+                Message = $"User with externalId '{externalId}' cannot create workspace because his max number of workspaces was already reached ({maxNumberOfWorkspaces})"
             });
     }
 

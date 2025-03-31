@@ -6,7 +6,8 @@ public record GetAccountDetailsResponseDto(
     UserExtId ExternalId,
     string Email,
     GetAccountRolesResponseDto Roles,
-    GetAccountPermissionsResponseDto Permissions);
+    GetAccountPermissionsResponseDto Permissions,
+    int? MaxWorkspaceNumber);
     
 public record GetAccountRolesResponseDto(
     bool IsAppOwner,

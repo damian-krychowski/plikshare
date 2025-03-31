@@ -189,7 +189,9 @@ using PlikShare.Users.GetDetails;
 using PlikShare.Users.GetOrCreate;
 using PlikShare.Users.Invite;
 using PlikShare.Users.List;
+using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes;
 using PlikShare.Users.UpdateIsAdmin;
+using PlikShare.Users.UpdateMaxWorkspaceNumber;
 using PlikShare.Users.UpdatePermission;
 using PlikShare.Users.UpdatePermission.Contracts;
 using PlikShare.Users.UserIdentityResolver;
@@ -270,6 +272,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_15_ReencryptDatabaseFromAesCcmToAesGcm>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_16_SignUpCheckboxesIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_17_WorkspaceMaxSizeColumnIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_18_UserMaxWorkspaceNumberAndMaxWorkspaceSizeColumnsIntroduced>();
         
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 
@@ -402,6 +405,8 @@ public class Startup
         builder.Services.AddSingleton<GetUserDetailsQuery>();
         builder.Services.AddSingleton<UpdateIsAdminQuery>();
         builder.Services.AddSingleton<UpdateUserPermissionQuery>();
+        builder.Services.AddSingleton<UpdateUserMaxWorkspaceNumberQuery>();
+        builder.Services.AddSingleton<UpdateUserDefaultMaxWorkspaceSizeInBytesQuery>();
         builder.Services.AddScoped<IValidator<UpdateUserPermissionRequestDto>, UpdateUserPermissionRequestDtoValidator>();
 
         builder.Services.AddScoped<IValidator<CreateFolderRequestDto>, CreateFolderRequestValidator>();

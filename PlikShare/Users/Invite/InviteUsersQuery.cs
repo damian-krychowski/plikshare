@@ -108,7 +108,9 @@ public class InviteUsersQuery(
                          u_lockout_enabled,
                          u_access_failed_count,
                          u_is_invitation,
-                         u_invitation_code
+                         u_invitation_code,
+                         u_max_workspace_number,
+                         u_default_max_workspace_size_in_bytes
                      ) VALUES (
                          $externalId,
                          $userName,
@@ -126,7 +128,9 @@ public class InviteUsersQuery(
                          FALSE,
                          0,
                          TRUE,
-                         $invitationCode
+                         $invitationCode,
+                         NULL,
+                         NULL
                      )
                      ON CONFLICT(u_normalized_email) DO NOTHING
                      RETURNING

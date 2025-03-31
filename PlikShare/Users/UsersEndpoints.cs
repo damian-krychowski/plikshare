@@ -16,10 +16,15 @@ using PlikShare.Users.Invite.Contracts;
 using PlikShare.Users.List;
 using PlikShare.Users.List.Contracts;
 using PlikShare.Users.Middleware;
+using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes;
+using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes.Contracts;
 using PlikShare.Users.UpdateIsAdmin;
 using PlikShare.Users.UpdateIsAdmin.Contracts;
+using PlikShare.Users.UpdateMaxWorkspaceNumber;
+using PlikShare.Users.UpdateMaxWorkspaceNumber.Contracts;
 using PlikShare.Users.UpdatePermission;
 using PlikShare.Users.UpdatePermission.Contracts;
+using PlikShare.Users.Validation;
 using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.Users;
@@ -53,33 +58,27 @@ public static class UsersEndpoints
         // Update operations
         group.MapPatch("/{userExternalId}/is-admin", UpdateIsAdmin)
             .AddEndpointFilter<RequireAppOwnerEndpointFilter>()
+            .AddEndpointFilter<ValidateUserUpdateFilter>()
             .WithName("UpdateIsAdmin");
 
         group.MapPatch("/{userExternalId}/permission", UpdatePermission)
+            .AddEndpointFilter<ValidateUserUpdateFilter>()
             .WithName("UpdatePermission");
+
+        group.MapPatch("/{userExternalId}/max-workspace-number", UpdateMaxWorkspaceNumber)
+            .AddEndpointFilter<ValidateUserUpdateFilter>()
+            .WithName("UpdateMaxWorkspaceNumber");
+
+        group.MapPatch("/{userExternalId}/default-max-workspace-size-in-bytes", UpdateDefaultMaxWorkspaceSizeInBytes)
+            .AddEndpointFilter<ValidateUserUpdateFilter>()
+            .WithName("UpdateDefaultMaxWorkspaceSizeInBytes");
     }
 
     private static GetUsersResponseDto GetUsers(GetUsersQuery getUsersQuery)
     {
-        var users = getUsersQuery.Execute();
+        var response = getUsersQuery.Execute();
 
-        return new GetUsersResponseDto(
-            Items: users
-                .Select(u => new GetUsersItemDto(
-                    ExternalId: u.ExternalId,
-                    Email: u.Email,
-                    IsEmailConfirmed: u.IsEmailConfirmed,
-                    WorkspacesCount: u.WorkspacesCount,
-                    Roles: new GetUserItemRolesDto(
-                        IsAppOwner: u.IsAppOwner,
-                        IsAdmin: u.IsAdmin),
-                    Permissions: new GetUserItemPermissionsDto(
-                        CanAddWorkspace: u.CanAddWorkspace,
-                        CanManageGeneralSettings: u.CanManageGeneralSettings,
-                        CanManageUsers: u.CanManageUsers,
-                        CanManageStorages: u.CanManageStorages,
-                        CanManageEmailProviders: u.CanManageEmailProviders)))
-                .ToArray());
+        return response;
     }
 
     private static async Task<InviteUsersResponseDto> InviteUsers(
@@ -129,23 +128,65 @@ public static class UsersEndpoints
         UpdateIsAdminQuery updateIsAdminQuery,
         CancellationToken cancellationToken)
     {
-        if (httpContext.GetUserContext().ExternalId == userExternalId)
-            return HttpErrors.User.CannotModifyOwnUser(userExternalId);
-
         var user = await userCache.TryGetUser(
             userExternalId: userExternalId,
             cancellationToken: cancellationToken);
 
-        if (user is null)
-            return HttpErrors.User.NotFound(userExternalId);
-
         await updateIsAdminQuery.Execute(
-            user: user,
+            user: user!,
             isAdmin: request.IsAdmin,
             cancellationToken: cancellationToken);
 
         await userCache.InvalidateEntry(
-            user.Id,
+            user!.Id,
+            cancellationToken);
+
+        return TypedResults.Ok();
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateMaxWorkspaceNumber(
+        [FromRoute] UserExtId userExternalId,
+        [FromBody] UpdateUserMaxWorkspaceNumberRequestDto request,
+        HttpContext httpContext,
+        UserCache userCache,
+        UpdateUserMaxWorkspaceNumberQuery updateUserMaxWorkspaceNumberQuery,
+        CancellationToken cancellationToken)
+    {
+        var user = await userCache.TryGetUser(
+            userExternalId: userExternalId,
+            cancellationToken: cancellationToken);
+
+        await updateUserMaxWorkspaceNumberQuery.Execute(
+            user: user!,
+            maxWorkspaceNumber: request.MaxWorkspaceNumber,
+            cancellationToken: cancellationToken);
+
+        await userCache.InvalidateEntry(
+            user!.Id,
+            cancellationToken);
+
+        return TypedResults.Ok();
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateDefaultMaxWorkspaceSizeInBytes(
+        [FromRoute] UserExtId userExternalId,
+        [FromBody] UpdateUserDefaultMaxWorkspaceSizeInBytesRequestDto request,
+        HttpContext httpContext,
+        UserCache userCache,
+        UpdateUserDefaultMaxWorkspaceSizeInBytesQuery updateUserDefaultMaxWorkspaceSizeInBytesQuery,
+        CancellationToken cancellationToken)
+    {
+        var user = await userCache.TryGetUser(
+            userExternalId: userExternalId,
+            cancellationToken: cancellationToken);
+
+        await updateUserDefaultMaxWorkspaceSizeInBytesQuery.Execute(
+            user: user!,
+            defaultMaxWorkspaceSizeInBytes: request.DefaultMaxWorkspaceSizeInBytes,
+            cancellationToken: cancellationToken);
+
+        await userCache.InvalidateEntry(
+            user!.Id,
             cancellationToken);
 
         return TypedResults.Ok();
@@ -159,23 +200,12 @@ public static class UsersEndpoints
         UpdateUserPermissionQuery updateUserPermissionQuery,
         CancellationToken cancellationToken)
     {
-        var userContext = httpContext.GetUserContext();
-
-        if (userContext.ExternalId == userExternalId)
-            return HttpErrors.User.CannotModifyOwnUser(userExternalId);
-
         var user = await userCache.TryGetUser(
             userExternalId: userExternalId,
             cancellationToken: cancellationToken);
 
-        if (user is null)
-            return HttpErrors.User.NotFound(userExternalId);
-
-        if (user.Roles.IsAdmin && !userContext.Roles.IsAppOwner)
-            return HttpErrors.User.CannotModifyAdminUser(userExternalId);
-
         await updateUserPermissionQuery.Execute(
-            user: user,
+            user: user!,
             operation: request.Operation switch
             {
                 UpdateUserPermissionOperation.AddPermission => UpdateUserPermissionQuery.Operation.AddPermission,
@@ -186,7 +216,7 @@ public static class UsersEndpoints
             cancellationToken: cancellationToken);
 
         await userCache.InvalidateEntry(
-            user.Id,
+            user!.Id,
             cancellationToken);
 
         return TypedResults.Ok();

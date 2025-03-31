@@ -59,6 +59,7 @@ public class CreateIntegrationWithWorkspaceQuery(
                 storageExternalId: details.StorageExternalId,
                 ownerId: ownerId,
                 name: workspaceName,
+                maxSizeInBytes: null,
                 correlationId: correlationId,
                 transaction: transaction);
 

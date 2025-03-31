@@ -21,6 +21,9 @@ import { WorkspacesApi } from "../../services/workspaces.api";
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
 import { pushItems, removeItems } from "../../shared/signal-utils";
 import { UsersApi } from "../../services/users.api";
+import { WorkspaceMaxSizeInBytesChangedEvent, WorkspaceSizeConfigComponent } from "../../shared/workspace-size-config/workspace-size-config.component";
+import { Debouncer } from "../../services/debouncer";
+import { MaxWorkspaceNumberConfigComponent, WorkspaceMaxNumberChangedEvent } from "../../shared/max-workspace-number-config/max-workspace-number-config.component";
 
 
 
@@ -37,7 +40,9 @@ import { UsersApi } from "../../services/users.api";
         ExternalBoxItemComponent,
         WorkspaceInvitationItemComponent,
         BoxInvitationItemComponent,
-        ActionButtonComponent
+        ActionButtonComponent,
+        WorkspaceSizeConfigComponent,
+        MaxWorkspaceNumberConfigComponent
     ],
     templateUrl: './user-details.component.html',
     styleUrl: './user-details.component.scss'
@@ -61,6 +66,9 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
     isAppOwner = computed(() => this.user()?.roles.isAppOwner() ?? false);
     isAdmin = computed(() => this.user()?.roles.isAdmin() ?? false);
     isLoggedInUser = computed(() => this.user()?.externalId() == this.auth.userExternalId());
+
+    maxWorkspaceNumber  = computed(() => this.user()?.maxWorkspaceNumber() ?? null);    
+    defaultMaxWorkspaceSizeInBytes  = computed(() => this.user()?.defaultMaxWorkspaceSizeInBytes() ?? null);
 
     hasAnyWorkspaces = computed(() => this.workspaces().length > 0);
     hasAnySharedWorkspace = computed(() => this.sharedWorkspaces().length > 0);
@@ -119,7 +127,7 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                         type: 'app-workspace',
                         externalId: signal(w.externalId),
                         currentSizeInBytes: signal(w.currentSizeInBytes),
-                        maxSizeInBytes: w.maxSizeInBytes,
+                        maxSizeInBytes: signal(w.maxSizeInBytes),
                         isHighlighted: signal(false),
                         isNameEditing: signal(false),
                         name: signal(w.name),
@@ -147,7 +155,7 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                         type: 'app-workspace',
                         externalId: signal(w.externalId),
                         currentSizeInBytes: signal(w.currentSizeInBytes),
-                        maxSizeInBytes: w.maxSizeInBytes,
+                        maxSizeInBytes: signal(w.maxSizeInBytes),
                         isHighlighted: signal(false),
                         isNameEditing: signal(false),
                         name: signal(w.name),
@@ -262,6 +270,8 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                     isAdmin: signal(userDetails.user.roles.isAdmin),
                     isAppOwner: signal(userDetails.user.roles.isAppOwner)
                 },
+                maxWorkspaceNumber: signal(userDetails.user.maxWorkspaceNumber),
+                defaultMaxWorkspaceSizeInBytes: signal(userDetails.user.defaultMaxWorkspaceSizeInBytes),
                 //that value is computed based on workspaces collection to catch situation when worksapce
                 //is deleted or added on that view directly
                 workspacesCount: computed(() => this.workspaces().length)
@@ -419,6 +429,72 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
             this.goToUsers();
         } catch (error) {
             console.error(error);
+        }
+    }
+
+    private _defaultMaxWorkspaceSizeInBytesDebouncer = new Debouncer(500);
+    async onDefaultMaxWorkspaceSizeInBytesChange(event: WorkspaceMaxSizeInBytesChangedEvent) {
+        const user = this.user();
+
+        if(!user)
+            return;
+
+        user.defaultMaxWorkspaceSizeInBytes.set(event.maxSizeInBytes);
+        this._defaultMaxWorkspaceSizeInBytesDebouncer.debounceAsync(() => this.saveDefaultMaxWorkspaceSizeInBytes());
+    }
+
+    private async saveDefaultMaxWorkspaceSizeInBytes(){    
+        if(!this._userExternalId)
+            return;
+        
+        const user = this.user();
+        
+        if(!user)
+            return;
+
+        try {
+            this.isLoading.set(true);
+            
+            await this._usersApi.updateUserDefaultMaxWorkspaceSizeInBytes(this._userExternalId, {
+                defaultMaxWorkspaceSizeInBytes: user.defaultMaxWorkspaceSizeInBytes()
+            });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.isLoading.set(false);
+        }
+    }
+
+    private _maxWorkspaceNumberDebouncer = new Debouncer(500);
+    async onMaxWorkspaceNumberChange(event: WorkspaceMaxNumberChangedEvent) {
+        const user = this.user();
+
+        if(!user)
+            return;
+
+        user.maxWorkspaceNumber.set(event.maxNumber);
+        this._maxWorkspaceNumberDebouncer.debounceAsync(() => this.saveMaxWorkspaceNumber());
+    }
+
+    private async saveMaxWorkspaceNumber(){    
+        if(!this._userExternalId)
+            return;
+        
+        const user = this.user();
+        
+        if(!user)
+            return;
+
+        try {
+            this.isLoading.set(true);
+            
+            await this._usersApi.updateUserMaxWorkspaceNumber(this._userExternalId, {
+                maxWorkspaceNumber: user.maxWorkspaceNumber()
+            });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.isLoading.set(false);
         }
     }
 }

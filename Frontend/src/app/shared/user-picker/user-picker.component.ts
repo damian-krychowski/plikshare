@@ -54,6 +54,8 @@ export class UserPickerComponent implements OnInit  {
                         canManageStorages: signal(user.permissions.canManageStorages),
                         canManageEmailProviders: signal(user.permissions.canManageEmailProviders)
                     },
+                    maxWorkspaceNumber: signal(user.maxWorkspaceNumber),
+                    defaultMaxWorkspaceSizeInBytes: signal(user.defaultMaxWorkspaceSizeInBytes),
                     isHighlighted: signal(false)
                 };
 

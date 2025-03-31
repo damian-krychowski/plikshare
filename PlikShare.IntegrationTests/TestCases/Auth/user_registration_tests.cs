@@ -76,7 +76,8 @@ public class user_registration_tests : TestFixture
                 CanManageEmailProviders: false,
                 CanManageGeneralSettings: false,
                 CanManageStorages: false,
-                CanManageUsers: false)));
+                CanManageUsers: false),
+            MaxWorkspaceNumber: null));
     }
 
     [Fact]

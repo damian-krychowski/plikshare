@@ -48,7 +48,9 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
                     CanManageUsers = user.Permissions.CanManageUsers,
                     CanManageStorages = user.Permissions.CanManageStorages,
                     CanManageEmailProviders = user.Permissions.CanManageEmailProviders
-                }
+                },
+                MaxWorkspaceNumber = user.MaxWorkspaceNumber,
+                DefaultMaxWorkspaceSizeInBytes = user.DefaultMaxWorkspaceSizeInBytes,
             },
             Workspaces = workspaces,
             SharedWorkspaces = sharedWorkspaces,
