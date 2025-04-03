@@ -134,7 +134,7 @@ export class UsersSettingsComponent implements OnInit {
                 isEmailConfirmed: signal(false),
                 isHighlighted: signal(false),
                 permissions: {
-                    canAddWorkspace: signal(true),
+                    canAddWorkspace: signal(false),
                     canManageGeneralSettings: signal(false),
                     canManageUsers: signal(false),
                     canManageStorages: signal(false),
@@ -167,6 +167,15 @@ export class UsersSettingsComponent implements OnInit {
                 
                 if(user) {
                     user.externalId.set(userResponse.externalId);
+                    user.maxWorkspaceNumber.set(userResponse.maxWorkspaceNumber);
+                    user.defaultMaxWorkspaceSizeInBytes.set(userResponse.defaultMaxWorkspaceSizeInBytes);
+
+                    user.roles.isAdmin.set(userResponse.permissionsAndRoles.isAdmin);
+                    user.permissions.canAddWorkspace.set(userResponse.permissionsAndRoles.canAddWorkspace);
+                    user.permissions.canManageEmailProviders.set(userResponse.permissionsAndRoles.canManageEmailProviders);
+                    user.permissions.canManageGeneralSettings.set(userResponse.permissionsAndRoles.canManageGeneralSettings);
+                    user.permissions.canManageStorages.set(userResponse.permissionsAndRoles.canManageStorages);
+                    user.permissions.canManageUsers.set(userResponse.permissionsAndRoles.canManageUsers);
                 }
             }
         } catch (error) {

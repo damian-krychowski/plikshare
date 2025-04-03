@@ -72,12 +72,12 @@ public class user_registration_tests : TestFixture
                 IsAdmin: false,
                 IsAppOwner: false),
             Permissions: new GetAccountPermissionsResponseDto(
-                CanAddWorkspace: true,
+                CanAddWorkspace: false,
                 CanManageEmailProviders: false,
                 CanManageGeneralSettings: false,
                 CanManageStorages: false,
                 CanManageUsers: false),
-            MaxWorkspaceNumber: null));
+            MaxWorkspaceNumber: 0));
     }
 
     [Fact]

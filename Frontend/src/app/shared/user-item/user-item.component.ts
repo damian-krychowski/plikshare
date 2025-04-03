@@ -4,7 +4,7 @@ import { NavigationExtras, Router } from "@angular/router";
 import { ConfirmOperationDirective } from "../operation-confirm/confirm-operation.directive";
 import { PrefetchDirective } from "../prefetch.directive";
 import { InAppSharing } from "../../services/in-app-sharing.service";
-import { hasUserAnyPermission, UserPermissionsListComponent } from "../user-permissions/user-permissions-list.component";
+import { hasUserAnyPermission, UserPermissionsAndRolesChangedEvent, UserPermissionsListComponent } from "../user-permissions/user-permissions-list.component";
 import { AuthService } from "../../services/auth.service";
 import { DataStore } from "../../services/data-store.service";
 import { AppUserDetails } from "./app-user";
@@ -13,6 +13,7 @@ import { Operations, OptimisticOperation } from "../../services/optimistic-opera
 import { UsersApi } from "../../services/users.api";
 import { observeIsHighlighted } from "../../services/is-highlighted-utils";
 import { MaxWorkspaceSizePipe } from "../storage-size.pipe";
+import { Debouncer } from "../../services/debouncer";
 
 @Component({
     selector: 'app-user-item',
@@ -36,7 +37,8 @@ export class UserItemComponent {
 
     clicked = output<void>();
     deleted = output<OptimisticOperation>();
-    
+
+   
     userExternalId = computed(() => this.user().externalId());
     userEmail = computed(() => this.getUserEmailWithHighlight(this.user(), this.searchPhrase()));
     userWorkspacesCount = computed(() => this.user().workspacesCount());
@@ -61,11 +63,13 @@ export class UserItemComponent {
         && ((this.isAdmin() && this._auth.isAppOwner()) || !this.isAdmin()));
 
     arePremissionsVisible = computed(() => !this.isAppOwner() && !(this.pickerMode() && !this.hasAnyPermission()));    
-    arePermissionsReadOnly = computed(() => this.pickerMode());
+    arePermissionsReadOnly = computed(() => this.pickerMode() || this.isBeingCreated());
 
     hasAnyPermission = hasUserAnyPermission(this.user);
 
     areActionsVisible = signal(false);
+
+    isBeingCreated = computed(() => this.userExternalId() == null);
 
     constructor(
         public dataStore: DataStore,
@@ -152,6 +156,24 @@ export class UserItemComponent {
         } catch (error) {
             console.error(error);
             operation.failed(error);
+        }
+    }
+
+    private _permissionsAndRolesDebouncer = new Debouncer(500);
+    public onUserPermissionsAndRolesChange(event: UserPermissionsAndRolesChangedEvent) {
+        this._permissionsAndRolesDebouncer.debounceAsync(() => this.savePermissionsAndRoles(event));
+    }
+
+    private async savePermissionsAndRoles(event: UserPermissionsAndRolesChangedEvent) {
+        const externalId = this.userExternalId();
+
+        if(!externalId)
+            return;
+        
+        try {            
+            await this._usersApi.updatePermissionsAndRoles(externalId, event);
+        } catch (error) {
+            console.error(error);
         }
     }
 }

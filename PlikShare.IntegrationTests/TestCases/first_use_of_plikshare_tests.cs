@@ -7,8 +7,8 @@ using PlikShare.GeneralSettings.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Storages.HardDrive.GetVolumes.Contracts;
 using PlikShare.Storages.List.Contracts;
-using PlikShare.Users.Entities;
 using PlikShare.Users.List.Contracts;
+using PlikShare.Users.PermissionsAndRoles;
 using Xunit.Abstractions;
 
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
@@ -56,7 +56,18 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
             TermsOfService = null,
             ApplicationName = AppSettings.ApplicationNameSetting.Default.Name,
             PrivacyPolicy = null,
-            SignUpCheckboxes = []
+            SignUpCheckboxes = [],
+            NewUserDefaultMaxWorkspaceNumber = 0,
+            NewUserDefaultMaxWorkspaceSizeInBytes = 0,
+            NewUserDefaultPermissionsAndRoles = new UserPermissionsAndRolesDto
+            {
+                CanAddWorkspace = false,
+                CanManageEmailProviders = false,
+                CanManageGeneralSettings = false,
+                CanManageStorages = false,
+                CanManageUsers = false,
+                IsAdmin = false
+            }
         });
     }
 
@@ -115,19 +126,16 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
                      WorkspacesCount = 0,
                      Roles = new GetUserItemRolesDto
                      {
-
                          IsAppOwner = true,
                          IsAdmin = false
                      },
                      Permissions = new GetUserItemPermissionsDto
-                     {
-
+                     {                         
                          CanAddWorkspace = false,
                          CanManageGeneralSettings = false,
                          CanManageUsers = false,
                          CanManageStorages = false,
                          CanManageEmailProviders = false
-
                      },
                      MaxWorkspaceNumber = null,
                      DefaultMaxWorkspaceSizeInBytes = null

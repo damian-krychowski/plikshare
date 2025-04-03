@@ -25,7 +25,6 @@ using PlikShare.Storages.Id;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Id;
 using PlikShare.Users.Id;
-using PlikShare.Users.UpdatePermission.Contracts;
 using PlikShare.Workspaces.Id;
 
 namespace PlikShare.Core.Utils;
@@ -104,7 +103,6 @@ public static class JsonConverters
         options.Converters.Add(new JsonStringEnumConverter<StorageEncryptionType>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<ContentDispositionType>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<IntegrationType>(JsonNamingPolicy.KebabCaseLower));
-        options.Converters.Add(new JsonStringEnumConverter<UpdateUserPermissionOperation>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<UploadAlgorithm>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<TestTextractConfigurationResultCode>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<TextractFeature>(JsonNamingPolicy.KebabCaseLower));

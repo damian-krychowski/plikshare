@@ -8,7 +8,7 @@ import { ApplicationSingUp } from "../../services/general-settings.api";
 import { MatRadioModule } from "@angular/material/radio";
 import { DataStore } from "../../services/data-store.service";
 import { Subscription } from "rxjs";
-import { UserPermissionsListComponent } from "../../shared/user-permissions/user-permissions-list.component";
+import { UserPermissionsAndRolesChangedEvent, UserPermissionsListComponent } from "../../shared/user-permissions/user-permissions-list.component";
 import { ConfirmOperationDirective } from "../../shared/operation-confirm/confirm-operation.directive";
 import { AppExternalBox, ExternalBoxItemComponent } from "../../shared/external-box-item/external-box-item.component";
 import { AppWorkspace, WorkspaceItemComponent } from "../../shared/workspace-item/workspace-item.component";
@@ -491,6 +491,26 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
             await this._usersApi.updateUserMaxWorkspaceNumber(this._userExternalId, {
                 maxWorkspaceNumber: user.maxWorkspaceNumber()
             });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.isLoading.set(false);
+        }
+    }
+
+    private _permissionsAndRolesDebouncer = new Debouncer(500);
+    public onUserPermissionsAndRolesChange(event: UserPermissionsAndRolesChangedEvent) {
+        this._permissionsAndRolesDebouncer.debounceAsync(() => this.savePermissionsAndRoles(event));
+    }
+
+    private async savePermissionsAndRoles(event: UserPermissionsAndRolesChangedEvent) {
+        if(!this._userExternalId)
+            return;
+        
+        try {
+            this.isLoading.set(true);
+            
+            await this._usersApi.updatePermissionsAndRoles(this._userExternalId, event);
         } catch (error) {
             console.error(error);
         } finally {

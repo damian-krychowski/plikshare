@@ -9,6 +9,8 @@ using PlikShare.GeneralSettings.LegalFiles.UploadLegalFile;
 using PlikShare.GeneralSettings.SignUpCheckboxes.CreateOrUpdate;
 using PlikShare.GeneralSettings.SignUpCheckboxes.CreateOrUpdate.Contracts;
 using PlikShare.GeneralSettings.SignUpCheckboxes.Delete;
+using PlikShare.Users.Middleware;
+using PlikShare.Users.PermissionsAndRoles;
 
 namespace PlikShare.GeneralSettings;
 
@@ -51,6 +53,52 @@ public static class GeneralSettingsEndpoints
 
         group.MapDelete("/sign-up-checkboxes/{signUpCheckboxId}", DeleteSignUpCheckbox)
             .WithName("DeleteSignUpCheckbox");
+
+        group.MapPatch("/new-user-default-max-workspace-number", SetNewUserDefaultMaxWorkspaceNumber)
+            .WithName("SetNewUserDefaultMaxWorkspaceNumber");
+
+        group.MapPatch("/new-user-default-max-workspace-size-in-bytes", SetNewUserDefaultMaxWorkspaceSizeInBytes)
+            .WithName("SetNewUserDefaultMaxWorkspaceSizeInBytes");
+
+        group.MapPatch("/new-user-default-permissions-and-roles", SetNewUserDefaultPermissionsAndRoles)
+            .WithName("SetNewUserDefaultPermissionsAndRoles");
+    }
+
+    private static Results<Ok, BadRequest<HttpError>> SetNewUserDefaultPermissionsAndRoles(
+        [FromBody] UserPermissionsAndRolesDto request,
+        AppSettings appSettings,
+        HttpContext httpContext)
+    {
+        var currentUser = httpContext.GetUserContext();
+
+        var permissionsAndRoles = request.GetPermissionsAndRolesList();
+
+        if (request.IsAdmin && !currentUser.Roles.IsAppOwner)
+            return HttpErrors.User.OnlyAppOwnerCanAssignAdminRole();
+
+        if (!request.IsAdmin && permissionsAndRoles.Any(Permissions.IsForAdminOnly))
+            return HttpErrors.User.CannotAssignAdminPermissionToNonAdminUser();
+
+        appSettings.SetNewUserPermissionsAndRoles(
+            permissionsAndRoles);
+
+        return TypedResults.Ok();
+    }
+
+    private static Results<Ok, BadRequest<HttpError>> SetNewUserDefaultMaxWorkspaceSizeInBytes(
+    [FromBody] SetNewUserDefaultMaxWorkspaceSizeInBytesRequestDto request,
+    AppSettings appSettings)
+    {
+        appSettings.SetNewUserDefaultMaxWorkspaceSizeInBytes(request.Value);
+        return TypedResults.Ok();
+    }
+
+    private static Results<Ok, BadRequest<HttpError>> SetNewUserDefaultMaxWorkspaceNumber(
+        [FromBody] SetNewUserDefaultMaxWorkspaceNumberRequestDto request,
+        AppSettings appSettings)
+    {
+        appSettings.SetNewUserDefaultMaxWorkspaceNumber(request.Value);
+        return TypedResults.Ok();
     }
 
     private static async Task DeleteSignUpCheckbox(
@@ -90,7 +138,18 @@ public static class GeneralSettingsEndpoints
             ApplicationSignUp = appSettings.ApplicationSignUp.Value,
             PrivacyPolicy = appSettings.PrivacyPolicy.FileName,
             TermsOfService = appSettings.TermsOfService.FileName,
-            SignUpCheckboxes = appSettings.SignUpCheckboxes.ToList()
+            SignUpCheckboxes = appSettings.SignUpCheckboxes.ToList(),
+            NewUserDefaultMaxWorkspaceNumber = appSettings.NewUserDefaultMaxWorkspaceNumber.Value,
+            NewUserDefaultMaxWorkspaceSizeInBytes = appSettings.NewUserDefaultMaxWorkspaceSizeInBytes.Value,
+            NewUserDefaultPermissionsAndRoles = new UserPermissionsAndRolesDto
+            {
+                IsAdmin = appSettings.NewUserDefaultPermissionsAndRoles.IsAdmin,
+                CanAddWorkspace = appSettings.NewUserDefaultPermissionsAndRoles.CanAddWorkspace,
+                CanManageEmailProviders = appSettings.NewUserDefaultPermissionsAndRoles.CanManageEmailProviders,
+                CanManageGeneralSettings = appSettings.NewUserDefaultPermissionsAndRoles.CanManageGeneralSettings,
+                CanManageStorages = appSettings.NewUserDefaultPermissionsAndRoles.CanManageStorages,
+                CanManageUsers = appSettings.NewUserDefaultPermissionsAndRoles.CanManageUsers
+            }
         };
     }
 

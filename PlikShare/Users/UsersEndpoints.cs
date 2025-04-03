@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -16,14 +17,12 @@ using PlikShare.Users.Invite.Contracts;
 using PlikShare.Users.List;
 using PlikShare.Users.List.Contracts;
 using PlikShare.Users.Middleware;
+using PlikShare.Users.PermissionsAndRoles;
 using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes;
 using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes.Contracts;
-using PlikShare.Users.UpdateIsAdmin;
-using PlikShare.Users.UpdateIsAdmin.Contracts;
 using PlikShare.Users.UpdateMaxWorkspaceNumber;
 using PlikShare.Users.UpdateMaxWorkspaceNumber.Contracts;
-using PlikShare.Users.UpdatePermission;
-using PlikShare.Users.UpdatePermission.Contracts;
+using PlikShare.Users.UpdatePermissionsAndRoles;
 using PlikShare.Users.Validation;
 using PlikShare.Workspaces.Cache;
 
@@ -56,14 +55,9 @@ public static class UsersEndpoints
             .WithName("DeleteUser");
 
         // Update operations
-        group.MapPatch("/{userExternalId}/is-admin", UpdateIsAdmin)
-            .AddEndpointFilter<RequireAppOwnerEndpointFilter>()
+        group.MapPatch("/{userExternalId}/permissions-and-roles", UpdatePermissionsAndRoles)
             .AddEndpointFilter<ValidateUserUpdateFilter>()
-            .WithName("UpdateIsAdmin");
-
-        group.MapPatch("/{userExternalId}/permission", UpdatePermission)
-            .AddEndpointFilter<ValidateUserUpdateFilter>()
-            .WithName("UpdatePermission");
+            .WithName("UpdatePermissionsAndRoles");
 
         group.MapPatch("/{userExternalId}/max-workspace-number", UpdateMaxWorkspaceNumber)
             .AddEndpointFilter<ValidateUserUpdateFilter>()
@@ -87,18 +81,13 @@ public static class UsersEndpoints
         InviteUsersQuery inviteUsersQuery,
         CancellationToken cancellationToken)
     {
-        var result = await inviteUsersQuery.Execute(
+        var response = await inviteUsersQuery.Execute(
             emails: request.Emails.Select(x => new Email(x)).ToList(),
             inviter: httpContext.GetUserContext(),
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
-        return new InviteUsersResponseDto(
-            Users: result
-                .Select(user => new InvitedUserDto(
-                    Email: user.Email.Value,
-                    ExternalId: user.ExternalId))
-                .ToList());
+        return response;
     }
 
     private static async ValueTask<Results<Ok<GetUserDetails.ResponseDto>, NotFound<HttpError>>> GetUserDetails(
@@ -118,30 +107,6 @@ public static class UsersEndpoints
             user: user);
 
         return TypedResults.Ok(response);
-    }
-
-    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateIsAdmin(
-        [FromRoute] UserExtId userExternalId,
-        [FromBody] UpdateIsAdminRequestDto request,
-        HttpContext httpContext,
-        UserCache userCache,
-        UpdateIsAdminQuery updateIsAdminQuery,
-        CancellationToken cancellationToken)
-    {
-        var user = await userCache.TryGetUser(
-            userExternalId: userExternalId,
-            cancellationToken: cancellationToken);
-
-        await updateIsAdminQuery.Execute(
-            user: user!,
-            isAdmin: request.IsAdmin,
-            cancellationToken: cancellationToken);
-
-        await userCache.InvalidateEntry(
-            user!.Id,
-            cancellationToken);
-
-        return TypedResults.Ok();
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateMaxWorkspaceNumber(
@@ -192,31 +157,36 @@ public static class UsersEndpoints
         return TypedResults.Ok();
     }
 
-    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdatePermission(
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdatePermissionsAndRoles(
         [FromRoute] UserExtId userExternalId,
-        [FromBody] UpdateUserPermissionRequestDto request,
+        [FromBody] UserPermissionsAndRolesDto request,
         HttpContext httpContext,
         UserCache userCache,
-        UpdateUserPermissionQuery updateUserPermissionQuery,
+        UpdateUserPermissionsAndRoleQuery updateUserPermissionsAndRoleQuery,
         CancellationToken cancellationToken)
     {
-        var user = await userCache.TryGetUser(
+        var currentUser = httpContext.GetUserContext();
+
+        if (request.IsAdmin && !currentUser.Roles.IsAppOwner)
+            return HttpErrors.User.OnlyAppOwnerCanAssignAdminRole();
+
+        if (!request.IsAdmin && request.GetPermissionsList().Any(Permissions.IsForAdminOnly))
+            return HttpErrors.User.CannotAssignAdminPermissionToNonAdminUser();
+
+        var targetUser = await userCache.TryGetUser(
             userExternalId: userExternalId,
             cancellationToken: cancellationToken);
+        
+        if (targetUser is null)
+            return HttpErrors.User.NotFound(userExternalId);
 
-        await updateUserPermissionQuery.Execute(
-            user: user!,
-            operation: request.Operation switch
-            {
-                UpdateUserPermissionOperation.AddPermission => UpdateUserPermissionQuery.Operation.AddPermission,
-                UpdateUserPermissionOperation.RemovePermission => UpdateUserPermissionQuery.Operation.RemovePermission,
-                _ => throw new ArgumentOutOfRangeException(nameof(request.Operation), request.Operation, "Operation value is not recognized")
-            },
-            permissionName: request.PermissionName,
+        await updateUserPermissionsAndRoleQuery.Execute(
+            targetUserId: targetUser.Id,
+            request: request,
             cancellationToken: cancellationToken);
 
         await userCache.InvalidateEntry(
-            user!.Id,
+            targetUser!.Id,
             cancellationToken);
 
         return TypedResults.Ok();

@@ -23,7 +23,7 @@
                 <div class="item__title">
                     <span [innerHTML]="userEmail()"></span>
                 </div>
-
+                
                 <div class="item__subtitle">
                     @if(isLoggedInUser()) {
                         <strong class="mr-1">This is you!</strong>
@@ -32,12 +32,19 @@
                     @if(!isEmailConfirmed()) {
                         <span class="mr-1">Email not confirmed</span>
                     } @else {
-                        <span>Workspaces: {{userWorkspacesCount()}}</span>                      
-                            
-                        @if(canAddWorkspace()) {
-                            | <span>Max workspace number: {{maxWorkspaceNumber() ?? 'unlimited'}}</span>  
-                            | <span>Default max workspace size: {{defaultMaxWorkspaceSizeInBytes() | maxWorkspaceSize}}</span>  
-                        }
+                        <span>
+                            Workspaces: {{userWorkspacesCount()}}
+                                                       
+                            @if(canAddWorkspace()) {
+                                / {{maxWorkspaceNumber() ?? 'unlimited'}}
+                            }
+
+                            @let workspaceMaxSize = defaultMaxWorkspaceSizeInBytes();
+
+                            @if(workspaceMaxSize != null) {
+                                / {{workspaceMaxSize | maxWorkspaceSize}}
+                            }
+                        </span>                      
                     }
                 </div>
             </div>
@@ -103,7 +110,8 @@
 
                 <app-user-permissions-list
                     [isReadOnly]="arePermissionsReadOnly()"
-                    [user]="user()">                            
+                    [user]="user()"
+                    (configChanged)="onUserPermissionsAndRolesChange($event)">                            
                 </app-user-permissions-list>
             </div>
         </div>        

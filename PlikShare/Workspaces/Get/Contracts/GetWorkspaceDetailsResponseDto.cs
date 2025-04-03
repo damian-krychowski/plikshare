@@ -47,7 +47,7 @@ public class ChatGptIntegrationDetailsDto
 
 public class ChatGptModelDto
 {
-    public string Alias { get; init; }
-    public List<FileType> SupportedFileTypes { get; init; }
-    public long MaxIncludeSizeInBytes { get; init; }
+    public required string Alias { get; init; }
+    public required List<FileType> SupportedFileTypes { get; init; }
+    public required long MaxIncludeSizeInBytes { get; init; }
 }

@@ -1,9 +1,13 @@
 ﻿using System.Security.Claims;
+using System.Threading;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
+using PlikShare.GeneralSettings;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Id;
+using PlikShare.Users.UpdatePermissionsAndRoles;
 using Serilog;
 
 #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
@@ -19,14 +23,20 @@ namespace PlikShare.Core.IdentityProvider
     {
         private readonly PlikShareDb _plikShareDb;
         private readonly UserCache _userCache;
+        private readonly AppSettings _appSettings;
+        private readonly DbWriteQueue _dbWriteQueue;
 
         public SqLiteIdentityUserStore(
             IdentityErrorDescriber describer,
             PlikShareDb plikShareDb,
-            UserCache userCache) : base(describer)
+            DbWriteQueue dbWriteQueue,
+            UserCache userCache,
+            AppSettings appSettings) : base(describer)
         {
             _plikShareDb = plikShareDb;
             _userCache = userCache;
+            _appSettings = appSettings;
+            _dbWriteQueue = dbWriteQueue;
         }
 
         public override IQueryable<ApplicationUser> Users => throw new NotSupportedException();
@@ -100,195 +110,77 @@ namespace PlikShare.Core.IdentityProvider
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
-            
-            using var connection = _plikShareDb.OpenConnection();
-            using var transaction = connection.BeginTransaction();
-            
+
+            var result = await _dbWriteQueue.Execute(
+                operationToEnqueue: context => ExecuteCreateUser(
+                    dbWriteContext: context,
+                    user: user),
+                cancellationToken: cancellationToken);
+
+            if (result.Succeeded)
+            {
+                await _userCache.InvalidateEntry(
+                    userId: user.DatabaseId,
+                    cancellationToken: cancellationToken);
+            }
+
+            return result;
+        }
+
+        private IdentityResult ExecuteCreateUser(
+            DbWriteQueue.Context dbWriteContext, 
+            ApplicationUser user)
+        {
+            using var transaction = dbWriteContext.Connection.BeginTransaction();
+
             try
             {
-                var wasUserInvited = connection
-                    .OneRowCmd(
-                        sql: """
-                             SELECT 
-                                 u_id,
-                                 u_external_id
-                             FROM u_users                            
-                             WHERE 
-                                 u_normalized_user_name = $normalizedUserName
-                                 AND u_is_invitation = TRUE
-                             LIMIT 1                 
-                             """,
-                        readRowFunc: reader => new
-                        {
-                            Id = reader.GetInt32(0),
-                            ExternalId = reader.GetString(1)
-                        },
-                        transaction: transaction)
-                    .WithParameter("$normalizedUserName", user.NormalizedUserName)
-                    .Execute();
+                var wasUserInvited = TryGetUserInvitation(
+                    user,
+                    dbWriteContext,
+                    transaction,
+                    out var invitation);
 
-                SQLiteOneRowCommandResult<int> result;
-                
-                if (wasUserInvited.IsEmpty)
+                if (wasUserInvited)
                 {
-                    user.Id = UserExtId.NewId().Value;
-                    
-                    result = connection
-                        .OneRowCmd(
-                            sql: """
-                                 INSERT INTO u_users(
-                                    u_external_id,
-                                    u_user_name,
-                                    u_normalized_user_name,
-                                    u_email,
-                                    u_normalized_email,
-                                    u_email_confirmed,
-                                    u_password_hash,
-                                    u_security_stamp,
-                                    u_concurrency_stamp,
-                                    u_phone_number,
-                                    u_phone_number_confirmed,
-                                    u_two_factor_enabled,
-                                    u_lockout_end,
-                                    u_lockout_enabled,
-                                    u_access_failed_count,
-                                    u_is_invitation,
-                                    u_invitation_code,
-                                    u_max_workspace_number,
-                                    u_default_max_workspace_size_in_bytes
-                                 ) VALUES (
-                                    $externalId,
-                                    $userName,
-                                    $normalizedUserName,
-                                    $email,
-                                    $normalizedEmail,
-                                    $emailConfirmed,
-                                    $passwordHash,
-                                    $securityStamp,
-                                    $concurrencyStamp,
-                                    $phoneNumber,
-                                    $phoneNumberConfirmed,
-                                    $twoFactorEnabled,
-                                    $lockoutEnd,
-                                    $lockoutEnabled,
-                                    $accessFailedCount,
-                                    FALSE,
-                                    NULL,
-                                    NULL,
-                                    NULL
-                                 )
-                                 RETURNING u_id;
-                                 """,
-                            readRowFunc: reader => reader.GetInt32(0),
-                            transaction: transaction)
-                        .WithParameter("$externalId", user.Id)
-                        .WithParameter("$userName", user.UserName)
-                        .WithParameter("$normalizedUserName", user.NormalizedUserName)
-                        .WithParameter("$email", user.Email)
-                        .WithParameter("$normalizedEmail", user.NormalizedEmail)
-                        .WithParameter("$emailConfirmed", user.EmailConfirmed)
-                        .WithParameter("$passwordHash", user.PasswordHash)
-                        .WithParameter("$securityStamp", user.SecurityStamp)
-                        .WithParameter("$concurrencyStamp", user.ConcurrencyStamp)
-                        .WithParameter("$phoneNumber", user.PhoneNumber)
-                        .WithParameter("$phoneNumberConfirmed", user.PhoneNumberConfirmed)
-                        .WithParameter("$twoFactorEnabled", user.TwoFactorEnabled)
-                        .WithParameter("$lockoutEnd", user.LockoutEnd)
-                        .WithParameter("$lockoutEnabled", user.LockoutEnabled)
-                        .WithParameter("$accessFailedCount", user.AccessFailedCount)
-                        .Execute();
+                    user.Id = invitation.UserExternalId.Value;
+                    user.DatabaseId = invitation.UserId;
+
+                    UpdateInvitedUser(
+                       user,
+                       dbWriteContext,
+                       transaction);
                 }
                 else
                 {
-                    user.Id = wasUserInvited.Value.ExternalId;
-                    
-                    result = connection
-                        .OneRowCmd(
-                            sql: """
-                                 UPDATE u_users
-                                 SET 
-                                     u_user_name = $userName,
-                                     u_normalized_user_name = $normalizedUserName,
-                                     u_email = $email,
-                                     u_normalized_email = $normalizedEmail,
-                                     u_email_confirmed = $emailConfirmed,
-                                     u_password_hash = $passwordHash,
-                                     u_security_stamp = $securityStamp,
-                                     u_concurrency_stamp = $concurrencyStamp,
-                                     u_phone_number = $phoneNumber,
-                                     u_phone_number_confirmed = $phoneNumberConfirmed,
-                                     u_two_factor_enabled = $twoFactorEnabled,
-                                     u_lockout_end = $lockoutEnd,
-                                     u_lockout_enabled = $lockoutEnabled,
-                                     u_access_failed_count = $accessFailedCount,
-                                     u_is_invitation = FALSE
-                                 WHERE u_id = $invitedUserId
-                                 RETURNING u_id;
-                                 """,
-                            readRowFunc: reader => reader.GetInt32(0),
-                            transaction: transaction)
-                        .WithParameter("$invitedUserId", wasUserInvited.Value.Id)
-                        .WithParameter("$userName", user.UserName)
-                        .WithParameter("$normalizedUserName", user.NormalizedUserName)
-                        .WithParameter("$email", user.Email)
-                        .WithParameter("$normalizedEmail", user.NormalizedEmail)
-                        .WithParameter("$emailConfirmed", user.EmailConfirmed)
-                        .WithParameter("$passwordHash", user.PasswordHash)
-                        .WithParameter("$securityStamp", user.SecurityStamp)
-                        .WithParameter("$concurrencyStamp", user.ConcurrencyStamp)
-                        .WithParameter("$phoneNumber", user.PhoneNumber)
-                        .WithParameter("$phoneNumberConfirmed", user.PhoneNumberConfirmed)
-                        .WithParameter("$twoFactorEnabled", user.TwoFactorEnabled)
-                        .WithParameter("$lockoutEnd", user.LockoutEnd)
-                        .WithParameter("$lockoutEnabled", user.LockoutEnabled)
-                        .WithParameter("$accessFailedCount", user.AccessFailedCount)
-                        .Execute();
-                }
+                    user.Id = UserExtId.NewId().Value;
 
-                if (result.IsEmpty)
-                {
-                    throw new InvalidOperationException("Something went wrong while creating new user");
+                    var newUser = CreateNewUser(
+                        user,
+                        dbWriteContext,
+                        transaction);
+
+                    user.DatabaseId = newUser.Id;
                 }
 
                 if (user.SelectedCheckboxIds is { Count: > 0 })
                 {
-                    connection
-                        .Cmd(sql: """
-                                  INSERT INTO usuc_user_sign_up_checkboxes (
-                                     usuc_user_id,
-                                     usuc_sign_up_checkbox_id
-                                  )
-                                  SELECT
-                                     $userId,
-                                     value
-                                  FROM 
-                                     json_each($checkboxIds)
-                                  RETURNING
-                                     usuc_sign_up_checkbox_id
-                                  """,
-                            readRowFunc: reader => reader.GetInt32(0),
-                            transaction: transaction)
-                        .WithParameter("$userId", result.Value)
-                        .WithJsonParameter("$checkboxIds", user.SelectedCheckboxIds)
-                        .Execute();
+                    SaveUserSelectedCheckboxIds(
+                        user,
+                        dbWriteContext,
+                        transaction);
                 }
 
                 transaction.Commit();
 
-                user.DatabaseId = result.Value;
-
-                await _userCache.InvalidateEntry(
-                    userId: result.Value,
-                    cancellationToken: cancellationToken);
-                
                 return IdentityResult.Success;
             }
             catch (Exception e)
             {
                 transaction.Rollback();
-                
+
                 Log.Error(e, "Something went wrong while creating user.");
-            
+
                 return IdentityResult.Failed(new IdentityError
                 {
                     Code = string.Empty,
@@ -297,7 +189,231 @@ namespace PlikShare.Core.IdentityProvider
             }
         }
 
-        
+        private static void SaveUserSelectedCheckboxIds(
+            ApplicationUser user,
+            DbWriteQueue.Context dbWriteContext,
+            SqliteTransaction transaction)
+        {
+            dbWriteContext
+                .Cmd(sql: """
+                        INSERT INTO usuc_user_sign_up_checkboxes (
+                            usuc_user_id,
+                            usuc_sign_up_checkbox_id
+                        )
+                        SELECT
+                            $userId,
+                            value
+                        FROM 
+                            json_each($checkboxIds)
+                        RETURNING
+                            usuc_sign_up_checkbox_id
+                        """,
+                    readRowFunc: reader => reader.GetInt32(0),
+                    transaction: transaction)
+                .WithParameter("$userId", user.DatabaseId)
+                .WithJsonParameter("$checkboxIds", user.SelectedCheckboxIds)
+                .Execute();
+        }
+
+        private static void UpdateInvitedUser(
+            ApplicationUser user,
+            DbWriteQueue.Context dbWriteContext,
+            SqliteTransaction transaction)
+        {
+            dbWriteContext
+                .OneRowCmd(
+                    sql: """
+                        UPDATE u_users
+                        SET 
+                            u_user_name = $userName,
+                            u_normalized_user_name = $normalizedUserName,
+                            u_email = $email,
+                            u_normalized_email = $normalizedEmail,
+                            u_email_confirmed = $emailConfirmed,
+                            u_password_hash = $passwordHash,
+                            u_security_stamp = $securityStamp,
+                            u_concurrency_stamp = $concurrencyStamp,
+                            u_phone_number = $phoneNumber,
+                            u_phone_number_confirmed = $phoneNumberConfirmed,
+                            u_two_factor_enabled = $twoFactorEnabled,
+                            u_lockout_end = $lockoutEnd,
+                            u_lockout_enabled = $lockoutEnabled,
+                            u_access_failed_count = $accessFailedCount,
+                            u_is_invitation = FALSE
+                        WHERE u_id = $invitedUserId
+                        RETURNING u_id;
+                        """,
+                    readRowFunc: reader => reader.GetInt32(0),
+                    transaction: transaction)
+                .WithParameter("$invitedUserId", user.DatabaseId)
+                .WithParameter("$userName", user.UserName)
+                .WithParameter("$normalizedUserName", user.NormalizedUserName)
+                .WithParameter("$email", user.Email)
+                .WithParameter("$normalizedEmail", user.NormalizedEmail)
+                .WithParameter("$emailConfirmed", user.EmailConfirmed)
+                .WithParameter("$passwordHash", user.PasswordHash)
+                .WithParameter("$securityStamp", user.SecurityStamp)
+                .WithParameter("$concurrencyStamp", user.ConcurrencyStamp)
+                .WithParameter("$phoneNumber", user.PhoneNumber)
+                .WithParameter("$phoneNumberConfirmed", user.PhoneNumberConfirmed)
+                .WithParameter("$twoFactorEnabled", user.TwoFactorEnabled)
+                .WithParameter("$lockoutEnd", user.LockoutEnd)
+                .WithParameter("$lockoutEnabled", user.LockoutEnabled)
+                .WithParameter("$accessFailedCount", user.AccessFailedCount)
+                .ExecuteOrThrow();
+        }
+
+        private NewUser CreateNewUser(
+            ApplicationUser user,
+            DbWriteQueue.Context dbWriteContext,
+            SqliteTransaction transaction)
+        {
+            var maxWorkspaceNumber = user.IsAppOwner
+                ? null
+                : _appSettings.NewUserDefaultMaxWorkspaceNumber.Value;
+
+            var defaultMaxWorkspaceSizeInBytes = user.IsAppOwner
+                ? null
+                : _appSettings.NewUserDefaultMaxWorkspaceSizeInBytes.Value;
+
+            var newUser = dbWriteContext
+                .OneRowCmd(
+                    sql: """
+                        INSERT INTO u_users(
+                            u_external_id,
+                            u_user_name,
+                            u_normalized_user_name,
+                            u_email,
+                            u_normalized_email,
+                            u_email_confirmed,
+                            u_password_hash,
+                            u_security_stamp,
+                            u_concurrency_stamp,
+                            u_phone_number,
+                            u_phone_number_confirmed,
+                            u_two_factor_enabled,
+                            u_lockout_end,
+                            u_lockout_enabled,
+                            u_access_failed_count,
+                            u_is_invitation,
+                            u_invitation_code,
+                            u_max_workspace_number,
+                            u_default_max_workspace_size_in_bytes
+                        ) VALUES (
+                            $externalId,
+                            $userName,
+                            $normalizedUserName,
+                            $email,
+                            $normalizedEmail,
+                            $emailConfirmed,
+                            $passwordHash,
+                            $securityStamp,
+                            $concurrencyStamp,
+                            $phoneNumber,
+                            $phoneNumberConfirmed,
+                            $twoFactorEnabled,
+                            $lockoutEnd,
+                            $lockoutEnabled,
+                            $accessFailedCount,
+                            FALSE,
+                            NULL,
+                            $maxWorkspaceNumber,
+                            $defaultMaxWorkspaceSizeInBytes
+                        )
+                        RETURNING u_id;
+                        """,
+                    readRowFunc: reader => new NewUser(
+                        Id: reader.GetInt32(0)),
+                    transaction: transaction)
+                .WithParameter("$externalId", user.Id)
+                .WithParameter("$userName", user.UserName)
+                .WithParameter("$normalizedUserName", user.NormalizedUserName)
+                .WithParameter("$email", user.Email)
+                .WithParameter("$normalizedEmail", user.NormalizedEmail)
+                .WithParameter("$emailConfirmed", user.EmailConfirmed)
+                .WithParameter("$passwordHash", user.PasswordHash)
+                .WithParameter("$securityStamp", user.SecurityStamp)
+                .WithParameter("$concurrencyStamp", user.ConcurrencyStamp)
+                .WithParameter("$phoneNumber", user.PhoneNumber)
+                .WithParameter("$phoneNumberConfirmed", user.PhoneNumberConfirmed)
+                .WithParameter("$twoFactorEnabled", user.TwoFactorEnabled)
+                .WithParameter("$lockoutEnd", user.LockoutEnd)
+                .WithParameter("$lockoutEnabled", user.LockoutEnabled)
+                .WithParameter("$accessFailedCount", user.AccessFailedCount)
+                .WithParameter("$maxWorkspaceNumber", maxWorkspaceNumber)
+                .WithParameter("$defaultMaxWorkspaceSizeInBytes", defaultMaxWorkspaceSizeInBytes)
+                .ExecuteOrThrow();
+
+            //we don't assign any permissions and roles for app owners
+            //as this logic is controlled internally by other settings
+            if (user.IsAppOwner)
+                return newUser;
+
+            var defaultIsAdmin = _appSettings
+                .NewUserDefaultPermissionsAndRoles
+                .IsAdmin;
+
+            if (defaultIsAdmin)
+            {
+                UpdateUserPermissionsAndRoleQuery.AddAdminRole(
+                    userId: newUser.Id,
+                    adminRoleId: _appSettings.AdminRoleId,
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction);
+            }
+
+            var defaultPermissions = _appSettings
+                .NewUserDefaultPermissionsAndRoles
+                .GetPermissions();
+
+            if(defaultPermissions.Any())
+            {
+                UpdateUserPermissionsAndRoleQuery.AddPermissions(
+                    userId: newUser.Id,
+                    isAdmin: defaultIsAdmin,
+                    permissions: defaultPermissions,
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction);
+            }
+
+            return newUser;
+        }
+
+        private static bool TryGetUserInvitation(
+            ApplicationUser user,
+            DbWriteQueue.Context dbWriteContext,
+            SqliteTransaction transaction,
+            out UserInivation userInvitation)
+        {
+            var result = dbWriteContext
+                .OneRowCmd(
+                    sql: """
+                        SELECT 
+                            u_id,
+                            u_external_id
+                        FROM u_users                            
+                        WHERE 
+                            u_normalized_user_name = $normalizedUserName
+                            AND u_is_invitation = TRUE
+                        LIMIT 1                 
+                        """,
+                    readRowFunc: reader => new UserInivation(
+                        UserId: reader.GetInt32(0),
+                        UserExternalId: reader.GetExtId<UserExtId>(1)),
+                    transaction: transaction)
+                .WithParameter("$normalizedUserName", user.NormalizedUserName)
+                .Execute();
+
+            if(result.IsEmpty)
+            {
+                userInvitation = default;
+                return false;
+            }
+
+            userInvitation = result.Value;
+            return true;
+        }
+
         public override async Task<IdentityResult> DeleteAsync(
             ApplicationUser user, 
             CancellationToken cancellationToken = default) 
@@ -983,5 +1099,12 @@ namespace PlikShare.Core.IdentityProvider
             
             return null;
         }
+
+        public readonly record struct UserInivation(
+            int UserId,
+            UserExtId UserExternalId);
+
+        public readonly record struct NewUser(
+            int Id);
     }
 }

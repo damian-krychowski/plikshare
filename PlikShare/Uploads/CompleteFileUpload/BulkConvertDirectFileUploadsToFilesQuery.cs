@@ -1,15 +1,12 @@
 ﻿using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
-using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
-using PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
 using Serilog;
 
 namespace PlikShare.Uploads.CompleteFileUpload;
 
 //todo handle file upload not found error
 public class BulkConvertDirectFileUploadsToFilesQuery(
-    IQueue queue,
     IClock clock,
     DbWriteQueue dbWriteQueue)
 {

@@ -389,9 +389,10 @@ public class TestFixture: IAsyncLifetime
         OneTimeInvitationCode.AddCode(invitationCode);
 
         var invitationResponse = await Api.Users.InviteUsers(
-            request: new InviteUsersRequestDto([
-                email,
-            ]),
+            request: new InviteUsersRequestDto
+            {
+                Emails = [email]
+            },
             cookie: user.Cookie,
             antiforgery: user.Antiforgery);
 

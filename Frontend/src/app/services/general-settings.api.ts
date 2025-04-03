@@ -1,6 +1,7 @@
 import { HttpClient, HttpEvent, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { firstValueFrom, Observable } from "rxjs";
+import { UserPermissionsAndRolesDto } from "./users.api";
 
 export type ApplicationSingUp = 'everyone' | 'only-invited-users';
 
@@ -10,6 +11,16 @@ export interface GetApplicationSettingsResponse {
     privacyPolicy: string | null;
     applicationName: string | null;
     signUpCheckboxes: SignUpCheckboxDto[];
+    newUserDefaultMaxWorkspaceNumber: number | null;
+    newUserDefaultMaxWorkspaceSizeInBytes: number | null;
+    newUserDefaultPermissionsAndRoles: {
+        isAdmin: boolean;
+        canAddWorkspace: boolean;
+        canManageGeneralSettings: boolean;
+        canManageUsers: boolean;
+        canManageStorages: boolean;
+        canManageEmailProviders: boolean;
+    }
 }
 
 export interface SignUpCheckboxDto {
@@ -34,6 +45,14 @@ export interface CreateOrUpdateSignUpCheckboxRequest {
 
 export interface CreateOrUpdateSignUpCheckboxResponse {
     newId: number;
+}
+
+export interface SetNewUserDefaultMaxWorkspaceNumberRequestDto {
+    value: number | null;
+}
+
+export interface SetNewUserDefaultMaxWorkspaceSizeInBytesRequestDto {
+    value: number | null;
 }
 
 @Injectable({
@@ -141,6 +160,45 @@ export class GeneralSettingsApi {
             ._http
             .delete(`/api/general-settings/privacy-policy`);
 
+        await firstValueFrom(call);
+    }
+
+    public async setNewUserDefaultMaxWorkspaceNumber(request: SetNewUserDefaultMaxWorkspaceNumberRequestDto) {
+        const call = this
+            ._http
+            .patch(
+                `/api/general-settings/new-user-default-max-workspace-number`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+    
+        await firstValueFrom(call);
+    }
+    
+    public async setNewUserDefaultMaxWorkspaceSizeInBytes(request: SetNewUserDefaultMaxWorkspaceSizeInBytesRequestDto) {
+        const call = this
+            ._http
+            .patch(
+                `/api/general-settings/new-user-default-max-workspace-size-in-bytes`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+    
+        await firstValueFrom(call);
+    }
+    
+    public async setNewUserDefaultPermissionsAndRoles(request: UserPermissionsAndRolesDto) {
+        const call = this
+            ._http
+            .patch(
+                `/api/general-settings/new-user-default-permissions-and-roles`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+    
         await firstValueFrom(call);
     }
 }

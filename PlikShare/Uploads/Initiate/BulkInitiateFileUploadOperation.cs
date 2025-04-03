@@ -521,7 +521,7 @@ public class BulkInitiateFileUploadOperation(
 
         var folderExternalIds = fileDetailsList
             .Where(file => file.FolderExternalId is not null)
-            .Select(file => file.FolderExternalId)
+            .Select(file => file.FolderExternalId!)
             .Distinct()
             .ToList();
 

@@ -9,6 +9,7 @@ using PlikShare.Boxes.UpdateFooterIsEnabled.Contracts;
 using PlikShare.Boxes.UpdateHeader.Contracts;
 using PlikShare.Boxes.UpdateHeaderIsEnabled.Contracts;
 using PlikShare.Workspaces.Id;
+using static PlikShare.Core.Utils.HttpErrors;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
@@ -122,10 +123,5 @@ public class BoxesApi(IFlurlClient flurlClient, string appUrl)
             request: request,
             cookie: cookie,
             antiforgery: antiforgery);
-    }
-
-    internal async Task UpdateFooter(WorkspaceExtId workspaceExternalId, BoxExtId boxExternalId, UpdateBoxFooterRequestDto request, object cookie)
-    {
-        throw new NotImplementedException();
     }
 }

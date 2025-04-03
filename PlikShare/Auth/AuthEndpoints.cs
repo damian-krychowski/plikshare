@@ -96,7 +96,9 @@ public static class AuthEndpoints
             request.Email,
             cancellationToken);
 
-        var emailStore = GetEmailStore(userManager, userStore);
+        var emailStore = GetEmailStore(
+            userManager, 
+            userStore);
 
         await emailStore.SetEmailAsync(
             user,

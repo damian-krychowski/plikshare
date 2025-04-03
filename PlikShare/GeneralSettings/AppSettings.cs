@@ -1,5 +1,9 @@
+using Amazon.Runtime.Internal;
+using Microsoft.AspNetCore.Rewrite;
 using Microsoft.Data.Sqlite;
+using PlikShare.Core.Authorization;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.IdentityProvider;
 using PlikShare.Core.SQLite;
 
 namespace PlikShare.GeneralSettings;
@@ -11,6 +15,95 @@ public class AppSettings(PlikShareDb plikShareDb)
         public required int Id { get; init; }
         public required string Text { get; init; }
         public required bool IsRequired { get; init; }
+    }
+
+    public record NewUserDefaultMaxWorkspaceNumberSetting(int? Value)
+    {
+        public const string Key = "new-user-default-max-workspace-number";
+        public static NewUserDefaultMaxWorkspaceNumberSetting Default => new(0);
+
+        public static NewUserDefaultMaxWorkspaceNumberSetting FromString(string value)
+        {
+            if(int.TryParse(value, out var intValue))
+            {
+                if (intValue == -1)
+                    return new(Value: null);
+
+                return new(Value: intValue);
+            }
+
+            throw new ArgumentOutOfRangeException(
+                $"Setting '{Key}' value was expected to be an int32 but found '{value}'");
+        }
+
+        public string Serialize()
+        {
+            return Value.HasValue
+                ? Value.Value.ToString()
+                : "-1";
+        }
+    }
+
+    public record NewUserDefaultMaxWorkspaceSizeInBytesSetting(long? Value)
+    {
+        public const string Key = "new-user-default-max-workspace-size-in-bytes";
+        public static NewUserDefaultMaxWorkspaceSizeInBytesSetting Default => new(0);
+
+        public static NewUserDefaultMaxWorkspaceSizeInBytesSetting FromString(string value)
+        {
+            if (long.TryParse(value, out var longValue))
+            {
+                if (longValue == -1)
+                    return new(Value: null);
+
+                return new(Value: longValue);
+            }
+
+            throw new ArgumentOutOfRangeException(
+                $"Setting '{Key}' value was expected to be an int64 but found '{value}'");
+        }
+
+        public string Serialize()
+        {
+            return Value.HasValue
+                ? Value.Value.ToString()
+                : "-1";
+        }
+    }
+
+    public record NewUserDefaultPermissionsAndRolesSetting(List<string> permissionsAndRoles)
+    {
+        public const string Key = "new-user-default-permissions-and-roles";
+        public static NewUserDefaultPermissionsAndRolesSetting Default => new([]);
+
+        public static NewUserDefaultPermissionsAndRolesSetting FromString(string value)
+        {
+            var splitted = value
+                .Split(",", StringSplitOptions.RemoveEmptyEntries)
+                .ToList();
+
+            foreach (var item in splitted)
+            {
+                if(!Permissions.IsValidPermission(item) && !Roles.IsValidRole(item))
+                {
+                    throw new ArgumentOutOfRangeException(
+                        $"Setting '{Key}' value contains invalid element: '{value}'. All items are expected to be valid permissions or roles.");
+                }
+            }
+
+            return new(splitted);
+        }
+
+        public string Serialize() => string.Join(",", permissionsAndRoles);
+
+        public bool IsAdmin => permissionsAndRoles.Contains(Roles.Admin);
+
+        public bool CanAddWorkspace => permissionsAndRoles.Contains(Permissions.AddWorkspace);
+        public bool CanManageGeneralSettings => permissionsAndRoles.Contains(Permissions.ManageGeneralSettings);
+        public bool CanManageUsers => permissionsAndRoles.Contains(Permissions.ManageUsers);
+        public bool CanManageStorages => permissionsAndRoles.Contains(Permissions.ManageStorages);
+        public bool CanManageEmailProviders => permissionsAndRoles.Contains(Permissions.ManageEmailProviders);
+        public List<string> GetPermissions() => permissionsAndRoles.Where(Permissions.IsValidPermission).ToList();
     }
 
     public record ApplicationNameSetting(string Name)
@@ -95,6 +188,20 @@ public class AppSettings(PlikShareDb plikShareDb)
     private volatile ApplicationNameSetting _applicationName = ApplicationNameSetting.Default;
     public ApplicationNameSetting ApplicationName => _applicationName;
 
+
+    private volatile NewUserDefaultMaxWorkspaceNumberSetting _newUserDefaultMaxWorkspaceNumber = NewUserDefaultMaxWorkspaceNumberSetting.Default;
+    public NewUserDefaultMaxWorkspaceNumberSetting NewUserDefaultMaxWorkspaceNumber => _newUserDefaultMaxWorkspaceNumber;
+
+
+    private volatile NewUserDefaultMaxWorkspaceSizeInBytesSetting _newUserDefaultMaxWorkspaceSizeInBytes = NewUserDefaultMaxWorkspaceSizeInBytesSetting.Default;
+    public NewUserDefaultMaxWorkspaceSizeInBytesSetting NewUserDefaultMaxWorkspaceSizeInBytes => _newUserDefaultMaxWorkspaceSizeInBytes;
+
+
+    private volatile NewUserDefaultPermissionsAndRolesSetting _newUserDefaultPermissionsAndRoles = NewUserDefaultPermissionsAndRolesSetting.Default;
+    public NewUserDefaultPermissionsAndRolesSetting NewUserDefaultPermissionsAndRoles => _newUserDefaultPermissionsAndRoles;
+
+    public int AdminRoleId { get; private set; }
+
     public void SetApplicationName(string? name)
     {
         UpdateSettingInDatabase(
@@ -131,6 +238,39 @@ public class AppSettings(PlikShareDb plikShareDb)
         _applicationSignUp = signUp;
     }
 
+    public void SetNewUserDefaultMaxWorkspaceNumber(int? value)
+    {
+        var setting = new NewUserDefaultMaxWorkspaceNumberSetting(value);
+
+        UpdateSettingInDatabase(
+            key: NewUserDefaultMaxWorkspaceNumberSetting.Key,
+            value: setting.Serialize());
+
+        _newUserDefaultMaxWorkspaceNumber = setting;
+    }
+
+    public void SetNewUserDefaultMaxWorkspaceSizeInBytes(long? value)
+    {
+        var setting = new NewUserDefaultMaxWorkspaceSizeInBytesSetting(value);
+
+        UpdateSettingInDatabase(
+            key: NewUserDefaultMaxWorkspaceSizeInBytesSetting.Key,
+            value: setting.Serialize());
+
+        _newUserDefaultMaxWorkspaceSizeInBytes = setting;
+    }
+
+    public void SetNewUserPermissionsAndRoles(List<string> permissionsAndRoles)
+    {
+        var setting = new NewUserDefaultPermissionsAndRolesSetting(permissionsAndRoles);
+
+        UpdateSettingInDatabase(
+            key: NewUserDefaultPermissionsAndRolesSetting.Key,
+            value: setting.Serialize());
+
+        _newUserDefaultPermissionsAndRoles = setting;
+    }
+
     public void RefreshSingUpCheckboxes()
     {
         using var connection = plikShareDb.OpenConnection();
@@ -150,8 +290,54 @@ public class AppSettings(PlikShareDb plikShareDb)
         _termsOfService = GetTermsOfServiceOrDefault(settings);
         _privacyPolicy = GetPrivacyPolicyOrDefault(settings);
         _applicationName = GetApplicationNameOrDefault(settings);
+        _newUserDefaultMaxWorkspaceNumber = GetNewUserDefaultMaxWorkspaceNumberOrDefault(settings);
+        _newUserDefaultMaxWorkspaceSizeInBytes = GetNewUserDefaultMaxWorkspaceSizeInBytesOrDefault(settings);
+        _newUserDefaultPermissionsAndRoles = GetNewUserDefaultPermissionsAndRolesOrDefault(settings);
+
+        AdminRoleId = GetOrCreateAdminRole(connection);
     }
     
+    private static int GetOrCreateAdminRole(
+        SqliteConnection connection)
+    {
+        var adminRoleId = connection
+            .OneRowCmd(
+                sql: """
+                     SELECT r_id
+                     FROM r_roles
+                     WHERE r_normalized_name = $normalizedName
+                     """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$normalizedName", Roles.AdminNormalized)
+            .Execute();
+
+        if (!adminRoleId.IsEmpty)
+            return adminRoleId.Value;
+
+        return connection
+            .OneRowCmd(
+                sql: """
+                     INSERT INTO r_roles (
+                         r_external_id,
+                         r_name,
+                         r_normalized_name,
+                         r_concurrency_stamp
+                     ) VALUES (
+                         $externalId,
+                         $name,
+                         $normalizedName,
+                         $concurrencyStamp
+                     )
+                     RETURNING r_id
+                     """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$externalId", RoleExtId.NewId().Value)
+            .WithParameter("$name", Roles.Admin)
+            .WithParameter("$normalizedName", Roles.AdminNormalized)
+            .WithParameter("$concurrencyStamp", Guid.NewGuid())
+            .ExecuteOrThrow();
+    }
+
     private static List<Setting> GetSettings(
         SqliteConnection connection)
     {
@@ -230,6 +416,36 @@ public class AppSettings(PlikShareDb plikShareDb)
         return setting is null
             ? ApplicationNameSetting.Default
             : new ApplicationNameSetting(setting.Value!);
+    }
+
+    private NewUserDefaultMaxWorkspaceNumberSetting GetNewUserDefaultMaxWorkspaceNumberOrDefault(IEnumerable<Setting> settings)
+    {
+        var setting = settings.FirstOrDefault(
+           s => s.Key.Equals(NewUserDefaultMaxWorkspaceNumberSetting.Key));
+
+        return setting is null
+            ? NewUserDefaultMaxWorkspaceNumberSetting.Default
+            : NewUserDefaultMaxWorkspaceNumberSetting.FromString(setting.Value!);
+    }
+
+    private NewUserDefaultMaxWorkspaceSizeInBytesSetting GetNewUserDefaultMaxWorkspaceSizeInBytesOrDefault(IEnumerable<Setting> settings)
+    {
+        var setting = settings.FirstOrDefault(
+           s => s.Key.Equals(NewUserDefaultMaxWorkspaceSizeInBytesSetting.Key));
+
+        return setting is null
+            ? NewUserDefaultMaxWorkspaceSizeInBytesSetting.Default
+            : NewUserDefaultMaxWorkspaceSizeInBytesSetting.FromString(setting.Value!);
+    }
+
+    private NewUserDefaultPermissionsAndRolesSetting GetNewUserDefaultPermissionsAndRolesOrDefault(IEnumerable<Setting> settings)
+    {
+        var setting = settings.FirstOrDefault(
+           s => s.Key.Equals(NewUserDefaultPermissionsAndRolesSetting.Key));
+
+        return setting is null
+            ? NewUserDefaultPermissionsAndRolesSetting.Default
+            : NewUserDefaultPermissionsAndRolesSetting.FromString(setting.Value!);
     }
 
     private void UpdateSettingInDatabase(string key, string? value)

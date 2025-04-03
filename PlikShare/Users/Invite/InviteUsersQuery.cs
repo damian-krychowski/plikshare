@@ -6,9 +6,13 @@ using PlikShare.Core.Emails;
 using PlikShare.Core.Emails.Definitions;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
+using PlikShare.GeneralSettings;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
+using PlikShare.Users.Invite.Contracts;
+using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Users.UpdatePermissionsAndRoles;
 using Serilog;
 
 namespace PlikShare.Users.Invite;
@@ -17,9 +21,10 @@ public class InviteUsersQuery(
     DbWriteQueue dbWriteQueue,
     IQueue queue,
     IClock clock,
-    IOneTimeInvitationCode oneTimeInvitationCode)
+    IOneTimeInvitationCode oneTimeInvitationCode,
+    AppSettings appSettings)
 {
-    public Task<List<InvitedUser>> Execute(
+    public Task<InviteUsersResponseDto> Execute(
         List<Email> emails,
         UserContext inviter,
         Guid correlationId,
@@ -34,7 +39,7 @@ public class InviteUsersQuery(
             cancellationToken: cancellationToken);
     }
 
-    private List<InvitedUser> ExecuteOperation(
+    private InviteUsersResponseDto ExecuteOperation(
         DbWriteQueue.Context dbWriteContext,
         List<Email> emails,
         UserContext inviter,
@@ -44,7 +49,7 @@ public class InviteUsersQuery(
 
         try
         {
-            var users = new List<InvitedUser>();
+            var users = new List<InvitedUserDto>();
 
             foreach (var email in emails)
             {
@@ -55,15 +60,18 @@ public class InviteUsersQuery(
                     dbWriteContext: dbWriteContext,
                     transaction: transaction);
 
-                if (!user.IsEmpty)
+                if (user is not null)
                 {
-                    users.Add(user.Value);
+                    users.Add(user);
                 }
             }
 
             transaction.Commit();
 
-            return users;
+            return new InviteUsersResponseDto 
+            { 
+                Users = users 
+            };
         }
         catch (Exception e)
         {
@@ -76,7 +84,7 @@ public class InviteUsersQuery(
         }
     }
 
-    private SQLiteOneRowCommandResult<InvitedUser> TryInsertUserInvitation(
+    private InvitedUserDto? TryInsertUserInvitation(
         Email email,
         UserContext inviter,
         Guid correlationId,
@@ -87,8 +95,12 @@ public class InviteUsersQuery(
         var invitationCode = oneTimeInvitationCode.Generate();
         var securityStamp = Guid.NewGuid().ToString();
         var concurrencyStamp = Guid.NewGuid().ToString();
+        var externalId = UserExtId.NewId();
 
-        var user = dbWriteContext
+        var maxWorkspaceNumber = appSettings.NewUserDefaultMaxWorkspaceNumber.Value;
+        var defaultMaxWorkspaceSizeInBytes = appSettings.NewUserDefaultMaxWorkspaceSizeInBytes.Value;
+
+        var userId = dbWriteContext
             .OneRowCmd(
                 sql: """
                      INSERT INTO u_users (
@@ -129,21 +141,16 @@ public class InviteUsersQuery(
                          0,
                          TRUE,
                          $invitationCode,
-                         NULL,
-                         NULL
+                         $maxWorkspaceNumber,
+                         $defaultMaxWorkspaceSizeInBytes
                      )
                      ON CONFLICT(u_normalized_email) DO NOTHING
                      RETURNING
-                         u_id,
-                         u_external_id
+                         u_id
                      """,
-                readRowFunc: reader => new InvitedUser(
-                    Id: reader.GetInt32(0),
-                    ExternalId: reader.GetExtId<UserExtId>(1),
-                    Email: email,
-                    InvitationCode: invitationCode),
+                readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
-            .WithParameter("$externalId", UserExtId.NewId().Value)
+            .WithParameter("$externalId", externalId.Value)
             .WithParameter("$userName", email.Value)
             .WithParameter("$normalizedUserName", normalizedEmail)
             .WithParameter("$email", email.Value)
@@ -151,38 +158,36 @@ public class InviteUsersQuery(
             .WithParameter("$securityStamp", securityStamp)
             .WithParameter("$concurrencyStamp", concurrencyStamp)
             .WithParameter("$invitationCode", invitationCode)
+            .WithParameter("$maxWorkspaceNumber", maxWorkspaceNumber)
+            .WithParameter("$defaultMaxWorkspaceSizeInBytes", defaultMaxWorkspaceSizeInBytes)
             .Execute();
 
-        if (user.IsEmpty)
-            return user;
+        if (userId.IsEmpty)
+            return null;
 
-        var addPermissionResult = dbWriteContext
-            .OneRowCmd(
-                sql: """
-                     INSERT INTO uc_user_claims (
-                         uc_user_id,
-                         uc_claim_type,
-                         uc_claim_value
-                     ) VALUES (
-                         $userId,
-                         $claimType,
-                         $claimValue
-                     )
-                     ON CONFLICT (uc_user_id, uc_claim_type, uc_claim_value) DO NOTHING
-                     RETURNING                        
-                         uc_id
-                     """,
-                readRowFunc: reader => reader.GetInt32(0),
-                transaction: transaction)
-            .WithParameter("$userId", user.Value.Id)
-            .WithParameter("$claimType", Claims.Permission)
-            .WithParameter("$claimValue", Permissions.AddWorkspace)
-            .Execute();
+        var permissionsAndRoles = appSettings
+            .NewUserDefaultPermissionsAndRoles;
 
-        if (addPermissionResult.IsEmpty)
+        if (permissionsAndRoles.IsAdmin)
         {
-            throw new InvalidOperationException(
-                $"Something went wrong while adding '{Permissions.AddWorkspace}' permission to User '{user.Value.Id}'");
+            UpdateUserPermissionsAndRoleQuery.AddAdminRole(
+                userId: userId.Value,
+                adminRoleId: appSettings.AdminRoleId,
+                dbWriteContext: dbWriteContext,
+                transaction: transaction);
+        }
+
+        var defaultPermissions = permissionsAndRoles
+            .GetPermissions();
+
+        if (defaultPermissions.Any())
+        {
+            UpdateUserPermissionsAndRoleQuery.AddPermissions(
+                userId: userId.Value,
+                isAdmin: permissionsAndRoles.IsAdmin,
+                permissions: defaultPermissions,
+                dbWriteContext: dbWriteContext,
+                transaction: transaction);
         }
 
         queue.EnqueueOrThrow(
@@ -194,7 +199,7 @@ public class InviteUsersQuery(
                 Template = EmailTemplate.UserInvitation,
                 Definition = new UserInvitationEmailDefinition(
                     InviterEmail: inviter.Email.Value,
-                    InvitationCode: user.Value.InvitationCode)
+                    InvitationCode: invitationCode)
             },
             executeAfterDate: clock.UtcNow,
             debounceId: null,
@@ -202,12 +207,23 @@ public class InviteUsersQuery(
             dbWriteContext: dbWriteContext,
             transaction: transaction);
 
-        return user;
-    }
+        return new InvitedUserDto
+        {
+            ExternalId = externalId,
+            Email = email.Value,
 
-    public readonly record struct InvitedUser(
-        int Id,
-        UserExtId ExternalId,
-        Email Email,
-        string InvitationCode);
+            MaxWorkspaceNumber = maxWorkspaceNumber,
+            DefaultMaxWorkspaceSizeInBytes = defaultMaxWorkspaceSizeInBytes,
+            PermissionsAndRoles = new UserPermissionsAndRolesDto
+            {
+                IsAdmin = permissionsAndRoles.IsAdmin,
+
+                CanAddWorkspace = permissionsAndRoles.CanAddWorkspace,
+                CanManageEmailProviders = permissionsAndRoles.CanManageEmailProviders,
+                CanManageGeneralSettings = permissionsAndRoles.CanManageGeneralSettings,
+                CanManageStorages = permissionsAndRoles.CanManageStorages,
+                CanManageUsers = permissionsAndRoles.CanManageUsers
+            }
+        };
+    }
 }

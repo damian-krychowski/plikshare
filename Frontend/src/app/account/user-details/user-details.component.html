@@ -24,8 +24,7 @@
                 </div>
             </div>
         </div>
-    </div>
-    
+    </div>    
 
     <div class="content"> 
         <div class="mt-3"></div>
@@ -98,7 +97,8 @@
 
                 <div class="user-details">
                     <app-user-permissions-list
-                        [user]="userValue">                            
+                        [user]="userValue"
+                        (configChanged)="onUserPermissionsAndRolesChange($event)">                            
                     </app-user-permissions-list>
                 </div> 
                 

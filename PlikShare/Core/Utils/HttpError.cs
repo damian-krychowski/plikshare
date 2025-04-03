@@ -330,6 +330,21 @@ public static class HttpErrors
                 Code = "user-max-number-of-workspaces-reached",
                 Message = $"User with externalId '{externalId}' cannot create workspace because his max number of workspaces was already reached ({maxNumberOfWorkspaces})"
             });
+
+        public static BadRequest<HttpError> OnlyAppOwnerCanAssignAdminRole() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "only-app-owner-can-assign-admin-role",
+                Message = $"Admin role can be assigned only by App Owner"
+            });
+
+
+        public static BadRequest<HttpError> CannotAssignAdminPermissionToNonAdminUser() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "cannot-assign-admin-permissions-to-non-admin-user",
+                Message = $"Cannot assign admin permissions to non admin user"
+            });
     }
 
     public static class Integration

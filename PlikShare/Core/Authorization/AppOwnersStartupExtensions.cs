@@ -53,7 +53,10 @@ public static class AppOwnersStartupExtensions
         if(user is not null)
             return;
 
-        user = new ApplicationUser();
+        user = new ApplicationUser
+        {
+            IsAppOwner = true
+        };
             
         await userStore.SetUserNameAsync(
             user: user, 

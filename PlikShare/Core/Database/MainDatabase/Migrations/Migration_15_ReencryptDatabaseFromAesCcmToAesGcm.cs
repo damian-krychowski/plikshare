@@ -13,7 +13,9 @@ public class Migration_15_ReencryptDatabaseFromAesCcmToAesGcm(MasterEncryptionKe
     
     public void Run(SqliteConnection connection, SqliteTransaction transaction)
     {
+#pragma warning disable CS0618 // Type or member is obsolete
         var aesCcm = new AesCcmMasterDataEncryption(masterEncryptionKeyProvider);
+#pragma warning restore CS0618 // Type or member is obsolete
         var aesGcm = new AesGcmMasterDataEncryption(masterEncryptionKeyProvider);
 
         connection.CreateFunction("app_reencrypt_from_ccm_to_gcm",

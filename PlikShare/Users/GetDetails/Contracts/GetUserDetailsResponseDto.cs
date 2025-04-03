@@ -31,6 +31,7 @@ public static class GetUserDetails
         public required bool IsAdmin { get; init; }
     }
 
+
     public class UserPermissionsDto
     {
         public required bool CanAddWorkspace { get; init; }
@@ -39,6 +40,7 @@ public static class GetUserDetails
         public required bool CanManageStorages { get; init; }
         public required bool CanManageEmailProviders { get; init; }
     }
+
 
     public class WorkspaceDto
     {
@@ -103,4 +105,3 @@ public static class GetUserDetails
         public required string Email { get; init; }
     }
 }
-

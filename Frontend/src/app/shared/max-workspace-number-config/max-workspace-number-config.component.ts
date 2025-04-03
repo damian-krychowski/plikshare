@@ -32,7 +32,6 @@ export class MaxWorkspaceNumberConfigComponent implements OnInit, OnChanges {
     hasError: boolean = false;
     errorMessage: string = '';
 
-    // Track form validity
     formValid: boolean = true;
 
     ngOnInit() {

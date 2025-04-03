@@ -604,10 +604,9 @@ public class S3StorageClient(
                 PartNumber = partNumber,
                 InputStream = fileBytes.AsStream(),
                 DisablePayloadSigning = true,
-                CalculateContentMD5Header = false,
                 DisableDefaultChecksumValidation = true,
                 UseChunkEncoding = false,
-                PartSize = fileBytes.Length
+                PartSize = fileBytes.Length,                
             };
 
             var uploadPartResponse = await s3Client.UploadPartAsync(
@@ -644,7 +643,6 @@ public class S3StorageClient(
                 Key = key.Value,
                 InputStream = fileBytes.AsStream(),
                 DisablePayloadSigning = true,
-                CalculateContentMD5Header = false,
                 DisableDefaultChecksumValidation = true,
                 UseChunkEncoding = false,
             };

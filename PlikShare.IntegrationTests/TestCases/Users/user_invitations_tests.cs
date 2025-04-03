@@ -3,6 +3,7 @@ using PlikShare.Core.Emails;
 using PlikShare.EmailProviders.ExternalProviders.Resend;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Users.Invite.Contracts;
+using PlikShare.Users.PermissionsAndRoles;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Users;
@@ -28,22 +29,57 @@ public class user_invitation_tests : TestFixture
 
         //when
         var invitationResult = await Api.Users.InviteUsers(
-            request: new InviteUsersRequestDto([
-                user1Email,
-                user2Email
-            ]),
+            request: new InviteUsersRequestDto
+            {
+                Emails =
+                [
+                    user1Email,
+                    user2Email
+                ]
+            },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        invitationResult.Should().BeEquivalentTo(new InviteUsersResponseDto([
-                new InvitedUserDto(
-                    Email: user1Email,
-                    ExternalId: default),
-                new InvitedUserDto(
-                    Email: user2Email,
-                    ExternalId: default)
-            ]),
+        invitationResult.Should().BeEquivalentTo(new InviteUsersResponseDto
+        { 
+            Users = 
+            [
+                new InvitedUserDto 
+                {
+                    ExternalId = default,
+                    Email = user1Email,
+                    MaxWorkspaceNumber = 0,
+                    DefaultMaxWorkspaceSizeInBytes = 0,
+                    PermissionsAndRoles = new UserPermissionsAndRolesDto
+                    {
+                        IsAdmin = false,
+                        CanAddWorkspace = false,
+                        CanManageEmailProviders = false,
+                        CanManageGeneralSettings = false,
+                        CanManageStorages = false,
+                        CanManageUsers = false
+                    }
+                },
+
+                new InvitedUserDto
+                {
+                    ExternalId = default,
+                    Email = user2Email,
+                    MaxWorkspaceNumber = 0,
+                    DefaultMaxWorkspaceSizeInBytes = 0,
+                    PermissionsAndRoles = new UserPermissionsAndRolesDto
+                    {
+                        IsAdmin = false,
+                        CanAddWorkspace = false,
+                        CanManageEmailProviders = false,
+                        CanManageGeneralSettings = false,
+                        CanManageStorages = false,
+                        CanManageUsers = false
+                    }
+                }
+            ]
+        },
             opt => opt.For(x => x.Users).Exclude(x => x.ExternalId));
     }
 
@@ -70,10 +106,14 @@ public class user_invitation_tests : TestFixture
 
         //when
         await Api.Users.InviteUsers(
-            request: new InviteUsersRequestDto([
-                user1.Email,
-                user2.Email
-            ]),
+            request: new InviteUsersRequestDto
+            {
+                Emails = 
+                [
+                    user1.Email,
+                    user2.Email
+                ]
+            },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 

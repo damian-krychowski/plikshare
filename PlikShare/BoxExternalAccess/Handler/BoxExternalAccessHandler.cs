@@ -349,7 +349,7 @@ public class BoxExternalAccessHandler(
             parentFolderExternalId: parentFolderExternalId,
             boxFolderId: boxAccess.Box.Folder.Id,
             userIdentity: boxAccess.UserIdentity,
-            folderTreeItems: request.FolderTrees,
+            folderTreeItems: request.FolderTrees ?? [],
             ensureUniqueNames: request.EnsureUniqueNames,
             cancellationToken: cancellationToken);
 

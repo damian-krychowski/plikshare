@@ -17,6 +17,9 @@ import { insertItem, pushItems, removeItem, toggle } from "../../shared/signal-u
 import { MatSlideToggle } from "@angular/material/slide-toggle";
 import { ConfirmOperationDirective } from "../../shared/operation-confirm/confirm-operation.directive";
 import { MatCheckboxModule } from "@angular/material/checkbox";
+import { AppUserPermissionsAndRoles, UserPermissionsAndRolesChangedEvent, UserPermissionsListComponent } from "../../shared/user-permissions/user-permissions-list.component";
+import { MaxWorkspaceNumberConfigComponent, WorkspaceMaxNumberChangedEvent } from "../../shared/max-workspace-number-config/max-workspace-number-config.component";
+import { WorkspaceMaxSizeInBytesChangedEvent, WorkspaceSizeConfigComponent } from "../../shared/workspace-size-config/workspace-size-config.component";
 
 type SignUpCheckbox = {
     id: WritableSignal<number | null>;
@@ -28,6 +31,12 @@ type SignUpCheckbox = {
     
     isSaving: WritableSignal<boolean>;
     isChanged: Signal<boolean>;
+}
+
+type DefaultUser = {
+    permissionsAndRoles: AppUserPermissionsAndRoles;
+    maxWorkspaceNumber: WritableSignal<number | null>;
+    maxWorkspaceSizeInBytes: WritableSignal<number | null>;
 }
 
 @Component({
@@ -43,7 +52,10 @@ type SignUpCheckbox = {
         MatRadioModule,
         DocumentUploadComponent,
         ActionButtonComponent,
-        ConfirmOperationDirective
+        ConfirmOperationDirective,
+        UserPermissionsListComponent,
+        MaxWorkspaceNumberConfigComponent,
+        WorkspaceSizeConfigComponent
     ],
     templateUrl: './general-settings.component.html',
     styleUrl: './general-settings.component.scss'
@@ -70,6 +82,25 @@ export class GeneralSettingsComponent implements OnInit {
     applicationName = model<string|null>(null);
 
     signUpCheckboxes = signal<SignUpCheckbox[]>([]);
+
+    defaultUser: DefaultUser = {
+        permissionsAndRoles: {
+            permissions: {
+                canAddWorkspace: signal(true),
+                canManageEmailProviders: signal(false),
+                canManageGeneralSettings: signal(false),
+                canManageStorages: signal(false),
+                canManageUsers: signal(false)
+            },
+
+            roles: {
+                isAdmin: signal(false)
+            }
+        },
+    
+        maxWorkspaceNumber: signal(1),
+        maxWorkspaceSizeInBytes: signal(null)
+    } 
 
     constructor(
         private _entryPage: EntryPageService,
@@ -107,6 +138,15 @@ export class GeneralSettingsComponent implements OnInit {
             .signUpCheckboxes
             .map(chk => this.mapSignUpCheckboxDto(chk))
         );
+
+        this.defaultUser.maxWorkspaceNumber.set(result.newUserDefaultMaxWorkspaceNumber);
+        this.defaultUser.maxWorkspaceSizeInBytes.set(result.newUserDefaultMaxWorkspaceSizeInBytes);
+        this.defaultUser.permissionsAndRoles.roles.isAdmin.set(result.newUserDefaultPermissionsAndRoles.isAdmin);
+        this.defaultUser.permissionsAndRoles.permissions.canAddWorkspace.set(result.newUserDefaultPermissionsAndRoles.canAddWorkspace);
+        this.defaultUser.permissionsAndRoles.permissions.canManageEmailProviders.set(result.newUserDefaultPermissionsAndRoles.canManageEmailProviders);
+        this.defaultUser.permissionsAndRoles.permissions.canManageGeneralSettings.set(result.newUserDefaultPermissionsAndRoles.canManageGeneralSettings);
+        this.defaultUser.permissionsAndRoles.permissions.canManageStorages.set(result.newUserDefaultPermissionsAndRoles.canManageStorages);
+        this.defaultUser.permissionsAndRoles.permissions.canManageUsers.set(result.newUserDefaultPermissionsAndRoles.canManageUsers);
     }
 
     goToAccount() {
@@ -263,4 +303,61 @@ export class GeneralSettingsComponent implements OnInit {
             signUpCheckbox.isSaving.set(false);
         }
     }
+
+     private _defaultMaxWorkspaceSizeInBytesDebouncer = new Debouncer(500);
+        async onDefaultMaxWorkspaceSizeInBytesChange(event: WorkspaceMaxSizeInBytesChangedEvent) {
+            this.defaultUser.maxWorkspaceSizeInBytes.set(event.maxSizeInBytes);
+            this._defaultMaxWorkspaceSizeInBytesDebouncer.debounceAsync(() => this.saveDefaultMaxWorkspaceSizeInBytes());
+        }
+    
+        private async saveDefaultMaxWorkspaceSizeInBytes(){        
+            try {
+                this.isLoading.set(true);
+                
+                await this._settingsApi.setNewUserDefaultMaxWorkspaceSizeInBytes({
+                    value: this.defaultUser.maxWorkspaceSizeInBytes()
+                });
+            } catch (error) {
+                console.error(error);
+            } finally {
+                this.isLoading.set(false);
+            }
+        }
+    
+        private _maxWorkspaceNumberDebouncer = new Debouncer(500);
+        async onMaxWorkspaceNumberChange(event: WorkspaceMaxNumberChangedEvent) {
+            this.defaultUser.maxWorkspaceNumber.set(event.maxNumber);
+            this._maxWorkspaceNumberDebouncer.debounceAsync(() => this.saveMaxWorkspaceNumber());
+        }
+    
+        private async saveMaxWorkspaceNumber(){    
+            try {
+                this.isLoading.set(true);
+                
+                await this._settingsApi.setNewUserDefaultMaxWorkspaceNumber({
+                    value: this.defaultUser.maxWorkspaceNumber()
+                });
+            } catch (error) {
+                console.error(error);
+            } finally {
+                this.isLoading.set(false);
+            }
+        }
+    
+        private _permissionsAndRolesDebouncer = new Debouncer(500);
+        public onUserPermissionsAndRolesChange(event: UserPermissionsAndRolesChangedEvent) {
+            this._permissionsAndRolesDebouncer.debounceAsync(() => this.savePermissionsAndRoles(event));
+        }
+    
+        private async savePermissionsAndRoles(event: UserPermissionsAndRolesChangedEvent) {
+            try {
+                this.isLoading.set(true);
+                
+                await this._settingsApi.setNewUserDefaultPermissionsAndRoles(event);
+            } catch (error) {
+                console.error(error);
+            } finally {
+                this.isLoading.set(false);
+            }
+        }
 }

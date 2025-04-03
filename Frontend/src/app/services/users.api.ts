@@ -107,21 +107,15 @@ export interface UserItemDto {
     defaultMaxWorkspaceSizeInBytes: number | null;
 }
 
-export interface SetIsAdminRequest {
+export interface UserPermissionsAndRolesDto {
     isAdmin: boolean;
-}
 
-export interface UpdateUserPermissionRequest {
-    permissionName: UserPermission;
-    operation: 'add-permission' | 'remove-permission';
+    canAddWorkspace: boolean;
+    canManageUsers: boolean;
+    canManageGeneralSettings: boolean;
+    canManageStorages: boolean;
+    canManageEmailProviders: boolean;
 }
-
-export type UserPermission = 
-    'add:workspace' 
-    | 'manage:general-settings' 
-    | 'manage:users' 
-    | 'manage:storages' 
-    | 'manage:email-providers';
 
 export interface InviteUsersRequest {
     emails: string[];
@@ -131,6 +125,10 @@ export interface InviteUsersResponse {
     users: {
         email: string;
         externalId: string;
+
+        maxWorkspaceNumber: number | null;
+        defaultMaxWorkspaceSizeInBytes: number | null;
+        permissionsAndRoles: UserPermissionsAndRolesDto;
     }[];
 }
 
@@ -189,25 +187,11 @@ export class UsersApi {
         return await firstValueFrom(call);
     }
 
-    public async setIsAdmin(userExternalId: string, request: SetIsAdminRequest) {
+    public async updatePermissionsAndRoles(userExternalId: string, request: UserPermissionsAndRolesDto) {
         const call = this
             ._http
             .patch(
-                `/api/users/${userExternalId}/is-admin`, request, {
-                headers: new HttpHeaders({
-                    'Content-Type': 'application/json'
-                })
-            });
-
-        await firstValueFrom(call);
-    }
-
-
-    public async updateUserPermission(userExternalId: string, request: UpdateUserPermissionRequest) {
-        const call = this
-            ._http
-            .patch(
-                `/api/users/${userExternalId}/permission`, request, {
+                `/api/users/${userExternalId}/permissions-and-roles`, request, {
                 headers: new HttpHeaders({
                     'Content-Type': 'application/json'
                 })
