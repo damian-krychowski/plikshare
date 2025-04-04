@@ -62,6 +62,20 @@ public static class GeneralSettingsEndpoints
 
         group.MapPatch("/new-user-default-permissions-and-roles", SetNewUserDefaultPermissionsAndRoles)
             .WithName("SetNewUserDefaultPermissionsAndRoles");
+
+        group.MapPatch("/alert-on-new-user-registered", SetAlertOnNewUserRegistered)
+            .WithName("SetAlertOnNewUserRegistered");
+    }
+
+    private static Results<Ok, BadRequest<HttpError>> SetAlertOnNewUserRegistered(
+        [FromBody] SetAlertSettingReuqest request,
+        AppSettings appSettings,
+        HttpContext httpContext)
+    {
+        appSettings.SetAlertOnNewUserRegistered(
+            isTurnedOn: request.IsTurnedOn);
+
+        return TypedResults.Ok();
     }
 
     private static Results<Ok, BadRequest<HttpError>> SetNewUserDefaultPermissionsAndRoles(
@@ -149,7 +163,8 @@ public static class GeneralSettingsEndpoints
                 CanManageGeneralSettings = appSettings.NewUserDefaultPermissionsAndRoles.CanManageGeneralSettings,
                 CanManageStorages = appSettings.NewUserDefaultPermissionsAndRoles.CanManageStorages,
                 CanManageUsers = appSettings.NewUserDefaultPermissionsAndRoles.CanManageUsers
-            }
+            },
+            AlertOnNewUserRegistered = appSettings.AlertOnNewUserRegistered.IsTurnedOn
         };
     }
 

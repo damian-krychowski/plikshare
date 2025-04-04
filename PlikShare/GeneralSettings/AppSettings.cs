@@ -1,5 +1,3 @@
-using Amazon.Runtime.Internal;
-using Microsoft.AspNetCore.Rewrite;
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Database.MainDatabase;
@@ -15,6 +13,28 @@ public class AppSettings(PlikShareDb plikShareDb)
         public required int Id { get; init; }
         public required string Text { get; init; }
         public required bool IsRequired { get; init; }
+    }
+
+    public record AlertOnNewUserRegisteredSetting(bool IsTurnedOn)
+    {
+        public const string Key = "alert-on-new-user-registered";
+        public static AlertOnNewUserRegisteredSetting Default => new(false);
+
+        public static AlertOnNewUserRegisteredSetting FromString(string value)
+        {
+            if (bool.TryParse(value, out var boolValue))
+            {
+                return new(IsTurnedOn: boolValue);
+            }
+
+            throw new ArgumentOutOfRangeException(
+                $"Setting '{Key}' value was expected to be an boolean but found '{value}'");
+        }
+
+        public string Serialize()
+        {
+            return IsTurnedOn.ToString();
+        }
     }
 
     public record NewUserDefaultMaxWorkspaceNumberSetting(int? Value)
@@ -200,7 +220,21 @@ public class AppSettings(PlikShareDb plikShareDb)
     private volatile NewUserDefaultPermissionsAndRolesSetting _newUserDefaultPermissionsAndRoles = NewUserDefaultPermissionsAndRolesSetting.Default;
     public NewUserDefaultPermissionsAndRolesSetting NewUserDefaultPermissionsAndRoles => _newUserDefaultPermissionsAndRoles;
 
+    private volatile AlertOnNewUserRegisteredSetting _alertOnNewUserRegistered = AlertOnNewUserRegisteredSetting.Default;
+    public AlertOnNewUserRegisteredSetting AlertOnNewUserRegistered => _alertOnNewUserRegistered;
+
     public int AdminRoleId { get; private set; }
+
+    public void SetAlertOnNewUserRegistered(bool isTurnedOn)
+    {
+        var setting = new AlertOnNewUserRegisteredSetting(isTurnedOn);
+
+        UpdateSettingInDatabase(
+            key: AlertOnNewUserRegisteredSetting.Key,
+            value: setting.Serialize());
+
+        _alertOnNewUserRegistered = setting;
+    }
 
     public void SetApplicationName(string? name)
     {
@@ -293,6 +327,7 @@ public class AppSettings(PlikShareDb plikShareDb)
         _newUserDefaultMaxWorkspaceNumber = GetNewUserDefaultMaxWorkspaceNumberOrDefault(settings);
         _newUserDefaultMaxWorkspaceSizeInBytes = GetNewUserDefaultMaxWorkspaceSizeInBytesOrDefault(settings);
         _newUserDefaultPermissionsAndRoles = GetNewUserDefaultPermissionsAndRolesOrDefault(settings);
+        _alertOnNewUserRegistered = GetAlertOnNewUserRegisteredOrDefault(settings);
 
         AdminRoleId = GetOrCreateAdminRole(connection);
     }
@@ -446,6 +481,16 @@ public class AppSettings(PlikShareDb plikShareDb)
         return setting is null
             ? NewUserDefaultPermissionsAndRolesSetting.Default
             : NewUserDefaultPermissionsAndRolesSetting.FromString(setting.Value!);
+    }
+
+    private AlertOnNewUserRegisteredSetting GetAlertOnNewUserRegisteredOrDefault(IEnumerable<Setting> settings)
+    {
+        var setting = settings.FirstOrDefault(
+           s => s.Key.Equals(AlertOnNewUserRegisteredSetting.Key));
+
+        return setting is null
+            ? AlertOnNewUserRegisteredSetting.Default
+            : AlertOnNewUserRegisteredSetting.FromString(setting.Value!);
     }
 
     private void UpdateSettingInDatabase(string key, string? value)

@@ -1,6 +1,8 @@
 namespace PlikShare.Core.Emails.Definitions;
 
-public record AlertEmailDefinition(
-    string Title, 
-    string Content, 
-    DateTimeOffset EventDateTime);
+public class AlertEmailDefinition
+{
+    public required string Title { get; init; }
+    public required string Content { get; init; }
+    public required DateTimeOffset EventDateTime { get; init; }
+}

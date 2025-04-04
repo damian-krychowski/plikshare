@@ -1,5 +1,4 @@
 using PlikShare.Core.Authorization;
-using PlikShare.Core.Emails.Alerts;
 using PlikShare.Users.Entities;
 using PlikShare.Users.GetOrCreate;
 
@@ -7,8 +6,7 @@ namespace PlikShare.Users.Cache;
 
 public class UserService(
     AppOwners appOwners,
-    GetOrCreateUserInvitationQuery getOrCreateUserInvitationQuery,
-    AlertsService alertsService)
+    GetOrCreateUserInvitationQuery getOrCreateUserInvitationQuery)
 {
     public async Task<UserContext> GetOrCreateUserInvitation(
         Email email,
@@ -17,14 +15,6 @@ public class UserService(
         var user = await getOrCreateUserInvitationQuery.Execute(
             email: email,
             cancellationToken: cancellationToken);
-
-        if (user.WasJustCreated)
-        { 
-            alertsService.SendEmailAlert(
-                title: "New user was created",
-                content: $"User with email '{email.Anonymize()}' was just created",
-                correlationId: Guid.NewGuid());
-        }
 
         return new UserContext(
             Status: user.IsInvitation

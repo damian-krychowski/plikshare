@@ -245,6 +245,30 @@
             <div class="mt-2"></div>
         }
 
-        <div class="mt-5"></div>
+        <div class="mt-3"></div>
+
+        <div class="title-header">  
+            <div>
+                Email Notifications
+            </div>
+        </div>
+        
+        <div class="mt-2"></div>
+        
+        <div class="explanation">
+            Notifications are email alerts sent to all app owner email addresses when specific events occur.
+        </div>
+        
+        <div class="mt-2"></div>
+        
+        <div>
+            <mat-checkbox
+                [(ngModel)]="alertOnNewUserRegistered"
+                (change)="onAlertOnNewUserRegisteredChange()">
+                Notify when a new user registers
+            </mat-checkbox> 
+        </div>
+
+        <div class="mt-6"></div>
     </div>
 </div>

@@ -102,6 +102,8 @@ export class GeneralSettingsComponent implements OnInit {
         maxWorkspaceSizeInBytes: signal(null)
     } 
 
+    alertOnNewUserRegistered = model(false);
+
     constructor(
         private _entryPage: EntryPageService,
         public auth: AuthService,
@@ -147,6 +149,8 @@ export class GeneralSettingsComponent implements OnInit {
         this.defaultUser.permissionsAndRoles.permissions.canManageGeneralSettings.set(result.newUserDefaultPermissionsAndRoles.canManageGeneralSettings);
         this.defaultUser.permissionsAndRoles.permissions.canManageStorages.set(result.newUserDefaultPermissionsAndRoles.canManageStorages);
         this.defaultUser.permissionsAndRoles.permissions.canManageUsers.set(result.newUserDefaultPermissionsAndRoles.canManageUsers);
+    
+        this.alertOnNewUserRegistered.set(result.alertOnNewUserRegistered);
     }
 
     goToAccount() {
@@ -304,60 +308,79 @@ export class GeneralSettingsComponent implements OnInit {
         }
     }
 
-     private _defaultMaxWorkspaceSizeInBytesDebouncer = new Debouncer(500);
-        async onDefaultMaxWorkspaceSizeInBytesChange(event: WorkspaceMaxSizeInBytesChangedEvent) {
-            this.defaultUser.maxWorkspaceSizeInBytes.set(event.maxSizeInBytes);
-            this._defaultMaxWorkspaceSizeInBytesDebouncer.debounceAsync(() => this.saveDefaultMaxWorkspaceSizeInBytes());
+    private _defaultMaxWorkspaceSizeInBytesDebouncer = new Debouncer(500);
+    onDefaultMaxWorkspaceSizeInBytesChange(event: WorkspaceMaxSizeInBytesChangedEvent) {
+        this.defaultUser.maxWorkspaceSizeInBytes.set(event.maxSizeInBytes);
+        this._defaultMaxWorkspaceSizeInBytesDebouncer.debounceAsync(() => this.saveDefaultMaxWorkspaceSizeInBytes());
+    }
+
+    private async saveDefaultMaxWorkspaceSizeInBytes(){        
+        try {
+            this.isLoading.set(true);
+            
+            await this._settingsApi.setNewUserDefaultMaxWorkspaceSizeInBytes({
+                value: this.defaultUser.maxWorkspaceSizeInBytes()
+            });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.isLoading.set(false);
         }
-    
-        private async saveDefaultMaxWorkspaceSizeInBytes(){        
-            try {
-                this.isLoading.set(true);
-                
-                await this._settingsApi.setNewUserDefaultMaxWorkspaceSizeInBytes({
-                    value: this.defaultUser.maxWorkspaceSizeInBytes()
-                });
-            } catch (error) {
-                console.error(error);
-            } finally {
-                this.isLoading.set(false);
-            }
+    }
+
+    private _maxWorkspaceNumberDebouncer = new Debouncer(500);
+    onMaxWorkspaceNumberChange(event: WorkspaceMaxNumberChangedEvent) {
+        this.defaultUser.maxWorkspaceNumber.set(event.maxNumber);
+        this._maxWorkspaceNumberDebouncer.debounceAsync(() => this.saveMaxWorkspaceNumber());
+    }
+
+    private async saveMaxWorkspaceNumber(){    
+        try {
+            this.isLoading.set(true);
+            
+            await this._settingsApi.setNewUserDefaultMaxWorkspaceNumber({
+                value: this.defaultUser.maxWorkspaceNumber()
+            });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.isLoading.set(false);
         }
-    
-        private _maxWorkspaceNumberDebouncer = new Debouncer(500);
-        async onMaxWorkspaceNumberChange(event: WorkspaceMaxNumberChangedEvent) {
-            this.defaultUser.maxWorkspaceNumber.set(event.maxNumber);
-            this._maxWorkspaceNumberDebouncer.debounceAsync(() => this.saveMaxWorkspaceNumber());
+    }
+
+    private _permissionsAndRolesDebouncer = new Debouncer(500);
+    public onUserPermissionsAndRolesChange(event: UserPermissionsAndRolesChangedEvent) {
+        this._permissionsAndRolesDebouncer.debounceAsync(() => this.savePermissionsAndRoles(event));
+    }
+
+    private async savePermissionsAndRoles(event: UserPermissionsAndRolesChangedEvent) {
+        try {
+            this.isLoading.set(true);
+            
+            await this._settingsApi.setNewUserDefaultPermissionsAndRoles(event);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.isLoading.set(false);
         }
-    
-        private async saveMaxWorkspaceNumber(){    
-            try {
-                this.isLoading.set(true);
-                
-                await this._settingsApi.setNewUserDefaultMaxWorkspaceNumber({
-                    value: this.defaultUser.maxWorkspaceNumber()
-                });
-            } catch (error) {
-                console.error(error);
-            } finally {
-                this.isLoading.set(false);
-            }
+    }
+
+    private _alertOnNewUserRegisteredDebouncer = new Debouncer(500);
+    onAlertOnNewUserRegisteredChange() {
+        this._alertOnNewUserRegisteredDebouncer.debounceAsync(() => this.saveAlertOnNewUserRegistered());
+    }
+
+    private async saveAlertOnNewUserRegistered(){    
+        try {
+            this.isLoading.set(true);
+            
+            await this._settingsApi.setAlertOnNewUserRegistered({
+                isTurnedOn: this.alertOnNewUserRegistered()
+            });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.isLoading.set(false);
         }
-    
-        private _permissionsAndRolesDebouncer = new Debouncer(500);
-        public onUserPermissionsAndRolesChange(event: UserPermissionsAndRolesChangedEvent) {
-            this._permissionsAndRolesDebouncer.debounceAsync(() => this.savePermissionsAndRoles(event));
-        }
-    
-        private async savePermissionsAndRoles(event: UserPermissionsAndRolesChangedEvent) {
-            try {
-                this.isLoading.set(true);
-                
-                await this._settingsApi.setNewUserDefaultPermissionsAndRoles(event);
-            } catch (error) {
-                console.error(error);
-            } finally {
-                this.isLoading.set(false);
-            }
-        }
+    }
 }

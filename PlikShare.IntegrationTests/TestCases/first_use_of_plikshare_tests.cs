@@ -67,7 +67,8 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
                 CanManageStorages = false,
                 CanManageUsers = false,
                 IsAdmin = false
-            }
+            },
+            AlertOnNewUserRegistered = false
         });
     }
 

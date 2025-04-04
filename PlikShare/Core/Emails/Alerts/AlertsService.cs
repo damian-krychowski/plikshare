@@ -1,50 +1,52 @@
+using Microsoft.Data.Sqlite;
+using PlikShare.Core.Authorization;
 using PlikShare.Core.Clock;
-using PlikShare.Core.Configuration;
+using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Emails.Definitions;
 using PlikShare.Core.Queue;
 using Serilog;
 
 namespace PlikShare.Core.Emails.Alerts;
 
-public class AlertsService
+public class AlertsService(
+    AppOwners appOwners,
+    IClock clock,
+    IQueue queue)
 {
-    private readonly IClock _clock;
-    private readonly IQueue _queue;
-    private readonly IConfig _config;
-
-    public AlertsService(
-        IClock clock,
-        IQueue queue,
-        IConfig config)
-    {
-        _clock = clock;
-        _queue = queue;
-        _config = config;
-    }
 
     public void SendEmailAlert(
+        DbWriteQueue.Context dbWriteContext,
         string title,
         string content,
-        Guid correlationId)
+        SqliteTransaction transaction,
+        Guid? correlationId = null)
     {
         try
         {
-            // var result = _queue.Enqueue(
-            //     correlationId: correlationId,
-            //     jobType: EmailQueueJobType.Value,
-            //     definition: new EmailQueueJobDefinition<AlertEmailDefinition>
-            //     {
-            //         Email = _config.AlertsDestinationEmail,
-            //         Definition = new AlertEmailDefinition
-            //         {
-            //             Title = title,
-            //             Content = content,
-            //             EventDateTime = _clock.UtcNow
-            //         },
-            //         Template = EmailTemplate.Alert
-            //     },
-            //     debounceId: null);
-            //
-            // Log.Information("Alert Email '{AlertTitle}' scheduled {@EnqueuedJob}", title, result);
+            foreach (var appOwner in appOwners.Owners())
+            {
+                var result = queue.Enqueue(
+                    correlationId: correlationId ?? Guid.NewGuid(),
+                    jobType: EmailQueueJobType.Value,
+                    definition: new EmailQueueJobDefinition<AlertEmailDefinition>
+                    {
+                        Email = appOwner.Value,
+                        Definition = new AlertEmailDefinition
+                        {
+                            Title = title,
+                            Content = content,
+                            EventDateTime = clock.UtcNow
+                        },
+                        Template = EmailTemplate.Alert
+                    },
+                    executeAfterDate: clock.UtcNow,
+                    debounceId: null,
+                    sagaId: null,
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction);
+
+                Log.Information("Alert Email '{AlertTitle}' scheduled QueueJob#{QueueJobId}", title, result.Value.Value);
+            }           
 
         }
         catch (Exception e)

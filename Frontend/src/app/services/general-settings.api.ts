@@ -20,7 +20,8 @@ export interface GetApplicationSettingsResponse {
         canManageUsers: boolean;
         canManageStorages: boolean;
         canManageEmailProviders: boolean;
-    }
+    },
+    alertOnNewUserRegistered: boolean;
 }
 
 export interface SignUpCheckboxDto {
@@ -53,6 +54,10 @@ export interface SetNewUserDefaultMaxWorkspaceNumberRequestDto {
 
 export interface SetNewUserDefaultMaxWorkspaceSizeInBytesRequestDto {
     value: number | null;
+}
+
+export interface SetAlertSettingRequest {
+    isTurnedOn: boolean;
 }
 
 @Injectable({
@@ -194,6 +199,19 @@ export class GeneralSettingsApi {
             ._http
             .patch(
                 `/api/general-settings/new-user-default-permissions-and-roles`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+    
+        await firstValueFrom(call);
+    }
+
+    public async setAlertOnNewUserRegistered(request: SetAlertSettingRequest) {
+        const call = this
+            ._http
+            .patch(
+                `/api/general-settings/alert-on-new-user-registered`, request, {
                 headers: new HttpHeaders({
                     'Content-Type': 'application/json'
                 })

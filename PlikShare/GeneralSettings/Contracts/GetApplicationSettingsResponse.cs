@@ -12,5 +12,6 @@ public class GetApplicationSettingsResponse
     public required int? NewUserDefaultMaxWorkspaceNumber { get; init; }
     public required long? NewUserDefaultMaxWorkspaceSizeInBytes { get; init; }
     public required UserPermissionsAndRolesDto NewUserDefaultPermissionsAndRoles { get; init; }
+    public required bool AlertOnNewUserRegistered { get; init; }
 }
 

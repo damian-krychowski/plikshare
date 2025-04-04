@@ -1,11 +1,12 @@
 ﻿using System.Security.Claims;
-using System.Threading;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Emails.Alerts;
 using PlikShare.Core.SQLite;
 using PlikShare.GeneralSettings;
 using PlikShare.Users.Cache;
+using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
 using PlikShare.Users.UpdatePermissionsAndRoles;
 using Serilog;
@@ -24,6 +25,7 @@ namespace PlikShare.Core.IdentityProvider
         private readonly PlikShareDb _plikShareDb;
         private readonly UserCache _userCache;
         private readonly AppSettings _appSettings;
+        private readonly AlertsService _alertsService;
         private readonly DbWriteQueue _dbWriteQueue;
 
         public SqLiteIdentityUserStore(
@@ -31,11 +33,13 @@ namespace PlikShare.Core.IdentityProvider
             PlikShareDb plikShareDb,
             DbWriteQueue dbWriteQueue,
             UserCache userCache,
-            AppSettings appSettings) : base(describer)
+            AppSettings appSettings,
+            AlertsService alertsService) : base(describer)
         {
             _plikShareDb = plikShareDb;
             _userCache = userCache;
             _appSettings = appSettings;
+            _alertsService = alertsService;
             _dbWriteQueue = dbWriteQueue;
         }
 
@@ -169,6 +173,15 @@ namespace PlikShare.Core.IdentityProvider
                         user,
                         dbWriteContext,
                         transaction);
+                }
+
+                if(_appSettings.AlertOnNewUserRegistered.IsTurnedOn)
+                {
+                    _alertsService.SendEmailAlert(
+                        title: "New user registered",
+                        content: $"User with email '{EmailAnonymization.Anonymize(user.Email!)}' ({user.Id}) was just registered",
+                        dbWriteContext: dbWriteContext,
+                        transaction: transaction);
                 }
 
                 transaction.Commit();

@@ -14,3 +14,8 @@ public class SetNewUserDefaultMaxWorkspaceSizeInBytesRequestDto
 {
     public required long? Value { get; init; }
 }
+
+public class SetAlertSettingReuqest
+{
+    public required bool IsTurnedOn { get; init; }
+}
