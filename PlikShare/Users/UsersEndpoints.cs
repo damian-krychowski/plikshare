@@ -20,6 +20,8 @@ using PlikShare.Users.Middleware;
 using PlikShare.Users.PermissionsAndRoles;
 using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes;
 using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes.Contracts;
+using PlikShare.Users.UpdateDefaultMaxWorkspaceTeamMembers;
+using PlikShare.Users.UpdateDefaultMaxWorkspaceTeamMembers.Contracts;
 using PlikShare.Users.UpdateMaxWorkspaceNumber;
 using PlikShare.Users.UpdateMaxWorkspaceNumber.Contracts;
 using PlikShare.Users.UpdatePermissionsAndRoles;
@@ -66,6 +68,10 @@ public static class UsersEndpoints
         group.MapPatch("/{userExternalId}/default-max-workspace-size-in-bytes", UpdateDefaultMaxWorkspaceSizeInBytes)
             .AddEndpointFilter<ValidateUserUpdateFilter>()
             .WithName("UpdateDefaultMaxWorkspaceSizeInBytes");
+
+        group.MapPatch("/{userExternalId}/default-max-workspace-team-members", UpdateDefaultMaxWorkspaceTeamMembers)
+            .AddEndpointFilter<ValidateUserUpdateFilter>()
+            .WithName("UpdateDefaultMaxWorkspaceTeamMembers");
     }
 
     private static GetUsersResponseDto GetUsers(GetUsersQuery getUsersQuery)
@@ -148,6 +154,30 @@ public static class UsersEndpoints
         await updateUserDefaultMaxWorkspaceSizeInBytesQuery.Execute(
             user: user!,
             defaultMaxWorkspaceSizeInBytes: request.DefaultMaxWorkspaceSizeInBytes,
+            cancellationToken: cancellationToken);
+
+        await userCache.InvalidateEntry(
+            user!.Id,
+            cancellationToken);
+
+        return TypedResults.Ok();
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateDefaultMaxWorkspaceTeamMembers(
+        [FromRoute] UserExtId userExternalId,
+        [FromBody] UpdateUserDefaultMaxWorkspaceTeamMembersRequestDto request,
+        HttpContext httpContext,
+        UserCache userCache,
+        UpdateUserDefaultMaxWorkspaceTeamMembersQuery updateUserDefaultMaxWorkspaceTeamMembersQuery,
+        CancellationToken cancellationToken)
+    {
+        var user = await userCache.TryGetUser(
+            userExternalId: userExternalId,
+            cancellationToken: cancellationToken);
+
+        await updateUserDefaultMaxWorkspaceTeamMembersQuery.Execute(
+            user: user!,
+            defaultMaxWorkspaceTeamMembers: request.DefaultMaxWorkspaceTeamMembers,
             cancellationToken: cancellationToken);
 
         await userCache.InvalidateEntry(

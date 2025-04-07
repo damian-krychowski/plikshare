@@ -1,7 +1,6 @@
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
-import { ProtoHttp } from "./protobuf-http.service";
 import { FileType } from "./filte-type";
 
 export type GetWorkspaceDetailsResponse = WorkspaceDto;
@@ -11,6 +10,9 @@ export type WorkspaceDto = {
     name: string;
     currentSizeInBytes: number;
     maxSizeInBytes: number | null;
+    currentTeamMembersCount: number;
+    currentBoxesTeamMembersCount: number;
+    maxTeamMembers: number | null;
     owner: {
         externalId: string;
         email: string;
@@ -55,6 +57,10 @@ export interface UpdateWorkspaceOwnerRequest {
 
 export interface UpdateWorkspaceMaxSizeRequest {
     maxSizeInBytes: number | null;
+}
+
+export interface UpdateWorkspaceMaxTeamMembersRequest {
+    maxTeamMembers: number | null;
 }
 
 export interface CreateWorkspaceRequest {
@@ -207,6 +213,19 @@ export class WorkspacesApi {
             ._http
             .patch(
                 `/api/workspaces/${externalId}/max-size`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async updateMaxTeamMembers(externalId: string, request: UpdateWorkspaceMaxTeamMembersRequest): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/workspaces/${externalId}/max-team-members`, request, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
                 })

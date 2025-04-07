@@ -61,7 +61,7 @@ public class RevokeWorkspaceMemberQuery(
 
             if (deleteWorkspaceMembershipResult.IsEmpty)
             {
-                Log.Warning("Could not revoke Workspace '{WorkspaceId}' membership for Member '{MemberExternalId}' because membership was not found.",
+                Log.Warning("Could not revoke Workspace#{WorkspaceId} membership for Member '{MemberExternalId}' because membership was not found.",
                     workspace.Id,
                     member.ExternalId);
 
@@ -87,7 +87,7 @@ public class RevokeWorkspaceMemberQuery(
                 transaction: transaction);
 
             transaction.Commit();
-            Log.Information("Member '{MemberExternalId}' was revoked from Workspace '{WorkspaceId}'. " +
+            Log.Information("Member '{MemberExternalId}' was revoked from Workspace#{WorkspaceId}. " +
                            "Query result: '{@QueryResult}'",
                 member.ExternalId,
                 workspace.Id,
@@ -103,7 +103,7 @@ public class RevokeWorkspaceMemberQuery(
         catch (Exception e)
         {
             transaction.Rollback();
-            Log.Error(e, "Something went wrong while revoking Member '{MemberExternalId}' from Workspace '{WorkspaceId}'",
+            Log.Error(e, "Something went wrong while revoking Member '{MemberExternalId}' from Workspace#{WorkspaceId}",
                 member.ExternalId,
                 workspace.Id);
 

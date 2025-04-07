@@ -67,7 +67,7 @@
                 <i class="icon icon-xl icon-nucleo-box"></i>
             </button> 
 
-            @if(allowShare()) {
+            @if(isTeamVisible()) {
                 <button
                     class="top-nav-btn d-none-on-mobile-early" 
                     [class.top-nav-btn--active]="isTeamActive()"

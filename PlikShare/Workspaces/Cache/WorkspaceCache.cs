@@ -64,6 +64,7 @@ public class WorkspaceCache(
             Name = workspaceCached.Name,
             CurrentSizeInBytes = workspaceCached.CurrentSizeInBytes,
             MaxSizeInBytes = workspaceCached.MaxSizeInBytes,
+            MaxTeamMembers = workspaceCached.MaxTeamMembers,
             BucketName = workspaceCached.BucketName,
             IsBucketCreated = workspaceCached.IsBucketCreated,
             IsBeingDeleted = workspaceCached.IsBeingDeleted,
@@ -93,6 +94,7 @@ public class WorkspaceCache(
                      	w_name,
                      	w_current_size_in_bytes,
                         w_max_size_in_bytes,
+                        w_max_team_members,
                      	w_bucket_name,
                      	w_is_bucket_created,
                      	w_is_being_deleted,
@@ -109,10 +111,11 @@ public class WorkspaceCache(
                     Name = reader.GetString(3),
                     CurrentSizeInBytes = reader.GetInt64(4),
                     MaxSizeInBytes = reader.GetInt64OrNull(5),
-                    BucketName = reader.GetString(6),
-                    IsBucketCreated = reader.GetBoolean(7),
-                    IsBeingDeleted = reader.GetBoolean(8),
-                    StorageId = reader.GetInt32(9)
+                    MaxTeamMembers = reader.GetInt32OrNull(6),
+                    BucketName = reader.GetString(7),
+                    IsBucketCreated = reader.GetBoolean(8),
+                    IsBeingDeleted = reader.GetBoolean(9),
+                    StorageId = reader.GetInt32(10)
                 })
             .WithParameter("$workspaceExternalId", workspaceExternalId.Value)
             .Execute();
@@ -146,6 +149,7 @@ public class WorkspaceCache(
                      	w_name,
                      	w_current_size_in_bytes,
                         w_max_size_in_bytes,
+                        w_max_team_members,
                      	w_bucket_name,
                      	w_is_bucket_created,
                      	w_is_being_deleted,
@@ -162,10 +166,11 @@ public class WorkspaceCache(
                     Name = reader.GetString(3),
                     CurrentSizeInBytes = reader.GetInt64(4),
                     MaxSizeInBytes = reader.GetInt64OrNull(5),
-                    BucketName = reader.GetString(6),
-                    IsBucketCreated = reader.GetBoolean(7), 
-                    IsBeingDeleted = reader.GetBoolean(8),
-                    StorageId = reader.GetInt32(9)
+                    MaxTeamMembers = reader.GetInt32OrNull(6),
+                    BucketName = reader.GetString(7),
+                    IsBucketCreated = reader.GetBoolean(8), 
+                    IsBeingDeleted = reader.GetBoolean(9),
+                    StorageId = reader.GetInt32(10)
                 })
             .WithParameter("$workspaceId", workspaceId)
             .Execute();
@@ -211,6 +216,7 @@ public class WorkspaceCache(
             Name = workspace.Name,
             CurrentSizeInBytes = workspace.CurrentSizeInBytes,
             MaxSizeInBytes = workspace.MaxSizeInBytes,
+            MaxTeamMembers = workspace.MaxTeamMembers,
             BucketName = workspace.BucketName,
             IsBucketCreated = workspace.IsBucketCreated,
             IsBeingDeleted = workspace.IsBeingDeleted,
@@ -265,6 +271,7 @@ public class WorkspaceCache(
         public required string Name { get; init; }
         public required long CurrentSizeInBytes { get; init; }
         public required long? MaxSizeInBytes { get; init; }
+        public required int? MaxTeamMembers { get; init; }
         public required string BucketName { get; init; }
         public required bool IsBucketCreated { get; init; }
         public required bool IsBeingDeleted { get; init; }

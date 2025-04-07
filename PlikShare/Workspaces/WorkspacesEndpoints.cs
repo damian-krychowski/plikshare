@@ -25,6 +25,7 @@ using PlikShare.Workspaces.Get.Contracts;
 using PlikShare.Workspaces.Id;
 using PlikShare.Workspaces.Members.AcceptInvitation;
 using PlikShare.Workspaces.Members.AcceptInvitation.Contracts;
+using PlikShare.Workspaces.Members.CountAll;
 using PlikShare.Workspaces.Members.CreateInvitation;
 using PlikShare.Workspaces.Members.CreateInvitation.Contracts;
 using PlikShare.Workspaces.Members.LeaveWorkspace;
@@ -314,7 +315,8 @@ public static class WorkspacesEndpoints
     }
 
     private static Results<Ok<GetWorkspaceDetailsResponseDto>, NotFound<HttpError>> GetWorkspaceDetails(
-        HttpContext httpContext)
+        HttpContext httpContext,
+        CountWorkspaceTotalTeamMembersQuery countWorkspaceTotalTeamMembersQuery)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
 
@@ -322,12 +324,18 @@ public static class WorkspacesEndpoints
             .Workspace
             .Integrations;
 
+        var teamMembers = countWorkspaceTotalTeamMembersQuery.Execute(
+            workspaceId: workspaceMembership.Workspace.Id);
+
         return TypedResults.Ok(new GetWorkspaceDetailsResponseDto
         {
             ExternalId = workspaceMembership.Workspace.ExternalId,
             Name = workspaceMembership.Workspace.Name,
             CurrentSizeInBytes = workspaceMembership.Workspace.CurrentSizeInBytes,
             MaxSizeInBytes = workspaceMembership.Workspace.MaxSizeInBytes,
+            CurrentTeamMembersCount = teamMembers.TeamMembersCount,
+            CurrentBoxesTeamMembersCount = teamMembers.BoxesTeamMembersCount,
+            MaxTeamMembers = workspaceMembership.Workspace.MaxTeamMembers,
             Owner = new WorkspaceOwnerDto
             {
                 ExternalId = workspaceMembership.Workspace.Owner.ExternalId,
@@ -416,9 +424,10 @@ public static class WorkspacesEndpoints
         return response;
     }
 
-    private static async ValueTask<Results<Ok<CreateWorkspaceMemberInvitationResponseDto>, ForbidHttpResult>> InviteMember(
+    private static async ValueTask<Results<Ok<CreateWorkspaceMemberInvitationResponseDto>, ForbidHttpResult, BadRequest<HttpError>>> InviteMember(
         [FromBody] CreateWorkspaceMemberInvitationRequestDto request,
         CreateWorkspaceMemberInvitationOperation createWorkspaceMemberInvitationOperation,
+        CountWorkspaceTotalTeamMembersQuery countWorkspaceTotalTeamMembersQuery,
         HttpContext httpContext,
 
         CancellationToken cancellationToken)
@@ -428,6 +437,20 @@ public static class WorkspacesEndpoints
         if (!workspaceMembership.Permissions.AllowShare)
         {
             return TypedResults.Forbid();
+        }
+
+        var workspaceMaxTeamMembers = workspaceMembership.Workspace.MaxTeamMembers;
+
+        if (workspaceMaxTeamMembers is not null)
+        {
+            var currentTeamMembers = countWorkspaceTotalTeamMembersQuery.Execute(
+                workspaceId: workspaceMembership.Workspace.Id);
+
+            if (currentTeamMembers.TotalCount + request.MemberEmails.Count > workspaceMaxTeamMembers)
+            {
+                return HttpErrors.Workspace.MaxTeamMembersExceeded(
+                    workspaceMembership.Workspace.ExternalId);
+            }
         }
 
         var user = httpContext.GetUserContext();

@@ -3,6 +3,7 @@ using PlikShare.Core.Authorization;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
+using PlikShare.GeneralSettings;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
 using PlikShare.Users.Sql;
@@ -10,7 +11,9 @@ using Serilog;
 
 namespace PlikShare.Users.GetOrCreate;
 
-public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
+public class GetOrCreateUserInvitationQuery(
+    DbWriteQueue dbWriteQueue,
+    AppSettings appSettings)
 {
     public Task<User> Execute(
         Email email,
@@ -104,6 +107,10 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
         var invitationCode = Guid.NewGuid().ToBase62();
         var securityStamp = Guid.NewGuid().ToString();
         var concurrencyStamp = Guid.NewGuid().ToString();
+        
+        var maxWorkspaceNumber = appSettings.NewUserDefaultMaxWorkspaceNumber.Value;
+        var defaultMaxWorkspaceSizeInBytes = appSettings.NewUserDefaultMaxWorkspaceSizeInBytes.Value;
+        var defaultMaxWorkspaceTeamMembers = appSettings.NewUserDefaultMaxWorkspaceTeamMembers.Value;
 
         return dbWriteContext
             .OneRowCmd(
@@ -127,7 +134,8 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
                          u_is_invitation,
                          u_invitation_code,
                          u_max_workspace_number,
-                         u_default_max_workspace_size_in_bytes
+                         u_default_max_workspace_size_in_bytes,
+                         u_default_max_workspace_team_members
                      ) VALUES (
                          $externalId,
                          $userName,
@@ -146,8 +154,9 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
                          0,
                          TRUE,
                          $invitationCode,
-                         NULL,
-                         NULL
+                         $maxWorkspaceNumber,
+                         $defaultMaxWorkspaceSizeInBytes,
+                         $defaultMaxWorkspaceTeamMembers
                      )
                      ON CONFLICT(u_normalized_email) DO NOTHING
                      RETURNING
@@ -168,8 +177,9 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
                     CanManageUsers: false,
                     CanManageStorages: false,
                     CanManageEmailProviders: false,
-                    MaxWorkspaceNumber: null,
-                    DefaultMaxWorkspaceSizeInBytes: null,
+                    MaxWorkspaceNumber: maxWorkspaceNumber,
+                    DefaultMaxWorkspaceSizeInBytes: defaultMaxWorkspaceSizeInBytes,
+                    DefaultMaxWorkspaceTeamMembers: defaultMaxWorkspaceTeamMembers,
                     WasJustCreated: true),
                 transaction: transaction)
             .WithParameter("$externalId", UserExtId.NewId().Value)
@@ -180,6 +190,9 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
             .WithParameter("$securityStamp", securityStamp)
             .WithParameter("$concurrencyStamp", concurrencyStamp)
             .WithParameter("$invitationCode", invitationCode)
+            .WithParameter("$maxWorkspaceNumber", maxWorkspaceNumber)
+            .WithParameter("$defaultMaxWorkspaceSizeInBytes", defaultMaxWorkspaceSizeInBytes)
+            .WithParameter("$defaultMaxWorkspaceTeamMembers", defaultMaxWorkspaceTeamMembers)
             .Execute();
     }
 
@@ -206,7 +219,8 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
                           ({UserSql.HasClaim(Claims.Permission, Permissions.ManageStorages)}) AS u_can_manage_storages,
                           ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
                           u_max_workspace_number,
-                          u_default_max_workspace_size_in_bytes   
+                          u_default_max_workspace_size_in_bytes,
+                          u_default_max_workspace_team_members
                       FROM u_users
                       WHERE u_normalized_email = $userNormalizedEmail
                       LIMIT 1
@@ -227,6 +241,7 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
                     CanManageEmailProviders: reader.GetBoolean(12),
                     MaxWorkspaceNumber: reader.GetInt32OrNull(13),
                     DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(14),
+                    DefaultMaxWorkspaceTeamMembers: reader.GetInt32OrNull(15),
                     WasJustCreated: false),
                 transaction: transaction)
             .WithParameter("$userNormalizedEmail", email.Normalized)
@@ -249,5 +264,6 @@ public class GetOrCreateUserInvitationQuery(DbWriteQueue dbWriteQueue)
         bool CanManageEmailProviders,
         int? MaxWorkspaceNumber,
         long? DefaultMaxWorkspaceSizeInBytes,
+        int? DefaultMaxWorkspaceTeamMembers,
         bool WasJustCreated);
 }

@@ -41,14 +41,14 @@ public class UpdateWorkspaceMaxSizeQuery(DbWriteQueue dbWriteQueue)
 
         if (result.IsEmpty)
         {
-            Log.Warning("Could not update Workspace '{WorkspaceId}' max size in bytes to '{MaxSizeInByes}' because Workspace was not found.",
+            Log.Warning("Could not update Workspace#{WorkspaceId} max size in bytes to '{MaxSizeInByes}' because Workspace was not found.",
                 workspace.Id,
                 request.MaxSizeInBytes?.ToString() ?? "NULL");
 
             return ResultCode.NotFound;
         }
         
-        Log.Information("Workspace '{WorkspaceId}' max size in bytes was updated to '{MaxSizeInByes}'",
+        Log.Information("Workspace#{WorkspaceId} max size in bytes was updated to '{MaxSizeInByes}'",
             workspace.Id,
             request.MaxSizeInBytes?.ToString() ?? "NULL");
 

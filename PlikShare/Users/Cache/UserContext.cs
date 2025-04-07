@@ -16,7 +16,8 @@ public sealed record UserContext(
     UserPermissions Permissions,
     UserInvitation? Invitation,
     int? MaxWorkspaceNumber,
-    long? DefaultMaxWorkspaceSizeInBytes)
+    long? DefaultMaxWorkspaceSizeInBytes,
+    int? DefaultMaxWorkspaceTeamMembers)
 {
     public bool HasAdminRole => Roles.IsAppOwner || Roles.IsAdmin;
 }

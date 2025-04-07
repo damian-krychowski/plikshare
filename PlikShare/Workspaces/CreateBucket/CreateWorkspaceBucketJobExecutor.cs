@@ -41,7 +41,7 @@ public class CreateWorkspaceBucketJobExecutor(
             bucketName: definition.BucketName,
             cancellationToken: cancellationToken);
         
-        Log.Information("Bucket '{BucketName}' for Workspace '{WorkspaceId}' in Storage#{StorageId} was created.",
+        Log.Information("Bucket '{BucketName}' for Workspace#{WorkspaceId} in Storage#{StorageId} was created.",
             definition.BucketName,
             definition.WorkspaceId,
             definition.StorageId);
@@ -62,7 +62,7 @@ public class CreateWorkspaceBucketJobExecutor(
                 bucketName: definition.BucketName,
                 cancellationToken: cancellationToken);
 
-            Log.Warning("Bucket '{BucketName}' for Workspace '{WorkspaceId}' in Storage#{StorageId} was deleted because workspace had been deleted in the meantime.",
+            Log.Warning("Bucket '{BucketName}' for Workspace#{WorkspaceId} in Storage#{StorageId} was deleted because workspace had been deleted in the meantime.",
                 definition.BucketName,
                 definition.WorkspaceId,
                 definition.StorageId);

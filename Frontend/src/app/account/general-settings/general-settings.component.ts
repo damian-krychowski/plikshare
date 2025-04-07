@@ -18,8 +18,9 @@ import { MatSlideToggle } from "@angular/material/slide-toggle";
 import { ConfirmOperationDirective } from "../../shared/operation-confirm/confirm-operation.directive";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { AppUserPermissionsAndRoles, UserPermissionsAndRolesChangedEvent, UserPermissionsListComponent } from "../../shared/user-permissions/user-permissions-list.component";
-import { MaxWorkspaceNumberConfigComponent, WorkspaceMaxNumberChangedEvent } from "../../shared/max-workspace-number-config/max-workspace-number-config.component";
+import { WorkspaceNumberConfigComponent, WorkspaceMaxNumberChangedEvent } from "../../shared/workspace-number-config/workspace-number-config.component";
 import { WorkspaceMaxSizeInBytesChangedEvent, WorkspaceSizeConfigComponent } from "../../shared/workspace-size-config/workspace-size-config.component";
+import { WorkspaceMaxTeamMembersChangedEvent, WorkspaceTeamConfigComponent } from "../../shared/workspace-team-config/workspace-team-config.component";
 
 type SignUpCheckbox = {
     id: WritableSignal<number | null>;
@@ -37,6 +38,7 @@ type DefaultUser = {
     permissionsAndRoles: AppUserPermissionsAndRoles;
     maxWorkspaceNumber: WritableSignal<number | null>;
     maxWorkspaceSizeInBytes: WritableSignal<number | null>;
+    maxWorkspaceTeamMembers: WritableSignal<number | null>;
 }
 
 @Component({
@@ -54,8 +56,9 @@ type DefaultUser = {
         ActionButtonComponent,
         ConfirmOperationDirective,
         UserPermissionsListComponent,
-        MaxWorkspaceNumberConfigComponent,
-        WorkspaceSizeConfigComponent
+        WorkspaceNumberConfigComponent,
+        WorkspaceSizeConfigComponent,
+        WorkspaceTeamConfigComponent
     ],
     templateUrl: './general-settings.component.html',
     styleUrl: './general-settings.component.scss'
@@ -99,7 +102,8 @@ export class GeneralSettingsComponent implements OnInit {
         },
     
         maxWorkspaceNumber: signal(1),
-        maxWorkspaceSizeInBytes: signal(null)
+        maxWorkspaceSizeInBytes: signal(null),
+        maxWorkspaceTeamMembers: signal(null)
     } 
 
     alertOnNewUserRegistered = model(false);
@@ -143,6 +147,7 @@ export class GeneralSettingsComponent implements OnInit {
 
         this.defaultUser.maxWorkspaceNumber.set(result.newUserDefaultMaxWorkspaceNumber);
         this.defaultUser.maxWorkspaceSizeInBytes.set(result.newUserDefaultMaxWorkspaceSizeInBytes);
+        this.defaultUser.maxWorkspaceTeamMembers.set(result.newUserDefaultMaxWorkspaceTeamMembers);
         this.defaultUser.permissionsAndRoles.roles.isAdmin.set(result.newUserDefaultPermissionsAndRoles.isAdmin);
         this.defaultUser.permissionsAndRoles.permissions.canAddWorkspace.set(result.newUserDefaultPermissionsAndRoles.canAddWorkspace);
         this.defaultUser.permissionsAndRoles.permissions.canManageEmailProviders.set(result.newUserDefaultPermissionsAndRoles.canManageEmailProviders);
@@ -320,6 +325,26 @@ export class GeneralSettingsComponent implements OnInit {
             
             await this._settingsApi.setNewUserDefaultMaxWorkspaceSizeInBytes({
                 value: this.defaultUser.maxWorkspaceSizeInBytes()
+            });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.isLoading.set(false);
+        }
+    }
+
+    private _defaultMaxWorkspaceTeamMembersDebouncer = new Debouncer(500);
+    onDefaultMaxWorkspaceTeamMembersChange(event: WorkspaceMaxTeamMembersChangedEvent) {
+        this.defaultUser.maxWorkspaceTeamMembers.set(event.maxTeamMembers);
+        this._defaultMaxWorkspaceTeamMembersDebouncer.debounceAsync(() => this.saveDefaultMaxWorkspaceTeamMembers());
+    }
+
+    private async saveDefaultMaxWorkspaceTeamMembers(){        
+        try {
+            this.isLoading.set(true);
+            
+            await this._settingsApi.setNewUserDefaultMaxWorkspaceTeamMembers({
+                value: this.defaultUser.maxWorkspaceTeamMembers()
             });
         } catch (error) {
             console.error(error);

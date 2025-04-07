@@ -91,6 +91,33 @@ public class AppSettings(PlikShareDb plikShareDb)
         }
     }
 
+    public record NewUserDefaultMaxWorkspaceTeamMembersSetting(int? Value)
+    {
+        public const string Key = "new-user-default-max-workspace-team-members";
+        public static NewUserDefaultMaxWorkspaceTeamMembersSetting Default => new(0);
+
+        public static NewUserDefaultMaxWorkspaceTeamMembersSetting FromString(string value)
+        {
+            if (int.TryParse(value, out var intValue))
+            {
+                if (intValue == -1)
+                    return new(Value: null);
+
+                return new(Value: intValue);
+            }
+
+            throw new ArgumentOutOfRangeException(
+                $"Setting '{Key}' value was expected to be an int32 but found '{value}'");
+        }
+
+        public string Serialize()
+        {
+            return Value.HasValue
+                ? Value.Value.ToString()
+                : "-1";
+        }
+    }
+
     public record NewUserDefaultPermissionsAndRolesSetting(List<string> permissionsAndRoles)
     {
         public const string Key = "new-user-default-permissions-and-roles";
@@ -217,8 +244,13 @@ public class AppSettings(PlikShareDb plikShareDb)
     public NewUserDefaultMaxWorkspaceSizeInBytesSetting NewUserDefaultMaxWorkspaceSizeInBytes => _newUserDefaultMaxWorkspaceSizeInBytes;
 
 
+    private volatile NewUserDefaultMaxWorkspaceTeamMembersSetting _newUserDefaultMaxWorkspaceTeamMembers = NewUserDefaultMaxWorkspaceTeamMembersSetting.Default;
+    public NewUserDefaultMaxWorkspaceTeamMembersSetting NewUserDefaultMaxWorkspaceTeamMembers => _newUserDefaultMaxWorkspaceTeamMembers;
+
+
     private volatile NewUserDefaultPermissionsAndRolesSetting _newUserDefaultPermissionsAndRoles = NewUserDefaultPermissionsAndRolesSetting.Default;
     public NewUserDefaultPermissionsAndRolesSetting NewUserDefaultPermissionsAndRoles => _newUserDefaultPermissionsAndRoles;
+
 
     private volatile AlertOnNewUserRegisteredSetting _alertOnNewUserRegistered = AlertOnNewUserRegisteredSetting.Default;
     public AlertOnNewUserRegisteredSetting AlertOnNewUserRegistered => _alertOnNewUserRegistered;
@@ -294,6 +326,17 @@ public class AppSettings(PlikShareDb plikShareDb)
         _newUserDefaultMaxWorkspaceSizeInBytes = setting;
     }
 
+    public void SetNewUserDefaultMaxWorkspaceTeamMembers(int? value)
+    {
+        var setting = new NewUserDefaultMaxWorkspaceTeamMembersSetting(value);
+
+        UpdateSettingInDatabase(
+            key: NewUserDefaultMaxWorkspaceTeamMembersSetting.Key,
+            value: setting.Serialize());
+
+        _newUserDefaultMaxWorkspaceTeamMembers = setting;
+    }
+
     public void SetNewUserPermissionsAndRoles(List<string> permissionsAndRoles)
     {
         var setting = new NewUserDefaultPermissionsAndRolesSetting(permissionsAndRoles);
@@ -326,6 +369,7 @@ public class AppSettings(PlikShareDb plikShareDb)
         _applicationName = GetApplicationNameOrDefault(settings);
         _newUserDefaultMaxWorkspaceNumber = GetNewUserDefaultMaxWorkspaceNumberOrDefault(settings);
         _newUserDefaultMaxWorkspaceSizeInBytes = GetNewUserDefaultMaxWorkspaceSizeInBytesOrDefault(settings);
+        _newUserDefaultMaxWorkspaceTeamMembers = GetNewUserDefaultMaxWorkspaceTeamMembersOrDefault(settings);
         _newUserDefaultPermissionsAndRoles = GetNewUserDefaultPermissionsAndRolesOrDefault(settings);
         _alertOnNewUserRegistered = GetAlertOnNewUserRegisteredOrDefault(settings);
 
@@ -471,6 +515,16 @@ public class AppSettings(PlikShareDb plikShareDb)
         return setting is null
             ? NewUserDefaultMaxWorkspaceSizeInBytesSetting.Default
             : NewUserDefaultMaxWorkspaceSizeInBytesSetting.FromString(setting.Value!);
+    }
+
+    private NewUserDefaultMaxWorkspaceTeamMembersSetting GetNewUserDefaultMaxWorkspaceTeamMembersOrDefault(IEnumerable<Setting> settings)
+    {
+        var setting = settings.FirstOrDefault(
+            s => s.Key.Equals(NewUserDefaultMaxWorkspaceTeamMembersSetting.Key));
+
+        return setting is null
+            ? NewUserDefaultMaxWorkspaceTeamMembersSetting.Default
+            : NewUserDefaultMaxWorkspaceTeamMembersSetting.FromString(setting.Value!);
     }
 
     private NewUserDefaultPermissionsAndRolesSetting GetNewUserDefaultPermissionsAndRolesOrDefault(IEnumerable<Setting> settings)

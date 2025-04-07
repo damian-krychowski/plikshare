@@ -28,7 +28,8 @@ public class GetUsersQuery(
                                               ({UserSql.HasClaim(Claims.Permission, Permissions.ManageStorages)}) AS u_can_manage_storages,
                                               ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
                                               u_max_workspace_number,
-                                              u_default_max_workspace_size_in_bytes   
+                                              u_default_max_workspace_size_in_bytes,
+                                              u_default_max_workspace_team_members
                                           FROM u_users
                                           ORDER BY u_id ASC
                                           """;
@@ -63,7 +64,8 @@ public class GetUsersQuery(
                             CanManageEmailProviders = reader.GetBoolean(9)
                         },
                         MaxWorkspaceNumber = reader.GetInt32OrNull(10),
-                        DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(11)
+                        DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(11),
+                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(12)
                     };
                 })
             .Execute();

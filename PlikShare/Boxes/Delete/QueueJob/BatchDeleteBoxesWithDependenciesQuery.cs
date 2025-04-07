@@ -66,7 +66,7 @@ public class BatchDeleteBoxesWithDependenciesQuery(
             dbWriteContext,
             transaction);
         
-        Log.Information("Boxes '{BoxIds}' in Workspace '{WorkspaceId}' delete operation finished. " +
+        Log.Information("Boxes '{BoxIds}' in Workspace#{WorkspaceId} delete operation finished. " +
                         "Operation result: {@QueryResult}",
             boxIds,
             workspaceId,

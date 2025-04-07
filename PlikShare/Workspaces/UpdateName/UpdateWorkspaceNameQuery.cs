@@ -42,14 +42,14 @@ public class UpdateWorkspaceNameQuery(DbWriteQueue dbWriteQueue)
 
         if (result.IsEmpty)
         {
-            Log.Warning("Could not update Workspace '{WorkspaceId}' name to '{Name}' because Workspace was not found.",
+            Log.Warning("Could not update Workspace#{WorkspaceId} name to '{Name}' because Workspace was not found.",
                 workspace.Id,
                 name);
 
             return ResultCode.NotFound;
         }
         
-        Log.Information("Workspace '{WorkspaceId}' name was updated to '{Name}'",
+        Log.Information("Workspace#{WorkspaceId} name was updated to '{Name}'",
             workspace.Id,
             name);
 

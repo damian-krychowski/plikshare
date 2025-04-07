@@ -21,5 +21,8 @@ public static class UserContextClaimsExtensions
 
         if (user.DefaultMaxWorkspaceSizeInBytes.HasValue)
             yield return new Claim(Claims.DefaultMaxWorkspaceSizeInBytes, user.DefaultMaxWorkspaceSizeInBytes.Value.ToString());
+
+        if (user.DefaultMaxWorkspaceTeamMembers.HasValue)
+            yield return new Claim(Claims.DefaultMaxWorkspaceTeamMembers, user.DefaultMaxWorkspaceTeamMembers.Value.ToString());
     }
 }

@@ -78,7 +78,7 @@ public class CreateWorkspaceMemberInvitationQuery(
 
             transaction.Commit();
 
-            Log.Information("Members '{MemberIds}' was invited to Workspace '{WorkspaceId}' by Inviter '{InviterId}'. " +
+            Log.Information("Members '{MemberIds}' was invited to Workspace#{WorkspaceId} by Inviter '{InviterId}'. " +
                             "QueryResult: '{@QueryResult}'",
                 members.Select(x => x.Id),
                 workspace.Id,
@@ -94,7 +94,7 @@ public class CreateWorkspaceMemberInvitationQuery(
             transaction.Rollback();
 
             Log.Error(e,
-                "Something went wrong while creating Workspace '{WorkspaceId}' invitation by Inviter '{InviterId}' to Member '{MemberIds}'",
+                "Something went wrong while creating Workspace#{WorkspaceId} invitation by Inviter '{InviterId}' to Member '{MemberIds}'",
                 workspace.Id,
                 inviter.Id,
                 members.Select(x => x.Id));

@@ -40,6 +40,7 @@ public class UserService(
                 ? new UserInvitation(Code: user.InvitationCode!)
                 : null,
             MaxWorkspaceNumber: user.MaxWorkspaceNumber,
-            DefaultMaxWorkspaceSizeInBytes: user.DefaultMaxWorkspaceSizeInBytes);
+            DefaultMaxWorkspaceSizeInBytes: user.DefaultMaxWorkspaceSizeInBytes,
+            DefaultMaxWorkspaceTeamMembers: user.DefaultMaxWorkspaceTeamMembers);
     }    
 }

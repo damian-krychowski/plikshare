@@ -229,7 +229,7 @@ public class ConvertFileUploadToFileQuery(
         {
             Logger.Warning(
                 "Could not convert FileUpload#{FileUploadId} to File " +
-                "in Workspace '{WorkspaceId}' because FileUpload was not yet completed. " +
+                "in Workspace#{WorkspaceId} because FileUpload was not yet completed. " +
                 "Completed parts: {CompletedParts}/{AllParts}",
                 fileUpload.Id,
                 workspace.Id,

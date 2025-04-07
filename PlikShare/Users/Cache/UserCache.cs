@@ -91,7 +91,8 @@ public class UserCache(
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
                 	u_invitation_code,
                     u_max_workspace_number,
-                    u_default_max_workspace_size_in_bytes   
+                    u_default_max_workspace_size_in_bytes,
+                    u_default_max_workspace_team_members
                 FROM u_users
                 WHERE u_id = $userId
                 LIMIT 1
@@ -125,7 +126,8 @@ public class UserCache(
                                 Code: reader.GetString(12)) 
                             : null,
                         MaxWorkspaceNumber: reader.GetInt32OrNull(13),
-                        DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(14));
+                        DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(14),
+                        DefaultMaxWorkspaceTeamMembers: reader.GetInt32OrNull(15));
                 })
             .WithParameter("$userId", userId)
             .Execute();
@@ -175,7 +177,8 @@ public class UserCache(
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
                 	u_invitation_code,
                     u_max_workspace_number,
-                    u_default_max_workspace_size_in_bytes   
+                    u_default_max_workspace_size_in_bytes,
+                    u_default_max_workspace_team_members
                 FROM u_users
                 WHERE u_external_id = $userExternalId
                 LIMIT 1
@@ -207,7 +210,8 @@ public class UserCache(
                                 Code: reader.GetString(12))
                             : null,
                         MaxWorkspaceNumber: reader.GetInt32OrNull(13),
-                        DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(14));
+                        DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(14),
+                        DefaultMaxWorkspaceTeamMembers: reader.GetInt32OrNull(15));
                 })
             .WithParameter("$userExternalId", externalId.Value)
             .Execute();

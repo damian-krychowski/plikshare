@@ -41,6 +41,7 @@ public class CreateWorkspaceQuery(
                 ownerId: user.Id, 
                 name: name, 
                 maxSizeInBytes: user.DefaultMaxWorkspaceSizeInBytes,
+                maxTeamMembers: user.DefaultMaxWorkspaceTeamMembers,
                 correlationId: correlationId),
             cancellationToken: cancellationToken);
     }
@@ -69,6 +70,7 @@ public class CreateWorkspaceQuery(
         int ownerId,
         string name,
         long? maxSizeInBytes,
+        int? maxTeamMembers,
         Guid correlationId)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
@@ -81,6 +83,7 @@ public class CreateWorkspaceQuery(
                 ownerId: ownerId, 
                 name: name, 
                 maxSizeInBytes: maxSizeInBytes,
+                maxTeamMembers: maxTeamMembers,
                 correlationId: correlationId, 
                 transaction: transaction);
             
@@ -128,6 +131,7 @@ public class CreateWorkspaceQuery(
         int ownerId, 
         string name,
         long? maxSizeInBytes,
+        int? maxTeamMembers,
         Guid correlationId, 
         SqliteTransaction transaction)
     {
@@ -146,7 +150,8 @@ public class CreateWorkspaceQuery(
                          w_is_bucket_created,
                          w_bucket_name,
                          w_is_being_deleted,
-                         w_max_size_in_bytes
+                         w_max_size_in_bytes,
+                         w_max_team_members
                      ) VALUES (
                          $externalId,
                          $userId,
@@ -156,7 +161,8 @@ public class CreateWorkspaceQuery(
                          FALSE,
                          $bucketName,
                          FALSE,
-                         $maxSizeInBytes
+                         $maxSizeInBytes,
+                         $maxTeamMembers
                      )   
                      RETURNING 
                          w_id,
@@ -174,6 +180,7 @@ public class CreateWorkspaceQuery(
             .WithParameter("$name", name)
             .WithParameter("$bucketName", finalBucketName)
             .WithParameter("$maxSizeInBytes", maxSizeInBytes)
+            .WithParameter("$maxTeamMembers", maxTeamMembers)
             .Execute();
 
         if (insertWorkspaceResult.IsEmpty)

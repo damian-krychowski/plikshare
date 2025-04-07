@@ -20,6 +20,7 @@ export interface GetUserDetailsResponse {
         };
         maxWorkspaceNumber: number | null;
         defaultMaxWorkspaceSizeInBytes: number | null;
+        defaultMaxWorkspaceTeamMembers: number | null;
     };
 
     workspaces: {
@@ -105,6 +106,7 @@ export interface UserItemDto {
     };
     maxWorkspaceNumber: number | null;
     defaultMaxWorkspaceSizeInBytes: number | null;
+    defaultMaxWorkspaceTeamMembers: number | null;
 }
 
 export interface UserPermissionsAndRolesDto {
@@ -128,12 +130,17 @@ export interface InviteUsersResponse {
 
         maxWorkspaceNumber: number | null;
         defaultMaxWorkspaceSizeInBytes: number | null;
+        defaultMaxWorkspaceTeamMembers: number | null;
         permissionsAndRoles: UserPermissionsAndRolesDto;
     }[];
 }
 
 export interface UpdateUserDefaultMaxWorkspaceSizeInBytesRequest {
     defaultMaxWorkspaceSizeInBytes: number | null;
+}
+
+export interface UpdateUserDefaultMaxWorkspaceTeamMembersRequest {
+    defaultMaxWorkspaceTeamMembers: number | null;
 }
 
 export interface UpdateUserMaxWorkspaceNumberRequest {
@@ -218,6 +225,19 @@ export class UsersApi {
             ._http
             .patch(
                 `/api/users/${userExternalId}/default-max-workspace-size-in-bytes`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async updateUserDefaultMaxWorkspaceTeamMembers(userExternalId: string, request: UpdateUserDefaultMaxWorkspaceTeamMembersRequest) {
+        const call = this
+            ._http
+            .patch(
+                `/api/users/${userExternalId}/default-max-workspace-team-members`, request, {
                 headers: new HttpHeaders({
                     'Content-Type': 'application/json'
                 })

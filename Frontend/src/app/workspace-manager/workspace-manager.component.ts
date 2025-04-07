@@ -48,7 +48,25 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
     workspaceName = computed(() => this.context.workspace()?.name);
     currentSizeInBytes = computed(() => this.context.workspace()?.currentSizeInBytes ?? 0);
     maxSizeInBytes = computed(() => this.context.workspace()?.maxSizeInBytes ?? null);
+    
     allowShare = computed(() => this.context.workspace()?.permissions?.allowShare ?? false);
+    isTeamVisible = computed(() => {
+        const allowShare = this.allowShare();
+
+        if(!allowShare)
+            return false;
+
+        const worksapce = this.context.workspace();
+
+        if(!worksapce)
+            return false;
+
+        if(worksapce.maxTeamMembers == 0 && worksapce.currentTeamMembersCount == 0)
+            return false;
+
+        return true;
+    });
+
 
     private _uploadsCountChangedSubscription: Subscription | null = null;
 

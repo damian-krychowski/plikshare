@@ -23,6 +23,7 @@ public static class GetUserDetails
         public required UserPermissionsDto Permissions { get; init; }
         public required int? MaxWorkspaceNumber { get; init; }
         public required long? DefaultMaxWorkspaceSizeInBytes { get; init; }
+        public required int? DefaultMaxWorkspaceTeamMembers { get; init; }
     }
 
     public class UserRolesDto

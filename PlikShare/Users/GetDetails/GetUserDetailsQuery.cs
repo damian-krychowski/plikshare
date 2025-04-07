@@ -51,6 +51,7 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
                 },
                 MaxWorkspaceNumber = user.MaxWorkspaceNumber,
                 DefaultMaxWorkspaceSizeInBytes = user.DefaultMaxWorkspaceSizeInBytes,
+                DefaultMaxWorkspaceTeamMembers = user.DefaultMaxWorkspaceTeamMembers
             },
             Workspaces = workspaces,
             SharedWorkspaces = sharedWorkspaces,

@@ -12,6 +12,8 @@ import { AppWorkspaceTeamMember, WorkspaceTeamMemberComponent } from './workspac
 import { AppWorkspaceTeamInvitation, WorkspaceTeamInvitationComponent } from './workspace-team-invitation/workspace-team-invitation.component';
 import { ItemButtonComponent } from '../../shared/buttons/item-btn/item-btn.component';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
+import { WorkspaceContextService } from '../workspace-context.service';
+import { GenericDialogService } from '../../shared/generic-message-dialog/generic-dialog-service';
 
 
 @Component({
@@ -32,6 +34,21 @@ export class TeamComponent implements OnInit, OnDestroy {
     workspaceMembers: WritableSignal<AppWorkspaceTeamMember[]> = signal([]);
 
     hasAnyInvitation = computed(() => this.workspaceInvitations().length > 0);
+    canInviteMoreMembers = computed(() => {
+        const workspace = this.context.workspace();
+
+        if(!workspace)
+            return false;
+
+        if(workspace.maxTeamMembers == null)
+            return true;
+
+        const totalTeamMembersCount = workspace.currentBoxesTeamMembersCount + workspace.currentTeamMembersCount;
+        
+        const left = workspace.maxTeamMembers - totalTeamMembersCount;
+
+        return left > 0;
+    });
 
     private _currentWorkspaceExternalId: string | null = null;
     private _routerSubscription: Subscription | null = null;
@@ -43,7 +60,9 @@ export class TeamComponent implements OnInit, OnDestroy {
         private _dialog: MatDialog,
         private _router: Router,
         private _inAppSharing: InAppSharing,
-        private _dataStore: DataStore) 
+        private _dataStore: DataStore,
+        private _genericDialogService: GenericDialogService,
+        public context: WorkspaceContextService) 
         { }
 
     async ngOnInit() {
@@ -152,6 +171,8 @@ export class TeamComponent implements OnInit, OnDestroy {
             await this._workspaceApi.revokeWorkspaceMember(
                 this._currentWorkspaceExternalId!,
                 memberExternalId);
+                
+            await this.refreshWorkspaceContext();
         } catch (error) {
             console.error(error);
 
@@ -175,6 +196,8 @@ export class TeamComponent implements OnInit, OnDestroy {
             await this._workspaceApi.revokeWorkspaceMember(
                 this._currentWorkspaceExternalId!,
                 member.memberExternalId());
+
+            await this.refreshWorkspaceContext();
         } catch (error) {
             console.error(error);
 
@@ -226,6 +249,8 @@ export class TeamComponent implements OnInit, OnDestroy {
                 memberEmails: inviteeEmails
             });
 
+            await this.refreshWorkspaceContext();
+
             for (const newMember of response.members) {
                 const newInvitation = invitations
                     .find(invitation => invitation.email().toLowerCase() === newMember.email.toLowerCase());
@@ -234,11 +259,25 @@ export class TeamComponent implements OnInit, OnDestroy {
                     newInvitation.memberExternalId.set(newMember.externalId);
                 }
             }
-        } catch (error) {
+        } catch (error:any) {
             removeItems(this.workspaceInvitations, ...invitations);
-            console.error(error);
+
+            if(error?.error?.code === 'max-team-members-exceeded') {
+                this._genericDialogService.openMaxTeamMembersReachedDialog();
+            } else {
+                console.error(error);
+            }
+
         } finally {
             this.isLoading.set(false);
         }
+    }
+
+    private async refreshWorkspaceContext() {
+        const workspace = await this
+            ._workspaceApi
+            .getWorkspace(this._currentWorkspaceExternalId!);
+
+        this.context.workspace.set(workspace); 
     }
 }

@@ -1,12 +1,7 @@
 @import "./../../../styles/app-header.scss";
-@import "./../../../styles/page-form.scss";
 
-.form-row {
+.config-container {
     display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-    
-    &__size-field {
-        flex-grow: 1;
-    }
+    flex-direction: column;
+    gap: 1.5rem;
 }

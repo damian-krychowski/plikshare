@@ -1,13 +1,4 @@
-@import "./../../../styles/top-nav-btn.scss";
-@import "./../../../styles/item-bar.scss";
-@import "./../../../styles/variables.scss";
-
-:host {
-    display: flex;
-    flex-direction: row;
-}
-
-.workspace-number-config {
+.config-row {
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -48,7 +39,7 @@
         text-align: center;
 
         &--wide {
-            max-width: 200px;
+            max-width: 220px;
         }
     }
     

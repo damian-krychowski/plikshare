@@ -60,7 +60,7 @@ public class UpdateWorkspaceMemberPermissionsQuery(DbWriteQueue dbWriteQueue)
             {
                 transaction.Rollback();
                 
-                Log.Warning("Could not update Workspace '{WorkspaceId}' membership permissions for Member '{MemberExternalId}' to '{@Permissions} because membership was not found'",
+                Log.Warning("Could not update Workspace#{WorkspaceId} membership permissions for Member '{MemberExternalId}' to '{@Permissions} because membership was not found'",
                     workspace.Id,
                     member.ExternalId,
                     permissions);
@@ -71,7 +71,7 @@ public class UpdateWorkspaceMemberPermissionsQuery(DbWriteQueue dbWriteQueue)
             transaction.Commit();
 
             Log.Information(
-                "Workspace '{WorkspaceId}' permissions for Member '{MemberExternalId} ({MemberId})' were updated to '{@Permissions}'",
+                "Workspace#{WorkspaceId} permissions for Member '{MemberExternalId} ({MemberId})' were updated to '{@Permissions}'",
                 workspace.Id,
                 member.ExternalId,
                 member.Id,
@@ -83,7 +83,7 @@ public class UpdateWorkspaceMemberPermissionsQuery(DbWriteQueue dbWriteQueue)
         {
             transaction.Rollback();
             
-            Log.Error(e, "Something went wrong while updating Member '{MemberId}' of Workspace '{WorkspaceId}' permissions to '{@Permissions}'",
+            Log.Error(e, "Something went wrong while updating Member '{MemberId}' of Workspace#{WorkspaceId} permissions to '{@Permissions}'",
                 member.Id,
                 workspace.Id,
                 permissions);

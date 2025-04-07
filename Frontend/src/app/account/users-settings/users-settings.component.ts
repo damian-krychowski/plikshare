@@ -94,6 +94,7 @@ export class UsersSettingsComponent implements OnInit {
                 },
                 maxWorkspaceNumber: signal(u.maxWorkspaceNumber),
                 defaultMaxWorkspaceSizeInBytes: signal(u.defaultMaxWorkspaceSizeInBytes),
+                defaultMaxWorkspaceTeamMembers: signal(u.defaultMaxWorkspaceTeamMembers),
 
                 isHighlighted: signal(false),            
             };
@@ -146,7 +147,8 @@ export class UsersSettingsComponent implements OnInit {
                 },
                 workspacesCount: signal(0),
                 maxWorkspaceNumber: signal(null),
-                defaultMaxWorkspaceSizeInBytes: signal(null)
+                defaultMaxWorkspaceSizeInBytes: signal(null),
+                defaultMaxWorkspaceTeamMembers: signal(null)
             };
 
             return newUser;
@@ -169,6 +171,7 @@ export class UsersSettingsComponent implements OnInit {
                     user.externalId.set(userResponse.externalId);
                     user.maxWorkspaceNumber.set(userResponse.maxWorkspaceNumber);
                     user.defaultMaxWorkspaceSizeInBytes.set(userResponse.defaultMaxWorkspaceSizeInBytes);
+                    user.defaultMaxWorkspaceTeamMembers.set(userResponse.defaultMaxWorkspaceTeamMembers)
 
                     user.roles.isAdmin.set(userResponse.permissionsAndRoles.isAdmin);
                     user.permissions.canAddWorkspace.set(userResponse.permissionsAndRoles.canAddWorkspace);

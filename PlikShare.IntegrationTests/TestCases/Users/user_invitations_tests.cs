@@ -51,6 +51,7 @@ public class user_invitation_tests : TestFixture
                     Email = user1Email,
                     MaxWorkspaceNumber = 0,
                     DefaultMaxWorkspaceSizeInBytes = 0,
+                    DefaultMaxWorkspaceTeamMembers = 0,
                     PermissionsAndRoles = new UserPermissionsAndRolesDto
                     {
                         IsAdmin = false,
@@ -68,6 +69,7 @@ public class user_invitation_tests : TestFixture
                     Email = user2Email,
                     MaxWorkspaceNumber = 0,
                     DefaultMaxWorkspaceSizeInBytes = 0,
+                    DefaultMaxWorkspaceTeamMembers = 0,
                     PermissionsAndRoles = new UserPermissionsAndRolesDto
                     {
                         IsAdmin = false,

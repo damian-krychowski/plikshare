@@ -36,13 +36,13 @@ public class UpdateWorkspaceIsBucketCreatedQuery(
         
         if (result.IsEmpty)
         {
-            Log.Warning("Could not update is_bucket_created of Workspace '{WorkspaceId}' because it was not found.",
+            Log.Warning("Could not update is_bucket_created of Workspace#{WorkspaceId} because it was not found.",
                 workspaceId);
 
             return ResultCode.NotFound;
         }
 
-        Log.Information("Workspace '{WorkspaceId}' is_bucket_created field was updated.", 
+        Log.Information("Workspace#{WorkspaceId} is_bucket_created field was updated.", 
             workspaceId);
 
         return ResultCode.Ok;

@@ -103,10 +103,10 @@
                 </div>
 
                 <div>
-                    <app-max-workspace-number-config
+                    <app-workspace-number-config
                         [maxNumber]="defaultUser.maxWorkspaceNumber()"
                         (configChanged)="onMaxWorkspaceNumberChange($event)">                        
-                    </app-max-workspace-number-config>
+                    </app-workspace-number-config>
                 </div>
             </div>
 
@@ -115,11 +115,16 @@
                     Default workspace configuration:
                 </div>
 
-                <div>
+                <div class="default-user-grid__workspace-config">
                     <app-workspace-size-config
                         [maxSizeInBytes]="defaultUser.maxWorkspaceSizeInBytes()"
                         (configChanged)="onDefaultMaxWorkspaceSizeInBytesChange($event)">                        
                     </app-workspace-size-config>
+
+                    <app-workspace-team-config
+                        [maxTeamMembers]="defaultUser.maxWorkspaceTeamMembers()"
+                        (configChanged)="onDefaultMaxWorkspaceTeamMembersChange($event)">                        
+                    </app-workspace-team-config>
                 </div>
             </div>
         </div>

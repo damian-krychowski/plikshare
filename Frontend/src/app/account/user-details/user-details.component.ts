@@ -23,7 +23,8 @@ import { pushItems, removeItems } from "../../shared/signal-utils";
 import { UsersApi } from "../../services/users.api";
 import { WorkspaceMaxSizeInBytesChangedEvent, WorkspaceSizeConfigComponent } from "../../shared/workspace-size-config/workspace-size-config.component";
 import { Debouncer } from "../../services/debouncer";
-import { MaxWorkspaceNumberConfigComponent, WorkspaceMaxNumberChangedEvent } from "../../shared/max-workspace-number-config/max-workspace-number-config.component";
+import { WorkspaceNumberConfigComponent, WorkspaceMaxNumberChangedEvent } from "../../shared/workspace-number-config/workspace-number-config.component";
+import { WorkspaceMaxTeamMembersChangedEvent, WorkspaceTeamConfigComponent } from "../../shared/workspace-team-config/workspace-team-config.component";
 
 
 
@@ -42,7 +43,8 @@ import { MaxWorkspaceNumberConfigComponent, WorkspaceMaxNumberChangedEvent } fro
         BoxInvitationItemComponent,
         ActionButtonComponent,
         WorkspaceSizeConfigComponent,
-        MaxWorkspaceNumberConfigComponent
+        WorkspaceNumberConfigComponent,
+        WorkspaceTeamConfigComponent
     ],
     templateUrl: './user-details.component.html',
     styleUrl: './user-details.component.scss'
@@ -69,6 +71,7 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
 
     maxWorkspaceNumber  = computed(() => this.user()?.maxWorkspaceNumber() ?? null);    
     defaultMaxWorkspaceSizeInBytes  = computed(() => this.user()?.defaultMaxWorkspaceSizeInBytes() ?? null);
+    defaultMaxWorkspaceTeamMembers  = computed(() => this.user()?.defaultMaxWorkspaceTeamMembers() ?? null);
 
     hasAnyWorkspaces = computed(() => this.workspaces().length > 0);
     hasAnySharedWorkspace = computed(() => this.sharedWorkspaces().length > 0);
@@ -272,6 +275,8 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                 },
                 maxWorkspaceNumber: signal(userDetails.user.maxWorkspaceNumber),
                 defaultMaxWorkspaceSizeInBytes: signal(userDetails.user.defaultMaxWorkspaceSizeInBytes),
+                defaultMaxWorkspaceTeamMembers: signal(userDetails.user.defaultMaxWorkspaceTeamMembers),
+
                 //that value is computed based on workspaces collection to catch situation when worksapce
                 //is deleted or added on that view directly
                 workspacesCount: computed(() => this.workspaces().length)
@@ -433,7 +438,7 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
     }
 
     private _defaultMaxWorkspaceSizeInBytesDebouncer = new Debouncer(500);
-    async onDefaultMaxWorkspaceSizeInBytesChange(event: WorkspaceMaxSizeInBytesChangedEvent) {
+    onDefaultMaxWorkspaceSizeInBytesChange(event: WorkspaceMaxSizeInBytesChangedEvent) {
         const user = this.user();
 
         if(!user)
@@ -465,8 +470,41 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
         }
     }
 
+    private _defaultMaxWorkspaceTeamMembersDebouncer = new Debouncer(500);
+    onDefaultMaxWorkspaceTeamMembersChange(event: WorkspaceMaxTeamMembersChangedEvent) {
+        const user = this.user();
+
+        if(!user)
+            return;
+
+        user.defaultMaxWorkspaceTeamMembers.set(event.maxTeamMembers);
+        this._defaultMaxWorkspaceTeamMembersDebouncer.debounceAsync(() => this.saveDefaultMaxWorkspaceTeamMembers());
+    }
+
+    private async saveDefaultMaxWorkspaceTeamMembers(){    
+        if(!this._userExternalId)
+            return;
+        
+        const user = this.user();
+        
+        if(!user)
+            return;
+
+        try {
+            this.isLoading.set(true);
+            
+            await this._usersApi.updateUserDefaultMaxWorkspaceTeamMembers(this._userExternalId, {
+                defaultMaxWorkspaceTeamMembers: user.defaultMaxWorkspaceTeamMembers()
+            });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.isLoading.set(false);
+        }
+    }
+
     private _maxWorkspaceNumberDebouncer = new Debouncer(500);
-    async onMaxWorkspaceNumberChange(event: WorkspaceMaxNumberChangedEvent) {
+    onMaxWorkspaceNumberChange(event: WorkspaceMaxNumberChangedEvent) {
         const user = this.user();
 
         if(!user)

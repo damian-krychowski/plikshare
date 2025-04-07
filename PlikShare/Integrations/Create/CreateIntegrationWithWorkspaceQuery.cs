@@ -60,6 +60,7 @@ public class CreateIntegrationWithWorkspaceQuery(
                 ownerId: ownerId,
                 name: workspaceName,
                 maxSizeInBytes: null,
+                maxTeamMembers: null,
                 correlationId: correlationId,
                 transaction: transaction);
 

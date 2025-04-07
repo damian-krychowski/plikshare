@@ -84,6 +84,8 @@ public class create_workspace_tests(
             ExternalId = workspaceResponse.ExternalId,
             Name = "my first workspace",
             CurrentSizeInBytes = 0,
+            CurrentBoxesTeamMembersCount = 0,
+            CurrentTeamMembersCount = 0,
             Owner = new WorkspaceOwnerDto
             {
                 ExternalId = user.ExternalId,
@@ -98,7 +100,8 @@ public class create_workspace_tests(
                 Textract = null
             },
             IsBucketCreated = false,
-            MaxSizeInBytes = null
+            MaxSizeInBytes = null,
+            MaxTeamMembers = null
         });
     }
 }

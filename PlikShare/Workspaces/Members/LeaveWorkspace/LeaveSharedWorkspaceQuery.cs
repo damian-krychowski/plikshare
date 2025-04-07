@@ -64,7 +64,7 @@ public class LeaveSharedWorkspaceQuery(
             {
                 transaction.Rollback();
 
-                Log.Warning("Could not leave Workspace '{WorkspaceId}' by Member '{MemberId}' because membership was not found.",
+                Log.Warning("Could not leave Workspace#{WorkspaceId} by Member '{MemberId}' because membership was not found.",
                     workspace.Id,
                     member.Id);
 
@@ -92,7 +92,7 @@ public class LeaveSharedWorkspaceQuery(
 
             transaction.Commit();
 
-            Log.Information("Member '{MemberId}' left Workspace '{WorkspaceId}'. " +
+            Log.Information("Member '{MemberId}' left Workspace#{WorkspaceId}. " +
                             "QueryResult: '{@QueryResult}'",
                 member.Id,
                 workspace.Id,
@@ -108,7 +108,7 @@ public class LeaveSharedWorkspaceQuery(
         {
             transaction.Rollback();
 
-            Log.Error(e, "Something went wrong while Member '{MemberId}' was leaving Workspace '{WorkspaceId}'",
+            Log.Error(e, "Something went wrong while Member '{MemberId}' was leaving Workspace#{WorkspaceId}",
                 member.Id,
                 workspace.Id);
 

@@ -59,6 +59,7 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
             SignUpCheckboxes = [],
             NewUserDefaultMaxWorkspaceNumber = 0,
             NewUserDefaultMaxWorkspaceSizeInBytes = 0,
+            NewUserDefaultMaxWorkspaceTeamMembers = 0,
             NewUserDefaultPermissionsAndRoles = new UserPermissionsAndRolesDto
             {
                 CanAddWorkspace = false,
@@ -139,7 +140,8 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
                          CanManageEmailProviders = false
                      },
                      MaxWorkspaceNumber = null,
-                     DefaultMaxWorkspaceSizeInBytes = null
+                     DefaultMaxWorkspaceSizeInBytes = null,
+                     DefaultMaxWorkspaceTeamMembers = null
                  }
             ]
         });

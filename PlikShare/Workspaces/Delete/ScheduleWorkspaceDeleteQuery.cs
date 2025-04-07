@@ -51,7 +51,7 @@ public class ScheduleWorkspaceDeleteQuery(
             {
                 transaction.Rollback();
                 
-                Log.Warning("Could not delete Workspace '{WorkspaceId}' because it was not found.",
+                Log.Warning("Could not delete Workspace#{WorkspaceId} because it was not found.",
                     workspace.Id);
 
                 return new Result(
@@ -93,7 +93,7 @@ public class ScheduleWorkspaceDeleteQuery(
                     ids: boxesMarkedToDelete);
 
                 Log.Information(
-                    "Workspace '{WorkspaceId}' was scheduled to be deleted. " +
+                    "Workspace#{WorkspaceId} was scheduled to be deleted. " +
                     "Folders affected ({FoldersCount}): {FolderIds}, " +
                     "Boxes affected ({BoxesCount}): {BoxIds}. " +
                     "Delete-workspace queue job scheduled '{QueueJobId}'",
@@ -114,7 +114,7 @@ public class ScheduleWorkspaceDeleteQuery(
         {
             transaction.Rollback();
 
-            Log.Error(e, "Something went wrong while scheduling Workspace '{WorkspaceId}' to be deleted", 
+            Log.Error(e, "Something went wrong while scheduling Workspace#{WorkspaceId} to be deleted", 
                 workspace.Id);
 
             throw;

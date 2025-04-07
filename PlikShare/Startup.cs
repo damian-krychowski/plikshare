@@ -191,6 +191,7 @@ using PlikShare.Users.GetOrCreate;
 using PlikShare.Users.Invite;
 using PlikShare.Users.List;
 using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes;
+using PlikShare.Users.UpdateDefaultMaxWorkspaceTeamMembers;
 using PlikShare.Users.UpdateMaxWorkspaceNumber;
 using PlikShare.Users.UpdatePermissionsAndRoles;
 using PlikShare.Users.UserIdentityResolver;
@@ -205,6 +206,7 @@ using PlikShare.Workspaces.Delete.QueueJob;
 using PlikShare.Workspaces.DeleteBucket;
 using PlikShare.Workspaces.GetSize;
 using PlikShare.Workspaces.Members.AcceptInvitation;
+using PlikShare.Workspaces.Members.CountAll;
 using PlikShare.Workspaces.Members.CreateInvitation;
 using PlikShare.Workspaces.Members.LeaveWorkspace;
 using PlikShare.Workspaces.Members.List;
@@ -214,6 +216,7 @@ using PlikShare.Workspaces.Members.UpdatePermissions;
 using PlikShare.Workspaces.SearchFilesTree;
 using PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
 using PlikShare.Workspaces.UpdateMaxSize;
+using PlikShare.Workspaces.UpdateMaxTeamMembers;
 using PlikShare.Workspaces.UpdateName;
 using Serilog;
 using Serilog.Events;
@@ -272,6 +275,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_16_SignUpCheckboxesIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_17_WorkspaceMaxSizeColumnIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_18_UserMaxWorkspaceNumberAndMaxWorkspaceSizeColumnsIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_19_MaxWorkspaceTeamMembersColumnsIntroduced>();
         
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 
@@ -376,10 +380,12 @@ public class Startup
         builder.Services.AddSingleton<CreateWorkspaceQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceNameQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceMaxSizeQuery>();
+        builder.Services.AddSingleton<UpdateWorkspaceMaxTeamMembersQuery>();
         builder.Services.AddSingleton<CreateWorkspaceMemberInvitationQuery>();
         builder.Services.AddSingleton<CreateWorkspaceMemberInvitationOperation>();
         builder.Services.AddSingleton<UpdateWorkspaceIsBucketCreatedQuery>();
         builder.Services.AddSingleton<GetWorkspaceMembersListQuery>();
+        builder.Services.AddSingleton<CountWorkspaceTotalTeamMembersQuery>();
         builder.Services.AddSingleton<RevokeWorkspaceMemberQuery>();
         builder.Services.AddSingleton<LeaveSharedWorkspaceQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceMemberPermissionsQuery>();
@@ -405,6 +411,7 @@ public class Startup
         builder.Services.AddSingleton<UpdateUserPermissionsAndRoleQuery>();
         builder.Services.AddSingleton<UpdateUserMaxWorkspaceNumberQuery>();
         builder.Services.AddSingleton<UpdateUserDefaultMaxWorkspaceSizeInBytesQuery>();
+        builder.Services.AddSingleton<UpdateUserDefaultMaxWorkspaceTeamMembersQuery>();
 
         builder.Services.AddScoped<IValidator<CreateFolderRequestDto>, CreateFolderRequestValidator>();
         builder.Services.AddScoped<IValidator<UpdateFolderNameRequestDto>, UpdateFolderNameRequestValidator>();

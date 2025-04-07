@@ -38,6 +38,7 @@ using PlikShare.Core.Utils;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
 using PlikShare.Users.Middleware;
+using PlikShare.Workspaces.Members.CountAll;
 using PlikShare.Workspaces.Validation;
 
 namespace PlikShare.Boxes;
@@ -397,19 +398,36 @@ public static class BoxesEndpoints
         }
     }
 
-    private static async ValueTask<Results<Ok<CreateBoxInvitationResponseDto>, NotFound<HttpError>>> InviteMember(
+    private static async ValueTask<Results<Ok<CreateBoxInvitationResponseDto>, NotFound<HttpError>, BadRequest<HttpError>>> InviteMember(
         [FromRoute] BoxExtId boxExternalId,
         [FromBody] CreateBoxInvitationRequestDto request,
         HttpContext httpContext,
         CreateBoxMemberInvitationOperation createBoxMemberInvitationOperation,
+        CountWorkspaceTotalTeamMembersQuery countWorkspaceTotalTeamMembersQuery,
         CancellationToken cancellationToken)
     {
+        var boxContext = httpContext.GetBoxContext();
+
+        var workspaceMaxTeamMembers = boxContext.Workspace.MaxTeamMembers;
+
+        if (workspaceMaxTeamMembers is not null)
+        {
+            var currentTeamMembers = countWorkspaceTotalTeamMembersQuery.Execute(
+                workspaceId: boxContext.Workspace.Id);
+
+            if (currentTeamMembers.TotalCount + request.MemberEmails.Count > workspaceMaxTeamMembers)
+            {
+                return HttpErrors.Workspace.MaxTeamMembersExceeded(
+                    boxContext.Workspace.ExternalId);
+            }
+        }
+
         var result = await createBoxMemberInvitationOperation.Execute(
             inviter: httpContext.GetUserContext(),
             memberEmails: request
                 .MemberEmails
                 .Select(email => new Email(email)),
-            box: httpContext.GetBoxContext(),
+            box: boxContext,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 

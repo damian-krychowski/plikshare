@@ -45,6 +45,13 @@ public static class HttpErrors
                 Message = $"Workspace with externalId '{externalId}' does not have enough space available."
             });
 
+        public static BadRequest<HttpError> MaxTeamMembersExceeded(WorkspaceExtId externalId) =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "max-team-members-exceeded",
+                Message = $"Workspace with externalId '{externalId}' team members count was exceeded."
+            });
+
         public static BadRequest<HttpError> BrokenExternalId(string externalId) =>
             TypedResults.BadRequest(new HttpError
             {

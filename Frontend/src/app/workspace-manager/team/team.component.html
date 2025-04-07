@@ -5,12 +5,14 @@
         Your team members:
     </div>
 
-    <div class="flex-row ml-auto">        
-        <app-action-btn
-            tooltip="Invite new members"
-            icon="icon-nucleo-user-plus"
-            (clicked)="createInvitation()">            
-        </app-action-btn>        
+    <div class="flex-row ml-auto">     
+        @if(canInviteMoreMembers()) {
+            <app-action-btn
+                tooltip="Invite new members"
+                icon="icon-nucleo-user-plus"
+                (clicked)="createInvitation()">            
+            </app-action-btn>        
+        }   
     </div>
 </div>    
 
@@ -27,12 +29,14 @@
 
 <div class="mt-2"></div>
 
-<app-item-btn
-    title="Invite new members"
-    subtitle="Click here to invite new members!"
-    icon="icon-nucleo-user-plus"
-    (clicked)="createInvitation()">    
-</app-item-btn>
+@if(canInviteMoreMembers()) {
+    <app-item-btn
+        title="Invite new members"
+        subtitle="Click here to invite new members!"
+        icon="icon-nucleo-user-plus"
+        (clicked)="createInvitation()">    
+    </app-item-btn>
+}
 
 @if(hasAnyInvitation()) {    
     <div class="mt-2"></div>

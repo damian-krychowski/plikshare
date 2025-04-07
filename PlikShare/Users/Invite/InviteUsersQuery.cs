@@ -99,6 +99,7 @@ public class InviteUsersQuery(
 
         var maxWorkspaceNumber = appSettings.NewUserDefaultMaxWorkspaceNumber.Value;
         var defaultMaxWorkspaceSizeInBytes = appSettings.NewUserDefaultMaxWorkspaceSizeInBytes.Value;
+        var defaultMaxWorkspaceTeamMembers = appSettings.NewUserDefaultMaxWorkspaceTeamMembers.Value;
 
         var userId = dbWriteContext
             .OneRowCmd(
@@ -122,7 +123,8 @@ public class InviteUsersQuery(
                          u_is_invitation,
                          u_invitation_code,
                          u_max_workspace_number,
-                         u_default_max_workspace_size_in_bytes
+                         u_default_max_workspace_size_in_bytes,
+                         u_default_max_workspace_team_members
                      ) VALUES (
                          $externalId,
                          $userName,
@@ -142,7 +144,8 @@ public class InviteUsersQuery(
                          TRUE,
                          $invitationCode,
                          $maxWorkspaceNumber,
-                         $defaultMaxWorkspaceSizeInBytes
+                         $defaultMaxWorkspaceSizeInBytes,
+                         $defaultMaxWorkspaceTeamMembers
                      )
                      ON CONFLICT(u_normalized_email) DO NOTHING
                      RETURNING
@@ -160,6 +163,7 @@ public class InviteUsersQuery(
             .WithParameter("$invitationCode", invitationCode)
             .WithParameter("$maxWorkspaceNumber", maxWorkspaceNumber)
             .WithParameter("$defaultMaxWorkspaceSizeInBytes", defaultMaxWorkspaceSizeInBytes)
+            .WithParameter("$defaultMaxWorkspaceTeamMembers", defaultMaxWorkspaceTeamMembers)
             .Execute();
 
         if (userId.IsEmpty)
@@ -214,6 +218,7 @@ public class InviteUsersQuery(
 
             MaxWorkspaceNumber = maxWorkspaceNumber,
             DefaultMaxWorkspaceSizeInBytes = defaultMaxWorkspaceSizeInBytes,
+            DefaultMaxWorkspaceTeamMembers = defaultMaxWorkspaceTeamMembers,
             PermissionsAndRoles = new UserPermissionsAndRolesDto
             {
                 IsAdmin = permissionsAndRoles.IsAdmin,

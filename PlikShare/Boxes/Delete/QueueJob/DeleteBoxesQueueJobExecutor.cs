@@ -37,7 +37,7 @@ public class DeleteBoxesQueueJobExecutor(
             dbWriteContext: dbWriteContext,
             transaction: transaction);
        
-        Log.Information("Boxes '{BoxIds}' in Workspace '{WorkspaceId}' was deleted.",
+        Log.Information("Boxes '{BoxIds}' in Workspace#{WorkspaceId} was deleted.",
             definition.BoxIds,
             definition.WorkspaceId);
 

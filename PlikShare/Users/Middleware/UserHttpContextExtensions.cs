@@ -38,7 +38,8 @@ public static class UserHttpContextExtensions
                 CanManageEmailProviders: httpContext.User.HasPermission(Permissions.ManageEmailProviders)),
             Invitation: null,
             MaxWorkspaceNumber: httpContext.User.GetMaxWorkspaceNumber(),
-            DefaultMaxWorkspaceSizeInBytes: httpContext.User.GetDefaultMaxWorkspaceSizeInBytes());
+            DefaultMaxWorkspaceSizeInBytes: httpContext.User.GetDefaultMaxWorkspaceSizeInBytes(),
+            DefaultMaxWorkspaceTeamMembers: httpContext.User.GetDefaultMaxWorkspaceTeamMembers());
 
         httpContext.Items[UserContext] = context;
 

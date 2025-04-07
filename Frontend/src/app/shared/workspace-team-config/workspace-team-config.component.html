@@ -1,0 +1,29 @@
+<div class="config-row">  
+    <mat-select 
+        class="config-row__select config-row__select--wide" 
+        [(ngModel)]="selectedLimit"
+        (selectionChange)="onLimitChange()">
+
+        @for (item of limitOptions; track $index) {
+            <mat-option [value]="item">
+                {{item}}
+            </mat-option>
+        }
+    </mat-select>
+
+    @if(selectedLimit == 'Limited members') {
+        <div>
+            <input 
+                class="config-row__input"
+                type="number"
+                placeholder="Max members..."
+                [ngModel]="maxMembersValue"
+                (input)="onMembersValueChange($event)"
+                [class.config-row__input--error]="hasError">
+                
+            @if(hasError) {
+                <div class="config-row__error">{{errorMessage}}</div>
+            }
+        </div>
+    }
+</div>

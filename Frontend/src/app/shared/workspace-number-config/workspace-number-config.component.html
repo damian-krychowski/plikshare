@@ -1,6 +1,6 @@
-<div class="workspace-number-config">  
+<div class="config-row">  
     <mat-select 
-        class="workspace-number-config__select workspace-number-config__select--wide" 
+        class="config-row__select config-row__select--wide" 
         [(ngModel)]="selectedLimit"
         (selectionChange)="onLimitChange()">
 
@@ -14,15 +14,15 @@
     @if(selectedLimit == 'Limited number') {
         <div>
             <input 
-                class="workspace-number-config__input"
+                class="config-row__input"
                 type="number"
                 placeholder="Max workspaces..."
                 [ngModel]="maxNumberValue"
                 (input)="onNumberValueChange($event)"
-                [class.workspace-number-config__input--error]="hasError">
+                [class.config-row__input--error]="hasError">
                 
             @if(hasError) {
-                <div class="workspace-number-config__error">{{errorMessage}}</div>
+                <div class="config-row__error">{{errorMessage}}</div>
             }
         </div>
     }

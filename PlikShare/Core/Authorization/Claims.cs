@@ -19,7 +19,8 @@ public static class Claims
     public const string ConcurrencyStamp = "concurrency_stamp";
     public const string MaxWorkspaceNumber = "max_workspace_number";
     public const string DefaultMaxWorkspaceSizeInBytes = "default_max_workspace_size_in_bytes";
-    
+    public const string DefaultMaxWorkspaceTeamMembers = "default_max_workspace_team_members";
+
     public static void CopyClaimIfExists(
         this ClaimsIdentity newIdentity, 
         ClaimsIdentity currentIdentity,
@@ -238,6 +239,22 @@ public static class Claims
             return null;
 
         if (long.TryParse(claim.Value, out var value))
+            return value;
+
+        return null;
+    }
+
+    public static int? GetDefaultMaxWorkspaceTeamMembers(this ClaimsPrincipal claimsPrincipal)
+    {
+        var claim = claimsPrincipal
+            .Claims
+            .FirstOrDefault(c =>
+                string.Equals(c.Type, DefaultMaxWorkspaceTeamMembers, StringComparison.InvariantCultureIgnoreCase));
+
+        if (claim is null)
+            return null;
+
+        if (int.TryParse(claim.Value, out var value))
             return value;
 
         return null;

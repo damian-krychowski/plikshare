@@ -377,8 +377,9 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
             workspace.externalId.set(response.externalId);
             workspace.maxSizeInBytes.set(response.maxSizeInBytes)
         } catch (error: any) {
+            removeItems(this.workspaces, workspace);
+            
             if(error?.error?.code === 'user-max-number-of-workspaces-reached') {
-                removeItems(this.workspaces, workspace);
                 this._genericDialogService.openMaxWorkspacesReachedDialog();
             } else {
                 console.error(error);

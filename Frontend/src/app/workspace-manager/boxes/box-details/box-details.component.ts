@@ -25,6 +25,8 @@ import { AppBoxTeamInvitation, BoxTeamInvitationComponent } from './box-team-inv
 import { ItemButtonComponent } from '../../../shared/buttons/item-btn/item-btn.component';
 import { ActionButtonComponent } from '../../../shared/buttons/action-btn/action-btn.component';
 import { AppBoxRichTextItem, BoxRichTextEditorComponent } from './box-rich-text-editor/box-rich-text-editor.component';
+import { WorkspacesApi } from '../../../services/workspaces.api';
+import { GenericDialogService } from '../../../shared/generic-message-dialog/generic-dialog-service';
 
 type BoxFolder = {
     externalId: string;
@@ -132,7 +134,8 @@ export class BoxDetailsComponent implements OnInit, OnDestroy {
         private _boxesApi: BoxesSetApi,
         private _dialog: MatDialog,
         private _auth: AuthService, 
-        private _dataStore: DataStore
+        private _dataStore: DataStore,        
+        private _genericDialogService: GenericDialogService
     ) {
      }
 
@@ -489,9 +492,14 @@ export class BoxDetailsComponent implements OnInit, OnDestroy {
                         newInvitation.memberExternalId.set(newMember.externalId);
                     }
                 }
-            } catch (error) {
+            } catch (error: any) {
                 this.invitations.update(values => values.filter(v => !invitations.some(i => i === v)))            
-                console.error(error);
+
+                if(error?.error?.code === 'max-team-members-exceeded') {
+                    this._genericDialogService.openMaxTeamMembersReachedDialog();
+                } else {
+                    console.error(error);
+                }
             } finally {
                 this.isLoadingBox.set(false);
             }

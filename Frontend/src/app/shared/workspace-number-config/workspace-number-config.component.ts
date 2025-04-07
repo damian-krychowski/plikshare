@@ -11,17 +11,17 @@ export type WorkspaceMaxNumberChangedEvent = {
 }
 
 @Component({
-    selector: 'app-max-workspace-number-config',
+    selector: 'app-workspace-number-config',
     standalone: true,
     imports: [
         MatButtonModule,
         MatSelectModule,
         FormsModule,
     ],
-    templateUrl: './max-workspace-number-config.component.html',
-    styleUrl: './max-workspace-number-config.component.scss'
+    templateUrl: './workspace-number-config.component.html',
+    styleUrl: './workspace-number-config.component.scss'
 })
-export class MaxWorkspaceNumberConfigComponent implements OnInit, OnChanges {
+export class WorkspaceNumberConfigComponent implements OnInit, OnChanges {
     maxNumber = input.required<number | null>();
     configChanged = output<WorkspaceMaxNumberChangedEvent>();
     

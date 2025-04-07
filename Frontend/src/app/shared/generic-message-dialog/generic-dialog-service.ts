@@ -9,11 +9,6 @@ import { GenericMessageDialogComponent, GenericMessageDialogData } from './gener
 export class GenericDialogService {
     constructor(private dialog: MatDialog) {}
 
-    /**
-     * Opens a generic message dialog
-     * @param config Dialog configuration options
-     * @returns Observable that completes when dialog closes
-     */
     public openGenericMessageDialog(config: GenericMessageDialogData): Observable<boolean> {
         const dialogRef = this.dialog.open(GenericMessageDialogComponent, {
             width: '400px',
@@ -24,10 +19,6 @@ export class GenericDialogService {
         return dialogRef.afterClosed();
     }
 
-    /**
-     * Opens a not enough space dialog
-     * @returns Observable that completes when dialog closes
-     */
     public openNotEnoughSpaceDialog(): Observable<boolean> {
         return this.openGenericMessageDialog({
             title: 'Not enough space',
@@ -36,14 +27,19 @@ export class GenericDialogService {
         });
     }
 
-    /**
-     * Opens a max workspaces reached dialog
-     * @returns Observable that completes when dialog closes
-     */
     public openMaxWorkspacesReachedDialog(): Observable<boolean> {
         return this.openGenericMessageDialog({
             title: 'Maximum workspaces reached',
             message: 'You cannot create a new workspace because you have reached the maximum number of workspaces allowed.',
+            confirmButtonText: 'Ok'
+        });
+    }
+
+    
+    public openMaxTeamMembersReachedDialog(): Observable<boolean> {
+        return this.openGenericMessageDialog({
+            title: 'Maximum team members reached',
+            message: 'You cannot invite more team members because you have reached the maximum allowed number for your workspace.',
             confirmButtonText: 'Ok'
         });
     }

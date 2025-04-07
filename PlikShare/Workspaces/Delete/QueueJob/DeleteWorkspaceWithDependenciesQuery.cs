@@ -485,7 +485,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
 
         if (deletedWorkspace.IsEmpty)
         {
-            Log.Warning("Workspace '{WorkspaceId}' was not deleted because it was not found", workspaceId);
+            Log.Warning("Workspace#{WorkspaceId} was not deleted because it was not found", workspaceId);
         }
     }
     

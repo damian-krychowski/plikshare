@@ -60,6 +60,9 @@ public static class GeneralSettingsEndpoints
         group.MapPatch("/new-user-default-max-workspace-size-in-bytes", SetNewUserDefaultMaxWorkspaceSizeInBytes)
             .WithName("SetNewUserDefaultMaxWorkspaceSizeInBytes");
 
+        group.MapPatch("/new-user-default-max-workspace-team-members", SetNewUserDefaultMaxWorkspaceTeamMembers)
+            .WithName("SetNewUserDefaultMaxWorkspaceTeamMembers");
+
         group.MapPatch("/new-user-default-permissions-and-roles", SetNewUserDefaultPermissionsAndRoles)
             .WithName("SetNewUserDefaultPermissionsAndRoles");
 
@@ -99,9 +102,17 @@ public static class GeneralSettingsEndpoints
         return TypedResults.Ok();
     }
 
+    private static Results<Ok, BadRequest<HttpError>> SetNewUserDefaultMaxWorkspaceTeamMembers(
+        [FromBody] SetNewUserDefaultMaxWorkspaceTeamMembersRequestDto request,
+        AppSettings appSettings)
+    {
+        appSettings.SetNewUserDefaultMaxWorkspaceTeamMembers(request.Value);
+        return TypedResults.Ok();
+    }
+
     private static Results<Ok, BadRequest<HttpError>> SetNewUserDefaultMaxWorkspaceSizeInBytes(
-    [FromBody] SetNewUserDefaultMaxWorkspaceSizeInBytesRequestDto request,
-    AppSettings appSettings)
+        [FromBody] SetNewUserDefaultMaxWorkspaceSizeInBytesRequestDto request,
+        AppSettings appSettings)
     {
         appSettings.SetNewUserDefaultMaxWorkspaceSizeInBytes(request.Value);
         return TypedResults.Ok();
@@ -155,6 +166,7 @@ public static class GeneralSettingsEndpoints
             SignUpCheckboxes = appSettings.SignUpCheckboxes.ToList(),
             NewUserDefaultMaxWorkspaceNumber = appSettings.NewUserDefaultMaxWorkspaceNumber.Value,
             NewUserDefaultMaxWorkspaceSizeInBytes = appSettings.NewUserDefaultMaxWorkspaceSizeInBytes.Value,
+            NewUserDefaultMaxWorkspaceTeamMembers = appSettings.NewUserDefaultMaxWorkspaceTeamMembers.Value,
             NewUserDefaultPermissionsAndRoles = new UserPermissionsAndRolesDto
             {
                 IsAdmin = appSettings.NewUserDefaultPermissionsAndRoles.IsAdmin,

@@ -11,6 +11,7 @@ import { DataStore } from '../../services/data-store.service';
 import { WorkspaceContextService } from '../workspace-context.service';
 import { WorkspaceMaxSizeInBytesChangedEvent, WorkspaceSizeConfigComponent } from '../../shared/workspace-size-config/workspace-size-config.component';
 import { Debouncer } from '../../services/debouncer';
+import { WorkspaceMaxTeamMembersChangedEvent, WorkspaceTeamConfigComponent } from '../../shared/workspace-team-config/workspace-team-config.component';
 
 
 
@@ -22,7 +23,8 @@ import { Debouncer } from '../../services/debouncer';
         MatCheckboxModule,
         ReactiveFormsModule,
         MatButtonModule,
-        WorkspaceSizeConfigComponent
+        WorkspaceSizeConfigComponent,
+        WorkspaceTeamConfigComponent
     ],
     templateUrl: './workspace-config.component.html',
     styleUrl: './workspace-config.component.scss'
@@ -31,6 +33,7 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
     isLoading = signal(false);
    
     public maxSizeInBytes = signal<number|null>(null);
+    public maxTeamMembers = signal<number|null>(null);
 
     private _currentWorkspaceExternalId: string | null = null;
     private _routerSubscription: Subscription | null = null;
@@ -50,6 +53,10 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
         this._routerSubscription = this._router.events
             .pipe(filter(event => event instanceof NavigationEnd))
             .subscribe(() => this.load());
+    }
+
+    ngOnDestroy(): void {
+        this._routerSubscription?.unsubscribe();
     }
 
     private async load() {
@@ -72,6 +79,7 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
             this._workspaceContext.workspace.set(workspace); 
 
             this.maxSizeInBytes.set(workspace.maxSizeInBytes);
+            this.maxTeamMembers.set(workspace.maxTeamMembers);
         } catch (error) {
             console.error('Failed to load workspace configuration', error);
         } finally {
@@ -80,7 +88,7 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
     }
     
     private _maxSizeDebouncer = new Debouncer(500);
-    async onMaxSizeInBytesChange(event: WorkspaceMaxSizeInBytesChangedEvent) {
+    onMaxSizeInBytesChange(event: WorkspaceMaxSizeInBytesChangedEvent) {
         this.maxSizeInBytes.set(event.maxSizeInBytes);
         this._maxSizeDebouncer.debounceAsync(() => this.saveMaxSizeInBytes());
     }
@@ -108,8 +116,34 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
             this.isLoading.set(false);
         }
     }
+    
+    private _maxTeamMembersDebouncer = new Debouncer(500);
+    onMaxTeamMembersChange(event: WorkspaceMaxTeamMembersChangedEvent) {
+        this.maxTeamMembers.set(event.maxTeamMembers);
+        this._maxTeamMembersDebouncer.debounceAsync(() => this.saveMaxTeamMembers());
+    }
 
-    ngOnDestroy(): void {
-        this._routerSubscription?.unsubscribe();
+    private async saveMaxTeamMembers(){
+        if(!this._currentWorkspaceExternalId)
+            return;
+
+        try {
+            this.isLoading.set(true);
+            
+            await this._workspacesApi.updateMaxTeamMembers(this._currentWorkspaceExternalId, {
+                maxTeamMembers: this.maxTeamMembers()
+            });
+
+            const workspace = await this
+                ._workspacesApi
+                .getWorkspace(this._currentWorkspaceExternalId);
+
+            this._dataStore.clearWorkspaceDetails(this._currentWorkspaceExternalId);
+            this._workspaceContext.workspace.set(workspace);
+        } catch (error) {
+            console.error('Failed to save workspace configuration', error);
+        } finally {
+            this.isLoading.set(false);
+        }
     }
 }

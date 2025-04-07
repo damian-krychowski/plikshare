@@ -31,7 +31,7 @@ public class DeleteWorkspaceQueueJobExecutor(
                 $"Job '{definitionJson}' cannot be parsed to correct '{nameof(DeleteWorkspaceQueueJobDefinition)}'");
         }
 
-        Log.Information("Workspace '{WorkspaceId}' delete operation started",
+        Log.Information("Workspace#{WorkspaceId} delete operation started",
             definition.WorkspaceId);
         
         var result = deleteWorkspaceWithDependenciesQuery.Execute(

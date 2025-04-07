@@ -17,6 +17,7 @@ public class GetUsersItemDto
     public required GetUserItemPermissionsDto Permissions { get; init; }
     public required int? MaxWorkspaceNumber { get; init; }
     public required long? DefaultMaxWorkspaceSizeInBytes { get; init; }
+    public required int? DefaultMaxWorkspaceTeamMembers { get; init; }
 }
 
 public class GetUserItemRolesDto

@@ -8,7 +8,14 @@
 
 <div class="mt-2"></div>
 
-<app-workspace-size-config
-    [maxSizeInBytes]="maxSizeInBytes()"
-    (configChanged)="onMaxSizeInBytesChange($event)">
-</app-workspace-size-config>
+<div class="config-container">
+    <app-workspace-size-config
+        [maxSizeInBytes]="maxSizeInBytes()"
+        (configChanged)="onMaxSizeInBytesChange($event)">
+    </app-workspace-size-config>
+    
+    <app-workspace-team-config
+        [maxTeamMembers]="maxTeamMembers()"
+        (configChanged)="onMaxTeamMembersChange($event)">    
+    </app-workspace-team-config>
+</div>

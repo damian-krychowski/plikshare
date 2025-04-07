@@ -13,6 +13,7 @@ export interface GetApplicationSettingsResponse {
     signUpCheckboxes: SignUpCheckboxDto[];
     newUserDefaultMaxWorkspaceNumber: number | null;
     newUserDefaultMaxWorkspaceSizeInBytes: number | null;
+    newUserDefaultMaxWorkspaceTeamMembers: number | null;
     newUserDefaultPermissionsAndRoles: {
         isAdmin: boolean;
         canAddWorkspace: boolean;
@@ -48,11 +49,15 @@ export interface CreateOrUpdateSignUpCheckboxResponse {
     newId: number;
 }
 
-export interface SetNewUserDefaultMaxWorkspaceNumberRequestDto {
+export interface SetNewUserDefaultMaxWorkspaceNumberRequest {
     value: number | null;
 }
 
-export interface SetNewUserDefaultMaxWorkspaceSizeInBytesRequestDto {
+export interface SetNewUserDefaultMaxWorkspaceTeamMembersRequest {
+    value: number | null;
+}
+
+export interface SetNewUserDefaultMaxWorkspaceSizeInBytesRequest {
     value: number | null;
 }
 
@@ -168,7 +173,7 @@ export class GeneralSettingsApi {
         await firstValueFrom(call);
     }
 
-    public async setNewUserDefaultMaxWorkspaceNumber(request: SetNewUserDefaultMaxWorkspaceNumberRequestDto) {
+    public async setNewUserDefaultMaxWorkspaceNumber(request: SetNewUserDefaultMaxWorkspaceNumberRequest) {
         const call = this
             ._http
             .patch(
@@ -181,11 +186,24 @@ export class GeneralSettingsApi {
         await firstValueFrom(call);
     }
     
-    public async setNewUserDefaultMaxWorkspaceSizeInBytes(request: SetNewUserDefaultMaxWorkspaceSizeInBytesRequestDto) {
+    public async setNewUserDefaultMaxWorkspaceSizeInBytes(request: SetNewUserDefaultMaxWorkspaceSizeInBytesRequest) {
         const call = this
             ._http
             .patch(
                 `/api/general-settings/new-user-default-max-workspace-size-in-bytes`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+    
+        await firstValueFrom(call);
+    }
+
+    public async setNewUserDefaultMaxWorkspaceTeamMembers(request: SetNewUserDefaultMaxWorkspaceTeamMembersRequest) {
+        const call = this
+            ._http
+            .patch(
+                `/api/general-settings/new-user-default-max-workspace-team-members`, request, {
                 headers: new HttpHeaders({
                     'Content-Type': 'application/json'
                 })

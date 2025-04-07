@@ -75,7 +75,7 @@ public class CreateBoxMemberInvitationQuery(
             transaction.Commit();
 
             Log.Information(
-                "Box '{BoxExternalId}' invitation for Members '{MemberIds}' by Inviter '{InviterId}' in Workspace '{WorkspaceId}' was created. " +
+                "Box '{BoxExternalId}' invitation for Members '{MemberIds}' by Inviter '{InviterId}' in Workspace#{WorkspaceId} was created. " +
                 "QueryResult: {@QueryResult}",
                 box.ExternalId,
                 members.Select(member => member.Id),
@@ -91,7 +91,7 @@ public class CreateBoxMemberInvitationQuery(
         {
             transaction.Rollback();
             
-            Log.Error(e, "Something went wrong while creating Box '{BoxExternalId}' invitation for Member '{MemberIds}' by Inviter '{InviterId}' in Workspace '{WorkspaceId}'",
+            Log.Error(e, "Something went wrong while creating Box '{BoxExternalId}' invitation for Member '{MemberIds}' by Inviter '{InviterId}' in Workspace#{WorkspaceId}",
                 box.ExternalId,
                 members.Select(member => member.Id),
                 inviter.Id,
