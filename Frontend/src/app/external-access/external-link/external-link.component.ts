@@ -13,7 +13,6 @@ import { AppFolderItem } from '../../shared/folder-item/folder-item.component';
 import { AppFileItem } from '../../shared/file-item/file-item.component';
 import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, ContentDisposition, CountSelectedItemsRequest, CreateFolderRequest, FilePreviewDetailsField, GetBulkDownloadLinkRequest, GetFolderResponse, SearchFilesTreeRequest, SendAiFileMessageRequest, StartTextractJobRequest, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
 import { BulkInitiateFileUploadRequest } from '../../services/uploads.api';
-import { CookieUtils } from '../../shared/cookies';
 
 @Component({
     selector: 'app-external-link',
@@ -90,8 +89,10 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
         const oldAccessCode = this._accessCode;
         this._accessCode = accessCode;
 
-        await this.loadBox(oldAccessCode, accessCode, folderExternalId, fileExternalId),
-        await this.loadHtml(oldAccessCode, accessCode)     
+        await Promise.all([
+            this.loadBox(oldAccessCode, accessCode, folderExternalId, fileExternalId),
+            this.loadHtml(oldAccessCode, accessCode)
+        ]);
     }
 
     private async loadBox(oldAccessCode: string | null, accessCode: string, folderExternalId: string | null, fileExternalId: string | null) {

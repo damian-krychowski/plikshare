@@ -58,14 +58,6 @@ export class AccessCodesApi {
         await firstValueFrom(call);
     }
 
-    public async startSessionInternal(): Promise<void> {
-        const call = this
-            ._http
-            .post(`/api/access-codes/start-session-internal`, {});
-
-        await firstValueFrom(call);
-    }
-
     public async moveItems(accessCode: string, request: BoxMoveItemsToFolderRequest) {
         const call = this
             ._http

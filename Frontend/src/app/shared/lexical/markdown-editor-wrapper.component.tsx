@@ -20,7 +20,7 @@ const containerElementRef = "customReactComponentContainer";
     selector: "app-markdown-editor",
     standalone: true,
     template: `<span #${containerElementRef}></span>`,
-    styleUrls: ["./markdown-editor.scss"],
+    styleUrls: ["./lexical-editor.scss"],
     encapsulation: ViewEncapsulation.None,
 })
 export class MarkdownEditorWrapperComponent implements OnDestroy, AfterViewInit, OnChanges {
