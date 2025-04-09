@@ -1,7 +1,8 @@
-@import "./../styles/spacer.scss";
-@import "./../styles/static-page-variables.scss";
-@import "./../../../styles/main-container.scss";
-@import "./../../../styles/variables.scss";
+@use "./../styles/static-page-variables.scss" as staticPageVariables;
+@use "./../../../styles/variables.scss" as variables;
+@forward "./../styles/spacer.scss";
+@forward "./../styles/static-page-variables.scss";
+@forward "./../../../styles/main-container.scss";
 
 .not-found-section {
     display: flex;
@@ -11,11 +12,11 @@
 
     &__header {
         font-size: 3rem;
-        font-family: $headerFontFamily;
+        font-family: staticPageVariables.$headerFontFamily;
         font-weight: 400;
         margin: 0;
 
-        @media (max-width: $mobile-breakpoint) {
+        @media (max-width: variables.$mobile-breakpoint) {
             font-size: 2rem;
         }
     }
@@ -23,7 +24,7 @@
     .icon {
         font-size: 10rem;
 
-        @media (max-width: $mobile-breakpoint) {
+        @media (max-width: variables.$mobile-breakpoint) {
             font-size: 5rem;
         }
     }

@@ -1,4 +1,5 @@
-@import "./variables.scss";
+@use "./variables.scss" as variables;
+@use "sass:color";
 
 .drop-area {
     position: absolute;
@@ -7,7 +8,8 @@
     bottom: 0;
     right: 0;
 
-    background-color:  transparentize($company-blue-hover, .7);
+    background-color: color.scale(variables.$company-blue-hover, $alpha: -70%);
+
     backdrop-filter: blur(3px);
 
     border: 4px dashed var(--company-grey-accent);
@@ -28,7 +30,7 @@
     }
 
     &--drag-over {
-        background-color:  transparentize($company-blue-hover, .3);
+        background-color: color.scale(variables.$company-blue-hover, $alpha: -30%);
         
         .drop-area__message {
             color: black
@@ -40,14 +42,14 @@
     }
 
     &--invalid {        
-        border-color: $company-danger !important;
+        border-color: variables.$company-danger !important;
 
         .drop-area__message {
-            color: $company-danger !important;
+            color: variables.$company-danger !important;
         }
 
         .icon {
-            color: $company-danger !important;
+            color: variables.$company-danger !important;
         }
     }
 

@@ -1,9 +1,8 @@
-@import "./../../../styles/app-header.scss";
-@import "./../../../styles/top-bar.scss";
-@import "./../../../styles/top-nav-btn.scss";
-@import "./../../../styles/item-bar.scss";
-@import "./../../../styles/icon-merge.scss";
-@import "./../../../styles/variables.scss";
+@forward "./../../../styles/app-header.scss";
+@forward "./../../../styles/top-bar.scss";
+@forward "./../../../styles/top-nav-btn.scss";
+@forward "./../../../styles/item-bar.scss";
+@forward "./../../../styles/icon-merge.scss";
 
 .sign-up-radio {
     display: flex;

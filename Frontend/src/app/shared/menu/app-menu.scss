@@ -1,4 +1,4 @@
-@import "./../../../styles/variables.scss";
+@use "./../../../styles/variables.scss" as variables;
 
 .app-menu {
     display: none;
@@ -35,12 +35,12 @@
         }
     }
 
-    @media (max-width: $mobile-early-breakpoint) {
+    @media (max-width: variables.$mobile-early-breakpoint) {
         display: flex;
         flex-direction: column;
     }
 
-    @media (max-width: $mobile-breakpoint) {
+    @media (max-width: variables.$mobile-breakpoint) {
         .icon-xl {
             font-size: 1.7em;
         }    

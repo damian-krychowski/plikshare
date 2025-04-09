@@ -1,6 +1,6 @@
-@import "./../styles/spacer.scss";
-@import "./../../../styles/main-container.scss";
-@import "./../styles/auth.scss";
+@forward "./../styles/spacer.scss";
+@forward "./../../../styles/main-container.scss";
+@forward "./../styles/auth.scss";
 
 .text-center {
     text-align: center;

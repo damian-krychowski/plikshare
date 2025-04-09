@@ -1,8 +1,10 @@
-@import "./../../../../styles/app-header.scss";
-@import "./../../../../styles/icon-merge.scss";
-@import "./../../../../styles/files-explorer-container.scss";
-@import "./../../../../styles/item-bar.scss";
-@import "./../../../../styles/mobile-display.scss";
+@use "./../../../../styles/variables.scss" as variables;
+
+@forward "./../../../../styles/app-header.scss";
+@forward "./../../../../styles/icon-merge.scss";
+@forward "./../../../../styles/files-explorer-container.scss";
+@forward "./../../../../styles/item-bar.scss";
+@forward "./../../../../styles/mobile-display.scss";
 
 .box-details-header {
     display: flex;
@@ -16,7 +18,7 @@
         gap: 0.5rem;
     }
 
-    @media (max-width: $mobile-breakpoint) {
+    @media (max-width: variables.$mobile-breakpoint) {
         padding-left: 0;
 
         .item {
@@ -106,7 +108,7 @@
         background-color: var(--company-background) !important;
     }
 
-    @media (max-width: $mobile-breakpoint) {
+    @media (max-width: variables.$mobile-breakpoint) {
         gap: 0.3rem;
 
         .icon-xl {

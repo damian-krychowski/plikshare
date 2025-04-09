@@ -1,4 +1,4 @@
-@import "./../../../styles/variables.scss";
+@use "./../../../styles/variables.scss" as variables;
 
 :host {
     display: flex;
@@ -31,7 +31,7 @@
     }
 
     &--desktop {
-        @media (max-width: $mobile-breakpoint) {
+        @media (max-width: variables.$mobile-breakpoint) {
             display: none;            
         }    
     }
@@ -39,7 +39,7 @@
     &--mobile {
         display: none;
 
-        @media (max-width: $mobile-breakpoint) {
+        @media (max-width: variables.$mobile-breakpoint) {
             display: block;
         }    
     }

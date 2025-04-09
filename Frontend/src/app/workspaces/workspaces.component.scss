@@ -1,8 +1,8 @@
-@import "./../../styles/hover-switch.scss";
-@import "./../../styles/app-header.scss";
-@import "./../../styles/top-bar.scss";
-@import "./../../styles/covered.scss";
-@import "./../../styles/top-nav-btn.scss";
+@forward "./../../styles/hover-switch.scss";
+@forward "./../../styles/app-header.scss";
+@forward "./../../styles/top-bar.scss";
+@forward "./../../styles/covered.scss";
+@forward "./../../styles/top-nav-btn.scss";
 
 .setup-explanation {
     font-size: 1rem;

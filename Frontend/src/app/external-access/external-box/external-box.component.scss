@@ -1,10 +1,10 @@
-@import "./../../../styles/top-bar.scss";
-@import "./../../../styles/covered.scss";
-@import "./../../../styles/icon-merge.scss";
-@import "./../../../styles/top-nav-btn.scss";
-@import "./../../../styles/files-explorer-container.scss";
-@import "./../../../styles/item-bar.scss";
-@import "./../../../styles/nothing-to-show.scss";
+@forward "./../../../styles/top-bar.scss";
+@forward "./../../../styles/covered.scss";
+@forward "./../../../styles/icon-merge.scss";
+@forward "./../../../styles/top-nav-btn.scss";
+@forward "./../../../styles/files-explorer-container.scss";
+@forward "./../../../styles/item-bar.scss";
+@forward "./../../../styles/nothing-to-show.scss";
 
 .icon-danger {
     color: var(--company-danger);

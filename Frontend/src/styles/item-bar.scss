@@ -1,4 +1,4 @@
-@import "./variables.scss";
+@use "./variables.scss" as variables;
 
 .item-bar {
     padding: 0.75rem 0.5rem;
@@ -27,7 +27,7 @@
         align-items: center;
         gap: 0.5rem;
 
-        @media (max-width: $mobile-breakpoint) {
+        @media (max-width: variables.$mobile-breakpoint) {
             position: absolute;
             right: 0.5rem;
         }
@@ -51,7 +51,7 @@
 
 
 @keyframes highlight {
-    0%, 100% { background-color: $company-blue-hover; }
+    0%, 100% { background-color: variables.$company-blue-hover; }
     50% { background-color: transparent; }
 }
 
@@ -64,7 +64,7 @@
     overflow: hidden;
     z-index: 0;
 
-    @media(max-width: $mobile-breakpoint) {
+    @media(max-width: variables.$mobile-breakpoint) {
         .icon-xl {
             font-size: 1.5rem;
         }
@@ -118,7 +118,7 @@
     }
 
     &--in-background {
-        @media (max-width: $mobile-breakpoint){         
+        @media (max-width: variables.$mobile-breakpoint){         
             opacity: 0.2;
         }
     }

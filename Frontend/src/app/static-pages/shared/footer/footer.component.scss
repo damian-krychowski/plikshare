@@ -1,4 +1,4 @@
-@import "./../../../../styles/variables.scss";
+@use "./../../../../styles/variables.scss" as variables;
 
 .footer {
     background-color: #18181B;
@@ -42,7 +42,7 @@
 
         border-top: 1px solid rgb(161, 161, 170);
 
-        @media (max-width: $mobile-breakpoint) {
+        @media (max-width: variables.$mobile-breakpoint) {
             flex-direction: column;
             padding-top: 1rem;
             font-size: var(--company-small-font);

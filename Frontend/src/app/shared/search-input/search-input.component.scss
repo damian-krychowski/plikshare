@@ -1,6 +1,6 @@
-@import "./../../../styles/top-nav-btn.scss";
-@import "./../../../styles/item-bar.scss";
-@import "./../../../styles/variables.scss";
+@use "./../../../styles/variables.scss" as variables;
+@forward "./../../../styles/top-nav-btn.scss";
+@forward "./../../../styles/item-bar.scss";
 
 :host {
     display: flex;
@@ -22,7 +22,7 @@
             opacity: 1;
         }
 
-        @media(max-width: $mobile-early-breakpoint){
+        @media(max-width: variables.$mobile-early-breakpoint){
             .search__input {
                 display: block !important;
             }
@@ -47,20 +47,20 @@
             border: 1px solid var(--company-grey-accent);
         }
 
-        @media(max-width: $mobile-early-breakpoint) {
+        @media(max-width: variables.$mobile-early-breakpoint) {
             display: none;        
         }
     }
 
     &__btn {
-        @media(min-width: calc(#{$mobile-early-breakpoint} + 1px)) {
+        @media(min-width: calc(#{variables.$mobile-early-breakpoint} + 1px)) {
             display: none;
         }
     }
 }
 
 .search-icon {
-    @media(max-width:  $mobile-breakpoint) {
+    @media(max-width:  variables.$mobile-breakpoint) {
         display: none;
     }
 }

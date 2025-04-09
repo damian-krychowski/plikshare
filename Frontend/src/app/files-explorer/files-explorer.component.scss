@@ -1,9 +1,8 @@
-@import "./../../styles/app-header.scss";
-@import "./../../styles/nothing-to-show.scss";
-@import "./../../styles/item-bar.scss";
-@import "./../../styles/mobile-display.scss";
-@import "./../../styles/variables.scss";
-@import "./../../styles/drop-area.scss";
+@forward "./../../styles/app-header.scss";
+@forward "./../../styles/nothing-to-show.scss";
+@forward "./../../styles/item-bar.scss";
+@forward "./../../styles/mobile-display.scss";
+@forward "./../../styles/drop-area.scss";
 
 .explorer-content {
     position: relative;

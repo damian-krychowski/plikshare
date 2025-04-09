@@ -1,7 +1,6 @@
-@import "./../styles/spacer.scss";
-@import "./../styles/legal.scss";
-@import "./../../../styles/main-container.scss";
-@import "./../../../styles/variables.scss";
+@forward "./../styles/spacer.scss";
+@forward "./../styles/legal.scss";
+@forward "./../../../styles/main-container.scss";
 
 .pdf-container {
     flex: 1;

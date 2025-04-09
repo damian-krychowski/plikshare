@@ -1,8 +1,8 @@
-@import "./../../../../styles/variables.scss";
+@use "./../../../../styles/variables.scss" as variables;
 
 
 :host {
-    @media (max-width: $mobile-breakpoint) {
+    @media (max-width: variables.$mobile-breakpoint) {
         min-width: 100%;
     }
 }
@@ -15,7 +15,7 @@
     justify-content: left;
     min-width: 330px;
 
-    @media (max-width: $mobile-breakpoint) {
+    @media (max-width: variables.$mobile-breakpoint) {
         min-width: 100%;
     }
 

@@ -1,12 +1,13 @@
-@import "./../../styles/hover-switch.scss";
-@import "./../../styles/app-header.scss";
-@import "./../../styles/top-bar.scss";
-@import "./../../styles/covered.scss";
-@import "./../../styles/top-nav-btn.scss";
-@import "./../../styles/action-text-btn.scss";
-@import "./../../styles/item-bar.scss";
-@import "./../../styles/icon-merge.scss";
-@import "./../../styles/variables.scss";
+@use './../../styles/variables.scss' as variables;
+
+@forward "./../../styles/hover-switch.scss";
+@forward "./../../styles/app-header.scss";
+@forward "./../../styles/top-bar.scss";
+@forward "./../../styles/covered.scss";
+@forward "./../../styles/top-nav-btn.scss";
+@forward "./../../styles/action-text-btn.scss";
+@forward "./../../styles/item-bar.scss";
+@forward "./../../styles/icon-merge.scss";
 
 .account-actions {
     display: flex;
@@ -15,7 +16,7 @@
     max-width: 450px;
     margin: 0 auto;
 
-    @media (max-width: $mobile-breakpoint) {
+    @media (max-width: variables.$mobile-breakpoint) {
         max-width: 100%;
     }
 }

@@ -1,31 +1,31 @@
-@import "./variables.scss";
+@use "./variables.scss" as variables;
 
 .d-none-on-mobile {
-    @media (max-width: $mobile-breakpoint) {
+    @media (max-width: variables.$mobile-breakpoint) {
         display: none !important;
     }
 }
 
 .d-none-on-mobile-early {
-    @media (max-width: $mobile-early-breakpoint) {
+    @media (max-width: variables.$mobile-early-breakpoint) {
         display: none !important;
     }
 }
 
 .d-none-on-desktop {
-    @media (min-width: calc(#{$mobile-breakpoint} + 1px)) {
+    @media (min-width: calc(#{variables.$mobile-breakpoint} + 1px)) {
         display: none !important;
     }
 }
 
 .d-none-on-desktop-early {
-    @media (min-width: calc(#{$mobile-early-breakpoint} + 1px)) {
+    @media (min-width: calc(#{variables.$mobile-early-breakpoint} + 1px)) {
         display: none !important;
     }
 }
 
 .d-block-on-mobile {
-    @media (max-width: $mobile-breakpoint) {
+    @media (max-width: variables.$mobile-breakpoint) {
         display: block !important;
     }
 }

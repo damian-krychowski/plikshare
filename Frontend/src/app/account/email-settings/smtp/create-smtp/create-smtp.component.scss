@@ -1,5 +1,5 @@
-@import "./../../../../../styles/questionaire.scss";
-@import "./../../../../../styles/mobile-display.scss";
+@forward "./../../../../../styles/questionaire.scss";
+@forward "./../../../../../styles/mobile-display.scss";
 
 .email-picker {
     padding: 2rem;   

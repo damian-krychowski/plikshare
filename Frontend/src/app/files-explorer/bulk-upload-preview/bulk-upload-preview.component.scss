@@ -1,7 +1,6 @@
-@import "./../../../styles/variables.scss";
-@import "./../../../styles/app-header.scss";
-@import "./../../../styles/item-bar.scss";
-@import "./../../../styles/drop-area.scss";
+@forward "./../../../styles/app-header.scss";
+@forward "./../../../styles/item-bar.scss";
+@forward "./../../../styles/drop-area.scss";
 
 .media-content {
     padding-top: 1rem;

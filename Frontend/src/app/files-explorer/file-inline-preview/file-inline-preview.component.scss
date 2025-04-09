@@ -1,6 +1,5 @@
-@import "./../../../styles/variables.scss";
-@import "./../../../styles/app-header.scss";
-@import "./../../../styles/item-bar.scss";
+@forward "./../../../styles/app-header.scss";
+@forward "./../../../styles/item-bar.scss";
 
 .preview-header {
     display: flex;

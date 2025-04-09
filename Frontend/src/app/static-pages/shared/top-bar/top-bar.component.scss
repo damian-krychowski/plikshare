@@ -1,5 +1,5 @@
-@import "../../styles/static-page-variables.scss";
-@import "./../../../shared/menu/app-menu.scss";
+@use "../../styles/static-page-variables.scss" as staticPageVariables;
+@forward "./../../../shared/menu/app-menu.scss";
 
 .call-to-action-btn {
     border-radius: 100px !important;
@@ -65,7 +65,7 @@
     &__title{
         font-size: 2.5rem;
         line-height: 2.5rem;
-        font-family: $headerFontFamily;
+        font-family: staticPageVariables.$headerFontFamily;
         text-transform: uppercase;
         letter-spacing: 2px;
     }
@@ -74,7 +74,7 @@
         font-size: 1rem;
         line-height: 1rem;
         color: var(--company-grey-font);
-        font-family: $headerFontFamily;
+        font-family: staticPageVariables.$headerFontFamily;
         text-transform: uppercase;
     }
 

@@ -1,11 +1,10 @@
-@import "./../../../../../styles/page-form.scss";
-@import "./../../../../../styles/mobile-display.scss";
-@import "./../../../../../styles/app-header.scss";
-@import "./../../../../../styles/top-bar.scss";
-@import "./../../../../../styles/top-nav-btn.scss";
-@import "./../../../../../styles/item-bar.scss";
-@import "./../../../../../styles/icon-merge.scss";
-@import "./../../../../../styles/variables.scss";
+@forward "./../../../../../styles/page-form.scss";
+@forward "./../../../../../styles/mobile-display.scss";
+@forward "./../../../../../styles/app-header.scss";
+@forward "./../../../../../styles/top-bar.scss";
+@forward "./../../../../../styles/top-nav-btn.scss";
+@forward "./../../../../../styles/item-bar.scss";
+@forward "./../../../../../styles/icon-merge.scss";
 
 .email-picker {
     padding: 2rem;   

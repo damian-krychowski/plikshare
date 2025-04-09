@@ -17,6 +17,8 @@
  *    https://nucleoapp.com/license
  */
 
+@use "sass:string";
+
 @font-face {
   font-family: 'PlikShare';
   src: url('./fonts/PlikShare.eot');
@@ -271,7 +273,7 @@ $icons: (
 );
 
 @function unicode($str) {
-  @return unquote("\"\\#{$str}\"");
+  @return string.unquote("\"\\#{$str}\"");
 }
 
 @each $name, $code in $icons {

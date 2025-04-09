@@ -1,4 +1,4 @@
-@import "./../../../styles/variables.scss";
+@use "./../../../styles/variables.scss" as variables;
 
 .legal {
     counter-reset: headercounter subheadercounter;
@@ -16,7 +16,7 @@
     flex-direction: column;
     gap: 1rem;
 
-    @media (max-width: $mobile-early-breakpoint) {
+    @media (max-width: variables.$mobile-early-breakpoint) {
         font-size: var(--company-small-font);
     }
 
@@ -25,13 +25,13 @@
     }
 
     ol, ul {
-        @media (max-width: $mobile-early-breakpoint) {
+        @media (max-width: variables.$mobile-early-breakpoint) {
             padding-left: 1rem;
         }
     }
 
     h1 {
-        @media (max-width: $mobile-early-breakpoint) {
+        @media (max-width: variables.$mobile-early-breakpoint) {
             font-size: 1.3rem;            
         }
     }
@@ -41,13 +41,13 @@
     }
 
     h2 {
-        @media (max-width: $mobile-early-breakpoint) {
+        @media (max-width: variables.$mobile-early-breakpoint) {
             font-size: 1rem;            
         }
     }
 
     h3 {
-        @media (max-width: $mobile-early-breakpoint) {
+        @media (max-width: variables.$mobile-early-breakpoint) {
             font-size: var(--company-medium-font);            
         }
     }

@@ -1,6 +1,13 @@
+@forward './icons/icons.scss';
+@forward './styles/margins.scss';
+
+
 // Custom Theming for Angular Material
 // For more information: https://material.angular.io/guide/theming
 @use '@angular/material' as mat;
+@use 'ngx-toastr/toastr';
+@use './styles/variables.scss' as variables;
+
 // Plus imports for other components in your app.
 
 // Include the common styles for Angular Material. We include this here so that you only
@@ -30,10 +37,6 @@ $PlikShare-theme: mat.m2-define-light-theme((color: (
 // that you are using.
 @include mat.all-component-themes($PlikShare-theme);
 
-@import '../node_modules/ngx-toastr/toastr';
-@import './icons/icons.scss';
-@import './styles/margins.scss';
-@import './styles/variables.scss';
 
 html {
     height: 100%;
@@ -171,7 +174,7 @@ select {
 }
 
 .mat-mdc-dialog-container {
-    @media (max-width: $mobile-breakpoint) {
+    @media (max-width: variables.$mobile-breakpoint) {
         position: fixed !important;
         top: 5px !important;
         left: 5px !important;

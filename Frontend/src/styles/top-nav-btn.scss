@@ -1,4 +1,4 @@
-@import "./variables.scss";
+@use "./variables.scss" as variables;
 
 .top-nav-btn {
     height: 50px !important;
@@ -15,7 +15,7 @@
         color: var(--company-danger) !important;
     }
 
-    @media (max-width: $mobile-breakpoint) {
+    @media (max-width: variables.$mobile-breakpoint) {
         height: 40px !important;
         width: 40px !important;
         min-width: 38px !important;
