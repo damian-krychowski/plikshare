@@ -22,17 +22,4 @@ export class AntiforgeryApi {
 
         await firstValueFrom(call);
     }
-
-    public async fetchForBoxLink(): Promise<void> {
-        const call = this
-            ._http
-            .get(
-                `/api/antiforgery/box-link-token`, {
-                headers: new HttpHeaders({
-                    'Content-Type':  'application/json'
-                })
-            });
-
-        await firstValueFrom(call);
-    }
 }

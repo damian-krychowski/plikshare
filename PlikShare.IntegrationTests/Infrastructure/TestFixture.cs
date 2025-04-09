@@ -443,13 +443,8 @@ public class TestFixture: IAsyncLifetime
         var boxLinkCookie = await Api.AccessCodesApi.StartSession(
             anonymousAntiforgeryCookies);
 
-        var boxLinkAntiforgeryCookies = await Api
-            .Antiforgery
-            .GetBoxLinkToken(boxLinkCookie);
-
         return new BoxLinkSession(
-            Cookie: boxLinkCookie,
-            Antiforgery: boxLinkAntiforgeryCookies);
+            Cookie: boxLinkCookie);
     }
 
     protected record AppBoxLinkPermissions(
@@ -515,6 +510,5 @@ public class TestFixture: IAsyncLifetime
         string InvitationCode);
 
     public record BoxLinkSession(
-        BoxLinkAuthCookie Cookie,
-        AntiforgeryCookies Antiforgery);
+        BoxLinkAuthCookie Cookie);
 }

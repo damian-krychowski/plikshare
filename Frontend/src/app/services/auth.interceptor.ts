@@ -45,11 +45,7 @@ export class AuthInterceptor implements HttpInterceptor {
         if (err.status === 401) {
             return from(this._accessCodesApi.startSession()).pipe(
                 switchMap(() => {
-                    return from(this._antiforgeryApi.fetchForBoxLink()).pipe(
-                        switchMap(() => {
-                            return next.handle(req);
-                        })
-                    );
+                    return next.handle(req);
                 })
             );
         } else if(err.status === 404) {

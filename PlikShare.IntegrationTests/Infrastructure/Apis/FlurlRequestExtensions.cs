@@ -43,8 +43,11 @@ public static class FlurlRequestExtensions
 
     public static IFlurlRequest WithAntiforgery(
         this IFlurlRequest request,
-        AntiforgeryCookies antiforgeryCookies)
+        AntiforgeryCookies? antiforgeryCookies)
     {
+        if (antiforgeryCookies is null)
+            return request;
+
         return request
             .WithCookie(antiforgeryCookies.AspNetAntiforgery)
             .WithAntiforgeryHeader(antiforgeryCookies.AntiforgeryToken.Value);
@@ -224,7 +227,7 @@ public static class FlurlRequestExtensions
         string apiPath,
         TRequest request,
         Cookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies? antiforgery)
     {
         var response = await client
             .Request(appUrl, apiPath)
@@ -248,7 +251,7 @@ public static class FlurlRequestExtensions
         string appUrl,
         string apiPath,
         Cookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies? antiforgery)
     {
         var response = await client
             .Request(appUrl, apiPath)

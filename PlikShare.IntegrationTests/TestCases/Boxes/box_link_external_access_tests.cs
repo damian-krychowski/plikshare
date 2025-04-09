@@ -144,8 +144,7 @@ public class box_link_external_access_tests: TestFixture
                 ParentExternalId = null,
                 Name = "my new box folder",
             },
-            cookie: boxLinkSession.Cookie,
-            antiforgery: boxLinkSession.Antiforgery);
+            cookie: boxLinkSession.Cookie);
        
         //then
         var boxContent = await Api.AccessCodesApi.GetBoxDetailsAndContent(
@@ -215,8 +214,7 @@ public class box_link_external_access_tests: TestFixture
                 ParentExternalId= null,
                 Name= "my new box folder", 
             },
-            cookie: boxLinkSession.Cookie,
-            antiforgery: boxLinkSession.Antiforgery);
+            cookie: boxLinkSession.Cookie);
 
         //when
         var littleLater = createdAtTime.AddMinutes(3);
@@ -227,8 +225,7 @@ public class box_link_external_access_tests: TestFixture
             folderExternalId: folder.ExternalId,
             request: new UpdateBoxFolderNameRequestDto(
                 Name: "new name for my box folder"),
-            cookie: boxLinkSession.Cookie,
-            antiforgery: boxLinkSession.Antiforgery);
+            cookie: boxLinkSession.Cookie);
         
         //then
         var boxContent = await Api.AccessCodesApi.GetBoxDetailsAndContent(
@@ -274,8 +271,7 @@ public class box_link_external_access_tests: TestFixture
                 ParentExternalId= null,
                 Name = "my new box folder",
             },
-            cookie: boxLinkSession.Cookie,
-            antiforgery: boxLinkSession.Antiforgery);
+            cookie: boxLinkSession.Cookie);
 
         //when
         var tooLate = createdAtTime.AddMinutes(5).AddSeconds(1);
@@ -287,8 +283,7 @@ public class box_link_external_access_tests: TestFixture
                 folderExternalId: folder.ExternalId,
                 request: new UpdateBoxFolderNameRequestDto(
                     Name: "new name for my box folder"),
-            cookie: boxLinkSession.Cookie,
-            antiforgery: boxLinkSession.Antiforgery)
+            cookie: boxLinkSession.Cookie)
         );
         
         //then

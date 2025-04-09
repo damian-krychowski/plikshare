@@ -28,30 +28,7 @@ public class AntiforgeryApi(IFlurlClient flurlClient, string appUrl)
             response,
             CookieName.Antiforgery);
     }
-
-    public async Task<AntiforgeryCookies> GetBoxLinkToken(
-        BoxLinkAuthCookie cookie)
-    {
-        var response = await flurlClient
-            .Request(appUrl, "api/antiforgery/box-link-token")
-            .AllowAnyHttpStatus()
-            .WithCookie(cookie)
-            .GetAsync();
-
-        if (!response.ResponseMessage.IsSuccessStatusCode)
-        {
-            var exception = new TestApiCallException(
-                responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
-
-            throw exception;
-        }
-
-        return ExtractAntiforgeryCookies(
-            response,
-            CookieName.BoxLinkAntiforgery);
-    }
-
+    
     private static AntiforgeryCookies ExtractAntiforgeryCookies(
         IFlurlResponse response,
         string antiforgeryCookieName)

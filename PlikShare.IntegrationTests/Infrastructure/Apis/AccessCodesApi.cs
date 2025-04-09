@@ -51,7 +51,7 @@ public class AccessCodesApi(IFlurlClient flurlClient, string appUrl)
         string accessCode,
         CreateFolderRequestDto request,
         BoxLinkAuthCookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies? antiforgery = null)
     {
         return await flurlClient.ExecutePost<CreateFolderResponseDto, CreateFolderRequestDto>(
             appUrl: appUrl,
@@ -66,7 +66,7 @@ public class AccessCodesApi(IFlurlClient flurlClient, string appUrl)
         FolderExtId folderExternalId,
         UpdateBoxFolderNameRequestDto request,
         BoxLinkAuthCookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies? antiforgery = null)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,

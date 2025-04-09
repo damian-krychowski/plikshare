@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using PlikShare.Antiforgery;
 using PlikShare.Boxes.Permissions;
 using PlikShare.BoxExternalAccess.Authorization;
 using PlikShare.BoxExternalAccess.Contracts;
@@ -33,12 +34,14 @@ public static class BoxLinkAccessCodesEndpoints
     {
         app.MapPost("/api/access-codes/start-session", StartSession)
             .WithTags("BoxLink_StartSession")
-            .AllowAnonymous();
+            .AllowAnonymous()
+            .WithMetadata(new DisableAutoAntiforgeryCheck());
 
         var group = app.MapGroup("/api/access-codes")
                 .RequireAuthorization(policyNames: AuthPolicy.BoxLinkCookie)
-                .WithTags("BoxLinkAccessCodes");
-       
+                .WithTags("BoxLinkAccessCodes")
+                .WithMetadata(new DisableAutoAntiforgeryCheck());
+
         group.MapGet("/{accessCode}/html", GetBoxHtml)
             .WithName("BoxLink_GetBoxHtml")
             .AddEndpointFilter(new ValidateAccessCodeFilter());

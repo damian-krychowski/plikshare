@@ -36,20 +36,6 @@ export class AccessCodesApi {
         private _protoHttp: ProtoHttp) {
     }
 
-    private createHeaders(contentType: string = 'application/json'): HttpHeaders {
-        let headers = new HttpHeaders({
-            'Content-Type': contentType
-        });
-        
-        const xsrfToken = CookieUtils.GetXsrfBoxLinkToken();
-
-        if (xsrfToken) {
-            headers = headers.set(XSRF_TOKEN_HEADER_NAME, xsrfToken);
-        }
-        
-        return headers;
-    }
-
     public async startSession(): Promise<void> {
         const call = this
             ._http
@@ -62,9 +48,7 @@ export class AccessCodesApi {
         const call = this
             ._http
             .patch(
-                `/api/access-codes/${accessCode}/folders/move-items`, request, {
-                    headers: this.createHeaders()
-                });
+                `/api/access-codes/${accessCode}/folders/move-items`, request);
 
         await firstValueFrom(call);
     }
@@ -72,9 +56,7 @@ export class AccessCodesApi {
     public createFolder(accessCode: string, request: CreateFolderRequest): Promise<CreateFolderResponse> {
         const call = this
             ._http
-            .post<CreateFolderResponse>(`/api/access-codes/${accessCode}/folders`, request, {
-                headers: this.createHeaders()
-            });
+            .post<CreateFolderResponse>(`/api/access-codes/${accessCode}/folders`, request);
 
         return firstValueFrom(call);
     }
@@ -85,7 +67,6 @@ export class AccessCodesApi {
             request: request,
             requestProtoType: bulkCreateFolderRequestDtoProtobuf,
             responseProtoType: bulkCreateFolderResponseDtoProtobuf,
-            xsrfToken: CookieUtils.GetXsrfBoxLinkToken()
         });
     }
 
@@ -101,8 +82,6 @@ export class AccessCodesApi {
                 fileExternalIds: req.fileExternalIds,
                 folderExternalIds: req.folderExternalIds,
                 fileUploadExternalIds: req.fileUploadExternalIds
-            }, {
-                headers: this.createHeaders()
             });
 
         return await firstValueFrom(call);
@@ -111,9 +90,7 @@ export class AccessCodesApi {
     public async updateFolderName(accessCode: string, folderExternalId: string, request: BoxUpdateFolderNameRequest): Promise<void> {
         const call = this
             ._http
-            .patch<void>(`/api/access-codes/${accessCode}/folders/${folderExternalId}/name`, request, {
-                headers: this.createHeaders()
-            });
+            .patch<void>(`/api/access-codes/${accessCode}/folders/${folderExternalId}/name`, request);
 
         await firstValueFrom(call);
     }
@@ -121,9 +98,7 @@ export class AccessCodesApi {
     public async updateFileName(accessCode: string, fileExternalId: string, request: BoxUpdateFileNameRequest): Promise<void> {
         const call = this
             ._http
-            .patch<void>(`/api/access-codes/${accessCode}/files/${fileExternalId}/name`, request, {
-                headers: this.createHeaders()
-            });
+            .patch<void>(`/api/access-codes/${accessCode}/files/${fileExternalId}/name`, request);
 
         await firstValueFrom(call);
     }
@@ -143,9 +118,7 @@ export class AccessCodesApi {
     public getBulkDownloadLink(accessCode: string, request: GetBulkDownloadLinkRequest): Promise<GetBulkDownloadLinkResponse> {
         const call = this
             ._http
-            .post<GetBulkDownloadLinkResponse>(`/api/access-codes/${accessCode}/files/bulk-download-link`, request, {
-                headers: this.createHeaders()
-            });
+            .post<GetBulkDownloadLinkResponse>(`/api/access-codes/${accessCode}/files/bulk-download-link`, request);
 
         return firstValueFrom(call);
     }
@@ -177,9 +150,7 @@ export class AccessCodesApi {
         const call = this
             ._http
             .post<void>(
-                `/api/access-codes/${accessCode}/uploads/${externalId}/parts/${partNumber}/complete`, request, {
-                    headers: this.createHeaders()
-                });
+                `/api/access-codes/${accessCode}/uploads/${externalId}/parts/${partNumber}/complete`, request);
 
         return firstValueFrom(call);
     }
@@ -188,9 +159,7 @@ export class AccessCodesApi {
         const call = this
             ._http
             .post<BoxInitiateFilePartUploadResponse>(
-                `/api/access-codes/${accessCode}/uploads/${externalId}/parts/${partNumber}/initiate`, null, {
-                    headers: this.createHeaders()
-                });
+                `/api/access-codes/${accessCode}/uploads/${externalId}/parts/${partNumber}/initiate`, null);
 
         return firstValueFrom(call);
     }
@@ -199,9 +168,7 @@ export class AccessCodesApi {
         const call = this
             ._http
             .post<BoxCompleteFileUploadResponse>(
-                `/api/access-codes/${accessCode}/uploads/${externalId}/complete`, null, {
-                    headers: this.createHeaders()
-                });
+                `/api/access-codes/${accessCode}/uploads/${externalId}/complete`, null);
 
         return firstValueFrom(call);
     }
@@ -210,9 +177,7 @@ export class AccessCodesApi {
         const call = this
             ._http
             .post<InitiateFileUploadResponse>(
-                `/api/access-codes/${accessCode}/uploads/initiate`, request, {
-                    headers: this.createHeaders()
-                });
+                `/api/access-codes/${accessCode}/uploads/initiate`, request);
 
         return firstValueFrom(call);
     }
@@ -222,8 +187,7 @@ export class AccessCodesApi {
                 route: `/api/access-codes/${accessCode}/uploads/initiate/bulk`,
                 request: request,
                 requestProtoType: bulkInitiateFileUploadRequestDtoProtobuf,
-                responseProtoType: bulkInitiateFileUploadResponseDtoProtobuf,
-                xsrfToken: CookieUtils.GetXsrfBoxLinkToken()
+                responseProtoType: bulkInitiateFileUploadResponseDtoProtobuf
             });
     
         return deserializeBulkUploadResponse(request, response);       
@@ -269,8 +233,6 @@ export class AccessCodesApi {
                 `/api/access-codes/${accessCode}/files/${fileExternalId}/preview/zip/download-link`, {
                     item: zipEntry,
                     contentDisposition: contentDisposition
-            }, {
-                headers: this.createHeaders()
             });
 
         return firstValueFrom(call);
@@ -280,9 +242,7 @@ export class AccessCodesApi {
         const call = this
             ._http
             .post<CountSelectedItemsResponse>(
-                `/api/access-codes/${accessCode}/count-selected-items`, request, {
-                    headers: this.createHeaders()
-                });
+                `/api/access-codes/${accessCode}/count-selected-items`, request);
 
         return await firstValueFrom(call);
     }
@@ -291,8 +251,7 @@ export class AccessCodesApi {
         const result = await this._protoHttp.postJsonToProto<SearchFilesTreeRequest, SearchFilesTreeResponse>({
             route: `/api/access-codes/${accessCode}/search-files-tree`,
             request: request,
-            responseProtoType: searchFilesTreeResponseDtoProtobuf,
-            xsrfToken: CookieUtils.GetXsrfBoxLinkToken()
+            responseProtoType: searchFilesTreeResponseDtoProtobuf
         });
         
         return result;

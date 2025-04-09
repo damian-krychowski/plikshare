@@ -1,4 +1,4 @@
-import { XSRF_TOKEN_BOX_LINK_COOKIE_NAME, XSRF_TOKEN_COOKIE_NAME } from "./xsrf";
+import { XSRF_TOKEN_COOKIE_NAME } from "./xsrf";
 
 export class CookieUtils {
     public static getValue(cookieName: string): string {
@@ -8,9 +8,5 @@ export class CookieUtils {
 
     public static GetXsrfToken() {
         return this.getValue(XSRF_TOKEN_COOKIE_NAME);
-    }
-
-    public static GetXsrfBoxLinkToken() {
-        return this.getValue(XSRF_TOKEN_BOX_LINK_COOKIE_NAME);
     }
 }

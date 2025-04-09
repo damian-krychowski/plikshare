@@ -28,7 +28,6 @@ public static class CookieName
     public const string TwoFactorRememberMe = "Identity.TwoFactorRememberMe";
 
     public const string Antiforgery = "XSRF-TOKEN";
-    public const string BoxLinkAntiforgery = "XSRF-TOKEN-BOX-LINK";
 }
 
 public static class HeaderName
