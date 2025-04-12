@@ -43,7 +43,7 @@ public static class BoxLinkAccessCodesEndpoints
 
         //this endpoint is duplication of the above but with additional access-code
         //in route to make it easier to handle CORS dynamically in box-widget scenarios
-        app.MapPost("/api/access-codes/{access-code}/start-session", StartSession)
+        app.MapPost("/api/access-codes/{accessCode}/start-session", StartSession)
             .WithTags("BoxLink_StartSessionWithAccessCode")
             .AllowAnonymous()
             .WithMetadata(new DisableAutoAntiforgeryCheck())
