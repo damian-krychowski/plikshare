@@ -146,7 +146,7 @@ public static class AuthorizationStartupExtensions
         authenticationBuilder.AddCookie(AuthScheme.BoxLinkSessionScheme, options =>
         {
             options.Cookie.Name = CookieName.BoxLinkAuth;
-            options.Cookie.SameSite = SameSiteMode.Strict;
+            options.Cookie.SameSite = SameSiteMode.None;
             options.Cookie.HttpOnly = true;
             options.Cookie.IsEssential = true;
             options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
