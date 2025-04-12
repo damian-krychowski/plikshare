@@ -22,6 +22,8 @@ using PlikShare.Files.Preview.GetZipDetails.Contracts;
 using PlikShare.Folders.Create.Contracts;
 using PlikShare.Folders.Id;
 using PlikShare.Folders.List.Contracts;
+using PlikShare.Locks.CheckFileLocks;
+using PlikShare.Locks.CheckFileLocks.Contracts;
 using PlikShare.Uploads.GetDetails.Contracts;
 using PlikShare.Uploads.Id;
 using PlikShare.Uploads.Initiate.Contracts;
@@ -167,6 +169,19 @@ public static class BoxLinkAccessCodesEndpoints
             .WithName("BoxLink_ListUploads")
             .AddEndpointFilter(new ValidateAccessCodeFilter(
                 BoxPermission.AllowUpload));
+        
+        group.MapPost("/{accessCode}/lock-status/files", CheckFileLocks)
+            .WithName("BoxLink_CheckFileLocks");
+    }
+
+    private static CheckFileLocksResponseDto CheckFileLocks(
+        [FromBody] CheckFileLocksRequestDto request,
+        CheckFileLocksQuery checkFileLocksQuery)
+    {
+        var response = checkFileLocksQuery.Execute(
+            request.ExternalIds);
+
+        return response;
     }
 
     private static GetUploadsListResponseDto ListUploads(
