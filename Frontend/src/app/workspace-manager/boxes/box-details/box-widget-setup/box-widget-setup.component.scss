@@ -1,0 +1,104 @@
+@forward "./../../../../../styles/questionaire.scss";
+
+.widget-setup {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    min-height: 300px;
+    padding-left: 2rem;
+    padding-right: 2rem;
+
+    &__info {
+        font-size: var(--company-medium-font);
+        color: var(--company-grey-font);
+        padding-bottom: 1.5rem;
+    }
+
+    &__section {
+        margin-bottom: 2rem;
+    }
+
+    &__subtitle {
+        font-size: var(--company-large-font);
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    &__description {
+        font-size: var(--company-medium-font);
+        color: var(--company-grey-font);
+        margin-bottom: 1rem;
+    }
+}
+
+.code-snippet {
+    position: relative;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;    
+    padding: 1rem 2rem 1rem 1rem;
+    margin-bottom: 1.5rem;
+
+    pre {
+        margin: 0;
+        overflow: visible;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: monospace;
+        height: auto;
+        min-height: fit-content;
+    }
+
+    code {
+        display: block;
+        width: 100%;
+        font-family: monospace;
+    }
+
+    i {
+        position: absolute;
+        top: 0.3rem;
+        right: 0.3rem;
+        cursor: pointer;
+        padding: 2px;
+        border-radius: 4px;
+        background-color: white;
+
+        &:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+    
+        &:hover .copy-tooltip {
+            opacity: 1;
+        }
+    }
+}
+
+
+.remove-origin-btn {
+    position: absolute;
+    right: -0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.questionaire__form {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+
+    .questionaire__actions {
+        padding-top: 0 !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+
+    max-width: none !important;
+}
+
+@keyframes copyAnimation {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.copy-animation {
+    animation: copyAnimation 0.3s ease;
+}

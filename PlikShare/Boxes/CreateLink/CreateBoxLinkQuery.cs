@@ -47,7 +47,8 @@ public class CreateBoxLinkQuery(DbWriteQueue dbWriteQueue)
                          bl_allow_move_items,
                          bl_allow_create_folder,
                          bl_allow_delete_folder,
-                         bl_allow_rename_folder
+                         bl_allow_rename_folder,
+                         bl_widget_origins
                      ) VALUES(                        
                          $boxLinkExternalId,
                          $boxId,
@@ -62,7 +63,8 @@ public class CreateBoxLinkQuery(DbWriteQueue dbWriteQueue)
                          FALSE,
                          FALSE,
                          FALSE,
-                         FALSE
+                         FALSE,
+                         NULL
                      )
                      RETURNING bl_id     
                      """,

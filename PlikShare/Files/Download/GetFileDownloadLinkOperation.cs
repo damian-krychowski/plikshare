@@ -14,7 +14,9 @@ public class GetFileDownloadLinkOperation(
         FileExtId fileExternalId,
         ContentDispositionType contentDisposition,
         int? boxFolderId,
+        int? boxLinkId,
         IUserIdentity userIdentity,
+        bool enforceInternalPassThrough,
         CancellationToken cancellationToken)
     {
         var fileQueryResult = getFileDetailsQuery.Execute(
@@ -37,7 +39,9 @@ public class GetFileDownloadLinkOperation(
                 contentType: fileQueryResult.Value.ContentType,
                 fileName: fileQueryResult.Value.Name + fileQueryResult.Value.Extension,
                 contentDisposition: contentDisposition,
+                boxLinkId: boxLinkId,
                 userIdentity: userIdentity,
+                enforceInternalPassThrough: enforceInternalPassThrough,
                 cancellationToken: cancellationToken);
 
         return new Result(

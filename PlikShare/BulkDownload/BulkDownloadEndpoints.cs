@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Clock;
+using PlikShare.Core.CORS;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
@@ -24,7 +25,8 @@ public static class BulkDownloadEndpoints
     {
         var group = app.MapGroup("/api/bulk-download")
             .WithTags("Bulk Download")
-            .RequireAuthorization(policyNames: AuthPolicy.InternalOrBoxLink);
+            .RequireAuthorization(policyNames: AuthPolicy.InternalOrBoxLink)
+            .RequireCors(CorsPolicies.PreSignedLink);
 
         group.MapGet("/{protectedPayload}", BulkDownload)
             .WithName("BulkDownload");
@@ -43,8 +45,7 @@ public static class BulkDownloadEndpoints
             CancellationToken cancellationToken)
     {
         var (extractionResult, payload) = preSignedUrlsService.TryExtractPreSignedBulkDownloadPayload(
-            protectedPayload,
-            cancellationToken);
+            protectedPayload);
 
         if (extractionResult == PreSignedUrlsService.ExtractionResult.Invalid)
         {

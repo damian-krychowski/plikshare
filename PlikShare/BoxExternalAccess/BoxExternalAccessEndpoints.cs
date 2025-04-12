@@ -317,6 +317,8 @@ public static class BoxExternalAccessEndpoints
             fileExternalId: fileExternalId,
             contentDisposition: contentDisposition,
             boxAccess: httpContext.GetBoxAccess(),
+            boxLinkId: null,
+            enforceInternalPassThrough: false,
             cancellationToken: cancellationToken);
     }
 
@@ -327,7 +329,8 @@ public static class BoxExternalAccessEndpoints
     {
         return boxExternalAccessHandler.GetBulkDownloadLink(
             request: request,
-            boxAccess: httpContext.GetBoxAccess());
+            boxAccess: httpContext.GetBoxAccess(),
+            boxLinkId: null);
     }
 
     private static Task<Results<Ok, NotFound<HttpError>, StatusCodeHttpResult>> UpdateFileName(
@@ -384,6 +387,7 @@ public static class BoxExternalAccessEndpoints
             fileExternalId: fileExternalId,
             request: request,
             boxAccess: httpContext.GetBoxAccess(),
+            boxLinkId: null,
             cancellationToken: cancellationToken);
     }
 
@@ -468,6 +472,7 @@ public static class BoxExternalAccessEndpoints
         return boxExternalAccessHandler.BulkInitiateFileUpload(
             request: request,
             boxAccess: httpContext.GetBoxAccess(),
+            boxLinkId: null,
             cancellationToken: cancellationToken);
     }
 
@@ -492,6 +497,8 @@ public static class BoxExternalAccessEndpoints
             fileUploadExternalId: fileUploadExternalId,
             partNumber: partNumber,
             boxAccess: httpContext.GetBoxAccess(),
+            boxLinkId: null,
+            enforceInternalPassThrough: false,
             cancellationToken: cancellationToken);
     }
 

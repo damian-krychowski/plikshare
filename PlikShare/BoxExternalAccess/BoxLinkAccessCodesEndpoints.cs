@@ -7,9 +7,12 @@ using PlikShare.Boxes.Permissions;
 using PlikShare.BoxExternalAccess.Authorization;
 using PlikShare.BoxExternalAccess.Contracts;
 using PlikShare.BoxExternalAccess.Handler;
+using PlikShare.BoxLinks.Validation;
 using PlikShare.BulkDelete.Contracts;
 using PlikShare.Core.Authorization;
+using PlikShare.Core.Configuration;
 using PlikShare.Core.CorrelationId;
+using PlikShare.Core.CORS;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.Utils;
 using PlikShare.Files.BulkDownload.Contracts;
@@ -35,12 +38,22 @@ public static class BoxLinkAccessCodesEndpoints
         app.MapPost("/api/access-codes/start-session", StartSession)
             .WithTags("BoxLink_StartSession")
             .AllowAnonymous()
-            .WithMetadata(new DisableAutoAntiforgeryCheck());
+            .WithMetadata(new DisableAutoAntiforgeryCheck())
+            .RequireCors(CorsPolicies.BoxLink);
+
+        //this endpoint is duplication of the above but with additional access-code
+        //in route to make it easier to handle CORS dynamically in box-widget scenarios
+        app.MapPost("/api/access-codes/{access-code}/start-session", StartSession)
+            .WithTags("BoxLink_StartSessionWithAccessCode")
+            .AllowAnonymous()
+            .WithMetadata(new DisableAutoAntiforgeryCheck())
+            .RequireCors(CorsPolicies.BoxLink);
 
         var group = app.MapGroup("/api/access-codes")
                 .RequireAuthorization(policyNames: AuthPolicy.BoxLinkCookie)
                 .WithTags("BoxLinkAccessCodes")
-                .WithMetadata(new DisableAutoAntiforgeryCheck());
+                .WithMetadata(new DisableAutoAntiforgeryCheck())
+                .RequireCors(CorsPolicies.BoxLink);
 
         group.MapGet("/{accessCode}/html", GetBoxHtml)
             .WithName("BoxLink_GetBoxHtml")
@@ -199,12 +212,15 @@ public static class BoxLinkAccessCodesEndpoints
         [FromRoute] int partNumber,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,
+        IConfig config,
         CancellationToken cancellationToken)
     {
         return boxExternalAccessHandler.InitiateFilePartUpload(
             fileUploadExternalId: fileUploadExternalId,
             partNumber: partNumber,
             boxAccess: httpContext.GetBoxAccess(),
+            boxLinkId: httpContext.GetBoxLinkContext().Id,
+            enforceInternalPassThrough: httpContext.Request.Headers.Origin != config.AppUrl,
             cancellationToken: cancellationToken);
     }
 
@@ -228,6 +244,7 @@ public static class BoxLinkAccessCodesEndpoints
         return boxExternalAccessHandler.BulkInitiateFileUpload(
             request: request,
             boxAccess: httpContext.GetBoxAccess(),
+            boxLinkId: httpContext.GetBoxLinkContext().Id,
             cancellationToken: cancellationToken);
     }
     
@@ -282,6 +299,7 @@ public static class BoxLinkAccessCodesEndpoints
             fileExternalId: fileExternalId,
             request: request,
             boxAccess: httpContext.GetBoxAccess(),
+            boxLinkId: httpContext.GetBoxLinkContext().Id,
             cancellationToken: cancellationToken);
     }
 
@@ -366,7 +384,8 @@ public static class BoxLinkAccessCodesEndpoints
     {
         return boxExternalAccessHandler.GetBulkDownloadLink(
             request: request,
-            boxAccess: httpContext.GetBoxAccess());
+            boxAccess: httpContext.GetBoxAccess(),
+            boxLinkId: httpContext.GetBoxLinkContext().Id);
     }
 
     private static Task<Results<Ok<GetBoxFileDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult>> GetFileDownloadLink(
@@ -374,12 +393,15 @@ public static class BoxLinkAccessCodesEndpoints
         [FromQuery] string contentDisposition,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,
+        IConfig config,
         CancellationToken cancellationToken)
     {
         return boxExternalAccessHandler.GetFileDownloadLink(
             fileExternalId: fileExternalId,
             contentDisposition: contentDisposition,
             boxAccess: httpContext.GetBoxAccess(),
+            boxLinkId: httpContext.GetBoxLinkContext().Id,
+            enforceInternalPassThrough: httpContext.Request.Headers.Origin != config.AppUrl,
             cancellationToken: cancellationToken);
     }
 

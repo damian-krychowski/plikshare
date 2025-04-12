@@ -54,7 +54,8 @@ public class box_link_tests: TestFixture
                     AllowDeleteFolder = false,
                     AllowUpload = false,
                     AllowDownload = false,
-                }
+                },
+                WidgetOrigins = []
             }
         ]);
     }
@@ -110,7 +111,8 @@ public class box_link_tests: TestFixture
                     AllowRenameFile = true,
                     AllowRenameFolder = true,
                     AllowUpload = true,
-                }
+                },
+                WidgetOrigins = []
             }
         ]);
     }

@@ -20,6 +20,7 @@ import { AppFileItem } from '../../shared/file-item/file-item.component';
 import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, ContentDisposition, CountSelectedItemsRequest, CreateFolderRequest, FilePreviewDetailsField, GetBulkDownloadLinkRequest, GetFolderResponse, SearchFilesTreeRequest, SendAiFileMessageRequest, StartTextractJobRequest, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
 import { BulkInitiateFileUploadRequest } from '../../services/uploads.api';
 import { CookieUtils } from '../../shared/cookies';
+import { FileLockService } from '../../services/file-lock.service';
 
 @Component({
     selector: 'app-external-box',
@@ -83,6 +84,7 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
         private _sanitizer: DomSanitizer,
         private _signOutService: SignOutService,
         private _inAppSharing: InAppSharing,
+        private _fileLockService: FileLockService,
         public dataStore: DataStore
     ) { 
 
@@ -454,6 +456,9 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
             prefetchAiMessages: async (fileExternalId: string, fileArtifactExternalId: string) => {
                 throw new Error("not implemented")
             },
+
+            subscribeToLockStatus: (file: AppFileItem) => this._fileLockService.subscribeToLockStatus(file),
+            unsubscribeFromLockStatus: (fileExternalId: string) => this._fileLockService.unsubscribe(fileExternalId)
         };
     }
 

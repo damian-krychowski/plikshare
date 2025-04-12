@@ -113,6 +113,8 @@ public class BoxExternalAccessHandler(
         FileExtId fileExternalId,
         string contentDisposition,
         BoxAccess boxAccess,
+        int? boxLinkId,
+        bool enforceInternalPassThrough,
         CancellationToken cancellationToken)
     {
         if (!ContentDispositionHelper.TryParse(contentDisposition, out var contentDispositionType))
@@ -126,7 +128,9 @@ public class BoxExternalAccessHandler(
             fileExternalId: fileExternalId,
             contentDisposition: contentDispositionType,
             boxFolderId: boxAccess.Box.Folder.Id,
+            boxLinkId: boxLinkId,
             userIdentity: boxAccess.UserIdentity,
+            enforceInternalPassThrough: enforceInternalPassThrough,
             cancellationToken: cancellationToken);
         
         return result.Code switch
@@ -148,7 +152,8 @@ public class BoxExternalAccessHandler(
 
     public Results<Ok<GetBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult> GetBulkDownloadLink(
         GetBulkDownloadLinkRequestDto request,
-        BoxAccess boxAccess)
+        BoxAccess boxAccess,
+        int? boxLinkId)
     {
         if (boxAccess.IsOff || boxAccess.Box.Folder is null)
             return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
@@ -157,7 +162,8 @@ public class BoxExternalAccessHandler(
             workspace: boxAccess.Box.Workspace,
             request: request,
             userIdentity: boxAccess.UserIdentity,
-            boxFolderId: boxAccess.Box.Folder.Id);
+            boxFolderId: boxAccess.Box.Folder.Id,
+            boxLinkId: boxLinkId);
 
         return result.Code switch
         {
@@ -268,6 +274,7 @@ public class BoxExternalAccessHandler(
         FileExtId fileExternalId,
         GetZipContentDownloadLinkRequestDto request,
         BoxAccess boxAccess,
+        int? boxLinkId,
         CancellationToken cancellationToken)
     {
         if (boxAccess.IsOff || boxAccess.Box.Folder is null)
@@ -279,6 +286,7 @@ public class BoxExternalAccessHandler(
             zipFile: request.Item,
             contentDisposition: request.ContentDisposition,
             boxFolderId: boxAccess.Box.Folder.Id,
+            boxLinkId: boxLinkId,
             userIdentity: boxAccess.UserIdentity,
             cancellationToken: cancellationToken);
 
@@ -497,6 +505,7 @@ public class BoxExternalAccessHandler(
     public async Task<Results<Ok<BulkInitiateFileUploadResponseDto>, NotFound<HttpError>, StatusCodeHttpResult, BadRequest<HttpError>>> BulkInitiateFileUpload(
         BulkInitiateFileUploadRequestDto request,
         BoxAccess boxAccess,
+        int? boxLinkId,
         CancellationToken cancellationToken)
     {
         if (boxAccess.IsOff || boxAccess.Box.Folder is null)
@@ -515,6 +524,7 @@ public class BoxExternalAccessHandler(
             fileDetailsList: request.Items,
             userIdentity: boxAccess.UserIdentity,
             boxFolderId: boxAccess.Box.Folder.Id,
+            boxLinkId: boxLinkId,
             cancellationToken: cancellationToken);
 
         await workspaceCache.InvalidateEntry(
@@ -575,13 +585,17 @@ public class BoxExternalAccessHandler(
         FileUploadExtId fileUploadExternalId, 
         int partNumber,
         BoxAccess boxAccess,
+        int? boxLinkId,
+        bool enforceInternalPassThrough,
         CancellationToken cancellationToken)
     {
         var result = await initiateFilePartUploadOperation.Execute(
             workspace: boxAccess.Box.Workspace,
             fileUploadExternalId: fileUploadExternalId,
             partNumber: partNumber,
+            boxLinkId: boxLinkId,
             userIdentity: boxAccess.UserIdentity,
+            enforceInternalPassThrough: enforceInternalPassThrough,
             cancellationToken: cancellationToken);
         
         return result.Code switch

@@ -37,7 +37,7 @@ public static class UpdateWorkspaceCurrentSizeInBytesQuery
                 Code: ResultCode.WorkspaceNotFound);
         }
 
-        Log.Information("Workspace#{WorkspaceId} current size in bytes was updated to {CurrentSizeInBytes} bytes.",
+        Log.Debug("Workspace#{WorkspaceId} current size in bytes was updated to {CurrentSizeInBytes} bytes.",
             workspaceId,
             currentSizeInBytes);
 

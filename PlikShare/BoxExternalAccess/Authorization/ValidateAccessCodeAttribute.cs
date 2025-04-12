@@ -1,5 +1,6 @@
 using PlikShare.Boxes.Permissions;
 using PlikShare.BoxLinks.Cache;
+using PlikShare.BoxLinks.Validation;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
@@ -39,6 +40,7 @@ public class ValidateAccessCodeFilter(
                 BoxLinkSessionId: context.HttpContext.User.GetBoxLinkSessionIdOrThrow()));
 
         context.HttpContext.Items[BoxAccess.HttpContextName] = boxAccess;
+        context.HttpContext.Items[ValidateBoxLinkFilter.BoxLinkContext] = boxLinkContext;
         
         if (HasAllRequiredPermissions(boxAccess))
         {

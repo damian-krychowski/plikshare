@@ -1,0 +1,1 @@
+ALTER TABLE bl_box_links ADD COLUMN bl_widget_origins TEXT NULL;

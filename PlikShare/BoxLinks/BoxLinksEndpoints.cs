@@ -12,6 +12,8 @@ using PlikShare.BoxLinks.UpdateName;
 using PlikShare.BoxLinks.UpdateName.Contracts;
 using PlikShare.BoxLinks.UpdatePermissions;
 using PlikShare.BoxLinks.UpdatePermissions.Contracts;
+using PlikShare.BoxLinks.UpdateWidgetOrigins;
+using PlikShare.BoxLinks.UpdateWidgetOrigins.Contracts;
 using PlikShare.BoxLinks.Validation;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Utils;
@@ -32,6 +34,10 @@ public static class BoxLinksEndpoints
             .WithName("UpdateBoxLinkName")
             .AddEndpointFilter<ValidateBoxLinkFilter>();
 
+        group.MapPatch("/{boxLinkExternalId}/widget-origins", UpdateBoxLinkWidgetOrigins)
+            .WithName("UpdateBoxLinkWidgetOrigins")
+            .AddEndpointFilter<ValidateBoxLinkFilter>();
+
         group.MapPatch("/{boxLinkExternalId}/is-enabled", UpdateBoxLinkIsEnabled)
             .WithName("UpdateBoxLinkIsEnabled")
             .AddEndpointFilter<ValidateBoxLinkFilter>();
@@ -47,6 +53,35 @@ public static class BoxLinksEndpoints
         group.MapDelete("/{boxLinkExternalId}", DeleteBoxLink)
             .WithName("DeleteBoxLink")
             .AddEndpointFilter<ValidateBoxLinkFilter>();
+    }
+    
+    private static async Task<Results<Ok, NotFound<HttpError>>> UpdateBoxLinkWidgetOrigins(
+        [FromRoute] BoxLinkExtId boxLinkExternalId,
+        [FromBody] UpdateBoxLinkWidgetOriginsRequestDto request,
+        HttpContext httpContext,
+        UpdateBoxLinkWidgetOriginsQuery updateBoxLinkWidgetOriginsQuery,
+        BoxLinkCache boxLinkCache,
+        CancellationToken cancellationToken)
+    {
+        var resultCode = await updateBoxLinkWidgetOriginsQuery.Execute(
+            boxLink: httpContext.GetBoxLinkContext(),
+            widgetOrigins: request.WidgetOrigins,
+            cancellationToken: cancellationToken);
+
+        switch (resultCode)
+        {
+            case UpdateBoxLinkWidgetOriginsQuery.ResultCode.Ok:
+                await boxLinkCache.InvalidateEntry(boxLinkExternalId, cancellationToken);
+                return TypedResults.Ok();
+
+            case UpdateBoxLinkWidgetOriginsQuery.ResultCode.BoxLinkNotFound:
+                return HttpErrors.BoxLink.NotFound(boxLinkExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateBoxLinkWidgetOriginsQuery),
+                    resultValueStr: resultCode.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>>> DeleteBoxLink(

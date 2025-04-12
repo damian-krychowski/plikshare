@@ -260,17 +260,19 @@ public class HardDriveStorageClient: IStorageClient
             cancellationToken);
     }
 
-    public ValueTask<string> GetPreSignedUploadFilePartLink(
+    public ValueTask<PreSignedUploadLinkResult> GetPreSignedUploadFilePartLink(
         string bucketName, 
         FileUploadExtId fileUploadExternalId,
         S3FileKey key, 
         string uploadId, 
         int partNumber,
         string contentType,
+        int? boxLinkId,
         IUserIdentity userIdentity,
+        bool enforceInternalPassThrough,
         CancellationToken cancellationToken)
     {
-        var result = _preSignedUrlsService.GeneratePreSignedUploadUrl(
+        var url = _preSignedUrlsService.GeneratePreSignedUploadUrl(
             payload: new PreSignedUrlsService.UploadPayload
             {
                 FileUploadExternalId = fileUploadExternalId,
@@ -281,9 +283,15 @@ public class HardDriveStorageClient: IStorageClient
                     Identity = userIdentity.Identity,
                     IdentityType = userIdentity.IdentityType
                 },
-                ExpirationDate = _clock.UtcNow.Add(TimeSpan.FromMinutes(1))
+                ExpirationDate = _clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
+                BoxLinkId = boxLinkId
             });
 
+        var result = new PreSignedUploadLinkResult
+        {
+            Url = url,
+            IsCompleteFilePartUploadCallbackRequired = false
+        };
 
         return ValueTask.FromResult(result);
     }
@@ -294,7 +302,9 @@ public class HardDriveStorageClient: IStorageClient
         string contentType, 
         string fileName,
         ContentDispositionType contentDisposition,
+        int? boxLinkId,
         IUserIdentity userIdentity,
+        bool enforceInternalPassThrough,
         CancellationToken cancellationToken)
     {
         var result = _preSignedUrlsService.GeneratePreSignedDownloadUrl(
@@ -307,7 +317,8 @@ public class HardDriveStorageClient: IStorageClient
                     IdentityType = userIdentity.IdentityType
                 },
                 ContentDisposition = contentDisposition,
-                ExpirationDate = _clock.UtcNow.Add(TimeSpan.FromDays(1))
+                ExpirationDate = _clock.UtcNow.Add(TimeSpan.FromDays(1)),
+                BoxLinkId = boxLinkId
             });
         
         return ValueTask.FromResult(result);
@@ -400,12 +411,7 @@ public class HardDriveStorageClient: IStorageClient
 
         return Task.CompletedTask;
     }
-
-    public bool IsCompleteFilePartUploadCallbackRequired()
-    {
-        return false;
-    }
-
+    
     public (UploadAlgorithm Algorithm, int FilePartsCount) ResolveUploadAlgorithm(
         long fileSizeInBytes)
     {

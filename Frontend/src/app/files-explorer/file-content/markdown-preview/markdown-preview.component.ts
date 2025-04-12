@@ -79,7 +79,7 @@ export class MarkdownPreviewComponent implements OnChanges, OnDestroy {
 
     private async loadText(url: string): Promise<boolean> {
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, {credentials: 'include'});
             const text = await response.text();
     
             this.fileText.set(text);

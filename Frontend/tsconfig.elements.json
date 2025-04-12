@@ -1,0 +1,16 @@
+/* To learn more about this file see: https://angular.io/config/tsconfig. */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/app",
+    "resolveJsonModule": true,
+    "types": []
+  },
+  "files": [
+    "src/polyfills.ts",
+    "src/bootstrap-elements.ts",
+  ],
+  "include": [
+    "src/**/*.d.ts"
+  ]
+}

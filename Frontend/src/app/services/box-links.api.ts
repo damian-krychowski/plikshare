@@ -30,12 +30,26 @@ export interface RegenerateAccessCodeResponse {
     accessCode: string;
 }
 
+export interface UpdateBoxLinkWidgetOriginsRequest {
+    widgetOrigins: string[];
+}
+
 @Injectable({
     providedIn: 'root'
 })
 export class BoxLinksApi {
     constructor(
         private _http: HttpClient) {        
+    }
+
+    public async updateBoxLinkWidgetOrigins(workspaceExternalId: string, externalId: string, request: UpdateBoxLinkWidgetOriginsRequest): Promise<void> {
+        const call = this
+            ._http
+            .patch<void>(
+                `/api/workspaces/${workspaceExternalId}/box-links/${externalId}/widget-origins`,
+                request);
+
+        return await firstValueFrom(call);
     }
 
     public async updateBoxLinkName(workspaceExternalId: string, externalId: string, request: UpdateBoxLinkNameRequest): Promise<void> {

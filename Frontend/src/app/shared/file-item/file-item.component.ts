@@ -1,4 +1,4 @@
-import { signal, Component, WritableSignal, Signal, input, computed, output, OnInit, OnDestroy } from "@angular/core";
+import { signal, Component, WritableSignal, input, computed, output, OnInit, OnDestroy } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatTooltipModule } from "@angular/material/tooltip";
@@ -12,7 +12,6 @@ import { FileIconPipe } from "../../files-explorer/file-icon-pipe/file-icon.pipe
 import { InAppSharing } from "../../services/in-app-sharing.service";
 import { NavigationExtras } from "@angular/router";
 import { ActionButtonComponent } from "../buttons/action-btn/action-btn.component";
-import { FileLockService } from "../../services/file-lock.service";
 import { observeIsHighlighted } from "../../services/is-highlighted-utils";
 import { ContentDisposition } from "../../services/folders-and-files.api";
 
@@ -42,6 +41,8 @@ export interface FileOperations {
     getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => Promise<{downloadPreSignedUrl: string}>;
     openFolderFunc: (folderExternalId: string | null, navigationExtras: NavigationExtras | null) => void;
     prefetchFolderFunc: (folderExternalId: string | null) => void;
+    subscribeToLockStatus: (file: AppFileItem) => void;
+    unsubscribeFromLockStatus: (fileExternalId: string) => void;
 }
 
 @Component({
@@ -105,16 +106,15 @@ export class FileItemComponent implements OnInit, OnDestroy {
         || this.file().wasUploadedByUser));
 
     constructor(
-        private _inAppSharing: InAppSharing,
-        private _fileLockService: FileLockService        
+        private _inAppSharing: InAppSharing
     ){}
    
     ngOnInit(): void {
-        this._fileLockService.subscribeToLockStatus(this.file());
+        this.operations().subscribeToLockStatus(this.file());
     }
     
     ngOnDestroy(): void {
-        this._fileLockService.unsubscribe(this.file().externalId);
+        this.operations().unsubscribeFromLockStatus(this.file().externalId);
     }
 
     buildFolderPath(file: AppFileItem) {

@@ -1,0 +1,103 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        Widget Setup
+    </div>
+
+    <form #originsForm="ngForm" class="questionaire__form" (submit)="onSave()" autocomplete="off">
+        <div class="widget-setup">
+            <div class="widget-setup__info">
+                Configure allowed origins for your widget and get the code to embed it on your website.
+            </div>
+
+            <div class="widget-setup__section">
+                <h3 class="widget-setup__subtitle">Allowed Origins</h3>
+
+                <p class="widget-setup__description">
+                    Add the domains where your widget will be embedded. Only HTTPS origins are allowed.
+                </p>
+
+                @for(origin of origins(); track origin.id) {
+                    <mat-form-field class="questionaire__form-field">
+                        <mat-label>Origin</mat-label>
+                        
+                        <input #originInput="ngModel"
+                            [id]="origin.id"
+                            [name]="origin.id"
+                            [(ngModel)]="origin.value"
+                            type="text" 
+                            matInput
+                            required
+                            pattern="^https:\/\/(localhost(:[0-9]+)?|([a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z0-9][-a-zA-Z0-9]*)+)(:[0-9]+)?)$"
+                            data-lpignore="true"
+                            placeholder="https://example.com"
+                            autofocus>
+        
+                        @if(originInput.hasError('pattern') && !originInput.hasError('required')) {
+                            <mat-error>
+                                Please enter a valid HTTPS origin
+                            </mat-error>
+                        }
+        
+                        @if(originInput.hasError('required')) {
+                            <mat-error>
+                                Origin is <strong>required</strong>
+                            </mat-error>
+                        }
+        
+                        <app-action-btn                    
+                            class="remove-origin-btn"
+                            tooltip="Remove"
+                            tooltipPosition="left"
+                            icon="icon-lucide-xmark"
+                            (clicked)="removeOrigin(origin.id)">
+                        </app-action-btn>
+                    </mat-form-field>
+                }
+
+                <div class="flex-row">
+                    <app-action-btn 
+                        [tooltip]="'Add origin'"
+                        class="ml-auto mr-1"
+                        icon="icon-lucide-plus"
+                        (clicked)="addOrigin()">                
+                    </app-action-btn>
+                </div>
+            </div>
+
+            <div class="widget-setup__section">
+                <h3 class="widget-setup__subtitle">Widget Installation</h3>
+                <p class="widget-setup__description">
+                    Add these scripts to the <code>&lt;head&gt;</code> of your HTML document:
+                </p>
+
+                <div class="code-snippet">
+                    <pre><code>{{ scriptTags() }}</code></pre>
+                    <i class="icon icon-nucleo-copy icon-copy-scripts"
+                        (click)="copyWidgetScriptsToClipboard()"></i>
+                </div>
+
+                <p class="widget-setup__description">
+                    Then, place this widget tag wherever you want the widget to appear:
+                </p>
+
+                <div class="code-snippet">
+                    <pre><code>{{ widgetTag() }}</code></pre>
+                    <i class="icon icon-nucleo-copy icon-copy-tag"
+                        (click)="copyWidgetTagToClipboard()"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="questionaire__actions">
+            <button type="button" class="questionaire__btn mr-1" mat-flat-button
+                aria-label="Cancel"
+                (click)="onCancel()">
+                Cancel
+            </button>
+
+            <button type="submit" class="questionaire__btn" mat-flat-button [disabled]="!originsForm.valid">
+                Save
+            </button>  
+        </div>
+    </form>
+</div>

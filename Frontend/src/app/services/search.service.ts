@@ -11,6 +11,7 @@ import { NavigationExtras, Router } from "@angular/router";
 import { AppFileItem, FileOperations } from "../shared/file-item/file-item.component";
 import { AppExternalBox } from "../shared/external-box-item/external-box-item.component";
 import { ExternalBoxesGetApi, ExternalBoxesSetApi } from "../external-access/external-box/external-boxes.api";
+import { FileLockService } from "./file-lock.service";
 
 export type DashboardSearchItem = WorkspaceSearchItem 
     | ExternalBoxSearchItem;
@@ -134,6 +135,7 @@ export class SearchService {
         private _foldersAndFilesSetApi: FoldersAndFilesSetApi,
         private _externalBoxesSetApi: ExternalBoxesSetApi,        
         private _externalBoxesGetApi: ExternalBoxesGetApi,
+        private _fileLockService: FileLockService,        
         private _dataStore: DataStore,
         private _router: Router) {
     }
@@ -580,6 +582,9 @@ export class SearchService {
                 workspaceExternalId, 
                 fileExternalId,
                 contentDisposition),
+                
+            subscribeToLockStatus: (file: AppFileItem) => this._fileLockService.subscribeToLockStatus(file),
+            unsubscribeFromLockStatus: (fileExternalId: string) => this._fileLockService.unsubscribe(fileExternalId)
         }
     }
 
@@ -651,7 +656,10 @@ export class SearchService {
                 boxExternalId, 
                 fileExternalId,
                 contentDisposition
-            )
+            ),
+
+            subscribeToLockStatus: (file: AppFileItem) => this._fileLockService.subscribeToLockStatus(file),
+            unsubscribeFromLockStatus: (fileExternalId: string) => this._fileLockService.unsubscribe(fileExternalId)
         }
     }
 }

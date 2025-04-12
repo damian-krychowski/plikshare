@@ -1,4 +1,3 @@
-import { XSRF_TOKEN_HEADER_NAME } from "../../shared/xsrf";
 import { IFileSlicer } from "./file-upload-manager";
 
 export const MAXIMUM_PARALLEL_UPLOADS = 5;
@@ -31,7 +30,8 @@ export class FileUploadUtils {
             headers: {
                 'Content-Type': args.contentType
             },
-            signal: args.abortSignal
+            signal: args.abortSignal,
+            credentials: 'include'
         });
 
         if (!response.ok) {

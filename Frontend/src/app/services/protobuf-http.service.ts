@@ -12,13 +12,18 @@ export class ProtoHttp {
         private _http: HttpClient) {        
     }
 
-    public async get<TResponse>(args: { route: string, responseProtoType: protobuf.Type }): Promise<TResponse> {
+    public async get<TResponse>(args: { 
+        route: string, 
+        responseProtoType: protobuf.Type,
+        withCredentials?: boolean
+    }): Promise<TResponse> {
         const call = this._http.get(args.route,{
                 responseType: 'arraybuffer',
                 headers: new HttpHeaders({
                     'Accept': 'application/x-protobuf',
                     'Accept-Encoding': 'gzip' 
                 }),
+                withCredentials: args.withCredentials
             }
         );
     
@@ -35,7 +40,8 @@ export class ProtoHttp {
             request: TRequest,
             requestProtoType: protobuf.Type, 
             responseProtoType: protobuf.Type,
-            xsrfToken?: string
+            xsrfToken?: string,
+            withCredentials?: boolean
         }
     ): Promise<TResponse> {
 
@@ -55,6 +61,7 @@ export class ProtoHttp {
         const call = this._http.post(args.route, blob, {
             responseType: 'arraybuffer',
             headers: headers,
+            withCredentials: args.withCredentials
         });
 
         // Handle response
@@ -70,7 +77,8 @@ export class ProtoHttp {
             route: string, 
             request: TRequest,
             responseProtoType: protobuf.Type ,
-            xsrfToken?: string
+            xsrfToken?: string,
+            withCredentials?: boolean
         }
     ): Promise<TResponse> {      
         let headers = new HttpHeaders({
@@ -86,6 +94,7 @@ export class ProtoHttp {
         const call = this._http.post(args.route, args.request, {
             responseType: 'arraybuffer',
             headers: headers,
+            withCredentials: args.withCredentials
         });
 
         // Handle response

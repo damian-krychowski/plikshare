@@ -21,6 +21,14 @@
 
                     {{ url() }} <i class="icon icon-sm icon-nucleo-copy"></i>
                 </div>
+
+                @let widgetOriginsCount = widgetOrigins().length;
+                
+                @if(widgetOriginsCount > 0) {
+                    <div class="item__subtitle">
+                        Configured widgets: {{widgetOriginsCount}}
+                    </div>
+                }
             </div>
         </div>
 
@@ -40,6 +48,13 @@
                     (change)="changeLinkIsEnabled()">
                 </mat-slide-toggle>
             
+                <app-action-btn
+                    tooltip="Widget setup"
+                    icon="icon-nucleo-widget"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    (clicked)="openWidgetPopup()">
+                </app-action-btn>
+
                 <app-action-btn
                     tooltip="Regenerate link"
                     icon="icon-nucleo-reload"

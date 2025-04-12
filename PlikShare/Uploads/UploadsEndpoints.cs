@@ -80,6 +80,7 @@ public static class UploadsEndpoints
             userIdentity: new UserIdentity(
                 UserExternalId: workspaceMembership.User.ExternalId),
             boxFolderId: null,
+            boxLinkId: null,
             cancellationToken: cancellationToken);
 
         await workspaceCache.InvalidateEntry(
@@ -150,7 +151,9 @@ public static class UploadsEndpoints
             workspace: workspaceMembership.Workspace,
             fileUploadExternalId: fileUploadExternalId,
             partNumber: partNumber,
+            boxLinkId: null,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
+            enforceInternalPassThrough: false,
             cancellationToken: cancellationToken);
 
         return result.Code switch

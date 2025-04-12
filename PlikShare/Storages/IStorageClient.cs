@@ -32,14 +32,16 @@ public interface IStorageClient
         List<PartETag> partETags,
         CancellationToken cancellationToken = default);
     
-    ValueTask<string> GetPreSignedUploadFilePartLink(
+    ValueTask<PreSignedUploadLinkResult> GetPreSignedUploadFilePartLink(
         string bucketName,
         FileUploadExtId fileUploadExternalId,
         S3FileKey key,
         string uploadId,
         int partNumber,
         string contentType,
+        int? boxLinkId,
         IUserIdentity userIdentity,
+        bool enforceInternalPassThrough,
         CancellationToken cancellationToken = default);
 
     ValueTask<string> GetPreSignedDownloadFileLink(
@@ -48,7 +50,9 @@ public interface IStorageClient
         string contentType,
         string fileName,
         ContentDispositionType contentDisposition,
+        int? boxLinkId,
         IUserIdentity userIdentity,
+        bool enforceInternalPassThrough,
         CancellationToken cancellationToken = default);
 
     Task AbortMultiPartUpload(
@@ -65,13 +69,17 @@ public interface IStorageClient
     Task DeleteBucket(
         string bucketName,
         CancellationToken cancellationToken = default);
-
-    bool IsCompleteFilePartUploadCallbackRequired();
-
+    
     (UploadAlgorithm Algorithm, int FilePartsCount) ResolveUploadAlgorithm(
         long fileSizeInBytes);
     (UploadAlgorithm Algorithm, int FilePartsCount) ResolveCopyUploadAlgorithm(
         long fileSizeInBytes);
 
     string GenerateFileS3KeySecretPart();
+}
+
+public class PreSignedUploadLinkResult
+{
+    public required string Url { get; init; }
+    public required bool IsCompleteFilePartUploadCallbackRequired { get; init; }
 }

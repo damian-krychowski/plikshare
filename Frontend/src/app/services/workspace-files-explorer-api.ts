@@ -1,5 +1,7 @@
 import { FilesExplorerApi } from "../files-explorer/files-explorer.component";
+import { AppFileItem } from "../shared/file-item/file-item.component";
 import { DataStore } from "./data-store.service";
+import { FileLockService } from "./file-lock.service";
 import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, FilePreviewDetailsField, FoldersAndFilesGetApi, FoldersAndFilesSetApi, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFilesTreeResponseDto, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from "./folders-and-files.api";
 import { ZipEntry } from "./zip";
 
@@ -9,6 +11,7 @@ export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
         private _setApi: FoldersAndFilesSetApi,
         private _getApi: FoldersAndFilesGetApi,
         private _dataStore: DataStore,
+        private _fileLockService: FileLockService,
         private _workspaceExternalId: string
     ) {
 
@@ -243,5 +246,13 @@ export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
             this._workspaceExternalId,
             fileExternalId,
             fileArtifactExternalId);
+    }
+
+    subscribeToLockStatus(file: AppFileItem) {
+        this._fileLockService.subscribeToLockStatus(file)
+    }
+
+    unsubscribeFromLockStatus (fileExternalId: string) {
+        this._fileLockService.unsubscribe(fileExternalId);
     }
 }

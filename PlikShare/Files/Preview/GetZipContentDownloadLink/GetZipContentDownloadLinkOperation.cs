@@ -20,6 +20,7 @@ public class GetZipContentDownloadLinkOperation(
         ZipFileDto zipFile,
         ContentDispositionType contentDisposition,
         int? boxFolderId,
+        int? boxLinkId,
         IUserIdentity userIdentity,
         CancellationToken cancellationToken)
     {
@@ -54,7 +55,8 @@ public class GetZipContentDownloadLinkOperation(
                     IdentityType = userIdentity.IdentityType
                 },
                 ExpirationDate = clock.UtcNow.AddMinutes(10),
-                ContentDisposition = contentDisposition
+                ContentDisposition = contentDisposition,
+                BoxLinkId = boxLinkId
             });
 
         return new Result(

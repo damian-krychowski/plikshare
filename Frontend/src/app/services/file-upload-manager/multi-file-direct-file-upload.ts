@@ -85,7 +85,8 @@ export class MultiFileDirectFileUpload implements IFileUpload {
                         'x-number-of-files': this.detailsList.length.toString()
                     },
                     body: formData,
-                    signal: abortSignal
+                    signal: abortSignal,
+                    credentials: 'include'
                 })
                 .then(async response => {
                     if (!response.ok) {

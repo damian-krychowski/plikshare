@@ -14,7 +14,9 @@ public class InitiateFilePartUploadOperation(
         WorkspaceContext workspace,
         FileUploadExtId fileUploadExternalId,
         int partNumber,
+        int? boxLinkId,
         IUserIdentity userIdentity,
+        bool enforceInternalPassThrough,
         CancellationToken cancellationToken)
     {
         var fileUpload = await GetFileUploadFromCache(
@@ -46,7 +48,7 @@ public class InitiateFilePartUploadOperation(
             return new Result(Code: ResultCode.FileUploadPartNumberNotAllowed);
         }
 
-        var preSignedUrl = await workspace
+        var preSignedUrlResult = await workspace
             .Storage
             .GetPreSignedUploadFilePartLink(
                 bucketName: workspace.BucketName,
@@ -55,7 +57,9 @@ public class InitiateFilePartUploadOperation(
                 uploadId: fileUpload.FileToUpload.S3UploadId,
                 partNumber: partNumber,
                 contentType: fileUpload.ContentType,
+                boxLinkId: boxLinkId,
                 userIdentity: userIdentity,
+                enforceInternalPassThrough: enforceInternalPassThrough,
                 cancellationToken: cancellationToken);
 
         var (startsAtByte, endsAtByte) = FileParts.GetPartByteRange(
@@ -73,12 +77,10 @@ public class InitiateFilePartUploadOperation(
         return new Result(
             Code: ResultCode.FilePartUploadInitiated,
             Details: new FilePartUploadDetails(
-                UploadPreSignedUrl: preSignedUrl,
+                UploadPreSignedUrl: preSignedUrlResult.Url,
                 StartsAtByte: startsAtByte,
                 EndsAtByte: endsAtByte,
-                IsCompleteFilePartUploadCallbackRequired: workspace
-                    .Storage
-                    .IsCompleteFilePartUploadCallbackRequired()));
+                IsCompleteFilePartUploadCallbackRequired: preSignedUrlResult.IsCompleteFilePartUploadCallbackRequired));
     }
 
     private async ValueTask<FileUploadContext?> GetFileUploadFromCache(

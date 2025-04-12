@@ -46,6 +46,7 @@ public class GetBoxResponseDto
         public required bool IsEnabled { get; set; }
         public required string Name { get; set; }
         public required Permissions Permissions { get; set; }
+        public required List<string> WidgetOrigins { get; set; }
     }
 
     public class Permissions

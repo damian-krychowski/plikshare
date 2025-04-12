@@ -250,6 +250,7 @@ public static class FilesEndpoints
             zipFile: request.Item,
             contentDisposition: request.ContentDisposition,
             boxFolderId: null,
+            boxLinkId: null,
             userIdentity: new UserIdentity(
                 UserExternalId: workspaceMembership.User.ExternalId),
             cancellationToken: cancellationToken);
@@ -495,7 +496,8 @@ public static class FilesEndpoints
             workspace: workspaceMembership.Workspace,
             request: request,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
-            boxFolderId: null);
+            boxFolderId: null,
+            boxLinkId: null);
 
         return result.Code switch
         {
@@ -535,8 +537,10 @@ public static class FilesEndpoints
             workspace: workspaceMembership.Workspace,
             fileExternalId: fileExternalId,
             boxFolderId: null,
+            boxLinkId: null,
             contentDisposition: contentDispositionType,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
+            enforceInternalPassThrough: false,
             cancellationToken: cancellationToken);
 
         return result.Code switch

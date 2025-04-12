@@ -9,6 +9,9 @@ import { toggle } from "../../../../shared/signal-utils";
 import { ClipboardModule, Clipboard } from '@angular/cdk/clipboard';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActionButtonComponent } from "../../../../shared/buttons/action-btn/action-btn.component";import { MatTooltipModule } from "@angular/material/tooltip";
+import { MatDialog } from "@angular/material/dialog";
+import { BoxWidgetComponent } from "../../../../external-access/box-widget/box-widget.component";
+import { BoxWidgetSetupComponent } from "../box-widget-setup/box-widget-setup.component";
 ;
 
 export type AppBoxLink = {
@@ -18,6 +21,7 @@ export type AppBoxLink = {
 
     name: WritableSignal<string>;
     isEnabled: WritableSignal<boolean>;
+    widgetOrigins: WritableSignal<string[]>;
 
     permissions: AppBoxPermissions;
 
@@ -52,6 +56,7 @@ export class BoxLinkItemComponent {
 
     isEnabled = computed(() => this.link().isEnabled());
     isNameEditing = computed(() => this.link().isNameEditing());
+    widgetOrigins = computed((() => this.link().widgetOrigins()));
 
     areActionsVisible = signal(false);
 
@@ -59,7 +64,8 @@ export class BoxLinkItemComponent {
         private _router: Router,
         private _boxLinksApi: BoxLinksApi,
         private _clipboard: Clipboard,
-        private _snackBar: MatSnackBar
+        private _snackBar: MatSnackBar,
+        private _dialog: MatDialog
     ) {
 
     }
@@ -181,5 +187,36 @@ export class BoxLinkItemComponent {
                 duration: 2000,
             });
         }
+    }
+
+    openWidgetPopup() {
+        const dialogRef = this._dialog.open(BoxWidgetSetupComponent, {
+            width: '900px',
+            maxHeight: '80vh',
+            position: {
+                top: '100px'
+            },
+            data: {
+                url: this.url(),
+                origins: this.widgetOrigins()
+            }
+        });
+        
+        dialogRef.afterClosed().subscribe(async (widgetOrigins: string[] | undefined) => {
+            if(!widgetOrigins)
+                return;
+
+            const link = this.link();
+            const externalId = link.externalId();
+
+            if (!externalId)
+                return;
+
+            link.widgetOrigins.set(widgetOrigins);
+
+            await this._boxLinksApi.updateBoxLinkWidgetOrigins(link.workspaceExternalId, externalId, {
+                widgetOrigins: widgetOrigins
+            });
+        });
     }
 }

@@ -6,6 +6,7 @@ using Microsoft.Net.Http.Headers;
 using PlikShare.Antiforgery;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
+using PlikShare.Core.CORS;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
@@ -45,7 +46,8 @@ public static class PreSignedFilesEndpoints
     {
         var group = app.MapGroup("/api/files")
             .WithTags("PreSignedFiles")
-            .RequireAuthorization(policyNames: AuthPolicy.InternalOrBoxLink);
+            .RequireAuthorization(policyNames: AuthPolicy.InternalOrBoxLink)
+            .RequireCors(CorsPolicies.PreSignedLink);
         
         group.MapGet("/{protectedPayload}", DownloadFile)
             .WithName("DownloadFile")
@@ -70,7 +72,8 @@ public static class PreSignedFilesEndpoints
     {
         var group = app.MapGroup("/api/zip-files")
             .WithTags("PreSignedZipFiles")
-            .RequireAuthorization(policyNames: AuthPolicy.InternalOrBoxLink);
+            .RequireAuthorization(policyNames: AuthPolicy.InternalOrBoxLink)
+            .RequireCors(CorsPolicies.PreSignedLink);
 
         group.MapGet("/{protectedPayload}", DownloadZipFileContent)
             .WithName("DownloadZipFileContent")

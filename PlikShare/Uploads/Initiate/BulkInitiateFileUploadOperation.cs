@@ -35,14 +35,12 @@ public class BulkInitiateFileUploadOperation(
         BulkInitiateFileUploadItemDto[] fileDetailsList,
         IUserIdentity userIdentity,
         int? boxFolderId,
+        int? boxLinkId,
         CancellationToken cancellationToken = default)
     {
-        var isBoxMode = boxFolderId is not null;
-
         var workspaceSpace = CheckWorkspaceSpace(
             workspace: workspace,
-            fileDetailsList: fileDetailsList,
-            isBoxMode: isBoxMode);
+            fileDetailsList: fileDetailsList);
 
         if (!workspaceSpace.IsAvailable)
             return new Result(Code: ResultCode.NotEnoughSpace);
@@ -116,10 +114,11 @@ public class BulkInitiateFileUploadOperation(
 
         var response = PrepareResponse(
             workspace: workspace,
+            boxLinkId: boxLinkId,
             userIdentity: userIdentity,
             batchUploadResults: batchUploadResults,
-            newWorkspaceSizeInBytes: isBoxMode 
-                ? null 
+            newWorkspaceSizeInBytes: boxFolderId is not null
+                ? null  //not to reveal size of the workspace to unauthorized users of a box
                 : workspaceSpace.NewWorkspaceSizeInBytes);
 
         return new Result(
@@ -129,16 +128,8 @@ public class BulkInitiateFileUploadOperation(
 
     private WorkspaceSpace CheckWorkspaceSpace(
         WorkspaceContext workspace,
-        BulkInitiateFileUploadItemDto[] fileDetailsList,
-        bool isBoxMode)
+        BulkInitiateFileUploadItemDto[] fileDetailsList)
     {
-        //for now for box we do not return size of the workspace
-        //not to reveale this information to unauthorized users
-        if (workspace.MaxSizeInBytes is null && isBoxMode)
-            return new WorkspaceSpace(
-                IsAvailable: true,
-                NewWorkspaceSizeInBytes: -1);
-
         var newFilesSizeInBytes = fileDetailsList
             .Aggregate(0L, (requiredSpace, file) => requiredSpace + file.FileSizeInBytes);
 
@@ -155,7 +146,8 @@ public class BulkInitiateFileUploadOperation(
 
 
     private BulkInitiateFileUploadResponseDto PrepareResponse(
-        WorkspaceContext workspace, 
+        WorkspaceContext workspace,
+        int? boxLinkId,
         IUserIdentity userIdentity,
         List<UploadDetails> batchUploadResults,
         long? newWorkspaceSizeInBytes)
@@ -210,7 +202,8 @@ public class BulkInitiateFileUploadOperation(
                                 Identity = userIdentity.Identity,
                                 IdentityType = userIdentity.IdentityType
                             },
-                            ExpirationDate = clock.UtcNow.AddMinutes(15)
+                            ExpirationDate = clock.UtcNow.AddMinutes(15),
+                            BoxLinkId = boxLinkId
                         })
                 }
                 : null,

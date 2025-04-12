@@ -43,7 +43,7 @@ export class ImagePreviewComponent implements OnChanges {
 
     async loadImageWithMetadata(url: string): Promise<void> {    
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, {credentials: 'include'});
             const arrayBuffer = await response.arrayBuffer();
             const mimeType = getMimeType(this.fileExtension());
             const blob = new Blob([arrayBuffer], { type: mimeType });

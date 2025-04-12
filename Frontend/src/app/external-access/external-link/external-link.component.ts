@@ -13,6 +13,7 @@ import { AppFolderItem } from '../../shared/folder-item/folder-item.component';
 import { AppFileItem } from '../../shared/file-item/file-item.component';
 import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, ContentDisposition, CountSelectedItemsRequest, CreateFolderRequest, FilePreviewDetailsField, GetBulkDownloadLinkRequest, GetFolderResponse, SearchFilesTreeRequest, SendAiFileMessageRequest, StartTextractJobRequest, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
 import { BulkInitiateFileUploadRequest } from '../../services/uploads.api';
+import { FileLockService } from '../../services/file-lock.service';
 
 @Component({
     selector: 'app-external-link',
@@ -65,6 +66,7 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
         private _router: Router,
         private _sanitizer: DomSanitizer,
         private _dataStore: DataStore,
+        private _fileLockService: FileLockService
     ) { 
         this.filesApi = signal(this.getFilesExplorerApi());
         this.uploadsApi = signal(this.getFileUploadApi());
@@ -389,6 +391,9 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
             prefetchAiMessages: async (fileExternalId: string, fileArtifactExternalId: string) => {
                 throw new Error("not implemented")
             },
+
+            subscribeToLockStatus: (file: AppFileItem) => this._fileLockService.subscribeToLockStatus(file),
+            unsubscribeFromLockStatus: (fileExternalId: string) => this._fileLockService.unsubscribe(fileExternalId)
         };
     }
 }

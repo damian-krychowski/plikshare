@@ -53,7 +53,8 @@ public class create_box_link_tests: TestFixture
                     AllowDeleteFolder = false,
                     AllowUpload = false,
                     AllowDownload = false,
-                }
+                },
+                WidgetOrigins = []
             }
         ]);
     }

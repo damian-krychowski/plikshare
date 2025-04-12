@@ -27,6 +27,7 @@ import { ActionButtonComponent } from '../../../shared/buttons/action-btn/action
 import { AppBoxRichTextItem, BoxRichTextEditorComponent } from './box-rich-text-editor/box-rich-text-editor.component';
 import { WorkspacesApi } from '../../../services/workspaces.api';
 import { GenericDialogService } from '../../../shared/generic-message-dialog/generic-dialog-service';
+import { FileLockService } from '../../../services/file-lock.service';
 
 type BoxFolder = {
     externalId: string;
@@ -135,7 +136,8 @@ export class BoxDetailsComponent implements OnInit, OnDestroy {
         private _dialog: MatDialog,
         private _auth: AuthService, 
         private _dataStore: DataStore,        
-        private _genericDialogService: GenericDialogService
+        private _genericDialogService: GenericDialogService,
+        private _fileLockService: FileLockService
     ) {
      }
 
@@ -171,6 +173,7 @@ export class BoxDetailsComponent implements OnInit, OnDestroy {
             this._setApi,
             this._getApi,
             this._dataStore,
+            this._fileLockService,
             this.workspaceExternalIdValue
         ));
 
@@ -251,6 +254,7 @@ export class BoxDetailsComponent implements OnInit, OnDestroy {
                     accessCode: signal(link.accessCode),
                     isEnabled: signal(link.isEnabled),
                     name: signal(link.name), 
+                    widgetOrigins: signal(link.widgetOrigins),
                     permissions: this.mapDtoToPermissions(link.permissions),
                     isNameEditing: signal(false)
                 };
@@ -394,6 +398,7 @@ export class BoxDetailsComponent implements OnInit, OnDestroy {
 
             name: signal('untitled link'),
             isEnabled: signal(true),
+            widgetOrigins: signal([]),
             
             permissions: {
                 allowList: signal(true),

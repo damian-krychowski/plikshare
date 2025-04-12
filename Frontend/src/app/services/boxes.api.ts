@@ -86,7 +86,8 @@ export interface BoxLink {
     name: string;
     isEnabled: boolean;
     accessCode: string;
-    permissions: BoxPermissions;    
+    permissions: BoxPermissions;   
+    widgetOrigins: string[]; 
 }
 
 export interface CreateBoxMemberInvitationRequest {

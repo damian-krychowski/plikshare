@@ -8,7 +8,8 @@ public static class AntiforgeryEndpoints
     public static void MapAntiforgeryEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/antiforgery")
-            .WithTags("AntiForgery");
+            .WithTags("AntiForgery")
+            .RequireCors("AllowAll");
 
         group.MapGet("/token", GetToken)
             .WithName("GetAntiforgeryToken")

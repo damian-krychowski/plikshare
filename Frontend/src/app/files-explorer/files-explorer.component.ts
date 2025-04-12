@@ -77,6 +77,9 @@ export interface FilesExplorerApi {
     getAiMessages(fileExternalId: string, fileArtifactExternalId: string, fromConversationCounter: number): Promise<GetAiMessagesResponse>;
     getAllAiMessages(fileExternalId: string, fileArtifactExternalId: string): Promise<GetAiMessagesResponse>;
     prefetchAiMessages(fileExternalId: string, fileArtifactExternalId: string): void;
+
+    subscribeToLockStatus: (file: AppFileItem) => void;
+    unsubscribeFromLockStatus: (fileExternalId: string) => void;    
 }
 
 export type InitialContent = {
@@ -406,7 +409,13 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
             this.filesApi().getAllAiMessages(fileExternalId, fileArtifactExternalId),
 
         prefetchAiMessages: (fileExternalId: string, fileArtifactExternalId: string) =>
-            this.filesApi().prefetchAiMessages(fileExternalId, fileArtifactExternalId)
+            this.filesApi().prefetchAiMessages(fileExternalId, fileArtifactExternalId),
+
+        subscribeToLockStatus: (file: AppFileItem) =>
+            this.filesApi().subscribeToLockStatus(file),
+
+        unsubscribeFromLockStatus: (fileExternalId: string) =>
+            this.filesApi().unsubscribeFromLockStatus(fileExternalId)
     }
 
     textractJobStatusService = new TextractJobStatusService(

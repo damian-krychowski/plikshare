@@ -33,7 +33,7 @@ export class TextPreviewComponent implements OnChanges, OnDestroy {
 
     private async loadText(url: string): Promise<boolean> {
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, {credentials: 'include'});
             const text = await response.text();
     
             this.fileText.set(text);
@@ -50,8 +50,6 @@ export class TextPreviewComponent implements OnChanges, OnDestroy {
     }
 
     startResize(event: MouseEvent) {
-        console.log("resizing")
-
         event.preventDefault();
         this.isResizing = true;
         document.addEventListener('mousemove', this.handleResize);

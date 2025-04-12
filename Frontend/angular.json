@@ -70,6 +70,65 @@
           },
           "defaultConfiguration": "production"
         },
+        "build-elements": {
+          "builder": "@angular-devkit/build-angular:browser",
+          "options": {
+            "outputPath": "dist/plikshare/elements",
+            "index": "src/index.html",
+            "main": "src/bootstrap-elements.ts",
+            "polyfills": [
+              "@angular/localize/init",
+              "src/polyfills.ts"
+            ],
+            "tsConfig": "tsconfig.elements.json",
+            "inlineStyleLanguage": "scss",
+            "optimization": true,
+            "styles": [
+              "src/styles.scss"
+            ],
+            "scripts": [
+              "./node_modules/@popperjs/core/dist/umd/popper.min.js",
+              "./node_modules/mermaid/dist/mermaid.min.js",
+              "./node_modules/clipboard/dist/clipboard.min.js"
+            ],
+            "aot": true,
+            "extractLicenses": false,
+            "sourceMap": false
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kb",
+                  "maximumError": "5mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "2kb",
+                  "maximumError": "300kb"
+                }
+              ],
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                }
+              ],
+              "outputHashing": "none",
+              "buildOptimizer": true,
+              "extractLicenses": false,
+              "aot": true,
+              "optimization": true
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {

@@ -54,6 +54,7 @@ using PlikShare.BoxLinks.RegenerateAccessCode;
 using PlikShare.BoxLinks.UpdateIsEnabled;
 using PlikShare.BoxLinks.UpdateName;
 using PlikShare.BoxLinks.UpdatePermissions;
+using PlikShare.BoxLinks.UpdateWidgetOrigins;
 using PlikShare.BulkDelete;
 using PlikShare.BulkDownload;
 using PlikShare.Core.Angular;
@@ -61,6 +62,7 @@ using PlikShare.Core.Authorization;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Configuration;
 using PlikShare.Core.CorrelationId;
+using PlikShare.Core.CORS;
 using PlikShare.Core.Database.MainDatabase.Migrations;
 using PlikShare.Core.Emails;
 using PlikShare.Core.Emails.Alerts;
@@ -146,6 +148,7 @@ using PlikShare.Integrations.OpenAi.ChatGpt.Register;
 using PlikShare.Integrations.OpenAi.ChatGpt.TestConfiguration;
 using PlikShare.Integrations.UpdateName;
 using PlikShare.Locks;
+using PlikShare.Locks.CheckFileLocks;
 using PlikShare.Search;
 using PlikShare.Search.Get;
 using PlikShare.Storages;
@@ -195,6 +198,7 @@ using PlikShare.Users.UpdateDefaultMaxWorkspaceTeamMembers;
 using PlikShare.Users.UpdateMaxWorkspaceNumber;
 using PlikShare.Users.UpdatePermissionsAndRoles;
 using PlikShare.Users.UserIdentityResolver;
+using PlikShare.Widgets;
 using PlikShare.Workspaces;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.ChangeOwner;
@@ -250,6 +254,8 @@ public class Startup
             };
         }).AddSerializerFactory(new PlikShareJsonHybridCacheSerializerFactory());
 
+        builder.SetupCors();
+
         SetupJsonSerialization(builder);
 
         builder.UseVolumes();
@@ -276,6 +282,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_17_WorkspaceMaxSizeColumnIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_18_UserMaxWorkspaceNumberAndMaxWorkspaceSizeColumnsIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_19_MaxWorkspaceTeamMembersColumnsIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_20_WidgetOriginsColumnAddedToBoxLinksTable>();
         
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 
@@ -474,6 +481,7 @@ public class Startup
 
         builder.Services.AddSingleton<CreateBoxLinkQuery>();
         builder.Services.AddSingleton<UpdateBoxLinkNameQuery>();
+        builder.Services.AddSingleton<UpdateBoxLinkWidgetOriginsQuery>();
         builder.Services.AddSingleton<UpdateBoxLinkIsEnabledQuery>();
         builder.Services.AddSingleton<UpdateBoxLinkPermissionsQuery>();
         builder.Services.AddSingleton<RegenerateBoxLinkAccessCodeQuery>();
@@ -609,6 +617,8 @@ public class Startup
 
         builder.Services.AddSingleton<CreateOrUpdateSignUpCheckboxQuery>();
         builder.Services.AddSingleton<DeleteSignUpCheckboxQuery>();
+
+        builder.Services.AddSingleton<CheckFileLocksQuery>();
     }
 
     public static void InitializeWebApp(WebApplication app)
@@ -621,6 +631,7 @@ public class Startup
         app.UseOperationCanceledHandler();
         app.UseResponseCompression();
 
+        app.UseCors();
         app.UseHsts();
         app.UseHttpsRedirection();
 
@@ -670,6 +681,7 @@ public class Startup
         app.MapChatGptEndpoints();
         app.MapAiEndpoints();
         app.MapAntiforgeryEndpoints();
+        app.MapWidgetEndpoints();
         
         //core functionality
         app.InitializeSqLite();

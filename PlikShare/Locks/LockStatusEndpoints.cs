@@ -1,7 +1,9 @@
-﻿using PlikShare.Antiforgery;
+﻿using Microsoft.AspNetCore.Mvc;
+using PlikShare.Antiforgery;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
+using PlikShare.Locks.CheckFileLocks;
 using PlikShare.Locks.CheckFileLocks.Contracts;
 
 namespace PlikShare.Locks;
@@ -20,26 +22,11 @@ public static class LockStatusEndpoints
     }
 
     private static CheckFileLocksResponseDto CheckFileLocks(
-        CheckFileLocksRequestDto request,
-        PlikShareDb plikShareDb)
+        [FromBody] CheckFileLocksRequestDto request,
+        CheckFileLocksQuery checkFileLocksQuery)
     {
-        var fileExternalIds = new HashSet<string>(request.ExternalIds);
-
-        using var connection = plikShareDb.OpenConnection();
-        var result = connection
-            .Cmd(
-                sql: """
-                     SELECT fi_external_id
-                     FROM fi_files
-                     WHERE fi_is_upload_completed = FALSE
-                     """,
-                readRowFunc: reader => reader.GetString(0))
-            .Execute();
-
-        var response = new CheckFileLocksResponseDto(
-            LockedExternalIds: result
-                .Where(fileExternalIds.Contains)
-                .ToList());
+        var response = checkFileLocksQuery.Execute(
+            request.ExternalIds);
 
         return response;
     }

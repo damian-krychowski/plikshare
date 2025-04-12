@@ -17,7 +17,8 @@ public class GetBulkDownloadLinkOperation(
         WorkspaceContext workspace,
         GetBulkDownloadLinkRequestDto request,
         IUserIdentity userIdentity,
-        int? boxFolderId)
+        int? boxFolderId,
+        int? boxLinkId)
     {
         var downloadDetails = getBulkDownloadDetailsQuery.Execute(
             workspace: workspace,
@@ -72,7 +73,8 @@ public class GetBulkDownloadLinkOperation(
                     Identity = userIdentity.Identity,
                     IdentityType = userIdentity.IdentityType
                 },
-                ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1))
+                ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
+                BoxLinkId = boxLinkId
             });
 
         return new Result(

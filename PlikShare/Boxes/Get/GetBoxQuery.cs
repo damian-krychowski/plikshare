@@ -183,7 +183,8 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
                         bl_allow_move_items,
                         bl_allow_create_folder,
                         bl_allow_delete_folder,
-                        bl_allow_rename_folder
+                        bl_allow_rename_folder,
+                        bl_widget_origins
                      FROM bl_box_links
                      WHERE bl_box_id = $boxId
                      ORDER BY bl_id ASC
@@ -205,7 +206,8 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
 						AllowCreateFolder = reader.GetBoolean(10),
 						AllowDeleteFolder = reader.GetBoolean(11),
 						AllowRenameFolder = reader.GetBoolean(12)
-                    }
+                    },
+                    WidgetOrigins = reader.GetFromJsonOrNull<List<string>>(13) ?? []
                 })
 		    .WithParameter("$boxId", box.Id)
 		    .Execute();

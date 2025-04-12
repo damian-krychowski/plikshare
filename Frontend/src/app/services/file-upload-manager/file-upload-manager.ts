@@ -1,14 +1,13 @@
-import { Injectable, Signal, signal, computed, WritableSignal } from "@angular/core";
+import { Injectable, Signal, signal, WritableSignal } from "@angular/core";
 import { Subject } from "rxjs";
 import { AppUploadItem } from "../../files-explorer/upload-item/upload-item.component";
-import { BulkInitiateFileUploadRequest, BulkInitiateFileUploadResponse, InitiateFileUploadRequest, InitiateFileUploadResponse, UploadsApi } from "../uploads.api";
+import { BulkInitiateFileUploadRequest, BulkInitiateFileUploadResponse, InitiateFileUploadRequest, InitiateFileUploadResponse } from "../uploads.api";
 import { FileUploadDetails, MAXIMUM_PENDING_UPLOADS } from "./file-upload-utils";
 import { MultiStepChunkFileUpload } from "./multi-step-chunk-file-upload";
 import { SingleChunkFileUpload } from "./single-chunk-file-upload";
 import { toNameAndExtension } from "../filte-type";
 import { getBase62Guid } from "../guid-base-62";
 import { MultiFileDirectFileUpload } from "./multi-file-direct-file-upload";
-import { MatDialog } from "@angular/material/dialog";
 import { GenericDialogService } from "../../shared/generic-message-dialog/generic-dialog-service";
 
 export type UploadAlgorithm = "direct-upload" | "single-chunk-upload" | "multi-step-chunk-upload";

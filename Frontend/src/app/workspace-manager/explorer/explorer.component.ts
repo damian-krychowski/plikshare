@@ -13,6 +13,7 @@ import { AppFolderItem } from '../../shared/folder-item/folder-item.component';
 import { AppFileItem } from '../../shared/file-item/file-item.component';
 import { WorkspaceContextService } from '../workspace-context.service';
 import { CookieUtils } from '../../shared/cookies';
+import { FileLockService } from '../../services/file-lock.service';
 
 @Component({
     selector: 'app-explorer',
@@ -41,6 +42,7 @@ export class ExplorerComponent implements OnInit, OnDestroy {
         private _setApi: FoldersAndFilesSetApi,
         private _getApi: FoldersAndFilesGetApi,
         private _dataStore: DataStore,
+        private _fileLockService: FileLockService,
         public context: WorkspaceContextService,
     ) { 
 
@@ -84,6 +86,7 @@ export class ExplorerComponent implements OnInit, OnDestroy {
             this._setApi,
             this._getApi,
             this._dataStore,
+            this._fileLockService,
             workspaceExternalId));
 
 

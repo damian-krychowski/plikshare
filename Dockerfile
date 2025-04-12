@@ -1,10 +1,10 @@
 ﻿# build-frontend-prod stage
-FROM node:18-alpine AS build-frontend-prod
+FROM node:22-alpine AS build-frontend-prod
 WORKDIR /usr/src/app
 COPY ./Frontend/package*.json ./
 RUN npm ci
 COPY ./Frontend .
-RUN npm run build-prod && npm cache clean --force
+RUN npm run build-prod && npm run build-elements-prod && npm cache clean --force
 
 # build backend
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-backend-prod

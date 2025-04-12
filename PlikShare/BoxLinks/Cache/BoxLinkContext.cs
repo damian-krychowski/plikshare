@@ -10,4 +10,5 @@ public record  BoxLinkContext(
     string Name,
     bool IsEnabled,
     BoxPermissions Permissions,
-    BoxContext Box);
+    BoxContext Box,
+    List<string>? WidgetOrigins);

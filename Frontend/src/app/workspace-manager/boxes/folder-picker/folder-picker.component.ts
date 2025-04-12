@@ -6,6 +6,7 @@ import { DataStore } from '../../../services/data-store.service';
 import { WorkspaceFilesExplorerApi } from '../../../services/workspace-files-explorer-api';
 import { MatButtonModule } from '@angular/material/button';
 import { AppFolderItem } from '../../../shared/folder-item/folder-item.component';
+import { FileLockService } from '../../../services/file-lock.service';
 
 @Component({
     selector: 'app-folder-picker',
@@ -27,6 +28,7 @@ export class FolderPickerComponent {
         _setApi: FoldersAndFilesSetApi,
         _getApi: FoldersAndFilesGetApi,
         _dataStore: DataStore,
+        _fileLockService: FileLockService,
         public dialogRef: MatDialogRef<FolderPickerComponent>,
         @Inject(MAT_DIALOG_DATA) public data: {workspaceExternalId: string}) {
         
@@ -34,6 +36,7 @@ export class FolderPickerComponent {
             _setApi,
             _getApi,
             _dataStore,
+            _fileLockService,
             data.workspaceExternalId
         ));
     }

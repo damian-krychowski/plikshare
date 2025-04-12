@@ -138,29 +138,21 @@ public class S3StorageClient(
         }
     }
     
-    public async ValueTask<string> GetPreSignedUploadFilePartLink(
+    public async ValueTask<PreSignedUploadLinkResult> GetPreSignedUploadFilePartLink(
         string bucketName,
         FileUploadExtId fileUploadExternalId,
         S3FileKey key,
         string uploadId,
         int partNumber,
         string contentType,
+        int? boxLinkId,
         IUserIdentity userIdentity,
+        bool enforceInternalPassThrough,
         CancellationToken cancellationToken = default)
     {
-        if (EncryptionType == StorageEncryptionType.None)
+        if (EncryptionType == StorageEncryptionType.Managed || enforceInternalPassThrough)
         {
-            return await GetDirectS3PreSignedUploadFilePartLink(
-                bucketName, 
-                key, 
-                uploadId, 
-                partNumber, 
-                contentType);
-        }
-
-        if (EncryptionType == StorageEncryptionType.Managed)
-        {
-            return preSignedUrlsService.GeneratePreSignedUploadUrl(
+            var url = preSignedUrlsService.GeneratePreSignedUploadUrl(
                 new PreSignedUrlsService.UploadPayload
                 {
                     FileUploadExternalId = fileUploadExternalId,
@@ -171,8 +163,31 @@ public class S3StorageClient(
                         Identity = userIdentity.Identity,
                         IdentityType = userIdentity.IdentityType
                     },
-                    ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1))
+                    ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
+                    BoxLinkId = boxLinkId
                 });
+
+            return new PreSignedUploadLinkResult
+            {
+                Url = url,
+                IsCompleteFilePartUploadCallbackRequired = false
+            };
+        }
+
+        if (EncryptionType == StorageEncryptionType.None)
+        {
+            var url = await GetDirectS3PreSignedUploadFilePartLink(
+                bucketName, 
+                key, 
+                uploadId, 
+                partNumber, 
+                contentType);
+
+            return new PreSignedUploadLinkResult
+            {
+                Url = url,
+                IsCompleteFilePartUploadCallbackRequired = true
+            };
         }
 
         throw new NotImplementedException($"Unknown encryption type: '{EncryptionType}'");
@@ -249,20 +264,12 @@ public class S3StorageClient(
         string contentType,
         string fileName,
         ContentDispositionType contentDisposition,
+        int? boxLinkId,
         IUserIdentity userIdentity,
+        bool enforceInternalPassThrough,
         CancellationToken cancellationToken = default)
     {
-        if (EncryptionType == StorageEncryptionType.None)
-        {
-            return await GetDirectS3PreSignedDownloadLink(
-                bucketName: bucketName,
-                key: key,
-                contentType: contentType,
-                contentDisposition: contentDisposition,
-                fileName: fileName);
-        }
-
-        if (EncryptionType == StorageEncryptionType.Managed)
+        if (EncryptionType == StorageEncryptionType.Managed || enforceInternalPassThrough)
         {
             return preSignedUrlsService.GeneratePreSignedDownloadUrl(
                 new PreSignedUrlsService.DownloadPayload
@@ -274,10 +281,21 @@ public class S3StorageClient(
                         IdentityType = userIdentity.IdentityType
                     },
                     ContentDisposition = contentDisposition,
-                    ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1))
+                    ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
+                    BoxLinkId = boxLinkId
                 });
         }
 
+        if (EncryptionType == StorageEncryptionType.None)
+        {
+            return await GetDirectS3PreSignedDownloadLink(
+                bucketName: bucketName,
+                key: key,
+                contentType: contentType,
+                contentDisposition: contentDisposition,
+                fileName: fileName);
+        }
+        
         throw new NotImplementedException($"Unknown encryption type: '{EncryptionType}'");
     }
 
@@ -356,7 +374,7 @@ public class S3StorageClient(
             var request =  new InitiateMultipartUploadRequest
             {
                 BucketName = bucketName,
-                Key = key.Value,
+                Key = key.Value
             };
             
             var result = await s3Client.InitiateMultipartUploadAsync(

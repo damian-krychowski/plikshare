@@ -15,19 +15,13 @@ public class PreSignedUrlsService(
     IClock clock,
     IDataProtectionProvider dataProtectionProvider)
 {
-    private const string MultiFileDirectUploadPurpose = "PreSignedMultiFileDirectUploadUrl";
-    private const string UploadPurpose = "PreSignedUploadUrl";
-    private const string DownloadPurpose = "PreSingedDownloadUrl";
-    private const string BulkDownloadPurpose = "PreSingedBulkDownloadUrl";
-    private const string ZipContentDownloadPurpose = "PreSignedZipContentDownloadUrl";
+    private const string PreSignedPayloadPurpose = "PreSignedPayload";
     
-
     public string GeneratePreSignedMultiFileDirectUploadUrl(
         MultiFileDirectUploadPayload payload)
     {
         var urlEncoded = UrlEncodePayload(
-            payload,
-            MultiFileDirectUploadPurpose);
+            payload);
 
         return $"{config.AppUrl}/api/files/multi-file/{urlEncoded}";
     }
@@ -36,8 +30,7 @@ public class PreSignedUrlsService(
         UploadPayload payload)
     {
         var urlEncoded = UrlEncodePayload(
-            payload,
-            UploadPurpose);
+            payload);
 
         return $"{config.AppUrl}/api/files/{urlEncoded}";
     }
@@ -46,8 +39,7 @@ public class PreSignedUrlsService(
         DownloadPayload payload)
     {
         var urlEncoded = UrlEncodePayload(
-            payload,
-            DownloadPurpose);
+            payload);
 
         return $"{config.AppUrl}/api/files/{urlEncoded}";
     }
@@ -56,8 +48,7 @@ public class PreSignedUrlsService(
         BulkDownloadPayload payload)
     {
         var urlEncoded = UrlEncodePayload(
-            payload,
-            BulkDownloadPurpose);
+            payload);
 
         return $"{config.AppUrl}/api/bulk-download/{urlEncoded}";
     }
@@ -66,8 +57,7 @@ public class PreSignedUrlsService(
         ZipContentDownloadPayload payload)
     {
         var urlEncoded = UrlEncodePayload(
-            payload,
-            ZipContentDownloadPurpose);
+            payload);
 
         return $"{config.AppUrl}/api/zip-files/{urlEncoded}";
     }
@@ -78,7 +68,7 @@ public class PreSignedUrlsService(
         try
         {
             var protector = dataProtectionProvider.CreateProtector(
-                MultiFileDirectUploadPurpose);
+                PreSignedPayloadPurpose);
 
             var protectedData = HttpUtility.UrlDecode(
                 protectedDataUrlEncoded);
@@ -110,7 +100,7 @@ public class PreSignedUrlsService(
         try
         {
             var protector = dataProtectionProvider.CreateProtector(
-                UploadPurpose);
+                PreSignedPayloadPurpose);
 
             var protectedData = HttpUtility.UrlDecode(
                 protectedDataUrlEncoded);
@@ -144,7 +134,7 @@ public class PreSignedUrlsService(
         try
         {
             var protector = dataProtectionProvider.CreateProtector(
-                DownloadPurpose);
+                PreSignedPayloadPurpose);
 
             var protectedData = HttpUtility.UrlDecode(
                 protectedDataUrlEncoded);
@@ -170,13 +160,12 @@ public class PreSignedUrlsService(
     }
 
     public (ExtractionResult Code, BulkDownloadPayload? Payload) TryExtractPreSignedBulkDownloadPayload(
-        string protectedDataUrlEncoded,
-        CancellationToken cancellationToken)
+        string protectedDataUrlEncoded)
     {
         try
         {
             var protector = dataProtectionProvider.CreateProtector(
-                BulkDownloadPurpose);
+                PreSignedPayloadPurpose);
 
             var protectedData = HttpUtility.UrlDecode(
                 protectedDataUrlEncoded);
@@ -207,7 +196,7 @@ public class PreSignedUrlsService(
         try
         {
             var protector = dataProtectionProvider.CreateProtector(
-                ZipContentDownloadPurpose);
+                PreSignedPayloadPurpose);
 
             var protectedData = HttpUtility.UrlDecode(
                 protectedDataUrlEncoded);
@@ -232,10 +221,10 @@ public class PreSignedUrlsService(
         }
     }
 
-    private string UrlEncodePayload<T>(T payload, string purpose)
+    private string UrlEncodePayload<T>(T payload)
     {
         var protector = dataProtectionProvider.CreateProtector(
-            purpose);
+            PreSignedPayloadPurpose);
 
         var jsonParameters = Json.Serialize(
             payload);
@@ -248,7 +237,38 @@ public class PreSignedUrlsService(
 
         return urlEncoded;
     }
-    
+
+    public (bool Success, int? BoxLinkId) TryExtractBoxLinkIdFromProtectedData(string protectedDataUrlEncoded)
+    {
+        try
+        {
+            var protector = dataProtectionProvider.CreateProtector(PreSignedPayloadPurpose);
+            var protectedData = HttpUtility.UrlDecode(protectedDataUrlEncoded);
+            var jsonParameters = protector.Unprotect(protectedData);
+
+            var jsonObject = System.Text.Json.JsonDocument.Parse(jsonParameters);
+
+            if (jsonObject.RootElement.TryGetProperty("boxLinkId", out var boxLinkIdElement))
+            {
+                if (boxLinkIdElement.ValueKind == System.Text.Json.JsonValueKind.Null)
+                {
+                    return (true, null);
+                }
+
+                if (boxLinkIdElement.TryGetInt32(out var boxLinkId))
+                {
+                    return (true, boxLinkId);
+                }
+            }
+
+            return (false, null);
+        }
+        catch (Exception)
+        {
+            return (false, null);
+        }
+    }
+
     public enum ExtractionResult
     {
         Ok = 0,
@@ -256,43 +276,42 @@ public class PreSignedUrlsService(
         Invalid = 2
     }
 
-    [ImmutableObject(true)]
-    public sealed class MultiFileDirectUploadPayload
+    public abstract class PreSignedPayload
     {
-        public required int WorkspaceId { get; init; }
         public required PreSignedUrlOwner PreSignedBy { get; init; }
         public required DateTimeOffset ExpirationDate { get; init; }
+        public required int? BoxLinkId { get; init; }
     }
 
     [ImmutableObject(true)]
-    public sealed class UploadPayload
+    public sealed class MultiFileDirectUploadPayload: PreSignedPayload
+    {
+        public required int WorkspaceId { get; init; }
+    }
+
+    [ImmutableObject(true)]
+    public sealed class UploadPayload : PreSignedPayload
     {
         public required FileUploadExtId FileUploadExternalId { get; init; }
         public required int PartNumber { get; init; }
         public required string ContentType { get; init; }
-        public required PreSignedUrlOwner PreSignedBy { get; init; }
-        public required DateTimeOffset ExpirationDate { get; init; }
     }
 
     [ImmutableObject(true)]
-    public sealed class DownloadPayload
+    public sealed class DownloadPayload : PreSignedPayload
     {
         public required FileExtId FileExternalId { get; init; }
-        public required PreSignedUrlOwner PreSignedBy { get; init; }
-        public required DateTimeOffset ExpirationDate { get; init; }
         public required ContentDispositionType ContentDisposition { get; init; }
     }
 
     [ImmutableObject(true)]
-    public sealed class BulkDownloadPayload
+    public sealed class BulkDownloadPayload : PreSignedPayload
     {
         public required int[] SelectedFileIds { get; init; }
         public required int[] ExcludedFileIds { get; init; }
         public required int[] SelectedFolderIds { get; init; }
         public required int[] ExcludedFolderIds { get; init; }
         public required int WorkspaceId { get; init; }
-        public required PreSignedUrlOwner PreSignedBy { get; init; }
-        public required DateTimeOffset ExpirationDate { get; init; }
     }
 
     [ImmutableObject(true)]
@@ -303,12 +322,10 @@ public class PreSignedUrlsService(
     }
 
     [ImmutableObject(true)]
-    public sealed class ZipContentDownloadPayload
+    public sealed class ZipContentDownloadPayload : PreSignedPayload
     {
         public required FileExtId FileExternalId { get; init; }
         public required ZipEntryPayload ZipEntry { get; init; }
-        public required PreSignedUrlOwner PreSignedBy { get; init; }
-        public required DateTimeOffset ExpirationDate { get; init; }
         public required ContentDispositionType ContentDisposition { get; init; }
     }
 

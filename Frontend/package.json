@@ -8,7 +8,9 @@
     "watch": "ng build --watch --configuration development --output-path=../PlikShare/wwwroot",
     "build-prod": "ng build --configuration production --output-path=./dist",
     "build-prod-dev": "ng build --configuration production --output-path=../PlikShare/wwwroot",
-    "update": "ng update @angular/cli @angular/core"
+    "update": "ng update @angular/cli @angular/core",
+    "build-elements-prod": "ng run PlikShare:build-elements:production --output-path=./dist/browser/elements && node merge-elements.js \"./dist/browser/elements\"",
+    "build-elements-prod-dev": "ng run PlikShare:build-elements:production --output-path=../PlikShare/wwwroot/browser/elements && node merge-elements.js \"../PlikShare/wwwroot/browser/elements\""
   },
   "private": true,
   "dependencies": {
@@ -53,6 +55,8 @@
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
+    "concat": "^1.0.3",
+    "fs-extra": "^11.3.0",
     "rimraf": "^6.0.1",
     "typescript": "~5.8.2"
   }

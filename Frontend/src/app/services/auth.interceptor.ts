@@ -76,7 +76,7 @@ export class AuthInterceptor implements HttpInterceptor {
             //ignore
         }
         else {
-            console.log(err);
+            console.error(err);
             this._toastr.error("Something went wrong. Try again later or contact the administrator");
         }
 
