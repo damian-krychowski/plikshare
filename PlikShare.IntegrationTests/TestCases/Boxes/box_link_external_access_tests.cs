@@ -58,7 +58,7 @@ public class box_link_external_access_tests: TestFixture
 
         var boxContent = await Api.AccessCodesApi.GetBoxDetailsAndContent(
             accessCode: boxLink.AccessCode,
-            cookie: boxLinkSession.Cookie);
+            boxLinkToken: boxLinkSession.Token);
 
         //then
         boxContent.Should().BeEquivalentTo(new GetBoxDetailsAndContentResponseDto
@@ -144,12 +144,12 @@ public class box_link_external_access_tests: TestFixture
                 ParentExternalId = null,
                 Name = "my new box folder",
             },
-            cookie: boxLinkSession.Cookie);
+            boxLinkToken: boxLinkSession.Token);
        
         //then
         var boxContent = await Api.AccessCodesApi.GetBoxDetailsAndContent(
             accessCode: boxLink.AccessCode,
-            cookie: boxLinkSession.Cookie);
+            boxLinkToken: boxLinkSession.Token);
         
         boxContent.Should().BeEquivalentTo(new GetBoxDetailsAndContentResponseDto
         {
@@ -214,7 +214,7 @@ public class box_link_external_access_tests: TestFixture
                 ParentExternalId= null,
                 Name= "my new box folder", 
             },
-            cookie: boxLinkSession.Cookie);
+            boxLinkToken: boxLinkSession.Token);
 
         //when
         var littleLater = createdAtTime.AddMinutes(3);
@@ -225,12 +225,12 @@ public class box_link_external_access_tests: TestFixture
             folderExternalId: folder.ExternalId,
             request: new UpdateBoxFolderNameRequestDto(
                 Name: "new name for my box folder"),
-            cookie: boxLinkSession.Cookie);
+            boxLinkToken: boxLinkSession.Token);
         
         //then
         var boxContent = await Api.AccessCodesApi.GetBoxDetailsAndContent(
             accessCode: boxLink.AccessCode,
-            cookie: boxLinkSession.Cookie);
+            boxLinkToken: boxLinkSession.Token);
 
         boxContent.Subfolders.Should().BeEquivalentTo(
         [
@@ -271,7 +271,7 @@ public class box_link_external_access_tests: TestFixture
                 ParentExternalId= null,
                 Name = "my new box folder",
             },
-            cookie: boxLinkSession.Cookie);
+            boxLinkToken: boxLinkSession.Token);
 
         //when
         var tooLate = createdAtTime.AddMinutes(5).AddSeconds(1);
@@ -283,7 +283,7 @@ public class box_link_external_access_tests: TestFixture
                 folderExternalId: folder.ExternalId,
                 request: new UpdateBoxFolderNameRequestDto(
                     Name: "new name for my box folder"),
-            cookie: boxLinkSession.Cookie)
+                boxLinkToken: boxLinkSession.Token)
         );
         
         //then

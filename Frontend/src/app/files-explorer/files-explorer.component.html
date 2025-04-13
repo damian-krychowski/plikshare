@@ -392,6 +392,7 @@
             [bulkUpload]="pendingBulkUploadVal"
             [folderExternalId]="selectedFolder()?.externalId ?? null"
             [uploadsApi]="uploadApiVal"
+            [httpHeadersFactory]="operations"
             [foldersApi]="filesApi()"
             (foldersCreated)="addFoldersCreatedInBulkUpload($event)"
             (closed)="closePendingBulkUpload()">            
@@ -458,6 +459,7 @@
                 @for(upload of uploads(); track upload.externalId) {
                     <app-upload-item 
                         [fileUploadApi]="uploadApiVal"
+                        [httpHeadersFactory]="operations"
                         [upload]="upload"   
                         [hideActions]="hideItemsActions()"
                         (aborted)="onUploadAborted(upload)"

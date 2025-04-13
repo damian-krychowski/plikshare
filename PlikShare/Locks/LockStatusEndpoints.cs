@@ -1,8 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using PlikShare.Antiforgery;
 using PlikShare.Core.Authorization;
-using PlikShare.Core.Database.MainDatabase;
-using PlikShare.Core.SQLite;
 using PlikShare.Locks.CheckFileLocks;
 using PlikShare.Locks.CheckFileLocks.Contracts;
 

@@ -14,6 +14,8 @@ import { AppFileItem } from '../../shared/file-item/file-item.component';
 import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, ContentDisposition, CountSelectedItemsRequest, CreateFolderRequest, FilePreviewDetailsField, GetBulkDownloadLinkRequest, GetFolderResponse, SearchFilesTreeRequest, SendAiFileMessageRequest, StartTextractJobRequest, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
 import { BulkInitiateFileUploadRequest } from '../../services/uploads.api';
 import { FileLockService } from '../../services/file-lock.service';
+import { BOX_LINK_TOKEN_HEADER, BoxLinkTokenService } from '../../services/box-link-token.service';
+import { HttpHeaders } from '@angular/common/http';
 
 @Component({
     selector: 'app-external-link',
@@ -61,6 +63,7 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
     private _subscription: Subscription | null = null;
 
     constructor(
+        private _boxLinkTokenService: BoxLinkTokenService,
         private _accessCodesApi: AccessCodesApi,
         private _activatedRoute: ActivatedRoute,
         private _router: Router,
@@ -393,7 +396,18 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
             },
 
             subscribeToLockStatus: (file: AppFileItem) => this._fileLockService.subscribeToLockStatus(file),
-            unsubscribeFromLockStatus: (fileExternalId: string) => this._fileLockService.unsubscribe(fileExternalId)
+
+            unsubscribeFromLockStatus: (fileExternalId: string) => this._fileLockService.unsubscribe(fileExternalId),
+
+            prepareAdditionalHttpHeaders: () => {
+                const token = this._boxLinkTokenService.get();
+
+                if(token) {
+                    return {  [BOX_LINK_TOKEN_HEADER]: token };
+                }
+
+                return undefined;
+            }
         };
     }
 }

@@ -450,17 +450,17 @@ public static class BoxLinkAccessCodesEndpoints
             boxAccess: httpContext.GetBoxAccess());
     }
 
-    private static async Task StartSession(
+    private static IResult StartSession(
         HttpContext httpContext,
+        BoxLinkTokenService boxLinkTokenService,
         CancellationToken cancellationToken)
     {
-        await httpContext.SignInAsync(
-            scheme: AuthScheme.BoxLinkSessionScheme,
-            principal: new ClaimsPrincipal(new ClaimsIdentity(
-                new List<Claim>
-                {
-                    new(Claims.BoxLinkSessionId, Guid.NewGuid().ToString()),
-                }, AuthScheme.BoxLinkSessionScheme)));
+        var token = boxLinkTokenService.Generate();
+        
+        httpContext.Response.Headers.Append(HeaderName.BoxLinkToken, token);
+        httpContext.Response.Headers.Append("Access-Control-Expose-Headers", HeaderName.BoxLinkToken);
+
+        return Results.Ok();
     }
 }
 

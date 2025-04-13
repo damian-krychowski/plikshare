@@ -458,7 +458,10 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
             },
 
             subscribeToLockStatus: (file: AppFileItem) => this._fileLockService.subscribeToLockStatus(file),
-            unsubscribeFromLockStatus: (fileExternalId: string) => this._fileLockService.unsubscribe(fileExternalId)
+
+            unsubscribeFromLockStatus: (fileExternalId: string) => this._fileLockService.unsubscribe(fileExternalId),
+
+            prepareAdditionalHttpHeaders: () => undefined,
         };
     }
 

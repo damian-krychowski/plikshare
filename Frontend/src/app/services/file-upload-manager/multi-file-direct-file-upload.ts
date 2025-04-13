@@ -1,7 +1,7 @@
 import { Signal, signal, computed } from "@angular/core";
 import { IFileUpload } from "./file-upload-manager";
 import { FileUploadDetails, MAXIMUM_PARALLEL_UPLOADS } from "./file-upload-utils";
-import { XSRF_TOKEN_HEADER_NAME } from "../../shared/xsrf";
+import { HttpHeadersFactory } from "../../files-explorer/http-headers-factory";
 
 export class MultiFileDirectFileUpload implements IFileUpload {
     public type = 'MultiFileDirectFileUpload';
@@ -14,6 +14,7 @@ export class MultiFileDirectFileUpload implements IFileUpload {
     private _uploadPromise: Promise<{ fileExternalId: string; uploadExternalId: string }[] | null> | null = null
 
     constructor(
+        private _httpHeadersFactory: HttpHeadersFactory,
         private _activeUploads: Promise<void>[],
         public detailsList: FileUploadDetails[]
     ) {
@@ -78,15 +79,24 @@ export class MultiFileDirectFileUpload implements IFileUpload {
             if (this._activeUploads.length < MAXIMUM_PARALLEL_UPLOADS) {
                 shouldRun = false;
 
+                const headers = {
+                    'x-total-size-in-bytes': totalSizeInBytes.toString(),
+                    'x-number-of-files': this.detailsList.length.toString()
+                };
+
+                const additionalHeaders = this
+                    ._httpHeadersFactory
+                    .prepareAdditionalHttpHeaders();
+
+                if(additionalHeaders) {
+                    Object.assign(headers, additionalHeaders);
+                }
+
                 directUploadPromise = fetch(preSignedUploadLink, {
                     method: 'POST',
-                    headers: {
-                        'x-total-size-in-bytes': totalSizeInBytes.toString(),
-                        'x-number-of-files': this.detailsList.length.toString()
-                    },
+                    headers: headers,
                     body: formData,
-                    signal: abortSignal,
-                    credentials: 'include'
+                    signal: abortSignal
                 })
                 .then(async response => {
                     if (!response.ok) {

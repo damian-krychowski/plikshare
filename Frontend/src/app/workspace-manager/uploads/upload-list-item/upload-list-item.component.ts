@@ -4,6 +4,7 @@ import { FileIconPipe } from "../../../files-explorer/file-icon-pipe/file-icon.p
 import { FileUploadApi, FileUploadManager, IFileUpload } from "../../../services/file-upload-manager/file-upload-manager";
 import { ActionButtonComponent } from "../../../shared/buttons/action-btn/action-btn.component";
 import { FileSlicer } from "../../../services/file-upload-manager/file-slicer";
+import { HttpHeadersFactory } from "../../../files-explorer/http-headers-factory";
 
 export type AppUploadListItem = {
     externalId: Signal<string>;
@@ -130,7 +131,10 @@ export class UploadListItemComponent implements OnInit {
                 fileSlicer: new FileSlicer(file),
                 uploadExternalId: upload.externalId(),
                 uploadsApi: this.fileUploadApi(),
-                fileSizeInBytes: upload.fileSizeInBytes()
+                fileSizeInBytes: upload.fileSizeInBytes(),
+                httpHeadersFactory: {
+                    prepareAdditionalHttpHeaders: () => undefined
+                }
             }, {
                 uploadResumed: (args: { fileUpload: IFileUpload; }) => {
                     this.fileUpload.set(args.fileUpload);

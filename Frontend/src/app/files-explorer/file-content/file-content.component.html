@@ -3,13 +3,15 @@
 @let fileFullNameValue = fileFullName();
 @let fileVal = file();
 @let zipPreviewOperationsVal = zipPreviewOperations();
+@let operationsVal = this.operations();
 
 <div class="file-content">
     @if(fileTypeValue == 'image' && fileUrlValue) {
         <app-image-preview
             [fileName]="fileVal.name()"
             [fileExtension]="fileVal.extension"
-            [fileUrl]="fileUrlValue">            
+            [fileUrl]="fileUrlValue"
+            [httpHeadersFactory]="operationsVal">            
         </app-image-preview>           
     } @else if(fileTypeValue == 'video' && fileUrlValue) {
         <app-video-preview
@@ -25,13 +27,15 @@
         </app-pdf-preview>        
     } @else if((fileTypeValue == 'text' || forceFileTextDisplay()) && fileUrlValue) {
         <app-text-preview
-            [fileUrl]="fileUrlValue">            
+            [fileUrl]="fileUrlValue"
+            [httpHeadersFactory]="operationsVal">            
         </app-text-preview>
     } @else if(fileTypeValue == 'markdown' && fileUrlValue) {
         <app-markdown-preview
             [isEditMode]="isEditMode()"
             [fileUrl]="fileUrlValue"
-            [commandsPipeline]="commandsPipeline()">            
+            [commandsPipeline]="commandsPipeline()"
+            [httpHeadersFactory]="operationsVal">            
         </app-markdown-preview>
     } @else if(fileTypeValue == 'archive' && zipPreviewOperationsVal) {
         <app-zip-preview

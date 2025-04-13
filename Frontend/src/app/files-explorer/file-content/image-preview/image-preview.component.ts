@@ -4,6 +4,7 @@ import { getMimeType } from "../../../services/filte-type";
 import exifr from "exifr";
 import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { toggle } from "../../../shared/signal-utils";
+import { HttpHeadersFactory } from "../../http-headers-factory";
 
 @Component({
     selector: 'app-image-preview',
@@ -17,6 +18,7 @@ export class ImagePreviewComponent implements OnChanges {
     fileUrl = input.required<string>();
     fileName = input.required<string>();
     fileExtension = input.required<string>();
+    httpHeadersFactory = input.required<HttpHeadersFactory>();
 
     fileFullName = computed(() => this.fileName() + this.fileExtension());
 
@@ -43,7 +45,10 @@ export class ImagePreviewComponent implements OnChanges {
 
     async loadImageWithMetadata(url: string): Promise<void> {    
         try {
-            const response = await fetch(url, {credentials: 'include'});
+            const response = await fetch(url, {
+                headers: this.httpHeadersFactory().prepareAdditionalHttpHeaders()
+            });
+
             const arrayBuffer = await response.arrayBuffer();
             const mimeType = getMimeType(this.fileExtension());
             const blob = new Blob([arrayBuffer], { type: mimeType });

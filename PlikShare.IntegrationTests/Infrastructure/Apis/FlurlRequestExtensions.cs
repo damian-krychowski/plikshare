@@ -1,6 +1,5 @@
-using System.Net;
+
 using Flurl.Http;
-using Microsoft.Net.Http.Headers;
 using PlikShare.Core.Authorization;
 using ProtoBuf;
 
@@ -32,6 +31,21 @@ public static class FlurlRequestExtensions
         return request;
     }
 
+    public static IFlurlRequest WithHeaders(
+        this IFlurlRequest request,
+        List<Header>? headers)
+    {
+        if (headers is null)
+            return request;
+
+        foreach (var header in headers)
+        {
+            request.Headers.Add(header.Name, header.Value);
+        }
+
+        return request;
+    }
+
     public static IFlurlRequest WithAntiforgeryHeader(
         this IFlurlRequest request,
         string value)
@@ -58,12 +72,14 @@ public static class FlurlRequestExtensions
         string appUrl,
         string apiPath,
         Cookie? cookie,
-        bool isResponseInProtobuf = false)
+        bool isResponseInProtobuf = false,
+        List<Header>? headers = null)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
             .WithCookie(cookie)
+            .WithHeaders(headers)
             .GetAsync();
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
@@ -106,12 +122,14 @@ public static class FlurlRequestExtensions
         Cookie? cookie,
         AntiforgeryCookies antiforgery,
         bool isRequestInProtobuf = false,
-        bool isResponseInProtobuf = false)
+        bool isResponseInProtobuf = false,
+        List<Header>? headers = null)
     {
         var flurlRequest = client
             .Request(appUrl, apiPath)
             .WithAntiforgery(antiforgery)
             .AllowAnyHttpStatus()
+            .WithHeaders(headers)
             .WithCookie(cookie);
         
         IFlurlResponse? response;
@@ -167,13 +185,15 @@ public static class FlurlRequestExtensions
         string apiPath,
         TRequest request,
         Cookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies antiforgery,
+        List<Header>? headers = null)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
             .WithCookie(cookie)
             .WithAntiforgery(antiforgery)
+            .WithHeaders(headers)
             .PostJsonAsync(request);
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
@@ -192,13 +212,15 @@ public static class FlurlRequestExtensions
         string apiPath,
         TRequest request,
         SessionAuthCookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies antiforgery,
+        List<Header>? headers = null)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
             .WithCookie(cookie)
             .WithAntiforgery(antiforgery)
+            .WithHeaders(headers)
             .PatchJsonAsync(request);
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
@@ -227,13 +249,15 @@ public static class FlurlRequestExtensions
         string apiPath,
         TRequest request,
         Cookie? cookie,
-        AntiforgeryCookies? antiforgery)
+        AntiforgeryCookies? antiforgery,
+        List<Header>? headers = null)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
             .WithCookie(cookie)
             .WithAntiforgery(antiforgery)
+            .WithHeaders(headers)
             .PatchJsonAsync(request);
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
@@ -251,13 +275,15 @@ public static class FlurlRequestExtensions
         string appUrl,
         string apiPath,
         Cookie? cookie,
-        AntiforgeryCookies? antiforgery)
+        AntiforgeryCookies? antiforgery,
+        List<Header>? headers = null)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
             .WithCookie(cookie)
             .WithAntiforgery(antiforgery)
+            .WithHeaders(headers)
             .DeleteAsync();
 
         if (!response.ResponseMessage.IsSuccessStatusCode)

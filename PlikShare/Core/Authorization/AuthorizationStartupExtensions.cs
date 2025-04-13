@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Entities;
@@ -14,7 +15,7 @@ public static class AuthPolicy
 
 public static class AuthScheme
 {
-    public const string BoxLinkSessionScheme = "box-link-cookie-schema";
+    public const string BoxLinkSessionScheme = "box-link-schema";
     
     //the same value as  IdentityConstants.ApplicationScheme
     public const string IdentityApplication = "Identity.Application";
@@ -23,7 +24,6 @@ public static class AuthScheme
 public static class CookieName
 {
     public const string SessionAuth = "SessionAuth";
-    public const string BoxLinkAuth ="BoxLinkAuth";
     public const string TwoFactorUserId = "Identity.TwoFactorUserId";
     public const string TwoFactorRememberMe = "Identity.TwoFactorRememberMe";
 
@@ -33,6 +33,7 @@ public static class CookieName
 public static class HeaderName
 {
     public const string Antiforgery = "X-XSRF-TOKEN";
+    public const string BoxLinkToken = "X-BOX-LINK-TOKEN";
 }
 
 public static class AuthorizationStartupExtensions
@@ -142,31 +143,10 @@ public static class AuthorizationStartupExtensions
                 };
             });
         });
-        
-        authenticationBuilder.AddCookie(AuthScheme.BoxLinkSessionScheme, options =>
-        {
-            options.Cookie.Name = CookieName.BoxLinkAuth;
-            options.Cookie.SameSite = SameSiteMode.None;
-            options.Cookie.HttpOnly = true;
-            options.Cookie.IsEssential = true;
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 
-            options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
-            options.SlidingExpiration = true;
+        authenticationBuilder.AddScheme<BoxLinkTokenAuthenticationOptions, BoxLinkTokenAuthenticationHandler>(
+            AuthScheme.BoxLinkSessionScheme, _ => { });
 
-            options.Events.OnRedirectToLogin = context =>
-            {
-                context.Response.StatusCode = 401;
-                return Task.CompletedTask;
-            };
-
-            options.Events.OnRedirectToAccessDenied = context =>
-            {
-                context.Response.StatusCode = 403;
-                return Task.CompletedTask;
-            };
-        });
-        
         Log.Information("[SETUP] Auth setup finished.");
     }
     

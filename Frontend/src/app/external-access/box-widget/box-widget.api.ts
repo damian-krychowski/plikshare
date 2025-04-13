@@ -15,9 +15,8 @@ import { getBulkInitiateFileUploadResponseDtoProtobuf } from "../../protobuf/bul
 import { getBulkCreateFolderRequestDtoProtobuf } from "../../protobuf/bulk-create-folder-request-dto.protobuf";
 import { getBulkCreateFolderResponseDtoProtobuf } from "../../protobuf/bulk-create-folder-response-dto.protobuf";
 import { getSearchFilesTreeResponseDtoProtobuf } from "../../protobuf/search-files-tree-response-dto.protobuf";
-import { XSRF_TOKEN_HEADER_NAME } from "../../shared/xsrf";
-import { CookieUtils } from "../../shared/cookies";
 import { CheckFileLocksRequest, CheckFileLocksResponse } from "../../services/lock-status.api";
+import { BOX_LINK_TOKEN_HEADER, BoxLinkTokenService } from "../../services/box-link-token.service";
 
 const zipFileDetailsDtoProtobuf = getZipFileDetailsDtoProtobuf();
 const folderContentDtoProtobuf = getFolderContentDtoProtobuf();
@@ -46,6 +45,7 @@ export class BoxWidgetApi {
     private errorHandlers: ErrorHandlingCallbacks = {};
 
     constructor(
+        private _boxLinkTokenService: BoxLinkTokenService,
         private _http: HttpClient,
         private _protoHttp: ProtoHttp) {
     }
@@ -129,21 +129,20 @@ export class BoxWidgetApi {
 
     public async startSession(url: string): Promise<void> {
         const { baseUrl, accessCode } = this.extractUrlComponents(url);
-        
-        let headers = new HttpHeaders();
-        
-        const xsrfToken = CookieUtils.GetXsrfToken();
-
-        if (xsrfToken) {
-            headers = headers.set(XSRF_TOKEN_HEADER_NAME, xsrfToken);
-        }
-        
+                
         try {
-            const call = this._http.post(`${baseUrl}/api/access-codes/${accessCode}/start-session`, {},  { 
-                headers: headers,
-                withCredentials: true
-            });
-            await firstValueFrom(call);
+            const call = this
+                ._http
+                .post(`${baseUrl}/api/access-codes/${accessCode}/start-session`, {}, {
+                    observe: 'response' 
+                });
+                
+            const response = await firstValueFrom(call);
+            const token = response.headers.get(BOX_LINK_TOKEN_HEADER);
+            
+            if (token) {
+                this._boxLinkTokenService.set(token);
+            }
         } catch (error) {
             if (error instanceof HttpErrorResponse && error.status !== 401) {
                 // We don't want to handle 401 errors when starting a session (would cause infinite loop)
@@ -153,15 +152,28 @@ export class BoxWidgetApi {
         }
     }
 
+    private getHeaders(): HttpHeaders {
+        let headers = new HttpHeaders({
+            'Content-Type': 'application/json'
+        });
+        
+        const token = this._boxLinkTokenService.get();
+
+        if (token) {
+            headers = headers.set(BOX_LINK_TOKEN_HEADER, token);
+        }
+        
+        return headers;
+    }
+
     public async moveItems(url: string, request: BoxMoveItemsToFolderRequest): Promise<void> {
         const { baseUrl, accessCode } = this.extractUrlComponents(url);
         
         return this.executeRequest(url, async () => {
             const call = this._http.patch(
                 `${baseUrl}/api/access-codes/${accessCode}/folders/move-items`, 
-                request, 
-                { 
-                    withCredentials: true
+                request, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -175,9 +187,8 @@ export class BoxWidgetApi {
         return this.executeRequest(url, async () => {
             const call = this._http.post<CreateFolderResponse>(
                 `${baseUrl}/api/access-codes/${accessCode}/folders`, 
-                request, 
-                { 
-                    withCredentials: true 
+                request, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -195,7 +206,7 @@ export class BoxWidgetApi {
                 requestProtoType: bulkCreateFolderRequestDtoProtobuf,
                 responseProtoType: bulkCreateFolderResponseDtoProtobuf,
                 xsrfToken: undefined,
-                withCredentials: true
+                boxLinkToken: this._boxLinkTokenService.get()
             });
         });
     }
@@ -214,9 +225,8 @@ export class BoxWidgetApi {
                     fileExternalIds: req.fileExternalIds,
                     folderExternalIds: req.folderExternalIds,
                     fileUploadExternalIds: req.fileUploadExternalIds
-                }, 
-                { 
-                    withCredentials: true 
+                }, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -230,9 +240,8 @@ export class BoxWidgetApi {
         return this.executeRequest(url, async () => {
             const call = this._http.patch<void>(
                 `${baseUrl}/api/access-codes/${accessCode}/folders/${folderExternalId}/name`, 
-                request, 
-                { 
-                    withCredentials: true 
+                request, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -246,9 +255,8 @@ export class BoxWidgetApi {
         return this.executeRequest(url, async () => {
             const call = this._http.patch<void>(
                 `${baseUrl}/api/access-codes/${accessCode}/files/${fileExternalId}/name`, 
-                request, 
-                { 
-                    withCredentials: true 
+                request, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -266,7 +274,7 @@ export class BoxWidgetApi {
                     params: {
                         contentDisposition: contentDisposition
                     },
-                    withCredentials: true
+                    headers: this.getHeaders()
                 }
             );
             
@@ -280,9 +288,8 @@ export class BoxWidgetApi {
         return this.executeRequest(url, async () => {
             const call = this._http.post<GetBulkDownloadLinkResponse>(
                 `${baseUrl}/api/access-codes/${accessCode}/files/bulk-download-link`, 
-                request, 
-                { 
-                    withCredentials: true 
+                request, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -297,7 +304,7 @@ export class BoxWidgetApi {
             return await this._protoHttp.get<GetBoxDetailsAndFolderResponse>({
                 route: `${baseUrl}/api/access-codes/${accessCode}/${folderExternalId ?? ''}`,
                 responseProtoType: boxDetailsAndFolderContentDtoProtobuf,
-                withCredentials: true
+                boxLinkToken: this._boxLinkTokenService.get()
             });
         });
     }
@@ -309,7 +316,7 @@ export class BoxWidgetApi {
             return await this._protoHttp.get<GetFolderResponse>({
                 route: `${baseUrl}/api/access-codes/${accessCode}/content/${folderExternalId ?? ''}`,
                 responseProtoType: folderContentDtoProtobuf,
-                withCredentials: true
+                boxLinkToken: this._boxLinkTokenService.get()
             });
         });
     }
@@ -320,9 +327,8 @@ export class BoxWidgetApi {
         return this.executeRequest(url, async () => {
             const call = this._http.post<void>(
                 `${baseUrl}/api/access-codes/${accessCode}/uploads/${externalId}/parts/${partNumber}/complete`, 
-                request,  
-                { 
-                    withCredentials: true 
+                request, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -336,9 +342,8 @@ export class BoxWidgetApi {
         return this.executeRequest(url, async () => {
             const call = this._http.post<BoxInitiateFilePartUploadResponse>(
                 `${baseUrl}/api/access-codes/${accessCode}/uploads/${externalId}/parts/${partNumber}/initiate`, 
-                null,  
-                { 
-                    withCredentials: true 
+                null, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -352,9 +357,8 @@ export class BoxWidgetApi {
         return this.executeRequest(url, async () => {
             const call = this._http.post<BoxCompleteFileUploadResponse>(
                 `${baseUrl}/api/access-codes/${accessCode}/uploads/${externalId}/complete`, 
-                null,  
-                { 
-                    withCredentials: true 
+                null, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -368,9 +372,8 @@ export class BoxWidgetApi {
         return this.executeRequest(url, async () => {
             const call = this._http.post<InitiateFileUploadResponse>(
                 `${baseUrl}/api/access-codes/${accessCode}/uploads/initiate`, 
-                request,  
-                { 
-                    withCredentials: true 
+                request, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -387,7 +390,7 @@ export class BoxWidgetApi {
                 request: request,
                 requestProtoType: bulkInitiateFileUploadRequestDtoProtobuf,
                 responseProtoType: bulkInitiateFileUploadResponseDtoProtobuf,
-                withCredentials: true
+                boxLinkToken: this._boxLinkTokenService.get()
             });
             
             return deserializeBulkUploadResponse(request, response);
@@ -399,12 +402,8 @@ export class BoxWidgetApi {
         
         return this.executeRequest(url, async () => {
             const call = this._http.get<BoxGetFileUploadDetailsResponse>(
-                `${baseUrl}/api/access-codes/${accessCode}/uploads/${uploadExternalId}`, 
-                {
-                    headers: new HttpHeaders({
-                        'Content-Type': 'application/json'
-                    }),
-                    withCredentials: true
+                `${baseUrl}/api/access-codes/${accessCode}/uploads/${uploadExternalId}`, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -417,12 +416,8 @@ export class BoxWidgetApi {
         
         return this.executeRequest(url, async () => {
             const call = this._http.get<BoxGetUploadListResponse>(
-                `${baseUrl}/api/access-codes/${accessCode}/uploads`, 
-                {
-                    headers: new HttpHeaders({
-                        'Content-Type': 'application/json'
-                    }),
-                    withCredentials: true
+                `${baseUrl}/api/access-codes/${accessCode}/uploads`, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -437,7 +432,7 @@ export class BoxWidgetApi {
             return await this._protoHttp.get<ZipPreviewDetails>({
                 route: `${baseUrl}/api/access-codes/${accessCode}/files/${fileExternalId}/preview/zip`,
                 responseProtoType: zipFileDetailsDtoProtobuf,
-                withCredentials: true
+                boxLinkToken: this._boxLinkTokenService.get()
             });
         });
     }
@@ -451,9 +446,8 @@ export class BoxWidgetApi {
                 {
                     item: zipEntry,
                     contentDisposition: contentDisposition
-                },  
-                { 
-                    withCredentials: true 
+                }, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -467,9 +461,8 @@ export class BoxWidgetApi {
         return this.executeRequest(url, async () => {
             const call = this._http.post<CountSelectedItemsResponse>(
                 `${baseUrl}/api/access-codes/${accessCode}/count-selected-items`, 
-                request,  
-                { 
-                    withCredentials: true 
+                request, {
+                    headers: this.getHeaders()
                 }
             );
             
@@ -485,7 +478,7 @@ export class BoxWidgetApi {
                 route: `${baseUrl}/api/access-codes/${accessCode}/search-files-tree`,
                 request: request,
                 responseProtoType: searchFilesTreeResponseDtoProtobuf,
-                withCredentials: true
+                boxLinkToken: this._boxLinkTokenService.get()
             });
         });
     }
@@ -497,10 +490,7 @@ export class BoxWidgetApi {
             const call = this
                 ._http
                 .post<CheckFileLocksResponse>(`${baseUrl}/api/access-codes/${accessCode}/lock-status/files`, request, {
-                    headers: new HttpHeaders({
-                        'Content-Type':  'application/json'
-                    }),
-                    withCredentials: true
+                    headers: this.getHeaders()
                 });
 
             return await firstValueFrom(call);

@@ -18,6 +18,7 @@ import { TimeService } from '../../services/time.service';
 import { ElapsedTimePipe } from '../../shared/elapsed-time.pipe';
 import { DropFilesDirective } from '../directives/drop-files.directive';
 import { ZipTreeNode, ZipFileTreeViewComponent } from '../../shared/zip-file-tree-view/zip-file-tree-view.component';
+import { HttpHeadersFactory } from '../http-headers-factory';
 
 export type BulkUploadZipEntry = {
     fileName: string;
@@ -94,6 +95,7 @@ export class BulkUploadPreviewComponent implements OnInit {
 
     uploadsApi = input.required<FileUploadApi>();
     foldersApi = input.required<BulkUploadFolderOperations>();
+    httpHeadersFactory = input.required<HttpHeadersFactory>();
     
     archive = computed(() => this.bulkUpload().archive());
     archiveFileTree = computed<ZipTreeNode[]>(() => {
@@ -316,7 +318,8 @@ export class BulkUploadPreviewComponent implements OnInit {
         
         this._fileUploadManager.addFiles(
             results,
-            this.uploadsApi());
+            this.uploadsApi(),
+            this.httpHeadersFactory());
     }
 
     private async mapZipEntryToFileToUpload(args: {

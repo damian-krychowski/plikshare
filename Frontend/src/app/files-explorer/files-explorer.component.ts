@@ -28,6 +28,7 @@ import { ItemSearchComponent } from '../shared/item-search/item-search.component
 import { TreeViewMode } from '../shared/file-tree-view/tree-item';
 import { FileInlinePreviewCommandsPipeline } from './file-inline-preview/file-inline-preview-commands-pipeline';
 import { WorkspaceIntegrations } from '../services/workspaces.api';
+import { HttpHeaders } from '@angular/common/http';
 
 export interface FilesExplorerApi {
     invalidatePrefetchedFolderDependentEntries: (folderExternalId: string) => void;
@@ -80,6 +81,8 @@ export interface FilesExplorerApi {
 
     subscribeToLockStatus: (file: AppFileItem) => void;
     unsubscribeFromLockStatus: (fileExternalId: string) => void;    
+
+    prepareAdditionalHttpHeaders: () => Record<string, string> | undefined;
 }
 
 export type InitialContent = {
@@ -415,7 +418,10 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
             this.filesApi().subscribeToLockStatus(file),
 
         unsubscribeFromLockStatus: (fileExternalId: string) =>
-            this.filesApi().unsubscribeFromLockStatus(fileExternalId)
+            this.filesApi().unsubscribeFromLockStatus(fileExternalId),
+
+        prepareAdditionalHttpHeaders: () =>
+            this.filesApi().prepareAdditionalHttpHeaders()
     }
 
     textractJobStatusService = new TextractJobStatusService(
@@ -832,8 +838,9 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
     onFilesDropped(files: File[]) {
         const uploadsApi = this.uploadsApi();
+        const filesApi = this.filesApi();
 
-        if(!uploadsApi)
+        if(!uploadsApi || !filesApi)
             return;
 
         const filesToUpload: FileToUpload[] = [];
@@ -848,14 +855,15 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
             });
         }   
 
-        this.fileUploadManager.addFiles(filesToUpload, uploadsApi);
+        this.fileUploadManager.addFiles(filesToUpload, uploadsApi, filesApi);
     }
 
     onFilesSelected(event: any, fileUpload: HTMLInputElement) {        
         try {
             const uploadsApi = this.uploadsApi();
+            const filesApi = this.filesApi();
 
-            if(!uploadsApi)
+            if(!uploadsApi || !filesApi)
                 return;
             
             const files: File[] = event.target.files;        
@@ -871,7 +879,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
                 });
             }        
             
-            this.fileUploadManager.addFiles(filesToUpload, uploadsApi);
+            this.fileUploadManager.addFiles(filesToUpload, uploadsApi, filesApi);
         } finally {            
             fileUpload.value = "";
         }

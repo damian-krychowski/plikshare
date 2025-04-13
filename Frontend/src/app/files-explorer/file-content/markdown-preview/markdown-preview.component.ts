@@ -3,6 +3,7 @@ import { MarkdownComponent } from 'ngx-markdown';
 import { MarkdownEditorWrapperComponent } from '../../../shared/lexical/markdown-editor-wrapper.component';
 import { FileInlinePreviewCommandsPipeline } from '../../file-inline-preview/file-inline-preview-commands-pipeline';
 import { Subscription } from 'rxjs';
+import { HttpHeadersFactory } from '../../http-headers-factory';
 
 @Component({
     selector: 'app-markdown-preview',
@@ -16,6 +17,7 @@ import { Subscription } from 'rxjs';
 export class MarkdownPreviewComponent implements OnChanges, OnDestroy {
     fileUrl = input.required<string>();
     isEditMode = input.required<boolean>();
+    httpHeadersFactory = input.required<HttpHeadersFactory>();
 
     commandsPipeline = input<FileInlinePreviewCommandsPipeline>();
     initialHeight = input(500);
@@ -79,7 +81,10 @@ export class MarkdownPreviewComponent implements OnChanges, OnDestroy {
 
     private async loadText(url: string): Promise<boolean> {
         try {
-            const response = await fetch(url, {credentials: 'include'});
+            const response = await fetch(url, {
+                headers: this.httpHeadersFactory().prepareAdditionalHttpHeaders()
+            });
+
             const text = await response.text();
     
             this.fileText.set(text);

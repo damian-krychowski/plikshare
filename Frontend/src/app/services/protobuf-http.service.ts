@@ -3,6 +3,7 @@ import { Injectable } from "@angular/core";
 import * as protobuf from "protobufjs";
 import { firstValueFrom } from "rxjs";
 import { XSRF_TOKEN_HEADER_NAME } from "../shared/xsrf";
+import { BOX_LINK_TOKEN_HEADER } from "./box-link-token.service";
 
 @Injectable({
     providedIn: 'root'
@@ -14,16 +15,21 @@ export class ProtoHttp {
 
     public async get<TResponse>(args: { 
         route: string, 
-        responseProtoType: protobuf.Type,
-        withCredentials?: boolean
+        responseProtoType: protobuf.Type
+        boxLinkToken?: string,
     }): Promise<TResponse> {
+        let headers = new HttpHeaders({
+            'Accept': 'application/x-protobuf',
+            'Accept-Encoding': 'gzip' 
+        });
+
+        if(args.boxLinkToken) {
+            headers = headers.set(BOX_LINK_TOKEN_HEADER, args.boxLinkToken);
+        }
+
         const call = this._http.get(args.route,{
                 responseType: 'arraybuffer',
-                headers: new HttpHeaders({
-                    'Accept': 'application/x-protobuf',
-                    'Accept-Encoding': 'gzip' 
-                }),
-                withCredentials: args.withCredentials
+                headers: headers
             }
         );
     
@@ -41,7 +47,7 @@ export class ProtoHttp {
             requestProtoType: protobuf.Type, 
             responseProtoType: protobuf.Type,
             xsrfToken?: string,
-            withCredentials?: boolean
+            boxLinkToken?: string,
         }
     ): Promise<TResponse> {
 
@@ -58,10 +64,13 @@ export class ProtoHttp {
             headers = headers.set(XSRF_TOKEN_HEADER_NAME, args.xsrfToken);
         }
 
+        if(args.boxLinkToken) {
+            headers = headers.set(BOX_LINK_TOKEN_HEADER, args.boxLinkToken);
+        }
+
         const call = this._http.post(args.route, blob, {
             responseType: 'arraybuffer',
-            headers: headers,
-            withCredentials: args.withCredentials
+            headers: headers
         });
 
         // Handle response
@@ -78,7 +87,7 @@ export class ProtoHttp {
             request: TRequest,
             responseProtoType: protobuf.Type ,
             xsrfToken?: string,
-            withCredentials?: boolean
+            boxLinkToken?: string,
         }
     ): Promise<TResponse> {      
         let headers = new HttpHeaders({
@@ -90,11 +99,14 @@ export class ProtoHttp {
         if (args.xsrfToken) {
             headers = headers.set(XSRF_TOKEN_HEADER_NAME, args.xsrfToken);
         }
+        
+        if(args.boxLinkToken) {
+            headers = headers.set(BOX_LINK_TOKEN_HEADER, args.boxLinkToken);
+        }
 
         const call = this._http.post(args.route, args.request, {
             responseType: 'arraybuffer',
-            headers: headers,
-            withCredentials: args.withCredentials
+            headers: headers
         });
 
         // Handle response

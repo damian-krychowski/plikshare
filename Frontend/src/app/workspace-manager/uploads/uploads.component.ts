@@ -7,7 +7,6 @@ import { DataStore } from '../../services/data-store.service';
 import { FoldersAndFilesSetApi } from '../../services/folders-and-files.api';
 import { AppUploadListItem, UploadListItemComponent } from './upload-list-item/upload-list-item.component';
 import { removeItems } from '../../shared/signal-utils';
-import { CookieUtils } from '../../shared/cookies';
 import { WorkspaceContextService } from '../workspace-context.service';
 
 @Component({
@@ -19,7 +18,6 @@ import { WorkspaceContextService } from '../workspace-context.service';
     styleUrl: './uploads.component.scss'
 })
 export class UploadsComponent implements OnInit, OnDestroy {
-
     isLoading = signal(false);
     uploads: WritableSignal<AppUploadListItem[]> = signal([]);
     fileUploadApi: WritableSignal<FileUploadApi | null> = signal(null);

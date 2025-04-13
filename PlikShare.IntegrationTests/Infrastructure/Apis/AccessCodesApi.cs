@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Flurl.Http;
+using Microsoft.Extensions.Primitives;
 using PlikShare.BoxExternalAccess.Contracts;
 using PlikShare.Core.Authorization;
 using PlikShare.Folders.Create.Contracts;
@@ -9,7 +10,7 @@ namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
 public class AccessCodesApi(IFlurlClient flurlClient, string appUrl)
 {
-    public async Task<BoxLinkAuthCookie> StartSession(
+    public async Task<BoxLinkToken> StartSession(
         AntiforgeryCookies antiforgeryCookies)
     {
         var response = await flurlClient
@@ -27,52 +28,66 @@ public class AccessCodesApi(IFlurlClient flurlClient, string appUrl)
             throw exception;
         }
 
-        var boxLinkAuthCookie = response
-            .Cookies
-            .FirstOrDefault(c => c.Name == CookieName.BoxLinkAuth);
-
-        Debug.Assert(boxLinkAuthCookie != null);
-
-        return new BoxLinkAuthCookie(boxLinkAuthCookie.Value);
+        var boxLinkTokenHeader = response
+            .Headers
+            .FirstOrDefault(c => c.Name == HeaderName.BoxLinkToken);
+        
+        return new BoxLinkToken(
+            boxLinkTokenHeader.Value);
     }
 
     public async Task<GetBoxDetailsAndContentResponseDto> GetBoxDetailsAndContent(
         string accessCode,
-        BoxLinkAuthCookie? cookie)
+        BoxLinkToken? boxLinkToken)
     {
         return await flurlClient.ExecuteGet<GetBoxDetailsAndContentResponseDto>(
             appUrl: appUrl,
             apiPath: $"api/access-codes/{accessCode}",
-            cookie: cookie,
-            isResponseInProtobuf: true);
+            cookie: null,
+            isResponseInProtobuf: true,
+            headers: boxLinkToken is null
+                ? null
+                : [boxLinkToken]);
     }
 
     public async Task<CreateFolderResponseDto> CreateFolder(
         string accessCode,
         CreateFolderRequestDto request,
-        BoxLinkAuthCookie? cookie,
+        BoxLinkToken? boxLinkToken,
         AntiforgeryCookies? antiforgery = null)
     {
         return await flurlClient.ExecutePost<CreateFolderResponseDto, CreateFolderRequestDto>(
             appUrl: appUrl,
             apiPath: $"api/access-codes/{accessCode}/folders",
             request: request,
-            cookie: cookie,
-            antiforgery: antiforgery);
+            cookie: null,
+            antiforgery: antiforgery,
+            headers: boxLinkToken is null
+                ? null
+                : [boxLinkToken]);
     }
     
     public async Task UpdateFolderName(
         string accessCode,
         FolderExtId folderExternalId,
         UpdateBoxFolderNameRequestDto request,
-        BoxLinkAuthCookie? cookie,
+        BoxLinkToken? boxLinkToken,
         AntiforgeryCookies? antiforgery = null)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
             apiPath: $"api/access-codes/{accessCode}/folders/{folderExternalId}/name",
             request: request,
-            cookie: cookie,
-            antiforgery: antiforgery);
+            cookie: null,
+            antiforgery: antiforgery,
+            headers: boxLinkToken is null
+                ? null
+                : [boxLinkToken]);
     }
+}
+
+public class BoxLinkToken(string value) : Header
+{
+    public override string Name => HeaderName.BoxLinkToken;
+    public override string Value { get; } = value;
 }

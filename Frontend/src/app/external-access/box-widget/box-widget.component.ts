@@ -10,6 +10,7 @@ import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, ContentDisposi
 import { BulkInitiateFileUploadRequest } from '../../services/uploads.api';
 import { interval, Subscription } from 'rxjs';
 import { CheckFileLocksRequest, CheckFileLocksResponse } from '../../services/lock-status.api';
+import { BOX_LINK_TOKEN_HEADER, BoxLinkTokenService } from '../../services/box-link-token.service';
 
 @Component({
     selector: 'app-box-widget',
@@ -47,6 +48,7 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
     private _fileLockService: BoxWidgetFileLockService;
 
     constructor(
+        private _boxLinkTokenService: BoxLinkTokenService,
         private _boxWidgetApi: BoxWidgetApi,
         private _dataStore: DataStore,
     ) { 
@@ -287,7 +289,18 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
             },
 
             subscribeToLockStatus: (file: AppFileItem) => this._fileLockService.subscribeToLockStatus(file),
-            unsubscribeFromLockStatus: (fileExternalId: string) => this._fileLockService.unsubscribe(fileExternalId)
+
+            unsubscribeFromLockStatus: (fileExternalId: string) => this._fileLockService.unsubscribe(fileExternalId),
+
+            prepareAdditionalHttpHeaders: () => {
+                const token = this._boxLinkTokenService.get();
+
+                if(token) {
+                    return {  [BOX_LINK_TOKEN_HEADER]: token };
+                }
+
+                return undefined;
+            }
         };
     }
 }

@@ -373,6 +373,8 @@ public class Startup
     private static void RegisterServices(
         WebApplicationBuilder builder)
     {
+        builder.Services.AddSingleton<BoxLinkTokenService>();
+
         builder.Services.AddSingleton<IOneTimeCode, OneTimeCode>();
         builder.Services.AddSingleton<IConfig, AppConfig>();
         builder.Services.AddSingleton<IClock, Clock>();  

@@ -29,6 +29,7 @@ export type FileContentOperations = {
     getDownloadLink: (contentDisposition: ContentDisposition) => Promise<GetFileDownloadLinkResponse>;
     getZipPreviewDetails: () => Promise<ZipPreviewDetails>;
     getZipContentDownloadLink: (zipEntry: ZipEntry, contentDisposition: ContentDisposition) => Promise<GetFileDownloadLinkResponse>;
+    prepareAdditionalHttpHeaders: () => Record<string, string> | undefined;
 }
 
 const MB_5_FILE_SIZE = 5 * 1024 * 1024;

@@ -9,6 +9,7 @@ import { ConfirmOperationDirective } from '../../shared/operation-confirm/confir
 import { toggle } from '../../shared/signal-utils';
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
 import { FileSlicer } from '../../services/file-upload-manager/file-slicer';
+import { HttpHeadersFactory } from '../http-headers-factory';
 
 export type AppUploadItem = {
     type: 'upload';
@@ -50,6 +51,7 @@ export type AppUploadItemFolder = {
 })
 export class UploadItemComponent {
     fileUploadApi = input.required<FileUploadApi | null>();
+    httpHeadersFactory = input.required<HttpHeadersFactory>();
     upload = input.required<AppUploadItem>();
     hideActions = input(false);
 
@@ -116,7 +118,8 @@ export class UploadItemComponent {
             fileSlicer: new FileSlicer(file),
             uploadExternalId: upload.externalId,
             uploadsApi: fileUploadApi,
-            fileSizeInBytes: file.size
+            fileSizeInBytes: file.size,
+            httpHeadersFactory: this.httpHeadersFactory()
         }, {
             uploadResumed: (args: { fileUpload: IFileUpload; }) => {
                 upload.fileUpload.set(args.fileUpload);

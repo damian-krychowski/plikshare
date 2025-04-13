@@ -1,4 +1,5 @@
 import { Component, ViewChild, ElementRef, OnDestroy, input, signal, computed, OnChanges, SimpleChanges } from '@angular/core';
+import { HttpHeadersFactory } from '../../http-headers-factory';
 
 @Component({
     selector: 'app-text-preview',
@@ -7,6 +8,7 @@ import { Component, ViewChild, ElementRef, OnDestroy, input, signal, computed, O
 })
 export class TextPreviewComponent implements OnChanges, OnDestroy {
     fileUrl = input.required<string>();
+    httpHeadersFactory = input.required<HttpHeadersFactory>();
     initialHeight = input(500);
 
     @ViewChild('previewContainer') previewContainer!: ElementRef;
@@ -33,7 +35,10 @@ export class TextPreviewComponent implements OnChanges, OnDestroy {
 
     private async loadText(url: string): Promise<boolean> {
         try {
-            const response = await fetch(url, {credentials: 'include'});
+            const response = await fetch(url, {
+                headers: this.httpHeadersFactory().prepareAdditionalHttpHeaders()
+            });
+
             const text = await response.text();
     
             this.fileText.set(text);

@@ -10,7 +10,6 @@ import { Routes } from '@angular/router';
 import { AdminGuardService } from './services/auth-guard.service';
 import { AccessCodesApi } from './external-access/external-link/access-codes.api';
 import { provideMarkdown } from 'ngx-markdown';
-import { AntiforgeryApi } from './services/antiforgery.api';
 
 export const routes: Routes = [{
     path: '',
@@ -162,8 +161,7 @@ export const appConfig: ApplicationConfig = {
                 Router,
                 AuthService,
                 ToastrService,
-                AccessCodesApi,
-                AntiforgeryApi
+                AccessCodesApi
             ]
         }, {
             provide: ErrorHandler,

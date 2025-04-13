@@ -67,6 +67,8 @@ export type FilePreviewOperations = {
     getAiMessages(fileExternalId: string, fileArtifactExternalId: string, fromConversationCounter: number): Promise<GetAiMessagesResponse>;
     getAllAiMessages(fileExternalId: string, fileArtifactExternalId: string): Promise<GetAiMessagesResponse>;
     prefetchAiMessages(fileExternalId: string, fileArtifactExternalId: string): void;
+    
+    prepareAdditionalHttpHeaders: () => Record<string, string> | undefined;
 }
 
 
@@ -397,7 +399,9 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
                 contentDisposition),
 
             getZipPreviewDetails: () => previewOperations.getZipPreviewDetails(
-                fileExternalId)
+                fileExternalId),
+
+            prepareAdditionalHttpHeaders: () => previewOperations.prepareAdditionalHttpHeaders()
         };
 
         return contentOperations;
@@ -432,7 +436,9 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
 
             getZipPreviewDetails: () => {
                 throw new Error("not implemented")
-            }
+            },
+
+            prepareAdditionalHttpHeaders: () => previewOperations.prepareAdditionalHttpHeaders()
         };
 
         return contentOperations;

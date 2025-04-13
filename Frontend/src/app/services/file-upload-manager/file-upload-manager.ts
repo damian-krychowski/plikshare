@@ -9,6 +9,7 @@ import { toNameAndExtension } from "../filte-type";
 import { getBase62Guid } from "../guid-base-62";
 import { MultiFileDirectFileUpload } from "./multi-file-direct-file-upload";
 import { GenericDialogService } from "../../shared/generic-message-dialog/generic-dialog-service";
+import { HttpHeadersFactory } from "../../files-explorer/http-headers-factory";
 
 export type UploadAlgorithm = "direct-upload" | "single-chunk-upload" | "multi-step-chunk-upload";
 
@@ -136,7 +137,11 @@ export class FileUploadManager {
 
     constructor(private _genericDialogService: GenericDialogService) { }
 
-    public addFiles(files: FileToUpload[], uploadsApi: FileUploadApi) {
+    public addFiles(
+        files: FileToUpload[], 
+        uploadsApi: FileUploadApi,
+        httpHeadersFactory: HttpHeadersFactory) {
+
         for (const file of files) {
             if (file.size <= SMALL_FILE_THRESHOLD) {
                 this.smallFilesQueue.push(file);
@@ -148,7 +153,7 @@ export class FileUploadManager {
         this.updateQueueSize();
         
         if (!this.isProcessing) {
-            this.processQueue(uploadsApi);
+            this.processQueue(uploadsApi, httpHeadersFactory);
         }
     }
 
@@ -189,7 +194,10 @@ export class FileUploadManager {
         return batch;
     }
 
-    private async processQueue(uploadsApi: FileUploadApi) {
+    private async processQueue(
+        uploadsApi: FileUploadApi,
+        httpHeadersFactory: HttpHeadersFactory) {
+
         this.isProcessing = true;
 
         while (this.smallFilesQueue.length > 0 || this.largeFilesQueue.length > 0) {
@@ -265,6 +273,7 @@ export class FileUploadManager {
                         });
 
                         var multiFileDirectUpload = new MultiFileDirectFileUpload(
+                            httpHeadersFactory,
                             this._activeUploads,
                             fileUploadDetails);
 
@@ -281,7 +290,8 @@ export class FileUploadManager {
                 for (const upload of restOfUploads) {
                     this.uploadFile({
                         file: upload,
-                        uploadsApi: uploadsApi
+                        uploadsApi: uploadsApi,
+                        httpHeadersFactory: httpHeadersFactory
                     });   
                 }
             } catch (error: any) {
@@ -471,7 +481,8 @@ export class FileUploadManager {
 
     public uploadFile(args: {
         file: InitiatedFileToUpload,
-        uploadsApi: FileUploadApi
+        uploadsApi: FileUploadApi,
+        httpHeadersFactory: HttpHeadersFactory
     }) {
         const upload = this.createFileUpload(args);
         
@@ -490,7 +501,8 @@ export class FileUploadManager {
         fileSlicer: IFileSlicer,
         uploadExternalId: string,
         uploadsApi: FileUploadApi,
-        fileSizeInBytes: number
+        fileSizeInBytes: number,
+        httpHeadersFactory: HttpHeadersFactory
     }, callbacks: {
         uploadResumed: (args: { fileUpload: IFileUpload }) => void;
     }) {
@@ -507,6 +519,7 @@ export class FileUploadManager {
         };
 
         const fileUpload = new MultiStepChunkFileUpload(
+            args.httpHeadersFactory,
             this._activeUploads,
             args.uploadsApi,
             fileUploadDetails);
@@ -571,7 +584,8 @@ export class FileUploadManager {
 
     private createFileUpload(args: {
         file: InitiatedFileToUpload,
-        uploadsApi: FileUploadApi
+        uploadsApi: FileUploadApi,
+        httpHeadersFactory: HttpHeadersFactory
     }): { fileUpload: SingleFileUpload, uploadPromise: Promise<{fileExternalId: string} | null>} {
         const algorithm = args.file.initiateUploadResult.algorithm;
         
@@ -592,6 +606,7 @@ export class FileUploadManager {
 
         if(algorithm === 'single-chunk-upload'){            
             const fileUpload = new SingleChunkFileUpload(
+                args.httpHeadersFactory,
                 this._activeUploads,
                 args.uploadsApi,
                 details
@@ -605,6 +620,7 @@ export class FileUploadManager {
 
         if(algorithm === 'multi-step-chunk-upload') {
             const fileUpload =  new MultiStepChunkFileUpload(
+                args.httpHeadersFactory,
                 this._activeUploads,
                 args.uploadsApi,
                 details

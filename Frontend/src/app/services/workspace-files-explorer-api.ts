@@ -1,3 +1,4 @@
+import { b } from "@angular/common/module.d-BJA_GXII";
 import { FilesExplorerApi } from "../files-explorer/files-explorer.component";
 import { AppFileItem } from "../shared/file-item/file-item.component";
 import { DataStore } from "./data-store.service";
@@ -254,5 +255,9 @@ export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
 
     unsubscribeFromLockStatus (fileExternalId: string) {
         this._fileLockService.unsubscribe(fileExternalId);
+    }
+
+    prepareAdditionalHttpHeaders() {
+        return undefined;
     }
 }

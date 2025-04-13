@@ -5,7 +5,7 @@ import { Observable, of, throwError, catchError, from, switchMap } from "rxjs";
 import { ToastrService } from 'ngx-toastr';
 import { AccessCodesApi } from "../external-access/external-link/access-codes.api";
 import { SignOutService } from "./sign-out.service";
-import { AntiforgeryApi } from "./antiforgery.api";
+import { BOX_LINK_TOKEN_HEADER } from "./box-link-token.service";
 
 @Injectable({
     providedIn: 'root'
@@ -15,8 +15,7 @@ export class AuthInterceptor implements HttpInterceptor {
         private _router: Router, 
         private _signOutService: SignOutService,
         private _toastr: ToastrService,
-        private _accessCodesApi: AccessCodesApi,
-        private _antiforgeryApi: AntiforgeryApi
+        private _accessCodesApi: AccessCodesApi
         ){}
 
     intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
@@ -44,8 +43,12 @@ export class AuthInterceptor implements HttpInterceptor {
         //handle your auth error or rethrow
         if (err.status === 401) {
             return from(this._accessCodesApi.startSession()).pipe(
-                switchMap(() => {
-                    return next.handle(req);
+                switchMap((token) => {
+                    const authReq = req.clone({
+                        headers: req.headers.set(BOX_LINK_TOKEN_HEADER, token)
+                    });
+
+                    return next.handle(authReq);
                 })
             );
         } else if(err.status === 404) {

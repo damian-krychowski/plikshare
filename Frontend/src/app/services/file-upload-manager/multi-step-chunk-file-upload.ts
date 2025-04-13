@@ -1,6 +1,7 @@
 import { WritableSignal, Signal, signal, computed } from "@angular/core";
 import { IFileSlicer, FileUploadApi, IFileUpload } from "./file-upload-manager";
 import { FileUploadDetails, FileUploadUtils, MAXIMUM_PARALLEL_UPLOADS } from "./file-upload-utils";
+import { HttpHeadersFactory } from "../../files-explorer/http-headers-factory";
 
 export class MultiStepChunkFileUpload implements IFileUpload  {
     public type = 'MultiStepChunkFileUpload';
@@ -18,6 +19,7 @@ export class MultiStepChunkFileUpload implements IFileUpload  {
     } | null> | null = null;
 
     constructor(
+        private _httpHeadersFactory: HttpHeadersFactory,
         private _activeUploads: Promise<void>[],
         private _uploadsApi: FileUploadApi,        
         public details: FileUploadDetails
@@ -125,7 +127,8 @@ export class MultiStepChunkFileUpload implements IFileUpload  {
                 url:initiatePartUploadResult.uploadPreSignedUrl,
                 file: partBlob,
                 contentType: this.details.contentType,
-                abortSignal: abortSignal
+                abortSignal: abortSignal,
+                additionalHeaders: this._httpHeadersFactory.prepareAdditionalHttpHeaders()
             });           
 
             this.markPartNumberAsUploaded(partNumber);

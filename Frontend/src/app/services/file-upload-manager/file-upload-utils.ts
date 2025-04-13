@@ -22,16 +22,22 @@ export class FileUploadUtils {
         url: string, 
         file: Blob, 
         contentType: string, 
-        abortSignal: AbortSignal
+        abortSignal: AbortSignal,
+        additionalHeaders?: Record<string, string>
     }): Promise<Response> {              
+        const headers: Record<string, string> = {
+            'Content-Type': args.contentType
+        };
+
+        if (args.additionalHeaders) {
+            Object.assign(headers, args.additionalHeaders);
+        }
+
         const response = await fetch(args.url, {
             method: 'PUT',
             body: args.file,
-            headers: {
-                'Content-Type': args.contentType
-            },
-            signal: args.abortSignal,
-            credentials: 'include'
+            headers: headers,
+            signal: args.abortSignal
         });
 
         if (!response.ok) {
