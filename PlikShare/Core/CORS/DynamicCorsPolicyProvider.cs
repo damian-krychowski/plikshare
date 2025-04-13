@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.Extensions.Options;
 using PlikShare.BoxLinks.Cache;
+using PlikShare.Core.Authorization;
 using PlikShare.Core.Configuration;
 using PlikShare.Files.PreSignedLinks;
 
@@ -89,7 +90,7 @@ public class DynamicCorsPolicyProvider(
             .WithOrigins(boxLink.WidgetOrigins.ToArray())
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .AllowCredentials();
+            .WithExposedHeaders(HeaderName.BoxLinkToken);
 
         var policy = policyBuilder.Build();
 
