@@ -75,7 +75,7 @@ export interface GetStoragesResponse {
     items: GetStorageItem[];
 }
 
-export type AppStorageType = 'hard-drive' | 'cloudflare-r2' | 'aws-s3' | 'digitalocean-spaces';
+export type AppStorageType = 'hard-drive' | 'cloudflare-r2' | 'aws-s3' | 'digitalocean-spaces' | 'backblaze-b2';
 
 export type AppStorageEncryptionType = 'none' | 'managed';
 
@@ -83,7 +83,8 @@ export type GetStorageItem =
     GetHardDriveStorageItem 
     | GetCloudflareR2StorageItem 
     | GetAwsS3StorageItem 
-    | GetDigitalOceanSpacesStorageItem;
+    | GetDigitalOceanSpacesStorageItem
+    | GetBackblazeB2StorageItem;
 
 export type GetHardDriveStorageItem = {
     $type: "hard-drive",
@@ -130,6 +131,17 @@ export type GetDigitalOceanSpacesStorageItem = {
     url: string;
 }
 
+export type GetBackblazeB2StorageItem = {
+    $type: "backblaze-b2",
+    externalId: string;
+    name: string;
+    workspacesCount: number;
+    encryptionType: AppStorageEncryptionType;
+
+    keyId: string;
+    url: string;
+}
+
 export interface GetHardDriveVolumesRespone {
     items: HardDriveVolumeItem[];
 }
@@ -137,6 +149,24 @@ export interface GetHardDriveVolumesRespone {
 export interface HardDriveVolumeItem {
     path: string;
     restrictedFolderPaths: string[];
+}
+
+export interface CreateBackblazeB2StorageRequest {
+    name: string;
+    keyId: string;
+    applicationKey: string;
+    url: string;
+    encryptionType: AppStorageEncryptionType;
+}
+
+export interface CreateBackblazeB2StorageResponse {
+    externalId: string;
+}
+
+export interface UpdateBackblazeB2StorageDetailsRequest {
+    keyId: string;
+    applicationKey: string;
+    url: string;
 }
 
 @Injectable({
@@ -288,5 +318,31 @@ export class StoragesApi {
             });
 
         return await firstValueFrom(call);
+    }
+
+    public async createBackblazeB2Storage(request: CreateBackblazeB2StorageRequest): Promise<CreateBackblazeB2StorageResponse> {
+        const call = this
+            ._http
+            .post<CreateBackblazeB2StorageResponse>(
+                `/api/storages/backblaze-b2`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        return await firstValueFrom(call);
+    }
+
+    public async updateBackblazeB2StorageDetails(externalId: string, request: UpdateBackblazeB2StorageDetailsRequest): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/storages/backblaze-b2/${externalId}/details`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
     }
 }

@@ -16,6 +16,11 @@ using PlikShare.Storages.S3.AwsS3.Create;
 using PlikShare.Storages.S3.AwsS3.Create.Contracts;
 using PlikShare.Storages.S3.AwsS3.UpdateDetails;
 using PlikShare.Storages.S3.AwsS3.UpdateDetails.Contracts;
+using PlikShare.Storages.S3.BackblazeB2;
+using PlikShare.Storages.S3.BackblazeB2.Create;
+using PlikShare.Storages.S3.BackblazeB2.Create.Contracts;
+using PlikShare.Storages.S3.BackblazeB2.UpdateDetails;
+using PlikShare.Storages.S3.BackblazeB2.UpdateDetails.Contracts;
 using PlikShare.Storages.S3.CloudflareR2;
 using PlikShare.Storages.S3.CloudflareR2.Create;
 using PlikShare.Storages.S3.CloudflareR2.Create.Contracts;
@@ -81,6 +86,13 @@ public static class StoragesEndpoints
 
         group.MapGet("/hard-drive/volumes", GetHardDriveVolumes)
             .WithName("GetHardDriveVolumes");
+
+        // Backblaze B2
+        group.MapPost("/backblaze-b2", CreateBackblazeB2Storage)
+            .WithName("CreateBackblazeB2Storage");
+
+        group.MapPatch("/backblaze-b2/{storageExternalId}/details", UpdateBackblazeB2StorageDetails)
+            .WithName("UpdateBackblazeB2StorageDetails");
     }
 
     // Basic Storage Operations
@@ -401,5 +413,81 @@ public static class StoragesEndpoints
                     Path: v.Path,
                     RestrictedFolderPaths: v.RestrictedFolderPaths))
                 .ToArray());
+    }
+
+    // Backblaze B2 Operations
+    private static async Task<Results<Ok<CreateBackblazeB2StorageResponseDto>, BadRequest<HttpError>>> CreateBackblazeB2Storage(
+        [FromBody] CreateBackblazeB2StorageRequestDto request,
+        CreateBackblazeB2StorageOperation createBackblazeB2StorageOperation,
+        CancellationToken cancellationToken)
+    {
+        var result = await createBackblazeB2StorageOperation.Execute(
+            name: request.Name,
+            details: new BackblazeB2DetailsEntity(
+                KeyId: request.KeyId,
+                ApplicationKey: request.ApplicationKey,
+                Url: request.Url),
+            encryptionType: request.EncryptionType,
+            cancellationToken: cancellationToken);
+
+        return result.Code switch
+        {
+            CreateBackblazeB2StorageOperation.ResultCode.Ok => TypedResults.Ok(
+                new CreateBackblazeB2StorageResponseDto
+                {
+                    ExternalId = result.StorageExternalId!.Value
+                }),
+
+            CreateBackblazeB2StorageOperation.ResultCode.CouldNotConnect =>
+                HttpErrors.Storage.ConnectionFailed(),
+
+            CreateBackblazeB2StorageOperation.ResultCode.NameNotUnique =>
+                HttpErrors.Storage.NameNotUnique(
+                    request.Name),
+
+            CreateBackblazeB2StorageOperation.ResultCode.InvalidUrl =>
+                HttpErrors.Storage.InvalidUrl(
+                    request.Url),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(CreateBackblazeB2StorageOperation),
+                resultValueStr: result.ToString())
+        };
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateBackblazeB2StorageDetails(
+        [FromRoute] StorageExtId storageExternalId,
+        [FromBody] UpdateBackblazeB2StorageDetailsRequestDto request,
+        UpdateBackblazeB2StorageDetailsOperation updateBackblazeB2StorageDetailsOperation,
+        CancellationToken cancellationToken)
+    {
+        var result = await updateBackblazeB2StorageDetailsOperation.Execute(
+            externalId: storageExternalId,
+            newDetails: new BackblazeB2DetailsEntity(
+                KeyId: request.KeyId,
+                ApplicationKey: request.ApplicationKey,
+                Url: request.Url),
+            cancellationToken: cancellationToken);
+
+        return result switch
+        {
+            UpdateBackblazeB2StorageDetailsOperation.ResultCode.Ok =>
+                TypedResults.Ok(),
+
+            UpdateBackblazeB2StorageDetailsOperation.ResultCode.CouldNotConnect =>
+                HttpErrors.Storage.ConnectionFailed(),
+
+            UpdateBackblazeB2StorageDetailsOperation.ResultCode.NotFound =>
+                HttpErrors.Storage.NotFound(
+                    storageExternalId),
+
+            UpdateBackblazeB2StorageDetailsOperation.ResultCode.InvalidUrl =>
+                HttpErrors.Storage.InvalidUrl(
+                    request.Url),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(CreateBackblazeB2StorageOperation),
+                resultValueStr: result.ToString())
+        };
     }
 }

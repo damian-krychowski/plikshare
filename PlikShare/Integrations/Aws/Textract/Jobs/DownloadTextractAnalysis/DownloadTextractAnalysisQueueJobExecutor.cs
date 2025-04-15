@@ -728,7 +728,7 @@ public class TextractBlock
 {
     public required string Id { get; init; }
     public required string BlockType { get; init; } // PAGE, LINE, WORD, TABLE, CELL, SELECTION_ELEMENT, etc.
-    public required float Confidence { get; init; }
+    public required float? Confidence { get; init; }
     public required TextractGeometry Geometry { get; init; }
     public required List<TextractRelationship> Relationships { get; init; }
     public string? Text { get; init; }
@@ -739,7 +739,7 @@ public class TextractBlock
     public int? ColumnIndex { get; init; }
     public int? RowSpan { get; init; }
     public int? ColumnSpan { get; init; }
-    public int Page { get; init; }
+    public int? Page { get; init; }
 }
 
 public class TextractTable
@@ -749,7 +749,7 @@ public class TextractTable
     public required int RowCount { get; init; }
     public required int ColumnCount { get; init; }
     public required TextractGeometry Geometry { get; init; }
-    public float Confidence { get; init; }
+    public float? Confidence { get; init; }
 }
 
 public class TextractTableCell
@@ -762,7 +762,7 @@ public class TextractTableCell
     public required TextractGeometry Geometry { get; init; }
     public string? Content { get; init; }
     public List<string> WordIds { get; init; } = new();
-    public float Confidence { get; init; }
+    public float? Confidence { get; init; }
     public bool IsHeader { get; init; }
     public bool IsFooter { get; init; }
 }
@@ -774,12 +774,12 @@ public class TextractForm
     public required string? Value { get; init; }
     public required TextractGeometry KeyGeometry { get; init; }
     public required TextractGeometry? ValueGeometry { get; init; }
-    public float Confidence { get; init; }
+    public float? Confidence { get; init; }
 }
 
 public class TextractPage
 {
-    public required int PageNumber { get; init; }
+    public required int? PageNumber { get; init; }
     public required TextractGeometry Geometry { get; init; }
     public List<TextractTable> Tables { get; init; } = new();
     public List<TextractForm> Forms { get; init; } = new();
@@ -795,10 +795,10 @@ public class TextractGeometry
 
 public class TextractBoundingBox
 {
-    public required float Width { get; init; }
-    public required float Height { get; init; }
-    public required float Left { get; init; }
-    public required float Top { get; init; }
+    public required float? Width { get; init; }
+    public required float? Height { get; init; }
+    public required float? Left { get; init; }
+    public required float? Top { get; init; }
 }
 
 public class TextractPolygon
@@ -808,8 +808,8 @@ public class TextractPolygon
 
 public class TextractPoint
 {
-    public required float X { get; init; }
-    public required float Y { get; init; }
+    public required float? X { get; init; }
+    public required float? Y { get; init; }
 }
 
 public class TextractRelationship
@@ -820,7 +820,7 @@ public class TextractRelationship
 
 public class TextractDocumentMetadata
 {
-    public required int Pages { get; init; }
+    public required int? Pages { get; init; }
 }
 
 public class TextractWarning
@@ -978,7 +978,7 @@ public static class TextractMappingExtensions
             Value = valueBlock?.Text,
             KeyGeometry = keyBlock.Geometry,
             ValueGeometry = valueBlock?.Geometry,
-            Confidence = Math.Min(keyBlock.Confidence, valueBlock?.Confidence ?? 100)
+            Confidence = Math.Min(keyBlock.Confidence ?? 100, valueBlock?.Confidence ?? 100)
         };
     }
 

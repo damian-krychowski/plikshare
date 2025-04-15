@@ -48,10 +48,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.400" />
-        <PackageReference Include="AWSSDK.S3" Version="3.7.415.16" />
-        <PackageReference Include="AWSSDK.SimpleEmailV2" Version="3.7.408.14" />
-        <PackageReference Include="AWSSDK.Textract" Version="3.7.400.111" />
+        <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.0-preview.13" />
+        <PackageReference Include="AWSSDK.S3" Version="4.0.0-preview.13" />
+        <PackageReference Include="AWSSDK.SimpleEmailV2" Version="4.0.0-preview.13" />
+        <PackageReference Include="AWSSDK.Textract" Version="4.0.0-preview.13" />
         <PackageReference Include="CommunityToolkit.HighPerformance" Version="8.4.0" />
         <PackageReference Include="FluentValidation" Version="11.11.0" />
         <PackageReference Include="Flurl" Version="4.0.0" />

@@ -62,6 +62,10 @@ export const routes: Routes = [{
     loadComponent: () => import('./account/storage-settings/digitalocean/create-digitalocean-storage/create-digitalocean-storage.component').then(m => m.CreateDigitalOceanStorageComponent),
     canActivate: [AdminGuardService]
 }, {
+    path: 'settings/storage/add/backblaze-b2',
+    loadComponent: () => import('./account/storage-settings/backblaze/create-backblaze-storage/create-backblaze-storage.component').then(m => m.CreateBackblazeStorageComponent),
+    canActivate: [AdminGuardService]
+}, {
     path: 'settings/storage/add/cloudflare-r2',
     loadComponent: () => import('./account/storage-settings/cloudflare/create-cloudflare-storage/create-cloudflare-storage.component').then(m => m.CreateCloudflareStorageComponent),
     canActivate: [AdminGuardService]

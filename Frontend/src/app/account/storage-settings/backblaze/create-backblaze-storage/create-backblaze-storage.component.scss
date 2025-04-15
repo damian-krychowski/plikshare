@@ -1,0 +1,16 @@
+
+@forward "./../../../../../styles/page-form.scss";
+@forward "./../../../../../styles/mobile-display.scss";
+@forward "./../../../../../styles/app-header.scss";
+@forward "./../../../../../styles/top-bar.scss";
+@forward "./../../../../../styles/top-nav-btn.scss";
+@forward "./../../../../../styles/item-bar.scss";
+@forward "./../../../../../styles/icon-merge.scss";
+
+.email-picker {
+    padding: 2rem;   
+}
+
+.mat-mdc-form-field-error-wrapper {
+    padding: 0 !important;
+}
