@@ -13,7 +13,7 @@ PlikShare is a self-hosted file sharing application that allows you to securely 
 - Access control
 - Files Encryption
 - Easy deployment
-
+- Box Widgets which can be embedded on the other websites
 
 ## Hey Claude, how to pronounce it?
 ![claude_pronunciation](https://github.com/damian-krychowski/plikshare/blob/main/assets/how_to_pronounce.png)
@@ -73,6 +73,20 @@ I couldn't resist implementing ZIP file browsing capabilities as well. This feat
 
 <video src='https://github.com/user-attachments/assets/8ad6da6d-1f71-4794-857f-d0333acd7f52' width=180></video>
 
+## How to embed box widget on other websites
+Each PlikShare box can be used as a widget and embedded on other websites. To do this, you need to:
+
+1. Create a box
+2. Create a link 
+3. Set required permissions
+4. Click the widget setup
+5. Add the destination website origin to the allowed list
+
+On your website, you'll need to import the provided JavaScript and CSS files in the head section. Then you can use the `<plikshare-box-widget>` web component. 
+
+Here's how it looks in practice (as seen on https://plikshare.com):
+
+<video src='https://github.com/user-attachments/assets/3b42e68e-d805-41a1-8893-c05432d42cea' width=180></video>
 
 ## Markdown Files
 PlikShare can render markdown files and it supports [mermaid diagrams](https://mermaid.js.org/intro/). Markdown files are also the only files in PlikShare (for now!) that can be directly edited.
