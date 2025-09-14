@@ -15,6 +15,14 @@ PlikShare is a self-hosted file sharing application that allows you to securely 
 - Easy deployment
 - Box Widgets which can be embedded on the other websites
 
+## Supported storage
+
+- VPS Hard drive
+- Cloudflare R2
+- AWS S3
+- DigitalOcean Spaces
+- Blackbaze B2
+
 ## Hey Claude, how to pronounce it?
 ![claude_pronunciation](https://github.com/damian-krychowski/plikshare/blob/main/assets/how_to_pronounce.png)
 
