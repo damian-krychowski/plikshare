@@ -42,7 +42,7 @@
     </div>
 
     @if(isMenuOpen()) {
-        <div class="app-menu mt-2" @menuAnimation>
+        <div class="app-menu mt-2">
             @if(entryPage.isSignUpAvailable()) {
                 <a class="app-menu__link app-menu__link--light" routerLink="/sign-up"
                     [class.app-menu__link--active]="isUrlActive('/sign-up')">

@@ -253,3 +253,11 @@ select {
 .bottom-spacer{
     padding-bottom: 4rem;
 }
+
+.app-search-container {
+    display: none;
+}
+
+.app-search-container.app-search-active {
+    display: block;
+}

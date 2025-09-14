@@ -5,7 +5,7 @@ import { AppWorkspace, WorkspaceItemComponent } from '../shared/workspace-item/w
 import { AuthService } from '../services/auth.service';
 import { BoxExternalAccessApi } from '../services/box-external-access.api';
 import { DataStore } from '../services/data-store.service';
-import { SearchComponent, SearchSlideAnimation } from '../shared/search/search.component';
+import { SearchComponent } from '../shared/search/search.component';
 import { SearchInputComponent } from '../shared/search-input/search-input.component';
 import { Subscription, filter } from 'rxjs';
 import { InAppSharing } from '../services/in-app-sharing.service';
@@ -39,8 +39,7 @@ import { GenericDialogService } from '../shared/generic-message-dialog/generic-d
         FooterComponent
     ],
     templateUrl: './workspaces.component.html',
-    styleUrl: './workspaces.component.scss',
-    animations: [SearchSlideAnimation]
+    styleUrl: './workspaces.component.scss'
 })
 export class WorkspacesComponent implements OnInit, OnDestroy {
     isLoading = signal(false);

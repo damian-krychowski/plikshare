@@ -7,21 +7,10 @@ import { ExternalBoxFileSearchItem, ExternalBoxSearchGroup, SearchResult, Search
 import { Subscription } from "rxjs";
 import { WorkspaceItemComponent } from "../workspace-item/workspace-item.component";
 import { BoxItemComponent } from "../box-item/box-item.component";
-import { animate, style, transition, trigger } from "@angular/animations";
 import { FolderItemComponent } from "../folder-item/folder-item.component";
-import { AppFileItem, FileItemComponent } from "../file-item/file-item.component";
+import { FileItemComponent } from "../file-item/file-item.component";
 import { ExternalBoxItemComponent } from "../external-box-item/external-box-item.component";
 import { Router } from "@angular/router";
-
-export const SearchSlideAnimation = trigger('searchSlideAnimation', [
-    transition(':enter', [
-        style({ height: '0' }),
-        animate('200ms ease-in', style({ height: '*', opacity: 1 }))
-    ]),
-    transition(':leave', [
-        animate('200ms ease-out', style({ height: '0', opacity: 0 }))
-    ])
-]);
 
 @Component({
     selector: 'app-search',

@@ -154,7 +154,7 @@
 
             <div class="mt-2"></div>    
         
-            @for(workspace of workspaces(); track workspace.externalId) {
+            @for(workspace of workspaces(); track workspace.externalId()) {
                 <app-workspace-item 
                     [workspace]="workspace"
                     [canOpen]="!isAnyNameEditing()"
@@ -177,7 +177,7 @@
 
             <div class="mt-2"></div>    
         
-            @for(workspace of sharedWorkspaces(); track workspace.externalId) {
+            @for(workspace of sharedWorkspaces(); track workspace.externalId()) {
                 <app-workspace-item 
                     [workspace]="workspace"
                     [canOpen]="!isAnyNameEditing()"

@@ -148,7 +148,7 @@ function FloatingLinkEditor({ editor }: any) {
     useEffect(() => {
         editor.getEditorState().read(() => {
             updateLinkEditor();
-        });
+        }, { editor });
     }, [editor, updateLinkEditor]);
 
     useEffect(() => {
@@ -389,37 +389,37 @@ function BlockOptionsDropdownList({
     return (
         <div className="toolbar-dropdown" ref={dropDownRef}>
             <button className="item" onClick={formatParagraph}>
-                <i className="icon icon-lg icon-lucide-text-normal"></i>  
+                <i className="icon icon-lg icon-lucide-text-normal"></i>
                 <span className="text">Normal</span>
                 {blockType === "paragraph" && <span className="active" />}
             </button>
             <button className="item" onClick={formatHeading1}>
-                <i className="icon icon-lg icon-lucide-heading-1"></i>  
+                <i className="icon icon-lg icon-lucide-heading-1"></i>
                 <span className="text">Large Heading</span>
                 {blockType === "h1" && <span className="active" />}
             </button>
             <button className="item" onClick={formatHeading2}>
-                <i className="icon icon-lg icon-lucide-heading-2"></i>  
+                <i className="icon icon-lg icon-lucide-heading-2"></i>
                 <span className="text">Medium Heading</span>
                 {blockType === "h2" && <span className="active" />}
             </button>
             <button className="item" onClick={formatHeading3}>
-                <i className="icon icon-lg icon-lucide-heading-3"></i>  
+                <i className="icon icon-lg icon-lucide-heading-3"></i>
                 <span className="text">Small Heading</span>
                 {blockType === "h3" && <span className="active" />}
             </button>
             <button className="item" onClick={formatBulletList}>
-                <i className="icon icon-thin icon-lg icon-lucide-unordered-list"></i>  
+                <i className="icon icon-thin icon-lg icon-lucide-unordered-list"></i>
                 <span className="text">Bullet List</span>
                 {blockType === "ul" && <span className="active" />}
             </button>
             <button className="item" onClick={formatNumberedList}>
-                <i className="icon icon-lg icon-lucide-ordered-list"></i>  
+                <i className="icon icon-lg icon-lucide-ordered-list"></i>
                 <span className="text">Numbered List</span>
                 {blockType === "ol" && <span className="active" />}
             </button>
             <button className="item" onClick={formatQuote}>
-                <i className="icon icon-lg icon-lucide-message-quote"></i>  
+                <i className="icon icon-lg icon-lucide-message-quote"></i>
                 <span className="text">Quote</span>
                 {blockType === "quote" && <span className="active" />}
             </button>
@@ -506,12 +506,14 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
             editor.registerUpdateListener(({ editorState }) => {
                 editorState.read(() => {
                     updateToolbar();
-                });
+                }, { editor });
             }),
             editor.registerCommand(
                 SELECTION_CHANGE_COMMAND,
                 (_payload, newEditor) => {
-                    updateToolbar();
+                    newEditor.getEditorState().read(() => {
+                        updateToolbar();
+                    }, { editor });
                     return false;
                 },
                 LowPriority
@@ -537,43 +539,41 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
 
     const updateToolbarPosition = useCallback(() => {
         if (!isFloating) return;
+        
+        const selection = $getSelection();
+        const editorElement = editor.getRootElement();
+        const toolbar = toolbarRef.current as any as HTMLDivElement;
 
-        editor.getEditorState().read(() => {
-            const selection = $getSelection();
-            const editorElement = editor.getRootElement();
-            const toolbar = toolbarRef.current as any as HTMLDivElement;
-    
-            if (!selection || !editorElement || !toolbar) return;
-    
-            if (!$isRangeSelection(selection)) {
-                setIsTextSelected(false);
-                return;
-            }
-    
-            const nativeSelection = window.getSelection();
-            if (!nativeSelection || nativeSelection.rangeCount === 0) return;
-    
-            const domRange = nativeSelection.getRangeAt(0);
-            const rangeRect = domRange.getBoundingClientRect();
-            const editorRect = editorElement.getBoundingClientRect();
-    
-            const toolbarRect = toolbar.getBoundingClientRect();
-            const toolbarHeight = toolbarRect.height;
-            
-            const top = rangeRect.top - editorRect.top - toolbarHeight - 10;
-            
-            const left = Math.max(
-                0,  
-                Math.min(
-                    rangeRect.left - editorRect.left + (rangeRect.width - toolbarRect.width) / 2,
-                    editorRect.width - toolbarRect.width  
-                )
-            );
-    
-            toolbar.style.top = `${top}px`;
-            toolbar.style.left = `${left}px`;
-            setIsTextSelected(true);
-        });
+        if (!selection || !editorElement || !toolbar) return;
+
+        if (!$isRangeSelection(selection)) {
+            setIsTextSelected(false);
+            return;
+        }
+
+        const nativeSelection = window.getSelection();
+        if (!nativeSelection || nativeSelection.rangeCount === 0) return;
+
+        const domRange = nativeSelection.getRangeAt(0);
+        const rangeRect = domRange.getBoundingClientRect();
+        const editorRect = editorElement.getBoundingClientRect();
+
+        const toolbarRect = toolbar.getBoundingClientRect();
+        const toolbarHeight = toolbarRect.height;
+
+        const top = rangeRect.top - editorRect.top - toolbarHeight - 10;
+
+        const left = Math.max(
+            0,
+            Math.min(
+                rangeRect.left - editorRect.left + (rangeRect.width - toolbarRect.width) / 2,
+                editorRect.width - toolbarRect.width
+            )
+        );
+
+        toolbar.style.top = `${top}px`;
+        toolbar.style.left = `${left}px`;
+        setIsTextSelected(true);
     }, [editor]);
 
     useEffect(() => {
@@ -583,23 +583,25 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
             editor.registerUpdateListener(({ editorState }) => {
                 editorState.read(() => {
                     const selection = $getSelection();
-                    
+
                     if (!$isRangeSelection(selection) || selection.isCollapsed()) {
                         setIsTextSelected(false);
                     } else {
                         updateToolbarPosition();
                     }
-                });
+                }, { editor });
             }),
             editor.registerCommand(
                 SELECTION_CHANGE_COMMAND,
                 () => {
-                    const selection = $getSelection();
-                    if (!$isRangeSelection(selection) || selection.isCollapsed()) {
-                        setIsTextSelected(false);
-                    } else {
-                        updateToolbarPosition();
-                    }
+                     editor.getEditorState().read(() => {
+                        const selection = $getSelection();
+                        if (!$isRangeSelection(selection) || selection.isCollapsed()) {
+                            setIsTextSelected(false);
+                        } else {
+                            updateToolbarPosition();
+                        }
+                    }, { editor }); 
                     return false;
                 },
                 LowPriority
@@ -607,7 +609,7 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
         );
     }, [editor, updateToolbarPosition]);
 
-    
+
     useEffect(() => {
         if (!isFloating) return;
 
@@ -616,12 +618,12 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
                 const activeElement = document.activeElement;
                 const editorElement = editor.getRootElement();
                 const toolbar = toolbarRef.current as any as HTMLDivElement;
-                
+
                 if (
-                    toolbar && 
-                    (!activeElement || 
-                     (activeElement !== editorElement && 
-                      !toolbar.contains(activeElement)))
+                    toolbar &&
+                    (!activeElement ||
+                        (activeElement !== editorElement &&
+                            !toolbar.contains(activeElement)))
                 ) {
                     setIsEditorFocused(false);
                 }
@@ -651,14 +653,13 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
     }, [editor, isLink]);
 
     return (
-        <div className={`toolbar ${
-                isFloating 
-                    ? (isTextSelected && isEditorFocused ? 'toolbar-visible' : 'toolbar-hidden')
-                    : 'toolbar-fixed' 
-            }`}  ref={toolbarRef}  onMouseDown={(e) => {
-                
-            e.preventDefault();
-        }}>
+        <div className={`toolbar ${isFloating
+                ? (isTextSelected && isEditorFocused ? 'toolbar-visible' : 'toolbar-hidden')
+                : 'toolbar-fixed'
+            }`} ref={toolbarRef} onMouseDown={(e) => {
+
+                e.preventDefault();
+            }}>
             <button
                 disabled={!canUndo}
                 onClick={() => {
@@ -667,7 +668,7 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
                 }}
                 className="toolbar-item spaced"
                 aria-label="Undo">
-                <i className="icon icon-lg icon-lucide-undo"></i>  
+                <i className="icon icon-lg icon-lucide-undo"></i>
             </button>
 
             <button
@@ -678,7 +679,7 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
                 }}
                 className="toolbar-item"
                 aria-label="Redo">
-                <i className="icon icon-lg icon-lucide-redo"></i>  
+                <i className="icon icon-lg icon-lucide-redo"></i>
             </button>
 
             <Divider />
@@ -704,7 +705,7 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
                                 editor={editor}
                                 blockType={blockType}
                                 toolbarRef={toolbarRef}
-                                setShowBlockOptionsDropDown={setShowBlockOptionsDropDown}/>,
+                                setShowBlockOptionsDropDown={setShowBlockOptionsDropDown} />,
 
                             document.body
                         )}
@@ -717,14 +718,14 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
                 editor={editor} />
 
             <Divider />
-            
+
             <button
                 onClick={() => {
                     editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold");
                 }}
                 className={"toolbar-item spaced " + (isBold ? "active" : "")}
                 aria-label="Format Bold">
-                <i className="icon icon-lg icon-lucide-text-bold"></i>  
+                <i className="icon icon-lg icon-lucide-text-bold"></i>
             </button>
 
             <button
@@ -733,7 +734,7 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
                 }}
                 className={"toolbar-item spaced " + (isItalic ? "active" : "")}
                 aria-label="Format Italics">
-                <i className="icon icon-thin icon-lg icon-lucide-text-italic"></i>  
+                <i className="icon icon-thin icon-lg icon-lucide-text-italic"></i>
             </button>
 
             <button
@@ -742,7 +743,7 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
                 }}
                 className={"toolbar-item spaced " + (isUnderline ? "active" : "")}
                 aria-label="Format Underline">
-                <i className="icon icon-lg icon-lucide-text-underline"></i>  
+                <i className="icon icon-lg icon-lucide-text-underline"></i>
             </button>
 
             <button
@@ -753,7 +754,7 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
                     "toolbar-item spaced " + (isStrikethrough ? "active" : "")
                 }
                 aria-label="Format Strikethrough">
-                <i className="icon icon-lg icon-lucide-text-strikethrough"></i>  
+                <i className="icon icon-lg icon-lucide-text-strikethrough"></i>
             </button>
 
             <button
@@ -762,14 +763,14 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
                 }}
                 className={"toolbar-item spaced " + (isCode ? "active" : "")}
                 aria-label="Insert Code">
-                <i className="icon icon-thin icon-lg icon-lucide-code"></i>  
+                <i className="icon icon-thin icon-lg icon-lucide-code"></i>
             </button>
 
             <button
                 onClick={insertLink}
                 className={"toolbar-item spaced " + (isLink ? "active" : "")}
                 aria-label="Insert Link">
-                <i className="icon icon-thin icon-lg icon-lucide-text-link"></i>  
+                <i className="icon icon-thin icon-lg icon-lucide-text-link"></i>
             </button>
             {isLink &&
                 createPortal(<FloatingLinkEditor editor={editor} />, document.body)}
@@ -782,7 +783,7 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
                 }}
                 className="toolbar-item spaced"
                 aria-label="Left Align">
-                <i className="icon icon-lg icon-lucide-text-align-left"></i>  
+                <i className="icon icon-lg icon-lucide-text-align-left"></i>
             </button>
 
             <button
@@ -791,7 +792,7 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
                 }}
                 className="toolbar-item spaced"
                 aria-label="Center Align">
-                <i className="icon icon-lg icon-lucide-text-align-center"></i>  
+                <i className="icon icon-lg icon-lucide-text-align-center"></i>
             </button>
 
             <button
@@ -800,7 +801,7 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
                 }}
                 className="toolbar-item spaced"
                 aria-label="Right Align">
-                <i className="icon icon-lg icon-lucide-text-align-right"></i>  
+                <i className="icon icon-lg icon-lucide-text-align-right"></i>
             </button>
 
             <button
@@ -809,7 +810,7 @@ export default function ToolbarPlugin({ isFloating = false }: ToolbarPluginProps
                 }}
                 className="toolbar-item"
                 aria-label="Justify Align">
-                <i className="icon icon-lg icon-lucide-text-align-justify"></i>  
+                <i className="icon icon-lg icon-lucide-text-align-justify"></i>
             </button>
         </div>
     );

@@ -1,9 +1,8 @@
 import { createApplication } from '@angular/platform-browser';
-import { enableProdMode, importProvidersFrom, provideExperimentalZonelessChangeDetection } from '@angular/core';
+import { enableProdMode, importProvidersFrom, provideZonelessChangeDetection } from '@angular/core';
 import { createCustomElement } from '@angular/elements';
 import { BoxWidgetComponent } from './app/external-access/box-widget/box-widget.component';
 import { provideHttpClient, withFetch } from '@angular/common/http';
-import { BrowserAnimationsModule, provideAnimations } from '@angular/platform-browser/animations';
 import { provideMarkdown } from 'ngx-markdown';
 import { ToastrModule } from 'ngx-toastr';
 
@@ -13,13 +12,11 @@ const bootstrap = async () => {
   // Create a mini application just for custom elements
   const appRef = await createApplication({
     providers: [
-      provideExperimentalZonelessChangeDetection(),
+      provideZonelessChangeDetection(),
       provideHttpClient(withFetch()),
       importProvidersFrom([
         ToastrModule.forRoot(),
-        BrowserAnimationsModule,
       ]),
-      provideAnimations(),
       provideMarkdown()
     ]
   });

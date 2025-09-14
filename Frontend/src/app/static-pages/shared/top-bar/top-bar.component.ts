@@ -2,7 +2,6 @@ import { CommonModule } from "@angular/common";
 import { Component, OnInit, signal } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { Router, RouterLink } from "@angular/router";
-import { MenuAnimation } from "../../../shared/menu/menu-animation";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { EntryPageService } from "../../../services/entry-page.service";
 import { toggle } from "../../../shared/signal-utils";
@@ -17,7 +16,6 @@ import { toggle } from "../../../shared/signal-utils";
     ],
     templateUrl: './top-bar.component.html',
     styleUrl: './top-bar.component.scss',
-    animations: [MenuAnimation]
 })
 export class TopBarComponent {
     isMenuOpen = signal(false);

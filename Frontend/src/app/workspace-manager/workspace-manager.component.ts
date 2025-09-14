@@ -7,8 +7,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { PrefetchDirective } from '../shared/prefetch.directive';
 import { DataStore } from '../services/data-store.service';
 import { SearchInputComponent } from '../shared/search-input/search-input.component';
-import { SearchComponent, SearchSlideAnimation } from '../shared/search/search.component';
-import { MenuAnimation } from '../shared/menu/menu-animation';
+import { SearchComponent } from '../shared/search/search.component';
 import { AuthService } from '../services/auth.service';
 import { FileUploadManager } from '../services/file-upload-manager/file-upload-manager';
 import {MatBadgeModule} from '@angular/material/badge';
@@ -33,7 +32,6 @@ import { WorkspaceSizeComponent } from '../shared/workspace-size/workspace-size.
     ],
     templateUrl: './workspace-manager.component.html',
     styleUrl: './workspace-manager.component.scss',
-    animations: [SearchSlideAnimation, MenuAnimation],
     encapsulation: ViewEncapsulation.None
 })
 export class WorkspaceManagerComponent implements OnInit, OnDestroy  {    

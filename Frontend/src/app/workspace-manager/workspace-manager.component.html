@@ -122,7 +122,7 @@
     </div>
 
     @if(isMenuOpen()) {
-        <div class="app-menu" @menuAnimation>
+        <div class="app-menu">
             <a class="app-menu__link" (click)="goToExplorer()"
                 [class.app-menu__link--active]="isExplorerActive()">
                 Files Explorer
@@ -172,12 +172,10 @@
         </div>
     }
     
-    @if(searchInput.isSearchActive()) {
-        <div class="overflow-hidden" @searchSlideAnimation>
-            <app-search>        
-            </app-search>
-        </div>
-    }
+    <div class="overflow-hidden app-search-container" 
+         [class.app-search-active]="searchInput.isSearchActive()">
+        <app-search></app-search>
+    </div>
 
     @if(isFirstWorkspaceLoaded()) {
         <div class="content" [class.covered]="searchInput.isSearchActive()">

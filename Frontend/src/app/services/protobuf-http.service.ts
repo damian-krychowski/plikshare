@@ -52,7 +52,7 @@ export class ProtoHttp {
     ): Promise<TResponse> {
 
         const requestBuffer = args.requestProtoType.encode(args.request as any).finish();
-        const blob = new Blob([requestBuffer], { type: 'application/x-protobuf' });
+        const blob = new Blob([new Uint8Array(requestBuffer)], { type: 'application/x-protobuf' });
         
         let headers = new HttpHeaders({
             'Content-Type': 'application/x-protobuf',

@@ -11,7 +11,7 @@ import { Subscription, filter } from 'rxjs';
 import { DataStore } from '../../services/data-store.service';
 import { PrefetchDirective } from '../../shared/prefetch.directive';
 import { SearchInputComponent } from '../../shared/search-input/search-input.component';
-import { SearchComponent, SearchSlideAnimation } from '../../shared/search/search.component';
+import { SearchComponent } from '../../shared/search/search.component';
 import { InAppSharing } from '../../services/in-app-sharing.service';
 import { SettingsMenuBtnComponent } from '../../shared/setting-menu-btn/settings-menu-btn.component';
 import { AppFolderItem } from '../../shared/folder-item/folder-item.component';
@@ -19,7 +19,6 @@ import { SignOutService } from '../../services/sign-out.service';
 import { AppFileItem } from '../../shared/file-item/file-item.component';
 import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, ContentDisposition, CountSelectedItemsRequest, CreateFolderRequest, FilePreviewDetailsField, GetBulkDownloadLinkRequest, GetFolderResponse, SearchFilesTreeRequest, SendAiFileMessageRequest, StartTextractJobRequest, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
 import { BulkInitiateFileUploadRequest } from '../../services/uploads.api';
-import { CookieUtils } from '../../shared/cookies';
 import { FileLockService } from '../../services/file-lock.service';
 
 @Component({
@@ -34,7 +33,6 @@ import { FileLockService } from '../../services/file-lock.service';
     ],
     templateUrl: './external-box.component.html',
     styleUrl: './external-box.component.scss',
-    animations: [SearchSlideAnimation]
 })
 export class ExternalBoxComponent implements OnInit, OnDestroy  {
     private _boxExternalId: string | null = null;

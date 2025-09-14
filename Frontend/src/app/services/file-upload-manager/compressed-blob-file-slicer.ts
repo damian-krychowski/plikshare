@@ -46,9 +46,8 @@ export class CompressedBlobSlicer implements IFileSlicer {
             const bytesToUse = Math.min(this._remainingBuffer.length, sliceSize);
             resultBuffer.set(this._remainingBuffer.subarray(0, bytesToUse));
             bytesCollected = bytesToUse;
-
-            // Save any leftover data
-            this._remainingBuffer = this._remainingBuffer.subarray(bytesToUse);
+            
+            this._remainingBuffer = new Uint8Array(this._remainingBuffer.subarray(bytesToUse));
         }
 
         // If we still need more data, read from the stream
@@ -74,7 +73,8 @@ export class CompressedBlobSlicer implements IFileSlicer {
                     // If this chunk is too big, use what we need and store the rest
                     resultBuffer.set(value.subarray(0, remainingNeeded), bytesCollected);
                     bytesCollected += remainingNeeded;
-                    this._remainingBuffer = value.subarray(remainingNeeded);
+                   
+                    this._remainingBuffer = new Uint8Array(value.subarray(remainingNeeded));
                 }
             }
         } catch (error) {

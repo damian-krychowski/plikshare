@@ -29,12 +29,10 @@
         }    
     </div>
     
-    @if(searchInput.isSearchActive()){
-        <div class="overflow-hidden" @searchSlideAnimation>
-            <app-search>        
-            </app-search>
-        </div>
-    }
+    <div class="overflow-hidden app-search-container" 
+         [class.app-search-active]="searchInput.isSearchActive()">
+        <app-search></app-search>
+    </div>
 
     <div class="content" [class.covered]="searchInput.isSearchActive()"> 
         @if(!isLoading() && !hasAnyStorage()) {
