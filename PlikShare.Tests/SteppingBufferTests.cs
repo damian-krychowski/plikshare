@@ -101,7 +101,7 @@ public class SteppingBufferTests
     [InlineData(new byte[] { 1, 2, 3, 4, 5, 6 }, 3, new byte[] { 4, 5, 6 })] // Wrapped multiple times
     [InlineData(new byte[] { 1, 2, 3, 4, 5 }, 2, new byte[] { 4, 5 })]     // Size 2 buffer
     [InlineData(new byte[] { 1, 2, 3, 4, 5 }, 4, new byte[] { 2, 3, 4, 5 })] // Size 4 buffer
-    public void always_returns_last_n_elements_after_wrapping(byte[] input, ushort size, byte[] expected)
+    public void always_returns_last_n_elements_after_wrapping(byte[] input, byte size, byte[] expected)
     {
         //given
         var buffer = new SteppingBuffer(size);
@@ -121,7 +121,7 @@ public class SteppingBufferTests
     {
         //given
         const int size = 100;
-        var buffer = new SteppingBuffer((ushort)size);
+        var buffer = new SteppingBuffer(size);
         var expected = new byte[size];
 
         //when

@@ -48,20 +48,20 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.0-preview.13" />
-        <PackageReference Include="AWSSDK.S3" Version="4.0.0-preview.13" />
-        <PackageReference Include="AWSSDK.SimpleEmailV2" Version="4.0.0-preview.13" />
-        <PackageReference Include="AWSSDK.Textract" Version="4.0.0-preview.13" />
+        <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.3" />
+        <PackageReference Include="AWSSDK.S3" Version="4.0.7.1" />
+        <PackageReference Include="AWSSDK.SimpleEmailV2" Version="4.0.5.1" />
+        <PackageReference Include="AWSSDK.Textract" Version="4.0.2.1" />
         <PackageReference Include="CommunityToolkit.HighPerformance" Version="8.4.0" />
-        <PackageReference Include="FluentValidation" Version="11.11.0" />
+        <PackageReference Include="FluentValidation" Version="12.0.0" />
         <PackageReference Include="Flurl" Version="4.0.0" />
-        <PackageReference Include="MailKit" Version="4.11.0" />
+        <PackageReference Include="MailKit" Version="4.13.0" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.3" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.3" />
         <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.3" />
-        <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.3.0" />
-        <PackageReference Include="OpenAI" Version="2.1.0" />
-        <PackageReference Include="protobuf-net" Version="3.2.46" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.9.0" />
+        <PackageReference Include="OpenAI" Version="2.4.0" />
+        <PackageReference Include="protobuf-net" Version="3.2.56" />
         <PackageReference Include="Serilog" Version="4.2.0" />
         <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
         <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
