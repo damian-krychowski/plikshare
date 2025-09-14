@@ -1,6 +1,6 @@
 ﻿namespace PlikShare.Storages.Zip;
 
-public sealed class SteppingBuffer(ushort size)
+public sealed class SteppingBuffer(byte size)
 {
     private readonly Memory<byte> _memory = new byte[size];
     private readonly int _size = size;

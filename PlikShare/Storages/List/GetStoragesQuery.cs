@@ -8,6 +8,7 @@ using PlikShare.Storages.HardDrive;
 using PlikShare.Storages.Id;
 using PlikShare.Storages.List.Contracts;
 using PlikShare.Storages.S3.AwsS3;
+using PlikShare.Storages.S3.BackblazeB2;
 using PlikShare.Storages.S3.CloudflareR2;
 using PlikShare.Storages.S3.DigitalOcean;
 
@@ -84,7 +85,7 @@ public class GetStoragesQuery(
                         var details = GetStorageDetails<CloudflareR2DetailsEntity>(
                             encryptedDetails);
 
-                        return new GetCloudflareR2StorageItemResponseDto()
+                        return new GetCloudflareR2StorageItemResponseDto
                         {
                             ExternalId = externalId,
                             EncryptionType = encryptionType,
@@ -101,7 +102,7 @@ public class GetStoragesQuery(
                         var details = GetStorageDetails<DigitalOceanSpacesDetailsEntity>(
                             encryptedDetails);
 
-                        return new GetDigitalOceanSpacesItemResponseDto()
+                        return new GetDigitalOceanSpacesItemResponseDto
                         {
                             ExternalId = externalId,
                             EncryptionType = encryptionType,
@@ -110,6 +111,23 @@ public class GetStoragesQuery(
 
                             Url = details!.Url,
                             AccessKey = Obfuscate(details.AccessKey)
+                        };
+                    }
+
+                    if (type == StorageType.BackblazeB2)
+                    {
+                        var details = GetStorageDetails<BackblazeB2DetailsEntity>(
+                            encryptedDetails);
+
+                        return new GetBackblazeB2StorageItemResponseDto
+                        {
+                            ExternalId = externalId,
+                            EncryptionType = encryptionType,
+                            Name = name,
+                            WorkspacesCount = workspacesCount,
+
+                            Url = details!.Url,
+                            KeyId = Obfuscate(details.KeyId)
                         };
                     }
 

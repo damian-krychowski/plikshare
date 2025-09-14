@@ -393,9 +393,8 @@ public static class ZipDecoder
                     zip64LocatorBuffer.Push(currentByte);
             }
 
-            input.AdvanceTo(
-                consumed: buffer.GetPosition(reader.Consumed),
-                examined: buffer.End);
+            var bufferPosition = buffer.GetPosition(reader.Consumed);
+            input.AdvanceTo(bufferPosition);
 
             if (readResult.IsCompleted && !wasEocdSignatureFound)
                 return new ZipEocdLookupResult { Code = ZipEocdLookupResultCode.EocdRecordNotFound };
@@ -427,7 +426,8 @@ public static class ZipDecoder
         var offsetToStartCentralDirectory = sequenceReader.ReadUInt32LittleEndian();
         var commentLength = sequenceReader.ReadUInt16LittleEndian();
 
-        input.AdvanceTo(eocdBuffer.GetPosition(sequenceReader.Consumed));
+        var consumed = eocdBuffer.GetPosition(sequenceReader.Consumed);
+        input.AdvanceTo(consumed);
 
         var zipEocdRecord = new ZipEocdRecord
         {

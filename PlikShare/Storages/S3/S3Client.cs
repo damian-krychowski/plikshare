@@ -1,3 +1,4 @@
+using System.Text;
 using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
@@ -106,7 +107,7 @@ public static class S3Client
                 return new CloudflareResult(Code: CloudflareResultCode.InvalidUrl);
             }
 
-            Log.Error(e, "Something went wrong while creating Amazon S3 client '{Url}':'{AccessKeyId}'",
+            Log.Error(e, "Something went wrong while creating Cloudflare S3 client '{Url}':'{AccessKeyId}'",
                 url, accessKeyId);
             
             throw;
@@ -160,13 +161,70 @@ public static class S3Client
                 return new DigitalOceanSpacesResult(Code: DigitalOceanSpacesResultCode.InvalidUrl);
             }
 
-            Log.Error(e, "Something went wrong while creating Amazon S3 client '{Url}':'{AccessKeyId}'",
+            Log.Error(e, "Something went wrong while creating DigitalOcean S3 client '{Url}':'{AccessKeyId}'",
                 url, accessKey);
             
             throw;
         }
     }
-    
+
+    public static AmazonS3Client BuildBackblazeClientOrThrow(
+        string keyId,
+        string applicationKey,
+        string url)
+    {
+        var config = new AmazonS3Config
+        {
+            ServiceURL = url,
+            RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED,
+            ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED,
+        };
+
+        return new AmazonS3Client(
+            new BasicAWSCredentials(
+                accessKey: keyId,
+                secretKey: applicationKey),
+            config);
+    }
+
+    public static async Task<BackblazeResult> BuildBackblazeAndTestConnection(
+        string keyId,
+        string applicationKey,
+        string url,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var client = BuildBackblazeClientOrThrow(
+                keyId, applicationKey, url);
+
+            var isConnectionOk = await TestConnection(
+                client: client,
+                cancellationToken: cancellationToken);
+
+            if (!isConnectionOk)
+                return new BackblazeResult(
+                    Code: BackblazeResultCode.CouldNotConnect);
+
+
+            return new BackblazeResult(
+                Code: BackblazeResultCode.Ok,
+                Client: client);
+        }
+        catch (Exception e)
+        {
+            if (e.Message.StartsWith("Value for ServiceURL is not a valid URL"))
+            {
+                return new BackblazeResult(Code: BackblazeResultCode.InvalidUrl);
+            }
+
+            Log.Error(e, "Something went wrong while creating Backblaze S3 client '{Url}':'{AccessKeyId}'",
+                url, keyId);
+
+            throw;
+        }
+    }
+
     private static async Task<bool> TestConnection(
         IAmazonS3 client,
         CancellationToken cancellationToken = default)
@@ -203,7 +261,7 @@ public static class S3Client
 
     public readonly record struct AwsResult(
         AwsResultCode Code,
-        IAmazonS3? Client = default);
+        IAmazonS3? Client = null);
     
     public enum CloudflareResultCode
     {
@@ -214,7 +272,7 @@ public static class S3Client
 
     public readonly record struct CloudflareResult(
         CloudflareResultCode Code,
-        IAmazonS3? Client = default);
+        IAmazonS3? Client = null);
     
     public enum DigitalOceanSpacesResultCode
     {
@@ -225,5 +283,16 @@ public static class S3Client
     
     public readonly record struct DigitalOceanSpacesResult(
         DigitalOceanSpacesResultCode Code,
-        IAmazonS3? Client = default);
+        IAmazonS3? Client = null);
+
+    public enum BackblazeResultCode
+    {
+        Ok,
+        InvalidUrl,
+        CouldNotConnect,
+    }
+
+    public readonly record struct BackblazeResult(
+        BackblazeResultCode Code,
+        IAmazonS3? Client = null);
 }

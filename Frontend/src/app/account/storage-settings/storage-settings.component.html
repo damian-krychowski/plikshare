@@ -54,6 +54,12 @@
                     icon="icon-digitalocean"
                     (clicked)="onAddDigitalOceanSpacesStorage()">                        
                 </app-action-btn>
+
+                <app-action-btn
+                    tooltip="Create Backblaze B2 storage"
+                    icon="icon-backblaze-logo"
+                    (clicked)="onAddBackblazeB2Storage()">                        
+                </app-action-btn>
             </div>
         </div>  
 
@@ -96,6 +102,13 @@
                 subtitle="Click here to configure DigitalOcean Spaces!"
                 icon="icon-digitalocean"
                 (clicked)="onAddDigitalOceanSpacesStorage()">                
+            </app-item-btn>
+            
+            <app-item-btn
+                title="Add Backblaze B2"
+                subtitle="Click here to configure Backblaze B2!"
+                icon="icon-backblaze-logo"
+                (clicked)="onAddBackblazeB2Storage()">                
             </app-item-btn>
         </div>
 

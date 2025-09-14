@@ -11,6 +11,7 @@ public class GetStoragesResponseDto
 
 [JsonDerivedType(derivedType: typeof(GetHardDriveStorageItemResponseDto), typeDiscriminator: "hard-drive")]
 [JsonDerivedType(derivedType: typeof(GetCloudflareR2StorageItemResponseDto), typeDiscriminator: "cloudflare-r2")]
+[JsonDerivedType(derivedType: typeof(GetBackblazeB2StorageItemResponseDto), typeDiscriminator: "backblaze-b2")]
 [JsonDerivedType(derivedType: typeof(GetDigitalOceanSpacesItemResponseDto), typeDiscriminator: "digitalocean-spaces")]
 [JsonDerivedType(derivedType: typeof(GetAwsS3StorageItemResponseDto), typeDiscriminator: "aws-s3")]
 public abstract class GetStorageItemResponseDto
@@ -44,4 +45,10 @@ public class GetAwsS3StorageItemResponseDto : GetStorageItemResponseDto
 {
     public required string AccessKey { get; init; }
     public required string Region { get; init; }
+}
+
+public class GetBackblazeB2StorageItemResponseDto : GetStorageItemResponseDto
+{
+    public required string KeyId { get; init; }
+    public required string Url { get; init; }
 }

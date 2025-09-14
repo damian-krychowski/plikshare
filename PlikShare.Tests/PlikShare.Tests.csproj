@@ -11,7 +11,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="AWSSDK.SimpleEmailV2" Version="3.7.408.14" />
+        <PackageReference Include="AWSSDK.S3" Version="4.0.0-preview.13" />
+        <PackageReference Include="AWSSDK.SimpleEmailV2" Version="4.0.0-preview.13" />
         <PackageReference Include="FluentAssertions" Version="8.1.1" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
         <PackageReference Include="xunit" Version="2.9.3" />

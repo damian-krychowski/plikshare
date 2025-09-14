@@ -165,6 +165,8 @@ using PlikShare.Storages.HardDrive.GetVolumes;
 using PlikShare.Storages.List;
 using PlikShare.Storages.S3.AwsS3.Create;
 using PlikShare.Storages.S3.AwsS3.UpdateDetails;
+using PlikShare.Storages.S3.BackblazeB2.Create;
+using PlikShare.Storages.S3.BackblazeB2.UpdateDetails;
 using PlikShare.Storages.S3.BulkDownload;
 using PlikShare.Storages.S3.CloudflareR2.Create;
 using PlikShare.Storages.S3.CloudflareR2.UpdateDetails;
@@ -507,10 +509,12 @@ public class Startup
 
         builder.Services.AddSingleton<CreateHardDriveStorageOperation>();
         builder.Services.AddSingleton<CreateCloudflareR2StorageOperation>();
+        builder.Services.AddSingleton<CreateBackblazeB2StorageOperation>();
         builder.Services.AddSingleton<CreateAwsS3StorageOperation>();
         builder.Services.AddSingleton<GetStoragesQuery>();
         builder.Services.AddSingleton<DeleteStorageQuery>();
         builder.Services.AddSingleton<UpdateCloudflareR2StorageDetailsOperation>();
+        builder.Services.AddSingleton<UpdateBackblazeB2StorageDetailsOperation>();
         builder.Services.AddSingleton<UpdateStorageNameQuery>();
         builder.Services.AddSingleton<UpdateStorageDetailsQuery>();
         builder.Services.AddSingleton<UpdateAwsS3StorageDetailsOperation>();

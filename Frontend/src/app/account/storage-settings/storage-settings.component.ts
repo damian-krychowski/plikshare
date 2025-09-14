@@ -84,6 +84,9 @@ export class StorageSettingsComponent implements OnInit {
         if(item.$type == 'digitalocean-spaces')
             return `AccessKey: ${item.accessKey} <br> Url: ${item.url}`;
 
+        if(item.$type == 'backblaze-b2')            
+            return `KeyId: ${item.keyId} <br> Url: ${item.url}`;
+
         throw new Error("Uknown storage type " + (item as any).$type);
     }
 
@@ -99,12 +102,14 @@ export class StorageSettingsComponent implements OnInit {
     onAddAwsS3Storage() {
         this._router.navigate(['settings/storage/add/aws-s3']);   
     }
-
     
     onAddDigitalOceanSpacesStorage() {
         this._router.navigate(['settings/storage/add/digital-ocean-spaces']);   
     }
 
+    onAddBackblazeB2Storage() {
+        this._router.navigate(['settings/storage/add/backblaze-b2']);   
+    }
 
     onStorageEdit(storage: AppStorage) {     
         if(storage.type == 'cloudflare-r2'){               

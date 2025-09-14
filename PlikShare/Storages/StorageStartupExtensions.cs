@@ -13,6 +13,7 @@ using PlikShare.Storages.HardDrive.StorageClient;
 using PlikShare.Storages.Id;
 using PlikShare.Storages.S3;
 using PlikShare.Storages.S3.AwsS3;
+using PlikShare.Storages.S3.BackblazeB2;
 using PlikShare.Storages.S3.CloudflareR2;
 using PlikShare.Storages.S3.DigitalOcean;
 using Serilog;
@@ -26,7 +27,7 @@ public static class StorageStartupExtensions
         ArgumentNullException.ThrowIfNull(app);
         
         //without that presigned urls does not work
-        AWSConfigsS3.UseSignatureVersion4 = true;
+        //AWSConfigsS3.
         
         app.Services.AddSingleton<StorageClientStore>();
         
@@ -105,6 +106,28 @@ public static class StorageStartupExtensions
         
         foreach (var storage in storages)
         {
+            if (storage.Type == StorageType.BackblazeB2)
+            {
+                var details = Json.Deserialize<BackblazeB2DetailsEntity>(
+                    storage.DetailsJson);
+
+                var client = S3Client.BuildBackblazeClientOrThrow(
+                    keyId: details!.KeyId,
+                    applicationKey: details.ApplicationKey,
+                    url: details.Url);
+
+                clientStore.RegisterClient(new S3StorageClient(
+                    appUrl: config.AppUrl,
+                    clock: clock,
+                    s3Client: client,
+                    storageId: storage.StorageId,
+                    externalId: storage.ExternalId,
+                    storageType: storage.Type,
+                    preSignedUrlsService: preSignedUrlsService,
+                    encryptionType: storage.EncryptionType,
+                    encryptionDetails: storage.EncryptionDetails));
+            }
+
             if (storage.Type == StorageType.CloudflareR2)
             {
                 var details = Json.Deserialize<CloudflareR2DetailsEntity>(
