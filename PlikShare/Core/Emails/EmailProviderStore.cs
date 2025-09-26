@@ -3,8 +3,8 @@ namespace PlikShare.Core.Emails;
 
 public class EmailProviderStore
 {
-    private int? _emailProviderId = null;
-    private volatile IEmailSender? _emailSender = null;
+    private int? _emailProviderId;
+    private volatile IEmailSender? _emailSender;
 
     public IEmailSender? EmailSender => _emailSender;
 

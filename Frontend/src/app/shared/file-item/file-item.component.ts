@@ -94,8 +94,7 @@ export class FileItemComponent implements OnInit, OnDestroy {
     canEditFileName = computed(() => this.file().wasUploadedByUser || this.allowRename());
     canDeleteFile = computed(() => this.file().wasUploadedByUser || this.allowDelete());
     canToggleActions = computed(() => this.file().wasUploadedByUser || this.allowDelete() || this.allowRename() || this.canLocate() || this.allowDownload());
-    
-    
+        
     areActionsVisible = signal(false);
     canPreview = computed(() => AppFileItems.canPreview(this.file(), this.allowDownload(), this.canOpen()));
     

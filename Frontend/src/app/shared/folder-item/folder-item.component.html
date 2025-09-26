@@ -94,7 +94,7 @@
                     </app-action-btn>
                 }
                 
-                @if(allowMoveItems() || allowDownload() || allowDelete()) {
+                @if(isSelectCheckboxVisible()) {
                     <div (click)="$event.stopPropagation()">
                         <mat-checkbox  
                             [class.d-none-on-mobile]="!areActionsVisible()"                       

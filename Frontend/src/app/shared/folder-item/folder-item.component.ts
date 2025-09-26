@@ -66,6 +66,7 @@ export class FolderItemComponent{
     operations = input.required<FolderOperations>();
     folder = input.required<AppFolderItem>();
     
+    canSelect = input(true);
     canOpen = input(false);
     canLocate = input(false);
     showPath = input(false);
@@ -89,6 +90,11 @@ export class FolderItemComponent{
     isSelected = computed(() => this.folder().isSelected());
     isHighlighted = observeIsHighlighted(this.folder);
     canToggleActions = computed(() => this.allowDelete() || this.allowShare() || this.allowRename() || this.canLocate());
+
+    isSelectCheckboxVisible = computed(() => this.canSelect() && (
+        this.allowMoveItems() 
+        || this.allowDownload() 
+        || this.allowDelete()));
 
     canEditName: Signal<PermissionState> = computed(() => {
         if (this.allowRename()) {

@@ -76,7 +76,8 @@
                                 [folder]="item.folder"
                                 [canOpen]="true"
                                 [canLocate]="true"
-                                [showPath]="true"                                
+                                [showPath]="true"   
+                                [canSelect]="false"                             
                                 [operations]="item.operations"                                
                                 (deleted)="onGroupItemDeleted(group, item)">                    
                             </app-folder-item>
