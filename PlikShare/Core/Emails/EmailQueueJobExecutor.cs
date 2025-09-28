@@ -1,6 +1,4 @@
-using System.Text;
 using System.Text.Json;
-using Flurl;
 using PlikShare.Core.Configuration;
 using PlikShare.Core.Emails.Definitions;
 using PlikShare.Core.Emails.Templates;
@@ -20,23 +18,21 @@ namespace PlikShare.Core.Emails
         public string JobType => EmailQueueJobType.Value;
         public int Priority => QueueJobPriority.High;
 
-        private string Title(string title) => $"{appSettings.ApplicationName.Name} - {title}";
-        
         public async Task<QueueJobResult> Execute(
-            string definitionJson, 
-            Guid correlationId, 
+            string definitionJson,
+            Guid correlationId,
             CancellationToken cancellationToken)
         {
             var emailTemplate = ExtractEmailTemplate(
                 definitionJson);
 
             var email = GetEmail(
-                definitionJson, 
+                definitionJson,
                 emailTemplate);
 
-            if (emailProviderStore.EmailSender is null) 
+            if (emailProviderStore.EmailSender is null)
                 return QueueJobResult.Blocked;
-            
+
             await emailProviderStore.EmailSender.SendEmail(
                 to: email.To,
                 subject: email.Title,
@@ -47,53 +43,53 @@ namespace PlikShare.Core.Emails
         }
 
         private Email GetEmail(
-            string definitionJson,  
+            string definitionJson,
             EmailTemplate emailTemplate)
         {
             return emailTemplate switch
             {
                 EmailTemplate.UserInvitation => GetInvitationEmail(
                     definitionJson),
-                
+
                 EmailTemplate.WorkspaceMembershipInvitation => GetWorkspaceInvitationEmail(
                     definitionJson),
-                
+
                 EmailTemplate.WorkspaceMembershipInvitationAccepted => GetWorkspaceInvitationAcceptedEmail(
                     definitionJson),
-                
+
                 EmailTemplate.WorkspaceMembershipInvitationRejected => GetWorkspaceInvitationRejectedEmail(
                     definitionJson),
-                
+
                 EmailTemplate.WorkspaceMembershipRevoked => GetWorkspaceAccessRevokedEmail(
                     definitionJson),
-                
+
                 EmailTemplate.WorkspaceMemberLeft => GetWorkspaceLeftEmail(
                     definitionJson),
-                
+
                 EmailTemplate.BoxMembershipInvitation => GetBoxInvitationEmail(
                     definitionJson),
-                
+
                 EmailTemplate.BoxMembershipInvitationAccepted => GetBoxInvitationAcceptedEmail(
                     definitionJson),
-                    
+
                 EmailTemplate.BoxMembershipInvitationRejected => GetBoxInvitationRejectedEmail(
                     definitionJson),
-                    
+
                 EmailTemplate.BoxMembershipRevoked => GetBoxAccessRevokedEmail(
                     definitionJson),
-                    
+
                 EmailTemplate.BoxMemberLeft => GetBoxLeftEmail(
                     definitionJson),
-                    
+
                 EmailTemplate.Alert => GetAlertEmail(
                     definitionJson),
-                    
+
                 EmailTemplate.ConfirmationEmail => GetConfirmationEmail(
                     definitionJson),
-                    
+
                 EmailTemplate.ResetPassword => GetResetPasswordEmail(
                     definitionJson),
-                    
+
                 _ => throw new InvalidOperationException($"Unknown email template type '{emailTemplate}'.")
             };
         }
@@ -102,15 +98,15 @@ namespace PlikShare.Core.Emails
         {
             var jsonDocument = JsonDocument
                 .Parse(definitionJson);
-            
+
             var templateName = jsonDocument
                 .RootElement
                 .GetProperty("template")
                 .GetString();
-            
+
             if (!Enum.TryParse<EmailTemplate>(
-                    value: templateName, 
-                    ignoreCase: true, 
+                    value: templateName,
+                    ignoreCase: true,
                     result: out var emailTemplate))
             {
                 throw new InvalidOperationException(
@@ -137,186 +133,186 @@ namespace PlikShare.Core.Emails
 
             return new Email(operation.Email, title, htmlContent);
         }
-        
+
         private Email GetWorkspaceInvitationEmail(string json)
         {
-           var title = Title("you were invited to Workspace");
-
             var operation = Json.Deserialize<EmailQueueJobDefinition<WorkspaceMembershipInvitationEmailDefinition>>(
                 json);
 
+            var (title, content) = Emails.WorkspaceMembershipInvitation(
+                applicationName: appSettings.ApplicationName.Name!,
+                appUrl: config.AppUrl,
+                inviterEmail: operation!.Definition.InviterEmail,
+                workspaceName: operation.Definition.WorkspaceName,
+                invitationCode: operation.Definition.InvitationCode);
+
             var htmlContent = genericEmailTemplate.Build(
                 title: title,
-                content: PrepareInvitationMessage(
-                    messageIntro: $"User <strong>{operation!.Definition.InviterEmail}</strong> has invited you to join <strong>'{operation.Definition.WorkspaceName}'</strong> Workspace.",
-                    invitationCode: operation.Definition.InvitationCode));
+                content: content);
 
             return new Email(operation.Email, title, htmlContent);
         }
 
         private Email GetWorkspaceInvitationAcceptedEmail(string json)
         {
-            var title = Title("your invitation was accepted");
-
             var operation = Json.Deserialize<EmailQueueJobDefinition<WorkspaceMembershipInvitationAcceptedEmailDefinition>>(
                 json);
 
+            var (title, content) = Emails.WorkspaceMembershipInvitationAccepted(
+                applicationName: appSettings.ApplicationName.Name!,
+                inviteeEmail: operation!.Definition.InviteeEmail,
+                workspaceName: operation.Definition.WorkspaceName);
+
             var htmlContent = genericEmailTemplate.Build(
                 title: title,
-                content: $"User <strong>{operation!.Definition.InviteeEmail}</strong> has accepted your invitation to join <strong>'{operation.Definition.WorkspaceName}'</strong> Workspace.");
+                content: content);
 
             return new Email(operation.Email, title, htmlContent);
         }
-        
+
         private Email GetWorkspaceInvitationRejectedEmail(string json)
         {
-            var title = Title("workspace invitation was rejected");
-
             var operation = Json.Deserialize<EmailQueueJobDefinition<WorkspaceMembershipInvitationRejectedEmailDefinition>>(
                 json);
 
+            var (title, content) = Emails.WorkspaceMembershipInvitationRejected(
+                applicationName: appSettings.ApplicationName.Name!,
+                memberEmail: operation!.Definition.MemberEmail,
+                workspaceName: operation.Definition.WorkspaceName);
+
             var htmlContent = genericEmailTemplate.Build(
                 title: title,
-                content: $"User <strong>{operation!.Definition.MemberEmail}</strong> has rejected your invitation to join <strong>'{operation.Definition.WorkspaceName}'</strong> Workspace.");
+                content: content);
 
             return new Email(operation.Email, title, htmlContent);
         }
-        
+
         private Email GetWorkspaceAccessRevokedEmail(string json)
         {
-            var title = Title("access to workspace was revoked");
-
             var operation = Json.Deserialize<EmailQueueJobDefinition<WorkspaceMembershipRevokedEmailDefinition>>(
                 json);
 
+            var (title, content) = Emails.WorkspaceMembershipRevoked(
+                applicationName: appSettings.ApplicationName.Name!,
+                workspaceName: operation!.Definition.WorkspaceName);
+
             var htmlContent = genericEmailTemplate.Build(
                 title: title,
-                content: $"Your access to  <strong>'{operation!.Definition.WorkspaceName}'</strong> Workspace was revoked.");
+                content: content);
 
             return new Email(operation.Email, title, htmlContent);
         }
-        
+
         private Email GetWorkspaceLeftEmail(string json)
         {
-            var title = Title("user left your workspace");
-
             var operation = Json.Deserialize<EmailQueueJobDefinition<WorkspaceMemberLeftEmailDefinition>>(
                 json);
 
+            var (title, content) = Emails.WorkspaceMemberLeft(
+                applicationName: appSettings.ApplicationName.Name!,
+                memberEmail: operation!.Definition.MemberEmail,
+                workspaceName: operation.Definition.WorkspaceName);
+
             var htmlContent = genericEmailTemplate.Build(
                 title: title,
-                content: $"User <strong>{operation!.Definition.MemberEmail}</strong>  has left <strong>'{operation.Definition.WorkspaceName}'</strong> Workspace.");
+                content: content);
 
             return new Email(operation.Email, title, htmlContent);
         }
-        
-         private Email GetBoxInvitationEmail(string json)
-         {
-             var title = Title("you were invited to file box");
-            
+
+        private Email GetBoxInvitationEmail(string json)
+        {
             var operation = Json.Deserialize<EmailQueueJobDefinition<BoxMembershipInvitationEmailDefinition>>(
                 json);
 
+            var (title, content) = Emails.BoxMembershipInvitation(
+                applicationName: appSettings.ApplicationName.Name!,
+                appUrl: config.AppUrl,
+                inviterEmail: operation!.Definition.InviterEmail,
+                boxName: operation.Definition.BoxName,
+                invitationCode: operation.Definition.InvitationCode);
+
             var htmlContent = genericEmailTemplate.Build(
                 title: title,
-                content: PrepareInvitationMessage(
-                    messageIntro: $"User <strong>{operation!.Definition.InviterEmail}</strong> has invited you to join <strong>'{operation.Definition.BoxName}'</strong> File Box.",
-                    invitationCode: operation.Definition.InvitationCode));
+                content: content);
 
             return new Email(operation.Email, title, htmlContent);
         }
-        
-        private string PrepareInvitationMessage(
-            string messageIntro,
-            string? invitationCode) {
 
-            var msgBuilder = new StringBuilder();
-
-            msgBuilder.Append(messageIntro);
-
-            if (invitationCode is not null)
-            {                
-                msgBuilder.Append("<br><br>");
-                msgBuilder.Append($"Use the following link to register to the website:");
-                msgBuilder.Append("<br><br>");
-
-                var link = new Url(config.AppUrl)
-                    .AppendPathSegment("sign-up")
-                    .AppendQueryParam("invitationCode", invitationCode)
-                    .ToString();
-                
-                msgBuilder.Append(link);
-            }
-
-            msgBuilder.Append("<br><br>");
-            msgBuilder.Append($"You can find the invitation here: <br/> <a href=\"{config.AppUrl}/workspaces\">{config.AppUrl}/workspaces</a>");
-
-            return msgBuilder.ToString();
-        }
-        
         private Email GetBoxInvitationAcceptedEmail(string json)
         {
-            var title = Title("box invitation was accepted");
-
             var operation = Json.Deserialize<EmailQueueJobDefinition<BoxMembershipInvitationAcceptedEmailDefinition>>(
                 json);
 
+            var (title, content) = Emails.BoxMembershipInvitationAccepted(
+                applicationName: appSettings.ApplicationName.Name!,
+                inviteeEmail: operation!.Definition.InviteeEmail,
+                boxName: operation.Definition.BoxName);
+
             var htmlContent = genericEmailTemplate.Build(
                 title: title,
-                content: $"User <strong>{operation!.Definition.InviteeEmail}</strong> has accepted your invitation to join <strong>'{operation.Definition.BoxName}'</strong> File Box.");
+                content: content);
 
             return new Email(operation.Email, title, htmlContent);
         }
-        
+
         private Email GetBoxInvitationRejectedEmail(string json)
         {
-            var title = Title("box invitation was rejected");
-            
             var operation = Json.Deserialize<EmailQueueJobDefinition<BoxMembershipInvitationRejectedEmailDefinition>>(
                 json);
-            
+
+            var (title, content) = Emails.BoxMembershipInvitationRejected(
+                applicationName: appSettings.ApplicationName.Name!,
+                inviteeEmail: operation!.Definition.InviteeEmail,
+                boxName: operation.Definition.BoxName);
+
             var htmlContent = genericEmailTemplate.Build(
                 title: title,
-                content: $"User <strong>{operation!.Definition.InviteeEmail}</strong> has rejected your invitation to join <strong>'{operation.Definition.BoxName}'</strong> File Box.");
+                content: content);
 
             return new Email(operation.Email, title, htmlContent);
         }
-        
+
         private Email GetBoxAccessRevokedEmail(string json)
         {
-            var title = Title("your access to file box was revoked");
-            
             var operation = Json.Deserialize<EmailQueueJobDefinition<BoxMembershipRevokedEmailDefinition>>(
                 json);
-            
+
+            var (title, content) = Emails.BoxMembershipRevoked(
+                applicationName: appSettings.ApplicationName.Name!,
+                boxName: operation!.Definition.BoxName);
+
             var htmlContent = genericEmailTemplate.Build(
                 title: title,
-                content: $"Your access to  <strong>'{operation!.Definition.BoxName}'</strong> File Box was revoked.");
+                content: content);
 
             return new Email(operation.Email, title, htmlContent);
         }
-        
+
         private Email GetBoxLeftEmail(string json)
         {
-            var title = Title("user left your file box");
-            
             var operation = Json.Deserialize<EmailQueueJobDefinition<BoxMemberLeftEmailDefinition>>(
                 json);
-            
+
+            var (title, content) = Emails.BoxMemberLeft(
+                applicationName: appSettings.ApplicationName.Name!,
+                memberEmail: operation!.Definition.MemberEmail,
+                boxName: operation.Definition.BoxName);
+
             var htmlContent = genericEmailTemplate.Build(
                 title: title,
-                content: $"User <strong>{operation!.Definition.MemberEmail}</strong> has left  <strong>'{operation.Definition.BoxName}'</strong> File Box.");
+                content: content);
 
             return new Email(operation.Email, title, htmlContent);
         }
-        
+
         private Email GetAlertEmail(string json)
         {
             var operation = Json.Deserialize<EmailQueueJobDefinition<AlertEmailDefinition>>(
                 json);
 
-            var title = Title($"Alert - {operation!.Definition.Title}");
-            
+            var title = $"{appSettings.ApplicationName.Name} - Alert - {operation!.Definition.Title}";
+
             var htmlContent = AlertEmailTemplate.Build(
                 title: title,
                 eventDateTime: operation.Definition.EventDateTime,
@@ -324,35 +320,35 @@ namespace PlikShare.Core.Emails
 
             return new Email(operation.Email, title, htmlContent);
         }
-        
+
         private Email GetConfirmationEmail(string json)
         {
             var operation = Json.Deserialize<EmailQueueJobDefinition<ConfirmationEmailDefinition>>(
                 json);
 
-            var title = Title("confirm your email");
+            var (title, content) = Emails.ConfirmationEmail(
+                applicationName: appSettings.ApplicationName.Name!,
+                link: operation!.Definition.Link);
 
             var htmlContent = genericEmailTemplate.Build(
                 title: title,
-                content: "Click this link to confirm your email address: " +
-                         "<br><br>" +
-                         operation!.Definition.Link);
+                content: content);
 
             return new Email(operation.Email, title, htmlContent);
         }
-        
+
         private Email GetResetPasswordEmail(string json)
         {
             var operation = Json.Deserialize<EmailQueueJobDefinition<ResetPasswordEmailDefinition>>(
                 json);
 
-            var title = Title("reset your password");
+            var (title, content) = Emails.ResetPassword(
+                applicationName: appSettings.ApplicationName.Name!,
+                link: operation!.Definition.Link);
 
             var htmlContent = genericEmailTemplate.Build(
                 title: title,
-                content: "Click this link to reset your password: " +
-                         "<br><br>" +
-                         operation!.Definition.Link);
+                content: content);
 
             return new Email(operation.Email, title, htmlContent);
         }

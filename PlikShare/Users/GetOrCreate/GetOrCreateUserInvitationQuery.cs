@@ -103,11 +103,12 @@ public class GetOrCreateUserInvitationQuery(
         DbWriteQueue.Context dbWriteContext,
         SqliteTransaction transaction)
     {
+        var externalId = UserExtId.NewId();
         var normalizedEmail = email.Normalized;
         var invitationCode = Guid.NewGuid().ToBase62();
         var securityStamp = Guid.NewGuid().ToString();
         var concurrencyStamp = Guid.NewGuid().ToString();
-        
+
         var maxWorkspaceNumber = appSettings.NewUserDefaultMaxWorkspaceNumber.Value;
         var defaultMaxWorkspaceSizeInBytes = appSettings.NewUserDefaultMaxWorkspaceSizeInBytes.Value;
         var defaultMaxWorkspaceTeamMembers = appSettings.NewUserDefaultMaxWorkspaceTeamMembers.Value;
@@ -160,29 +161,32 @@ public class GetOrCreateUserInvitationQuery(
                      )
                      ON CONFLICT(u_normalized_email) DO NOTHING
                      RETURNING
-                         u_id,
-                         u_external_id
+                         u_id
                      """,
-                readRowFunc: reader => new User(
-                    Id: reader.GetInt32(0),
-                    ExternalId: reader.GetExtId<UserExtId>(1),
-                    IsEmailConfirmed: false,
-                    IsInvitation: true,
-                    InvitationCode: invitationCode,
-                    SecurityStamp: securityStamp,
-                    ConcurrencyStamp: concurrencyStamp,
-                    IsAdmin: false,
-                    CanAddWorkspace: false,
-                    CanManageGeneralSettings: false,
-                    CanManageUsers: false,
-                    CanManageStorages: false,
-                    CanManageEmailProviders: false,
-                    MaxWorkspaceNumber: maxWorkspaceNumber,
-                    DefaultMaxWorkspaceSizeInBytes: defaultMaxWorkspaceSizeInBytes,
-                    DefaultMaxWorkspaceTeamMembers: defaultMaxWorkspaceTeamMembers,
-                    WasJustCreated: true),
+                readRowFunc: reader => new User
+                {
+                    Id = reader.GetInt32(0),
+                    ExternalId = externalId,
+                    IsEmailConfirmed = false,
+                    IsInvitation = true,
+                    InvitationCode = invitationCode,
+                    SecurityStamp = securityStamp,
+                    ConcurrencyStamp = concurrencyStamp,
+                    IsAdmin = false,
+                    CanAddWorkspace = false,
+                    CanManageGeneralSettings = false,
+                    CanManageUsers = false,
+                    CanManageStorages = false,
+                    CanManageEmailProviders = false,
+                    CanManageAuth = false,
+                    CanManageIntegrations = false,
+                    MaxWorkspaceNumber = maxWorkspaceNumber,
+                    DefaultMaxWorkspaceSizeInBytes = defaultMaxWorkspaceSizeInBytes,
+                    DefaultMaxWorkspaceTeamMembers = defaultMaxWorkspaceTeamMembers,
+                    WasJustCreated = true
+                },
                 transaction: transaction)
-            .WithParameter("$externalId", UserExtId.NewId().Value)
+            .WithParameter("$externalId", externalId.Value)
             .WithParameter("$userName", email.Value)
             .WithParameter("$normalizedUserName", normalizedEmail)
             .WithParameter("$email", email.Value)
@@ -218,6 +222,8 @@ public class GetOrCreateUserInvitationQuery(
                           ({UserSql.HasClaim(Claims.Permission, Permissions.ManageUsers)}) AS u_can_manage_users,
                           ({UserSql.HasClaim(Claims.Permission, Permissions.ManageStorages)}) AS u_can_manage_storages,
                           ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
+                          ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuth)}) AS u_can_manage_auth,
+                          ({UserSql.HasClaim(Claims.Permission, Permissions.ManageIntegrations)}) AS u_can_manage_integrations,
                           u_max_workspace_number,
                           u_default_max_workspace_size_in_bytes,
                           u_default_max_workspace_team_members
@@ -225,45 +231,53 @@ public class GetOrCreateUserInvitationQuery(
                       WHERE u_normalized_email = $userNormalizedEmail
                       LIMIT 1
                       """,
-                readRowFunc: reader => new User(
-                    Id: reader.GetInt32(0),
-                    ExternalId: reader.GetExtId<UserExtId>(1),
-                    IsEmailConfirmed: reader.GetBoolean(2),
-                    IsInvitation: reader.GetBoolean(3),
-                    InvitationCode: reader.GetStringOrNull(4),
-                    SecurityStamp: reader.GetString(5),
-                    ConcurrencyStamp: reader.GetString(6),
-                    IsAdmin: reader.GetBoolean(7),
-                    CanAddWorkspace: reader.GetBoolean(8),
-                    CanManageGeneralSettings: reader.GetBoolean(9),
-                    CanManageUsers: reader.GetBoolean(10),
-                    CanManageStorages: reader.GetBoolean(11),
-                    CanManageEmailProviders: reader.GetBoolean(12),
-                    MaxWorkspaceNumber: reader.GetInt32OrNull(13),
-                    DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(14),
-                    DefaultMaxWorkspaceTeamMembers: reader.GetInt32OrNull(15),
-                    WasJustCreated: false),
+                readRowFunc: reader => new User
+                {
+                    Id = reader.GetInt32(0),
+                    ExternalId = reader.GetExtId<UserExtId>(1),
+                    IsEmailConfirmed = reader.GetBoolean(2),
+                    IsInvitation = reader.GetBoolean(3),
+                    InvitationCode = reader.GetStringOrNull(4),
+                    SecurityStamp = reader.GetString(5),
+                    ConcurrencyStamp = reader.GetString(6),
+                    IsAdmin = reader.GetBoolean(7),
+                    CanAddWorkspace = reader.GetBoolean(8),
+                    CanManageGeneralSettings = reader.GetBoolean(9),
+                    CanManageUsers = reader.GetBoolean(10),
+                    CanManageStorages = reader.GetBoolean(11),
+                    CanManageEmailProviders = reader.GetBoolean(12),
+                    CanManageAuth = reader.GetBoolean(13),
+                    CanManageIntegrations = reader.GetBoolean(14),
+                    MaxWorkspaceNumber = reader.GetInt32OrNull(15),
+                    DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(16),
+                    DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(17),
+                    WasJustCreated = false
+                },
                 transaction: transaction)
             .WithParameter("$userNormalizedEmail", email.Normalized)
             .Execute();
     }
 
-    public record User(
-        int Id,
-        UserExtId ExternalId,
-        bool IsEmailConfirmed,
-        bool IsInvitation,
-        string? InvitationCode,
-        string SecurityStamp,
-        string ConcurrencyStamp,
-        bool IsAdmin,
-        bool CanAddWorkspace,
-        bool CanManageGeneralSettings,
-        bool CanManageUsers,
-        bool CanManageStorages,
-        bool CanManageEmailProviders,
-        int? MaxWorkspaceNumber,
-        long? DefaultMaxWorkspaceSizeInBytes,
-        int? DefaultMaxWorkspaceTeamMembers,
-        bool WasJustCreated);
+    public class User
+    {
+        public required int Id { get; init; }
+        public required UserExtId ExternalId { get; init; }
+        public required bool IsEmailConfirmed { get; init; }
+        public required bool IsInvitation { get; init; }
+        public required string? InvitationCode { get; init; }
+        public required string SecurityStamp { get; init; }
+        public required string ConcurrencyStamp { get; init; }
+        public required bool IsAdmin { get; init; }
+        public required bool CanAddWorkspace { get; init; }
+        public required bool CanManageGeneralSettings { get; init; }
+        public required bool CanManageUsers { get; init; }
+        public required bool CanManageStorages { get; init; }
+        public required bool CanManageEmailProviders { get; init; }
+        public required bool CanManageAuth { get; init; }
+        public required bool CanManageIntegrations { get; init; }
+        public required int? MaxWorkspaceNumber { get; init; }
+        public required long? DefaultMaxWorkspaceSizeInBytes { get; init; }
+        public required int? DefaultMaxWorkspaceTeamMembers { get; init; }
+        public required bool WasJustCreated { get; init; }
+    }
 }

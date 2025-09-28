@@ -174,7 +174,9 @@ public static class GeneralSettingsEndpoints
                 CanManageEmailProviders = appSettings.NewUserDefaultPermissionsAndRoles.CanManageEmailProviders,
                 CanManageGeneralSettings = appSettings.NewUserDefaultPermissionsAndRoles.CanManageGeneralSettings,
                 CanManageStorages = appSettings.NewUserDefaultPermissionsAndRoles.CanManageStorages,
-                CanManageUsers = appSettings.NewUserDefaultPermissionsAndRoles.CanManageUsers
+                CanManageUsers = appSettings.NewUserDefaultPermissionsAndRoles.CanManageUsers,
+                CanManageAuth = appSettings.NewUserDefaultPermissionsAndRoles.CanManageAuth,
+                CanManageIntegrations= appSettings.NewUserDefaultPermissionsAndRoles.CanManageIntegrations
             },
             AlertOnNewUserRegistered = appSettings.AlertOnNewUserRegistered.IsTurnedOn
         };

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Flurl.Http;
 using PlikShare.Account.Contracts;
 using PlikShare.Core.Authorization;
+using Serilog;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
@@ -34,6 +35,10 @@ public class AccountApi(IFlurlClient flurlClient, string appUrl)
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
                 statusCode: response.StatusCode);
+
+            Log.Error(exception, "Something went wrong. StatusCode: {StatusCode}, ResponseBody: {ResponseBody}", 
+                exception.StatusCode, 
+                exception.ResponseBody);
 
             throw exception;
         }

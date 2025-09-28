@@ -1,8 +1,10 @@
 namespace PlikShare.Auth.Contracts;
 
-public record ConfirmEmailRequestDto(
-    string UserExternalId, 
-    string Code);
+public class ConfirmEmailRequestDto
+{
+    public required string UserExternalId {get; init;}
+    public required string Code { get; init; }
+}
 
 public record ConfirmEmailResponseDto(string Code)
 {

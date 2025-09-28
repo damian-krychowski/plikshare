@@ -225,4 +225,29 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
 
         return (responseBody, null);
     }
+
+    public async Task<ConfirmEmailResponseDto> ConfirmEmail(
+        ConfirmEmailRequestDto request,
+        AntiforgeryCookies antiforgeryCookies)
+    {
+        var response = await flurlClient
+            .Request(appUrl, "api/auth/confirm-email")
+            .AllowAnyHttpStatus()
+            .WithAntiforgery(antiforgeryCookies)
+            .PostJsonAsync(request);
+
+        if (!response.ResponseMessage.IsSuccessStatusCode)
+        {
+            var exception = new TestApiCallException(
+                responseBody: await response.GetStringAsync(),
+                statusCode: response.StatusCode);
+
+            throw exception;
+        }
+
+        var responseBody = await response
+            .GetJsonAsync<ConfirmEmailResponseDto>();
+
+        return responseBody;
+    }
 }

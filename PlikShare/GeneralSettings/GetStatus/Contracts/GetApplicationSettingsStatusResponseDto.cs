@@ -1,4 +1,4 @@
-namespace PlikShare.ApplicationSettings.GetStatus.Contracts;
+namespace PlikShare.GeneralSettings.GetStatus.Contracts;
 
 public class GetApplicationSettingsStatusResponseDto
 {

@@ -16,31 +16,44 @@ public class UserService(
             email: email,
             cancellationToken: cancellationToken);
 
-        return new UserContext(
-            Status: user.IsInvitation
+        return new UserContext
+        {
+            Status = user.IsInvitation
                 ? UserStatus.Invitation
                 : UserStatus.Registered,
-            Id: user.Id,
-            ExternalId: user.ExternalId,
-            Email: email,
-            IsEmailConfirmed: user.IsEmailConfirmed,
-            Stamps: new UserSecurityStamps(
-                Security: user.SecurityStamp,
-                Concurrency: user.ConcurrencyStamp),
-            Roles: new UserRoles(
-                IsAppOwner: appOwners.IsAppOwner(email),
-                IsAdmin: user.IsAdmin),
-            Permissions: new UserPermissions(
-                CanAddWorkspace: user.CanAddWorkspace,
-                CanManageGeneralSettings: user.CanManageGeneralSettings,
-                CanManageUsers: user.CanManageUsers,
-                CanManageStorages: user.CanManageStorages,
-                CanManageEmailProviders: user.CanManageEmailProviders),
-            Invitation: user.IsInvitation
-                ? new UserInvitation(Code: user.InvitationCode!)
+            Id = user.Id,
+            ExternalId = user.ExternalId,
+            Email = email,
+            IsEmailConfirmed = user.IsEmailConfirmed,
+            Stamps = new UserSecurityStamps
+            {
+                Security = user.SecurityStamp,
+                Concurrency = user.ConcurrencyStamp
+            },
+            Roles = new UserRoles
+            {
+                IsAppOwner = appOwners.IsAppOwner(email),
+                IsAdmin = user.IsAdmin
+            },
+            Permissions = new UserPermissions
+            {
+                CanAddWorkspace = user.CanAddWorkspace,
+                CanManageGeneralSettings = user.CanManageGeneralSettings,
+                CanManageUsers = user.CanManageUsers,
+                CanManageStorages = user.CanManageStorages,
+                CanManageEmailProviders = user.CanManageEmailProviders,
+                CanManageAuth = user.CanManageAuth,
+                CanManageIntegrations = user.CanManageIntegrations
+            },
+            Invitation = user.IsInvitation
+                ? new UserInvitation
+                {
+                    Code = user.InvitationCode!
+                }
                 : null,
-            MaxWorkspaceNumber: user.MaxWorkspaceNumber,
-            DefaultMaxWorkspaceSizeInBytes: user.DefaultMaxWorkspaceSizeInBytes,
-            DefaultMaxWorkspaceTeamMembers: user.DefaultMaxWorkspaceTeamMembers);
+            MaxWorkspaceNumber = user.MaxWorkspaceNumber,
+            DefaultMaxWorkspaceSizeInBytes = user.DefaultMaxWorkspaceSizeInBytes,
+            DefaultMaxWorkspaceTeamMembers = user.DefaultMaxWorkspaceTeamMembers
+        };
     }    
 }

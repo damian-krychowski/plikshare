@@ -7,6 +7,7 @@ using PlikShare.Account.GetKnownUsers.Contracts;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.IdentityProvider;
 using PlikShare.Core.Utils;
+using PlikShare.Users.Cache;
 using PlikShare.Users.Middleware;
 using Serilog;
 
@@ -71,23 +72,28 @@ public static class AccountEndpoints
         await signInManager.SignOutAsync();
     }
 
+
     private static GetAccountDetailsResponseDto GetAccountDetails(HttpContext httpContext)
     {
         var user = httpContext.GetUserContext();
 
-        return new GetAccountDetailsResponseDto(
-            ExternalId: httpContext.User.GetExternalId(),
-            Email: httpContext.User.GetEmail(),
-            Roles: new GetAccountRolesResponseDto(
-                IsAppOwner: user.Roles.IsAppOwner,
-                IsAdmin: user.Roles.IsAdmin),
-            Permissions: new GetAccountPermissionsResponseDto(
-                CanAddWorkspace: user.Roles.IsAppOwner || user.Roles.IsAdmin || user.Permissions.CanAddWorkspace,
-                CanManageGeneralSettings: user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageGeneralSettings),
-                CanManageUsers: user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageUsers),
-                CanManageStorages: user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageStorages),
-                CanManageEmailProviders: user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageEmailProviders)),
-            MaxWorkspaceNumber: user.MaxWorkspaceNumber);
+        return new GetAccountDetailsResponseDto
+        {
+            ExternalId = httpContext.User.GetExternalId(),
+            Email = httpContext.User.GetEmail(),
+            Roles = user.Roles,
+            Permissions = new UserPermissions
+            {
+                CanAddWorkspace = user.Roles.IsAppOwner || user.Roles.IsAdmin || user.Permissions.CanAddWorkspace,
+                CanManageGeneralSettings = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageGeneralSettings),
+                CanManageUsers = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageUsers),
+                CanManageStorages = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageStorages),
+                CanManageEmailProviders = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageEmailProviders),
+                CanManageAuth = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageAuth),
+                CanManageIntegrations = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageIntegrations),
+            },
+            MaxWorkspaceNumber = user.MaxWorkspaceNumber
+        };
     }
 
     private static async Task<ChangePasswordResponseDto> ChangePassword(

@@ -71,9 +71,18 @@ public class ResendEmailServer : IAsyncDisposable
     {
         foreach (var email in emails)
         {
-            ReceivedEmails.Should().ContainEquivalentOf(new ReceivedRequest(
-                Body: email,
-                AuthorizationHeader: default), opt => opt.Excluding(x => x.AuthorizationHeader));
+            ReceivedEmails
+                .Should()
+                .ContainEquivalentOf(new ReceivedRequest(
+                        Body: email,
+                        AuthorizationHeader: null),
+                    opt => opt.Excluding(x => x.AuthorizationHeader));
         }
+    }
+
+    public ReceivedRequest? GetLastEmailTo(string userEmail)
+    {
+        return ReceivedEmails.LastOrDefault(email =>
+            email.Body.To.Contains(userEmail, StringComparer.OrdinalIgnoreCase));
     }
 }

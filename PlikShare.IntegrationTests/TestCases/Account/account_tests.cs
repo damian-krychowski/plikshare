@@ -3,6 +3,7 @@ using PlikShare.Account.Contracts;
 using PlikShare.Auth.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
+using PlikShare.Users.Cache;
 using Xunit.Abstractions;
 
 #pragma warning disable CS8604 // Possible null reference argument.
@@ -29,16 +30,22 @@ public class account_tests : TestFixture
         // then
         accountDetails.Email.Should().Be(Users.AppOwner.Email);
 
-        accountDetails.Permissions.Should().BeEquivalentTo(new GetAccountPermissionsResponseDto(
-            CanAddWorkspace: true,
-            CanManageEmailProviders: true,
-            CanManageStorages: true,
-            CanManageUsers: true,
-            CanManageGeneralSettings: true));
+        accountDetails.Permissions.Should().BeEquivalentTo(new UserPermissions
+        {
+            CanAddWorkspace = true,
+            CanManageEmailProviders = true,
+            CanManageStorages = true,
+            CanManageUsers = true,
+            CanManageGeneralSettings = true,
+            CanManageAuth = true,
+            CanManageIntegrations = true
+        });
 
-        accountDetails.Roles.Should().BeEquivalentTo(new GetAccountRolesResponseDto(
-            IsAppOwner: true,
-            IsAdmin: true));
+        accountDetails.Roles.Should().BeEquivalentTo(new UserRoles
+        {
+            IsAppOwner = true,
+            IsAdmin = true
+        });
     }
 
     [Fact]
@@ -679,18 +686,26 @@ public class account_tests : TestFixture
         var accountDetails = await Api.Account.GetDetails(
             cookie);
 
-        accountDetails.Should().BeEquivalentTo(new GetAccountDetailsResponseDto(
-            ExternalId: user.ExternalId,
-            Email: user.Email,
-            Roles: new GetAccountRolesResponseDto(
-                IsAdmin: false,
-                IsAppOwner: false),
-            Permissions: new GetAccountPermissionsResponseDto(
-                CanAddWorkspace: false,
-                CanManageEmailProviders: false,
-                CanManageGeneralSettings: false,
-                CanManageStorages: false,
-                CanManageUsers: false),
-            MaxWorkspaceNumber: 0));
+        accountDetails.Should().BeEquivalentTo(new GetAccountDetailsResponseDto
+        {
+            ExternalId = user.ExternalId,
+            Email = user.Email,
+            Roles = new UserRoles
+            {
+                IsAdmin = false,
+                IsAppOwner = false
+            },
+            Permissions = new UserPermissions()
+            {
+                CanAddWorkspace = false,
+                CanManageEmailProviders = false,
+                CanManageGeneralSettings = false,
+                CanManageStorages = false,
+                CanManageUsers = false,
+                CanManageAuth = false,
+                CanManageIntegrations = false
+            },
+            MaxWorkspaceNumber = 0
+        });
     }
 }

@@ -1,7 +1,6 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Database.MainDatabase;
-using PlikShare.Core.IdentityProvider;
 using PlikShare.Core.SQLite;
 using PlikShare.GeneralSettings;
 using PlikShare.Users.PermissionsAndRoles;

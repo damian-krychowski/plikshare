@@ -227,7 +227,9 @@ public class InviteUsersQuery(
                 CanManageEmailProviders = permissionsAndRoles.CanManageEmailProviders,
                 CanManageGeneralSettings = permissionsAndRoles.CanManageGeneralSettings,
                 CanManageStorages = permissionsAndRoles.CanManageStorages,
-                CanManageUsers = permissionsAndRoles.CanManageUsers
+                CanManageUsers = permissionsAndRoles.CanManageUsers,
+                CanManageAuth = permissionsAndRoles.CanManageAuth,
+                CanManageIntegrations = permissionsAndRoles.CanManageIntegrations
             }
         };
     }

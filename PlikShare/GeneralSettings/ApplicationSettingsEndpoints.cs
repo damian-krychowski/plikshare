@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
-using PlikShare.ApplicationSettings.GetStatus;
-using PlikShare.ApplicationSettings.GetStatus.Contracts;
 using PlikShare.Core.Authorization;
+using PlikShare.GeneralSettings.GetStatus;
+using PlikShare.GeneralSettings.GetStatus.Contracts;
 using PlikShare.Users.Middleware;
 
-namespace PlikShare.ApplicationSettings;
+namespace PlikShare.GeneralSettings;
 
 public static class ApplicationSettingsEndpoints
 {

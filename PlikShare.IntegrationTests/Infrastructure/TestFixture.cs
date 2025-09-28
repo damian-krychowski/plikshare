@@ -1,3 +1,4 @@
+using FluentAssertions;
 using PlikShare.Auth.Contracts;
 using PlikShare.Boxes.Create.Contracts;
 using PlikShare.Boxes.CreateLink.Contracts;
@@ -11,6 +12,7 @@ using PlikShare.EmailProviders.ExternalProviders.Resend.Create;
 using PlikShare.EmailProviders.Id;
 using PlikShare.Folders.Create.Contracts;
 using PlikShare.Folders.Id;
+using PlikShare.GeneralSettings;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.IntegrationTests.Infrastructure.Mocks;
 using PlikShare.Storages.Encryption;
@@ -42,6 +44,7 @@ public class TestFixture: IAsyncLifetime
     protected OneTimeCodeMock OneTimeCode { get; }
     protected OneTimeInvitationCodeMock OneTimeInvitationCode { get; }
     protected ResendEmailServer ResendEmailServer { get; }
+    protected AppSettings AppSettings { get; }
 
     protected EmailTemplates EmailTemplates { get; }
     protected RandomGenerator Random { get; } = new();
@@ -58,6 +61,7 @@ public class TestFixture: IAsyncLifetime
         OneTimeInvitationCode = hostFixture.OneTimeInvitationCode;
         ResendEmailServer = hostFixture.ResendEmailServer;
         EmailTemplates = hostFixture.EmailTemplates;
+        AppSettings = hostFixture.AppSettings;
         
         ConfigureLogger(testOutputHelper);
         
@@ -412,7 +416,7 @@ public class TestFixture: IAsyncLifetime
             .Antiforgery
             .GetToken();
 
-        var (_, userCookie) = await Api.Auth.SignUp(
+        var (signUpResponse, userCookie) = await Api.Auth.SignUp(
             request: new SignUpUserRequestDto
             {
                 Email = invitedUser.Email,
@@ -421,6 +425,8 @@ public class TestFixture: IAsyncLifetime
                 SelectedCheckboxIds = []
             },
             antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        signUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.SingedUpAndSignedIn);
 
         var loggedInAntiforgeryCookies = await Api
             .Antiforgery

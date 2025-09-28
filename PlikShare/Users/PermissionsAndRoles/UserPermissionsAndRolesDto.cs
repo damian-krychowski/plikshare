@@ -11,6 +11,8 @@ public class UserPermissionsAndRolesDto
     public required bool CanManageUsers { get; init; }
     public required bool CanManageStorages { get; init; }
     public required bool CanManageEmailProviders { get; init; }
+    public required bool CanManageAuth { get; init; }
+    public required bool CanManageIntegrations { get; init; }
 }
 
 public static class UserPermissionsAndRolesDtoExtensions
@@ -33,6 +35,12 @@ public static class UserPermissionsAndRolesDtoExtensions
 
         if (dto.CanManageUsers)
             result.Add(Permissions.ManageUsers);
+
+        if(dto.CanManageAuth)
+            result.Add(Permissions.ManageAuth);
+
+        if(dto.CanManageIntegrations)
+            result.Add(Permissions.ManageIntegrations);
 
         return result;
     }

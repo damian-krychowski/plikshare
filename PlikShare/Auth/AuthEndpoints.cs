@@ -73,14 +73,20 @@ public static class AuthEndpoints
         if(!areAllRequiredCheckboxesPresent)
             return SignUpUserResponseDto.SignUpCheckboxesMissing;
 
+        var isInvitationCodeProvided = !string.IsNullOrWhiteSpace(
+            request.InvitationCode);
+
         if (appSettings.ApplicationSignUp == AppSettings.SignUpSetting.OnlyInvitedUsers)
         {
-            if (string.IsNullOrWhiteSpace(request.InvitationCode))
+            if (!isInvitationCodeProvided)
                 return SignUpUserResponseDto.InvitationRequired;
+        }
 
+        if (isInvitationCodeProvided)
+        {
             var invitationCheckResult = checkUserInvitationCodeQuery.Execute(
                 email: request.Email,
-                invitationCode: request.InvitationCode);
+                invitationCode: request.InvitationCode!);
 
             if (invitationCheckResult == CheckUserInvitationCodeQuery.ResultCode.WrongInvitationCode)
                 return SignUpUserResponseDto.InvitationRequired;
@@ -122,7 +128,7 @@ public static class AuthEndpoints
             throw new InvalidOperationException("Some errors on register user");
         }
 
-        if (appSettings.ApplicationSignUp == AppSettings.SignUpSetting.OnlyInvitedUsers)
+        if (isInvitationCodeProvided)
         {
             await emailStore.SetEmailConfirmedAsync(
                 user: user,
@@ -146,19 +152,17 @@ public static class AuthEndpoints
 
             return SignUpUserResponseDto.SingedUpAndSignedIn;
         }
-        else
-        {
-            await SendConfirmationLinkEmail(
-                user: user, 
-                userManager: userManager, 
-                queue: queue, 
-                clock: clock, 
-                dbWriteQueue: dbWriteQueue, 
-                httpContext: httpContext, 
-                cancellationToken: cancellationToken);
 
-            return SignUpUserResponseDto.ConfirmationEmailSent;
-        }
+        await SendConfirmationLinkEmail(
+            user: user, 
+            userManager: userManager, 
+            queue: queue, 
+            clock: clock, 
+            dbWriteQueue: dbWriteQueue, 
+            httpContext: httpContext, 
+            cancellationToken: cancellationToken);
+
+        return SignUpUserResponseDto.ConfirmationEmailSent;
     }
 
     private static async Task<ResendConfirmationLinkResponseDto> ResendConfirmationLink(
@@ -207,7 +211,8 @@ public static class AuthEndpoints
         UserManager<ApplicationUser> userManager,
         CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(request.UserExternalId);
+        var user = await userManager.FindByIdAsync(
+            request.UserExternalId);
 
         if (user is null)
         {
@@ -414,7 +419,9 @@ public static class AuthEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        var code = await userManager.GenerateEmailConfirmationTokenAsync(user);
+        var code = await userManager.GenerateEmailConfirmationTokenAsync(
+            user);
+
         var link = new Url(httpContext.RequestServices.GetRequiredService<IConfig>().AppUrl)
             .AppendPathSegment("email-confirmation")
             .AppendQueryParam("userId", user.Id)

@@ -44,7 +44,7 @@ public class create_resend_email_providers_tests: TestFixture
 
         //then
         var (expectedTitle, expectedContent) = Emails.EmailProviderConfirmation(
-            applicationName: "PlikShare",
+            applicationName: AppSettings.ApplicationName.Name,
             emailProviderName: emailProviderName,
             confirmationCode: confirmationCode);
         

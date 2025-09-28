@@ -1,21 +1,13 @@
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 
-namespace PlikShare.ApplicationSettings.GetStatus;
+namespace PlikShare.GeneralSettings.GetStatus;
 
-public class GetApplicationSettingsStatusQuery
+public class GetApplicationSettingsStatusQuery(PlikShareDb plikShareDb)
 {
-    private readonly PlikShareDb _plikShareDb;
-
-    public GetApplicationSettingsStatusQuery(
-        PlikShareDb plikShareDb)
-    {
-        _plikShareDb = plikShareDb;
-    }
-
     public Result Execute()
     {
-        using var connection = _plikShareDb.OpenConnection();
+        using var connection = plikShareDb.OpenConnection();
 
         return connection
             .OneRowCmd(

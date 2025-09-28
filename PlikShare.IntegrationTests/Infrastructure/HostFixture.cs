@@ -11,6 +11,7 @@ using PlikShare.Core.Emails.Templates;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.Core.Volumes;
+using PlikShare.GeneralSettings;
 using PlikShare.IntegrationTests.Infrastructure.Mocks;
 using PlikShare.Users.Invite;
 
@@ -47,6 +48,7 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
     public EmailTemplates EmailTemplates { get; }
     
     public PlikShareDb Db { get; }
+    public AppSettings AppSettings { get; }
 
     protected HostFixture()
     {
@@ -88,6 +90,7 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
             generic: App.Services.GetRequiredService<GenericEmailTemplate>());
 
         Db = App.Services.GetRequiredService<PlikShareDb>();
+        AppSettings = App.Services.GetRequiredService<AppSettings>();
     }
 
     private static IFlurlClient PrepareFlurlClient()

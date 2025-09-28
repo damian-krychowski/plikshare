@@ -7,6 +7,7 @@ using PlikShare.GeneralSettings.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Storages.HardDrive.GetVolumes.Contracts;
 using PlikShare.Storages.List.Contracts;
+using PlikShare.Users.Cache;
 using PlikShare.Users.List.Contracts;
 using PlikShare.Users.PermissionsAndRoles;
 using Xunit.Abstractions;
@@ -67,7 +68,9 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
                 CanManageGeneralSettings = false,
                 CanManageStorages = false,
                 CanManageUsers = false,
-                IsAdmin = false
+                IsAdmin = false,
+                CanManageAuth = false,
+                CanManageIntegrations = false
             },
             AlertOnNewUserRegistered = false
         });
@@ -126,18 +129,20 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
                      Email = user.Email,
                      IsEmailConfirmed = true,
                      WorkspacesCount = 0,
-                     Roles = new GetUserItemRolesDto
+                     Roles = new UserRoles
                      {
                          IsAppOwner = true,
                          IsAdmin = false
                      },
-                     Permissions = new GetUserItemPermissionsDto
+                     Permissions = new UserPermissions
                      {                         
                          CanAddWorkspace = false,
                          CanManageGeneralSettings = false,
                          CanManageUsers = false,
                          CanManageStorages = false,
-                         CanManageEmailProviders = false
+                         CanManageEmailProviders = false,
+                         CanManageAuth = false,
+                         CanManageIntegrations = false
                      },
                      MaxWorkspaceNumber = null,
                      DefaultMaxWorkspaceSizeInBytes = null,

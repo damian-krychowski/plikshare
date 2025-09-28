@@ -36,19 +36,8 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
                 ExternalId = user.ExternalId,
                 Email = user.Email.Value,
                 IsEmailConfirmed = user.IsEmailConfirmed,
-                Roles = new GetUserDetails.UserRolesDto
-                {
-                    IsAppOwner = user.Roles.IsAppOwner,
-                    IsAdmin = user.Roles.IsAdmin
-                },
-                Permissions = new GetUserDetails.UserPermissionsDto
-                {
-                    CanAddWorkspace = user.Permissions.CanAddWorkspace,
-                    CanManageGeneralSettings = user.Permissions.CanManageGeneralSettings,
-                    CanManageUsers = user.Permissions.CanManageUsers,
-                    CanManageStorages = user.Permissions.CanManageStorages,
-                    CanManageEmailProviders = user.Permissions.CanManageEmailProviders
-                },
+                Roles = user.Roles,
+                Permissions = user.Permissions,
                 MaxWorkspaceNumber = user.MaxWorkspaceNumber,
                 DefaultMaxWorkspaceSizeInBytes = user.DefaultMaxWorkspaceSizeInBytes,
                 DefaultMaxWorkspaceTeamMembers = user.DefaultMaxWorkspaceTeamMembers
