@@ -322,7 +322,7 @@ public class SendAiMessageQueueJobExecutor(
 
         try
         {
-            await FileReader.ReadFull(
+            await using var fileStream = await FileReader.GetFile(
                 s3FileKey: new S3FileKey
                 {
                     S3KeySecretPart = file.S3KeySecretPart,
@@ -331,10 +331,13 @@ public class SendAiMessageQueueJobExecutor(
                 fileSizeInBytes: file.SizeInBytes,
                 bucketName: file.BucketName,
                 storage: storage,
+                cancellationToken: cancellationToken);
+
+            await fileStream.WriteTo(
                 output: PipeWriter.Create(
                     stream: heapBufferMemory.AsStream()),
                 cancellationToken: cancellationToken);
-
+            
             var fileContentBuilder = new StringBuilder();
             var fileBody = Encoding.UTF8.GetString(
                 bytes: heapBufferMemory.Span);

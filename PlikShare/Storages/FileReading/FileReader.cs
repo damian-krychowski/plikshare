@@ -5,63 +5,62 @@ using PlikShare.Storages.HardDrive.Download;
 using PlikShare.Storages.HardDrive.StorageClient;
 using PlikShare.Storages.S3;
 using PlikShare.Storages.S3.Download;
+using PlikShare.Users.Cache;
 using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.Storages.FileReading;
 
+public interface IFile: IDisposable, IAsyncDisposable
+{
+    Task WriteTo(
+        PipeWriter output,
+        CancellationToken cancellationToken);
+}
+
 public static class FileReader
 {
-    /// <exception cref="FileNotFoundInStorageException"></exception>
-    /// <exception cref="OperationCanceledException"></exception>
-    public static Task ReadFull(
+    public static ValueTask<IFile> GetFile(
         S3FileKey s3FileKey,
         long fileSizeInBytes,
         WorkspaceContext workspace,
-        PipeWriter output,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
-        return ReadFull(
+        return GetFile(
             s3FileKey,
             fileSizeInBytes,
             workspace.BucketName,
             workspace.Storage,
-            output,
             cancellationToken);
     }
 
-    public static Task ReadFull(
+    public static async ValueTask<IFile> GetFile(
         S3FileKey s3FileKey,
         long fileSizeInBytes,
         string bucketName,
         IStorageClient storage,
-        PipeWriter output,
         CancellationToken cancellationToken = default)
     {
         return storage switch
         {
-            HardDriveStorageClient hardDriveStorageClient => HardDriveDownloadOperation.ExecuteForFullFile(
+            HardDriveStorageClient hardDriveStorageClient => HardDriveDownloadOperation.GetFile(
                 s3FileKey: s3FileKey,
                 fileSizeInBytes: fileSizeInBytes,
                 bucketName: bucketName,
                 hardDriveStorageClient: hardDriveStorageClient!,
-                output: output,
                 cancellationToken: cancellationToken),
 
-            S3StorageClient s3StorageClient => S3DownloadOperation.ExecuteForFullFile(
+            S3StorageClient s3StorageClient => await S3DownloadOperation.GetFile(
                 s3FileKey: s3FileKey,
-                fileSizeInBytes: fileSizeInBytes,
-                bucketName: bucketName,
-                s3StorageClient: s3StorageClient,
-                output: output,
-                cancellationToken: cancellationToken),
+                fileSizeInBytes, 
+                bucketName, 
+                s3StorageClient, 
+                cancellationToken),
 
             _ => throw new ArgumentOutOfRangeException(nameof(storage))
         };
     }
 
-    /// <exception cref="FileNotFoundInStorageException"></exception>
-    /// <exception cref="OperationCanceledException"></exception>
-    public static Task ReadRange(
+    public static async ValueTask<IFile> GetFileRange(
         S3FileKey s3FileKey,
         FileEncryption fileEncryption,
         long fileSizeInBytes,
@@ -72,27 +71,50 @@ public static class FileReader
     {
         return workspace.Storage switch
         {
-            HardDriveStorageClient hardDriveStorageClient => HardDriveDownloadOperation.ExecuteForRange(
+            HardDriveStorageClient hardDriveStorageClient => HardDriveDownloadOperation.GetFileRange(
                 s3FileKey: s3FileKey,
                 fileEncryption: fileEncryption,
                 fileSizeInBytes: fileSizeInBytes,
                 range: range,
                 bucketName: workspace.BucketName,
                 hardDriveStorageClient: hardDriveStorageClient!,
-                output: output,
                 cancellationToken: cancellationToken),
 
-            S3StorageClient s3StorageClient => S3DownloadOperation.ExecuteForRange(
+            S3StorageClient s3StorageClient => await S3DownloadOperation.GetFileRange(
                 s3FileKey: s3FileKey,
                 fileEncryption: fileEncryption,
                 fileSizeInBytes: fileSizeInBytes,
                 range: range,
                 workspace.BucketName,
                 s3StorageClient: s3StorageClient,
-                output: output,
                 cancellationToken: cancellationToken),
 
             _ => throw new ArgumentOutOfRangeException(nameof(workspace.Storage))
         };
+    }
+
+    /// <exception cref="FileNotFoundInStorageException"></exception>
+    /// <exception cref="OperationCanceledException"></exception>
+    public static async Task ReadRange(
+        S3FileKey s3FileKey,
+        FileEncryption fileEncryption,
+        long fileSizeInBytes,
+        BytesRange range,
+        WorkspaceContext workspace,
+        PipeWriter output,
+        CancellationToken cancellationToken = default)
+    {
+        await using var file = await GetFileRange(
+            s3FileKey,
+            fileEncryption,
+            fileSizeInBytes,
+            range,
+            workspace,
+            output,
+            cancellationToken);
+
+        await file.WriteTo(
+            output,
+            cancellationToken);
     }
 }

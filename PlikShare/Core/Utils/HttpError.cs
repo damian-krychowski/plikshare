@@ -470,6 +470,24 @@ public static class HttpErrors
                 Code = "no-files-to-upload",
                 Message = $"No valid files were provided in the multi-file-direct-upload request"
             });
+
+        public static JsonHttpResult<HttpError> DownloadStreamingFailed(FileExtId fileExternalId) =>
+            TypedResults.Json(
+                new HttpError
+                {
+                    Code = "file-download-streaming-failed",
+                    Message = $"An error occurred while streaming file '{fileExternalId}'."
+                },
+                statusCode: StatusCodes.Status500InternalServerError);
+
+        public static JsonHttpResult<HttpError> RangeNotSatisfiable(FileExtId fileExternalId) =>
+            TypedResults.Json(
+                new HttpError
+                {
+                    Code = "range-not-satisfiable",
+                    Message = $"Requested range is not valid for file '{fileExternalId}'."
+                },
+                statusCode: StatusCodes.Status416RangeNotSatisfiable);
     }
 
     public static class EmailProvider

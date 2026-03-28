@@ -124,7 +124,7 @@ public class S3UploadOperation
 
                 UploadAlgorithm.SingleChunkUpload => throw new NotSupportedException(
                     message:
-                    $"Upload algorithm '{uploadAlgorithm}' is not supported for {nameof(HardDriveUploadOperation)}"),
+                    $"Upload algorithm '{uploadAlgorithm}' is not supported for {nameof(S3UploadOperation)}"),
 
                 _ => throw new ArgumentOutOfRangeException(
                     paramName: nameof(uploadAlgorithm),

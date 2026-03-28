@@ -201,7 +201,8 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
         }
     }
 
-    private class AsyncDbWriteOperation<TResult>(Func<Context, CancellationToken, ValueTask<TResult>> operation) : IAsyncDbWriteOperation
+    private class AsyncDbWriteOperation<TResult>(
+        Func<Context, CancellationToken, ValueTask<TResult>> operation) : IAsyncDbWriteOperation
     {
         public readonly TaskCompletionSource<TResult> CompletionSource = new();
 

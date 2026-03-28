@@ -373,7 +373,7 @@ public static class PreSignedFilesEndpoints
         }
     }
 
-    private static async ValueTask<Results<EmptyHttpResult, NotFound<HttpError>, StatusCodeHttpResult>> DownloadFile(
+    private static async ValueTask<Results<EmptyHttpResult, NotFound<HttpError>, JsonHttpResult<HttpError>>> DownloadFile(
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
@@ -384,14 +384,9 @@ public static class PreSignedFilesEndpoints
         Log.Debug("File download with pre-signed url started: {Payload}",
             payload);
 
+        
         var rangeRequest = httpContext.TryGetRangeRequest(
             fileSizeInBytes: file.SizeInBytes);
-
-        httpContext.Response.Headers.AcceptRanges = "bytes";
-        httpContext.Response.Headers.ContentType = file.ContentType;
-        httpContext.Response.Headers.ContentDisposition = ContentDispositionHelper.CreateContentDisposition(
-            fileName: file.FullName,
-            disposition: payload.ContentDisposition);
 
         if (rangeRequest.IsRangeRequest)
         {
@@ -410,7 +405,7 @@ public static class PreSignedFilesEndpoints
             cancellationToken: cancellationToken);
     }
     
-    private static async ValueTask<Results<EmptyHttpResult, NotFound<HttpError>, StatusCodeHttpResult>> HandleRangeFileDownload(
+    private static async ValueTask<Results<EmptyHttpResult, NotFound<HttpError>, JsonHttpResult<HttpError>>> HandleRangeFileDownload(
         RangeRequest rangeRequest,
         ProtectedDownloadPayload protectedPayload,
         HttpContext httpContext,
@@ -421,16 +416,14 @@ public static class PreSignedFilesEndpoints
         if (!rangeRequest.IsValid(file.SizeInBytes))
         {
             httpContext.Response.Headers.ContentRange = rangeRequest.InvalidContentRange(file.SizeInBytes);
-            return TypedResults.StatusCode(StatusCodes.Status416RangeNotSatisfiable);
+            
+            return HttpErrors.File.RangeNotSatisfiable(
+                payload.FileExternalId);
         }
-
-        httpContext.Response.Headers.ContentRange = rangeRequest.ValidContentRange(file.SizeInBytes);
-        httpContext.Response.Headers.ContentLength = rangeRequest.Range.Length;
-        httpContext.Response.StatusCode = StatusCodes.Status206PartialContent;
 
         try
         {
-            await FileReader.ReadRange(
+            await using var rangedFileStream = await FileReader.GetFileRange(
                 s3FileKey: new S3FileKey
                 {
                     S3KeySecretPart = file.S3KeySecretPart,
@@ -443,6 +436,20 @@ public static class PreSignedFilesEndpoints
                 output: httpContext.Response.BodyWriter,
                 cancellationToken: cancellationToken);
 
+            httpContext.Response.Headers.AcceptRanges = "bytes";
+            httpContext.Response.Headers.ContentType = file.ContentType;
+            httpContext.Response.Headers.ContentRange = rangeRequest.ValidContentRange(file.SizeInBytes);
+            httpContext.Response.Headers.ContentLength = rangeRequest.Range.Length;
+            httpContext.Response.Headers.ContentDisposition = ContentDispositionHelper.CreateContentDisposition(
+                fileName: file.FullName,
+                disposition: payload.ContentDisposition);
+            
+            httpContext.Response.StatusCode = StatusCodes.Status206PartialContent;
+
+            await rangedFileStream.WriteTo(
+                output: httpContext.Response.BodyWriter,
+                cancellationToken: cancellationToken);
+            
             return TypedResults.Empty;
         }
         catch (OperationCanceledException)
@@ -464,7 +471,14 @@ public static class PreSignedFilesEndpoints
             Log.Error(e, "Something went wrong while downloading a file '{FileExternalId}' with pre-signed url.",
                 payload.FileExternalId);
 
-            throw;
+            if (httpContext.Response.HasStarted)
+            {
+                httpContext.Abort();
+                return TypedResults.Empty;
+            }
+
+            return HttpErrors.File.DownloadStreamingFailed(
+                payload.FileExternalId);
         }
         finally
         {
@@ -472,18 +486,17 @@ public static class PreSignedFilesEndpoints
         }
     }
 
-    private static async ValueTask<Results<EmptyHttpResult, NotFound<HttpError>, StatusCodeHttpResult>> HandleFullFileDownload(
+    private static async ValueTask<Results<EmptyHttpResult, NotFound<HttpError>, JsonHttpResult<HttpError>>> HandleFullFileDownload(
         ProtectedDownloadPayload protectedPayload,
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var (payload, file, workspace) = protectedPayload;
 
-        httpContext.Response.Headers.ContentLength = file.SizeInBytes;
 
         try
         {
-            await FileReader.ReadFull(
+            await using var fileStream = await FileReader.GetFile(
                 s3FileKey: new S3FileKey
                 {
                     S3KeySecretPart = file.S3KeySecretPart,
@@ -491,6 +504,17 @@ public static class PreSignedFilesEndpoints
                 },
                 fileSizeInBytes: file.SizeInBytes,
                 workspace: workspace,
+                cancellationToken: cancellationToken);
+            
+            httpContext.Response.Headers.AcceptRanges = "bytes";
+            httpContext.Response.Headers.ContentType = file.ContentType;
+            httpContext.Response.Headers.ContentDisposition = ContentDispositionHelper.CreateContentDisposition(
+                fileName: file.FullName,
+                disposition: payload.ContentDisposition);
+
+            httpContext.Response.Headers.ContentLength = file.SizeInBytes;
+
+            await fileStream.WriteTo(
                 output: httpContext.Response.BodyWriter,
                 cancellationToken: cancellationToken);
 
@@ -514,15 +538,25 @@ public static class PreSignedFilesEndpoints
             Log.Error(e, "Something went wrong while downloading a file '{FileExternalId}' with pre-signed url.",
                 payload.FileExternalId);
 
-            throw;
+            if (httpContext.Response.HasStarted)
+            {
+                httpContext.Abort();
+                return TypedResults.Empty;
+            }
+
+            return HttpErrors.File.DownloadStreamingFailed(
+                payload.FileExternalId);
         }
         finally
         {
-            await httpContext.Response.BodyWriter.CompleteAsync();
+            if (httpContext.Response.HasStarted)
+            {
+                await httpContext.Response.BodyWriter.CompleteAsync();
+            }
         }
     }
 
-    private static async ValueTask<Results<EmptyHttpResult, NotFound<HttpError>>> DownloadZipFileContent(
+    private static async ValueTask<Results<EmptyHttpResult, NotFound<HttpError>, JsonHttpResult<HttpError>>> DownloadZipFileContent(
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
@@ -571,7 +605,14 @@ public static class PreSignedFilesEndpoints
             Log.Error(e, "Something went wrong while downloading a file '{FileExternalId}' with pre-signed url.",
                 payload.FileExternalId);
 
-            throw;
+            if (httpContext.Response.HasStarted)
+            {
+                httpContext.Abort();
+                return TypedResults.Empty;
+            }
+
+            return HttpErrors.File.DownloadStreamingFailed(
+                payload.FileExternalId);
         }
         finally
         {

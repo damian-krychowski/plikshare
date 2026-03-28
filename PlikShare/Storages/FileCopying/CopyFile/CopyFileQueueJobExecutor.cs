@@ -307,10 +307,13 @@ public class CopyFileQueueJobExecutor(
     {
         try
         {
-            await FileReader.ReadFull(
+            await using var fileStream = await FileReader.GetFile(
                 s3FileKey: job.SourceS3FileKey,
                 fileSizeInBytes: job.FileSizeInBytes,
                 workspace: sourceWorkspace,
+                cancellationToken: stoppingToken);
+
+            await fileStream.WriteTo(
                 output: output,
                 cancellationToken: stoppingToken);
         }

@@ -58,7 +58,6 @@ public static class WorkspacesAdminEndpoints
     private static async Task<Results<Ok, NotFound<HttpError>>> UpdateWorkspaceMaxTeamMembers(
         [FromBody] UpdateWorkspaceMaxTeamMembersRequestDto request,
         HttpContext httpContext,
-        UserCache userCache,
         WorkspaceCache workspaceCache,
         UpdateWorkspaceMaxTeamMembersQuery updateWorkspaceMaxTeamMembersQuery,
         CancellationToken cancellationToken)
@@ -84,7 +83,6 @@ public static class WorkspacesAdminEndpoints
     private static async Task<Results<Ok, NotFound<HttpError>>> UpdateWorkspaceMaxSize(
         [FromBody] UpdateWorkspaceMaxSizeDto request,
         HttpContext httpContext,
-        UserCache userCache,
         WorkspaceCache workspaceCache,
         UpdateWorkspaceMaxSizeQuery updateWorkspaceMaxSizeQuery,
         CancellationToken cancellationToken)

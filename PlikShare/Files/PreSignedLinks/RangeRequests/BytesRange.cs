@@ -5,6 +5,11 @@ public readonly record struct BytesRange(
     long End)
 {
     public long Length => End - Start + 1;
+
+    public override string ToString()
+    {
+        return $"[{Start}-{End}] ({Length} bytes)";
+    }
 }
 
 public static class FileBytesRange

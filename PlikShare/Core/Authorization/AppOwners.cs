@@ -1,4 +1,3 @@
-using PlikShare.Core.IdentityProvider;
 using PlikShare.Users.Entities;
 
 namespace PlikShare.Core.Authorization;
