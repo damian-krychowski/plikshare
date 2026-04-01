@@ -90,7 +90,9 @@ export class UsersSettingsComponent implements OnInit {
                     canManageGeneralSettings: signal(u.permissions.canManageGeneralSettings),
                     canManageUsers: signal(u.permissions.canManageUsers),
                     canManageStorages: signal(u.permissions.canManageStorages),
-                    canManageEmailProviders: signal(u.permissions.canManageEmailProviders)
+                    canManageEmailProviders: signal(u.permissions.canManageEmailProviders),
+                    canManageAuth: signal(u.permissions.canManageAuth),
+                    canManageIntegrations: signal(u.permissions.canManageIntegrations)
                 },
                 maxWorkspaceNumber: signal(u.maxWorkspaceNumber),
                 defaultMaxWorkspaceSizeInBytes: signal(u.defaultMaxWorkspaceSizeInBytes),
@@ -139,7 +141,9 @@ export class UsersSettingsComponent implements OnInit {
                     canManageGeneralSettings: signal(false),
                     canManageUsers: signal(false),
                     canManageStorages: signal(false),
-                    canManageEmailProviders: signal(false)
+                    canManageEmailProviders: signal(false),
+                    canManageAuth: signal(false),
+                    canManageIntegrations: signal(false)
                 },
                 roles: {
                     isAdmin: signal(false),
@@ -179,6 +183,8 @@ export class UsersSettingsComponent implements OnInit {
                     user.permissions.canManageGeneralSettings.set(userResponse.permissionsAndRoles.canManageGeneralSettings);
                     user.permissions.canManageStorages.set(userResponse.permissionsAndRoles.canManageStorages);
                     user.permissions.canManageUsers.set(userResponse.permissionsAndRoles.canManageUsers);
+                    user.permissions.canManageAuth.set(userResponse.permissionsAndRoles.canManageAuth);
+                    user.permissions.canManageIntegrations.set(userResponse.permissionsAndRoles.canManageIntegrations);
                 }
             }
         } catch (error) {

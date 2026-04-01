@@ -26,7 +26,7 @@ public static class TextractEndpoints
                 Policy = AuthPolicy.Internal,
                 Roles = $"{Roles.Admin}"
             })
-            .AddEndpointFilter<RequireAppOwnerEndpointFilter>();
+            .AddEndpointFilter(new RequireAdminPermissionEndpointFilter(Permissions.ManageIntegrations));
 
         textractConfigGroup.MapGet("/test-image", GetTestImage)
             .WithName("GetTextractTestImage");

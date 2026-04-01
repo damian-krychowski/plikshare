@@ -16,16 +16,18 @@ export function hasUserAnyPermission(userSignal: Signal<AppUserPermissionsAndRol
     return computed(() => {
         const user = userSignal();
 
-        return user.roles.isAdmin() 
+        return user.roles.isAdmin()
         || user.permissions.canManageGeneralSettings()
         || user.permissions.canAddWorkspace()
         || user.permissions.canManageUsers()
         || user.permissions.canManageStorages()
         || user.permissions.canManageEmailProviders()
+        || user.permissions.canManageAuth()
+        || user.permissions.canManageIntegrations()
     });
 }
 
-export type UserPermissionsAndRolesChangedEvent = {    
+export type UserPermissionsAndRolesChangedEvent = {
     isAdmin: boolean;
 
     canAddWorkspace: boolean;
@@ -33,6 +35,8 @@ export type UserPermissionsAndRolesChangedEvent = {
     canManageUsers: boolean;
     canManageStorages: boolean;
     canManageEmailProviders: boolean;
+    canManageAuth: boolean;
+    canManageIntegrations: boolean;
 }
 
 @Component({
@@ -66,6 +70,12 @@ export class UserPermissionsListComponent {
     canManageEmailProviders = computed(() => this.user().permissions.canManageEmailProviders());
     isCanManageEmailProvidersReadOnly = computed(() => this.isReadOnly() || !this.auth.isAppOwner());
 
+    canManageAuth = computed(() => this.user().permissions.canManageAuth());
+    isCanManageAuthReadOnly = computed(() => this.isReadOnly() || !this.auth.isAppOwner());
+
+    canManageIntegrations = computed(() => this.user().permissions.canManageIntegrations());
+    isCanManageIntegrationsReadOnly = computed(() => this.isReadOnly() || !this.auth.isAppOwner());
+
     constructor(
         public auth: AuthService
     ) {}
@@ -98,7 +108,17 @@ export class UserPermissionsListComponent {
     public onCanManageEmailProvidersChange() {
         toggle(this.user().permissions.canManageEmailProviders);
         this.emitConfigChange();
-    }   
+    }
+
+    public onCanManageAuthChange() {
+        toggle(this.user().permissions.canManageAuth);
+        this.emitConfigChange();
+    }
+
+    public onCanManageIntegrationsChange() {
+        toggle(this.user().permissions.canManageIntegrations);
+        this.emitConfigChange();
+    }
 
     private emitConfigChange() {
         const isAdmin = this.isAdmin();
@@ -111,7 +131,9 @@ export class UserPermissionsListComponent {
             canManageEmailProviders: isAdmin && this.canManageEmailProviders(),
             canManageGeneralSettings: isAdmin && this.canManageGeneralSettings(),
             canManageStorages: isAdmin && this.canManageStorages(),
-            canManageUsers: isAdmin && this.canManageUsers()
+            canManageUsers: isAdmin && this.canManageUsers(),
+            canManageAuth: isAdmin && this.canManageAuth(),
+            canManageIntegrations: isAdmin && this.canManageIntegrations()
         });
     }
 }

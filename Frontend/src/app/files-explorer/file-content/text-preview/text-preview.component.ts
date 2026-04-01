@@ -39,8 +39,14 @@ export class TextPreviewComponent implements OnChanges, OnDestroy {
                 headers: this.httpHeadersFactory().prepareAdditionalHttpHeaders()
             });
 
+            if (!response.ok) {
+                console.error('Failed to load file content:', response.status, response.statusText);
+                this.fileText.set('Error loading file content');
+                return false;
+            }
+
             const text = await response.text();
-    
+
             this.fileText.set(text);
             return true;
         } catch (error) {

@@ -21,6 +21,8 @@ export interface GetApplicationSettingsResponse {
         canManageUsers: boolean;
         canManageStorages: boolean;
         canManageEmailProviders: boolean;
+        canManageAuth: boolean;
+        canManageIntegrations: boolean;
     },
     alertOnNewUserRegistered: boolean;
 }

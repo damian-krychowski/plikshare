@@ -48,6 +48,8 @@ export interface AccountPermissions {
     canManageUsers: boolean;
     canManageStorages: boolean;
     canManageEmailProviders: boolean;
+    canManageAuth: boolean;
+    canManageIntegrations: boolean;
 }
 
 export interface GetKnownUsersResponse {

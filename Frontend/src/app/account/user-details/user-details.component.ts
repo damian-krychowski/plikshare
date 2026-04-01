@@ -267,7 +267,9 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                     canManageGeneralSettings: signal(userDetails.user.permissions.canManageGeneralSettings),
                     canManageUsers: signal(userDetails.user.permissions.canManageUsers),
                     canManageStorages: signal(userDetails.user.permissions.canManageStorages),
-                    canManageEmailProviders: signal(userDetails.user.permissions.canManageEmailProviders)
+                    canManageEmailProviders: signal(userDetails.user.permissions.canManageEmailProviders),
+                    canManageAuth: signal(userDetails.user.permissions.canManageAuth),
+                    canManageIntegrations: signal(userDetails.user.permissions.canManageIntegrations)
                 },
                 roles: {
                     isAdmin: signal(userDetails.user.roles.isAdmin),

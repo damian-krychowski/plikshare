@@ -19,7 +19,7 @@ public static class ChatGptEndpoints
                 Policy = AuthPolicy.Internal,
                 Roles = $"{Roles.Admin}"
             })
-            .AddEndpointFilter<RequireAppOwnerEndpointFilter>();
+            .AddEndpointFilter(new RequireAdminPermissionEndpointFilter(Permissions.ManageIntegrations));
         
         textractConfigGroup.MapPost("/test-configuration", TestChatGptConfiguration)
             .WithName("TestChatGPTConfiguration");

@@ -47,5 +47,21 @@
             [isReadOnly]="isCanManageEmailProvidersReadOnly()"
             (clicked)="onCanManageEmailProvidersChange()">
         </app-permission-btn>
+
+        <app-permission-btn
+            tooltip="Can manage auth"
+            icon="icon-lucide-key"
+            [isSelected]="canManageAuth()"
+            [isReadOnly]="isCanManageAuthReadOnly()"
+            (clicked)="onCanManageAuthChange()">
+        </app-permission-btn>
+
+        <app-permission-btn
+            tooltip="Can manage integrations"
+            icon="icon-nucleo-plug"
+            [isSelected]="canManageIntegrations()"
+            [isReadOnly]="isCanManageIntegrationsReadOnly()"
+            (clicked)="onCanManageIntegrationsChange()">
+        </app-permission-btn>
     }
 </div>

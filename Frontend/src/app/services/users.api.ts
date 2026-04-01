@@ -17,6 +17,8 @@ export interface GetUserDetailsResponse {
             canManageUsers: boolean;
             canManageStorages: boolean;
             canManageEmailProviders: boolean;
+            canManageAuth: boolean;
+            canManageIntegrations: boolean;
         };
         maxWorkspaceNumber: number | null;
         defaultMaxWorkspaceSizeInBytes: number | null;
@@ -103,6 +105,8 @@ export interface UserItemDto {
         canManageUsers: boolean;
         canManageStorages: boolean;
         canManageEmailProviders: boolean;
+        canManageAuth: boolean;
+        canManageIntegrations: boolean;
     };
     maxWorkspaceNumber: number | null;
     defaultMaxWorkspaceSizeInBytes: number | null;
@@ -117,6 +121,8 @@ export interface UserPermissionsAndRolesDto {
     canManageGeneralSettings: boolean;
     canManageStorages: boolean;
     canManageEmailProviders: boolean;
+    canManageAuth: boolean;
+    canManageIntegrations: boolean;
 }
 
 export interface InviteUsersRequest {

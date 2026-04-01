@@ -93,7 +93,9 @@ export class GeneralSettingsComponent implements OnInit {
                 canManageEmailProviders: signal(false),
                 canManageGeneralSettings: signal(false),
                 canManageStorages: signal(false),
-                canManageUsers: signal(false)
+                canManageUsers: signal(false),
+                canManageAuth: signal(false),
+                canManageIntegrations: signal(false)
             },
 
             roles: {
@@ -154,6 +156,8 @@ export class GeneralSettingsComponent implements OnInit {
         this.defaultUser.permissionsAndRoles.permissions.canManageGeneralSettings.set(result.newUserDefaultPermissionsAndRoles.canManageGeneralSettings);
         this.defaultUser.permissionsAndRoles.permissions.canManageStorages.set(result.newUserDefaultPermissionsAndRoles.canManageStorages);
         this.defaultUser.permissionsAndRoles.permissions.canManageUsers.set(result.newUserDefaultPermissionsAndRoles.canManageUsers);
+        this.defaultUser.permissionsAndRoles.permissions.canManageAuth.set(result.newUserDefaultPermissionsAndRoles.canManageAuth);
+        this.defaultUser.permissionsAndRoles.permissions.canManageIntegrations.set(result.newUserDefaultPermissionsAndRoles.canManageIntegrations);
     
         this.alertOnNewUserRegistered.set(result.alertOnNewUserRegistered);
     }

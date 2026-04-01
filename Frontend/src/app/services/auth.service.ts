@@ -20,14 +20,18 @@ export class AuthService {
     public canManageUsers = computed(() => this.userDetails()?.permissions?.canManageUsers ?? false);
     public canManageStorages = computed(() => this.userDetails()?.permissions?.canManageStorages ?? false);  
     public canManageEmailProviders = computed(() => this.userDetails()?.permissions?.canManageEmailProviders ?? false);
+    public canManageAuth = computed(() => this.userDetails()?.permissions?.canManageAuth ?? false);
+    public canManageIntegrations = computed(() => this.userDetails()?.permissions?.canManageIntegrations ?? false);
 
     public maxWorkspaceNumber = computed(() => this.userDetails()?.maxWorkspaceNumber ?? null);
 
-    public canManageAnything = computed(() => 
-        this.canManageGeneralSettings() 
+    public canManageAnything = computed(() =>
+        this.canManageGeneralSettings()
         || this.canManageUsers()
         || this.canManageStorages()
-        || this.canManageEmailProviders());
+        || this.canManageEmailProviders()
+        || this.canManageAuth()
+        || this.canManageIntegrations());
 
     private _userDetails: Promise<GetAccountDetailsResponse> | null = null;
 

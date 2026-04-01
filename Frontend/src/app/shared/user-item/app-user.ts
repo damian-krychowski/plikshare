@@ -25,4 +25,6 @@ export type AppUserPermissions = {
     canManageUsers: WritableSignal<boolean>;
     canManageStorages: WritableSignal<boolean>;
     canManageEmailProviders: WritableSignal<boolean>;
+    canManageAuth: WritableSignal<boolean>;
+    canManageIntegrations: WritableSignal<boolean>;
 }

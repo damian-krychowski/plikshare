@@ -157,17 +157,17 @@
                     </button> 
                 }
 
-                @if(auth.isAppOwner()){
+                @if(auth.canManageIntegrations()){
                     <button
                         class="action-text-btn"
-                        aria-label="Integrations" 
+                        aria-label="Integrations"
                         mat-flat-button
-                        (click)="goToIntegrations()"> 
+                        (click)="goToIntegrations()">
                         <div class="action-text-btn__content">
                             <i class="icon icon-lg icon-nucleo-plug"></i>
                             <div>Integrations</div>
                         </div>
-                    </button> 
+                    </button>
                 }
             </div>
         }

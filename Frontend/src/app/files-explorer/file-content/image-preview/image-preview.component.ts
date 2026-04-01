@@ -43,11 +43,16 @@ export class ImagePreviewComponent implements OnChanges {
         this.objectUrl.set(null);
     }
 
-    async loadImageWithMetadata(url: string): Promise<void> {    
+    async loadImageWithMetadata(url: string): Promise<void> {
         try {
             const response = await fetch(url, {
                 headers: this.httpHeadersFactory().prepareAdditionalHttpHeaders()
             });
+
+            if (!response.ok) {
+                console.error('Failed to load image:', response.status, response.statusText);
+                return;
+            }
 
             const arrayBuffer = await response.arrayBuffer();
             const mimeType = getMimeType(this.fileExtension());

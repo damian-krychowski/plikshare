@@ -31,7 +31,7 @@ public static class IntegrationsEndpoints
                 Policy = AuthPolicy.Internal,
                 Roles = $"{Roles.Admin}"
             })
-            .AddEndpointFilter<RequireAppOwnerEndpointFilter>();
+            .AddEndpointFilter(new RequireAdminPermissionEndpointFilter(Permissions.ManageIntegrations));
 
         group.MapGet("/", GetIntegrations)
             .WithName("GetIntegrations");
