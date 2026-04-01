@@ -1,0 +1,199 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using PlikShare.AuthProviders.Activate;
+using PlikShare.AuthProviders.Create;
+using PlikShare.AuthProviders.Create.Contracts;
+using PlikShare.AuthProviders.Deactivate;
+using PlikShare.AuthProviders.Delete;
+using PlikShare.AuthProviders.Entities;
+using PlikShare.AuthProviders.Id;
+using PlikShare.AuthProviders.List;
+using PlikShare.AuthProviders.List.Contracts;
+using PlikShare.AuthProviders.UpdateName;
+using PlikShare.AuthProviders.UpdateName.Contracts;
+using PlikShare.Core.Authorization;
+using PlikShare.Core.Utils;
+
+namespace PlikShare.AuthProviders;
+
+public static class AuthProvidersEndpoints
+{
+    public static void MapAuthProvidersEndpoints(this WebApplication app)
+    {
+        var group = app.MapGroup("/api/auth-providers")
+            .WithTags("Auth Providers")
+            .RequireAuthorization(new AuthorizeAttribute
+            {
+                Policy = AuthPolicy.Internal,
+                Roles = $"{Roles.Admin}"
+            })
+            .AddEndpointFilter(new RequireAdminPermissionEndpointFilter(Permissions.ManageAuth));
+
+        group.MapGet("/", GetList)
+            .WithName("GetAuthProviders");
+
+        group.MapPost("/oidc", CreateOidcProvider)
+            .WithName("CreateOidcAuthProvider");
+
+        group.MapDelete("/{authProviderExternalId}", Delete)
+            .WithName("DeleteAuthProvider");
+
+        group.MapPatch("/{authProviderExternalId}/name", UpdateName)
+            .WithName("UpdateAuthProviderName");
+
+        group.MapPost("/{authProviderExternalId}/activate", Activate)
+            .WithName("ActivateAuthProvider");
+
+        group.MapPost("/{authProviderExternalId}/deactivate", Deactivate)
+            .WithName("DeactivateAuthProvider");
+    }
+
+    private static GetAuthProvidersResponseDto GetList(
+        GetAuthProvidersQuery getAuthProvidersQuery)
+    {
+        var providers = getAuthProvidersQuery.Execute();
+
+        return new GetAuthProvidersResponseDto
+        {
+            Items = providers
+                .Select(p => new GetAuthProvidersItemDto
+                {
+                    ExternalId = p.ExternalId,
+                    Name = p.Name,
+                    Type = p.Type,
+                    IsActive = p.IsActive,
+                    ClientId = p.ClientId,
+                    IssuerUrl = p.IssuerUrl
+                })
+                .ToArray()
+        };
+    }
+
+    private static async Task<Results<Ok<CreateOidcAuthProviderResponseDto>, BadRequest<HttpError>>> CreateOidcProvider(
+        [FromBody] CreateOidcAuthProviderRequestDto request,
+        CreateAuthProviderQuery createAuthProviderQuery,
+        CancellationToken cancellationToken)
+    {
+        var result = await createAuthProviderQuery.Execute(
+            name: request.Name,
+            type: AuthProviderType.Oidc,
+            clientId: request.ClientId,
+            clientSecret: request.ClientSecret,
+            issuerUrl: request.IssuerUrl,
+            cancellationToken: cancellationToken);
+
+        return result.Code switch
+        {
+            CreateAuthProviderQuery.ResultCode.Ok =>
+                TypedResults.Ok(new CreateOidcAuthProviderResponseDto
+                {
+                    ExternalId = result.ExternalId!.Value.Value
+                }),
+
+            CreateAuthProviderQuery.ResultCode.NameNotUnique =>
+                HttpErrors.AuthProvider.NameNotUnique(request.Name),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(CreateAuthProviderQuery),
+                resultValueStr: result.ToString())
+        };
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>>> Delete(
+        [FromRoute] AuthProviderExtId authProviderExternalId,
+        DeleteAuthProviderQuery deleteAuthProviderQuery,
+        CancellationToken cancellationToken)
+    {
+        var result = await deleteAuthProviderQuery.Execute(
+            externalId: authProviderExternalId,
+            cancellationToken: cancellationToken);
+
+        return result.Code switch
+        {
+            DeleteAuthProviderQuery.ResultCode.Ok =>
+                TypedResults.Ok(),
+
+            DeleteAuthProviderQuery.ResultCode.NotFound =>
+                HttpErrors.AuthProvider.NotFound(authProviderExternalId),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(DeleteAuthProviderQuery),
+                resultValueStr: result.ToString())
+        };
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateName(
+        [FromRoute] AuthProviderExtId authProviderExternalId,
+        [FromBody] UpdateAuthProviderNameRequestDto request,
+        UpdateAuthProviderNameQuery updateAuthProviderNameQuery,
+        CancellationToken cancellationToken)
+    {
+        var result = await updateAuthProviderNameQuery.Execute(
+            externalId: authProviderExternalId,
+            name: request.Name,
+            cancellationToken: cancellationToken);
+
+        return result switch
+        {
+            UpdateAuthProviderNameQuery.ResultCode.Ok =>
+                TypedResults.Ok(),
+
+            UpdateAuthProviderNameQuery.ResultCode.NotFound =>
+                HttpErrors.AuthProvider.NotFound(authProviderExternalId),
+
+            UpdateAuthProviderNameQuery.ResultCode.NameNotUnique =>
+                HttpErrors.AuthProvider.NameNotUnique(request.Name),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(UpdateAuthProviderNameQuery),
+                resultValueStr: result.ToString())
+        };
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>>> Activate(
+        [FromRoute] AuthProviderExtId authProviderExternalId,
+        ActivateAuthProviderQuery activateAuthProviderQuery,
+        CancellationToken cancellationToken)
+    {
+        var result = await activateAuthProviderQuery.Execute(
+            externalId: authProviderExternalId,
+            cancellationToken: cancellationToken);
+
+        return result switch
+        {
+            ActivateAuthProviderQuery.ResultCode.Ok =>
+                TypedResults.Ok(),
+
+            ActivateAuthProviderQuery.ResultCode.NotFound =>
+                HttpErrors.AuthProvider.NotFound(authProviderExternalId),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(ActivateAuthProviderQuery),
+                resultValueStr: result.ToString())
+        };
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>>> Deactivate(
+        [FromRoute] AuthProviderExtId authProviderExternalId,
+        DeactivateAuthProviderQuery deactivateAuthProviderQuery,
+        CancellationToken cancellationToken)
+    {
+        var result = await deactivateAuthProviderQuery.Execute(
+            externalId: authProviderExternalId,
+            cancellationToken: cancellationToken);
+
+        return result switch
+        {
+            DeactivateAuthProviderQuery.ResultCode.Ok =>
+                TypedResults.Ok(),
+
+            DeactivateAuthProviderQuery.ResultCode.NotFound =>
+                HttpErrors.AuthProvider.NotFound(authProviderExternalId),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(DeactivateAuthProviderQuery),
+                resultValueStr: result.ToString())
+        };
+    }
+}

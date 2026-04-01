@@ -1,3 +1,4 @@
+using PlikShare.AuthProviders.List;
 using PlikShare.EntryPage.Contracts;
 using PlikShare.GeneralSettings;
 
@@ -16,8 +17,11 @@ public static class EntryPageEndpoints
     }
 
     private static GetEntryPageSettingsResponseDto GetEntryPageSettings(
-        AppSettings appSettings)
+        AppSettings appSettings,
+        GetActiveAuthProvidersPublicQuery getActiveAuthProvidersPublicQuery)
     {
+        var ssoProviders = getActiveAuthProvidersPublicQuery.Execute();
+
         return new GetEntryPageSettingsResponseDto
         {
             ApplicationSignUp = appSettings.ApplicationSignUp.Value,
@@ -30,7 +34,16 @@ public static class EntryPageEndpoints
                 ? null
                 : "api/legal-files/privacy-policy",
 
-            SignUpCheckboxes = appSettings.SignUpCheckboxes.ToList()
+            SignUpCheckboxes = appSettings.SignUpCheckboxes.ToList(),
+
+            SsoProviders = ssoProviders
+                .Select(p => new SsoProviderDto
+                {
+                    ExternalId = p.ExternalId.Value,
+                    Name = p.Name,
+                    Type = p.Type
+                })
+                .ToList()
         };
     }
 }

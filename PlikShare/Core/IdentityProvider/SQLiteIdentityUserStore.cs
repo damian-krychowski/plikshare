@@ -65,22 +65,36 @@ namespace PlikShare.Core.IdentityProvider
         }
         
         public override async Task AddLoginAsync(
-            ApplicationUser user, 
-            UserLoginInfo login, 
-            CancellationToken cancellationToken = default) 
+            ApplicationUser user,
+            UserLoginInfo login,
+            CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
-            
-            if (user == null) {
-                throw new ArgumentNullException(nameof(user), $"Parameter {nameof(user)} cannot be null.");
-            }
+            ArgumentNullException.ThrowIfNull(user);
+            ArgumentNullException.ThrowIfNull(login);
 
-            if (login == null) {
-                throw new ArgumentNullException(nameof(login), $"Parameter {nameof(login)} cannot be null.");
-            }
+            await _dbWriteQueue.Execute(
+                operationToEnqueue: context =>
+                {
+                    context
+                        .OneRowCmd(
+                            sql: """
+                                 INSERT INTO ul_user_logins (ul_login_provider, ul_provider_key, ul_provider_display_name, ul_user_id)
+                                 VALUES ($loginProvider, $providerKey, $providerDisplayName, $userId)
+                                 ON CONFLICT(ul_login_provider, ul_provider_key) DO NOTHING
+                                 RETURNING ul_user_id
+                                 """,
+                            readRowFunc: reader => reader.GetInt32(0))
+                        .WithParameter("$loginProvider", login.LoginProvider)
+                        .WithParameter("$providerKey", login.ProviderKey)
+                        .WithParameter("$providerDisplayName", login.ProviderDisplayName)
+                        .WithParameter("$userId", user.DatabaseId)
+                        .Execute();
 
-            throw new NotImplementedException();
+                    return true;
+                },
+                cancellationToken: cancellationToken);
         }
         
         public override async Task AddToRoleAsync(
@@ -706,14 +720,65 @@ namespace PlikShare.Core.IdentityProvider
         }
         
         public override async Task<ApplicationUser?> FindByLoginAsync(
-            string loginProvider, 
-            string providerKey, 
-            CancellationToken cancellationToken = default) 
+            string loginProvider,
+            string providerKey,
+            CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
 
-            return null;
+            using var connection = _plikShareDb.OpenConnection();
+
+            var result = connection
+                .OneRowCmd(
+                    sql: """
+                         SELECT
+                             u.u_id,
+                             u.u_external_id,
+                             u.u_user_name,
+                             u.u_normalized_user_name,
+                             u.u_email,
+                             u.u_normalized_email,
+                             u.u_email_confirmed,
+                             u.u_password_hash,
+                             u.u_security_stamp,
+                             u.u_concurrency_stamp,
+                             u.u_phone_number,
+                             u.u_phone_number_confirmed,
+                             u.u_two_factor_enabled,
+                             u.u_lockout_end,
+                             u.u_lockout_enabled,
+                             u.u_access_failed_count
+                         FROM ul_user_logins ul
+                         INNER JOIN u_users u ON u.u_id = ul.ul_user_id
+                         WHERE ul.ul_login_provider = $loginProvider
+                           AND ul.ul_provider_key = $providerKey
+                         LIMIT 1
+                         """,
+                    readRowFunc: reader => new ApplicationUser
+                    {
+                        DatabaseId = reader.GetInt32(0),
+                        Id = reader.GetString(1),
+                        UserName = reader.GetString(2),
+                        NormalizedUserName = reader.GetString(3),
+                        Email = reader.GetString(4),
+                        NormalizedEmail = reader.GetString(5),
+                        EmailConfirmed = reader.GetBoolean(6),
+                        PasswordHash = reader.GetStringOrNull(7),
+                        SecurityStamp = reader.GetString(8),
+                        ConcurrencyStamp = reader.GetString(9),
+                        PhoneNumber = reader.GetStringOrNull(10),
+                        PhoneNumberConfirmed = reader.GetBoolean(11),
+                        TwoFactorEnabled = reader.GetBoolean(12),
+                        LockoutEnd = reader.GetDateTimeOffsetOrNull(13),
+                        LockoutEnabled = reader.GetBoolean(14),
+                        AccessFailedCount = reader.GetInt32(15)
+                    })
+                .WithParameter("$loginProvider", loginProvider)
+                .WithParameter("$providerKey", providerKey)
+                .Execute();
+
+            return result.IsEmpty ? null : result.Value;
         }
         
         public override async Task<IList<string>> GetRolesAsync(
@@ -831,19 +896,36 @@ namespace PlikShare.Core.IdentityProvider
         }
         
         public override async Task RemoveLoginAsync(
-            ApplicationUser user, 
-            string loginProvider, 
-            string providerKey, 
-            CancellationToken cancellationToken = default) 
+            ApplicationUser user,
+            string loginProvider,
+            string providerKey,
+            CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
-            
-            if (user == null) {
-                throw new ArgumentNullException(nameof(user), $"Parameter {nameof(user)} cannot be null.");
-            }
+            ArgumentNullException.ThrowIfNull(user);
 
-            throw new NotImplementedException();
+            await _dbWriteQueue.Execute(
+                operationToEnqueue: context =>
+                {
+                    context
+                        .OneRowCmd(
+                            sql: """
+                                 DELETE FROM ul_user_logins
+                                 WHERE ul_login_provider = $loginProvider
+                                   AND ul_provider_key = $providerKey
+                                   AND ul_user_id = $userId
+                                 RETURNING ul_user_id
+                                 """,
+                            readRowFunc: reader => reader.GetInt32(0))
+                        .WithParameter("$loginProvider", loginProvider)
+                        .WithParameter("$providerKey", providerKey)
+                        .WithParameter("$userId", user.DatabaseId)
+                        .Execute();
+
+                    return true;
+                },
+                cancellationToken: cancellationToken);
         }
         
         public override async Task ReplaceClaimAsync(

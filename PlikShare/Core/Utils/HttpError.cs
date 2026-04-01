@@ -6,6 +6,7 @@ using PlikShare.EmailProviders.Id;
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
 using PlikShare.GeneralSettings;
+using PlikShare.AuthProviders.Id;
 using PlikShare.Integrations.Id;
 using PlikShare.Storages.Id;
 using PlikShare.Uploads.Id;
@@ -352,6 +353,21 @@ public static class HttpErrors
                 Code = "cannot-assign-admin-permissions-to-non-admin-user",
                 Message = $"Cannot assign admin permissions to non admin user"
             });
+    }
+
+    public static class AuthProvider
+    {
+        public static BadRequest<HttpError> NameNotUnique(string name) => TypedResults.BadRequest(new HttpError
+        {
+            Code = "auth-provider-name-not-unique",
+            Message = $"Name '{name}' is not unique"
+        });
+
+        public static NotFound<HttpError> NotFound(AuthProviderExtId externalId) => TypedResults.NotFound(new HttpError
+        {
+            Code = "auth-provider-doesnt-exist",
+            Message = $"Auth Provider with externalId '{externalId}' was not found"
+        });
     }
 
     public static class Integration

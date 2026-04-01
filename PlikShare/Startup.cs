@@ -75,6 +75,15 @@ using PlikShare.Core.Utils;
 using PlikShare.Core.Volumes;
 using PlikShare.Dashboard;
 using PlikShare.Dashboard.Content;
+using PlikShare.Auth.Sso;
+using PlikShare.AuthProviders;
+using PlikShare.AuthProviders.Activate;
+using PlikShare.AuthProviders.Create;
+using PlikShare.AuthProviders.Deactivate;
+using PlikShare.AuthProviders.Delete;
+using PlikShare.AuthProviders.GetDetails;
+using PlikShare.AuthProviders.List;
+using PlikShare.AuthProviders.UpdateName;
 using PlikShare.EmailProviders;
 using PlikShare.EmailProviders.Activate;
 using PlikShare.EmailProviders.Confirm;
@@ -284,7 +293,8 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_18_UserMaxWorkspaceNumberAndMaxWorkspaceSizeColumnsIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_19_MaxWorkspaceTeamMembersColumnsIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_20_WidgetOriginsColumnAddedToBoxLinksTable>();
-        
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_21_AuthProvidersTableIntroduced>();
+
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 
         builder.UseAppSettings();
@@ -538,6 +548,18 @@ public class Startup
         builder.Services.AddSingleton<EmailSenderFactory>();
         builder.Services.AddSingleton<EmailProviderConfirmationEmail>();
 
+        builder.Services.AddSingleton<CreateAuthProviderQuery>();
+        builder.Services.AddSingleton<DeleteAuthProviderQuery>();
+        builder.Services.AddSingleton<UpdateAuthProviderNameQuery>();
+        builder.Services.AddSingleton<ActivateAuthProviderQuery>();
+        builder.Services.AddSingleton<DeactivateAuthProviderQuery>();
+        builder.Services.AddSingleton<GetAuthProvidersQuery>();
+        builder.Services.AddSingleton<GetActiveAuthProvidersPublicQuery>();
+        builder.Services.AddSingleton<GetAuthProviderDetailsQuery>();
+
+        builder.Services.AddSingleton<OidcDiscoveryCache>();
+        builder.Services.AddSingleton<OidcStateProtector>();
+        builder.Services.AddSingleton<GetOrCreateSsoUserQuery>();
         builder.Services.AddSingleton<UploadLegalFileOperation>();
         builder.Services.AddSingleton<DeleteLegalFileOperation>();
 
@@ -666,6 +688,8 @@ public class Startup
         app.MapStoragesEndpoints();
         app.MapDashboardEndpoints();
         app.MapEmailProvidersEndpoints();
+        app.MapAuthProvidersEndpoints();
+        app.MapSsoEndpoints();
         app.MapAccountEndpoints();
         app.MapGeneralSettingsEndpoints();
         app.MapSearchEndpoints();
