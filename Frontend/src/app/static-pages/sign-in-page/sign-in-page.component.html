@@ -2,6 +2,30 @@
     <app-top-bar></app-top-bar>
 
     <div class="auth-container ml-auto mr-auto">
+        @if(ssoError(); as ssoErrorMessage) {
+            <div class="auth-form">
+                <mat-error>
+                    {{ssoErrorMessage}}
+                </mat-error>
+            </div>
+        }
+
+        @if(entryPage.hasSsoProviders() && viewState() === 'sign-in') {
+            <div class="auth-form sso-buttons">
+                @for(provider of entryPage.ssoProviders(); track provider.externalId) {
+                    <a class="auth-field__btn sso-btn"
+                        [href]="'/api/auth/sso/' + provider.externalId"
+                        mat-stroked-button>
+                        Sign in with {{ provider.name }}
+                    </a>
+                }
+            </div>
+
+            <div class="sso-divider">
+                <span>or</span>
+            </div>
+        }
+
         @if(viewState() === 'sign-in'){
             <form class="auth-form" (submit)="onSignIn()" [formGroup]="signInForm">
                 <div class="auth-field">

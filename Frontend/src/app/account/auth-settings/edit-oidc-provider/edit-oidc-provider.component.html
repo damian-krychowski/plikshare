@@ -1,0 +1,103 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        Edit OIDC Provider
+    </div>
+
+    <form class="questionaire__form" (submit)="onSubmit()" [formGroup]="configFormGroup">
+        <div>
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>Name</mat-label>
+
+                <input
+                    id="oidc-name"
+                    type="text"
+                    formControlName="name"
+                    matInput>
+
+                @if ((name.touched || wasSubmitted()) && name.hasError('required')) {
+                    <mat-error>Name is <strong>required</strong></mat-error>
+                }
+
+                @if ((name.touched || wasSubmitted()) && name.hasError('notUnique')){
+                    <mat-error>Name is <strong>not unique</strong></mat-error>
+                }
+            </mat-form-field>
+        </div>
+
+        <div class="questionaire__section-title">
+            Configuration:
+        </div>
+
+        <div class="questionaire__info">
+            Make sure the <strong>Redirect URI</strong> in your identity provider is set to: <code>{{redirectUri}}</code>
+        </div>
+
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Issuer URL</mat-label>
+
+            <input
+                id="issuerUrl"
+                type="text"
+                matInput
+                appTrim
+                formControlName="issuerUrl">
+
+            @if ((issuerUrl.touched || wasSubmitted()) && issuerUrl.hasError('required')) {
+                <mat-error>Issuer URL is <strong>required</strong></mat-error>
+            }
+        </mat-form-field>
+
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Client ID</mat-label>
+
+            <input
+                id="clientId"
+                type="text"
+                matInput
+                appTrim
+                formControlName="clientId">
+
+            @if ((clientId.touched || wasSubmitted()) && clientId.hasError('required')) {
+                <mat-error>Client ID is <strong>required</strong></mat-error>
+            }
+        </mat-form-field>
+
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Client Secret</mat-label>
+
+            <input
+                id="clientSecret"
+                type="text"
+                matInput
+                appSecureInput
+                appTrim
+                formControlName="clientSecret"
+                placeholder="Enter new client secret">
+
+            @if ((clientSecret.touched || wasSubmitted()) && clientSecret.hasError('required')) {
+                <mat-error>Client Secret is <strong>required</strong></mat-error>
+            }
+        </mat-form-field>
+
+        @if(testFailed()) {
+            <mat-error>Configuration test failed: {{testError()}}</mat-error>
+        }
+
+        <div class="questionaire__actions">
+            <button type="button" class="questionaire__btn mr-1" mat-flat-button
+                aria-label="Cancel"
+                (click)="cancel()"
+                [disabled]="isLoading()">
+                Cancel
+            </button>
+
+            <button type="submit" class="questionaire__btn" mat-flat-button
+                [class.questionaire__btn--disabled]="configFormGroup.invalid"
+                [class.questionaire__btn--loading]="isLoading()"
+                aria-label="Test and save"
+                [disabled]="isLoading()">
+                Test & Save
+            </button>
+        </div>
+    </form>
+</div>

@@ -83,6 +83,8 @@ using PlikShare.AuthProviders.Deactivate;
 using PlikShare.AuthProviders.Delete;
 using PlikShare.AuthProviders.GetDetails;
 using PlikShare.AuthProviders.List;
+using PlikShare.AuthProviders.TestConfiguration;
+using PlikShare.AuthProviders.Update;
 using PlikShare.AuthProviders.UpdateName;
 using PlikShare.EmailProviders;
 using PlikShare.EmailProviders.Activate;
@@ -556,6 +558,8 @@ public class Startup
         builder.Services.AddSingleton<GetAuthProvidersQuery>();
         builder.Services.AddSingleton<GetActiveAuthProvidersPublicQuery>();
         builder.Services.AddSingleton<GetAuthProviderDetailsQuery>();
+        builder.Services.AddSingleton<UpdateAuthProviderQuery>();
+        builder.Services.AddSingleton<TestAuthProviderConfigurationOperation>();
 
         builder.Services.AddSingleton<OidcDiscoveryCache>();
         builder.Services.AddSingleton<OidcStateProtector>();

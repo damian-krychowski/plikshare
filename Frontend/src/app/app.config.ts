@@ -85,6 +85,10 @@ export const routes: Routes = [{
     loadComponent: () => import('./account/user-details/user-details.component').then(m => m.UserDetailsComponent),
     canActivate: [AdminGuardService]
 }, {
+    path: 'settings/auth',
+    loadComponent: () => import('./account/auth-settings/auth-settings.component').then(m => m.AuthSettingsComponent),
+    canActivate: [AdminGuardService]
+}, {
     path: 'settings/integrations',
     loadComponent: () => import('./account/integrations/integrations.component').then(m => m.IntegrationsComponent),
     canActivate: [AdminGuardService]

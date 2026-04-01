@@ -43,26 +43,33 @@ public class GetOrCreateSsoUserQuery(
         {
             var existingUser = TrySelectUser(
                 email,
-                dbWriteContext, 
+                loginProvider,
+                dbWriteContext,
                 transaction);
 
             if (!existingUser.IsEmpty)
             {
-                ConfirmEmailIfNeeded(
-                    userId: existingUser.Value.Id,
-                    dbWriteContext: dbWriteContext,
-                    transaction: transaction);
+                if (!existingUser.Value.HasSsoLogin)
+                {
+                    ConfirmEmailIfNeeded(
+                        userId: existingUser.Value.Id,
+                        dbWriteContext: dbWriteContext,
+                        transaction: transaction);
 
-                LinkLogin(
-                    userId: existingUser.Value.Id,
-                    loginProvider: loginProvider,
-                    providerKey: providerKey,
-                    providerDisplayName: providerDisplayName,
-                    dbWriteContext: dbWriteContext,
-                    transaction: transaction);
+                    LinkLogin(
+                        userId: existingUser.Value.Id,
+                        loginProvider: loginProvider,
+                        providerKey: providerKey,
+                        providerDisplayName: providerDisplayName,
+                        dbWriteContext: dbWriteContext,
+                        transaction: transaction);
+                }
 
                 transaction.Commit();
-                return new Result(Code: ResultCode.ExistingUser, User: existingUser.Value);
+
+                return new Result(
+                    Code: ResultCode.ExistingUser, 
+                    User: existingUser.Value);
             }
 
             if (appSettings.ApplicationSignUp != AppSettings.SignUpSetting.Everyone)
@@ -103,10 +110,10 @@ public class GetOrCreateSsoUserQuery(
                     User: newUser.Value);
             }
 
-            // User was created concurrently, try to select again
-            existingUser = TrySelectUser(
-                email, 
-                dbWriteContext, 
+            // User was created concurrently by another SSO request
+            existingUser = TrySelectUserByEmail(
+                email,
+                dbWriteContext,
                 transaction);
 
             if (existingUser.IsEmpty)
@@ -114,19 +121,6 @@ public class GetOrCreateSsoUserQuery(
                 throw new InvalidOperationException(
                     $"Cannot create nor select SSO user with email '{email.Anonymize()}'");
             }
-
-            ConfirmEmailIfNeeded(
-                userId: existingUser.Value.Id,
-                dbWriteContext: dbWriteContext,
-                transaction: transaction);
-
-            LinkLogin(
-                userId: existingUser.Value.Id,
-                loginProvider: loginProvider,
-                providerKey: providerKey,
-                providerDisplayName: providerDisplayName,
-                dbWriteContext: dbWriteContext,
-                transaction: transaction);
 
             transaction.Commit();
 
@@ -300,7 +294,8 @@ public class GetOrCreateSsoUserQuery(
                 {
                     Id = reader.GetInt32(0),
                     ExternalId = externalId,
-                    Email = email
+                    Email = email,
+                    HasSsoLogin = false
                 },
                 transaction: transaction)
             .WithParameter("$externalId", externalId.Value)
@@ -316,7 +311,7 @@ public class GetOrCreateSsoUserQuery(
             .Execute();
     }
 
-    private static SQLiteOneRowCommandResult<SsoUser> TrySelectUser(
+    private static SQLiteOneRowCommandResult<SsoUser> TrySelectUserByEmail(
         Email email,
         DbWriteQueue.Context dbWriteContext,
         SqliteTransaction transaction)
@@ -335,10 +330,44 @@ public class GetOrCreateSsoUserQuery(
                 {
                     Id = reader.GetInt32(0),
                     ExternalId = reader.GetExtId<UserExtId>(1),
-                    Email = email
+                    Email = email,
+                    HasSsoLogin = true
                 },
                 transaction: transaction)
             .WithParameter("$userNormalizedEmail", email.Normalized)
+            .Execute();
+    }
+
+    private static SQLiteOneRowCommandResult<SsoUser> TrySelectUser(
+        Email email,
+        string loginProvider,
+        DbWriteQueue.Context dbWriteContext,
+        SqliteTransaction transaction)
+    {
+        return dbWriteContext
+            .OneRowCmd(
+                sql: """
+                     SELECT
+                         u.u_id,
+                         u.u_external_id,
+                         CASE WHEN ul.ul_user_id IS NOT NULL THEN 1 ELSE 0 END
+                     FROM u_users u
+                     LEFT JOIN ul_user_logins ul
+                         ON ul.ul_user_id = u.u_id
+                         AND ul.ul_login_provider = $loginProvider
+                     WHERE u.u_normalized_email = $userNormalizedEmail
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => new SsoUser
+                {
+                    Id = reader.GetInt32(0),
+                    ExternalId = reader.GetExtId<UserExtId>(1),
+                    Email = email,
+                    HasSsoLogin = reader.GetBoolean(2)
+                },
+                transaction: transaction)
+            .WithParameter("$userNormalizedEmail", email.Normalized)
+            .WithParameter("$loginProvider", loginProvider)
             .Execute();
     }
 
@@ -358,5 +387,6 @@ public class GetOrCreateSsoUserQuery(
         public required int Id { get; init; }
         public required UserExtId ExternalId { get; init; }
         public required Email Email { get; init; }
+        public required bool HasSsoLogin { get; init; }
     }
 }

@@ -1,0 +1,13 @@
+@forward "./../../../styles/app-header.scss";
+@forward "./../../../styles/top-bar.scss";
+@forward "./../../../styles/top-nav-btn.scss";
+@forward "./../../../styles/item-bar.scss";
+@forward "./../../../styles/icon-merge.scss";
+
+
+.add-provider-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+}

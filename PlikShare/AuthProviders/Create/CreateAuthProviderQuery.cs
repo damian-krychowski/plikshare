@@ -4,7 +4,7 @@ using PlikShare.AuthProviders.Id;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
-using PlikShare.Core.Utils;
+using PlikShare.Core.Clock;
 using Serilog;
 
 namespace PlikShare.AuthProviders.Create;
@@ -25,7 +25,7 @@ public class CreateAuthProviderQuery(
         var derivedEncryption = await masterDataEncryptionBufferedFactory.Take(
             cancellationToken: cancellationToken);
 
-        var autoDiscoveryUrl = issuerUrl.TrimEnd('/') + "/.well-known/openid-configuration";
+        var autoDiscoveryUrl = OidcUrls.GetDiscoveryUrl(issuerUrl);
 
         return await dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(

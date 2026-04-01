@@ -10,6 +10,10 @@ using PlikShare.AuthProviders.Entities;
 using PlikShare.AuthProviders.Id;
 using PlikShare.AuthProviders.List;
 using PlikShare.AuthProviders.List.Contracts;
+using PlikShare.AuthProviders.TestConfiguration;
+using PlikShare.AuthProviders.TestConfiguration.Contracts;
+using PlikShare.AuthProviders.Update;
+using PlikShare.AuthProviders.Update.Contracts;
 using PlikShare.AuthProviders.UpdateName;
 using PlikShare.AuthProviders.UpdateName.Contracts;
 using PlikShare.Core.Authorization;
@@ -41,6 +45,12 @@ public static class AuthProvidersEndpoints
 
         group.MapPatch("/{authProviderExternalId}/name", UpdateName)
             .WithName("UpdateAuthProviderName");
+
+        group.MapPut("/{authProviderExternalId}", Update)
+            .WithName("UpdateAuthProvider");
+
+        group.MapPost("/test-configuration", TestConfiguration)
+            .WithName("TestAuthProviderConfiguration");
 
         group.MapPost("/{authProviderExternalId}/activate", Activate)
             .WithName("ActivateAuthProvider");
@@ -193,6 +203,65 @@ public static class AuthProvidersEndpoints
 
             _ => throw new UnexpectedOperationResultException(
                 operationName: nameof(DeactivateAuthProviderQuery),
+                resultValueStr: result.ToString())
+        };
+    }
+
+    private static async Task<Results<Ok<TestAuthProviderConfigurationResponseDto>, BadRequest<HttpError>>> TestConfiguration(
+        [FromBody] TestAuthProviderConfigurationRequestDto request,
+        TestAuthProviderConfigurationOperation testConfigurationOperation,
+        CancellationToken cancellationToken)
+    {
+        var result = await testConfigurationOperation.Execute(
+            issuerUrl: request.IssuerUrl,
+            clientId: request.ClientId,
+            clientSecret: request.ClientSecret,
+            cancellationToken: cancellationToken);
+
+        return result.Code switch
+        {
+            TestAuthProviderConfigurationOperation.ResultCode.Ok =>
+                TypedResults.Ok(new TestAuthProviderConfigurationResponseDto
+                {
+                    Code = "ok",
+                    Details = result.Details ?? "Configuration is valid."
+                }),
+
+            _ => TypedResults.Ok(new TestAuthProviderConfigurationResponseDto
+            {
+                Code = "failed",
+                Details = result.Details ?? "Configuration test failed."
+            })
+        };
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> Update(
+        [FromRoute] AuthProviderExtId authProviderExternalId,
+        [FromBody] UpdateAuthProviderRequestDto request,
+        UpdateAuthProviderQuery updateAuthProviderQuery,
+        CancellationToken cancellationToken)
+    {
+        var result = await updateAuthProviderQuery.Execute(
+            externalId: authProviderExternalId,
+            name: request.Name,
+            clientId: request.ClientId,
+            clientSecret: request.ClientSecret,
+            issuerUrl: request.IssuerUrl,
+            cancellationToken: cancellationToken);
+
+        return result switch
+        {
+            UpdateAuthProviderQuery.ResultCode.Ok =>
+                TypedResults.Ok(),
+
+            UpdateAuthProviderQuery.ResultCode.NotFound =>
+                HttpErrors.AuthProvider.NotFound(authProviderExternalId),
+
+            UpdateAuthProviderQuery.ResultCode.NameNotUnique =>
+                HttpErrors.AuthProvider.NameNotUnique(request.Name),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(UpdateAuthProviderQuery),
                 resultValueStr: result.ToString())
         };
     }

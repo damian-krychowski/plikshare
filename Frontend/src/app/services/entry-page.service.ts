@@ -9,6 +9,13 @@ export interface GetEntryPageSettingsResponse {
     termsOfServiceFilePath: string | null;
     privacyPolicyFilePath: string | null;
     signUpCheckboxes: SignUpCheckboxDto[];
+    ssoProviders: SsoProviderDto[];
+}
+
+export interface SsoProviderDto {
+    externalId: string;
+    name: string;
+    type: string;
 }
 
 export interface ReloadResult {
@@ -23,6 +30,9 @@ export class EntryPageService {
     applicationSignUp = signal<ApplicationSingUp>('only-invited-users');
     isSignUpAvailable = computed(() => this.applicationSignUp() == 'everyone');
     signUpCheckboxes = signal<SignUpCheckboxDto[]>([]);
+
+    ssoProviders = signal<SsoProviderDto[]>([]);
+    hasSsoProviders = computed(() => this.ssoProviders().length > 0);
 
     termsOfServiceFilePath = signal<string | null>(null);
     isTermsOfServiceAvailable = computed(() => this.termsOfServiceFilePath() != null);
@@ -74,6 +84,7 @@ export class EntryPageService {
             this.termsOfServiceFilePath.set(result.termsOfServiceFilePath);
             this.privacyPolicyFilePath.set(result.privacyPolicyFilePath);
             this.signUpCheckboxes.set(result.signUpCheckboxes);
+            this.ssoProviders.set(result.ssoProviders ?? []);
             
             this._loaded.next({ success: true });
             

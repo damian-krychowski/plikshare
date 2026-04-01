@@ -1,0 +1,120 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        Add OIDC Provider
+    </div>
+
+    <form class="questionaire__form" (submit)="onSubmitConfiguration()" [formGroup]="configFormGroup">
+        <div>
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>Name</mat-label>
+
+                <input
+                    id="oidc-name"
+                    type="text"
+                    formControlName="name"
+                    placeholder="Company SSO"
+                    matInput>
+
+                @if ((name.touched || wasSubmitted()) && name.hasError('required')) {
+                    <mat-error>Name is <strong>required</strong></mat-error>
+                }
+
+                @if ((name.touched || wasSubmitted()) && name.hasError('notUnique')){
+                    <mat-error>Name is <strong>not unique</strong></mat-error>
+                }
+            </mat-form-field>
+        </div>
+
+        <div class="questionaire__section-title">
+            Configuration:
+        </div>
+
+        <div class="questionaire__info">
+            Connect an OpenID Connect identity provider (Keycloak, Google, Azure AD, Okta, Authentik, etc.)
+            to allow users to sign in with Single Sign-On.
+        </div>
+
+        <div class="questionaire__info">
+            <strong>Setup instructions:</strong>
+            <ol>
+                <li>In your identity provider, create a new OIDC client/application</li>
+                <li>Set the <strong>Redirect URI</strong> to: <code>{{redirectUri}}</code></li>
+                <li>Enable <strong>Client Authentication</strong> (confidential client)</li>
+                <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> below</li>
+            </ol>
+        </div>
+
+        <div class="questionaire__info">
+            The <strong>Issuer URL</strong> is the base URL of your OpenID Connect provider. The discovery document will be fetched from
+            <strong>&lbrace;issuerUrl&rbrace;/.well-known/openid-configuration</strong>
+        </div>
+
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Issuer URL</mat-label>
+
+            <input
+                id="issuerUrl"
+                type="text"
+                matInput
+                appTrim
+                formControlName="issuerUrl"
+                placeholder="https://keycloak.example.com/realms/main">
+
+            @if ((issuerUrl.touched || wasSubmitted()) && issuerUrl.hasError('required')) {
+                <mat-error>Issuer URL is <strong>required</strong></mat-error>
+            }
+        </mat-form-field>
+
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Client ID</mat-label>
+
+            <input
+                id="clientId"
+                type="text"
+                matInput
+                appTrim
+                formControlName="clientId">
+
+            @if ((clientId.touched || wasSubmitted()) && clientId.hasError('required')) {
+                <mat-error>Client ID is <strong>required</strong></mat-error>
+            }
+        </mat-form-field>
+
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Client Secret</mat-label>
+
+            <input
+                id="clientSecret"
+                type="text"
+                matInput
+                appSecureInput
+                appTrim
+                formControlName="clientSecret">
+
+            @if ((clientSecret.touched || wasSubmitted()) && clientSecret.hasError('required')) {
+                <mat-error>Client Secret is <strong>required</strong></mat-error>
+            }
+        </mat-form-field>
+
+        @if(testFailed()) {
+            <mat-error>Configuration test failed: {{testError()}}</mat-error>
+        }
+
+        <div class="questionaire__actions">
+            <button type="button" class="questionaire__btn mr-1" mat-flat-button
+                aria-label="Cancel"
+                (click)="cancel()"
+                [disabled]="isLoading()">
+                Cancel
+            </button>
+
+            <button type="submit" class="questionaire__btn" mat-flat-button
+                [class.questionaire__btn--disabled]="configFormGroup.invalid"
+                [class.questionaire__btn--loading]="isLoading()"
+                aria-label="Test configuration"
+                [disabled]="isLoading()">
+                Test configuration
+            </button>
+        </div>
+    </form>
+</div>

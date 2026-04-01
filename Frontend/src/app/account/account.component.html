@@ -157,6 +157,19 @@
                     </button> 
                 }
 
+                @if(auth.canManageAuth()) {
+                    <button
+                        class="action-text-btn"
+                        aria-label="Auth settings"
+                        mat-flat-button
+                        (click)="goToAuthSettings()">
+                        <div class="action-text-btn__content">
+                            <i class="icon icon-lg icon-lucide-key"></i>
+                            <div>Authentication</div>
+                        </div>
+                    </button>
+                }
+
                 @if(auth.canManageIntegrations()){
                     <button
                         class="action-text-btn"

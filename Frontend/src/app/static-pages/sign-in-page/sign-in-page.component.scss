@@ -6,3 +6,33 @@
     text-align: center;
 }
 
+.sso-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.sso-btn {
+    text-align: center;
+    text-decoration: none;
+}
+
+.sso-divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1rem 0;
+
+    &::before,
+    &::after {
+        content: '';
+        flex: 1;
+        border-bottom: 1px solid var(--company-border-color, #e0e0e0);
+    }
+
+    span {
+        color: var(--company-grey-font, #999);
+        font-size: var(--company-small-font, 0.85rem);
+    }
+}
+

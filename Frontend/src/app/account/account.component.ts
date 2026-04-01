@@ -96,6 +96,10 @@ export class AccountComponent implements OnInit {
         this._router.navigate(['settings/users']);
     }
 
+    goToAuthSettings(){
+        this._router.navigate(['settings/auth']);
+    }
+
     goToIntegrations(){
         this._router.navigate(['settings/integrations']);
     }

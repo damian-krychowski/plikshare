@@ -17,6 +17,8 @@ namespace PlikShare.Auth.Sso;
 
 public static class SsoEndpoints
 {
+    private const string CallbackPath = "api/auth/sso/callback";
+
     public static void MapSsoEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/auth/sso")
@@ -26,7 +28,7 @@ public static class SsoEndpoints
         group.MapGet("/{authProviderExternalId}", InitiateSso)
             .WithName("InitiateSso");
 
-        group.MapGet("/{authProviderExternalId}/callback", HandleCallback)
+        group.MapGet("/callback", HandleCallback)
             .WithName("SsoCallback");
     }
 
@@ -67,7 +69,7 @@ public static class SsoEndpoints
             nonce);
 
         var redirectUri = new Url(config.AppUrl)
-            .AppendPathSegment($"api/auth/sso/{authProviderExternalId.Value}/callback")
+            .AppendPathSegment(CallbackPath)
             .ToString();
 
         var authorizationUrl = new Url(discovery.AuthorizationEndpoint)
@@ -83,7 +85,6 @@ public static class SsoEndpoints
     }
 
     private static async Task<IResult> HandleCallback(
-        [FromRoute] AuthProviderExtId authProviderExternalId,
         HttpContext httpContext,
         GetAuthProviderDetailsQuery getAuthProviderDetailsQuery,
         OidcDiscoveryCache discoveryCache,
@@ -91,6 +92,7 @@ public static class SsoEndpoints
         GetOrCreateSsoUserQuery getOrCreateSsoUserQuery,
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
+        IHttpClientFactory httpClientFactory,
         IConfig config,
         CancellationToken cancellationToken)
     {
@@ -128,13 +130,6 @@ public static class SsoEndpoints
                 "invalid-state");
         }
 
-        if (state.ProviderExternalId != authProviderExternalId.Value)
-        {
-            return RedirectToSignIn(
-                config,
-                "invalid-state");
-        }
-
         var code = query["code"].FirstOrDefault();
 
         if (string.IsNullOrEmpty(code))
@@ -143,6 +138,9 @@ public static class SsoEndpoints
                 config,
                 "token-exchange-failed");
         }
+
+        var authProviderExternalId = AuthProviderExtId.Parse(
+            state.ProviderExternalId);
 
         var provider = getAuthProviderDetailsQuery.Execute(
             authProviderExternalId);
@@ -166,7 +164,7 @@ public static class SsoEndpoints
         }
 
         var redirectUri = new Url(config.AppUrl)
-            .AppendPathSegment($"api/auth/sso/{authProviderExternalId.Value}/callback")
+            .AppendPathSegment(CallbackPath)
             .ToString();
 
         var tokenResponse = await ExchangeCodeForTokens(
@@ -175,7 +173,7 @@ public static class SsoEndpoints
             redirectUri: redirectUri,
             clientId: provider.ClientId,
             clientSecret: provider.ClientSecret,
-            httpClientFactory: httpContext.RequestServices.GetRequiredService<IHttpClientFactory>(),
+            httpClientFactory: httpClientFactory,
             cancellationToken: cancellationToken);
 
         if (tokenResponse is null)
@@ -195,7 +193,7 @@ public static class SsoEndpoints
                 email = await FetchEmailFromUserinfo(
                     userinfoEndpoint: discovery.UserinfoEndpoint,
                     accessToken: tokenResponse.AccessToken,
-                    httpClientFactory: httpContext.RequestServices.GetRequiredService<IHttpClientFactory>(),
+                    httpClientFactory: httpClientFactory,
                     cancellationToken: cancellationToken);
             }
         }
@@ -309,7 +307,10 @@ public static class SsoEndpoints
         }
         catch (Exception e)
         {
-            Log.Error(e, "Failed to exchange authorization code for tokens");
+            Log.Error(
+                e,
+                "Failed to exchange authorization code for tokens");
+
             return null;
         }
     }
@@ -330,7 +331,10 @@ public static class SsoEndpoints
         }
         catch (Exception e)
         {
-            Log.Warning(e, "Failed to extract email from id_token");
+            Log.Warning(
+                e,
+                "Failed to extract email from id_token");
+
             return null;
         }
     }
@@ -351,7 +355,10 @@ public static class SsoEndpoints
         }
         catch (Exception e)
         {
-            Log.Warning(e, "Failed to extract sub from id_token");
+            Log.Warning(
+                e,
+                "Failed to extract sub from id_token");
+
             return null;
         }
     }
@@ -389,7 +396,10 @@ public static class SsoEndpoints
         }
         catch (Exception e)
         {
-            Log.Warning(e, "Failed to fetch email from userinfo endpoint");
+            Log.Warning(
+                e,
+                "Failed to fetch email from userinfo endpoint");
+
             return null;
         }
     }

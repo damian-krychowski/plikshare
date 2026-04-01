@@ -522,7 +522,7 @@ namespace PlikShare.Core.IdentityProvider
                         Email = reader.GetString(4),
                         NormalizedEmail = reader.GetString(5),
                         EmailConfirmed = reader.GetBoolean(6),
-                        PasswordHash = reader.GetString(7),
+                        PasswordHash = reader.GetStringOrNull(7),
                         SecurityStamp = reader.GetString(8),
                         ConcurrencyStamp = reader.GetString(9),
                         PhoneNumber = reader.GetStringOrNull(10),
@@ -584,7 +584,7 @@ namespace PlikShare.Core.IdentityProvider
                         Email = reader.GetString(4),
                         NormalizedEmail = reader.GetString(5),
                         EmailConfirmed = reader.GetBoolean(6),
-                        PasswordHash = reader.GetString(7),
+                        PasswordHash = reader.GetStringOrNull(7),
                         SecurityStamp = reader.GetString(8),
                         ConcurrencyStamp = reader.GetString(9),
                         PhoneNumber = reader.GetStringOrNull(10),
@@ -656,7 +656,7 @@ namespace PlikShare.Core.IdentityProvider
                         Email = reader.GetString(4),
                         NormalizedEmail = reader.GetString(5),
                         EmailConfirmed = reader.GetBoolean(6),
-                        PasswordHash = reader.GetString(7),
+                        PasswordHash = reader.GetStringOrNull(7),
                         SecurityStamp = reader.GetString(8),
                         ConcurrencyStamp = reader.GetString(9),
                         PhoneNumber = reader.GetStringOrNull(10),
@@ -953,28 +953,44 @@ namespace PlikShare.Core.IdentityProvider
         }
         
         public override async Task<IdentityResult> UpdateAsync(
-            ApplicationUser user, 
-            CancellationToken cancellationToken = default) 
+            ApplicationUser user,
+            CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDisposed();
-            
-            if (user == null) {
-                throw new ArgumentNullException(nameof(user), $"Parameter {nameof(user)} cannot be null.");
+            ArgumentNullException.ThrowIfNull(user);
+
+            var result = await _dbWriteQueue.Execute(
+                operationToEnqueue: context => ExecuteUpdateUser(
+                    dbWriteContext: context,
+                    user: user),
+                cancellationToken: cancellationToken);
+
+            if (result.Succeeded)
+            {
+                await _userCache.InvalidateEntry(
+                    userId: user.DatabaseId,
+                    cancellationToken: cancellationToken);
             }
 
-            using var connection = _plikShareDb.OpenConnection();
-            using var transaction = connection.BeginTransaction();
-            
+            return result;
+        }
+
+        private IdentityResult ExecuteUpdateUser(
+            DbWriteQueue.Context dbWriteContext,
+            ApplicationUser user)
+        {
+            using var transaction = dbWriteContext.Connection.BeginTransaction();
+
             try
             {
                 var newConcurrencyStamp = Guid.NewGuid().ToString().ToUpperInvariant();
-                
-                var result = connection
+
+                var result = dbWriteContext
                     .OneRowCmd(
-                        sql: @"                 
+                        sql: @"
                             UPDATE u_users
-                            SET 
+                            SET
                                 u_user_name = $userName,
                                 u_normalized_user_name = $normalizedUserName,
                                 u_email = $email,
@@ -989,7 +1005,7 @@ namespace PlikShare.Core.IdentityProvider
                                 u_lockout_end = $lockoutEnd,
                                 u_lockout_enabled = $lockoutEnabled,
                                 u_access_failed_count = $accessFailedCount
-                            WHERE 
+                            WHERE
                                 u_id = $userId
                                 AND u_concurrency_stamp = $concurrencyStamp
                                 AND u_is_invitation = FALSE
@@ -1019,23 +1035,19 @@ namespace PlikShare.Core.IdentityProvider
                 {
                     throw new InvalidOperationException("Something went wrong while updating a user");
                 }
-               
+
                 transaction.Commit();
-                
+
                 user.ConcurrencyStamp = newConcurrencyStamp;
-                
-                await _userCache.InvalidateEntry(
-                    userId: result.Value,
-                    cancellationToken: cancellationToken);
 
                 return IdentityResult.Success;
             }
             catch (Exception e)
             {
                 transaction.Rollback();
-                
+
                 Log.Error(e, "Something went wrong while updating user.");
-            
+
                 return IdentityResult.Failed(new IdentityError
                 {
                     Code = string.Empty,

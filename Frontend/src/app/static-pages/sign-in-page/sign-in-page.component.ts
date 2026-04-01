@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal, WritableSignal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { TopBarComponent } from '../shared/top-bar/top-bar.component';
 import { FooterComponent } from '../shared/footer/footer.component';
@@ -37,6 +37,7 @@ export class SignInPageComponent implements OnInit {
     showLoginError = signal(false);
     show2FaCodeError = signal(false);
     showRecoveryCodeError = signal(false);
+    ssoError = signal<string | null>(null);
     viewState: WritableSignal<ViewState> = signal('sign-in');
     
 
@@ -65,6 +66,7 @@ export class SignInPageComponent implements OnInit {
         private _authApi: AuthApi,
         private _antiforgeryApi: AntiforgeryApi,
         private _authService: AuthService,
+        private _route: ActivatedRoute,
         private router: Router) {
 
         this.signInForm = new FormGroup({
@@ -90,6 +92,26 @@ export class SignInPageComponent implements OnInit {
     async ngOnInit(): Promise<void> {
         if(await this._authService.isAuthenticatedAsync()) {
             this.router.navigate(['workspaces']);
+            return;
+        }
+
+        const errorParam = this._route.snapshot.queryParamMap.get('error');
+
+        if(errorParam) {
+            this.ssoError.set(this.mapSsoError(errorParam));
+        }
+    }
+
+    private mapSsoError(error: string): string {
+        switch(error) {
+            case 'provider-not-found': return 'SSO provider is not available.';
+            case 'invalid-state': return 'SSO session expired. Please try again.';
+            case 'idp-error': return 'Authentication failed at the identity provider.';
+            case 'token-exchange-failed': return 'Authentication failed. Please try again.';
+            case 'no-email': return 'Email address was not provided by the SSO provider.';
+            case 'account-not-found': return 'No account found for this email. Please contact your administrator.';
+            case 'provider-unavailable': return 'SSO provider is currently unreachable.';
+            default: return 'Authentication failed. Please try again.';
         }
     }
 
