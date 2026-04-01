@@ -20,6 +20,7 @@ public static class Claims
     public const string MaxWorkspaceNumber = "max_workspace_number";
     public const string DefaultMaxWorkspaceSizeInBytes = "default_max_workspace_size_in_bytes";
     public const string DefaultMaxWorkspaceTeamMembers = "default_max_workspace_team_members";
+    public const string HasPassword = "has_password";
 
     public static void CopyClaimIfExists(
         this ClaimsIdentity newIdentity, 
@@ -258,6 +259,16 @@ public static class Claims
             return value;
 
         return null;
+    }
+
+    public static bool GetHasPassword(this ClaimsPrincipal claimsPrincipal)
+    {
+        var claim = claimsPrincipal
+            .Claims
+            .FirstOrDefault(c =>
+                string.Equals(c.Type, HasPassword, StringComparison.InvariantCultureIgnoreCase));
+
+        return claim is not null;
     }
 
     public static string GetEmail(this ClaimsPrincipal claimsPrincipal)

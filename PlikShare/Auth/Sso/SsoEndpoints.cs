@@ -10,6 +10,7 @@ using PlikShare.AuthProviders.GetDetails;
 using PlikShare.AuthProviders.Id;
 using PlikShare.Core.Configuration;
 using PlikShare.Core.IdentityProvider;
+using PlikShare.Users.Cache;
 using PlikShare.Users.Entities;
 using Serilog;
 
@@ -92,6 +93,7 @@ public static class SsoEndpoints
         GetOrCreateSsoUserQuery getOrCreateSsoUserQuery,
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
+        UserCache userCache,
         IHttpClientFactory httpClientFactory,
         IConfig config,
         CancellationToken cancellationToken)
@@ -227,6 +229,10 @@ public static class SsoEndpoints
                 config,
                 "account-not-found");
         }
+
+        await userCache.InvalidateEntry(
+            userId: userResult.User!.Id,
+            cancellationToken: cancellationToken);
 
         var appUser = await userManager.FindByEmailAsync(email);
 

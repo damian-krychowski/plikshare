@@ -94,7 +94,8 @@ public class UserCache(
                 	u_invitation_code,
                     u_max_workspace_number,
                     u_default_max_workspace_size_in_bytes,
-                    u_default_max_workspace_team_members
+                    u_default_max_workspace_team_members,
+                    (u_password_hash IS NOT NULL) AS u_has_password
                 FROM u_users
                 WHERE u_id = $userId
                 LIMIT 1
@@ -141,7 +142,8 @@ public class UserCache(
                             : null,
                         MaxWorkspaceNumber = reader.GetInt32OrNull(15),
                         DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(16),
-                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(17)
+                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(17),
+                        HasPassword = reader.GetBoolean(18)
                     };
                 })
             .WithParameter("$userId", userId)
@@ -195,7 +197,8 @@ public class UserCache(
                 	u_invitation_code,
                     u_max_workspace_number,
                     u_default_max_workspace_size_in_bytes,
-                    u_default_max_workspace_team_members
+                    u_default_max_workspace_team_members,
+                    (u_password_hash IS NOT NULL) AS u_has_password
                 FROM u_users
                 WHERE u_external_id = $userExternalId
                 LIMIT 1
@@ -240,7 +243,8 @@ public class UserCache(
                             : null,
                         MaxWorkspaceNumber = reader.GetInt32OrNull(15),
                         DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(16),
-                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(17)
+                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(17),
+                        HasPassword = reader.GetBoolean(18)
                     };
                 })
             .WithParameter("$userExternalId", externalId.Value)

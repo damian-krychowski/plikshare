@@ -20,6 +20,8 @@ export interface GetUserDetailsResponse {
             canManageAuth: boolean;
             canManageIntegrations: boolean;
         };
+        hasPassword: boolean;
+        ssoProviders: string[];
         maxWorkspaceNumber: number | null;
         defaultMaxWorkspaceSizeInBytes: number | null;
         defaultMaxWorkspaceTeamMembers: number | null;

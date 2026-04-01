@@ -92,6 +92,7 @@ public static class AccountEndpoints
                 CanManageAuth = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageAuth),
                 CanManageIntegrations = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageIntegrations),
             },
+            HasPassword = user.HasPassword,
             MaxWorkspaceNumber = user.MaxWorkspaceNumber
         };
     }
@@ -103,6 +104,13 @@ public static class AccountEndpoints
         SignInManager<ApplicationUser> signInManager,
         CancellationToken cancellationToken)
     {
+        var userContext = httpContext.GetUserContext();
+
+        if (!userContext.HasPassword)
+        {
+            return ChangePasswordResponseDto.NotAllowedForSsoUser;
+        }
+
         var user = await userManager.GetUserAsync(httpContext.User);
 
         if (user is null)
@@ -178,6 +186,13 @@ public static class AccountEndpoints
         SignInManager<ApplicationUser> signInManager,
         CancellationToken cancellationToken)
     {
+        var userContext = httpContext.GetUserContext();
+
+        if (!userContext.HasPassword)
+        {
+            return Enable2FaResponseDto.NotAllowedForSsoUser;
+        }
+
         var user = await userManager.GetUserAsync(httpContext.User);
 
         if (user is null)
@@ -229,6 +244,13 @@ public static class AccountEndpoints
         SignInManager<ApplicationUser> signInManager,
         CancellationToken cancellationToken)
     {
+        var userContext = httpContext.GetUserContext();
+
+        if (!userContext.HasPassword)
+        {
+            return Disable2FaResponseDto.NotAllowedForSsoUser;
+        }
+
         var user = await userManager.GetUserAsync(httpContext.User);
 
         if (user is null)
@@ -262,6 +284,13 @@ public static class AccountEndpoints
         UserManager<ApplicationUser> userManager,
         CancellationToken cancellationToken)
     {
+        var userContext = httpContext.GetUserContext();
+
+        if (!userContext.HasPassword)
+        {
+            return new GenerateRecoveryCodesResponseDto(RecoveryCodes: []);
+        }
+
         var user = await userManager.GetUserAsync(httpContext.User);
 
         if (user is null)

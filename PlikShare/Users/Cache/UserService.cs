@@ -51,6 +51,7 @@ public class UserService(
                     Code = user.InvitationCode!
                 }
                 : null,
+            HasPassword = user.HasPassword,
             MaxWorkspaceNumber = user.MaxWorkspaceNumber,
             DefaultMaxWorkspaceSizeInBytes = user.DefaultMaxWorkspaceSizeInBytes,
             DefaultMaxWorkspaceTeamMembers = user.DefaultMaxWorkspaceTeamMembers

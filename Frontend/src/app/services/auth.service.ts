@@ -23,6 +23,8 @@ export class AuthService {
     public canManageAuth = computed(() => this.userDetails()?.permissions?.canManageAuth ?? false);
     public canManageIntegrations = computed(() => this.userDetails()?.permissions?.canManageIntegrations ?? false);
 
+    public hasPassword = computed(() => this.userDetails()?.hasPassword ?? false);
+
     public maxWorkspaceNumber = computed(() => this.userDetails()?.maxWorkspaceNumber ?? null);
 
     public canManageAnything = computed(() =>

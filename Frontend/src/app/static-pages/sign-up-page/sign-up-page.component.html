@@ -2,7 +2,23 @@
     <app-top-bar></app-top-bar>
 
     <div class="auth-container ml-auto mr-auto">
-        @if(viewState() == 'sign-up') {            
+        @if(entryPage.hasSsoProviders() && viewState() == 'sign-up') {
+            <div class="auth-form sso-buttons">
+                @for(provider of entryPage.ssoProviders(); track provider.externalId) {
+                    <a class="auth-field__btn sso-btn"
+                        [href]="'/api/auth/sso/' + provider.externalId"
+                        mat-stroked-button>
+                        Sign up with {{ provider.name }}
+                    </a>
+                }
+            </div>
+
+            <div class="sso-divider">
+                <span>or</span>
+            </div>
+        }
+
+        @if(viewState() == 'sign-up') {
             <form class="auth-form" (submit)="onSignUp()" [formGroup]="formGroup">
                 <div class="auth-field">
                     <label 

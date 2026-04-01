@@ -65,6 +65,9 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
     workspacesCount = computed(() => this.user()?.workspacesCount() ?? 0);
     email = computed(() => this.user()?.email());
     isEmailConfirmed = computed(() => this.user()?.isEmailConfirmed() ?? false);
+    hasPassword = computed(() => this.user()?.hasPassword() ?? false);
+    ssoProviders = computed(() => this.user()?.ssoProviders() ?? []);
+    hasSsoProviders = computed(() => this.ssoProviders().length > 0);
     isAppOwner = computed(() => this.user()?.roles.isAppOwner() ?? false);
     isAdmin = computed(() => this.user()?.roles.isAdmin() ?? false);
     isLoggedInUser = computed(() => this.user()?.externalId() == this.auth.userExternalId());
@@ -261,6 +264,8 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                 externalId: signal(userDetails.user.externalId),
                 email: signal(userDetails.user.email),
                 isEmailConfirmed: signal(userDetails.user.isEmailConfirmed),
+                hasPassword: signal(userDetails.user.hasPassword),
+                ssoProviders: signal(userDetails.user.ssoProviders),
                 isHighlighted: signal(false),
                 permissions: {
                     canAddWorkspace: signal(userDetails.user.permissions.canAddWorkspace),

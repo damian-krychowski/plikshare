@@ -183,6 +183,7 @@ public class GetOrCreateUserInvitationQuery(
                     MaxWorkspaceNumber = maxWorkspaceNumber,
                     DefaultMaxWorkspaceSizeInBytes = defaultMaxWorkspaceSizeInBytes,
                     DefaultMaxWorkspaceTeamMembers = defaultMaxWorkspaceTeamMembers,
+                    HasPassword = false,
                     WasJustCreated = true
                 },
                 transaction: transaction)
@@ -226,7 +227,8 @@ public class GetOrCreateUserInvitationQuery(
                           ({UserSql.HasClaim(Claims.Permission, Permissions.ManageIntegrations)}) AS u_can_manage_integrations,
                           u_max_workspace_number,
                           u_default_max_workspace_size_in_bytes,
-                          u_default_max_workspace_team_members
+                          u_default_max_workspace_team_members,
+                          (u_password_hash IS NOT NULL) AS u_has_password
                       FROM u_users
                       WHERE u_normalized_email = $userNormalizedEmail
                       LIMIT 1
@@ -251,6 +253,7 @@ public class GetOrCreateUserInvitationQuery(
                     MaxWorkspaceNumber = reader.GetInt32OrNull(15),
                     DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(16),
                     DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(17),
+                    HasPassword = reader.GetBoolean(18),
                     WasJustCreated = false
                 },
                 transaction: transaction)
@@ -278,6 +281,7 @@ public class GetOrCreateUserInvitationQuery(
         public required int? MaxWorkspaceNumber { get; init; }
         public required long? DefaultMaxWorkspaceSizeInBytes { get; init; }
         public required int? DefaultMaxWorkspaceTeamMembers { get; init; }
+        public required bool HasPassword { get; init; }
         public required bool WasJustCreated { get; init; }
     }
 }

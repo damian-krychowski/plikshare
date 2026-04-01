@@ -43,28 +43,30 @@
 
         <div class="mt-2"></div>   
 
-        <div class="account-actions"> 
-            <button
-                class="action-text-btn"
-                aria-label="Change password" 
-                mat-flat-button
-                (click)="setupMfa()"> 
-                <div class="action-text-btn__content">
-                    <i class="icon icon-lg icon-lucide-mobile"></i>
-                    <div>Multi-factor authentication</div>
-                </div>
-            </button> 
+        <div class="account-actions">
+            @if(auth.hasPassword()) {
+                <button
+                    class="action-text-btn"
+                    aria-label="Multi-factor authentication"
+                    mat-flat-button
+                    (click)="setupMfa()">
+                    <div class="action-text-btn__content">
+                        <i class="icon icon-lg icon-lucide-mobile"></i>
+                        <div>Multi-factor authentication</div>
+                    </div>
+                </button>
 
-            <button
-                class="action-text-btn"
-                aria-label="Change password" 
-                mat-flat-button
-                (click)="changePassword()"> 
-                <div class="action-text-btn__content">
-                    <i class="icon icon-lg icon-lucide-key"></i>
-                    <div>Change Password</div>
-                </div>
-            </button> 
+                <button
+                    class="action-text-btn"
+                    aria-label="Change password"
+                    mat-flat-button
+                    (click)="changePassword()">
+                    <div class="action-text-btn__content">
+                        <i class="icon icon-lg icon-lucide-key"></i>
+                        <div>Change Password</div>
+                    </div>
+                </button>
+            }
 
             <button
                 class="action-text-btn"

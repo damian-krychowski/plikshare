@@ -84,10 +84,60 @@
                 </div>
             </div>
 
+            @if(hasPassword() || hasSsoProviders()) {
+                <div class="mt-3"></div>
+
+                <div class="title-header">
+                    <div>
+                        Authentication:
+                    </div>
+                </div>
+
+                <div class="mt-2"></div>
+
+                <div class="item user-details">
+                    <i class="icon icon-xl icon-lucide-key"></i>
+
+                    <div class="item__details">
+                        <div class="item__title">
+                            Password
+                        </div>
+
+                        <div class="item__subtitle">
+                            @if(hasPassword()) {
+                                <span>Enabled</span>
+                            } @else {
+                                <span>Not set</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-2"></div>
+
+                <div class="item user-details">
+                    <i class="icon icon-xl icon-nucleo-plug"></i>
+
+                    <div class="item__details">
+                        <div class="item__title">
+                            Single Sign-On
+                        </div>
+
+                        <div class="item__subtitle">
+                            @if(hasSsoProviders()) {
+                                <span>{{ssoProviders().join(', ')}}</span>
+                            } @else {
+                                <span>Not configured</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
             @if(!isAppOwner()) {
                 <div class="mt-3"></div>
 
-                <div class="title-header">  
+                <div class="title-header">
                     <div>
                         User permissions:
                     </div>

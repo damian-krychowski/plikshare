@@ -14,4 +14,5 @@ public record Enable2FaResponseDto(
     public static Enable2FaResponseDto InvalidVerificationCode => new("invalid-verification-code", []);
 
     public static Enable2FaResponseDto Failed => new("failed", []);
+    public static Enable2FaResponseDto NotAllowedForSsoUser => new("not-allowed-for-sso-user", []);
 }

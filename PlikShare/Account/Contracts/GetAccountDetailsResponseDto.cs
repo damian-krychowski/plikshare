@@ -9,5 +9,6 @@ public class GetAccountDetailsResponseDto
     public required string Email { get; init; }
     public required UserRoles Roles { get; init; }
     public required UserPermissions Permissions { get; init; }
+    public required bool HasPassword { get; init; }
     public int? MaxWorkspaceNumber { get; init; }
 }

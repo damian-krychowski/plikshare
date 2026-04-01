@@ -344,6 +344,11 @@ public static class AuthEndpoints
             return;
         }
 
+        if (!await userManager.HasPasswordAsync(user))
+        {
+            return;
+        }
+
         var code = await userManager.GeneratePasswordResetTokenAsync(user);
         var link = new Url(config.AppUrl)
             .AppendPathSegment("reset-password")

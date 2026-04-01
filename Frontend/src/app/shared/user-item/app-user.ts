@@ -4,6 +4,8 @@ export type AppUserDetails = {
     externalId: WritableSignal<string | null>;
     email: Signal<string>;
     isEmailConfirmed: Signal<boolean>;
+    hasPassword: Signal<boolean>;
+    ssoProviders: Signal<string[]>;
     workspacesCount: Signal<number>;
     roles: AppUserRoles;
     permissions: AppUserPermissions;

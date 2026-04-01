@@ -42,6 +42,8 @@ export class UserPickerComponent implements OnInit  {
                     externalId: signal(user.externalId),
                     email: signal(user.email),
                     isEmailConfirmed: signal(user.isEmailConfirmed),
+                    hasPassword: signal(false),
+                    ssoProviders: signal([]),
                     workspacesCount: signal(user.workspacesCount),
                     roles: {
                         isAppOwner: signal(user.roles.isAppOwner),

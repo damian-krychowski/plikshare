@@ -20,6 +20,8 @@ public static class GetUserDetails
         public required UserExtId ExternalId { get; init; }
         public required string Email { get; init; }
         public required bool IsEmailConfirmed { get; init; }
+        public required bool HasPassword { get; init; }
+        public required List<string> SsoProviders { get; init; }
         public required UserRoles Roles { get; init; }
         public required UserPermissions Permissions { get; init; }
         public required int? MaxWorkspaceNumber { get; init; }

@@ -16,6 +16,7 @@ public sealed class UserContext
     public required UserRoles Roles { get; init; }
     public required UserPermissions Permissions { get; init; }
     public UserInvitation? Invitation { get; init; }
+    public required bool HasPassword { get; init; }
     public int? MaxWorkspaceNumber { get; init; }
     public long? DefaultMaxWorkspaceSizeInBytes { get; init; }
     public int? DefaultMaxWorkspaceTeamMembers { get; init; }

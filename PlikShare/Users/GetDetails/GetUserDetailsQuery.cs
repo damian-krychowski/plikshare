@@ -28,7 +28,11 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
         var sharedBoxes = GetSharedBoxes(
             user: user,
             connection: connection);
-        
+
+        var ssoProviders = GetSsoProviders(
+            user: user,
+            connection: connection);
+
         return new GetUserDetails.ResponseDto
         {
             User = new GetUserDetails.UserDetailsDto
@@ -36,6 +40,8 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
                 ExternalId = user.ExternalId,
                 Email = user.Email.Value,
                 IsEmailConfirmed = user.IsEmailConfirmed,
+                HasPassword = user.HasPassword,
+                SsoProviders = ssoProviders,
                 Roles = user.Roles,
                 Permissions = user.Permissions,
                 MaxWorkspaceNumber = user.MaxWorkspaceNumber,
@@ -245,6 +251,26 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
                      WasInvitationAccepted = reader.GetBoolean(18)
                  }
              )
+             .WithParameter("$userId", user.Id)
+             .Execute();
+     }
+
+     private static List<string> GetSsoProviders(
+         UserContext user,
+         SqliteConnection connection)
+     {
+         return connection
+             .Cmd(
+                 sql: """
+                      SELECT
+                          ap.ap_name
+                      FROM ul_user_logins ul
+                      INNER JOIN ap_auth_providers ap
+                          ON ap.ap_external_id = ul.ul_login_provider
+                      WHERE ul.ul_user_id = $userId
+                      ORDER BY ap.ap_id ASC
+                      """,
+                 readRowFunc: reader => reader.GetString(0))
              .WithParameter("$userId", user.Id)
              .Execute();
      }

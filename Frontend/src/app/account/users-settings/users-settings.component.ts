@@ -80,6 +80,8 @@ export class UsersSettingsComponent implements OnInit {
                 externalId: signal(u.externalId),
                 email: signal(u.email),
                 isEmailConfirmed: signal(u.isEmailConfirmed),
+                hasPassword: signal(false),
+                ssoProviders: signal([]),
                 workspacesCount: signal(u.workspacesCount),
                 roles: {
                     isAppOwner: signal(u.roles.isAppOwner),
@@ -135,6 +137,8 @@ export class UsersSettingsComponent implements OnInit {
                 email: signal(email),
                 externalId: signal(null),
                 isEmailConfirmed: signal(false),
+                hasPassword: signal(false),
+                ssoProviders: signal([]),
                 isHighlighted: signal(false),
                 permissions: {
                     canAddWorkspace: signal(false),

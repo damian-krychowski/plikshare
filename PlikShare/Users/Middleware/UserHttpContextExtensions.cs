@@ -46,6 +46,7 @@ public static class UserHttpContextExtensions
                 CanManageIntegrations = httpContext.User.HasPermission(Permissions.ManageIntegrations)
             },
             Invitation = null,
+            HasPassword = httpContext.User.GetHasPassword(),
             MaxWorkspaceNumber = httpContext.User.GetMaxWorkspaceNumber(),
             DefaultMaxWorkspaceSizeInBytes = httpContext.User.GetDefaultMaxWorkspaceSizeInBytes(),
             DefaultMaxWorkspaceTeamMembers = httpContext.User.GetDefaultMaxWorkspaceTeamMembers()

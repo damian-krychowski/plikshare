@@ -24,5 +24,8 @@ public static class UserContextClaimsExtensions
 
         if (user.DefaultMaxWorkspaceTeamMembers.HasValue)
             yield return new Claim(Claims.DefaultMaxWorkspaceTeamMembers, user.DefaultMaxWorkspaceTeamMembers.Value.ToString());
+
+        if (user.HasPassword)
+            yield return new Claim(Claims.HasPassword, true.ToString());
     }
 }
