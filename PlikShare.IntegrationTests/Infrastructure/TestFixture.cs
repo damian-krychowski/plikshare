@@ -557,13 +557,15 @@ public class TestFixture: IAsyncLifetime
         var state = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "state");
         var nonce = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "nonce");
         var clientId = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "client_id");
+        var codeChallenge = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "code_challenge");
 
         MockOidcServer.RegisterAuthCode(
-            authCode, 
-            email, 
-            sub, 
-            nonce!, 
-            clientId!);
+            authCode,
+            email,
+            sub,
+            nonce!,
+            clientId!,
+            codeChallenge!);
 
         var callbackResult = await Api.Sso.Callback(
             code: authCode,

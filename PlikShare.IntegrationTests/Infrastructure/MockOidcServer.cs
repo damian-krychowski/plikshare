@@ -1,5 +1,7 @@
+using System.Buffers.Text;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -81,7 +83,8 @@ public class MockOidcServer : IAsyncDisposable
             if (grantType == "authorization_code")
             {
                 var code = form["code"].ToString();
-                return HandleAuthorizationCode(code);
+                var codeVerifier = form["code_verifier"].ToString();
+                return HandleAuthorizationCode(code, codeVerifier);
             }
 
             return Results.BadRequest(new { 
@@ -119,7 +122,7 @@ public class MockOidcServer : IAsyncDisposable
         });
     }
 
-    private IResult HandleAuthorizationCode(string code)
+    private IResult HandleAuthorizationCode(string code, string codeVerifier)
     {
         if (ShouldFailTokenExchange || !PendingAuthCodes.TryGetValue(code, out var config))
         {
@@ -130,10 +133,19 @@ public class MockOidcServer : IAsyncDisposable
             });
         }
 
+        if (!ValidateCodeVerifier(codeVerifier, config.CodeChallenge))
+        {
+            return Results.BadRequest(new
+            {
+                error = "invalid_grant",
+                error_description = "PKCE code_verifier validation failed."
+            });
+        }
+
         var idToken = GenerateSignedJwt(
-            config.Email, 
-            config.Sub, 
-            config.Nonce, 
+            config.Email,
+            config.Sub,
+            config.Nonce,
             config.ClientId);
 
         return Results.Ok(new
@@ -167,13 +179,16 @@ public class MockOidcServer : IAsyncDisposable
         return handler.CreateToken(descriptor);
     }
 
-    public void RegisterAuthCode(string code, string email, string sub, string nonce, string clientId)
+    public void RegisterAuthCode(
+        string code, string email, string sub,
+        string nonce, string clientId, string codeChallenge)
     {
         PendingAuthCodes[code] = new AuthCodeConfig(
-            Email: email, 
-            Sub: sub, 
-            Nonce: nonce, 
-            ClientId: clientId);
+            Email: email,
+            Sub: sub,
+            Nonce: nonce,
+            ClientId: clientId,
+            CodeChallenge: codeChallenge);
     }
 
     public void Reset()
@@ -199,5 +214,18 @@ public class MockOidcServer : IAsyncDisposable
         }
     }
 
-    public record AuthCodeConfig(string Email, string Sub, string Nonce, string ClientId);
+    private static bool ValidateCodeVerifier(string codeVerifier, string expectedCodeChallenge)
+    {
+        if (string.IsNullOrEmpty(codeVerifier) || string.IsNullOrEmpty(expectedCodeChallenge))
+            return false;
+
+        var challengeBytes = SHA256.HashData(Encoding.ASCII.GetBytes(codeVerifier));
+        var actualChallenge = Base64Url.EncodeToString(challengeBytes);
+
+        return actualChallenge == expectedCodeChallenge;
+    }
+
+    public record AuthCodeConfig(
+        string Email, string Sub, string Nonce,
+        string ClientId, string CodeChallenge);
 }

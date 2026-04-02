@@ -1,12 +1,10 @@
 using System.Net.Http.Headers;
-using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Flurl;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using PlikShare.AuthProviders.GetDetails;
 using PlikShare.AuthProviders.Id;
@@ -67,9 +65,13 @@ public static class SsoEndpoints
         var nonce = Convert.ToBase64String(
             RandomNumberGenerator.GetBytes(32));
 
+        var codeVerifier = OidcUtils.GenerateCodeVerifier();
+        var codeChallenge = OidcUtils.ComputeCodeChallenge(codeVerifier);
+
         var state = stateProtector.CreateState(
             authProviderExternalId.Value,
-            nonce);
+            nonce,
+            codeVerifier);
 
         var redirectUri = new Url(config.AppUrl)
             .AppendPathSegment(CallbackPath)
@@ -82,6 +84,8 @@ public static class SsoEndpoints
             .SetQueryParam("scope", "openid email profile")
             .SetQueryParam("state", state)
             .SetQueryParam("nonce", nonce)
+            .SetQueryParam("code_challenge", codeChallenge)
+            .SetQueryParam("code_challenge_method", "S256")
             .ToString();
 
         return Results.Redirect(authorizationUrl);
@@ -178,6 +182,7 @@ public static class SsoEndpoints
             redirectUri: redirectUri,
             clientId: provider.ClientId,
             clientSecret: provider.ClientSecret,
+            codeVerifier: state.CodeVerifier,
             httpClientFactory: httpClientFactory,
             cancellationToken: cancellationToken);
 
@@ -199,7 +204,7 @@ public static class SsoEndpoints
                 "provider-unavailable");
         }
 
-        var idTokenResult = await ValidateAndExtractIdToken(
+        var idTokenResult = await OidcUtils.ValidateAndExtractIdToken(
             idToken: tokenResponse.IdToken,
             expectedIssuer: discovery.Issuer,
             expectedAudience: provider.ClientId,
@@ -281,73 +286,13 @@ public static class SsoEndpoints
         return Results.Redirect(config.AppUrl);
     }
 
-    private static async Task<IdTokenValidationResult?> ValidateAndExtractIdToken(
-        string? idToken,
-        string expectedIssuer,
-        string expectedAudience,
-        string expectedNonce,
-        IList<SecurityKey> signingKeys)
-    {
-        if (string.IsNullOrEmpty(idToken))
-            return null;
-
-        try
-        {
-            var handler = new JsonWebTokenHandler();
-
-            var validationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuer = expectedIssuer,
-                ValidateAudience = true,
-                ValidAudience = expectedAudience,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                RequireSignedTokens = true,
-                IssuerSigningKeys = signingKeys
-            };
-
-            var result = await handler.ValidateTokenAsync(idToken, validationParameters);
-
-            if (!result.IsValid)
-            {
-                Log.Warning(
-                    result.Exception,
-                    "id_token validation failed");
-                return null;
-            }
-
-            var nonce = result.ClaimsIdentity.FindFirst("nonce")?.Value;
-
-            if (nonce != expectedNonce)
-            {
-                Log.Warning(
-                    "id_token nonce mismatch: expected '{ExpectedNonce}', got '{ActualNonce}'",
-                    expectedNonce,
-                    nonce);
-                return null;
-            }
-
-            var email = result.ClaimsIdentity.FindFirst(ClaimTypes.Email)?.Value
-                ?? result.ClaimsIdentity.FindFirst("email")?.Value;
-
-            var sub = result.ClaimsIdentity.FindFirst("sub")?.Value;
-
-            return new IdTokenValidationResult(Email: email, Sub: sub);
-        }
-        catch (Exception e)
-        {
-            Log.Warning(e, "Failed to validate id_token");
-            return null;
-        }
-    }
-
     private static async Task<TokenResponse?> ExchangeCodeForTokens(
         string tokenEndpoint,
         string code,
         string redirectUri,
         string clientId,
         string clientSecret,
+        string codeVerifier,
         IHttpClientFactory httpClientFactory,
         CancellationToken cancellationToken)
     {
@@ -361,7 +306,8 @@ public static class SsoEndpoints
                 ["code"] = code,
                 ["redirect_uri"] = redirectUri,
                 ["client_id"] = clientId,
-                ["client_secret"] = clientSecret
+                ["client_secret"] = clientSecret,
+                ["code_verifier"] = codeVerifier
             });
 
             var response = await client.PostAsync(
@@ -475,5 +421,4 @@ public static class SsoEndpoints
         public string? IdToken { get; init; }
     }
 
-    private record IdTokenValidationResult(string? Email, string? Sub);
 }

@@ -16,12 +16,14 @@ public class OidcStateProtector
 
     public string CreateState(
         string providerExternalId,
-        string nonce)
+        string nonce,
+        string codeVerifier)
     {
         var payload = JsonSerializer.Serialize(
             new OidcState(
                 ProviderExternalId: providerExternalId,
                 Nonce: nonce,
+                CodeVerifier: codeVerifier,
                 CreatedAtUtc: DateTime.UtcNow));
 
         return _protector.Protect(payload);
@@ -56,4 +58,5 @@ public class OidcStateProtector
 public record OidcState(
     string ProviderExternalId,
     string Nonce,
+    string CodeVerifier,
     DateTime CreatedAtUtc);

@@ -51,10 +51,11 @@ public class sso_login_tests : TestFixture
         var state = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "state");
         var nonce = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "nonce");
         var clientId = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "client_id");
+        var codeChallenge = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "code_challenge");
 
         state.Should().NotBeNullOrEmpty();
 
-        MockOidcServer.RegisterAuthCode(authCode, ssoEmail, ssoSub, nonce!, clientId!);
+        MockOidcServer.RegisterAuthCode(authCode, ssoEmail, ssoSub, nonce!, clientId!, codeChallenge!);
 
         var callbackResult = await Api.Sso.Callback(
             code: authCode,
@@ -96,7 +97,8 @@ public class sso_login_tests : TestFixture
         var firstState = UrlHelper.ExtractQueryParam(firstInitiate.LocationHeader!, "state");
         var firstNonce = UrlHelper.ExtractQueryParam(firstInitiate.LocationHeader!, "nonce");
         var firstClientId = UrlHelper.ExtractQueryParam(firstInitiate.LocationHeader!, "client_id");
-        MockOidcServer.RegisterAuthCode(firstCode, ssoEmail, ssoSub, firstNonce!, firstClientId!);
+        var firstCodeChallenge = UrlHelper.ExtractQueryParam(firstInitiate.LocationHeader!, "code_challenge");
+        MockOidcServer.RegisterAuthCode(firstCode, ssoEmail, ssoSub, firstNonce!, firstClientId!, firstCodeChallenge!);
 
         await Api.Sso.Callback(code: firstCode, state: firstState!);
 
@@ -108,7 +110,8 @@ public class sso_login_tests : TestFixture
         var secondState = UrlHelper.ExtractQueryParam(secondInitiate.LocationHeader!, "state");
         var secondNonce = UrlHelper.ExtractQueryParam(secondInitiate.LocationHeader!, "nonce");
         var secondClientId = UrlHelper.ExtractQueryParam(secondInitiate.LocationHeader!, "client_id");
-        MockOidcServer.RegisterAuthCode(secondCode, ssoEmail, ssoSub, secondNonce!, secondClientId!);
+        var secondCodeChallenge = UrlHelper.ExtractQueryParam(secondInitiate.LocationHeader!, "code_challenge");
+        MockOidcServer.RegisterAuthCode(secondCode, ssoEmail, ssoSub, secondNonce!, secondClientId!, secondCodeChallenge!);
 
         var callbackResult = await Api.Sso.Callback(
             code: secondCode,
@@ -356,8 +359,9 @@ public class sso_login_tests : TestFixture
         var state = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "state");
         var nonce = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "nonce");
         var clientId = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "client_id");
+        var codeChallenge = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "code_challenge");
 
-        MockOidcServer.RegisterAuthCode(authCode, ssoEmail, ssoSub, nonce!, clientId!);
+        MockOidcServer.RegisterAuthCode(authCode, ssoEmail, ssoSub, nonce!, clientId!, codeChallenge!);
 
         var callbackResult = await Api.Sso.Callback(
             code: authCode,
@@ -391,8 +395,9 @@ public class sso_login_tests : TestFixture
         var state = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "state");
         var nonce = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "nonce");
         var clientId = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "client_id");
+        var codeChallenge = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "code_challenge");
 
-        MockOidcServer.RegisterAuthCode(authCode, invitedUser.Email, ssoSub, nonce!, clientId!);
+        MockOidcServer.RegisterAuthCode(authCode, invitedUser.Email, ssoSub, nonce!, clientId!, codeChallenge!);
 
         var callbackResult = await Api.Sso.Callback(
             code: authCode,
