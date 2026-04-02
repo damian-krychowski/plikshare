@@ -11,14 +11,15 @@ using Xunit.Abstractions;
 namespace PlikShare.IntegrationTests.TestCases.Auth;
 
 [Collection(IntegrationTestsCollection.Name)]
-public class sso_login_tests : TestFixture
+public class sso_login_tests : TestFixture, IDisposable
 {
+    private readonly HostFixture8081 _hostFixture;
     private AppSignedInUser AppOwner { get; }
 
     public sso_login_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper)
         : base(hostFixture, testOutputHelper)
     {
-        hostFixture.RemoveAllAuthProviders();
+        _hostFixture = hostFixture;
         MockOidcServer.Reset();
 
         AppOwner = SignIn(user: Users.AppOwner).Result;
@@ -447,5 +448,11 @@ public class sso_login_tests : TestFixture
                 MaxWorkspaceNumber = maxWorkspaces },
             cookie: admin.Cookie,
             antiforgery: admin.Antiforgery);
+    }
+
+    public void Dispose()
+    {
+        _hostFixture.RemoveAllAuthProviders();
+        _hostFixture.RemoveAllUserLogins();
     }
 }

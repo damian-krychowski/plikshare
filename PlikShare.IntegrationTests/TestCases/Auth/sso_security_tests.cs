@@ -7,14 +7,15 @@ using Xunit.Abstractions;
 namespace PlikShare.IntegrationTests.TestCases.Auth;
 
 [Collection(IntegrationTestsCollection.Name)]
-public class sso_security_tests : TestFixture
+public class sso_security_tests : TestFixture, IDisposable
 {
+    private readonly HostFixture8081 _hostFixture;
     private AppSignedInUser AppOwner { get; }
 
     public sso_security_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper)
         : base(hostFixture, testOutputHelper)
     {
-        hostFixture.RemoveAllAuthProviders();
+        _hostFixture = hostFixture;
         MockOidcServer.Reset();
 
         AppOwner = SignIn(user: Users.AppOwner).Result;
@@ -219,5 +220,11 @@ public class sso_security_tests : TestFixture
         //then
         callbackResult.StatusCode.Should().Be(302);
         callbackResult.LocationHeader.Should().Contain("error=token-exchange-failed");
+    }
+
+    public void Dispose()
+    {
+        _hostFixture.RemoveAllAuthProviders();
+        _hostFixture.RemoveAllUserLogins();
     }
 }

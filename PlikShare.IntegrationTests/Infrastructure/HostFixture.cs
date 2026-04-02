@@ -171,6 +171,24 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
         Console.WriteLine($"Deleted auth providers count: {result.Count}");
     }
 
+    public void RemoveAllUserLogins()
+    {
+        using var connection = Db.OpenConnection();
+
+        connection.Cmd(
+                sql: @"
+                DELETE FROM ul_user_logins
+                RETURNING ul_user_id
+            ",
+                readRowFunc: reader => reader.GetInt32(0))
+            .Execute();
+    }
+
+    public void ResetPasswordLoginSetting()
+    {
+        AppSettings.SetPasswordLogin(isEnabled: true);
+    }
+
     public void RemoveAllEmailProviders()
     {
         using var connection = Db.OpenConnection();

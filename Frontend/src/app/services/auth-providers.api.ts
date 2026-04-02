@@ -140,7 +140,7 @@ export class AuthProvidersApi {
         const call = this
             ._http
             .put(
-                `/api/auth-providers/password-login`, request, {
+                `/api/auth-providers/password-login-enabled`, request, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
                 })

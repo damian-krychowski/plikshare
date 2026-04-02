@@ -62,7 +62,7 @@ public static class AuthProvidersEndpoints
         group.MapPost("/{authProviderExternalId}/deactivate", Deactivate)
             .WithName("DeactivateAuthProvider");
 
-        group.MapPut("/password-login", SetPasswordLogin)
+        group.MapPut("/password-login-enabled", SetPasswordLogin)
             .WithName("SetPasswordLogin");
     }
 

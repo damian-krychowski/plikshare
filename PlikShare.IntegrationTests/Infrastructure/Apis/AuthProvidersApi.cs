@@ -2,6 +2,7 @@ using Flurl.Http;
 using PlikShare.AuthProviders.Create.Contracts;
 using PlikShare.AuthProviders.Id;
 using PlikShare.AuthProviders.List.Contracts;
+using PlikShare.AuthProviders.PasswordLogin.Contracts;
 using PlikShare.AuthProviders.TestConfiguration.Contracts;
 using PlikShare.AuthProviders.Update.Contracts;
 using PlikShare.AuthProviders.UpdateName.Contracts;
@@ -94,6 +95,19 @@ public class AuthProvidersApi(IFlurlClient flurlClient, string appUrl)
         await flurlClient.ExecuteDelete(
             appUrl: appUrl,
             apiPath: $"api/auth-providers/{externalId}",
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task SetPasswordLogin(
+        SetPasswordLoginRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePut(
+            appUrl: appUrl,
+            apiPath: "api/auth-providers/password-login-enabled",
+            request: request,
             cookie: cookie,
             antiforgery: antiforgery);
     }

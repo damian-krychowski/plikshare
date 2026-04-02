@@ -12,12 +12,14 @@ using Xunit.Abstractions;
 namespace PlikShare.IntegrationTests.TestCases.AuthProviders;
 
 [Collection(IntegrationTestsCollection.Name)]
-public class auth_providers_tests : TestFixture
+public class auth_providers_tests : TestFixture, IDisposable
 {
+    private readonly HostFixture8081 _hostFixture;
+
     public auth_providers_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper)
         : base(hostFixture, testOutputHelper)
     {
-        hostFixture.RemoveAllAuthProviders();
+        _hostFixture = hostFixture;
         MockOidcServer.Reset();
     }
 
@@ -330,5 +332,10 @@ public class auth_providers_tests : TestFixture
         //then
         await act.Should().ThrowAsync<TestApiCallException>()
             .Where(e => e.StatusCode == 400);
+    }
+
+    public void Dispose()
+    {
+        _hostFixture.RemoveAllAuthProviders();
     }
 }
