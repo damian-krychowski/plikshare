@@ -368,6 +368,12 @@ public static class HttpErrors
             Code = "auth-provider-doesnt-exist",
             Message = $"Auth Provider with externalId '{externalId}' was not found"
         });
+
+        public static BadRequest<HttpError> UserHasNoSsoLogin() => TypedResults.BadRequest(new HttpError
+        {
+            Code = "admin-has-no-sso-login",
+            Message = "You must sign in via SSO at least once before disabling password login"
+        });
     }
 
     public static class Integration

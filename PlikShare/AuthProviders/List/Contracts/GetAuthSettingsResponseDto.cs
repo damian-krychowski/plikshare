@@ -2,9 +2,11 @@ using PlikShare.AuthProviders.Id;
 
 namespace PlikShare.AuthProviders.List.Contracts;
 
-public class GetAuthProvidersResponseDto
+public class GetAuthSettingsResponseDto
 {
     public required GetAuthProvidersItemDto[] Items { get; init; }
+    public required bool IsPasswordLoginEnabled { get; init; }
+    public required bool CurrentUserHasSsoLinked { get; init; }
 }
 
 public class GetAuthProvidersItemDto

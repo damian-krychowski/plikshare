@@ -10,7 +10,8 @@ import { CommonModule } from "@angular/common";
 import { AppAuthProvider, AuthProviderItemComponent } from "../../shared/auth-provider-item/auth-provider-item.component";
 import { OptimisticOperation } from "../../services/optimistic-operation";
 import { CreateOidcProviderComponent } from "./create-oidc-provider/create-oidc-provider.component";
-import { AuthProvidersApi, GetAuthProvidersResponse } from "../../services/auth-providers.api";
+import { AuthProvidersApi } from "../../services/auth-providers.api";
+import { MatSlideToggleChange, MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { OIDC_PROVIDER_PRESETS, OIDC_PRESET_ORDER } from "./oidc-provider-presets";
 
 @Component({
@@ -20,7 +21,8 @@ import { OIDC_PROVIDER_PRESETS, OIDC_PRESET_ORDER } from "./oidc-provider-preset
         MatButtonModule,
         MatTooltipModule,
         AuthProviderItemComponent,
-        PresetButtonComponent
+        PresetButtonComponent,
+        MatSlideToggleModule
     ],
     templateUrl: './auth-settings.component.html',
     styleUrl: './auth-settings.component.scss'
@@ -35,6 +37,11 @@ export class AuthSettingsComponent implements OnInit {
     notActiveAuthProviders = computed(() => this.authProviders().filter(ap => !ap.isActive()));
 
     isAnyProviderActive = computed(() => this.activeAuthProviders().length > 0);
+
+    isPasswordLoginEnabled = signal(true);
+    currentUserHasSsoLinked = signal(false);
+
+    canDisablePasswordLogin = computed(() => this.currentUserHasSsoLinked());
 
     presets = OIDC_PROVIDER_PRESETS;
     presetOrder = OIDC_PRESET_ORDER;
@@ -77,6 +84,9 @@ export class AuthSettingsComponent implements OnInit {
 
             return authProvider;
         }));
+
+        this.isPasswordLoginEnabled.set(result.isPasswordLoginEnabled);
+        this.currentUserHasSsoLinked.set(result.currentUserHasSsoLinked);
     }
 
     goToAccount() {
@@ -115,6 +125,18 @@ export class AuthSettingsComponent implements OnInit {
 
         if(result.type === 'failure') {
             insertItem(this.authProviders, authProvider, itemRemoved.index);
+        }
+    }
+
+    async onPasswordLoginToggle(event: MatSlideToggleChange) {
+        const isEnabled = !event.checked;
+
+        try {
+            await this._authProvidersApi.setPasswordLogin({ isEnabled });
+            this.isPasswordLoginEnabled.set(isEnabled);
+        } catch (e: any) {
+            event.source.checked = !event.checked;
+            console.error(e);
         }
     }
 

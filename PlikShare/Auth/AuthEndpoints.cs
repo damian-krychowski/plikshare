@@ -57,6 +57,7 @@ public static class AuthEndpoints
         [FromBody] SignUpUserRequestDto request,
         HttpContext httpContext,
         AppSettings appSettings,
+        IConfig config,
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         IUserStore<ApplicationUser> userStore,
@@ -66,6 +67,12 @@ public static class AuthEndpoints
         CheckUserInvitationCodeQuery checkUserInvitationCodeQuery,
         CancellationToken cancellationToken)
     {
+        var isPasswordLoginEnabled = config.ForcePasswordLoginEnabled
+                                     || appSettings.PasswordLogin.IsEnabled;
+
+        if (!isPasswordLoginEnabled)
+            return SignUpUserResponseDto.PasswordLoginDisabled;
+
         var areAllRequiredCheckboxesPresent = appSettings
             .RequiredSignUpCheckboxesIds
             .All(request.SelectedCheckboxIds.Contains);
@@ -250,8 +257,16 @@ public static class AuthEndpoints
     private static async Task<SignInUserResponseDto> SignIn(
         [FromBody] SignInUserRequestDto request,
         SignInManager<ApplicationUser> signInManager,
+        AppSettings appSettings,
+        IConfig config,
         CancellationToken cancellationToken)
     {
+        var isPasswordLoginEnabled = config.ForcePasswordLoginEnabled
+                                     || appSettings.PasswordLogin.IsEnabled;
+
+        if (!isPasswordLoginEnabled)
+            return SignInUserResponseDto.PasswordLoginDisabled;
+
         var result = await signInManager.PasswordSignInAsync(
             userName: request.Email,
             password: request.Password,
@@ -331,12 +346,19 @@ public static class AuthEndpoints
         HttpContext httpContext,
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
+        AppSettings appSettings,
         IConfig config,
         IClock clock,
         IQueue queue,
         DbWriteQueue dbWriteQueue,
         CancellationToken cancellationToken)
     {
+        var isPasswordLoginEnabled = config.ForcePasswordLoginEnabled
+                                     || appSettings.PasswordLogin.IsEnabled;
+
+        if (!isPasswordLoginEnabled)
+            return;
+
         var user = await signInManager.UserManager.FindByEmailAsync(request.Email);
 
         if (user is null || !await userManager.IsEmailConfirmedAsync(user))
@@ -377,8 +399,16 @@ public static class AuthEndpoints
     private static async Task<ResetPasswordResponseDto> ResetPassword(
         [FromBody] ResetPasswordRequestDto request,
         UserManager<ApplicationUser> userManager,
+        AppSettings appSettings,
+        IConfig config,
         CancellationToken cancellationToken)
     {
+        var isPasswordLoginEnabled = config.ForcePasswordLoginEnabled
+                                     || appSettings.PasswordLogin.IsEnabled;
+
+        if (!isPasswordLoginEnabled)
+            return ResetPasswordResponseDto.PasswordLoginDisabled;
+
         var user = await userManager.FindByIdAsync(request.UserExternalId);
 
         if (user is null)

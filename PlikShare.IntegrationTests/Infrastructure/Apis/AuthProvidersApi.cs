@@ -10,10 +10,10 @@ namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
 public class AuthProvidersApi(IFlurlClient flurlClient, string appUrl)
 {
-    public async Task<GetAuthProvidersResponseDto> Get(
+    public async Task<GetAuthSettingsResponseDto> Get(
         SessionAuthCookie? cookie)
     {
-        return await flurlClient.ExecuteGet<GetAuthProvidersResponseDto>(
+        return await flurlClient.ExecuteGet<GetAuthSettingsResponseDto>(
             appUrl: appUrl,
             apiPath: "api/auth-providers",
             cookie: cookie);

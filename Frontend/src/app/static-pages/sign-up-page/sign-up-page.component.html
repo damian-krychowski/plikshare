@@ -13,12 +13,15 @@
                 }
             </div>
 
-            <div class="sso-divider">
-                <span>or</span>
-            </div>
+            @if(entryPage.isPasswordLoginEnabled()) {
+                <div class="sso-divider">
+                    <span>or</span>
+                </div>
+            }
         }
 
         @if(viewState() == 'sign-up') {
+          @if(entryPage.isPasswordLoginEnabled()) {
             <form class="auth-form" (submit)="onSignUp()" [formGroup]="formGroup">
                 <div class="auth-field">
                     <label 
@@ -166,6 +169,7 @@
                     <mat-error>Sorry, but only invited users can sing-up. Contact the administrator to get an invitation.</mat-error>
                 }
             </form>
+          }
         } @else {
             <div class="auth-form">
                 <div>

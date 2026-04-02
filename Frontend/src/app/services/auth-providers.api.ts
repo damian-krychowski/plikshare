@@ -2,11 +2,13 @@ import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 
-export interface GetAuthProvidersResponse {
-    items: GetAuthProvidersResponseItem[];
+export interface GetAuthSettingsResponse {
+    items: GetAuthSettingsResponseItem[];
+    isPasswordLoginEnabled: boolean;
+    currentUserHasSsoLinked: boolean;
 }
 
-export interface GetAuthProvidersResponseItem {
+export interface GetAuthSettingsResponseItem {
     externalId: string,
     name: string,
     type: string,
@@ -44,6 +46,10 @@ export interface TestAuthProviderConfigurationResponse {
     details: string;
 }
 
+export interface SetPasswordLoginRequest {
+    isEnabled: boolean;
+}
+
 @Injectable({
     providedIn: 'root'
 })
@@ -52,10 +58,10 @@ export class AuthProvidersApi {
         private _http: HttpClient) {
     }
 
-    public async getAuthProviders(): Promise<GetAuthProvidersResponse> {
+    public async getAuthProviders(): Promise<GetAuthSettingsResponse> {
         const call = this
             ._http
-            .get<GetAuthProvidersResponse>(
+            .get<GetAuthSettingsResponse>(
                 `/api/auth-providers`, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
@@ -122,6 +128,19 @@ export class AuthProvidersApi {
             ._http
             .post(
                 `/api/auth-providers/${externalId}/activate`, {}, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async setPasswordLogin(request: SetPasswordLoginRequest): Promise<void> {
+        const call = this
+            ._http
+            .put(
+                `/api/auth-providers/password-login`, request, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
                 })

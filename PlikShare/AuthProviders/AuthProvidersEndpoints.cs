@@ -10,6 +10,8 @@ using PlikShare.AuthProviders.Entities;
 using PlikShare.AuthProviders.Id;
 using PlikShare.AuthProviders.List;
 using PlikShare.AuthProviders.List.Contracts;
+using PlikShare.AuthProviders.PasswordLogin;
+using PlikShare.AuthProviders.PasswordLogin.Contracts;
 using PlikShare.AuthProviders.TestConfiguration;
 using PlikShare.AuthProviders.TestConfiguration.Contracts;
 using PlikShare.AuthProviders.Update;
@@ -17,7 +19,9 @@ using PlikShare.AuthProviders.Update.Contracts;
 using PlikShare.AuthProviders.UpdateName;
 using PlikShare.AuthProviders.UpdateName.Contracts;
 using PlikShare.Core.Authorization;
+using PlikShare.Core.Configuration;
 using PlikShare.Core.Utils;
+using PlikShare.GeneralSettings;
 
 namespace PlikShare.AuthProviders;
 
@@ -57,14 +61,21 @@ public static class AuthProvidersEndpoints
 
         group.MapPost("/{authProviderExternalId}/deactivate", Deactivate)
             .WithName("DeactivateAuthProvider");
+
+        group.MapPut("/password-login", SetPasswordLogin)
+            .WithName("SetPasswordLogin");
     }
 
-    private static GetAuthProvidersResponseDto GetList(
-        GetAuthProvidersQuery getAuthProvidersQuery)
+    private static GetAuthSettingsResponseDto GetList(
+        HttpContext httpContext,
+        GetAuthProvidersQuery getAuthProvidersQuery,
+        CheckUserHasSsoLoginQuery checkUserHasSsoLoginQuery,
+        AppSettings appSettings)
     {
         var providers = getAuthProvidersQuery.Execute();
+        var userId = httpContext.User.GetDatabaseId();
 
-        return new GetAuthProvidersResponseDto
+        return new GetAuthSettingsResponseDto
         {
             Items = providers
                 .Select(p => new GetAuthProvidersItemDto
@@ -76,7 +87,13 @@ public static class AuthProvidersEndpoints
                     ClientId = p.ClientId,
                     IssuerUrl = p.IssuerUrl
                 })
-                .ToArray()
+                .ToArray(),
+
+            IsPasswordLoginEnabled = appSettings
+                .PasswordLogin
+                .IsEnabled,
+
+            CurrentUserHasSsoLinked = checkUserHasSsoLoginQuery.Execute(userId)
         };
     }
 
@@ -264,5 +281,26 @@ public static class AuthProvidersEndpoints
                 operationName: nameof(UpdateAuthProviderQuery),
                 resultValueStr: result.ToString())
         };
+    }
+
+    private static Results<Ok, BadRequest<HttpError>> SetPasswordLogin(
+        [FromBody] SetPasswordLoginRequestDto request,
+        HttpContext httpContext,
+        AppSettings appSettings,
+        CheckUserHasSsoLoginQuery checkUserHasSsoLoginQuery)
+    {
+        if (!request.IsEnabled)
+        {
+            var userId = httpContext.User.GetDatabaseId();
+
+            if (!checkUserHasSsoLoginQuery.Execute(userId))
+            {
+                return HttpErrors.AuthProvider.UserHasNoSsoLogin();
+            }
+        }
+
+        appSettings.SetPasswordLogin(request.IsEnabled);
+
+        return TypedResults.Ok();
     }
 }

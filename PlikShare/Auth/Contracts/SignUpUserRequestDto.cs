@@ -14,4 +14,5 @@ public record SignUpUserResponseDto(string Code)
     public static SignUpUserResponseDto InvitationRequired = new("invitation-required");
     public static SignUpUserResponseDto SignUpCheckboxesMissing = new("signed-up-checkboxes-missing");
     public static SignUpUserResponseDto SingedUpAndSignedIn = new("signed-up-and-signed-in");
+    public static SignUpUserResponseDto PasswordLoginDisabled = new("password-login-disabled");
 }

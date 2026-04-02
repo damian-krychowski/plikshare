@@ -5,6 +5,7 @@ import { ApplicationSingUp, SignUpCheckboxDto } from "./general-settings.api";
 import { DomSanitizer } from "@angular/platform-browser";
 
 export interface GetEntryPageSettingsResponse {
+    isPasswordLoginEnabled: boolean;
     applicationSignUp: ApplicationSingUp;
     termsOfServiceFilePath: string | null;
     privacyPolicyFilePath: string | null;
@@ -30,6 +31,8 @@ export class EntryPageService {
     applicationSignUp = signal<ApplicationSingUp>('only-invited-users');
     isSignUpAvailable = computed(() => this.applicationSignUp() == 'everyone');
     signUpCheckboxes = signal<SignUpCheckboxDto[]>([]);
+
+    isPasswordLoginEnabled = signal<boolean>(true);
 
     ssoProviders = signal<SsoProviderDto[]>([]);
     hasSsoProviders = computed(() => this.ssoProviders().length > 0);
@@ -80,6 +83,7 @@ export class EntryPageService {
         try {
             const result = await this.getEntryPageSettings();
 
+            this.isPasswordLoginEnabled.set(result.isPasswordLoginEnabled);
             this.applicationSignUp.set(result.applicationSignUp);
             this.termsOfServiceFilePath.set(result.termsOfServiceFilePath);
             this.privacyPolicyFilePath.set(result.privacyPolicyFilePath);

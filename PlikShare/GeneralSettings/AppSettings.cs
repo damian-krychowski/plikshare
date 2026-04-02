@@ -155,6 +155,28 @@ public class AppSettings(PlikShareDb plikShareDb)
         public List<string> GetPermissions() => permissionsAndRoles.Where(Permissions.IsValidPermission).ToList();
     }
 
+    public record PasswordLoginSetting(bool IsEnabled)
+    {
+        public const string Key = "password-login-enabled";
+        public static PasswordLoginSetting Default => new(IsEnabled: true);
+
+        public static PasswordLoginSetting FromString(string value)
+        {
+            if (bool.TryParse(value, out var boolValue))
+            {
+                return new(IsEnabled: boolValue);
+            }
+
+            throw new ArgumentOutOfRangeException(
+                $"Setting '{Key}' value was expected to be a boolean but found '{value}'");
+        }
+
+        public string Serialize()
+        {
+            return IsEnabled.ToString();
+        }
+    }
+
     public record ApplicationNameSetting(string Name)
     {
         public const string Key = "application-name";
@@ -257,7 +279,21 @@ public class AppSettings(PlikShareDb plikShareDb)
     private volatile AlertOnNewUserRegisteredSetting _alertOnNewUserRegistered = AlertOnNewUserRegisteredSetting.Default;
     public AlertOnNewUserRegisteredSetting AlertOnNewUserRegistered => _alertOnNewUserRegistered;
 
+    private volatile PasswordLoginSetting _passwordLogin = PasswordLoginSetting.Default;
+    public PasswordLoginSetting PasswordLogin => _passwordLogin;
+
     public int AdminRoleId { get; private set; }
+
+    public void SetPasswordLogin(bool isEnabled)
+    {
+        var setting = new PasswordLoginSetting(isEnabled);
+
+        UpdateSettingInDatabase(
+            key: PasswordLoginSetting.Key,
+            value: setting.Serialize());
+
+        _passwordLogin = setting;
+    }
 
     public void SetAlertOnNewUserRegistered(bool isTurnedOn)
     {
@@ -374,6 +410,7 @@ public class AppSettings(PlikShareDb plikShareDb)
         _newUserDefaultMaxWorkspaceTeamMembers = GetNewUserDefaultMaxWorkspaceTeamMembersOrDefault(settings);
         _newUserDefaultPermissionsAndRoles = GetNewUserDefaultPermissionsAndRolesOrDefault(settings);
         _alertOnNewUserRegistered = GetAlertOnNewUserRegisteredOrDefault(settings);
+        _passwordLogin = GetPasswordLoginOrDefault(settings);
 
         AdminRoleId = GetOrCreateAdminRole(connection);
     }
@@ -547,6 +584,16 @@ public class AppSettings(PlikShareDb plikShareDb)
         return setting is null
             ? AlertOnNewUserRegisteredSetting.Default
             : AlertOnNewUserRegisteredSetting.FromString(setting.Value!);
+    }
+
+    private PasswordLoginSetting GetPasswordLoginOrDefault(IEnumerable<Setting> settings)
+    {
+        var setting = settings.FirstOrDefault(
+           s => s.Key.Equals(PasswordLoginSetting.Key));
+
+        return setting is null
+            ? PasswordLoginSetting.Default
+            : PasswordLoginSetting.FromString(setting.Value!);
     }
 
     private void UpdateSettingInDatabase(string key, string? value)

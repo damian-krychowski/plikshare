@@ -1,4 +1,5 @@
 using PlikShare.AuthProviders.List;
+using PlikShare.Core.Configuration;
 using PlikShare.EntryPage.Contracts;
 using PlikShare.GeneralSettings;
 
@@ -18,12 +19,16 @@ public static class EntryPageEndpoints
 
     private static GetEntryPageSettingsResponseDto GetEntryPageSettings(
         AppSettings appSettings,
+        IConfig config,
         GetActiveAuthProvidersPublicQuery getActiveAuthProvidersPublicQuery)
     {
         var ssoProviders = getActiveAuthProvidersPublicQuery.Execute();
 
         return new GetEntryPageSettingsResponseDto
         {
+            IsPasswordLoginEnabled = config.ForcePasswordLoginEnabled
+                                     || appSettings.PasswordLogin.IsEnabled,
+                                     
             ApplicationSignUp = appSettings.ApplicationSignUp.Value,
 
             TermsOfServiceFilePath = appSettings.TermsOfService.FileName is null

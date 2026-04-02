@@ -83,6 +83,7 @@ using PlikShare.AuthProviders.Deactivate;
 using PlikShare.AuthProviders.Delete;
 using PlikShare.AuthProviders.GetDetails;
 using PlikShare.AuthProviders.List;
+using PlikShare.AuthProviders.PasswordLogin;
 using PlikShare.AuthProviders.TestConfiguration;
 using PlikShare.AuthProviders.Update;
 using PlikShare.AuthProviders.UpdateName;
@@ -560,6 +561,7 @@ public class Startup
         builder.Services.AddSingleton<GetAuthProviderDetailsQuery>();
         builder.Services.AddSingleton<UpdateAuthProviderQuery>();
         builder.Services.AddSingleton<TestAuthProviderConfigurationOperation>();
+        builder.Services.AddSingleton<CheckUserHasSsoLoginQuery>();
 
         builder.Services.AddSingleton<OidcDiscoveryCache>();
         builder.Services.AddSingleton<OidcJwksCache>();

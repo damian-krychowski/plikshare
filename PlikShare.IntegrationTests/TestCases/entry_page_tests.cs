@@ -23,7 +23,8 @@ public class entry_page_tests: TestFixture
             PrivacyPolicyFilePath = null,
             TermsOfServiceFilePath = null,
             SignUpCheckboxes = [],
-            SsoProviders = []
+            SsoProviders = [],
+            IsPasswordLoginEnabled = true
         });
     }
     
