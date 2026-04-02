@@ -270,6 +270,33 @@ public static class FlurlRequestExtensions
         }
     }
 
+    public static async Task ExecutePut<TRequest>(
+        this IFlurlClient client,
+        string appUrl,
+        string apiPath,
+        TRequest request,
+        Cookie? cookie,
+        AntiforgeryCookies? antiforgery,
+        List<Header>? headers = null)
+    {
+        var response = await client
+            .Request(appUrl, apiPath)
+            .AllowAnyHttpStatus()
+            .WithCookie(cookie)
+            .WithAntiforgery(antiforgery)
+            .WithHeaders(headers)
+            .PutJsonAsync(request);
+
+        if (!response.ResponseMessage.IsSuccessStatusCode)
+        {
+            var exception = new TestApiCallException(
+                responseBody: await response.GetStringAsync(),
+                statusCode: response.StatusCode);
+
+            throw exception;
+        }
+    }
+
     public static async Task ExecuteDelete(
         this IFlurlClient client,
         string appUrl,

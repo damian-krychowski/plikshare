@@ -27,4 +27,24 @@ public class RandomGenerator
     {
         return $"{baseName}-{Guid.NewGuid().ToBase62()}";
     }
+
+    public string AuthCode()
+    {
+        return $"code_{Guid.NewGuid().ToBase62()}";
+    }
+
+    public string Sub()
+    {
+        return $"sub_{Guid.NewGuid().ToBase62()}";
+    }
+
+    public string ClientId()
+    {
+        return $"client_{Guid.NewGuid().ToBase62()}";
+    }
+
+    public string ClientSecret()
+    {
+        return $"secret_{Guid.NewGuid().ToBase62()}";
+    }
 }

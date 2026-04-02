@@ -44,6 +44,7 @@ public class TestFixture: IAsyncLifetime
     protected OneTimeCodeMock OneTimeCode { get; }
     protected OneTimeInvitationCodeMock OneTimeInvitationCode { get; }
     protected ResendEmailServer ResendEmailServer { get; }
+    protected MockOidcServer MockOidcServer { get; }
     protected AppSettings AppSettings { get; }
 
     protected EmailTemplates EmailTemplates { get; }
@@ -60,6 +61,7 @@ public class TestFixture: IAsyncLifetime
         OneTimeCode = hostFixture.OneTimeCode;
         OneTimeInvitationCode = hostFixture.OneTimeInvitationCode;
         ResendEmailServer = hostFixture.ResendEmailServer;
+        MockOidcServer = hostFixture.MockOidcServer;
         EmailTemplates = hostFixture.EmailTemplates;
         AppSettings = hostFixture.AppSettings;
         
@@ -509,6 +511,74 @@ public class TestFixture: IAsyncLifetime
         string Name,
         string Type,
         string EmailFrom);
+
+    protected record AppAuthProvider(
+        string ExternalId,
+        string Name);
+
+    protected async Task<AppAuthProvider> CreateAndActivateAuthProvider(
+        AppSignedInUser user)
+    {
+        var providerName = Random.Name("OidcProvider");
+        var clientId = Random.ClientId();
+        var clientSecret = Random.ClientSecret();
+
+        var provider = await Api.AuthProviders.CreateOidc(
+            request: new AuthProviders.Create.Contracts.CreateOidcAuthProviderRequestDto
+            {
+                Name = providerName,
+                ClientId = clientId,
+                ClientSecret = clientSecret,
+                IssuerUrl = MockOidcServer.IssuerUrl
+            },
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        await Api.AuthProviders.Activate(
+            externalId: provider.ExternalId,
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        return new AppAuthProvider(
+            ExternalId: provider.ExternalId,
+            Name: providerName);
+    }
+
+    protected async Task<AppSignedInUser> SignInViaSso(
+        AppAuthProvider authProvider,
+        string email,
+        string sub)
+    {
+        var authCode = Random.AuthCode();
+        MockOidcServer.RegisterAuthCode(authCode, email, sub);
+
+        var initiateResult = await Api.Sso.Initiate(authProvider.ExternalId);
+        var state = UrlHelper.ExtractQueryParam(initiateResult.LocationHeader!, "state");
+
+        var callbackResult = await Api.Sso.Callback(
+            code: authCode,
+            state: state!);
+
+        var sessionAuthCookie = callbackResult.SessionAuthCookie
+            ?? throw new InvalidOperationException(
+                "SSO callback did not return a session cookie. " +
+                $"Location: {callbackResult.LocationHeader}");
+
+        var loggedInAntiforgeryCookies = await Api
+            .Antiforgery
+            .GetToken(sessionAuthCookie);
+
+        var details = await Api
+            .Account
+            .GetDetails(sessionAuthCookie);
+
+        return new AppSignedInUser(
+            ExternalId: details.ExternalId,
+            Email: email,
+            Password: string.Empty,
+            Cookie: sessionAuthCookie,
+            Antiforgery: loggedInAntiforgeryCookies);
+    }
 
     protected record AppInvitedUser(
         UserExtId ExternalId,

@@ -44,18 +44,23 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
     public OneTimeInvitationCodeMock OneTimeInvitationCode { get; } = new();
 
     public ResendEmailServer ResendEmailServer { get; }
-    
+    public MockOidcServer MockOidcServer { get; }
+
     public EmailTemplates EmailTemplates { get; }
-    
+
     public PlikShareDb Db { get; }
     public AppSettings AppSettings { get; }
 
     protected HostFixture()
     {
         var resendPort = PortNumber + 1000;
-        
+        var oidcPort = PortNumber + 2000;
+
         ResendEmailServer = new ResendEmailServer(
             portNumber: resendPort);
+
+        MockOidcServer = new MockOidcServer(
+            portNumber: oidcPort);
         
         var builder = WebApplication.CreateBuilder(
             new WebApplicationOptions() 
@@ -132,6 +137,7 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
         
         try
         {
+            await MockOidcServer.DisposeAsync();
             await ResendEmailServer.DisposeAsync();
             await App.StopAsync();
             await App.DisposeAsync();
@@ -148,6 +154,21 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
     {
         DisposeAsync().AsTask().GetAwaiter().GetResult();
         GC.SuppressFinalize(this);
+    }
+
+    public void RemoveAllAuthProviders()
+    {
+        using var connection = Db.OpenConnection();
+
+        var result = connection.Cmd(
+                sql: @"
+                DELETE FROM ap_auth_providers
+                RETURNING ap_id
+            ",
+                readRowFunc: reader => reader.GetInt32(0))
+            .Execute();
+
+        Console.WriteLine($"Deleted auth providers count: {result.Count}");
     }
 
     public void RemoveAllEmailProviders()

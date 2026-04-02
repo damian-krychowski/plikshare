@@ -705,7 +705,8 @@ public class account_tests : TestFixture
                 CanManageAuth = false,
                 CanManageIntegrations = false
             },
-            MaxWorkspaceNumber = 0
+            MaxWorkspaceNumber = 0,
+            HasPassword = true
         });
     }
 }

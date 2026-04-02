@@ -4,6 +4,7 @@ using PlikShare.Users.Id;
 using PlikShare.Users.Invite.Contracts;
 using PlikShare.Users.List.Contracts;
 using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Users.UpdateMaxWorkspaceNumber.Contracts;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
@@ -49,6 +50,20 @@ public class UsersApi(IFlurlClient flurlClient, string appUrl)
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
             apiPath: $"api/users/{userExternalId}/permissions-and-roles",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task UpdateMaxWorkspaceNumber(
+        UserExtId userExternalId,
+        UpdateUserMaxWorkspaceNumberRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/users/{userExternalId}/max-workspace-number",
             request: request,
             cookie: cookie,
             antiforgery: antiforgery);

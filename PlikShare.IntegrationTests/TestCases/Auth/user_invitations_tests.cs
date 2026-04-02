@@ -240,7 +240,8 @@ public class user_invitation_tests : TestFixture
                 CanManageAuth = false,
                 CanManageIntegrations = false
             },
-            MaxWorkspaceNumber = 0
+            MaxWorkspaceNumber = 0,
+            HasPassword = true
         });
     }
 
