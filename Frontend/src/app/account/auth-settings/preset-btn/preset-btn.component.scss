@@ -1,0 +1,37 @@
+@use "./../../../../styles/variables.scss" as variables;
+
+
+:host {
+    @media (max-width: variables.$mobile-breakpoint) {
+        min-width: 100%;
+    }
+}
+
+.preset-btn {
+    text-align: left;
+    padding: 0.5rem 0.5rem 0.5rem 1rem  !important;
+    height: unset !important;
+    border: 1px solid var(--company-grey-accent) !important;
+    justify-content: left;
+    min-width: 330px;
+
+    @media (max-width: variables.$mobile-breakpoint) {
+        min-width: 100%;
+    }
+
+    &__content {
+        display: flex;
+        align-items: center;
+        flex-direction: row;
+    }
+
+    &__details {
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__subtitle {
+        font-size: var(--company-small-font);
+        color: var(--company-grey-font);
+    }
+}

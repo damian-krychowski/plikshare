@@ -1,5 +1,5 @@
-import { Component, signal } from '@angular/core';
-import { MatDialogRef } from '@angular/material/dialog';
+import { Component, inject, signal } from '@angular/core';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -9,6 +9,11 @@ import { AuthProvidersApi } from '../../../services/auth-providers.api';
 import { AppAuthProvider } from '../../../shared/auth-provider-item/auth-provider-item.component';
 import { SecureInputDirective } from '../../../shared/secure-input.directive';
 import { TrimDirective } from '../../../shared/trim.directive';
+import { OidcProviderPreset, OIDC_PROVIDER_PRESETS } from '../oidc-provider-presets';
+
+export interface CreateOidcProviderDialogData {
+    preset: OidcProviderPreset;
+}
 
 @Component({
     selector: 'app-create-oidc-provider',
@@ -25,6 +30,8 @@ import { TrimDirective } from '../../../shared/trim.directive';
     styleUrl: './create-oidc-provider.component.scss'
 })
 export class CreateOidcProviderComponent {
+    private _dialogData: CreateOidcProviderDialogData = inject(MAT_DIALOG_DATA);
+
     isLoading = signal(false);
     wasSubmitted = signal(false);
 
@@ -32,6 +39,8 @@ export class CreateOidcProviderComponent {
     testError = signal('');
 
     redirectUri = `${window.location.origin}/api/auth/sso/callback`;
+    preset: OidcProviderPreset;
+    instructions: string[];
 
     name = new FormControl('', [Validators.required]);
     clientId = new FormControl('', [Validators.required]);
@@ -45,12 +54,25 @@ export class CreateOidcProviderComponent {
         private _authProvidersApi: AuthProvidersApi,
         public dialogRef: MatDialogRef<CreateOidcProviderComponent>) {
 
+        this.preset = this._dialogData?.preset ?? OIDC_PROVIDER_PRESETS['custom'];
+        this.instructions = this.preset.instructions.map(
+            i => i.replace(/\{redirectUri\}/g, this.redirectUri)
+        );
+
         this.configFormGroup = new FormGroup({
             name: this.name,
             clientId: this.clientId,
             clientSecret: this.clientSecret,
             issuerUrl: this.issuerUrl
         });
+
+        if (this.preset.name) {
+            this.name.setValue(this.preset.name !== 'Custom OIDC' ? this.preset.name : '');
+        }
+
+        if (this.preset.issuerUrl) {
+            this.issuerUrl.setValue(this.preset.issuerUrl);
+        }
     }
 
     cancel() {

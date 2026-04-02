@@ -54,13 +54,6 @@
                 SSO providers:
             </div>
 
-            <div class="flex-row flex-gap-05 ml-auto">
-                <app-action-text-btn
-                    tooltip="Add OIDC Provider"
-                    text="OIDC"
-                    (clicked)="onAddOidc()">
-                </app-action-text-btn>
-            </div>
         </div>
 
         <div class="mt-2"></div>
@@ -76,12 +69,13 @@
         <div class="mt-2"></div>
 
         <div class="add-provider-actions">
-            <app-item-btn
-                title="Add OIDC Provider"
-                subtitle="Configure OpenID Connect provider (Keycloak, Google, Azure AD, etc.)"
-                icon="icon-lucide-key"
-                (clicked)="onAddOidc()">
-            </app-item-btn>
+            @for(preset of presetOrder; track preset) {
+                <app-preset-btn
+                    [title]="'Add ' + presets[preset].name"
+                    [subtitle]="presets[preset].issuerUrlPlaceholder || 'Configure custom OpenID Connect provider'"
+                    (clicked)="onAddOidc(preset)">
+                </app-preset-btn>
+            }
         </div>
     </div>
 </div>

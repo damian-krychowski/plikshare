@@ -1,6 +1,6 @@
 <div class="questionaire">
     <div class="questionaire__title">
-        Add OIDC Provider
+        Add {{preset.name}} Provider
     </div>
 
     <form class="questionaire__form" (submit)="onSubmitConfiguration()" [formGroup]="configFormGroup">
@@ -30,17 +30,11 @@
         </div>
 
         <div class="questionaire__info">
-            Connect an OpenID Connect identity provider (Keycloak, Google, Azure AD, Okta, Authentik, etc.)
-            to allow users to sign in with Single Sign-On.
-        </div>
-
-        <div class="questionaire__info">
             <strong>Setup instructions:</strong>
             <ol>
-                <li>In your identity provider, create a new OIDC client/application</li>
-                <li>Set the <strong>Redirect URI</strong> to: <code>{{redirectUri}}</code></li>
-                <li>Enable <strong>Client Authentication</strong> (confidential client)</li>
-                <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> below</li>
+                @for(instruction of instructions; track $index) {
+                    <li [innerHTML]="instruction"></li>
+                }
             </ol>
         </div>
 
@@ -58,7 +52,7 @@
                 matInput
                 appTrim
                 formControlName="issuerUrl"
-                placeholder="https://keycloak.example.com/realms/main">
+                [placeholder]="preset.issuerUrlPlaceholder">
 
             @if ((issuerUrl.touched || wasSubmitted()) && issuerUrl.hasError('required')) {
                 <mat-error>Issuer URL is <strong>required</strong></mat-error>

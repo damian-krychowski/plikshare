@@ -1,0 +1,17 @@
+<button
+    class="preset-btn"
+    attr.aria-label="{{title()}}"
+    mat-flat-button
+    (click)="clicked.emit()">
+    <div class="preset-btn__content">
+        <div class="preset-btn__details">
+            <div>
+                {{title()}}
+            </div>
+
+            <div class="preset-btn__subtitle">
+                {{subtitle()}}
+            </div>
+        </div>
+    </div>
+</button>

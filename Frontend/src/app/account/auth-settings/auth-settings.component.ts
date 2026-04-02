@@ -5,13 +5,13 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { AuthService } from "../../services/auth.service";
 import { MatDialog } from "@angular/material/dialog";
 import { insertItem, pushItems, removeItem } from "../../shared/signal-utils";
-import { ItemButtonComponent } from "../../shared/buttons/item-btn/item-btn.component";
+import { PresetButtonComponent } from "./preset-btn/preset-btn.component";
 import { CommonModule } from "@angular/common";
 import { AppAuthProvider, AuthProviderItemComponent } from "../../shared/auth-provider-item/auth-provider-item.component";
 import { OptimisticOperation } from "../../services/optimistic-operation";
-import { ActionTextButtonComponent } from "../../shared/buttons/action-text-btn/action-text-btn.component";
 import { CreateOidcProviderComponent } from "./create-oidc-provider/create-oidc-provider.component";
 import { AuthProvidersApi, GetAuthProvidersResponse } from "../../services/auth-providers.api";
+import { OIDC_PROVIDER_PRESETS, OIDC_PRESET_ORDER } from "./oidc-provider-presets";
 
 @Component({
     selector: 'app-auth-settings',
@@ -20,8 +20,7 @@ import { AuthProvidersApi, GetAuthProvidersResponse } from "../../services/auth-
         MatButtonModule,
         MatTooltipModule,
         AuthProviderItemComponent,
-        ItemButtonComponent,
-        ActionTextButtonComponent
+        PresetButtonComponent
     ],
     templateUrl: './auth-settings.component.html',
     styleUrl: './auth-settings.component.scss'
@@ -36,6 +35,9 @@ export class AuthSettingsComponent implements OnInit {
     notActiveAuthProviders = computed(() => this.authProviders().filter(ap => !ap.isActive()));
 
     isAnyProviderActive = computed(() => this.activeAuthProviders().length > 0);
+
+    presets = OIDC_PROVIDER_PRESETS;
+    presetOrder = OIDC_PRESET_ORDER;
 
     constructor(
         public auth: AuthService,
@@ -81,13 +83,16 @@ export class AuthSettingsComponent implements OnInit {
         this._router.navigate(['account']);
     }
 
-    onAddOidc() {
+    onAddOidc(presetKey: string = 'custom') {
+        const preset = OIDC_PROVIDER_PRESETS[presetKey];
+
         const dialogRef = this._dialog.open(CreateOidcProviderComponent, {
             width: '500px',
             position: {
                 top: '100px'
             },
-            disableClose: true
+            disableClose: true,
+            data: { preset }
         });
 
         dialogRef.afterClosed().subscribe((authProvider: AppAuthProvider) => {

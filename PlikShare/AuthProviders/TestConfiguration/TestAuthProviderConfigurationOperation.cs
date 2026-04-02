@@ -67,7 +67,7 @@ public class TestAuthProviderConfigurationOperation(
 
             var errorResponse = JsonSerializer.Deserialize<TokenErrorResponse>(tokenJson);
 
-            if (errorResponse?.Error == "unauthorized_client")
+            if (errorResponse?.Error is "unauthorized_client" or "unsupported_grant_type")
             {
                 return new Result(
                     Code: ResultCode.Ok,
