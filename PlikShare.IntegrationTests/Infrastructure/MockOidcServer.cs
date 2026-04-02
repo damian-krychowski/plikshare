@@ -19,7 +19,9 @@ public class MockOidcServer : IAsyncDisposable
     public string IssuerUrl { get; }
 
     private readonly RSA _rsaKey;
+    private readonly RSA _untrustedRsaKey;
     private readonly RsaSecurityKey _signingKey;
+    private readonly RsaSecurityKey _untrustedSigningKey;
     private const string Kid = "mock-key-1";
 
     public ConcurrentDictionary<string, AuthCodeConfig> PendingAuthCodes { get; } = new();
@@ -33,6 +35,9 @@ public class MockOidcServer : IAsyncDisposable
 
         _rsaKey = RSA.Create(2048);
         _signingKey = new RsaSecurityKey(_rsaKey) { KeyId = Kid };
+
+        _untrustedRsaKey = RSA.Create(2048);
+        _untrustedSigningKey = new RsaSecurityKey(_untrustedRsaKey) { KeyId = "untrusted-key" };
 
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls(IssuerUrl);
@@ -87,8 +92,9 @@ public class MockOidcServer : IAsyncDisposable
                 return HandleAuthorizationCode(code, codeVerifier);
             }
 
-            return Results.BadRequest(new { 
-                error = "unsupported_grant_type" 
+            return Results.BadRequest(new
+            {
+                error = "unsupported_grant_type"
             });
         });
 
@@ -142,11 +148,17 @@ public class MockOidcServer : IAsyncDisposable
             });
         }
 
+        var signingKey = config.TokenOverrides?.UseUntrustedSigningKey == true
+            ? _untrustedSigningKey
+            : _signingKey;
+
+        var issuer = config.TokenOverrides?.Issuer ?? IssuerUrl;
+        var audience = config.TokenOverrides?.Audience ?? config.ClientId;
+        var nonce = config.TokenOverrides?.Nonce ?? config.Nonce;
+        var expires = config.TokenOverrides?.Expires ?? DateTime.UtcNow.AddHours(1);
+
         var idToken = GenerateSignedJwt(
-            config.Email,
-            config.Sub,
-            config.Nonce,
-            config.ClientId);
+            config.Email, config.Sub, nonce, audience, issuer, expires, signingKey);
 
         return Results.Ok(new
         {
@@ -157,14 +169,17 @@ public class MockOidcServer : IAsyncDisposable
         });
     }
 
-    private string GenerateSignedJwt(string email, string sub, string nonce, string clientId)
+    private string GenerateSignedJwt(
+        string email, string sub, string nonce,
+        string audience, string issuer, DateTime expires,
+        RsaSecurityKey key)
     {
         var handler = new JsonWebTokenHandler();
 
         var descriptor = new SecurityTokenDescriptor
         {
-            Issuer = IssuerUrl,
-            Audience = clientId,
+            Issuer = issuer,
+            Audience = audience,
             Claims = new Dictionary<string, object>
             {
                 ["sub"] = sub,
@@ -172,8 +187,8 @@ public class MockOidcServer : IAsyncDisposable
                 ["nonce"] = nonce
             },
             IssuedAt = DateTime.UtcNow,
-            Expires = DateTime.UtcNow.AddHours(1),
-            SigningCredentials = new SigningCredentials(_signingKey, SecurityAlgorithms.RsaSha256)
+            Expires = expires,
+            SigningCredentials = new SigningCredentials(key, SecurityAlgorithms.RsaSha256)
         };
 
         return handler.CreateToken(descriptor);
@@ -181,14 +196,16 @@ public class MockOidcServer : IAsyncDisposable
 
     public void RegisterAuthCode(
         string code, string email, string sub,
-        string nonce, string clientId, string codeChallenge)
+        string nonce, string clientId, string codeChallenge,
+        TokenOverrides? tokenOverrides = null)
     {
         PendingAuthCodes[code] = new AuthCodeConfig(
             Email: email,
             Sub: sub,
             Nonce: nonce,
             ClientId: clientId,
-            CodeChallenge: codeChallenge);
+            CodeChallenge: codeChallenge,
+            TokenOverrides: tokenOverrides);
     }
 
     public void Reset()
@@ -205,6 +222,7 @@ public class MockOidcServer : IAsyncDisposable
         try
         {
             _rsaKey.Dispose();
+            _untrustedRsaKey.Dispose();
             await App.StopAsync();
             await App.DisposeAsync();
         }
@@ -227,5 +245,15 @@ public class MockOidcServer : IAsyncDisposable
 
     public record AuthCodeConfig(
         string Email, string Sub, string Nonce,
-        string ClientId, string CodeChallenge);
+        string ClientId, string CodeChallenge,
+        TokenOverrides? TokenOverrides = null);
+
+    public record TokenOverrides
+    {
+        public bool UseUntrustedSigningKey { get; init; }
+        public string? Issuer { get; init; }
+        public string? Audience { get; init; }
+        public string? Nonce { get; init; }
+        public DateTime? Expires { get; init; }
+    }
 }
