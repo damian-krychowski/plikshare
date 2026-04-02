@@ -1,10 +1,11 @@
 using System.Collections.Concurrent;
-using System.Text;
-using System.Text.Json;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
 
 namespace PlikShare.IntegrationTests.Infrastructure;
 
@@ -15,6 +16,10 @@ public class MockOidcServer : IAsyncDisposable
     public WebApplication App { get; }
     public string IssuerUrl { get; }
 
+    private readonly RSA _rsaKey;
+    private readonly RsaSecurityKey _signingKey;
+    private const string Kid = "mock-key-1";
+
     public ConcurrentDictionary<string, AuthCodeConfig> PendingAuthCodes { get; } = new();
     public bool ShouldFailTokenExchange { get; set; }
     public bool ShouldFailClientCredentials { get; set; }
@@ -23,6 +28,9 @@ public class MockOidcServer : IAsyncDisposable
     {
         PortNumber = portNumber;
         IssuerUrl = $"https://localhost:{PortNumber}";
+
+        _rsaKey = RSA.Create(2048);
+        _signingKey = new RsaSecurityKey(_rsaKey) { KeyId = Kid };
 
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseUrls(IssuerUrl);
@@ -38,10 +46,27 @@ public class MockOidcServer : IAsyncDisposable
             jwks_uri = $"{IssuerUrl}/.well-known/jwks.json"
         }));
 
-        App.MapGet("/.well-known/jwks.json", () => TypedResults.Ok(new
+        App.MapGet("/.well-known/jwks.json", () =>
         {
-            keys = Array.Empty<object>()
-        }));
+            var parameters = _rsaKey.ExportParameters(
+                includePrivateParameters: false);
+
+            return Results.Ok(new
+            {
+                keys = new[]
+                {
+                    new
+                    {
+                        kty = "RSA",
+                        kid = Kid,
+                        use = "sig",
+                        alg = "RS256",
+                        n = Base64UrlEncoder.Encode(parameters.Modulus!),
+                        e = Base64UrlEncoder.Encode(parameters.Exponent!)
+                    }
+                }
+            });
+        });
 
         App.MapPost("/token", async (HttpContext context) =>
         {
@@ -59,7 +84,9 @@ public class MockOidcServer : IAsyncDisposable
                 return HandleAuthorizationCode(code);
             }
 
-            return Results.BadRequest(new { error = "unsupported_grant_type" });
+            return Results.BadRequest(new { 
+                error = "unsupported_grant_type" 
+            });
         });
 
         App.MapGet("/userinfo", (HttpContext context) =>
@@ -103,7 +130,11 @@ public class MockOidcServer : IAsyncDisposable
             });
         }
 
-        var idToken = GenerateUnsignedJwt(config.Email, config.Sub);
+        var idToken = GenerateSignedJwt(
+            config.Email, 
+            config.Sub, 
+            config.Nonce, 
+            config.ClientId);
 
         return Results.Ok(new
         {
@@ -114,40 +145,35 @@ public class MockOidcServer : IAsyncDisposable
         });
     }
 
-    private string GenerateUnsignedJwt(string email, string sub)
+    private string GenerateSignedJwt(string email, string sub, string nonce, string clientId)
     {
-        var header = new { alg = "none", typ = "JWT" };
-        var payload = new
+        var handler = new JsonWebTokenHandler();
+
+        var descriptor = new SecurityTokenDescriptor
         {
-            sub,
-            email,
-            iss = IssuerUrl,
-            aud = "test-client-id",
-            iat = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            exp = DateTimeOffset.UtcNow.AddHours(1).ToUnixTimeSeconds(),
-            nonce = "test-nonce"
+            Issuer = IssuerUrl,
+            Audience = clientId,
+            Claims = new Dictionary<string, object>
+            {
+                ["sub"] = sub,
+                ["email"] = email,
+                ["nonce"] = nonce
+            },
+            IssuedAt = DateTime.UtcNow,
+            Expires = DateTime.UtcNow.AddHours(1),
+            SigningCredentials = new SigningCredentials(_signingKey, SecurityAlgorithms.RsaSha256)
         };
 
-        var headerJson = JsonSerializer.Serialize(header);
-        var payloadJson = JsonSerializer.Serialize(payload);
-
-        var headerBase64 = Base64UrlEncode(Encoding.UTF8.GetBytes(headerJson));
-        var payloadBase64 = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));
-
-        return $"{headerBase64}.{payloadBase64}.";
+        return handler.CreateToken(descriptor);
     }
 
-    private static string Base64UrlEncode(byte[] bytes)
+    public void RegisterAuthCode(string code, string email, string sub, string nonce, string clientId)
     {
-        return Convert.ToBase64String(bytes)
-            .TrimEnd('=')
-            .Replace('+', '-')
-            .Replace('/', '_');
-    }
-
-    public void RegisterAuthCode(string code, string email, string sub)
-    {
-        PendingAuthCodes[code] = new AuthCodeConfig(Email: email, Sub: sub);
+        PendingAuthCodes[code] = new AuthCodeConfig(
+            Email: email, 
+            Sub: sub, 
+            Nonce: nonce, 
+            ClientId: clientId);
     }
 
     public void Reset()
@@ -163,6 +189,7 @@ public class MockOidcServer : IAsyncDisposable
 
         try
         {
+            _rsaKey.Dispose();
             await App.StopAsync();
             await App.DisposeAsync();
         }
@@ -172,5 +199,5 @@ public class MockOidcServer : IAsyncDisposable
         }
     }
 
-    public record AuthCodeConfig(string Email, string Sub);
+    public record AuthCodeConfig(string Email, string Sub, string Nonce, string ClientId);
 }

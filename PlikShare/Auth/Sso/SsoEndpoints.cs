@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -6,6 +7,7 @@ using Flurl;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.IdentityModel.Tokens;
 using PlikShare.AuthProviders.GetDetails;
 using PlikShare.AuthProviders.Id;
 using PlikShare.Core.Configuration;
@@ -89,6 +91,7 @@ public static class SsoEndpoints
         HttpContext httpContext,
         GetAuthProviderDetailsQuery getAuthProviderDetailsQuery,
         OidcDiscoveryCache discoveryCache,
+        OidcJwksCache jwksCache,
         OidcStateProtector stateProtector,
         GetOrCreateSsoUserQuery getOrCreateSsoUserQuery,
         SignInManager<ApplicationUser> signInManager,
@@ -185,7 +188,32 @@ public static class SsoEndpoints
                 "token-exchange-failed");
         }
 
-        var email = ExtractEmailFromIdToken(tokenResponse.IdToken);
+        var signingKeys = await jwksCache.GetSigningKeys(
+            discovery.JwksUri,
+            cancellationToken);
+
+        if (signingKeys is null)
+        {
+            return RedirectToSignIn(
+                config,
+                "provider-unavailable");
+        }
+
+        var idTokenResult = await ValidateAndExtractIdToken(
+            idToken: tokenResponse.IdToken,
+            expectedIssuer: discovery.Issuer,
+            expectedAudience: provider.ClientId,
+            expectedNonce: state.Nonce,
+            signingKeys: signingKeys);
+
+        string? email = null;
+        string? sub = null;
+
+        if (idTokenResult is not null)
+        {
+            email = idTokenResult.Email;
+            sub = idTokenResult.Sub;
+        }
 
         if (string.IsNullOrEmpty(email))
         {
@@ -207,13 +235,11 @@ public static class SsoEndpoints
                 "no-email");
         }
 
-        var sub = ExtractSubFromIdToken(tokenResponse.IdToken);
-
         if (string.IsNullOrEmpty(sub))
         {
             return RedirectToSignIn(
                 config,
-                "no-email");
+                "token-validation-failed");
         }
 
         var userResult = await getOrCreateSsoUserQuery.Execute(
@@ -253,6 +279,67 @@ public static class SsoEndpoints
             provider.Name);
 
         return Results.Redirect(config.AppUrl);
+    }
+
+    private static async Task<IdTokenValidationResult?> ValidateAndExtractIdToken(
+        string? idToken,
+        string expectedIssuer,
+        string expectedAudience,
+        string expectedNonce,
+        IList<SecurityKey> signingKeys)
+    {
+        if (string.IsNullOrEmpty(idToken))
+            return null;
+
+        try
+        {
+            var handler = new JsonWebTokenHandler();
+
+            var validationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = expectedIssuer,
+                ValidateAudience = true,
+                ValidAudience = expectedAudience,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                RequireSignedTokens = true,
+                IssuerSigningKeys = signingKeys
+            };
+
+            var result = await handler.ValidateTokenAsync(idToken, validationParameters);
+
+            if (!result.IsValid)
+            {
+                Log.Warning(
+                    result.Exception,
+                    "id_token validation failed");
+                return null;
+            }
+
+            var nonce = result.ClaimsIdentity.FindFirst("nonce")?.Value;
+
+            if (nonce != expectedNonce)
+            {
+                Log.Warning(
+                    "id_token nonce mismatch: expected '{ExpectedNonce}', got '{ActualNonce}'",
+                    expectedNonce,
+                    nonce);
+                return null;
+            }
+
+            var email = result.ClaimsIdentity.FindFirst(ClaimTypes.Email)?.Value
+                ?? result.ClaimsIdentity.FindFirst("email")?.Value;
+
+            var sub = result.ClaimsIdentity.FindFirst("sub")?.Value;
+
+            return new IdTokenValidationResult(Email: email, Sub: sub);
+        }
+        catch (Exception e)
+        {
+            Log.Warning(e, "Failed to validate id_token");
+            return null;
+        }
     }
 
     private static async Task<TokenResponse?> ExchangeCodeForTokens(
@@ -316,54 +403,6 @@ public static class SsoEndpoints
             Log.Error(
                 e,
                 "Failed to exchange authorization code for tokens");
-
-            return null;
-        }
-    }
-
-    private static string? ExtractEmailFromIdToken(string? idToken)
-    {
-        if (string.IsNullOrEmpty(idToken))
-        {
-            return null;
-        }
-
-        try
-        {
-            var handler = new JsonWebTokenHandler();
-            var jwt = handler.ReadJsonWebToken(idToken);
-
-            return jwt.GetClaim("email")?.Value;
-        }
-        catch (Exception e)
-        {
-            Log.Warning(
-                e,
-                "Failed to extract email from id_token");
-
-            return null;
-        }
-    }
-
-    private static string? ExtractSubFromIdToken(string? idToken)
-    {
-        if (string.IsNullOrEmpty(idToken))
-        {
-            return null;
-        }
-
-        try
-        {
-            var handler = new JsonWebTokenHandler();
-            var jwt = handler.ReadJsonWebToken(idToken);
-
-            return jwt.GetClaim("sub")?.Value;
-        }
-        catch (Exception e)
-        {
-            Log.Warning(
-                e,
-                "Failed to extract sub from id_token");
 
             return null;
         }
@@ -435,4 +474,6 @@ public static class SsoEndpoints
         [JsonPropertyName("id_token")]
         public string? IdToken { get; init; }
     }
+
+    private record IdTokenValidationResult(string? Email, string? Sub);
 }

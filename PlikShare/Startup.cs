@@ -562,6 +562,7 @@ public class Startup
         builder.Services.AddSingleton<TestAuthProviderConfigurationOperation>();
 
         builder.Services.AddSingleton<OidcDiscoveryCache>();
+        builder.Services.AddSingleton<OidcJwksCache>();
         builder.Services.AddSingleton<OidcStateProtector>();
         builder.Services.AddSingleton<GetOrCreateSsoUserQuery>();
         builder.Services.AddSingleton<UploadLegalFileOperation>();
