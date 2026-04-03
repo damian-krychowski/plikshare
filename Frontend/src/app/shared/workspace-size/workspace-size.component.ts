@@ -1,13 +1,12 @@
-import { CommonModule } from "@angular/common";
+
 import { Component, computed, input } from "@angular/core";
 import { StorageSizePipe } from "../storage-size.pipe";
 
 @Component({
     selector: 'app-workspace-size',
     imports: [
-        CommonModule,
-        StorageSizePipe
-    ],
+    StorageSizePipe
+],
     template: `
         @let maxSizeInBytesVal = maxSizeInBytes();
 

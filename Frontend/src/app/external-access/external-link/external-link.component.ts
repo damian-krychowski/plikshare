@@ -15,7 +15,6 @@ import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, ContentDisposi
 import { BulkInitiateFileUploadRequest } from '../../services/uploads.api';
 import { FileLockService } from '../../services/file-lock.service';
 import { BOX_LINK_TOKEN_HEADER, BoxLinkTokenService } from '../../services/box-link-token.service';
-import { HttpHeaders } from '@angular/common/http';
 
 @Component({
     selector: 'app-external-link',
@@ -76,12 +75,12 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
     }
 
     async ngOnInit() {
-        await this.handleNavigationChange(this._router.lastSuccessfulNavigation);
+        await this.handleNavigationChange(this._router.lastSuccessfulNavigation());
 
         this._subscription = this._router.events
             .pipe(filter(event => event instanceof NavigationEnd))
             .subscribe(() => {
-                const navigation = this._router.getCurrentNavigation();
+                const navigation = this._router.currentNavigation();
                 this.handleNavigationChange(navigation)
             });
     }

@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, OnDestroy, OnInit, WritableSignal, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TopBarComponent } from '../shared/top-bar/top-bar.component';
@@ -10,11 +10,10 @@ import { MatButtonModule } from '@angular/material/button';
 @Component({
     selector: 'app-email-confirmation-page',
     imports: [
-        CommonModule,
-        TopBarComponent,
-        FooterComponent,
-        MatButtonModule
-    ],
+    TopBarComponent,
+    FooterComponent,
+    MatButtonModule
+],
     templateUrl: './email-confirmation-page.component.html',
     styleUrl: './email-confirmation-page.component.scss'
 })

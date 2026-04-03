@@ -1,7 +1,7 @@
 import { Component, computed, input, OnChanges, output, signal, SimpleChanges, ViewEncapsulation } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { CommonModule } from '@angular/common';
+
 import { toggle } from '../signal-utils';
 import { AppFolderAncestor, AppFolderItem } from '../folder-item/folder-item.component';
 import { AppFileItem, AppFileItems } from '../file-item/file-item.component';
@@ -99,13 +99,12 @@ export type SearchedFilesSelection = {
 @Component({
     selector: 'app-file-tree-view',
     imports: [
-        FormsModule,
-        CommonModule,
-        MatIconModule,
-        MatButtonModule,
-        FileTreeNodeComponent,
-        FolderTreeNodeComponent
-    ],
+    FormsModule,
+    MatIconModule,
+    MatButtonModule,
+    FileTreeNodeComponent,
+    FolderTreeNodeComponent
+],
     templateUrl: './file-tree-view.component.html',
     styleUrls: ['./file-tree-view.component.scss'],
     encapsulation: ViewEncapsulation.None

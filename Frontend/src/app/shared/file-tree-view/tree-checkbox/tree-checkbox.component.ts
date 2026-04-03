@@ -1,13 +1,12 @@
-import { CommonModule } from "@angular/common";
+
 import { Component, computed, input, output } from "@angular/core";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 
 @Component({
     selector: 'app-tree-checkbox',
     imports: [
-        CommonModule,
-        MatCheckboxModule
-    ],
+    MatCheckboxModule
+],
     templateUrl: './tree-checkbox.component.html',
     styleUrls: ['./tree-checkbox.component.scss']
 })

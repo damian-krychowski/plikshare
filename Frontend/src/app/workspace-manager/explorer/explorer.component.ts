@@ -12,7 +12,6 @@ import { WorkspaceFilesExplorerApi } from '../../services/workspace-files-explor
 import { AppFolderItem } from '../../shared/folder-item/folder-item.component';
 import { AppFileItem } from '../../shared/file-item/file-item.component';
 import { WorkspaceContextService } from '../workspace-context.service';
-import { CookieUtils } from '../../shared/cookies';
 import { FileLockService } from '../../services/file-lock.service';
 
 @Component({
@@ -51,12 +50,12 @@ export class ExplorerComponent implements OnInit, OnDestroy {
     private _routerSubscription: Subscription | null = null;
 
     ngOnInit(): void {
-        this.handleNavigationChange(this._router.lastSuccessfulNavigation);
+        this.handleNavigationChange(this._router.lastSuccessfulNavigation());
 
         this._routerSubscription = this._router.events
             .pipe(filter(event => event instanceof NavigationEnd))
             .subscribe(() => {
-                const navigation = this._router.getCurrentNavigation();
+                const navigation = this._router.currentNavigation();
                 this.handleNavigationChange(navigation);
             });
     }

@@ -2,7 +2,7 @@ import { Component, computed, effect, input, Input, InputSignal, OnChanges, outp
 import { MatTreeModule, MatTreeNestedDataSource } from '@angular/material/tree';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { CommonModule } from '@angular/common';
+
 import { StorageSizePipe } from '../storage-size.pipe';
 import { ActionButtonComponent } from '../buttons/action-btn/action-btn.component';
 import { FileIconPipe } from '../../files-explorer/file-icon-pipe/file-icon.pipe';
@@ -42,14 +42,13 @@ export type ZipFolderNode = {
 @Component({
     selector: 'app-zip-file-tree-view',
     imports: [
-        CommonModule,
-        MatTreeModule,
-        MatIconModule,
-        MatButtonModule,
-        FileIconPipe,
-        StorageSizePipe,
-        ActionButtonComponent
-    ],
+    MatTreeModule,
+    MatIconModule,
+    MatButtonModule,
+    FileIconPipe,
+    StorageSizePipe,
+    ActionButtonComponent
+],
     templateUrl: './zip-file-tree-view.component.html',
     styleUrls: ['./zip-file-tree-view.component.scss'],
     encapsulation: ViewEncapsulation.None

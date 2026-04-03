@@ -43,12 +43,12 @@ export class BoxesComponent implements OnInit, OnDestroy {
     }
 
     async ngOnInit(){
-        await this.handleNavigationChange(this._router.lastSuccessfulNavigation);
+        await this.handleNavigationChange(this._router.lastSuccessfulNavigation());
                 
         this._routerSubscription = this._router.events
             .pipe(filter(event => event instanceof NavigationEnd))
             .subscribe(() => {
-                const navigation = this._router.getCurrentNavigation();
+                const navigation = this._router.currentNavigation();
                 this.handleNavigationChange(navigation);            
             });
     }

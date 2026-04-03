@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, NgZone, OnDestroy, OnInit, WritableSignal, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TopBarComponent } from '../shared/top-bar/top-bar.component';
@@ -21,16 +21,15 @@ type ViewState = 'sign-up' | 'confirm-email';
 @Component({
     selector: 'app-sign-up-page',
     imports: [
-        CommonModule,
-        RouterLink,
-        TopBarComponent,
-        FooterComponent,
-        ReactiveFormsModule,
-        MatButtonModule,
-        MatCheckboxModule,
-        MatFormFieldModule,
-        SecureInputDirective
-    ],
+    RouterLink,
+    TopBarComponent,
+    FooterComponent,
+    ReactiveFormsModule,
+    MatButtonModule,
+    MatCheckboxModule,
+    MatFormFieldModule,
+    SecureInputDirective
+],
     templateUrl: './sign-up-page.component.html',
     styleUrl: './sign-up-page.component.scss'
 })

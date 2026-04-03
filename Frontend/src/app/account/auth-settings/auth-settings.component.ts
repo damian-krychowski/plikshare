@@ -6,7 +6,7 @@ import { AuthService } from "../../services/auth.service";
 import { MatDialog } from "@angular/material/dialog";
 import { insertItem, pushItems, removeItem } from "../../shared/signal-utils";
 import { PresetButtonComponent } from "./preset-btn/preset-btn.component";
-import { CommonModule } from "@angular/common";
+
 import { AppAuthProvider, AuthProviderItemComponent } from "../../shared/auth-provider-item/auth-provider-item.component";
 import { OptimisticOperation } from "../../services/optimistic-operation";
 import { CreateOidcProviderComponent } from "./create-oidc-provider/create-oidc-provider.component";
@@ -17,13 +17,12 @@ import { OIDC_PROVIDER_PRESETS, OIDC_PRESET_ORDER } from "./oidc-provider-preset
 @Component({
     selector: 'app-auth-settings',
     imports: [
-        CommonModule,
-        MatButtonModule,
-        MatTooltipModule,
-        AuthProviderItemComponent,
-        PresetButtonComponent,
-        MatSlideToggleModule
-    ],
+    MatButtonModule,
+    MatTooltipModule,
+    AuthProviderItemComponent,
+    PresetButtonComponent,
+    MatSlideToggleModule
+],
     templateUrl: './auth-settings.component.html',
     styleUrl: './auth-settings.component.scss'
 })

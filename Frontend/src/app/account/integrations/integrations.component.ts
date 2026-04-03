@@ -4,11 +4,11 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { AuthService } from "../../services/auth.service";
 import { DataStore } from "../../services/data-store.service";
-import { insertItem, pushItems, removeItem } from "../../shared/signal-utils";
+import { insertItem, removeItem } from "../../shared/signal-utils";
 import { ItemButtonComponent } from "../../shared/buttons/item-btn/item-btn.component";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { FormsModule } from "@angular/forms";
-import { CommonModule } from "@angular/common";
+
 import { MatInputModule } from "@angular/material/input";
 import { OptimisticOperation } from "../../services/optimistic-operation";
 import { AppIntegration, IntegrationItemComponent } from "../../shared/integration-item/integration-item.component";
@@ -16,15 +16,14 @@ import { AppIntegration, IntegrationItemComponent } from "../../shared/integrati
 @Component({
     selector: 'app-integrations',
     imports: [
-        CommonModule,
-        FormsModule,
-        MatFormFieldModule,
-        MatInputModule,
-        MatButtonModule,
-        MatTooltipModule,
-        IntegrationItemComponent,
-        ItemButtonComponent,
-    ],
+    FormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatTooltipModule,
+    IntegrationItemComponent,
+    ItemButtonComponent
+],
     templateUrl: './integrations.component.html',
     styleUrl: './integrations.component.scss'
 })

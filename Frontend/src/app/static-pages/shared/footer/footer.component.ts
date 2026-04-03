@@ -1,4 +1,4 @@
-import { CommonModule } from "@angular/common";
+
 import { Component, input } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { Router, RouterLink } from "@angular/router";
@@ -8,11 +8,10 @@ import { EntryPageService } from "../../../services/entry-page.service";
 @Component({
     selector: 'app-footer',
     imports: [
-        CommonModule,
-        RouterLink,
-        MatButtonModule,
-        MatTooltipModule
-    ],
+    RouterLink,
+    MatButtonModule,
+    MatTooltipModule
+],
     templateUrl: './footer.component.html',
     styleUrl: './footer.component.scss',
 })

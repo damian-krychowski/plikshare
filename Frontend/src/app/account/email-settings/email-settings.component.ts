@@ -10,7 +10,7 @@ import { ItemButtonComponent } from "../../shared/buttons/item-btn/item-btn.comp
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { FormsModule } from "@angular/forms";
-import { CommonModule } from "@angular/common";
+
 import { MatInputModule } from "@angular/material/input";
 import { CreateAwsSesComponent } from "./aws/create-aws-ses/create-aws-ses.component";
 import { AppEmailProvider, EmailProviderItemComponent } from "../../shared/email-provider-item/email-provider-item.component";
@@ -22,17 +22,16 @@ import { CreateSmtpComponent } from "./smtp/create-smtp/create-smtp.component";
 @Component({
     selector: 'app-email-settings',
     imports: [
-        CommonModule,
-        FormsModule,
-        MatFormFieldModule,
-        MatInputModule,
-        MatButtonModule,
-        MatTooltipModule,
-        EmailProviderItemComponent,
-        ItemButtonComponent,
-        ActionButtonComponent,
-        ActionTextButtonComponent
-    ],
+    FormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    MatTooltipModule,
+    EmailProviderItemComponent,
+    ItemButtonComponent,
+    ActionButtonComponent,
+    ActionTextButtonComponent
+],
     templateUrl: './email-settings.component.html',
     styleUrl: './email-settings.component.scss'
 })

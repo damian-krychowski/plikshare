@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, OnDestroy, OnInit, WritableSignal, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TopBarComponent } from '../shared/top-bar/top-bar.component';
@@ -13,14 +13,13 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 @Component({
     selector: 'app-reset-password-page',
     imports: [
-        CommonModule,
-        TopBarComponent,
-        FooterComponent,
-        ReactiveFormsModule,
-        MatButtonModule,
-        MatCheckboxModule,
-        MatFormFieldModule,
-    ],
+    TopBarComponent,
+    FooterComponent,
+    ReactiveFormsModule,
+    MatButtonModule,
+    MatCheckboxModule,
+    MatFormFieldModule
+],
     templateUrl: './reset-password-page.component.html',
     styleUrl: './reset-password-page.component.scss'
 })

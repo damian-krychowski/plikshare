@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+
 import { Component, OnInit, signal, WritableSignal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -18,17 +18,16 @@ type ViewState = 'sign-in' | '2fa-required' | 'forgot-password' | 'forgot-passwo
 @Component({
     selector: 'app-sign-in-page',
     imports: [
-        CommonModule,
-        FormsModule,
-        RouterLink,
-        TopBarComponent,
-        FooterComponent,
-        ReactiveFormsModule,
-        MatButtonModule,
-        MatCheckboxModule,
-        MatFormFieldModule,
-        SecureInputDirective
-    ],
+    FormsModule,
+    RouterLink,
+    TopBarComponent,
+    FooterComponent,
+    ReactiveFormsModule,
+    MatButtonModule,
+    MatCheckboxModule,
+    MatFormFieldModule,
+    SecureInputDirective
+],
     templateUrl: './sign-in-page.component.html',
     styleUrl: './sign-in-page.component.scss'
 })

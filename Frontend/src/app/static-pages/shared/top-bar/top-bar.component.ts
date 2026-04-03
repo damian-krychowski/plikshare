@@ -1,4 +1,4 @@
-import { CommonModule } from "@angular/common";
+
 import { Component, OnInit, signal } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
 import { Router, RouterLink } from "@angular/router";
@@ -9,11 +9,10 @@ import { toggle } from "../../../shared/signal-utils";
 @Component({
     selector: 'app-top-bar',
     imports: [
-        CommonModule,
-        RouterLink,
-        MatButtonModule,
-        MatTooltipModule
-    ],
+    RouterLink,
+    MatButtonModule,
+    MatTooltipModule
+],
     templateUrl: './top-bar.component.html',
     styleUrl: './top-bar.component.scss',
 })

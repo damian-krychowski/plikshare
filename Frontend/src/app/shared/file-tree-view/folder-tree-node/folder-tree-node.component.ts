@@ -1,4 +1,4 @@
-import { CommonModule } from "@angular/common";
+
 import { Component, input } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { MatButtonModule } from "@angular/material/button";
@@ -13,15 +13,14 @@ import { PrefetchDirective } from "../../prefetch.directive";
 @Component({
     selector: 'app-folder-tree-node',
     imports: [
-        FormsModule,
-        CommonModule,
-        MatTreeModule,
-        MatIconModule,
-        MatButtonModule,
-        TreeCheckobxComponent,
-        FileTreeNodeComponent,
-        PrefetchDirective
-    ],
+    FormsModule,
+    MatTreeModule,
+    MatIconModule,
+    MatButtonModule,
+    TreeCheckobxComponent,
+    FileTreeNodeComponent,
+    PrefetchDirective
+],
     templateUrl: './folder-tree-node.component.html',
     styleUrls: ['./folder-tree-node.component.scss']
 })

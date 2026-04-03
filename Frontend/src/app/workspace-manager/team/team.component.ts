@@ -84,7 +84,7 @@ export class TeamComponent implements OnInit, OnDestroy {
     }
 
     private async tryConsumeNavigationState() {
-        const navigation = this._router.lastSuccessfulNavigation;
+        const navigation = this._router.lastSuccessfulNavigation();
 
         if(!navigation?.extras.state)
             return;
