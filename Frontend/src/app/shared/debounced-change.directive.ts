@@ -10,8 +10,9 @@ export class DebouncedChangeDirective {
 
   private debounceTimer?: any;
 
-  @HostListener('input', ['$event.target.value'])
-  onInput(value: string): void {
+  @HostListener('input', ['$event'])
+  onInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
     clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(() => {
       this.debouncedChange.emit(value);
