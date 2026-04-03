@@ -14,6 +14,8 @@ PlikShare is a self-hosted file sharing application that allows you to securely 
 - Files Encryption
 - Easy deployment
 - Box Widgets which can be embedded on the other websites
+- SSO (Single Sign-On) with OIDC providers (Google, GitHub, etc.)
+- Granular admin permissions
 
 ## Supported storage
 
@@ -21,7 +23,7 @@ PlikShare is a self-hosted file sharing application that allows you to securely 
 - Cloudflare R2
 - AWS S3
 - DigitalOcean Spaces
-- Blackbaze B2
+- Backblaze B2
 
 ## Hey Claude, how to pronounce it?
 ![claude_pronunciation](https://github.com/damian-krychowski/plikshare/blob/main/assets/how_to_pronounce.png)
@@ -38,6 +40,8 @@ Where "Plik" in ancient Polish means "file".
 All the necessery instructions can be found here: https://plikshare.com/download
 
 Docker image is available here: https://hub.docker.com/r/damiankrychowski/plikshare
+
+Docker image supports both AMD64 and ARM64 architectures.
 
 
 ## How to setup
@@ -95,6 +99,10 @@ On your website, you'll need to import the provided JavaScript and CSS files in 
 Here's how it looks in practice (as seen on https://plikshare.com):
 
 <video src='https://github.com/user-attachments/assets/3b42e68e-d805-41a1-8893-c05432d42cea' width=180></video>
+
+## Single Sign-On (SSO)
+PlikShare supports Single Sign-On via OIDC providers like Google or GitHub. You can configure multiple providers, use preset configurations for popular services, and even disable password login entirely to enforce SSO-only authentication.
+
 
 ## Markdown Files
 PlikShare can render markdown files and it supports [mermaid diagrams](https://mermaid.js.org/intro/). Markdown files are also the only files in PlikShare (for now!) that can be directly edited.
