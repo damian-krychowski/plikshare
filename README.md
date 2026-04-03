@@ -52,6 +52,10 @@ To start using PlikShare you need to do two things:
 
 <video src='https://github.com/user-attachments/assets/4a599cb3-13f4-4676-89bb-6734358bee25' width=180></video>
 
+## Single Sign-On (SSO)
+PlikShare supports Single Sign-On via OIDC providers like Google or Keycloak. You can configure multiple providers, use preset configurations for popular services, and even disable password login entirely to enforce SSO-only authentication.
+
+<img width="1558" height="1702" alt="image" src="https://github.com/user-attachments/assets/22d1489d-8e0f-4070-b821-f1291f17a76a" />
 
 ## How to upload files
 The fastes way is to create zip archive out of the files you want to upload and then use PlikShare bulk upload feature!
@@ -99,9 +103,6 @@ On your website, you'll need to import the provided JavaScript and CSS files in 
 Here's how it looks in practice (as seen on https://plikshare.com):
 
 <video src='https://github.com/user-attachments/assets/3b42e68e-d805-41a1-8893-c05432d42cea' width=180></video>
-
-## Single Sign-On (SSO)
-PlikShare supports Single Sign-On via OIDC providers like Google or GitHub. You can configure multiple providers, use preset configurations for popular services, and even disable password login entirely to enforce SSO-only authentication.
 
 
 ## Markdown Files
