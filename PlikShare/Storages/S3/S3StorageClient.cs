@@ -624,7 +624,7 @@ public class S3StorageClient(
                 DisablePayloadSigning = true,
                 DisableDefaultChecksumValidation = true,
                 UseChunkEncoding = false,
-                PartSize = fileBytes.Length,                
+                PartSize = fileBytes.Length,                    
             };
 
             var uploadPartResponse = await s3Client.UploadPartAsync(

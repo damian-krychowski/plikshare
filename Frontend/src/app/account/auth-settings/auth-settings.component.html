@@ -42,17 +42,15 @@
 
             <div class="mt-2"></div>
 
-            @if(!currentUserHasSsoLinked()) {
-                <div class="explanation explanation--warning">
-                    You must sign in via SSO at least once before you can disable password login.
-                    This ensures you won't lose access to your account when password login is turned off.
-                </div>
-            }
+            <div class="explanation explanation--warning">
+                You must sign in via SSO at least once before you can disable password login.
+                This ensures you won't lose access to your account when password login is turned off.
+            </div>
 
             <div class="mt-2"></div>
 
             <div class="explanation">
-                <strong>Lost access?</strong> If SSO is down and you can't sign in:
+                <strong>Lost access anyway?</strong> If SSO is down and you can't sign in:
                 <ol>
                     <li>Set the <strong>ForcePasswordLoginEnabled</strong> configuration value to <strong>true</strong> (e.g. via environment variable)</li>
                     <li>Restart the application</li>

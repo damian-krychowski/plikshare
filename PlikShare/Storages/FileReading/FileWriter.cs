@@ -32,7 +32,9 @@ public static class FileWriter
         var heapBuffer = ArrayPool<byte>.Shared.Rent(
             minimumLength: heapBufferSize);
 
-        var heapBufferMemory = heapBuffer.AsMemory().Slice(0, heapBufferSize);
+        var heapBufferMemory = heapBuffer
+            .AsMemory()
+            .Slice(0, heapBufferSize);
 
         try
         {
@@ -51,30 +53,92 @@ public static class FileWriter
                     partNumber: part.Number);
             }
 
-            return workspace.Storage switch
-            {
-                HardDriveStorageClient hardDriveStorageClient => await HardDriveUploadOperation.Execute(
-                    fileBytes: heapBufferMemory,
-                    file: file,
-                    part: part,
-                    bucketName: workspace.BucketName,
-                    hardDriveStorage: hardDriveStorageClient!,
-                    cancellationToken: cancellationToken),
-
-                S3StorageClient s3StorageClient => await S3UploadOperation.Execute(
-                    fileBytes: heapBufferMemory,
-                    file: file,
-                    part: part,
-                    bucketName: workspace.BucketName,
-                    s3StorageClient: s3StorageClient,
-                    cancellationToken: cancellationToken),
-
-                _ => throw new ArgumentOutOfRangeException(nameof(workspace.Storage))
-            };
+            return await Upload(
+                fileBytes: heapBufferMemory, 
+                file: file, 
+                part: part, 
+                workspace: workspace, 
+                cancellationToken: cancellationToken);
         }
         finally
         {
             ArrayPool<byte>.Shared.Return(heapBuffer);
         }
+    }
+
+    public static async Task<FilePartUploadResult> Write(
+        FileToUploadDetails file,
+        FilePartDetails part,
+        WorkspaceContext workspace,
+        byte[] input,
+        CancellationToken cancellationToken)
+    {
+        if (file.Encryption.EncryptionType == StorageEncryptionType.None)
+        {
+            return await Upload(
+                fileBytes: input,
+                file: file,
+                part: part,
+                workspace: workspace,
+                cancellationToken: cancellationToken);
+        }
+
+        var heapBufferSize = Aes256GcmStreaming.CalculateEncryptedPartSize(
+            part.SizeInBytes,
+            part.Number);
+
+        var heapBuffer = ArrayPool<byte>.Shared.Rent(
+            minimumLength: heapBufferSize);
+
+        var heapBufferMemory = heapBuffer.AsMemory().Slice(0, heapBufferSize);
+
+        try
+        {
+            Aes256GcmStreaming.CopyIntoBufferReadyForInPlaceEncryption(
+                input: input,
+                output: heapBufferMemory,
+                partSizeInBytes: part.SizeInBytes,
+                partNumber: part.Number);
+
+            return await Upload(
+                fileBytes: heapBufferMemory,
+                file: file,
+                part: part,
+                workspace: workspace,
+                cancellationToken: cancellationToken);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(heapBuffer);
+        }
+    }
+
+    private static async Task<FilePartUploadResult> Upload(
+        Memory<byte> fileBytes,
+        FileToUploadDetails file,
+        FilePartDetails part,
+        WorkspaceContext workspace,
+        CancellationToken cancellationToken)
+    {
+        return workspace.Storage switch
+        {
+            HardDriveStorageClient hardDriveStorageClient => await HardDriveUploadOperation.Execute(
+                fileBytes: fileBytes,
+                file: file,
+                part: part,
+                bucketName: workspace.BucketName,
+                hardDriveStorage: hardDriveStorageClient!,
+                cancellationToken: cancellationToken),
+
+            S3StorageClient s3StorageClient => await S3UploadOperation.Execute(
+                fileBytes: fileBytes,
+                file: file,
+                part: part,
+                bucketName: workspace.BucketName,
+                s3StorageClient: s3StorageClient,
+                cancellationToken: cancellationToken),
+
+            _ => throw new ArgumentOutOfRangeException(nameof(workspace.Storage))
+        };
     }
 }

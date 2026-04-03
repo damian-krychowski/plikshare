@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.IO.Pipelines;
 using System.Text;
-using CommunityToolkit.HighPerformance;
 using OpenAI.Chat;
 using PlikShare.ArtificialIntelligence.AiIncludes;
 using PlikShare.ArtificialIntelligence.Id;
@@ -314,7 +313,7 @@ public class SendAiMessageQueueJobExecutor(
         var fileSizeInBytes = (int)file.SizeInBytes;
 
         var heapBuffer = ArrayPool<byte>.Shared.Rent(
-            minimumLength: (int) file.SizeInBytes);
+            minimumLength: fileSizeInBytes);
 
         var heapBufferMemory = heapBuffer
             .AsMemory()
@@ -333,18 +332,25 @@ public class SendAiMessageQueueJobExecutor(
                 storage: storage,
                 cancellationToken: cancellationToken);
 
+            using var outputStream = new MemoryStream(
+                buffer: heapBuffer, 
+                index: 0, 
+                count: fileSizeInBytes, 
+                writable: true);
+
             await fileStream.WriteTo(
                 output: PipeWriter.Create(
-                    stream: heapBufferMemory.AsStream()),
+                    stream: outputStream),
                 cancellationToken: cancellationToken);
             
-            var fileContentBuilder = new StringBuilder();
             var fileBody = Encoding.UTF8.GetString(
                 bytes: heapBufferMemory.Span);
             
             var fileName = file.Name + file.Extension;
             var languageIdentifier = ContentTypeHelper.GetMarkdownLanguageIdentifier(
                 file.Extension);
+
+            var fileContentBuilder = new StringBuilder();
 
             fileContentBuilder.AppendLine($"File: {fileName}");
             fileContentBuilder.AppendLine($"```{languageIdentifier}:{fileName}");

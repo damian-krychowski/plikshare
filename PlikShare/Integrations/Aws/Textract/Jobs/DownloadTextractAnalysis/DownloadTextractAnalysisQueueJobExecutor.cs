@@ -1,8 +1,6 @@
-﻿using System.IO.Pipelines;
-using System.Text;
+﻿using System.Text;
 using Amazon.Textract;
 using Amazon.Textract.Model;
-using CommunityToolkit.HighPerformance;
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
@@ -250,8 +248,7 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 sizeInBytes: contentBytes.Length,
                 uploadAlgorithm: UploadAlgorithm.DirectUpload),
             workspace: originalFileWorkspace,
-            input: PipeReader.Create(
-                contentBytes.AsMemory().AsStream()),
+            input: contentBytes,
             cancellationToken: cancellationToken);
     }
 

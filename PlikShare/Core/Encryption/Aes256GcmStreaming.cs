@@ -163,6 +163,42 @@ public static class Aes256GcmStreaming
         }
     }
 
+    public static void CopyIntoBufferReadyForInPlaceEncryption(
+        ReadOnlySpan<byte> input,
+        Memory<byte> output,
+        int partSizeInBytes,
+        int partNumber)
+    {
+        VerifyBufferSize(output, partNumber, partSizeInBytes);
+
+        var offset = partNumber == 1 
+            ? HeaderSize :
+            0;
+
+        var sourceOffset = 0;
+
+        var bytesToCopyLeft = partSizeInBytes;
+
+        var nextSegmentBytesLeft = partNumber == 1
+            ? FirstSegmentCiphertextSize
+            : SegmentsCiphertextSize;
+
+        while (bytesToCopyLeft > 0)
+        {
+            var bytesToCopy = Math.Min(
+                nextSegmentBytesLeft,
+                bytesToCopyLeft);
+
+            input.Slice(sourceOffset, bytesToCopy)
+                .CopyTo(output.Span.Slice(offset, bytesToCopy));
+
+            sourceOffset += bytesToCopy;
+            offset += bytesToCopy + TagSize;
+            bytesToCopyLeft -= bytesToCopy;
+            nextSegmentBytesLeft = SegmentsCiphertextSize;
+        }
+    }
+
     public static ValueTask CopyIntoBufferReadyForInPlaceEncryption(
         this Stream stream,
         Memory<byte> output,
