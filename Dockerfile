@@ -7,7 +7,7 @@ COPY ./Frontend .
 RUN npm run build-prod && npm run build-elements-prod && npm cache clean --force
 
 # build backend
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-backend-prod
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-backend-prod
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["PlikShare/PlikShare.csproj", "PlikShare/"]
@@ -22,13 +22,13 @@ ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "PlikShare.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 # Copy frontend build artifacts to wwwroot directory
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 COPY --from=build-frontend-prod /usr/src/app/dist /app/wwwroot
 
 # Create a non-root user
-RUN adduser -u 5678 --disabled-password --gecos "" appuser && chown -R appuser /app
+RUN useradd -u 5678 --no-create-home --shell /bin/false appuser && chown -R appuser /app
 USER appuser
 EXPOSE 8080 8081
 ENTRYPOINT ["dotnet", "PlikShare.dll"]

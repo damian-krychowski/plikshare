@@ -12,23 +12,12 @@ function Write-TimestampedOutput {
     Write-Output "[$timestamp] $message"
 }
 
-# Build the Docker image
-$buildCommand = "docker build --platform linux/amd64 . -t damiankrychowski/plikshare:$version -t damiankrychowski/plikshare:latest --build-arg `"VERSION=$version`""
-Write-TimestampedOutput "Building Docker image version $version..."
-Invoke-Expression $buildCommand
+# Build and push multi-platform Docker image
+Write-TimestampedOutput "Building and pushing multi-platform Docker image version $version (amd64 + arm64)..."
+docker buildx build --platform linux/amd64,linux/arm64 . -t damiankrychowski/plikshare:$version -t damiankrychowski/plikshare:latest --build-arg "VERSION=$version" --push
 
 # Check if the build was successful
 if ($LASTEXITCODE -eq 0) {
-    Write-TimestampedOutput "Docker image built successfully."
-
-     # Push the latest tag
-     Write-TimestampedOutput "Pushing latest tag..."
-    docker push damiankrychowski/plikshare:latest
-
-    # Push the version tag
-    Write-TimestampedOutput "Pushing version tag..."
-    docker push damiankrychowski/plikshare:$version
-
     Write-TimestampedOutput "Docker image publishing complete."
 } else {
     Write-TimestampedOutput "Docker image build failed. Please check the build output for errors."

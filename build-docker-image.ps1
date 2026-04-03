@@ -12,10 +12,9 @@ function Write-TimestampedOutput {
     Write-Output "[$timestamp] $message"
 }
 
-# Build the Docker image
-$buildCommand = "docker build --platform linux/amd64 . -t damiankrychowski/plikshare:$version -t damiankrychowski/plikshare:latest --build-arg `"VERSION=$version`""
+# Build Docker image for local testing
 Write-TimestampedOutput "Building Docker image version $version..."
-Invoke-Expression $buildCommand
+docker build . -t damiankrychowski/plikshare:$version -t damiankrychowski/plikshare:latest --build-arg "VERSION=$version"
 
 # Check if the build was successful
 if ($LASTEXITCODE -eq 0) {
