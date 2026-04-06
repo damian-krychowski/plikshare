@@ -21,7 +21,6 @@ public class sso_login_tests : TestFixture, IDisposable
     public sso_login_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper)
         : base(hostFixture, testOutputHelper)
     {
-        ClearAuditLog();
         _hostFixture = hostFixture;
         MockOidcServer.Reset();
 

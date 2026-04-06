@@ -17,6 +17,7 @@ using PlikShare.Integrations.OpenAi.ChatGpt;
 using PlikShare.Integrations.UpdateName;
 using PlikShare.Integrations.UpdateName.Contracts;
 using PlikShare.Users.Middleware;
+using PlikShare.AuditLog;
 
 namespace PlikShare.Integrations;
 
@@ -62,6 +63,7 @@ public static class IntegrationsEndpoints
         [FromBody] CreateIntegrationRequestDto request,
         HttpContext httpContext,
         CreateIntegrationOperation createIntegrationOperation,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await createIntegrationOperation.Execute(
@@ -70,30 +72,46 @@ public static class IntegrationsEndpoints
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        var integrationType = request switch
         {
-            CreateIntegrationWithWorkspaceQuery.ResultCode.Ok => TypedResults.Ok(new CreateIntegrationResponseDto
-            {
-                ExternalId = result.Integration.ExternalId,
-                Workspace = new CreateIntegrationWorkspaceDto
-                {
-                    ExternalId = result.Integration.WorkspaceExternalId,
-                    Name = result.Integration.WorkspaceName
-                }
-            }),
-
-            CreateIntegrationWithWorkspaceQuery.ResultCode.NameNotUnique => 
-                HttpErrors.Integration.NameNotUnique(
-                    request.Name),
-
-            CreateIntegrationWithWorkspaceQuery.ResultCode.StorageNotFound => 
-                HttpErrors.Storage.NotFound(
-                    result.MissingStorageExternalId!.Value),
-
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateIntegrationWithWorkspaceQuery),
-                resultValueStr: result.ToString())
+            CreateAwsTextractIntegrationRequestDto => IntegrationType.AwsTextract,
+            CreateOpenAiChatGptIntegrationRequestDto => IntegrationType.OpenaiChatgpt,
+            _ => throw new ArgumentOutOfRangeException(nameof(request))
         };
+
+        switch (result.Code)
+        {
+            case CreateIntegrationWithWorkspaceQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Integration.Created(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        name: request.Name,
+                        type: integrationType.ToString()),
+                    cancellationToken);
+
+                return TypedResults.Ok(new CreateIntegrationResponseDto
+                {
+                    ExternalId = result.Integration.ExternalId,
+                    Workspace = new CreateIntegrationWorkspaceDto
+                    {
+                        ExternalId = result.Integration.WorkspaceExternalId,
+                        Name = result.Integration.WorkspaceName
+                    }
+                });
+
+            case CreateIntegrationWithWorkspaceQuery.ResultCode.NameNotUnique:
+                return HttpErrors.Integration.NameNotUnique(
+                    request.Name);
+
+            case CreateIntegrationWithWorkspaceQuery.ResultCode.StorageNotFound:
+                return HttpErrors.Storage.NotFound(
+                    result.MissingStorageExternalId!.Value);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateIntegrationWithWorkspaceQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> DeleteIntegration(
@@ -101,6 +119,8 @@ public static class IntegrationsEndpoints
         DeleteIntegrationQuery deleteIntegrationQuery,
         TextractClientStore textractClientStore,
         ChatGptClientStore chatGptClientStore,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await deleteIntegrationQuery.Execute(
@@ -120,14 +140,20 @@ public static class IntegrationsEndpoints
                 chatGptClientStore.RemoveClient(
                     integrationId: result.Integration.Id);
             }
+
+            await auditLogService.Log(
+                Audit.Integration.Deleted(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    externalId: integrationExternalId.Value),
+                cancellationToken);
         }
 
         return result.Code switch
         {
-            DeleteIntegrationQuery.ResultCode.Ok => 
+            DeleteIntegrationQuery.ResultCode.Ok =>
                 TypedResults.Ok(),
 
-            DeleteIntegrationQuery.ResultCode.NotFound => 
+            DeleteIntegrationQuery.ResultCode.NotFound =>
                 HttpErrors.Integration.NotFound(
                     integrationExternalId),
 
@@ -141,54 +167,73 @@ public static class IntegrationsEndpoints
         [FromRoute] IntegrationExtId integrationExternalId,
         [FromBody] UpdateIntegrationNameRequestDto request,
         UpdateIntegrationNameQuery updateIntegrationNameQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await updateIntegrationNameQuery.Execute(
-            externalId: integrationExternalId, 
+            externalId: integrationExternalId,
             name: request.Name,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            UpdateIntegrationNameQuery.ResultCode.Ok => 
-                TypedResults.Ok(),
+            case UpdateIntegrationNameQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Integration.NameUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: integrationExternalId.Value,
+                        name: request.Name),
+                    cancellationToken);
 
-            UpdateIntegrationNameQuery.ResultCode.NotFound =>
-                HttpErrors.Integration.NotFound(
-                    integrationExternalId),
+                return TypedResults.Ok();
 
-            UpdateIntegrationNameQuery.ResultCode.NameNotUnique => 
-                HttpErrors.Integration.NameNotUnique(
-                    request.Name),
+            case UpdateIntegrationNameQuery.ResultCode.NotFound:
+                return HttpErrors.Integration.NotFound(
+                    integrationExternalId);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(UpdateIntegrationNameQuery),
-                resultValueStr: result.ToString())
-        };
+            case UpdateIntegrationNameQuery.ResultCode.NameNotUnique:
+                return HttpErrors.Integration.NameNotUnique(
+                    request.Name);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateIntegrationNameQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> Activate(
        [FromRoute] IntegrationExtId integrationExternalId,
        ActivateIntegrationOperation activateIntegrationOperation,
+       HttpContext httpContext,
+       AuditLogService auditLogService,
        CancellationToken cancellationToken)
     {
         var result = await activateIntegrationOperation.Execute(
             externalId: integrationExternalId,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            ActivateIntegrationQuery.ResultCode.Ok => 
-                TypedResults.Ok(),
-            
-            ActivateIntegrationQuery.ResultCode.NotFound => 
-                HttpErrors.Integration.NotFound(
-                    integrationExternalId),
-            
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(ActivateIntegrationQuery),
-                resultValueStr: result.ToString())
-        };
+            case ActivateIntegrationQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Integration.Activated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: integrationExternalId.Value),
+                    cancellationToken);
+
+                return TypedResults.Ok();
+
+            case ActivateIntegrationQuery.ResultCode.NotFound:
+                return HttpErrors.Integration.NotFound(
+                    integrationExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(ActivateIntegrationQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>>> Deactivate(
@@ -196,6 +241,8 @@ public static class IntegrationsEndpoints
         DeactivateIntegrationQuery deactivateIntegrationQuery,
         TextractClientStore textractClientStore,
         ChatGptClientStore chatGptClientStore,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await deactivateIntegrationQuery.Execute(
@@ -215,17 +262,23 @@ public static class IntegrationsEndpoints
                 chatGptClientStore.RemoveClient(
                     integrationId: result.Integration.Id);
             }
+
+            await auditLogService.Log(
+                Audit.Integration.Deactivated(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    externalId: integrationExternalId.Value),
+                cancellationToken);
         }
 
         return result.Code switch
         {
-            DeactivateIntegrationQuery.ResultCode.Ok => 
+            DeactivateIntegrationQuery.ResultCode.Ok =>
                 TypedResults.Ok(),
-            
-            DeactivateIntegrationQuery.ResultCode.NotFound => 
+
+            DeactivateIntegrationQuery.ResultCode.NotFound =>
                 HttpErrors.Integration.NotFound(
                     integrationExternalId),
-            
+
             _ => throw new UnexpectedOperationResultException(
                 operationName: nameof(DeactivateIntegrationQuery),
                 resultValueStr: result.ToString())

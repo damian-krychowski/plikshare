@@ -147,6 +147,5 @@ public class auth_tests : TestFixture
 
     public auth_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
-        ClearAuditLog();
     }
 }

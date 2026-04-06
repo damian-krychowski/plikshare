@@ -22,7 +22,6 @@ public class user_registration_tests : TestFixture
 
     public user_registration_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
-        ClearAuditLog();
         AppOwner = SignIn(user: Users.AppOwner).Result;
 
         //we need email provider configured to be able to extract email confirmation code

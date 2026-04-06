@@ -125,7 +125,39 @@ public static class AuditLogEventTypes
         ];
     }
 
-    public static readonly string[] All = [..Auth.All, ..User.All, ..Settings.All, ..EmailProvider.All, ..AuthProvider.All];
+    public static class Storage
+    {
+        public const string Created = "storage.created";
+        public const string Deleted = "storage.deleted";
+        public const string NameUpdated = "storage.name-updated";
+        public const string DetailsUpdated = "storage.details-updated";
+
+        public static readonly string[] All =
+        [
+            Created, Deleted, NameUpdated, DetailsUpdated
+        ];
+    }
+
+    public static class Integration
+    {
+        public const string Created = "integration.created";
+        public const string Deleted = "integration.deleted";
+        public const string NameUpdated = "integration.name-updated";
+        public const string Activated = "integration.activated";
+        public const string Deactivated = "integration.deactivated";
+
+        public static readonly string[] All =
+        [
+            Created, Deleted, NameUpdated,
+            Activated, Deactivated
+        ];
+    }
+
+    public static readonly string[] All = [
+        ..Auth.All, ..User.All, ..Settings.All,
+        ..EmailProvider.All, ..AuthProvider.All,
+        ..Storage.All, ..Integration.All
+    ];
 }
 
 public static class AuditLogEventCategories

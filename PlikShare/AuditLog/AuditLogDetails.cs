@@ -102,6 +102,57 @@ public static class AuditLogDetails
         }
     }
 
+    public static class Storage
+    {
+        public class Created
+        {
+            public required string Name { get; init; }
+            public required string Type { get; init; }
+        }
+
+        public class Deleted
+        {
+            public required string ExternalId { get; init; }
+        }
+
+        public class NameUpdated
+        {
+            public required string ExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+
+        public class DetailsUpdated
+        {
+            public required string ExternalId { get; init; }
+            public required string Type { get; init; }
+        }
+    }
+
+    public static class Integration
+    {
+        public class Created
+        {
+            public required string Name { get; init; }
+            public required string Type { get; init; }
+        }
+
+        public class Deleted
+        {
+            public required string ExternalId { get; init; }
+        }
+
+        public class NameUpdated
+        {
+            public required string ExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+
+        public class ActivationChanged
+        {
+            public required string ExternalId { get; init; }
+        }
+    }
+
     public static class AuthProvider
     {
         public class Created

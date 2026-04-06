@@ -21,7 +21,6 @@ public class auth_providers_tests : TestFixture, IDisposable
     public auth_providers_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper)
         : base(hostFixture, testOutputHelper)
     {
-        ClearAuditLog();
         _hostFixture = hostFixture;
         MockOidcServer.Reset();
     }

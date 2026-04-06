@@ -3,6 +3,7 @@ using PlikShare.Storages.HardDrive.Create.Contracts;
 using PlikShare.Storages.HardDrive.GetVolumes.Contracts;
 using PlikShare.Storages.Id;
 using PlikShare.Storages.List.Contracts;
+using PlikShare.Storages.UpdateName.Contracts;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
@@ -45,6 +46,20 @@ public class StoragesApi(IFlurlClient flurlClient, string appUrl)
         await flurlClient.ExecuteDelete(
             appUrl: appUrl,
             apiPath: $"api/storages/{externalId}",
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task UpdateName(
+        StorageExtId externalId,
+        UpdateStorageNameRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/storages/{externalId}/name",
+            request: request,
             cookie: cookie,
             antiforgery: antiforgery);
     }

@@ -13,7 +13,6 @@ public class audit_log_tests : TestFixture
     public audit_log_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper)
         : base(hostFixture, testOutputHelper)
     {
-        ClearAuditLog();
     }
 
     [Fact]

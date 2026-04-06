@@ -33,6 +33,8 @@ using PlikShare.Storages.S3.DigitalOcean.UpdateDetails;
 using PlikShare.Storages.S3.DigitalOcean.UpdateDetails.Contracts;
 using PlikShare.Storages.UpdateName;
 using PlikShare.Storages.UpdateName.Contracts;
+using PlikShare.AuditLog;
+using PlikShare.Storages.Entities;
 
 namespace PlikShare.Storages;
 
@@ -110,6 +112,8 @@ public static class StoragesEndpoints
         [FromRoute] StorageExtId storageExternalId,
         DeleteStorageQuery deleteStorageQuery,
         StorageClientStore storageClientStore,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await deleteStorageQuery.Execute(
@@ -122,13 +126,19 @@ public static class StoragesEndpoints
                 storageClientStore.RemoveClient(
                     result.StorageId);
 
+                await auditLogService.Log(
+                    Audit.Storage.Deleted(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: storageExternalId.Value),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
-            case DeleteStorageQuery.ResultCode.NotFound: 
+            case DeleteStorageQuery.ResultCode.NotFound:
                 return HttpErrors.Storage.NotFound(
                     storageExternalId);
 
-            case DeleteStorageQuery.ResultCode.WorkspacesOrIntegrationAttached: 
+            case DeleteStorageQuery.ResultCode.WorkspacesOrIntegrationAttached:
                 return HttpErrors.Storage.WorkspaceOrIntegrationAttached(
                     storageExternalId);
 
@@ -143,36 +153,48 @@ public static class StoragesEndpoints
         [FromRoute] StorageExtId storageExternalId,
         [FromBody] UpdateStorageNameRequestDto request,
         UpdateStorageNameQuery updateStorageNameQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await updateStorageNameQuery.Execute(
-            storageExternalId, 
+            storageExternalId,
             request.Name,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            UpdateStorageNameQuery.ResultCode.Ok => 
-                TypedResults.Ok(),
+            case UpdateStorageNameQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.NameUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: storageExternalId.Value,
+                        name: request.Name),
+                    cancellationToken);
 
-            UpdateStorageNameQuery.ResultCode.NotFound => 
-                HttpErrors.Storage.NotFound(
-                    storageExternalId),
+                return TypedResults.Ok();
 
-            UpdateStorageNameQuery.ResultCode.NameNotUnique => 
-                HttpErrors.Storage.NameNotUnique(
-                    request.Name),
+            case UpdateStorageNameQuery.ResultCode.NotFound:
+                return HttpErrors.Storage.NotFound(
+                    storageExternalId);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(UpdateStorageNameQuery),
-                resultValueStr: result.ToString())
-        };
+            case UpdateStorageNameQuery.ResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(
+                    request.Name);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateStorageNameQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
     // Cloudflare R2 Operations
     private static async Task<Results<Ok<CreateCloudflareR2StorageResponseDto>, BadRequest<HttpError>>> CreateCloudflareR2Storage(
         [FromBody] CreateCloudflareR2StorageRequestDto request,
         CreateCloudflareR2StorageOperation createCloudflareR2StorageOperation,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await createCloudflareR2StorageOperation.Execute(
@@ -184,32 +206,43 @@ public static class StoragesEndpoints
             encryptionType: request.EncryptionType,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            CreateCloudflareR2StorageOperation.ResultCode.Ok => TypedResults.Ok(
-                new CreateCloudflareR2StorageResponseDto(ExternalId: result.StorageExternalId!.Value)),
+            case CreateCloudflareR2StorageOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.Created(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        name: request.Name,
+                        type: StorageType.CloudflareR2),
+                    cancellationToken);
 
-            CreateCloudflareR2StorageOperation.ResultCode.CouldNotConnect => 
-                HttpErrors.Storage.ConnectionFailed(),
+                return TypedResults.Ok(
+                    new CreateCloudflareR2StorageResponseDto(ExternalId: result.StorageExternalId!.Value));
 
-            CreateCloudflareR2StorageOperation.ResultCode.NameNotUnique =>
-                HttpErrors.Storage.NameNotUnique(
-                    request.Name),
+            case CreateCloudflareR2StorageOperation.ResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
 
-            CreateCloudflareR2StorageOperation.ResultCode.InvalidUrl =>
-                HttpErrors.Storage.InvalidUrl(
-                    request.Url),
+            case CreateCloudflareR2StorageOperation.ResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(
+                    request.Name);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateCloudflareR2StorageOperation),
-                resultValueStr: result.ToString())
-        };
+            case CreateCloudflareR2StorageOperation.ResultCode.InvalidUrl:
+                return HttpErrors.Storage.InvalidUrl(
+                    request.Url);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateCloudflareR2StorageOperation),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateCloudflareR2StorageDetails(
         [FromRoute] StorageExtId storageExternalId,
         [FromBody] UpdateCloudflareR2StorageDetailsRequestDto request,
         UpdateCloudflareR2StorageDetailsOperation updateCloudflareR2StorageDetailsOperation,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await updateCloudflareR2StorageDetailsOperation.Execute(
@@ -220,31 +253,41 @@ public static class StoragesEndpoints
                 Url: request.Url),
             cancellationToken: cancellationToken);
 
-        return result switch
+        switch (result)
         {
-            UpdateCloudflareR2StorageDetailsOperation.ResultCode.Ok => 
-                TypedResults.Ok(),
+            case UpdateCloudflareR2StorageDetailsOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.DetailsUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: storageExternalId.Value,
+                        type: StorageType.CloudflareR2),
+                    cancellationToken);
 
-            UpdateCloudflareR2StorageDetailsOperation.ResultCode.CouldNotConnect => 
-                HttpErrors.Storage.ConnectionFailed(),
+                return TypedResults.Ok();
 
-            UpdateCloudflareR2StorageDetailsOperation.ResultCode.NotFound => 
-                HttpErrors.Storage.NotFound(
-                    storageExternalId),
+            case UpdateCloudflareR2StorageDetailsOperation.ResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
 
-            UpdateCloudflareR2StorageDetailsOperation.ResultCode.InvalidUrl => 
-                HttpErrors.Storage.InvalidUrl(
-                    request.Url),
+            case UpdateCloudflareR2StorageDetailsOperation.ResultCode.NotFound:
+                return HttpErrors.Storage.NotFound(
+                    storageExternalId);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateCloudflareR2StorageOperation),
-                resultValueStr: result.ToString())
-        };
+            case UpdateCloudflareR2StorageDetailsOperation.ResultCode.InvalidUrl:
+                return HttpErrors.Storage.InvalidUrl(
+                    request.Url);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateCloudflareR2StorageOperation),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok<CreateAwsS3StorageResponseDto>, BadRequest<HttpError>>> CreateAwsS3Storage(
         [FromBody] CreateAwsS3StorageRequestDto request,
         CreateAwsS3StorageOperation createAwsS3StorageOperation,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await createAwsS3StorageOperation.Execute(
@@ -256,28 +299,39 @@ public static class StoragesEndpoints
             encryptionType: request.EncryptionType,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            CreateAwsS3StorageOperation.ResultCode.Ok => TypedResults.Ok(new CreateAwsS3StorageResponseDto(
-                ExternalId: result.StorageExternalId!.Value)),
+            case CreateAwsS3StorageOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.Created(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        name: request.Name,
+                        type: StorageType.AwsS3),
+                    cancellationToken);
 
-            CreateAwsS3StorageOperation.ResultCode.CouldNotConnect => 
-                HttpErrors.Storage.ConnectionFailed(),
+                return TypedResults.Ok(new CreateAwsS3StorageResponseDto(
+                    ExternalId: result.StorageExternalId!.Value));
 
-            CreateAwsS3StorageOperation.ResultCode.NameNotUnique => 
-                HttpErrors.Storage.NameNotUnique(
-                    request.Name),
+            case CreateAwsS3StorageOperation.ResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateAwsS3StorageOperation),
-                resultValueStr: result.ToString())
-        };
+            case CreateAwsS3StorageOperation.ResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(
+                    request.Name);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateAwsS3StorageOperation),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateAwsS3StorageDetails(
         [FromRoute] StorageExtId storageExternalId,
         [FromBody] UpdateAwsS3StorageDetailsRequestDto request,
         UpdateAwsS3StorageDetailsOperation updateAwsS3StorageDetailsOperation,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await updateAwsS3StorageDetailsOperation.Execute(
@@ -288,27 +342,37 @@ public static class StoragesEndpoints
                 Region: request.Region),
             cancellationToken: cancellationToken);
 
-        return result switch
+        switch (result)
         {
-            UpdateAwsS3StorageDetailsOperation.ResultCode.Ok => 
-                TypedResults.Ok(),
+            case UpdateAwsS3StorageDetailsOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.DetailsUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: storageExternalId.Value,
+                        type: StorageType.AwsS3),
+                    cancellationToken);
 
-            UpdateAwsS3StorageDetailsOperation.ResultCode.CouldNotConnect => 
-                HttpErrors.Storage.ConnectionFailed(),
+                return TypedResults.Ok();
 
-            UpdateAwsS3StorageDetailsOperation.ResultCode.NotFound => 
-                HttpErrors.Storage.NotFound(
-                    storageExternalId),
+            case UpdateAwsS3StorageDetailsOperation.ResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(UpdateAwsS3StorageDetailsOperation),
-                resultValueStr: result.ToString())
-        };
+            case UpdateAwsS3StorageDetailsOperation.ResultCode.NotFound:
+                return HttpErrors.Storage.NotFound(
+                    storageExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateAwsS3StorageDetailsOperation),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok<CreateDigitalOceanSpacesStorageResponseDto>, BadRequest<HttpError>>> CreateDigitalOceanSpacesStorage(
         [FromBody] CreateDigitalOceanSpacesStorageRequestDto request,
         CreateDigitalOceanStorageOperation createDigitalOceanStorageOperation,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await createDigitalOceanStorageOperation.Execute(
@@ -320,28 +384,39 @@ public static class StoragesEndpoints
             encryptionType: request.EncryptionType,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            CreateDigitalOceanStorageOperation.ResultCode.Ok => TypedResults.Ok(new CreateDigitalOceanSpacesStorageResponseDto(
-                ExternalId: result.StorageExternalId!.Value)),
+            case CreateDigitalOceanStorageOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.Created(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        name: request.Name,
+                        type: StorageType.DigitalOceanSpaces),
+                    cancellationToken);
 
-            CreateDigitalOceanStorageOperation.ResultCode.CouldNotConnect => 
-                HttpErrors.Storage.ConnectionFailed(),
+                return TypedResults.Ok(new CreateDigitalOceanSpacesStorageResponseDto(
+                    ExternalId: result.StorageExternalId!.Value));
 
-            CreateDigitalOceanStorageOperation.ResultCode.NameNotUnique => 
-                HttpErrors.Storage.NameNotUnique(
-                    request.Name),
+            case CreateDigitalOceanStorageOperation.ResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateAwsS3StorageOperation),
-                resultValueStr: result.ToString())
-        };
+            case CreateDigitalOceanStorageOperation.ResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(
+                    request.Name);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateAwsS3StorageOperation),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateDigitalOceanStorageDetails(
         [FromRoute] StorageExtId storageExternalId,
         [FromBody] UpdateDigitalOceanSpacesStorageDetailsRequestDto request,
         UpdateDigitalOceanSpacesStorageDetailsOperation updateDigitalOceanSpacesStorageDetailsOperation,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await updateDigitalOceanSpacesStorageDetailsOperation.Execute(
@@ -352,27 +427,37 @@ public static class StoragesEndpoints
                 Url: $"https://{request.Region}.digitaloceanspaces.com"),
             cancellationToken: cancellationToken);
 
-        return result switch
+        switch (result)
         {
-            UpdateDigitalOceanSpacesStorageDetailsOperation.ResultCode.Ok => 
-                TypedResults.Ok(),
+            case UpdateDigitalOceanSpacesStorageDetailsOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.DetailsUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: storageExternalId.Value,
+                        type: StorageType.DigitalOceanSpaces),
+                    cancellationToken);
 
-            UpdateDigitalOceanSpacesStorageDetailsOperation.ResultCode.CouldNotConnect => 
-                HttpErrors.Storage.ConnectionFailed(),
+                return TypedResults.Ok();
 
-            UpdateDigitalOceanSpacesStorageDetailsOperation.ResultCode.NotFound => 
-                HttpErrors.Storage.NotFound(
-                    storageExternalId),
+            case UpdateDigitalOceanSpacesStorageDetailsOperation.ResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(UpdateAwsS3StorageDetailsOperation),
-                resultValueStr: result.ToString())
-        };
+            case UpdateDigitalOceanSpacesStorageDetailsOperation.ResultCode.NotFound:
+                return HttpErrors.Storage.NotFound(
+                    storageExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateAwsS3StorageDetailsOperation),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok<CreateHardDriveStorageResponseDto>, BadRequest<HttpError>>> CreateHardDriveStorage(
         [FromBody] CreateHardDriveStorageRequestDto request,
         CreateHardDriveStorageOperation createHardDriveStorageOperation,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await createHardDriveStorageOperation.Execute(
@@ -382,23 +467,32 @@ public static class StoragesEndpoints
             encryptionType: request.EncryptionType,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            CreateHardDriveStorageOperation.ResultCode.Ok => TypedResults.Ok(new CreateHardDriveStorageResponseDto(
-                ExternalId: result.StorageExternalId!.Value)),
+            case CreateHardDriveStorageOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.Created(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        name: request.Name,
+                        type: StorageType.HardDrive),
+                    cancellationToken);
 
-            CreateHardDriveStorageOperation.ResultCode.NameNotUnique =>
-                HttpErrors.Storage.NameNotUnique(
-                    request.Name),
+                return TypedResults.Ok(new CreateHardDriveStorageResponseDto(
+                    ExternalId: result.StorageExternalId!.Value));
 
-            CreateHardDriveStorageOperation.ResultCode.VolumeNotFound => 
-                HttpErrors.Storage.VolumeNotFound(
-                    request.VolumePath),
+            case CreateHardDriveStorageOperation.ResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(
+                    request.Name);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateAwsS3StorageOperation),
-                resultValueStr: result.ToString())
-        };
+            case CreateHardDriveStorageOperation.ResultCode.VolumeNotFound:
+                return HttpErrors.Storage.VolumeNotFound(
+                    request.VolumePath);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateAwsS3StorageOperation),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static GetHardDriveVolumesResponseDto GetHardDriveVolumes(
@@ -419,6 +513,8 @@ public static class StoragesEndpoints
     private static async Task<Results<Ok<CreateBackblazeB2StorageResponseDto>, BadRequest<HttpError>>> CreateBackblazeB2Storage(
         [FromBody] CreateBackblazeB2StorageRequestDto request,
         CreateBackblazeB2StorageOperation createBackblazeB2StorageOperation,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await createBackblazeB2StorageOperation.Execute(
@@ -430,35 +526,46 @@ public static class StoragesEndpoints
             encryptionType: request.EncryptionType,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            CreateBackblazeB2StorageOperation.ResultCode.Ok => TypedResults.Ok(
-                new CreateBackblazeB2StorageResponseDto
-                {
-                    ExternalId = result.StorageExternalId!.Value
-                }),
+            case CreateBackblazeB2StorageOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.Created(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        name: request.Name,
+                        type: StorageType.BackblazeB2),
+                    cancellationToken);
 
-            CreateBackblazeB2StorageOperation.ResultCode.CouldNotConnect =>
-                HttpErrors.Storage.ConnectionFailed(),
+                return TypedResults.Ok(
+                    new CreateBackblazeB2StorageResponseDto
+                    {
+                        ExternalId = result.StorageExternalId!.Value
+                    });
 
-            CreateBackblazeB2StorageOperation.ResultCode.NameNotUnique =>
-                HttpErrors.Storage.NameNotUnique(
-                    request.Name),
+            case CreateBackblazeB2StorageOperation.ResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
 
-            CreateBackblazeB2StorageOperation.ResultCode.InvalidUrl =>
-                HttpErrors.Storage.InvalidUrl(
-                    request.Url),
+            case CreateBackblazeB2StorageOperation.ResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(
+                    request.Name);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateBackblazeB2StorageOperation),
-                resultValueStr: result.ToString())
-        };
+            case CreateBackblazeB2StorageOperation.ResultCode.InvalidUrl:
+                return HttpErrors.Storage.InvalidUrl(
+                    request.Url);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateBackblazeB2StorageOperation),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateBackblazeB2StorageDetails(
         [FromRoute] StorageExtId storageExternalId,
         [FromBody] UpdateBackblazeB2StorageDetailsRequestDto request,
         UpdateBackblazeB2StorageDetailsOperation updateBackblazeB2StorageDetailsOperation,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await updateBackblazeB2StorageDetailsOperation.Execute(
@@ -469,25 +576,33 @@ public static class StoragesEndpoints
                 Url: request.Url),
             cancellationToken: cancellationToken);
 
-        return result switch
+        switch (result)
         {
-            UpdateBackblazeB2StorageDetailsOperation.ResultCode.Ok =>
-                TypedResults.Ok(),
+            case UpdateBackblazeB2StorageDetailsOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.DetailsUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: storageExternalId.Value,
+                        type: StorageType.BackblazeB2),
+                    cancellationToken);
 
-            UpdateBackblazeB2StorageDetailsOperation.ResultCode.CouldNotConnect =>
-                HttpErrors.Storage.ConnectionFailed(),
+                return TypedResults.Ok();
 
-            UpdateBackblazeB2StorageDetailsOperation.ResultCode.NotFound =>
-                HttpErrors.Storage.NotFound(
-                    storageExternalId),
+            case UpdateBackblazeB2StorageDetailsOperation.ResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
 
-            UpdateBackblazeB2StorageDetailsOperation.ResultCode.InvalidUrl =>
-                HttpErrors.Storage.InvalidUrl(
-                    request.Url),
+            case UpdateBackblazeB2StorageDetailsOperation.ResultCode.NotFound:
+                return HttpErrors.Storage.NotFound(
+                    storageExternalId);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateBackblazeB2StorageOperation),
-                resultValueStr: result.ToString())
-        };
+            case UpdateBackblazeB2StorageDetailsOperation.ResultCode.InvalidUrl:
+                return HttpErrors.Storage.InvalidUrl(
+                    request.Url);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateBackblazeB2StorageOperation),
+                    resultValueStr: result.ToString());
+        }
     }
 }

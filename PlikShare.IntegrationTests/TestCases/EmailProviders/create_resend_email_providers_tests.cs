@@ -19,7 +19,6 @@ public class create_resend_email_providers_tests: TestFixture
 {
     public create_resend_email_providers_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
-        ClearAuditLog();
         hostFixture.RemoveAllEmailProviders();
     }
     

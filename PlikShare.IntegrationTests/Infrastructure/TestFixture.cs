@@ -81,6 +81,8 @@ public class TestFixture: IAsyncLifetime
                 Password: "PlikshareIntegrationTestsPassword123!@#")); //same values in appsettings.integrationtests.json
 
         MainVolume = new AppVolume($"integration_tests_volumes_{hostFixture.MainVolumePathSuffix}/main");
+
+        ClearAuditLog();
     }
 
     private static void ConfigureLogger(ITestOutputHelper testOutputHelper)

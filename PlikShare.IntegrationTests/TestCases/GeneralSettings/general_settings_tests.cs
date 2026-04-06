@@ -19,7 +19,6 @@ public class general_settings_tests : TestFixture, IDisposable
     public general_settings_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
         _hostFixture = hostFixture;
-        ClearAuditLog();
         AppOwner = SignIn(user: Users.AppOwner).Result;
     }
 

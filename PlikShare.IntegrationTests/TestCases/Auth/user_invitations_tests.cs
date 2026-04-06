@@ -22,7 +22,6 @@ public class user_invitation_tests : TestFixture
 
     public user_invitation_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
-        ClearAuditLog();
         AppOwner = SignIn(user: Users.AppOwner).Result;
         EmailProvider = CreateAndActivateEmailProviderIfMissing(user: AppOwner).Result;
 

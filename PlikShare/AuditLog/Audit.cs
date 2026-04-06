@@ -730,6 +730,157 @@ public static class Audit
         };
     }
 
+    public static class Storage
+    {
+        public static AuditLogEntry Created(
+            AuditLogActorContext actor,
+            string name,
+            string type) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Storage,
+            EventType = AuditLogEventTypes.Storage.Created,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Serialize(new AuditLogDetails.Storage.Created {
+                Name = name,
+                Type = type })
+        };
+
+        public static AuditLogEntry Deleted(
+            AuditLogActorContext actor,
+            string externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Storage,
+            EventType = AuditLogEventTypes.Storage.Deleted,
+            Severity = AuditLogSeverities.Critical,
+            DetailsJson = Serialize(new AuditLogDetails.Storage.Deleted {
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry NameUpdated(
+            AuditLogActorContext actor,
+            string externalId,
+            string name) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Storage,
+            EventType = AuditLogEventTypes.Storage.NameUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Serialize(new AuditLogDetails.Storage.NameUpdated {
+                ExternalId = externalId,
+                Name = name })
+        };
+
+        public static AuditLogEntry DetailsUpdated(
+            AuditLogActorContext actor,
+            string externalId,
+            string type) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Storage,
+            EventType = AuditLogEventTypes.Storage.DetailsUpdated,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Serialize(new AuditLogDetails.Storage.DetailsUpdated {
+                ExternalId = externalId,
+                Type = type })
+        };
+    }
+
+    public static class Integration
+    {
+        public static AuditLogEntry Created(
+            AuditLogActorContext actor,
+            string name,
+            string type) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Integration,
+            EventType = AuditLogEventTypes.Integration.Created,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Serialize(new AuditLogDetails.Integration.Created {
+                Name = name,
+                Type = type })
+        };
+
+        public static AuditLogEntry Deleted(
+            AuditLogActorContext actor,
+            string externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Integration,
+            EventType = AuditLogEventTypes.Integration.Deleted,
+            Severity = AuditLogSeverities.Critical,
+            DetailsJson = Serialize(new AuditLogDetails.Integration.Deleted {
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry NameUpdated(
+            AuditLogActorContext actor,
+            string externalId,
+            string name) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Integration,
+            EventType = AuditLogEventTypes.Integration.NameUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Serialize(new AuditLogDetails.Integration.NameUpdated {
+                ExternalId = externalId,
+                Name = name })
+        };
+
+        public static AuditLogEntry Activated(
+            AuditLogActorContext actor,
+            string externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Integration,
+            EventType = AuditLogEventTypes.Integration.Activated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Serialize(new AuditLogDetails.Integration.ActivationChanged {
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry Deactivated(
+            AuditLogActorContext actor,
+            string externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Integration,
+            EventType = AuditLogEventTypes.Integration.Deactivated,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Serialize(new AuditLogDetails.Integration.ActivationChanged {
+                ExternalId = externalId })
+        };
+    }
+
     public static class AuthProvider
     {
         public static AuditLogEntry Created(
