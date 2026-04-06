@@ -102,6 +102,16 @@ public class TestFixture: IAsyncLifetime
         return Task.CompletedTask;
     }
 
+    protected void ClearAuditLog()
+    {
+        var auditLogDb = HostFixture.App.Services.GetRequiredService<PlikShareAuditLogDb>();
+        using var connection = auditLogDb.OpenConnection();
+
+        connection
+            .NonQueryCmd(sql: "DELETE FROM al_audit_logs")
+            .Execute();
+    }
+
     protected Task AssertAuditLogContains(
         string expectedEventType,
         string? expectedActorEmail = null,

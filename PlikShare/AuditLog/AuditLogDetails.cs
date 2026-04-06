@@ -70,4 +70,71 @@ public static class AuditLogDetails
             public required bool IsRequired { get; init; }
         }
     }
+
+    public static class EmailProvider
+    {
+        public class Created
+        {
+            public required string Name { get; init; }
+            public required string Type { get; init; }
+            public required string EmailFrom { get; init; }
+        }
+
+        public class Deleted
+        {
+            public required string ExternalId { get; init; }
+        }
+
+        public class NameUpdated
+        {
+            public required string ExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+
+        public class ActivationChanged
+        {
+            public required string ExternalId { get; init; }
+        }
+
+        public class ConfirmationEmailResent
+        {
+            public required string ExternalId { get; init; }
+        }
+    }
+
+    public static class AuthProvider
+    {
+        public class Created
+        {
+            public required string Name { get; init; }
+            public required string Type { get; init; }
+        }
+
+        public class Deleted
+        {
+            public required string ExternalId { get; init; }
+        }
+
+        public class NameUpdated
+        {
+            public required string ExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+
+        public class Updated
+        {
+            public required string ExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+
+        public class ActivationChanged
+        {
+            public required string ExternalId { get; init; }
+        }
+
+        public class PasswordLoginToggled
+        {
+            public required bool IsEnabled { get; init; }
+        }
+    }
 }

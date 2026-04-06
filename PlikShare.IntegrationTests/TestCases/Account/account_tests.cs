@@ -19,6 +19,7 @@ public class account_tests : TestFixture
 
     public account_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
+        ClearAuditLog();
         AppOwner = SignIn(user: Users.AppOwner).Result;
     }
 

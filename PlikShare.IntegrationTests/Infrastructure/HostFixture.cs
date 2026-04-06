@@ -189,6 +189,20 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
         AppSettings.SetPasswordLogin(isEnabled: true);
     }
 
+    public void ResetGeneralSettings()
+    {
+        AppSettings.SetApplicationName(AppSettings.ApplicationNameSetting.Default.Name);
+        AppSettings.SetApplicationSignUp(AppSettings.SignUpSetting.Default);
+        AppSettings.SetNewUserDefaultMaxWorkspaceNumber(AppSettings.NewUserDefaultMaxWorkspaceNumberSetting.Default.Value);
+        AppSettings.SetNewUserDefaultMaxWorkspaceSizeInBytes(AppSettings.NewUserDefaultMaxWorkspaceSizeInBytesSetting.Default.Value);
+        AppSettings.SetNewUserDefaultMaxWorkspaceTeamMembers(AppSettings.NewUserDefaultMaxWorkspaceTeamMembersSetting.Default.Value);
+        AppSettings.SetNewUserPermissionsAndRoles(AppSettings.NewUserDefaultPermissionsAndRolesSetting.Default.permissionsAndRoles);
+        AppSettings.SetAlertOnNewUserRegistered(AppSettings.AlertOnNewUserRegisteredSetting.Default.IsTurnedOn);
+
+        using var connection = Db.OpenConnection();
+        connection.NonQueryCmd(sql: "DELETE FROM suc_sign_up_checkboxes").Execute();
+    }
+
     public void RemoveAllEmailProviders()
     {
         using var connection = Db.OpenConnection();

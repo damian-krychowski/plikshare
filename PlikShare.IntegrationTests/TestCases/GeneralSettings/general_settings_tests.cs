@@ -11,12 +11,15 @@ using Xunit.Abstractions;
 namespace PlikShare.IntegrationTests.TestCases.GeneralSettings;
 
 [Collection(IntegrationTestsCollection.Name)]
-public class general_settings_tests : TestFixture
+public class general_settings_tests : TestFixture, IDisposable
 {
+    private readonly HostFixture8081 _hostFixture;
     private AppSignedInUser AppOwner { get; }
 
     public general_settings_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
+        _hostFixture = hostFixture;
+        ClearAuditLog();
         AppOwner = SignIn(user: Users.AppOwner).Result;
     }
 
@@ -362,5 +365,10 @@ public class general_settings_tests : TestFixture
             assertDetails: details => details.Id.Should().Be(response.NewId),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    public void Dispose()
+    {
+        _hostFixture.ResetGeneralSettings();
     }
 }

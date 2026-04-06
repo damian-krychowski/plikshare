@@ -20,6 +20,7 @@ public class user_permissions_tests : TestFixture
 
     public user_permissions_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
+        ClearAuditLog();
         AppOwner = SignIn(user: Users.AppOwner).Result;
         User = InviteAndRegisterUser(AppOwner).Result;
     }

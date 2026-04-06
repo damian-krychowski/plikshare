@@ -18,6 +18,7 @@ using PlikShare.AuthProviders.Update;
 using PlikShare.AuthProviders.Update.Contracts;
 using PlikShare.AuthProviders.UpdateName;
 using PlikShare.AuthProviders.UpdateName.Contracts;
+using PlikShare.AuditLog;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Configuration;
 using PlikShare.Core.Utils;
@@ -100,6 +101,8 @@ public static class AuthProvidersEndpoints
     private static async Task<Results<Ok<CreateOidcAuthProviderResponseDto>, BadRequest<HttpError>>> CreateOidcProvider(
         [FromBody] CreateOidcAuthProviderRequestDto request,
         CreateAuthProviderQuery createAuthProviderQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await createAuthProviderQuery.Execute(
@@ -110,50 +113,69 @@ public static class AuthProvidersEndpoints
             issuerUrl: request.IssuerUrl,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            CreateAuthProviderQuery.ResultCode.Ok =>
-                TypedResults.Ok(new CreateOidcAuthProviderResponseDto
+            case CreateAuthProviderQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.AuthProvider.Created(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        name: request.Name,
+                        type: AuthProviderType.Oidc.Value),
+                    cancellationToken);
+
+                return TypedResults.Ok(new CreateOidcAuthProviderResponseDto
                 {
                     ExternalId = result.ExternalId!.Value.Value
-                }),
+                });
 
-            CreateAuthProviderQuery.ResultCode.NameNotUnique =>
-                HttpErrors.AuthProvider.NameNotUnique(request.Name),
+            case CreateAuthProviderQuery.ResultCode.NameNotUnique:
+                return HttpErrors.AuthProvider.NameNotUnique(request.Name);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateAuthProviderQuery),
-                resultValueStr: result.ToString())
-        };
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateAuthProviderQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>>> Delete(
         [FromRoute] AuthProviderExtId authProviderExternalId,
         DeleteAuthProviderQuery deleteAuthProviderQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await deleteAuthProviderQuery.Execute(
             externalId: authProviderExternalId,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            DeleteAuthProviderQuery.ResultCode.Ok =>
-                TypedResults.Ok(),
+            case DeleteAuthProviderQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.AuthProvider.Deleted(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: authProviderExternalId.Value),
+                    cancellationToken);
 
-            DeleteAuthProviderQuery.ResultCode.NotFound =>
-                HttpErrors.AuthProvider.NotFound(authProviderExternalId),
+                return TypedResults.Ok();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(DeleteAuthProviderQuery),
-                resultValueStr: result.ToString())
-        };
+            case DeleteAuthProviderQuery.ResultCode.NotFound:
+                return HttpErrors.AuthProvider.NotFound(authProviderExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(DeleteAuthProviderQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateName(
         [FromRoute] AuthProviderExtId authProviderExternalId,
         [FromBody] UpdateAuthProviderNameRequestDto request,
         UpdateAuthProviderNameQuery updateAuthProviderNameQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await updateAuthProviderNameQuery.Execute(
@@ -161,67 +183,93 @@ public static class AuthProvidersEndpoints
             name: request.Name,
             cancellationToken: cancellationToken);
 
-        return result switch
+        switch (result)
         {
-            UpdateAuthProviderNameQuery.ResultCode.Ok =>
-                TypedResults.Ok(),
+            case UpdateAuthProviderNameQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.AuthProvider.NameUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: authProviderExternalId.Value,
+                        name: request.Name),
+                    cancellationToken);
 
-            UpdateAuthProviderNameQuery.ResultCode.NotFound =>
-                HttpErrors.AuthProvider.NotFound(authProviderExternalId),
+                return TypedResults.Ok();
 
-            UpdateAuthProviderNameQuery.ResultCode.NameNotUnique =>
-                HttpErrors.AuthProvider.NameNotUnique(request.Name),
+            case UpdateAuthProviderNameQuery.ResultCode.NotFound:
+                return HttpErrors.AuthProvider.NotFound(authProviderExternalId);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(UpdateAuthProviderNameQuery),
-                resultValueStr: result.ToString())
-        };
+            case UpdateAuthProviderNameQuery.ResultCode.NameNotUnique:
+                return HttpErrors.AuthProvider.NameNotUnique(request.Name);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateAuthProviderNameQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>>> Activate(
         [FromRoute] AuthProviderExtId authProviderExternalId,
         ActivateAuthProviderQuery activateAuthProviderQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await activateAuthProviderQuery.Execute(
             externalId: authProviderExternalId,
             cancellationToken: cancellationToken);
 
-        return result switch
+        switch (result)
         {
-            ActivateAuthProviderQuery.ResultCode.Ok =>
-                TypedResults.Ok(),
+            case ActivateAuthProviderQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.AuthProvider.Activated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: authProviderExternalId.Value),
+                    cancellationToken);
 
-            ActivateAuthProviderQuery.ResultCode.NotFound =>
-                HttpErrors.AuthProvider.NotFound(authProviderExternalId),
+                return TypedResults.Ok();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(ActivateAuthProviderQuery),
-                resultValueStr: result.ToString())
-        };
+            case ActivateAuthProviderQuery.ResultCode.NotFound:
+                return HttpErrors.AuthProvider.NotFound(authProviderExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(ActivateAuthProviderQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>>> Deactivate(
         [FromRoute] AuthProviderExtId authProviderExternalId,
         DeactivateAuthProviderQuery deactivateAuthProviderQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await deactivateAuthProviderQuery.Execute(
             externalId: authProviderExternalId,
             cancellationToken: cancellationToken);
 
-        return result switch
+        switch (result)
         {
-            DeactivateAuthProviderQuery.ResultCode.Ok =>
-                TypedResults.Ok(),
+            case DeactivateAuthProviderQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.AuthProvider.Deactivated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: authProviderExternalId.Value),
+                    cancellationToken);
 
-            DeactivateAuthProviderQuery.ResultCode.NotFound =>
-                HttpErrors.AuthProvider.NotFound(authProviderExternalId),
+                return TypedResults.Ok();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(DeactivateAuthProviderQuery),
-                resultValueStr: result.ToString())
-        };
+            case DeactivateAuthProviderQuery.ResultCode.NotFound:
+                return HttpErrors.AuthProvider.NotFound(authProviderExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(DeactivateAuthProviderQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok<TestAuthProviderConfigurationResponseDto>, BadRequest<HttpError>>> TestConfiguration(
@@ -256,6 +304,8 @@ public static class AuthProvidersEndpoints
         [FromRoute] AuthProviderExtId authProviderExternalId,
         [FromBody] UpdateAuthProviderRequestDto request,
         UpdateAuthProviderQuery updateAuthProviderQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await updateAuthProviderQuery.Execute(
@@ -266,28 +316,38 @@ public static class AuthProvidersEndpoints
             issuerUrl: request.IssuerUrl,
             cancellationToken: cancellationToken);
 
-        return result switch
+        switch (result)
         {
-            UpdateAuthProviderQuery.ResultCode.Ok =>
-                TypedResults.Ok(),
+            case UpdateAuthProviderQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.AuthProvider.Updated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: authProviderExternalId.Value,
+                        name: request.Name),
+                    cancellationToken);
+                    
+                return TypedResults.Ok();
 
-            UpdateAuthProviderQuery.ResultCode.NotFound =>
-                HttpErrors.AuthProvider.NotFound(authProviderExternalId),
+            case UpdateAuthProviderQuery.ResultCode.NotFound:
+                return HttpErrors.AuthProvider.NotFound(authProviderExternalId);
 
-            UpdateAuthProviderQuery.ResultCode.NameNotUnique =>
-                HttpErrors.AuthProvider.NameNotUnique(request.Name),
+            case UpdateAuthProviderQuery.ResultCode.NameNotUnique:
+                return HttpErrors.AuthProvider.NameNotUnique(request.Name);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(UpdateAuthProviderQuery),
-                resultValueStr: result.ToString())
-        };
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateAuthProviderQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
-    private static Results<Ok, BadRequest<HttpError>> SetPasswordLogin(
+    private static async Task<Results<Ok, BadRequest<HttpError>>> SetPasswordLogin(
         [FromBody] SetPasswordLoginRequestDto request,
         HttpContext httpContext,
         AppSettings appSettings,
-        CheckUserHasSsoLoginQuery checkUserHasSsoLoginQuery)
+        CheckUserHasSsoLoginQuery checkUserHasSsoLoginQuery,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
         if (!request.IsEnabled)
         {
@@ -300,6 +360,12 @@ public static class AuthProvidersEndpoints
         }
 
         appSettings.SetPasswordLogin(request.IsEnabled);
+
+        await auditLogService.Log(
+            Audit.AuthProvider.PasswordLoginToggled(
+                actor: httpContext.GetAuditLogActorContext(),
+                isEnabled: request.IsEnabled),
+            cancellationToken);
 
         return TypedResults.Ok();
     }

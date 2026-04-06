@@ -3,6 +3,7 @@ using PlikShare.EmailProviders.Confirm.Contracts;
 using PlikShare.EmailProviders.ExternalProviders.Resend.Create;
 using PlikShare.EmailProviders.Id;
 using PlikShare.EmailProviders.List.Contracts;
+using PlikShare.EmailProviders.UpdateName.Contracts;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
@@ -53,6 +54,45 @@ public class EmailProvidersApi(IFlurlClient flurlClient, string appUrl)
             appUrl: appUrl,
             apiPath: $"api/email-providers/{emailProviderExternalId}/activate",
             request: new object(),
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task Deactivate(
+        EmailProviderExtId emailProviderExternalId,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePost(
+            appUrl: appUrl,
+            apiPath: $"api/email-providers/{emailProviderExternalId}/deactivate",
+            request: new object(),
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task Delete(
+        EmailProviderExtId emailProviderExternalId,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecuteDelete(
+            appUrl: appUrl,
+            apiPath: $"api/email-providers/{emailProviderExternalId}",
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task UpdateName(
+        EmailProviderExtId emailProviderExternalId,
+        UpdateEmailProviderNameRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/email-providers/{emailProviderExternalId}/name",
+            request: request,
             cookie: cookie,
             antiforgery: antiforgery);
     }

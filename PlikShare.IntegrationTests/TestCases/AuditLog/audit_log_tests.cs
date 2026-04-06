@@ -1,9 +1,6 @@
 using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
 using PlikShare.AuditLog;
 using PlikShare.AuditLog.Contracts;
-using PlikShare.Core.Database.AuditLogDatabase;
-using PlikShare.Core.SQLite;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using Xunit.Abstractions;
@@ -16,17 +13,7 @@ public class audit_log_tests : TestFixture
     public audit_log_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper)
         : base(hostFixture, testOutputHelper)
     {
-        ClearAuditLog(hostFixture);
-    }
-
-    private static void ClearAuditLog(HostFixture hostFixture)
-    {
-        var auditLogDb = hostFixture.App.Services.GetRequiredService<PlikShareAuditLogDb>();
-        using var connection = auditLogDb.OpenConnection();
-
-        connection
-            .NonQueryCmd(sql: "DELETE FROM al_audit_logs")
-            .Execute();
+        ClearAuditLog();
     }
 
     [Fact]

@@ -89,7 +89,43 @@ public static class AuditLogEventTypes
         ];
     }
 
-    public static readonly string[] All = [..Auth.All, ..User.All, ..Settings.All];
+    public static class EmailProvider
+    {
+        public const string Created = "email-provider.created";
+        public const string Deleted = "email-provider.deleted";
+        public const string NameUpdated = "email-provider.name-updated";
+        public const string Activated = "email-provider.activated";
+        public const string Deactivated = "email-provider.deactivated";
+        public const string Confirmed = "email-provider.confirmed";
+        public const string ConfirmationEmailResent = "email-provider.confirmation-email-resent";
+
+        public static readonly string[] All =
+        [
+            Created, Deleted, NameUpdated,
+            Activated, Deactivated,
+            Confirmed, ConfirmationEmailResent
+        ];
+    }
+
+    public static class AuthProvider
+    {
+        public const string Created = "auth-provider.created";
+        public const string Deleted = "auth-provider.deleted";
+        public const string NameUpdated = "auth-provider.name-updated";
+        public const string Updated = "auth-provider.updated";
+        public const string Activated = "auth-provider.activated";
+        public const string Deactivated = "auth-provider.deactivated";
+        public const string PasswordLoginToggled = "auth-provider.password-login-toggled";
+
+        public static readonly string[] All =
+        [
+            Created, Deleted, NameUpdated, Updated,
+            Activated, Deactivated,
+            PasswordLoginToggled
+        ];
+    }
+
+    public static readonly string[] All = [..Auth.All, ..User.All, ..Settings.All, ..EmailProvider.All, ..AuthProvider.All];
 }
 
 public static class AuditLogEventCategories

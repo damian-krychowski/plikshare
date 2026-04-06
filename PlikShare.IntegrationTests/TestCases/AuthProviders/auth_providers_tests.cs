@@ -1,7 +1,9 @@
 using FluentAssertions;
+using PlikShare.AuditLog;
 using PlikShare.AuthProviders.Create.Contracts;
 using PlikShare.AuthProviders.Entities;
 using PlikShare.AuthProviders.List.Contracts;
+using PlikShare.AuthProviders.PasswordLogin.Contracts;
 using PlikShare.AuthProviders.TestConfiguration.Contracts;
 using PlikShare.AuthProviders.Update.Contracts;
 using PlikShare.AuthProviders.UpdateName.Contracts;
@@ -19,6 +21,7 @@ public class auth_providers_tests : TestFixture, IDisposable
     public auth_providers_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper)
         : base(hostFixture, testOutputHelper)
     {
+        ClearAuditLog();
         _hostFixture = hostFixture;
         MockOidcServer.Reset();
     }
@@ -332,6 +335,241 @@ public class auth_providers_tests : TestFixture, IDisposable
         //then
         await act.Should().ThrowAsync<TestApiCallException>()
             .Where(e => e.StatusCode == 400);
+    }
+
+    [Fact]
+    public async Task creating_oidc_provider_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+        var providerName = Random.Name("OidcProvider");
+
+        //when
+        await Api.AuthProviders.CreateOidc(
+            request: new CreateOidcAuthProviderRequestDto
+            {
+                Name = providerName,
+                ClientId = Random.ClientId(),
+                ClientSecret = Random.ClientSecret(),
+                IssuerUrl = MockOidcServer.IssuerUrl
+            },
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.AuthProvider.Created>(
+            expectedEventType: AuditLogEventTypes.AuthProvider.Created,
+            assertDetails: details =>
+            {
+                details.Name.Should().Be(providerName);
+                details.Type.Should().Be(AuthProviderType.Oidc.Value);
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task deleting_oidc_provider_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+
+        var provider = await Api.AuthProviders.CreateOidc(
+            request: new CreateOidcAuthProviderRequestDto
+            {
+                Name = Random.Name("OidcProvider"),
+                ClientId = Random.ClientId(),
+                ClientSecret = Random.ClientSecret(),
+                IssuerUrl = MockOidcServer.IssuerUrl
+            },
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //when
+        await Api.AuthProviders.Delete(
+            externalId: provider.ExternalId,
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.AuthProvider.Deleted>(
+            expectedEventType: AuditLogEventTypes.AuthProvider.Deleted,
+            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Critical);
+    }
+
+    [Fact]
+    public async Task updating_oidc_provider_name_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+        var newName = Random.Name("RenamedProvider");
+
+        var provider = await Api.AuthProviders.CreateOidc(
+            request: new CreateOidcAuthProviderRequestDto
+            {
+                Name = Random.Name("OidcProvider"),
+                ClientId = Random.ClientId(),
+                ClientSecret = Random.ClientSecret(),
+                IssuerUrl = MockOidcServer.IssuerUrl
+            },
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //when
+        await Api.AuthProviders.UpdateName(
+            externalId: provider.ExternalId,
+            request: new UpdateAuthProviderNameRequestDto
+            {
+                Name = newName
+            },
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.AuthProvider.NameUpdated>(
+            expectedEventType: AuditLogEventTypes.AuthProvider.NameUpdated,
+            assertDetails: details =>
+            {
+                details.ExternalId.Should().Be(provider.ExternalId);
+                details.Name.Should().Be(newName);
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task updating_oidc_provider_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+        var newName = Random.Name("UpdatedProvider");
+
+        var provider = await Api.AuthProviders.CreateOidc(
+            request: new CreateOidcAuthProviderRequestDto
+            {
+                Name = Random.Name("OidcProvider"),
+                ClientId = Random.ClientId(),
+                ClientSecret = Random.ClientSecret(),
+                IssuerUrl = MockOidcServer.IssuerUrl
+            },
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //when
+        await Api.AuthProviders.Update(
+            externalId: provider.ExternalId,
+            request: new UpdateAuthProviderRequestDto
+            {
+                Name = newName,
+                ClientId = Random.ClientId(),
+                ClientSecret = Random.ClientSecret(),
+                IssuerUrl = MockOidcServer.IssuerUrl
+            },
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.AuthProvider.Updated>(
+            expectedEventType: AuditLogEventTypes.AuthProvider.Updated,
+            assertDetails: details =>
+            {
+                details.ExternalId.Should().Be(provider.ExternalId);
+                details.Name.Should().Be(newName);
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Warning);
+    }
+
+    [Fact]
+    public async Task activating_oidc_provider_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+
+        var provider = await Api.AuthProviders.CreateOidc(
+            request: new CreateOidcAuthProviderRequestDto
+            {
+                Name = Random.Name("OidcProvider"),
+                ClientId = Random.ClientId(),
+                ClientSecret = Random.ClientSecret(),
+                IssuerUrl = MockOidcServer.IssuerUrl
+            },
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //when
+        await Api.AuthProviders.Activate(
+            externalId: provider.ExternalId,
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.AuthProvider.ActivationChanged>(
+            expectedEventType: AuditLogEventTypes.AuthProvider.Activated,
+            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task deactivating_oidc_provider_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+
+        var provider = await Api.AuthProviders.CreateOidc(
+            request: new CreateOidcAuthProviderRequestDto
+            {
+                Name = Random.Name("OidcProvider"),
+                ClientId = Random.ClientId(),
+                ClientSecret = Random.ClientSecret(),
+                IssuerUrl = MockOidcServer.IssuerUrl
+            },
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        await Api.AuthProviders.Activate(
+            externalId: provider.ExternalId,
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //when
+        await Api.AuthProviders.Deactivate(
+            externalId: provider.ExternalId,
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.AuthProvider.ActivationChanged>(
+            expectedEventType: AuditLogEventTypes.AuthProvider.Deactivated,
+            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Warning);
+    }
+
+    [Fact]
+    public async Task toggling_password_login_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+
+        //when
+        await Api.AuthProviders.SetPasswordLogin(
+            request: new SetPasswordLoginRequestDto
+            {
+                IsEnabled = true
+            },
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.AuthProvider.PasswordLoginToggled>(
+            expectedEventType: AuditLogEventTypes.AuthProvider.PasswordLoginToggled,
+            assertDetails: details => details.IsEnabled.Should().BeTrue(),
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Warning);
     }
 
     public void Dispose()

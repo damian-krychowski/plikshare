@@ -26,6 +26,7 @@ using PlikShare.EmailProviders.ResendConfirmationEmail;
 using PlikShare.EmailProviders.ResendConfirmationEmail.Contracts;
 using PlikShare.EmailProviders.UpdateName;
 using PlikShare.EmailProviders.UpdateName.Contracts;
+using PlikShare.AuditLog;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Middleware;
 
@@ -99,6 +100,8 @@ public static class EmailProvidersEndpoints
         [FromRoute] EmailProviderExtId emailProviderExternalId,
         DeleteEmailProviderQuery deleteEmailProviderQuery,
         EmailProviderStore emailProviderStore,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await deleteEmailProviderQuery.Execute(
@@ -110,6 +113,12 @@ public static class EmailProvidersEndpoints
             case DeleteEmailProviderQuery.ResultCode.Ok:
                 emailProviderStore.TryRemove(
                     result.EmailProviderId);
+
+                await auditLogService.Log(
+                    Audit.EmailProvider.Deleted(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: emailProviderExternalId.Value),
+                    cancellationToken);
 
                 return TypedResults.Ok();
 
@@ -128,6 +137,8 @@ public static class EmailProvidersEndpoints
         [FromRoute] EmailProviderExtId emailProviderExternalId,
         [FromBody] UpdateEmailProviderNameRequestDto request,
         UpdateEmailProviderNameQuery updateEmailProviderNameQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await updateEmailProviderNameQuery.Execute(
@@ -135,23 +146,29 @@ public static class EmailProvidersEndpoints
             request.Name,
             cancellationToken: cancellationToken);
 
-        return result switch
+        switch (result)
         {
-            UpdateEmailProviderNameQuery.ResultCode.Ok => 
-                TypedResults.Ok(),
+            case UpdateEmailProviderNameQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.EmailProvider.NameUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: emailProviderExternalId.Value,
+                        name: request.Name),
+                    cancellationToken);
+                    
+                return TypedResults.Ok();
 
-            UpdateEmailProviderNameQuery.ResultCode.NotFound =>
-                HttpErrors.EmailProvider.NotFound(
-                    emailProviderExternalId),
+            case UpdateEmailProviderNameQuery.ResultCode.NotFound:
+                return HttpErrors.EmailProvider.NotFound(emailProviderExternalId);
 
-            UpdateEmailProviderNameQuery.ResultCode.NameNotUnique =>
-                HttpErrors.EmailProvider.NameNotUnique(
-                    request.Name),
+            case UpdateEmailProviderNameQuery.ResultCode.NameNotUnique:
+                return HttpErrors.EmailProvider.NameNotUnique(request.Name);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(UpdateEmailProviderNameQuery),
-                resultValueStr: result.ToString())
-        };
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateEmailProviderNameQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> Activate(
@@ -160,6 +177,8 @@ public static class EmailProvidersEndpoints
        EmailProviderStore emailProviderStore,
        EmailSenderFactory emailSenderFactory,
        IQueue queue,
+       HttpContext httpContext,
+       AuditLogService auditLogService,
        CancellationToken cancellationToken)
     {
         var result = await activateEmailProviderQuery.Execute(
@@ -178,6 +197,12 @@ public static class EmailProvidersEndpoints
                             detailsJson: result.EmailProvider.DetailsJson));
 
                     queue.UnlockBlockedQueueJobs();
+
+                    await auditLogService.Log(
+                        Audit.EmailProvider.Activated(
+                            actor: httpContext.GetAuditLogActorContext(),
+                            externalId: emailProviderExternalId.Value),
+                        cancellationToken);
 
                     return TypedResults.Ok();
                 }
@@ -200,6 +225,8 @@ public static class EmailProvidersEndpoints
        [FromRoute] EmailProviderExtId emailProviderExternalId,
        DeactivateEmailProviderQuery deactivateEmailProviderQuery,
        EmailProviderStore emailProviderStore,
+       HttpContext httpContext,
+       AuditLogService auditLogService,
        CancellationToken cancellationToken)
     {
         var result = await deactivateEmailProviderQuery.Execute(
@@ -211,6 +238,13 @@ public static class EmailProvidersEndpoints
             case DeactivateEmailProviderQuery.ResultCode.Ok:
                 {
                     emailProviderStore.TryRemove(result.EmailProviderId);
+
+                    await auditLogService.Log(
+                        Audit.EmailProvider.Deactivated(
+                            actor: httpContext.GetAuditLogActorContext(),
+                            externalId: emailProviderExternalId.Value),
+                        cancellationToken);
+
                     return TypedResults.Ok();
                 }
 
@@ -229,7 +263,9 @@ public static class EmailProvidersEndpoints
         [FromRoute] EmailProviderExtId emailProviderExternalId,
         [FromBody] ResendEmailProviderConfirmationEmailRequestDto request,
         ResendConfirmationEmailOperation resendConfirmationEmailOperation,
-        HttpContext httpContext)
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
         var result = await resendConfirmationEmailOperation.Execute(
             externalId: emailProviderExternalId,
@@ -237,32 +273,38 @@ public static class EmailProvidersEndpoints
                 ? new Email(request.EmailTo)
                 : httpContext.GetUserContext().Email);
 
-        return result switch
+        switch (result)
         {
-            ResendConfirmationEmailOperation.ResultCode.Ok => 
-                TypedResults.Ok(),
+            case ResendConfirmationEmailOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.EmailProvider.ConfirmationEmailResent(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: emailProviderExternalId.Value),
+                    cancellationToken);
+                return TypedResults.Ok();
 
-            ResendConfirmationEmailOperation.ResultCode.NotFound =>
-                HttpErrors.EmailProvider.NotFound(
-                    emailProviderExternalId),
+            case ResendConfirmationEmailOperation.ResultCode.NotFound:
+                return HttpErrors.EmailProvider.NotFound(emailProviderExternalId);
 
-            ResendConfirmationEmailOperation.ResultCode.AlreadyConfirmed =>
-                HttpErrors.EmailProvider.AlreadyConfirmed(
-                    emailProviderExternalId),
+            case ResendConfirmationEmailOperation.ResultCode.AlreadyConfirmed:
+                return HttpErrors.EmailProvider.AlreadyConfirmed(emailProviderExternalId);
 
-            ResendConfirmationEmailOperation.ResultCode.CouldNotSendTestEmail =>
-                HttpErrors.EmailProvider.CouldNotSendTestEmail(),
+            case ResendConfirmationEmailOperation.ResultCode.CouldNotSendTestEmail:
+                return HttpErrors.EmailProvider.CouldNotSendTestEmail();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateEmailProviderOperation),
-                resultValueStr: result.ToString())
-        };
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateEmailProviderOperation),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> ConfirmEmailProvider(
         [FromRoute] EmailProviderExtId emailProviderExternalId,
         [FromBody] ConfirmEmailProviderRequestDto request,
         ConfirmEmailProviderQuery confirmEmailProviderQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var result = await confirmEmailProviderQuery.Execute(
@@ -270,27 +312,30 @@ public static class EmailProvidersEndpoints
             confirmationCode: request.ConfirmationCode,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            ConfirmEmailProviderQuery.ResultCode.Ok => 
-                TypedResults.Ok(),
+            case ConfirmEmailProviderQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.EmailProvider.Confirmed(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: emailProviderExternalId.Value),
+                    cancellationToken);
+                return TypedResults.Ok();
 
-            ConfirmEmailProviderQuery.ResultCode.NotFound =>
-                HttpErrors.EmailProvider.NotFound(
-                    emailProviderExternalId),
+            case ConfirmEmailProviderQuery.ResultCode.NotFound:
+                return HttpErrors.EmailProvider.NotFound(emailProviderExternalId);
 
-            ConfirmEmailProviderQuery.ResultCode.AlreadyConfirmed =>
-                HttpErrors.EmailProvider.AlreadyConfirmed(
-                    emailProviderExternalId),
+            case ConfirmEmailProviderQuery.ResultCode.AlreadyConfirmed:
+                return HttpErrors.EmailProvider.AlreadyConfirmed(emailProviderExternalId);
 
-            ConfirmEmailProviderQuery.ResultCode.WrongConfirmationCode =>
-                HttpErrors.EmailProvider.WrongConfirmationCode(
-                    request.ConfirmationCode),
+            case ConfirmEmailProviderQuery.ResultCode.WrongConfirmationCode:
+                return HttpErrors.EmailProvider.WrongConfirmationCode(request.ConfirmationCode);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(ConfirmEmailProviderQuery),
-                resultValueStr: result.ToString())
-        };
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(ConfirmEmailProviderQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async
@@ -299,6 +344,7 @@ public static class EmailProvidersEndpoints
             [FromBody] CreateAwsSesEmailProviderRequestDto request,
             HttpContext httpContext,
             CreateEmailProviderOperation createEmailProviderOperation,
+            AuditLogService auditLogService,
             CancellationToken cancellationToken)
     {
         var result = await createEmailProviderOperation.Execute(
@@ -313,25 +359,31 @@ public static class EmailProvidersEndpoints
             user: httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            CreateEmailProviderOperation.ResultCode.Ok => 
-                TypedResults.Ok(new CreateAwsSesEmailProviderResponseDto(
-                    ExternalId: result.EmailProviderExternalId!.Value)),
+            case CreateEmailProviderOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.EmailProvider.Created(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        name: request.Name,
+                        type: EmailProviderType.AwsSes.Value,
+                        emailFrom: request.EmailFrom),
+                    cancellationToken);
+                return TypedResults.Ok(new CreateAwsSesEmailProviderResponseDto(
+                    ExternalId: result.EmailProviderExternalId!.Value));
 
-            CreateEmailProviderOperation.ResultCode.CouldNotSendTestEmail =>
-                HttpErrors.EmailProvider.CouldNotSendTestEmailWithDetails(
-                    result.InnerError!, 
-                    "AWS SES"),
+            case CreateEmailProviderOperation.ResultCode.CouldNotSendTestEmail:
+                return HttpErrors.EmailProvider.CouldNotSendTestEmailWithDetails(
+                    result.InnerError!, "AWS SES");
 
-            CreateEmailProviderOperation.ResultCode.NameNotUnique =>
-                HttpErrors.EmailProvider.NameNotUnique(
-                    request.Name),
+            case CreateEmailProviderOperation.ResultCode.NameNotUnique:
+                return HttpErrors.EmailProvider.NameNotUnique(request.Name);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateEmailProviderOperation),
-                resultValueStr: result.ToString())
-        };
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateEmailProviderOperation),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async
@@ -340,6 +392,7 @@ public static class EmailProvidersEndpoints
             [FromBody] CreateResendEmailProviderRequestDto request,
             HttpContext httpContext,
             CreateEmailProviderOperation createEmailProviderOperation,
+            AuditLogService auditLogService,
             CancellationToken cancellationToken)
     {
         var result = await createEmailProviderOperation.Execute(
@@ -352,25 +405,31 @@ public static class EmailProvidersEndpoints
             user: httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            CreateEmailProviderOperation.ResultCode.Ok => 
-                TypedResults.Ok(new CreateAwsSesEmailProviderResponseDto(
-                    ExternalId: result.EmailProviderExternalId!.Value)),
+            case CreateEmailProviderOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.EmailProvider.Created(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        name: request.Name,
+                        type: EmailProviderType.Resend.Value,
+                        emailFrom: request.EmailFrom),
+                    cancellationToken);
+                return TypedResults.Ok(new CreateAwsSesEmailProviderResponseDto(
+                    ExternalId: result.EmailProviderExternalId!.Value));
 
-            CreateEmailProviderOperation.ResultCode.CouldNotSendTestEmail =>
-                HttpErrors.EmailProvider.CouldNotSendTestEmailWithDetails(
-                    result.InnerError!, 
-                    "Resend"),
+            case CreateEmailProviderOperation.ResultCode.CouldNotSendTestEmail:
+                return HttpErrors.EmailProvider.CouldNotSendTestEmailWithDetails(
+                    result.InnerError!, "Resend");
 
-            CreateEmailProviderOperation.ResultCode.NameNotUnique =>
-                HttpErrors.EmailProvider.NameNotUnique(
-                    request.Name),
+            case CreateEmailProviderOperation.ResultCode.NameNotUnique:
+                return HttpErrors.EmailProvider.NameNotUnique(request.Name);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateEmailProviderOperation),
-                resultValueStr: result.ToString())
-        };
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateEmailProviderOperation),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static async
@@ -379,6 +438,7 @@ public static class EmailProvidersEndpoints
             [FromBody] CreateSmtpEmailProviderRequestDto request,
             HttpContext httpContext,
             CreateEmailProviderOperation createEmailProviderOperation,
+            AuditLogService auditLogService,
             CancellationToken cancellationToken)
     {
         var result = await createEmailProviderOperation.Execute(
@@ -395,24 +455,30 @@ public static class EmailProvidersEndpoints
             user: httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            CreateEmailProviderOperation.ResultCode.Ok => 
-                TypedResults.Ok(new CreateAwsSesEmailProviderResponseDto(
-                    ExternalId: result.EmailProviderExternalId!.Value)),
+            case CreateEmailProviderOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.EmailProvider.Created(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        name: request.Name,
+                        type: EmailProviderType.Smtp.Value,
+                        emailFrom: request.EmailFrom),
+                    cancellationToken);
+                return TypedResults.Ok(new CreateAwsSesEmailProviderResponseDto(
+                    ExternalId: result.EmailProviderExternalId!.Value));
 
-            CreateEmailProviderOperation.ResultCode.CouldNotSendTestEmail =>
-                HttpErrors.EmailProvider.CouldNotSendTestEmailWithDetails(
-                    result.InnerError!, 
-                    "SMTP"),
+            case CreateEmailProviderOperation.ResultCode.CouldNotSendTestEmail:
+                return HttpErrors.EmailProvider.CouldNotSendTestEmailWithDetails(
+                    result.InnerError!, "SMTP");
 
-            CreateEmailProviderOperation.ResultCode.NameNotUnique =>
-                HttpErrors.EmailProvider.NameNotUnique(
-                    request.Name),
+            case CreateEmailProviderOperation.ResultCode.NameNotUnique:
+                return HttpErrors.EmailProvider.NameNotUnique(request.Name);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateEmailProviderOperation),
-                resultValueStr: result.ToString())
-        };
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateEmailProviderOperation),
+                    resultValueStr: result.ToString());
+        }
     }
 }
