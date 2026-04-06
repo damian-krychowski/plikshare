@@ -12,9 +12,6 @@ export function getAuditLogItemDtoProtobuf() {
         .add(new protobuf.Field("eventCategory", 8, "string"))
         .add(new protobuf.Field("eventType", 9, "string"))
         .add(new protobuf.Field("eventSeverity", 10, "string"))
-        .add(new protobuf.Field("resourceType", 11, "string"))
-        .add(new protobuf.Field("resourceExternalId", 12, "string"))
-        .add(new protobuf.Field("resourceName", 13, "string"))
-        .add(new protobuf.Field("workspaceExternalId", 14, "string"))
-        .add(new protobuf.Field("details", 15, "string"));
+        .add(new protobuf.Field("workspaceExternalId", 11, "string"))
+        .add(new protobuf.Field("details", 12, "string"));
 }

@@ -133,8 +133,13 @@
 
                 <div class="filters-row">
                     <mat-form-field class="filter-field">
+                        <mat-label>Correlation ID</mat-label>
+                        <input matInput [ngModel]="filterCorrelationId()" (ngModelChange)="filterCorrelationId.set($event)">
+                    </mat-form-field>
+
+                    <mat-form-field class="filter-field">
                         <mat-label>Search</mat-label>
-                        <input matInput [ngModel]="filterSearch()" (ngModelChange)="filterSearch.set($event)" placeholder="Search in email, resource name...">
+                        <input matInput [ngModel]="filterSearch()" (ngModelChange)="filterSearch.set($event)" placeholder="Search in email...">
                     </mat-form-field>
                 </div>
 
@@ -170,7 +175,6 @@
                     <div class="col-time">Time</div>
                     <div class="col-actor">Actor</div>
                     <div class="col-event">Event</div>
-                    <div class="col-resource">Resource</div>
                     <div class="col-severity">Severity</div>
                 </div>
 
@@ -181,9 +185,6 @@
                             {{ item.actorEmail || item.actorIdentity }}
                         </div>
                         <div class="col-event">{{ item.eventType }}</div>
-                        <div class="col-resource" [title]="item.resourceName || ''">
-                            {{ item.resourceName || '---' }}
-                        </div>
                         <div class="col-severity">
                             <span class="severity-badge" [class]="getSeverityClass(item.eventSeverity)">
                                 {{ item.eventSeverity }}
@@ -198,7 +199,19 @@
                                 <div class="detail-value">{{ item.externalId }}</div>
 
                                 <div class="detail-label">Correlation ID:</div>
-                                <div class="detail-value">{{ item.correlationId || '---' }}</div>
+                                <div class="detail-value">
+                                    @if(item.correlationId) {
+                                        <span class="correlation-link"
+                                            matTooltip="Filter by this correlation ID"
+                                            matTooltipPosition="below"
+                                            (click)="searchByCorrelationId(item.correlationId); $event.stopPropagation()">
+                                            {{ item.correlationId }}
+                                            <i class="icon icon-sm icon-lucide-search"></i>
+                                        </span>
+                                    } @else {
+                                        ---
+                                    }
+                                </div>
 
                                 <div class="detail-label">Actor type:</div>
                                 <div class="detail-value">{{ item.actorIdentityType }}</div>
@@ -214,12 +227,6 @@
 
                                 <div class="detail-label">Category:</div>
                                 <div class="detail-value">{{ item.eventCategory }}</div>
-
-                                <div class="detail-label">Resource type:</div>
-                                <div class="detail-value">{{ item.resourceType || '---' }}</div>
-
-                                <div class="detail-label">Resource ID:</div>
-                                <div class="detail-value">{{ item.resourceExternalId || '---' }}</div>
 
                                 <div class="detail-label">Workspace:</div>
                                 <div class="detail-value">{{ item.workspaceExternalId || '---' }}</div>

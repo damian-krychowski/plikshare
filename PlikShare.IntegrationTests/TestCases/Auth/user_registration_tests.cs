@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Web;
 using FluentAssertions;
@@ -268,8 +269,9 @@ public class user_registration_tests : TestFixture
         //then
         result.Should().Be(ConfirmEmailResponseDto.InvalidToken);
 
-        await AssertAuditLogContains(
+        await AssertAuditLogContains<AuditLogDetails.Auth.Failed>(
             expectedEventType: AuditLogEventTypes.Auth.EmailConfirmationFailed,
+            assertDetails: details => details.Reason.Should().Be(AuditLogFailureReasons.Auth.InvalidToken),
             expectedSeverity: AuditLogSeverities.Warning);
     }
 
@@ -293,8 +295,9 @@ public class user_registration_tests : TestFixture
         //then
         signInResponse.Should().Be(SignInUserResponseDto.Successful);
 
-        await AssertAuditLogContains(
+        await AssertAuditLogContains<AuditLogDetails.Auth.SignedIn>(
             expectedEventType: AuditLogEventTypes.Auth.SignedIn,
+            assertDetails: details => details.Method.Should().Be(AuditLogSignInMethods.Password),
             expectedActorEmail: userEmail);
     }
 
@@ -376,8 +379,9 @@ public class user_registration_tests : TestFixture
         //then
         result.Should().Be(ResetPasswordResponseDto.InvalidToken);
 
-        await AssertAuditLogContains(
+        await AssertAuditLogContains<AuditLogDetails.Auth.Failed>(
             expectedEventType: AuditLogEventTypes.Auth.PasswordResetFailed,
+            assertDetails: details => details.Reason.Should().Be(AuditLogFailureReasons.Auth.InvalidToken),
             expectedSeverity: AuditLogSeverities.Warning);
     }
 

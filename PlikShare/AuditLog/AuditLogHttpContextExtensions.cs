@@ -14,7 +14,7 @@ public static class AuditLogHttpContextExtensions
         var correlationId = httpContext.GetCorrelationId();
 
         return new AuditLogActorContext(
-            Identity: userIdentity ?? new GenericUserIdentity("system", "system"),
+            Identity: userIdentity ?? AnonymousIdentity.Instance,
             Email: email,
             Ip: ip,
             CorrelationId: correlationId);

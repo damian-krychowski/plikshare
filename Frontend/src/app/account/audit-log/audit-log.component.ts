@@ -55,6 +55,7 @@ export class AuditLogComponent implements OnInit {
     filterEventTypes = signal<string[]>([]);
     filterSeverities = signal<string[]>([]);
     filterActorIdentities = signal<string[]>([]);
+    filterCorrelationId = signal('');
     filterSearch = signal('');
 
     // Filter options (from API)
@@ -108,6 +109,7 @@ export class AuditLogComponent implements OnInit {
             eventTypes: this.filterEventTypes().length > 0 ? this.filterEventTypes() : null,
             severities: this.filterSeverities().length > 0 ? this.filterSeverities() : null,
             actorIdentities: this.filterActorIdentities().length > 0 ? this.filterActorIdentities() : null,
+            correlationId: this.filterCorrelationId() || null,
             search: this.filterSearch() || null
         };
     }
@@ -171,12 +173,19 @@ export class AuditLogComponent implements OnInit {
         this.filterEventTypes.set([]);
         this.filterSeverities.set([]);
         this.filterActorIdentities.set([]);
+        this.filterCorrelationId.set('');
         this.filterSearch.set('');
         await this.loadLogs();
     }
 
     toggleFilters() {
         this.showFilters.update(v => !v);
+    }
+
+    async searchByCorrelationId(correlationId: string) {
+        this.filterCorrelationId.set(correlationId);
+        this.showFilters.set(true);
+        await this.loadLogs();
     }
 
     toggleExpand(externalId: string) {

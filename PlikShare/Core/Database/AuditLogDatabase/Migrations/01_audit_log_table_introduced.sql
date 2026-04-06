@@ -16,10 +16,6 @@ CREATE TABLE IF NOT EXISTS al_audit_logs
     al_event_type            TEXT    NOT NULL,
     al_event_severity        TEXT    NOT NULL,
 
-    al_resource_type         TEXT    NULL,
-    al_resource_external_id  TEXT    NULL,
-    al_resource_name         TEXT    NULL,
-
     al_workspace_external_id TEXT    NULL,
 
     al_details               TEXT    NULL
@@ -39,9 +35,6 @@ CREATE INDEX IF NOT EXISTS index__al__al_event_type
 
 CREATE INDEX IF NOT EXISTS index__al__al_actor_identity_type_and_identity
     ON al_audit_logs (al_actor_identity_type, al_actor_identity);
-
-CREATE INDEX IF NOT EXISTS index__al__al_resource_type_and_external_id
-    ON al_audit_logs (al_resource_type, al_resource_external_id);
 
 CREATE INDEX IF NOT EXISTS index__al__al_workspace_external_id
     ON al_audit_logs (al_workspace_external_id);

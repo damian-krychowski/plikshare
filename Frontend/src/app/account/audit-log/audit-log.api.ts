@@ -13,7 +13,7 @@ export interface AuditLogFilters {
     eventTypes?: string[] | null;
     severities?: string[] | null;
     actorIdentities?: string[] | null;
-    resourceType?: string | null;
+    correlationId?: string | null;
     workspaceExternalId?: string | null;
     search?: string | null;
 }
@@ -35,9 +35,6 @@ export interface AuditLogItem {
     eventCategory: string;
     eventType: string;
     eventSeverity: string;
-    resourceType: string | null;
-    resourceExternalId: string | null;
-    resourceName: string | null;
     workspaceExternalId: string | null;
     details: string | null;
 }

@@ -33,9 +33,6 @@ public class GetAuditLogQuery(PlikShareAuditLogDb plikShareAuditLogDb)
                         al_event_category,
                         al_event_type,
                         al_event_severity,
-                        al_resource_type,
-                        al_resource_external_id,
-                        al_resource_name,
                         al_workspace_external_id,
                         al_details
                     FROM al_audit_logs
@@ -46,9 +43,9 @@ public class GetAuditLogQuery(PlikShareAuditLogDb plikShareAuditLogDb)
                       AND ($fromDate IS NULL OR al_created_at >= $fromDate)
                       AND ($toDate IS NULL OR al_created_at <= $toDate)
                       AND ($actorIdentities IS NULL OR al_actor_email IN (SELECT value FROM json_each($actorIdentities)))
-                      AND ($resourceType IS NULL OR al_resource_type = $resourceType)
+                      AND ($correlationId IS NULL OR al_correlation_id = $correlationId)
                       AND ($workspaceExternalId IS NULL OR al_workspace_external_id = $workspaceExternalId)
-                      AND ($search IS NULL OR al_actor_email LIKE '%' || $search || '%' OR al_resource_name LIKE '%' || $search || '%')
+                      AND ($search IS NULL OR al_actor_email LIKE '%' || $search || '%')
                     ORDER BY al_id DESC
                     LIMIT $pageSize + 1
                     """,
@@ -67,11 +64,8 @@ public class GetAuditLogQuery(PlikShareAuditLogDb plikShareAuditLogDb)
                         EventCategory = reader.GetString(8),
                         EventType = reader.GetString(9),
                         EventSeverity = reader.GetString(10),
-                        ResourceType = reader.GetStringOrNull(11),
-                        ResourceExternalId = reader.GetStringOrNull(12),
-                        ResourceName = reader.GetStringOrNull(13),
-                        WorkspaceExternalId = reader.GetStringOrNull(14),
-                        Details = reader.GetStringOrNull(15)
+                        WorkspaceExternalId = reader.GetStringOrNull(11),
+                        Details = reader.GetStringOrNull(12)
                     }
                 })
             .WithParameter("$cursor", request.Cursor)
@@ -81,7 +75,7 @@ public class GetAuditLogQuery(PlikShareAuditLogDb plikShareAuditLogDb)
             .WithParameter("$fromDate", request.FromDate)
             .WithParameter("$toDate", request.ToDate)
             .WithParameter("$actorIdentities", actorIdentitiesJson)
-            .WithParameter("$resourceType", request.ResourceType)
+            .WithParameter("$correlationId", request.CorrelationId)
             .WithParameter("$workspaceExternalId", request.WorkspaceExternalId)
             .WithParameter("$search", request.Search)
             .WithParameter("$pageSize", pageSize)

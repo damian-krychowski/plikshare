@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using PlikShare.AuditLog;
 using PlikShare.AuthProviders.Create.Contracts;
@@ -435,8 +436,9 @@ public class sso_login_tests : TestFixture, IDisposable
         await SignInViaSso(authProvider, ssoEmail, ssoSub);
 
         //then
-        await AssertAuditLogContains(
+        await AssertAuditLogContains<AuditLogDetails.Auth.Sso>(
             expectedEventType: AuditLogEventTypes.Auth.SsoUserCreated,
+            assertDetails: details => details.ProviderName.Should().Be(authProvider.Name),
             expectedActorEmail: ssoEmail);
     }
 
@@ -457,8 +459,9 @@ public class sso_login_tests : TestFixture, IDisposable
         await SignInViaSso(authProvider, ssoEmail, ssoSub);
 
         //then
-        await AssertAuditLogContains(
+        await AssertAuditLogContains<AuditLogDetails.Auth.Sso>(
             expectedEventType: AuditLogEventTypes.Auth.SsoLogin,
+            assertDetails: details => details.ProviderName.Should().Be(authProvider.Name),
             expectedActorEmail: ssoEmail);
     }
 

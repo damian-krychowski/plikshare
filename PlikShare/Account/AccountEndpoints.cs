@@ -79,7 +79,7 @@ public static class AccountEndpoints
         await signInManager.SignOutAsync();
 
         await auditLogService.Log(
-            AuditLogEntryBuilder.AuthSignedOut(actor),
+            Audit.Auth.SignedOut(actor),
             cancellationToken);
     }
 
@@ -148,7 +148,7 @@ public static class AccountEndpoints
                 : "failed";
 
             await auditLogService.Log(
-                AuditLogEntryBuilder.AuthPasswordChangeFailed(
+                Audit.Auth.PasswordChangeFailed(
                     httpContext.GetAuditLogActorContext(),
                     reason: reason),
                 cancellationToken);
@@ -166,7 +166,7 @@ public static class AccountEndpoints
             isPersistent: httpContext.User.GetRememberMeOrDefault());
 
         await auditLogService.Log(
-            AuditLogEntryBuilder.AuthPasswordChanged(
+            Audit.Auth.PasswordChanged(
                 httpContext.GetAuditLogActorContext()),
             cancellationToken);
 
@@ -241,7 +241,7 @@ public static class AccountEndpoints
                 user.Id);
 
             await auditLogService.Log(
-                AuditLogEntryBuilder.Auth2FaEnableFailed(
+                Audit.Auth.TwoFaEnableFailed(
                     httpContext.GetAuditLogActorContext(),
                     reason: AuditLogFailureReasons.Auth.InvalidVerificationCode),
                 cancellationToken);
@@ -260,7 +260,7 @@ public static class AccountEndpoints
                 result.Errors);
 
             await auditLogService.Log(
-                AuditLogEntryBuilder.Auth2FaEnableFailed(
+                Audit.Auth.TwoFaEnableFailed(
                     httpContext.GetAuditLogActorContext(),
                     reason: AuditLogFailureReasons.Auth.Failed),
                 cancellationToken);
@@ -277,7 +277,7 @@ public static class AccountEndpoints
             isPersistent: httpContext.User.GetRememberMeOrDefault());
 
         await auditLogService.Log(
-            AuditLogEntryBuilder.Auth2FaEnabled(
+            Audit.Auth.TwoFaEnabled(
                 httpContext.GetAuditLogActorContext()),
             cancellationToken);
 
@@ -324,7 +324,7 @@ public static class AccountEndpoints
             isPersistent: httpContext.User.GetRememberMeOrDefault());
 
         await auditLogService.Log(
-            AuditLogEntryBuilder.Auth2FaDisabled(
+            Audit.Auth.TwoFaDisabled(
                 httpContext.GetAuditLogActorContext()),
             cancellationToken);
 
@@ -357,7 +357,7 @@ public static class AccountEndpoints
             number: 5);
 
         await auditLogService.Log(
-            AuditLogEntryBuilder.AuthRecoveryCodesRegenerated(
+            Audit.Auth.RecoveryCodesRegenerated(
                 httpContext.GetAuditLogActorContext()),
             cancellationToken);
 

@@ -49,17 +49,8 @@ public class AuditLogItemDto
     public required string EventSeverity { get; init; }
 
     [ProtoMember(11)]
-    public string? ResourceType { get; init; }
-
-    [ProtoMember(12)]
-    public string? ResourceExternalId { get; init; }
-
-    [ProtoMember(13)]
-    public string? ResourceName { get; init; }
-
-    [ProtoMember(14)]
     public string? WorkspaceExternalId { get; init; }
 
-    [ProtoMember(15)]
+    [ProtoMember(12)]
     public string? Details { get; init; }
 }

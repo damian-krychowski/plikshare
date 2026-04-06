@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using PlikShare.AuditLog;
 using PlikShare.Auth.Contracts;
@@ -74,8 +75,9 @@ public class auth_tests : TestFixture
         await SignIn(Users.AppOwner);
 
         //then
-        await AssertAuditLogContains(
+        await AssertAuditLogContains<AuditLogDetails.Auth.SignedIn>(
             expectedEventType: AuditLogEventTypes.Auth.SignedIn,
+            assertDetails: details => details.Method.Should().Be(AuditLogSignInMethods.Password),
             expectedActorEmail: Users.AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -96,8 +98,9 @@ public class auth_tests : TestFixture
         await SignIn(Users.AppOwner);
 
         //then
-        await AssertAuditLogContains(
+        await AssertAuditLogContains<AuditLogDetails.Auth.Failed>(
             expectedEventType: AuditLogEventTypes.Auth.SignInFailed,
+            assertDetails: details => details.Reason.Should().Be(AuditLogFailureReasons.Auth.InvalidCredentials),
             expectedSeverity: AuditLogSeverities.Warning);
     }
 
@@ -117,8 +120,9 @@ public class auth_tests : TestFixture
         await SignIn(Users.AppOwner);
 
         //then
-        await AssertAuditLogContains(
+        await AssertAuditLogContains<AuditLogDetails.Auth.Failed>(
             expectedEventType: AuditLogEventTypes.Auth.SignInFailed,
+            assertDetails: details => details.Reason.Should().Be(AuditLogFailureReasons.Auth.InvalidCredentials),
             expectedSeverity: AuditLogSeverities.Warning);
     }
 

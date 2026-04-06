@@ -40,7 +40,26 @@ public static class AuditLogEventTypes
         ];
     }
 
-    public static readonly string[] All = [..Auth.All];
+    public static class User
+    {
+        public const string Invited = "user.invited";
+        public const string Deleted = "user.deleted";
+        public const string PermissionsAndRolesUpdated = "user.permissions-and-roles-updated";
+        public const string MaxWorkspaceNumberUpdated = "user.max-workspace-number-updated";
+        public const string DefaultMaxWorkspaceSizeUpdated = "user.default-max-workspace-size-updated";
+        public const string DefaultMaxWorkspaceTeamMembersUpdated = "user.default-max-workspace-team-members-updated";
+
+        public static readonly string[] All =
+        [
+            Invited, Deleted,
+            PermissionsAndRolesUpdated,
+            MaxWorkspaceNumberUpdated,
+            DefaultMaxWorkspaceSizeUpdated,
+            DefaultMaxWorkspaceTeamMembersUpdated
+        ];
+    }
+
+    public static readonly string[] All = [..Auth.All, ..User.All];
 }
 
 public static class AuditLogEventCategories
@@ -68,6 +87,13 @@ public static class AuditLogEventCategories
 
 public static class AuditLogFailureReasons
 {
+    public static class User
+    {
+        public const string UserNotFound = "user-not-found";
+        public const string CannotDeleteAppOwner = "cannot-delete-app-owner";
+        public const string CannotModifyOwnPermissions = "cannot-modify-own-permissions";
+    }
+
     public static class Auth
     {
         public const string PasswordLoginDisabled = "password-login-disabled";
@@ -85,6 +111,13 @@ public static class AuditLogFailureReasons
         public const string PasswordMismatch = "password-mismatch";
         public const string Failed = "failed";
     }
+}
+
+public static class AuditLogSignInMethods
+{
+    public const string Password = "password";
+    public const string Authenticator = "authenticator";
+    public const string RecoveryCode = "recovery-code";
 }
 
 public static class AuditLogSeverities

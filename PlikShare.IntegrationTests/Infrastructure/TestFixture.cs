@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using PlikShare.Auth.Contracts;
@@ -101,10 +102,45 @@ public class TestFixture: IAsyncLifetime
         return Task.CompletedTask;
     }
 
-    protected async Task AssertAuditLogContains(
+    protected Task AssertAuditLogContains(
         string expectedEventType,
         string? expectedActorEmail = null,
         string? expectedSeverity = null)
+    {
+        return AssertAuditLogContainsCore(
+            expectedEventType,
+            expectedActorEmail,
+            expectedSeverity,
+            assertDetailsRaw: null);
+    }
+
+    protected Task AssertAuditLogContains<TDetails>(
+        string expectedEventType,
+        Action<TDetails> assertDetails,
+        string? expectedActorEmail = null,
+        string? expectedSeverity = null)
+    {
+        return AssertAuditLogContainsCore(
+            expectedEventType,
+            expectedActorEmail,
+            expectedSeverity,
+            assertDetailsRaw: detailsJson =>
+            {
+                var details = JsonSerializer.Deserialize<TDetails>(
+                        detailsJson,
+                        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+                    ?? throw new InvalidOperationException(
+                        $"Failed to deserialize audit log details to {typeof(TDetails).Name}: {detailsJson}");
+
+                assertDetails(details);
+            });
+    }
+
+    private async Task AssertAuditLogContainsCore(
+        string expectedEventType,
+        string? expectedActorEmail,
+        string? expectedSeverity,
+        Action<string>? assertDetailsRaw)
     {
         var auditLogDb = HostFixture.App.Services
             .GetRequiredService<PlikShareAuditLogDb>();
@@ -120,7 +156,7 @@ public class TestFixture: IAsyncLifetime
                 var entries = connection
                     .Cmd(
                         sql: """
-                            SELECT al_event_type, al_actor_email, al_event_severity
+                            SELECT al_event_type, al_actor_email, al_event_severity, al_details
                             FROM al_audit_logs
                             WHERE al_event_type = $eventType
                             ORDER BY al_id DESC
@@ -130,19 +166,30 @@ public class TestFixture: IAsyncLifetime
                         {
                             EventType = reader.GetString(0),
                             ActorEmail = reader.GetStringOrNull(1),
-                            Severity = reader.GetString(2)
+                            Severity = reader.GetString(2),
+                            Details = reader.GetStringOrNull(3)
                         })
                     .WithParameter("$eventType", expectedEventType)
                     .Execute();
 
                 var matching = entries.Where(e =>
                     (expectedActorEmail is null || e.ActorEmail == expectedActorEmail) &&
-                    (expectedSeverity is null || e.Severity == expectedSeverity));
+                    (expectedSeverity is null || e.Severity == expectedSeverity))
+                    .ToList();
 
                 matching.Should().NotBeEmpty(
                     $"expected audit log entry with event type '{expectedEventType}'" +
                     (expectedActorEmail is not null ? $", actor email '{expectedActorEmail}'" : "") +
                     (expectedSeverity is not null ? $", severity '{expectedSeverity}'" : ""));
+
+                if (assertDetailsRaw is not null)
+                {
+                    var entry = matching.First();
+                    entry.Details.Should().NotBeNullOrEmpty(
+                        $"expected audit log entry '{expectedEventType}' to have details JSON");
+
+                    assertDetailsRaw(entry.Details!);
+                }
 
                 return;
             }

@@ -5,6 +5,7 @@ using PlikShare.Auth.Contracts;
 using PlikShare.Core.Emails;
 using PlikShare.EmailProviders.ExternalProviders.Resend;
 using PlikShare.GeneralSettings;
+using System.Text.Json;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Invite.Contracts;
@@ -358,6 +359,32 @@ public class user_invitation_tests : TestFixture
     }
 
     [Fact]
+    public async Task inviting_user_should_produce_audit_log_entry()
+    {
+        //given
+        var userEmail = Random.Email();
+
+        //when
+        await Api.Users.InviteUsers(
+            request: new InviteUsersRequestDto
+            {
+                Emails =
+                [
+                    userEmail
+                ]
+            },
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.User.Invited>(
+            expectedEventType: AuditLogEventTypes.User.Invited,
+            assertDetails: details => details.Emails.Should().BeEquivalentTo(new[] { userEmail }),
+            expectedActorEmail: AppOwner.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
     public async Task registration_with_wrong_invitation_code_should_produce_audit_log_entry()
     {
         //given
@@ -378,8 +405,9 @@ public class user_invitation_tests : TestFixture
             antiforgeryCookies: anonymousAntiforgeryCookies);
 
         //then
-        await AssertAuditLogContains(
+        await AssertAuditLogContains<AuditLogDetails.Auth.Failed>(
             expectedEventType: AuditLogEventTypes.Auth.SignUpFailed,
+            assertDetails: details => details.Reason.Should().Be(AuditLogFailureReasons.Auth.WrongInvitationCode),
             expectedSeverity: AuditLogSeverities.Warning);
     }
 }

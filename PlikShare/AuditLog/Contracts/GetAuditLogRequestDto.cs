@@ -10,7 +10,7 @@ public class GetAuditLogRequestDto
     public List<string>? EventTypes { get; init; }
     public List<string>? Severities { get; init; }
     public List<string>? ActorIdentities { get; init; }
-    public string? ResourceType { get; init; }
+    public string? CorrelationId { get; init; }
     public string? WorkspaceExternalId { get; init; }
     public string? Search { get; init; }
 }

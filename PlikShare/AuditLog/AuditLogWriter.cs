@@ -87,9 +87,6 @@ public class AuditLogWriter(
                         al_event_category,
                         al_event_type,
                         al_event_severity,
-                        al_resource_type,
-                        al_resource_external_id,
-                        al_resource_name,
                         al_workspace_external_id,
                         al_details
                     ) VALUES (
@@ -103,9 +100,6 @@ public class AuditLogWriter(
                         $eventCategory,
                         $eventType,
                         $eventSeverity,
-                        $resourceType,
-                        $resourceExternalId,
-                        $resourceName,
                         $workspaceExternalId,
                         $details
                     )
@@ -122,9 +116,6 @@ public class AuditLogWriter(
             .WithParameter("$eventCategory", entry.EventCategory)
             .WithParameter("$eventType", entry.EventType)
             .WithParameter("$eventSeverity", entry.Severity)
-            .WithParameter("$resourceType", entry.ResourceType)
-            .WithParameter("$resourceExternalId", entry.ResourceExternalId)
-            .WithParameter("$resourceName", entry.ResourceName)
             .WithParameter("$workspaceExternalId", entry.WorkspaceExternalId)
             .WithParameter("$details", entry.DetailsJson)
             .Execute();

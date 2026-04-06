@@ -285,7 +285,7 @@ public static class SsoEndpoints
         if (userResult.Code == GetOrCreateSsoUserQuery.ResultCode.NewUserCreated)
         {
             await auditLogService.Log(
-                AuditLogEntryBuilder.AuthSsoUserCreated(
+                Audit.Auth.SsoUserCreated(
                     actor: actor,
                     email: email,
                     providerName: provider.Name),
@@ -294,7 +294,7 @@ public static class SsoEndpoints
         else
         {
             await auditLogService.Log(
-                AuditLogEntryBuilder.AuthSsoLogin(
+                Audit.Auth.SsoLogin(
                     actor: actor,
                     email: email,
                     providerName: provider.Name),

@@ -1,0 +1,47 @@
+namespace PlikShare.AuditLog;
+
+public static class AuditLogDetails
+{
+    public static class Auth
+    {
+        public class SignedIn
+        {
+            public required string Method { get; init; }
+        }
+
+        public class Failed
+        {
+            public required string Reason { get; init; }
+        }
+
+        public class Sso
+        {
+            public required string ProviderName { get; init; }
+        }
+    }
+
+    public static class User
+    {
+        public class Invited
+        {
+            public required List<string> Emails { get; init; }
+        }
+
+        public class Deleted
+        {
+            public required string TargetEmail { get; init; }
+        }
+
+        public class PermissionsAndRolesUpdated
+        {
+            public required string TargetEmail { get; init; }
+            public required bool IsAdmin { get; init; }
+            public required List<string> Permissions { get; init; }
+        }
+
+        public class LimitUpdated
+        {
+            public required long? Value { get; init; }
+        }
+    }
+}

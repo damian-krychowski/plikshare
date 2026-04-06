@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using PlikShare.AuditLog;
 using PlikShare.Boxes.Cache;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
@@ -85,6 +86,7 @@ public static class UsersEndpoints
         [FromBody] InviteUsersRequestDto request,
         HttpContext httpContext,
         InviteUsersQuery inviteUsersQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var response = await inviteUsersQuery.Execute(
@@ -92,6 +94,12 @@ public static class UsersEndpoints
             inviter: httpContext.GetUserContext(),
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
+
+        await auditLogService.Log(
+            Audit.User.Invited(
+                actor: httpContext.GetAuditLogActorContext(),
+                emails: request.Emails),
+            cancellationToken);
 
         return response;
     }
@@ -121,6 +129,7 @@ public static class UsersEndpoints
         HttpContext httpContext,
         UserCache userCache,
         UpdateUserMaxWorkspaceNumberQuery updateUserMaxWorkspaceNumberQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var user = await userCache.TryGetUser(
@@ -136,6 +145,12 @@ public static class UsersEndpoints
             user!.Id,
             cancellationToken);
 
+        await auditLogService.Log(
+            Audit.User.MaxWorkspaceNumberUpdated(
+                actor: httpContext.GetAuditLogActorContext(),
+                value: request.MaxWorkspaceNumber),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
@@ -145,6 +160,7 @@ public static class UsersEndpoints
         HttpContext httpContext,
         UserCache userCache,
         UpdateUserDefaultMaxWorkspaceSizeInBytesQuery updateUserDefaultMaxWorkspaceSizeInBytesQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var user = await userCache.TryGetUser(
@@ -160,6 +176,12 @@ public static class UsersEndpoints
             user!.Id,
             cancellationToken);
 
+        await auditLogService.Log(
+            Audit.User.DefaultMaxWorkspaceSizeUpdated(
+                actor: httpContext.GetAuditLogActorContext(),
+                value: request.DefaultMaxWorkspaceSizeInBytes),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
@@ -169,6 +191,7 @@ public static class UsersEndpoints
         HttpContext httpContext,
         UserCache userCache,
         UpdateUserDefaultMaxWorkspaceTeamMembersQuery updateUserDefaultMaxWorkspaceTeamMembersQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var user = await userCache.TryGetUser(
@@ -184,6 +207,12 @@ public static class UsersEndpoints
             user!.Id,
             cancellationToken);
 
+        await auditLogService.Log(
+            Audit.User.DefaultMaxWorkspaceTeamMembersUpdated(
+                actor: httpContext.GetAuditLogActorContext(),
+                value: request.DefaultMaxWorkspaceTeamMembers),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
@@ -193,6 +222,7 @@ public static class UsersEndpoints
         HttpContext httpContext,
         UserCache userCache,
         UpdateUserPermissionsAndRoleQuery updateUserPermissionsAndRoleQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var currentUser = httpContext.GetUserContext();
@@ -216,7 +246,14 @@ public static class UsersEndpoints
             cancellationToken: cancellationToken);
 
         await userCache.InvalidateEntry(
-            targetUser!.Id,
+            targetUser.Id,
+            cancellationToken);
+
+        await auditLogService.Log(
+            Audit.User.PermissionsAndRolesUpdated(
+                actor: httpContext.GetAuditLogActorContext(),
+                targetEmail: targetUser.Email.Value,
+                request: request),
             cancellationToken);
 
         return TypedResults.Ok();
@@ -224,10 +261,12 @@ public static class UsersEndpoints
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> DeleteUser(
         [FromRoute] UserExtId userExternalId,
+        HttpContext httpContext,
         UserCache userCache,
         DeleteUserQuery deleteUserQuery,
         WorkspaceMembershipCache workspaceMembershipCache,
         BoxMembershipCache boxMembershipCache,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var user = await userCache.TryGetUser(
@@ -266,6 +305,12 @@ public static class UsersEndpoints
                 memberId: user.Id,
                 cancellationToken: cancellationToken);
         }
+
+        await auditLogService.Log(
+            Audit.User.Deleted(
+                actor: httpContext.GetAuditLogActorContext(),
+                targetEmail: user.Email.Value),
+            cancellationToken);
 
         return TypedResults.Ok();
     }

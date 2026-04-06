@@ -4,6 +4,8 @@ using PlikShare.Users.Id;
 using PlikShare.Users.Invite.Contracts;
 using PlikShare.Users.List.Contracts;
 using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes.Contracts;
+using PlikShare.Users.UpdateDefaultMaxWorkspaceTeamMembers.Contracts;
 using PlikShare.Users.UpdateMaxWorkspaceNumber.Contracts;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -65,6 +67,46 @@ public class UsersApi(IFlurlClient flurlClient, string appUrl)
             appUrl: appUrl,
             apiPath: $"api/users/{userExternalId}/max-workspace-number",
             request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task UpdateDefaultMaxWorkspaceSizeInBytes(
+        UserExtId userExternalId,
+        UpdateUserDefaultMaxWorkspaceSizeInBytesRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/users/{userExternalId}/default-max-workspace-size-in-bytes",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task UpdateDefaultMaxWorkspaceTeamMembers(
+        UserExtId userExternalId,
+        UpdateUserDefaultMaxWorkspaceTeamMembersRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/users/{userExternalId}/default-max-workspace-team-members",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task DeleteUser(
+        UserExtId userExternalId,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecuteDelete(
+            appUrl: appUrl,
+            apiPath: $"api/users/{userExternalId}",
             cookie: cookie,
             antiforgery: antiforgery);
     }

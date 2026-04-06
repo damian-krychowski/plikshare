@@ -13,9 +13,6 @@ public record AuditLogEntry
     public required string EventType { get; init; }
     public required string Severity { get; init; }
 
-    public string? ResourceType { get; init; }
-    public string? ResourceExternalId { get; init; }
-    public string? ResourceName { get; init; }
     public string? WorkspaceExternalId { get; init; }
 
     public string? DetailsJson { get; init; }
