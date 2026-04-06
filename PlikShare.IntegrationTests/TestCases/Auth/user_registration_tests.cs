@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using System.Web;
 using FluentAssertions;
 using PlikShare.Account.Contracts;
+using PlikShare.AuditLog;
 using PlikShare.Auth.Contracts;
 using PlikShare.Core.Emails;
 using PlikShare.GeneralSettings;
@@ -153,7 +154,8 @@ public class user_registration_tests : TestFixture
                 CanManageUsers = false,
                 CanManageStorages = false,
                 CanManageEmailProviders = false,
-                CanAddWorkspace = false
+                CanAddWorkspace = false,
+                CanManageAuditLog = false
             },
             Roles = new UserRoles
             {
@@ -183,6 +185,249 @@ public class user_registration_tests : TestFixture
 
         //then
         signInResponse.Should().Be(SignInUserResponseDto.Failed);
+    }
+
+    [Fact]
+    public async Task successful_sign_up_should_produce_audit_log_entry()
+    {
+        //given
+        var userEmail = Random.Email();
+        var userPassword = Random.Password();
+
+        //when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
+        var (signUpResponse, _) = await Api.Auth.SignUp(
+            request: new SignUpUserRequestDto
+            {
+                Email = userEmail,
+                InvitationCode = null,
+                Password = userPassword,
+                SelectedCheckboxIds = []
+            },
+            antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        //then
+        signUpResponse.Should().Be(SignUpUserResponseDto.ConfirmationEmailSent);
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.SignedUp,
+            expectedActorEmail: userEmail,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task successful_email_confirmation_should_produce_audit_log_entry()
+    {
+        //given
+        var userEmail = Random.Email();
+        var userPassword = Random.Password();
+
+        var (userExternalId, confirmationCode, antiforgeryCookies) = await SignUp(
+            email: userEmail,
+            password: userPassword);
+
+        //when
+        var result = await Api.Auth.ConfirmEmail(
+            request: new ConfirmEmailRequestDto
+            {
+                UserExternalId = userExternalId.Value,
+                Code = confirmationCode
+            },
+            antiforgeryCookies: antiforgeryCookies);
+
+        //then
+        result.Should().Be(ConfirmEmailResponseDto.EmailConfirmed);
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.EmailConfirmed,
+            expectedActorEmail: userEmail,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task failed_email_confirmation_should_produce_audit_log_entry()
+    {
+        //given
+        var userEmail = Random.Email();
+        var userPassword = Random.Password();
+
+        var (userExternalId, _, antiforgeryCookies) = await SignUp(
+            email: userEmail,
+            password: userPassword);
+
+        //when
+        var result = await Api.Auth.ConfirmEmail(
+            request: new ConfirmEmailRequestDto
+            {
+                UserExternalId = userExternalId.Value,
+                Code = "wrong-confirmation-code"
+            },
+            antiforgeryCookies: antiforgeryCookies);
+
+        //then
+        result.Should().Be(ConfirmEmailResponseDto.InvalidToken);
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.EmailConfirmationFailed,
+            expectedSeverity: AuditLogSeverities.Warning);
+    }
+
+    [Fact]
+    public async Task successful_sign_in_after_registration_should_produce_audit_log_entry()
+    {
+        //given
+        var userEmail = Random.Email();
+        var userPassword = Random.Password();
+
+        var (_, antiforgeryCookies) = await SignUpAndConfirmEmail(
+            email: userEmail,
+            password: userPassword);
+
+        //when
+        var (signInResponse, _, _) = await Api.Auth.SignIn(
+            email: userEmail,
+            password: userPassword,
+            antiforgeryCookies: antiforgeryCookies);
+
+        //then
+        signInResponse.Should().Be(SignInUserResponseDto.Successful);
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.SignedIn,
+            expectedActorEmail: userEmail);
+    }
+
+    [Fact]
+    public async Task forgot_password_should_produce_audit_log_entry()
+    {
+        //given
+        var userEmail = Random.Email();
+        var userPassword = Random.Password();
+
+        var (_, antiforgeryCookies) = await SignUpAndConfirmEmail(
+            email: userEmail,
+            password: userPassword);
+
+        //when
+        await Api.Auth.ForgotPassword(
+            request: new ForgotPasswordRequestDto(
+                Email: userEmail),
+            antiforgeryCookies: antiforgeryCookies);
+
+        //then
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.PasswordResetRequested,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task successful_password_reset_should_produce_audit_log_entry()
+    {
+        //given
+        var userEmail = Random.Email();
+        var userPassword = Random.Password();
+
+        var (userExternalId, antiforgeryCookies) = await SignUpAndConfirmEmail(
+            email: userEmail,
+            password: userPassword);
+
+        await Api.Auth.ForgotPassword(
+            request: new ForgotPasswordRequestDto(
+                Email: userEmail),
+            antiforgeryCookies: antiforgeryCookies);
+
+        var (resetUserId, resetCode) = await ExtractCodeFromResetPasswordEmail(userEmail);
+
+        //when
+        var result = await Api.Auth.ResetPassword(
+            request: new ResetPasswordRequestDto(
+                UserExternalId: resetUserId,
+                Code: resetCode,
+                NewPassword: Random.Password()),
+            antiforgeryCookies: antiforgeryCookies);
+
+        //then
+        result.Should().Be(ResetPasswordResponseDto.PasswordReset);
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.PasswordResetCompleted);
+    }
+
+    [Fact]
+    public async Task failed_password_reset_with_invalid_token_should_produce_audit_log_entry()
+    {
+        //given
+        var userEmail = Random.Email();
+        var userPassword = Random.Password();
+
+        var (userExternalId, antiforgeryCookies) = await SignUpAndConfirmEmail(
+            email: userEmail,
+            password: userPassword);
+
+        //when
+        var result = await Api.Auth.ResetPassword(
+            request: new ResetPasswordRequestDto(
+                UserExternalId: userExternalId.Value,
+                Code: "invalid-reset-token",
+                NewPassword: Random.Password()),
+            antiforgeryCookies: antiforgeryCookies);
+
+        //then
+        result.Should().Be(ResetPasswordResponseDto.InvalidToken);
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.PasswordResetFailed,
+            expectedSeverity: AuditLogSeverities.Warning);
+    }
+
+    private async Task<(string UserId, string Code)> ExtractCodeFromResetPasswordEmail(
+        string userEmail)
+    {
+        var (expectedEmailTitle, _) = Emails.ResetPassword(
+            applicationName: AppSettings.ApplicationName.Name,
+            link: null!);
+
+        string? userId = null;
+        string? code = null;
+
+        await WaitFor(() =>
+        {
+            var resetEmail = ResendEmailServer.ReceivedEmails
+                .LastOrDefault(e =>
+                    e.Body.To.Contains(userEmail, StringComparer.OrdinalIgnoreCase) &&
+                    e.Body.Subject == expectedEmailTitle);
+
+            resetEmail.Should().NotBeNull();
+
+            (userId, code) = ResetPasswordExtractor.ExtractResetData(resetEmail!.Body.Html);
+        });
+
+        return (
+            UserId: userId!,
+            Code: code!);
+    }
+
+    public static class ResetPasswordExtractor
+    {
+        public static (string UserId, string Code) ExtractResetData(string emailHtml)
+        {
+            if (string.IsNullOrWhiteSpace(emailHtml))
+                return default;
+
+            var urlPattern = @"https?://[^/]+/reset-password\?userId=([^&\s<]+)&code=([^&\s<]+)";
+            var match = Regex.Match(emailHtml, urlPattern, RegexOptions.IgnoreCase);
+
+            if (!match.Success)
+                return default;
+
+            var userId = HttpUtility.UrlDecode(match.Groups[1].Value);
+            var code = HttpUtility.UrlDecode(match.Groups[2].Value);
+
+            return (
+                UserId: userId,
+                Code: code);
+        }
     }
 
     private async Task<SignUpResult> SignUp(string email, string password)

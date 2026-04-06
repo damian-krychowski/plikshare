@@ -21,7 +21,7 @@ public class UpdateUserMaxWorkspaceNumberQuery(DbWriteQueue dbWriteQueue)
     }
 
     private void ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         UserContext user,
         int? maxWorkspaceNumber)
     {

@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
+using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.GetSize;
@@ -17,7 +18,7 @@ public class UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor(
     public (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
         string definitionJson, 
         Guid correlationId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var definition = Json.Deserialize<UpdateWorkspaceCurrentSizeInBytesQueueJobDefinition>(

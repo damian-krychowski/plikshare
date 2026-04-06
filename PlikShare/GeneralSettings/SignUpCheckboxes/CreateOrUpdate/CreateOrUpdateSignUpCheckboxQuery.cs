@@ -20,7 +20,7 @@ public class CreateOrUpdateSignUpCheckboxQuery(DbWriteQueue dbWriteQueue)
     }
 
     private CreateOrUpdateSignUpCheckboxResponseDto ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         CreateOrUpdateSignUpCheckboxRequestDto request)
     {
         if (request.Id is null)
@@ -37,7 +37,7 @@ public class CreateOrUpdateSignUpCheckboxQuery(DbWriteQueue dbWriteQueue)
     }
 
     private CreateOrUpdateSignUpCheckboxResponseDto HandleNewCheckbox(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         string text,
         bool isRequired)
     {
@@ -69,7 +69,7 @@ public class CreateOrUpdateSignUpCheckboxQuery(DbWriteQueue dbWriteQueue)
     }
 
     private CreateOrUpdateSignUpCheckboxResponseDto HandleExistingCheckbox(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         int id,
         string text,
         bool isRequired)

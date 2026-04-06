@@ -41,7 +41,7 @@ public class CreateAuthProviderQuery(
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         string name,
         AuthProviderType type,
         string clientId,

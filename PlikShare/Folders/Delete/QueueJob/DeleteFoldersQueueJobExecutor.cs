@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using PlikShare.Boxes.Cache;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
+using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using Serilog;
 
@@ -17,7 +18,7 @@ public class DeleteFoldersQueueJobExecutor(
     public (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
         string definitionJson, 
         Guid correlationId, 
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var definition = Json.Deserialize<DeleteFoldersQueueJobDefinition>(

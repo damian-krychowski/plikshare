@@ -1,4 +1,5 @@
 using FluentAssertions;
+using PlikShare.AuditLog;
 using PlikShare.AuthProviders.Create.Contracts;
 using PlikShare.GeneralSettings;
 using PlikShare.IntegrationTests.Infrastructure;
@@ -420,6 +421,47 @@ public class sso_login_tests : TestFixture, IDisposable
             .Which.Should().Be(authProvider.Name);
     }
 
+    [Fact]
+    public async Task sso_login_new_user_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+        var authProvider = await CreateAndActivateAuthProvider(user);
+
+        var ssoEmail = Random.Email("sso");
+        var ssoSub = Random.Sub();
+
+        //when
+        await SignInViaSso(authProvider, ssoEmail, ssoSub);
+
+        //then
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.SsoUserCreated,
+            expectedActorEmail: ssoEmail);
+    }
+
+    [Fact]
+    public async Task sso_login_existing_user_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+        var authProvider = await CreateAndActivateAuthProvider(user);
+
+        var ssoEmail = Random.Email("sso");
+        var ssoSub = Random.Sub();
+
+        // First login - creates user
+        await SignInViaSso(authProvider, ssoEmail, ssoSub);
+
+        //when - Second login - existing user
+        await SignInViaSso(authProvider, ssoEmail, ssoSub);
+
+        //then
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.SsoLogin,
+            expectedActorEmail: ssoEmail);
+    }
+
     private async Task GrantWorkspacePermission(
         UserExtId userExternalId,
         AppSignedInUser admin,
@@ -437,7 +479,8 @@ public class sso_login_tests : TestFixture, IDisposable
                 CanManageStorages = false,
                 CanManageEmailProviders = false,
                 CanManageAuth = false,
-                CanManageIntegrations = false
+                CanManageIntegrations = false,
+                CanManageAuditLog = false
             },
             cookie: admin.Cookie,
             antiforgery: admin.Antiforgery);

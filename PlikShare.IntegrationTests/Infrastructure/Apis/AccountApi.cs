@@ -157,4 +157,29 @@ public class AccountApi(IFlurlClient flurlClient, string appUrl)
             cookie: cookie,
             antiforgery: antiforgeryCookies);
     }
+
+    public async Task<ChangePasswordResponseDto> ChangePassword(
+        ChangePasswordRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgeryCookies)
+    {
+        return await flurlClient.ExecutePost<ChangePasswordResponseDto, ChangePasswordRequestDto>(
+            appUrl: appUrl,
+            apiPath: "api/account/change-password",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgeryCookies);
+    }
+
+    public async Task SignOut(
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgeryCookies)
+    {
+        await flurlClient.ExecutePost(
+            appUrl: appUrl,
+            apiPath: "api/account/sign-out",
+            request: new object(),
+            cookie: cookie,
+            antiforgery: antiforgeryCookies);
+    }
 }

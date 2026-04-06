@@ -1,6 +1,7 @@
 using Flurl;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using PlikShare.AuditLog;
 using PlikShare.Auth.CheckInvitation;
 using PlikShare.Auth.Contracts;
 using PlikShare.Core.Clock;
@@ -65,20 +66,41 @@ public static class AuthEndpoints
         IClock clock,
         DbWriteQueue dbWriteQueue,
         CheckUserInvitationCodeQuery checkUserInvitationCodeQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var isPasswordLoginEnabled = config.ForcePasswordLoginEnabled
                                      || appSettings.PasswordLogin.IsEnabled;
 
         if (!isPasswordLoginEnabled)
+        {
+            await auditLogService.Log(
+                AuditLogEntryBuilder.AuthSignUpFailed(
+                    actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                    correlationId: httpContext.GetCorrelationId(),
+                    attemptedEmail: request.Email,
+                    reason: AuditLogFailureReasons.Auth.PasswordLoginDisabled),
+                cancellationToken);
+
             return SignUpUserResponseDto.PasswordLoginDisabled;
+        }
 
         var areAllRequiredCheckboxesPresent = appSettings
             .RequiredSignUpCheckboxesIds
             .All(request.SelectedCheckboxIds.Contains);
 
         if(!areAllRequiredCheckboxesPresent)
+        {
+            await auditLogService.Log(
+                AuditLogEntryBuilder.AuthSignUpFailed(
+                    actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                    correlationId: httpContext.GetCorrelationId(),
+                    attemptedEmail: request.Email,
+                    reason: AuditLogFailureReasons.Auth.CheckboxesMissing),
+                cancellationToken);
+
             return SignUpUserResponseDto.SignUpCheckboxesMissing;
+        }
 
         var isInvitationCodeProvided = !string.IsNullOrWhiteSpace(
             request.InvitationCode);
@@ -86,7 +108,17 @@ public static class AuthEndpoints
         if (appSettings.ApplicationSignUp == AppSettings.SignUpSetting.OnlyInvitedUsers)
         {
             if (!isInvitationCodeProvided)
+            {
+                await auditLogService.Log(
+                    AuditLogEntryBuilder.AuthSignUpFailed(
+                        actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                        correlationId: httpContext.GetCorrelationId(),
+                        attemptedEmail: request.Email,
+                        reason: AuditLogFailureReasons.Auth.InvitationRequired),
+                    cancellationToken);
+
                 return SignUpUserResponseDto.InvitationRequired;
+            }
         }
 
         if (isInvitationCodeProvided)
@@ -96,7 +128,17 @@ public static class AuthEndpoints
                 invitationCode: request.InvitationCode!);
 
             if (invitationCheckResult == CheckUserInvitationCodeQuery.ResultCode.WrongInvitationCode)
+            {
+                await auditLogService.Log(
+                    AuditLogEntryBuilder.AuthSignUpFailed(
+                        actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                        correlationId: httpContext.GetCorrelationId(),
+                        attemptedEmail: request.Email,
+                        reason: AuditLogFailureReasons.Auth.WrongInvitationCode),
+                    cancellationToken);
+
                 return SignUpUserResponseDto.InvitationRequired;
+            }
         }
 
         var user = new ApplicationUser
@@ -129,6 +171,14 @@ public static class AuthEndpoints
                 Log.Warning("Attempt to register a user '{UserEmail}' which already exists.",
                     EmailAnonymization.Anonymize(request.Email));
 
+                await auditLogService.Log(
+                    AuditLogEntryBuilder.AuthSignUpFailed(
+                        actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                        correlationId: httpContext.GetCorrelationId(),
+                        attemptedEmail: request.Email,
+                        reason: AuditLogFailureReasons.Auth.DuplicateEmail),
+                    cancellationToken);
+
                 return SignUpUserResponseDto.ConfirmationEmailSent;
             }
 
@@ -157,17 +207,29 @@ public static class AuthEndpoints
                 user: user,
                 isPersistent: false);
 
+            await auditLogService.Log(
+                AuditLogEntryBuilder.AuthSignedUp(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    email: request.Email),
+                cancellationToken);
+
             return SignUpUserResponseDto.SingedUpAndSignedIn;
         }
 
         await SendConfirmationLinkEmail(
-            user: user, 
-            userManager: userManager, 
-            queue: queue, 
-            clock: clock, 
-            dbWriteQueue: dbWriteQueue, 
-            httpContext: httpContext, 
+            user: user,
+            userManager: userManager,
+            queue: queue,
+            clock: clock,
+            dbWriteQueue: dbWriteQueue,
+            httpContext: httpContext,
             cancellationToken: cancellationToken);
+
+        await auditLogService.Log(
+            AuditLogEntryBuilder.AuthSignedUp(
+                actor: httpContext.GetAuditLogActorContext(),
+                email: request.Email), 
+            cancellationToken);
 
         return SignUpUserResponseDto.ConfirmationEmailSent;
     }
@@ -215,7 +277,9 @@ public static class AuthEndpoints
 
     private static async Task<ConfirmEmailResponseDto> ConfirmEmail(
         [FromBody] ConfirmEmailRequestDto request,
+        HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(
@@ -228,6 +292,14 @@ public static class AuthEndpoints
                 request.UserExternalId,
                 request.Code);
 
+            await auditLogService.Log(
+                AuditLogEntryBuilder.AuthEmailConfirmationFailed(
+                    actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                    correlationId: httpContext.GetCorrelationId(),
+                    userExternalId: request.UserExternalId,
+                    reason: AuditLogFailureReasons.Auth.UserNotFound),
+                cancellationToken);
+
             return ConfirmEmailResponseDto.InvalidToken;
         }
 
@@ -239,6 +311,14 @@ public static class AuthEndpoints
         {
             if (result.Errors.Any(err => err.Code == "InvalidToken"))
             {
+                await auditLogService.Log(
+                    AuditLogEntryBuilder.AuthEmailConfirmationFailed(
+                        actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                        correlationId: httpContext.GetCorrelationId(),
+                        userExternalId: request.UserExternalId,
+                        reason: AuditLogFailureReasons.Auth.InvalidToken),
+                    cancellationToken);
+
                 return ConfirmEmailResponseDto.InvalidToken;
             }
 
@@ -251,21 +331,39 @@ public static class AuthEndpoints
             throw new InvalidOperationException("Some errors on confirm user email");
         }
 
+        await auditLogService.Log(
+            AuditLogEntryBuilder.AuthEmailConfirmed(
+                actor: httpContext.GetAuditLogActorContext(),
+                email: user.Email ?? request.UserExternalId),
+            cancellationToken);
+
         return ConfirmEmailResponseDto.EmailConfirmed;
     }
 
     private static async Task<SignInUserResponseDto> SignIn(
         [FromBody] SignInUserRequestDto request,
+        HttpContext httpContext,
         SignInManager<ApplicationUser> signInManager,
         AppSettings appSettings,
         IConfig config,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var isPasswordLoginEnabled = config.ForcePasswordLoginEnabled
                                      || appSettings.PasswordLogin.IsEnabled;
 
         if (!isPasswordLoginEnabled)
+        {
+            await auditLogService.Log(
+                AuditLogEntryBuilder.AuthSignInFailed(
+                    actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                    correlationId: httpContext.GetCorrelationId(),
+                    attemptedEmail: request.Email,
+                    reason: AuditLogFailureReasons.Auth.PasswordLoginDisabled),
+                cancellationToken);
+
             return SignInUserResponseDto.PasswordLoginDisabled;
+        }
 
         var result = await signInManager.PasswordSignInAsync(
             userName: request.Email,
@@ -274,28 +372,63 @@ public static class AuthEndpoints
             lockoutOnFailure: false);
 
         if (result.Succeeded)
+        {
+            await auditLogService.Log(
+                AuditLogEntryBuilder.AuthSignedIn(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    email: request.Email,
+                    method: "password"),
+                cancellationToken);
+
             return SignInUserResponseDto.Successful;
+        }
 
         if (result.RequiresTwoFactor)
             return SignInUserResponseDto.Required2Fa;
 
         if (result.IsLockedOut)
         {
-            //todo handle lockout
+            await auditLogService.Log(
+                AuditLogEntryBuilder.AuthSignInFailed(
+                    actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                    correlationId: httpContext.GetCorrelationId(),
+                    attemptedEmail: request.Email,
+                    reason: AuditLogFailureReasons.Auth.LockedOut),
+                cancellationToken);
+
+            return SignInUserResponseDto.Failed;
         }
+
+        await auditLogService.Log(
+            AuditLogEntryBuilder.AuthSignInFailed(
+                actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                correlationId: httpContext.GetCorrelationId(),
+                attemptedEmail: request.Email,
+                reason: AuditLogFailureReasons.Auth.InvalidCredentials),
+            cancellationToken);
 
         return SignInUserResponseDto.Failed;
     }
 
     private static async Task<SignInUser2FaResponseDto> SignIn2Fa(
         [FromBody] SignInUser2FaRequestDto request,
+        HttpContext httpContext,
         SignInManager<ApplicationUser> signInManager,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var user = await signInManager.GetTwoFactorAuthenticationUserAsync();
 
         if (user is null)
         {
+            await auditLogService.Log(
+                AuditLogEntryBuilder.Auth2FaFailed(
+                    actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                    correlationId: httpContext.GetCorrelationId(),
+                    reason: AuditLogFailureReasons.Auth.No2FaSession,
+                    email: null),
+                cancellationToken);
+
             return SignInUser2FaResponseDto.Failed;
         }
 
@@ -305,25 +438,59 @@ public static class AuthEndpoints
             rememberClient: request.RememberDevice);
 
         if (result.Succeeded)
+        {
+            await auditLogService.Log(
+                AuditLogEntryBuilder.AuthSignedIn2Fa(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    email: user.Email),
+                cancellationToken);
+
             return SignInUser2FaResponseDto.Successful;
+        }
 
         if (result.IsLockedOut)
         {
-            //todo handle lockout
+            await auditLogService.Log(
+                AuditLogEntryBuilder.Auth2FaFailed(
+                    actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                    correlationId: httpContext.GetCorrelationId(),
+                    reason: AuditLogFailureReasons.Auth.LockedOut,
+                    email: user.Email),
+                cancellationToken);
+
+            return SignInUser2FaResponseDto.InvalidVerificationCode;
         }
+
+        await auditLogService.Log(
+            AuditLogEntryBuilder.Auth2FaFailed(
+                actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                correlationId: httpContext.GetCorrelationId(),
+                reason: AuditLogFailureReasons.Auth.InvalidVerificationCode,
+                email: user.Email),
+            cancellationToken);
 
         return SignInUser2FaResponseDto.InvalidVerificationCode;
     }
 
     private static async Task<SignInUserRecoveryCodeResponseDto> SignInRecoveryCode(
         [FromBody] SignInUserRecoveryCodeRequestDto request,
+        HttpContext httpContext,
         SignInManager<ApplicationUser> signInManager,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var user = await signInManager.GetTwoFactorAuthenticationUserAsync();
 
         if (user is null)
         {
+            await auditLogService.Log(
+                AuditLogEntryBuilder.Auth2FaFailed(
+                    actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                    correlationId: httpContext.GetCorrelationId(),
+                    reason: AuditLogFailureReasons.Auth.No2FaSession,
+                    email: null),
+                cancellationToken);
+
             return SignInUserRecoveryCodeResponseDto.Failed;
         }
 
@@ -331,12 +498,36 @@ public static class AuthEndpoints
             recoveryCode: request.RecoveryCode);
 
         if (result.Succeeded)
+        {
+            await auditLogService.Log(
+                AuditLogEntryBuilder.AuthSignedInRecoveryCode(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    email: user.Email),
+                cancellationToken);
+
             return SignInUserRecoveryCodeResponseDto.Successful;
+        }
 
         if (result.IsLockedOut)
         {
-            //todo handle lockout
+            await auditLogService.Log(
+                AuditLogEntryBuilder.Auth2FaFailed(
+                    actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                    correlationId: httpContext.GetCorrelationId(),
+                    reason: AuditLogFailureReasons.Auth.LockedOut,
+                    email: user.Email),
+                cancellationToken);
+
+            return SignInUserRecoveryCodeResponseDto.InvalidRecoveryCode;
         }
+
+        await auditLogService.Log(
+            AuditLogEntryBuilder.Auth2FaFailed(
+                actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                correlationId: httpContext.GetCorrelationId(),
+                reason: AuditLogFailureReasons.Auth.InvalidRecoveryCode,
+                email: user.Email),
+            cancellationToken);
 
         return SignInUserRecoveryCodeResponseDto.InvalidRecoveryCode;
     }
@@ -351,6 +542,7 @@ public static class AuthEndpoints
         IClock clock,
         IQueue queue,
         DbWriteQueue dbWriteQueue,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var isPasswordLoginEnabled = config.ForcePasswordLoginEnabled
@@ -394,13 +586,22 @@ public static class AuthEndpoints
                 dbWriteContext: context,
                 transaction: null),
             cancellationToken: cancellationToken);
+
+        await auditLogService.Log(
+            AuditLogEntryBuilder.AuthPasswordResetRequested(
+                actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                correlationId: httpContext.GetCorrelationId(),
+                email: request.Email),
+            cancellationToken);
     }
 
     private static async Task<ResetPasswordResponseDto> ResetPassword(
         [FromBody] ResetPasswordRequestDto request,
+        HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
         AppSettings appSettings,
         IConfig config,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var isPasswordLoginEnabled = config.ForcePasswordLoginEnabled
@@ -418,6 +619,14 @@ public static class AuthEndpoints
                 request.UserExternalId,
                 request.Code);
 
+            await auditLogService.Log(
+                AuditLogEntryBuilder.AuthPasswordResetFailed(
+                    actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                    correlationId: httpContext.GetCorrelationId(),
+                    userExternalId: request.UserExternalId,
+                    reason: AuditLogFailureReasons.Auth.UserNotFound),
+                cancellationToken);
+
             return ResetPasswordResponseDto.InvalidToken;
         }
 
@@ -430,6 +639,14 @@ public static class AuthEndpoints
         {
             if (result.Errors.Any(err => err.Code == "InvalidToken"))
             {
+                await auditLogService.Log(
+                    AuditLogEntryBuilder.AuthPasswordResetFailed(
+                        actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                        correlationId: httpContext.GetCorrelationId(),
+                        userExternalId: request.UserExternalId,
+                        reason: AuditLogFailureReasons.Auth.InvalidToken),
+                    cancellationToken);
+
                 return ResetPasswordResponseDto.InvalidToken;
             }
 
@@ -441,6 +658,13 @@ public static class AuthEndpoints
 
             throw new InvalidOperationException("Some errors on reset user password");
         }
+
+        await auditLogService.Log(
+            AuditLogEntryBuilder.AuthPasswordResetCompleted(
+                actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
+                correlationId: httpContext.GetCorrelationId(),
+                userExternalId: request.UserExternalId),
+            cancellationToken);
 
         return ResetPasswordResponseDto.PasswordReset;
     }

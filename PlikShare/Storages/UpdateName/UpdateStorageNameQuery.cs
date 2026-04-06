@@ -22,7 +22,7 @@ public class UpdateStorageNameQuery(DbWriteQueue dbWriteQueue)
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         StorageExtId externalId,
         string name)
     {

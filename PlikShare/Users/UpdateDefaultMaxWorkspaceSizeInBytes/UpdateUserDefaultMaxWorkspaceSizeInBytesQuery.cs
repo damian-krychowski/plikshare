@@ -21,7 +21,7 @@ public class UpdateUserDefaultMaxWorkspaceSizeInBytesQuery(DbWriteQueue dbWriteQ
     }
 
     private void ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         UserContext user,
         long? defaultMaxWorkspaceSizeInBytes)
     {

@@ -93,6 +93,10 @@ export const routes: Routes = [{
     loadComponent: () => import('./account/integrations/integrations.component').then(m => m.IntegrationsComponent),
     canActivate: [AdminGuardService]
 }, {
+    path: 'settings/audit-log',
+    loadComponent: () => import('./account/audit-log/audit-log.component').then(m => m.AuditLogComponent),
+    canActivate: [AdminGuardService]
+}, {
     path: 'settings/integrations/add/aws-textract',
     loadComponent: () => import('./account/integrations/aws/textract/create/create-aws-textract.component').then(m => m.CreateAwsTextractComponent),
     canActivate: [AdminGuardService]

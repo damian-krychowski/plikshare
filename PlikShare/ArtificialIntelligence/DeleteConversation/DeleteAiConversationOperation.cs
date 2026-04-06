@@ -62,7 +62,7 @@ public class DeleteAiConversationOperation(
     }
 
     private void ExecuteDeleteAiConversation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         FileArtifactExtId fileArtifactExternalId,
         AiConversationExtId aiConversationExternalId,
         Guid correlationId)

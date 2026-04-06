@@ -31,7 +31,7 @@ public class GetOrCreateSsoUserQuery(
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         Email email,
         string loginProvider,
         string providerKey,
@@ -143,7 +143,7 @@ public class GetOrCreateSsoUserQuery(
 
     private static void ConfirmEmailIfNeeded(
         int userId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         dbWriteContext
@@ -167,7 +167,7 @@ public class GetOrCreateSsoUserQuery(
         string loginProvider,
         string providerKey,
         string providerDisplayName,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         dbWriteContext
@@ -198,7 +198,7 @@ public class GetOrCreateSsoUserQuery(
 
     private void ApplyDefaultPermissions(
         int userId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var permissionsAndRoles = appSettings
@@ -229,7 +229,7 @@ public class GetOrCreateSsoUserQuery(
 
     private SQLiteOneRowCommandResult<SsoUser> TryInsertSsoUser(
         Email email,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var externalId = UserExtId.NewId();
@@ -313,7 +313,7 @@ public class GetOrCreateSsoUserQuery(
 
     private static SQLiteOneRowCommandResult<SsoUser> TrySelectUserByEmail(
         Email email,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -341,7 +341,7 @@ public class GetOrCreateSsoUserQuery(
     private static SQLiteOneRowCommandResult<SsoUser> TrySelectUser(
         Email email,
         string loginProvider,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext

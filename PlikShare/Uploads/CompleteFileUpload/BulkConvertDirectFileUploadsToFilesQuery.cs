@@ -28,7 +28,7 @@ public class BulkConvertDirectFileUploadsToFilesQuery(
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         int[] fileUploadIds,
         int workspaceId,
         Guid correlationId)

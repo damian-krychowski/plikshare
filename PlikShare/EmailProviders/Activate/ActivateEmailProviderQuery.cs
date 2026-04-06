@@ -36,7 +36,7 @@ public class ActivateEmailProviderQuery(
     }
 
     private ResultEncrypted ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         EmailProviderExtId externalId)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();

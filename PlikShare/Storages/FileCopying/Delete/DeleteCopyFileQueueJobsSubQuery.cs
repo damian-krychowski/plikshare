@@ -12,7 +12,7 @@ namespace PlikShare.Storages.FileCopying.Delete
             int workspaceId,
             int[] deletedFileIds,
             int[] deletedFileUploadIds,
-            DbWriteQueue.Context dbWriteContext,
+            SqliteWriteContext dbWriteContext,
             SqliteTransaction transaction)
         {
             var deletedSourceCopyFileQueueJobs = DeleteSourceCopyFileQueueJobs(
@@ -45,7 +45,7 @@ namespace PlikShare.Storages.FileCopying.Delete
         private static List<DeletedCopyFileQueueJob> DeleteSourceCopyFileQueueJobs(
             int sourceWorkspaceId,
             int[] deletedFileIds,
-            DbWriteQueue.Context dbWriteContext,
+            SqliteWriteContext dbWriteContext,
             SqliteTransaction transaction)
         {
             if (deletedFileIds.Length == 0)
@@ -81,7 +81,7 @@ namespace PlikShare.Storages.FileCopying.Delete
         private static List<DeletedCopyFileQueueJob> DeleteDestinationCopyFileQueueJobs(
             int destinationWorkspaceId,
             int[] deletedFileUploadIds,
-            DbWriteQueue.Context dbWriteContext,
+            SqliteWriteContext dbWriteContext,
             SqliteTransaction transaction)
         {
             if (deletedFileUploadIds.Length == 0)

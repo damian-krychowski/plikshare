@@ -21,7 +21,7 @@ public class UpdateBoxLinkWidgetOriginsQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxLinkContext boxLink,
         List<string> widgetOrigins)
     {

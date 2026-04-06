@@ -21,7 +21,7 @@ public class UpdateBoxLinkIsEnabledQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxLinkContext boxLink,
         bool isEnabled)
     {

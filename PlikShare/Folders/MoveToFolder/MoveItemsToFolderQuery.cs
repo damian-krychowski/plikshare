@@ -36,7 +36,7 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
 
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FolderExtId[] folderExternalIds,
         FileExtId[] fileExternalIds,
@@ -226,7 +226,7 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
         WorkspaceContext workspace, 
         FolderExtId destinationFolderExternalId, 
         int? boxFolderId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -263,7 +263,7 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
         WorkspaceContext workspace, 
         FileExtId[] fileExternalIds, 
         int? boxFolderId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (fileExternalIds.Length == 0)
@@ -313,7 +313,7 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
         WorkspaceContext workspace,
         FileUploadExtId[] fileUploadExternalIds,
         int? boxFolderId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (fileUploadExternalIds.Length == 0)
@@ -363,7 +363,7 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
         WorkspaceContext workspace, 
         FolderExtId[] folderExternalIds, 
         int? boxFolderId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (folderExternalIds.Length == 0)
@@ -403,7 +403,7 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
         FolderToMove folderToMove, 
         DestinationFolder destinationFolder,
         WorkspaceContext workspace,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext

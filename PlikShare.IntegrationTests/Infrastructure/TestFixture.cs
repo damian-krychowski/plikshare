@@ -1,5 +1,8 @@
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using PlikShare.Auth.Contracts;
+using PlikShare.Core.Database.AuditLogDatabase;
+using PlikShare.Core.SQLite;
 using PlikShare.Boxes.Create.Contracts;
 using PlikShare.Boxes.CreateLink.Contracts;
 using PlikShare.Boxes.Id;
@@ -96,6 +99,63 @@ public class TestFixture: IAsyncLifetime
     public Task DisposeAsync()
     {
         return Task.CompletedTask;
+    }
+
+    protected async Task AssertAuditLogContains(
+        string expectedEventType,
+        string? expectedActorEmail = null,
+        string? expectedSeverity = null)
+    {
+        var auditLogDb = HostFixture.App.Services
+            .GetRequiredService<PlikShareAuditLogDb>();
+
+        Exception? lastException = null;
+
+        for (var i = 0; i < 30; i++)
+        {
+            try
+            {
+                using var connection = auditLogDb.OpenConnection();
+
+                var entries = connection
+                    .Cmd(
+                        sql: """
+                            SELECT al_event_type, al_actor_email, al_event_severity
+                            FROM al_audit_logs
+                            WHERE al_event_type = $eventType
+                            ORDER BY al_id DESC
+                            LIMIT 10
+                            """,
+                        readRowFunc: reader => new
+                        {
+                            EventType = reader.GetString(0),
+                            ActorEmail = reader.GetStringOrNull(1),
+                            Severity = reader.GetString(2)
+                        })
+                    .WithParameter("$eventType", expectedEventType)
+                    .Execute();
+
+                var matching = entries.Where(e =>
+                    (expectedActorEmail is null || e.ActorEmail == expectedActorEmail) &&
+                    (expectedSeverity is null || e.Severity == expectedSeverity));
+
+                matching.Should().NotBeEmpty(
+                    $"expected audit log entry with event type '{expectedEventType}'" +
+                    (expectedActorEmail is not null ? $", actor email '{expectedActorEmail}'" : "") +
+                    (expectedSeverity is not null ? $", severity '{expectedSeverity}'" : ""));
+
+                return;
+            }
+            catch (Exception e)
+            {
+                lastException = e;
+            }
+
+            await Task.Delay(20);
+        }
+
+        throw lastException ?? new InvalidOperationException(
+            $"Audit log entry with event type '{expectedEventType}' was not found");
     }
 
     protected async Task WaitFor(Action assertion)

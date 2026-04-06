@@ -36,7 +36,7 @@ public class ConvertFileUploadToFileQuery(
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         FileUpload fileUpload,
         WorkspaceContext workspace,
         Guid correlationId)
@@ -101,7 +101,7 @@ public class ConvertFileUploadToFileQuery(
     }
 
     private Result HandleConversionForDirectUploads(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         FileUpload fileUpload,
         SqliteTransaction transaction)
     {
@@ -195,7 +195,7 @@ public class ConvertFileUploadToFileQuery(
     }
 
     private Result HandleConversionForSingleChunkUploads(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         FileUpload fileUpload,
         SqliteTransaction transaction)
     {
@@ -204,7 +204,7 @@ public class ConvertFileUploadToFileQuery(
     }
 
     private Result HandleConversionForMultiStepChunkUploads(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         FileUpload fileUpload,
         WorkspaceContext workspace,
         Guid correlationId,
@@ -342,7 +342,7 @@ public class ConvertFileUploadToFileQuery(
     }
 
     private QueueJobId EnqueueCompleteFileUploadJob(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         int fileUploadId,
         Guid correlationId,
         SqliteTransaction transaction)

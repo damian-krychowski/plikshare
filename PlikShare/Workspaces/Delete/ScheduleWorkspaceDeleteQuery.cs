@@ -31,7 +31,7 @@ public class ScheduleWorkspaceDeleteQuery(
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         Guid correlationId)
     {
@@ -123,7 +123,7 @@ public class ScheduleWorkspaceDeleteQuery(
 
     private bool IsWorkspaceUsedByIntegration(
         WorkspaceContext workspace,
-        DbWriteQueue.Context dbWriteContext)
+        SqliteWriteContext dbWriteContext)
     {
         var result = dbWriteContext
             .OneRowCmd(
@@ -147,7 +147,7 @@ public class ScheduleWorkspaceDeleteQuery(
 
     private static SQLiteOneRowCommandResult<WorkspaceExtId> MarkWorkspaceToDelete(
         WorkspaceContext workspace,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -166,7 +166,7 @@ public class ScheduleWorkspaceDeleteQuery(
 
     private static List<int> MarkFoldersToDelete(
         WorkspaceContext workspace,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -185,7 +185,7 @@ public class ScheduleWorkspaceDeleteQuery(
 
     private static List<int> MarkBoxesToDelete(
         WorkspaceContext workspace,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext

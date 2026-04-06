@@ -19,7 +19,7 @@ public class DeleteBoxLinkQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxLinkContext boxLink)
     {
         var result = dbWriteContext

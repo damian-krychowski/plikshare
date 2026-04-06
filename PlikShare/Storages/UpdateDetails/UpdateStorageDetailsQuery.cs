@@ -28,7 +28,7 @@ public class UpdateStorageDetailsQuery(
     }
 
     private async ValueTask<Result> ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         StorageExtId externalId,
         string storageType,
         string detailsJson,

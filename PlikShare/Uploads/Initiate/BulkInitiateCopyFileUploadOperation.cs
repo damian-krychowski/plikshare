@@ -157,7 +157,7 @@ public class BulkInitiateCopyFileUploadOperation(
     }
 
     private Dictionary<FileUploadExtId, FileUpload> InsertFileUploadsAndUpdateCopyFileQueueJobs(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BulkInitiateCopyFilesQueueJobDefinition definition,
         List<FileToCopy> filesToCopy,
         Guid correlationId)

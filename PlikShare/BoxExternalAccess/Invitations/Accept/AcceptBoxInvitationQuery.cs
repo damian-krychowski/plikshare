@@ -28,7 +28,7 @@ public class AcceptBoxInvitationQuery(
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxMembershipContext boxMembership,
         Guid correlationId)
     {

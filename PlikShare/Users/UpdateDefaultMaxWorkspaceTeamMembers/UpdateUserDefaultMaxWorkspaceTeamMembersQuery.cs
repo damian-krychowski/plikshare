@@ -21,7 +21,7 @@ public class UpdateUserDefaultMaxWorkspaceTeamMembersQuery(DbWriteQueue dbWriteQ
     }
 
     private void ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         UserContext user,
         int? defaultMaxWorkspaceTeamMembers)
     {

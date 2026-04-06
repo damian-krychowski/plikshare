@@ -24,7 +24,7 @@ public class MarkFileAsUploadedAndDeleteUploadQuery(
     }
 
     private void ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         int fileUploadId,
         FileExtId fileExternalId)
     {

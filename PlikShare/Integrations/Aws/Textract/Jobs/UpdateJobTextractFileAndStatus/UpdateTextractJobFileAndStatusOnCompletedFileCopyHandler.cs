@@ -19,7 +19,7 @@ namespace PlikShare.Integrations.Aws.Textract.Jobs.UpdateJobTextractFileAndStatu
         public string HandlerType => Type;
 
         public void OnCopyFileCompleted(
-            DbWriteQueue.Context dbWriteContext,
+            SqliteWriteContext dbWriteContext,
             string actionHandlerDefinition,
             int sourceFileId,
             int sourceWorkspaceId,

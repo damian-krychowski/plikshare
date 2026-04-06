@@ -94,7 +94,8 @@ export class UsersSettingsComponent implements OnInit {
                     canManageStorages: signal(u.permissions.canManageStorages),
                     canManageEmailProviders: signal(u.permissions.canManageEmailProviders),
                     canManageAuth: signal(u.permissions.canManageAuth),
-                    canManageIntegrations: signal(u.permissions.canManageIntegrations)
+                    canManageIntegrations: signal(u.permissions.canManageIntegrations),
+                    canManageAuditLog: signal(u.permissions.canManageAuditLog)
                 },
                 maxWorkspaceNumber: signal(u.maxWorkspaceNumber),
                 defaultMaxWorkspaceSizeInBytes: signal(u.defaultMaxWorkspaceSizeInBytes),
@@ -147,7 +148,8 @@ export class UsersSettingsComponent implements OnInit {
                     canManageStorages: signal(false),
                     canManageEmailProviders: signal(false),
                     canManageAuth: signal(false),
-                    canManageIntegrations: signal(false)
+                    canManageIntegrations: signal(false),
+                    canManageAuditLog: signal(false)
                 },
                 roles: {
                     isAdmin: signal(false),
@@ -189,6 +191,7 @@ export class UsersSettingsComponent implements OnInit {
                     user.permissions.canManageUsers.set(userResponse.permissionsAndRoles.canManageUsers);
                     user.permissions.canManageAuth.set(userResponse.permissionsAndRoles.canManageAuth);
                     user.permissions.canManageIntegrations.set(userResponse.permissionsAndRoles.canManageIntegrations);
+                    user.permissions.canManageAuditLog.set(userResponse.permissionsAndRoles.canManageAuditLog);
                 }
             }
         } catch (error) {

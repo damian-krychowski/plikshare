@@ -24,4 +24,6 @@ public class Api(IFlurlClient flurlClient, string appUrl)
     public BoxExternalAccessApi BoxExternalAccess = new(flurlClient, appUrl);
 
     public AccessCodesApi AccessCodesApi = new(flurlClient, appUrl);
+
+    public AuditLogApi AuditLog { get; } = new(flurlClient, appUrl);
 }

@@ -29,4 +29,5 @@ export type AppUserPermissions = {
     canManageEmailProviders: WritableSignal<boolean>;
     canManageAuth: WritableSignal<boolean>;
     canManageIntegrations: WritableSignal<boolean>;
+    canManageAuditLog: WritableSignal<boolean>;
 }

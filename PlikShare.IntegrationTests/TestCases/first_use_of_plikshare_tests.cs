@@ -70,7 +70,8 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
                 CanManageUsers = false,
                 IsAdmin = false,
                 CanManageAuth = false,
-                CanManageIntegrations = false
+                CanManageIntegrations = false,
+                CanManageAuditLog = false
             },
             AlertOnNewUserRegistered = false
         });
@@ -142,7 +143,8 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
                          CanManageStorages = false,
                          CanManageEmailProviders = false,
                          CanManageAuth = false,
-                         CanManageIntegrations = false
+                         CanManageIntegrations = false,
+                         CanManageAuditLog = false
                      },
                      MaxWorkspaceNumber = null,
                      DefaultMaxWorkspaceSizeInBytes = null,

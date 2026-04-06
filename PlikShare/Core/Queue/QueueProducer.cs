@@ -449,12 +449,14 @@ public sealed class QueueProducer : BackgroundService
                 if (string.IsNullOrWhiteSpace(jobType))
                     return -1;
 
-                return (int)_queueJobInfoProvider.GetJobPriority(
+                return _queueJobInfoProvider.GetJobPriority(
                     jobType);
             });
 
         connection.CreateFunction(
-            "app_get_capacity_left",
+            "" +
+            "app_get_capacity_left" +
+            "",
             (int? jobCategory) =>
             {
                 return jobCategory switch

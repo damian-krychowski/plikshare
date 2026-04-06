@@ -27,7 +27,7 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
     private Task? _processTask;
 
     public Task Execute(
-        Action<Context> operationToEnqueue,
+        Action<SqliteWriteContext> operationToEnqueue,
         CancellationToken cancellationToken)
     {
         var dbWriteRequest = new DbWriteOperation(
@@ -43,7 +43,7 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
     }
 
     public Task Execute(
-        Func<Context, CancellationToken, ValueTask> operationToEnqueue,
+        Func<SqliteWriteContext, CancellationToken, ValueTask> operationToEnqueue,
         CancellationToken cancellationToken)
     {
         var dbWriteRequest = new AsyncDbWriteOperation(
@@ -59,7 +59,7 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
     }
 
     public Task<TResult> Execute<TResult>(
-        Func<Context, TResult> operationToEnqueue,
+        Func<SqliteWriteContext, TResult> operationToEnqueue,
         CancellationToken cancellationToken)
     {
         var dbWriteRequest = new DbWriteOperation<TResult>(
@@ -75,7 +75,7 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
     }
 
     public Task<TResult> Execute<TResult>(
-        Func<Context, CancellationToken, ValueTask<TResult>> operationToEnqueue,
+        Func<SqliteWriteContext, CancellationToken, ValueTask<TResult>> operationToEnqueue,
         CancellationToken cancellationToken)
     {
         var dbWriteRequest = new AsyncDbWriteOperation<TResult>(
@@ -111,7 +111,7 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
         using var connection = plikShareDb.OpenConnection();
         using var commandsPool = connection.CreateLazyCommandsPool();
 
-        var context = new Context
+        var context = new SqliteWriteContext
         {
             Connection = connection,
             CommandsPool = commandsPool
@@ -175,19 +175,19 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
 
     private interface ISyncDbWriteOperation : IDbWriteOperation
     {
-        void Execute(Context context);
+        void Execute(SqliteWriteContext context);
     }
 
     private interface IAsyncDbWriteOperation: IDbWriteOperation
     {
-        ValueTask Execute(Context context, CancellationToken cancellationToken);
+        ValueTask Execute(SqliteWriteContext context, CancellationToken cancellationToken);
     }
 
-    private class DbWriteOperation<TResult>(Func<Context, TResult> operation) : ISyncDbWriteOperation
+    private class DbWriteOperation<TResult>(Func<SqliteWriteContext, TResult> operation) : ISyncDbWriteOperation
     {
         public readonly TaskCompletionSource<TResult> CompletionSource = new();
 
-        public void Execute(Context context)
+        public void Execute(SqliteWriteContext context)
         {
             try
             {
@@ -202,11 +202,11 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
     }
 
     private class AsyncDbWriteOperation<TResult>(
-        Func<Context, CancellationToken, ValueTask<TResult>> operation) : IAsyncDbWriteOperation
+        Func<SqliteWriteContext, CancellationToken, ValueTask<TResult>> operation) : IAsyncDbWriteOperation
     {
         public readonly TaskCompletionSource<TResult> CompletionSource = new();
 
-        public async ValueTask Execute(Context context, CancellationToken cancellationToken)
+        public async ValueTask Execute(SqliteWriteContext context, CancellationToken cancellationToken)
         {
             try
             {
@@ -220,11 +220,11 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
         }
     }
 
-    private class DbWriteOperation(Action<Context> operation) : ISyncDbWriteOperation
+    private class DbWriteOperation(Action<SqliteWriteContext> operation) : ISyncDbWriteOperation
     {
         public readonly TaskCompletionSource CompletionSource = new();
 
-        public void Execute(Context context)
+        public void Execute(SqliteWriteContext context)
         {
             try
             {
@@ -238,11 +238,11 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
         }
     }
 
-    private class AsyncDbWriteOperation(Func<Context, CancellationToken, ValueTask> operation) : IAsyncDbWriteOperation
+    private class AsyncDbWriteOperation(Func<SqliteWriteContext, CancellationToken, ValueTask> operation) : IAsyncDbWriteOperation
     {
         public readonly TaskCompletionSource CompletionSource = new();
 
-        public async ValueTask Execute(Context context, CancellationToken cancellationToken)
+        public async ValueTask Execute(SqliteWriteContext context, CancellationToken cancellationToken)
         {
             try
             {
@@ -255,18 +255,12 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
             }
         }
     }
-
-    public class Context
-    {
-        public required SqliteConnection Connection { get; init; }
-        public required LazySqLiteCommandsPool CommandsPool { get; init; }
-    }
 }
 
 public static class DbWriteQueueContextExtensions 
 {
     public static void DeferForeignKeys(
-        this DbWriteQueue.Context dbWriteContext,
+        this SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         dbWriteContext

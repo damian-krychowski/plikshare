@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using PlikShare.Account.Contracts;
 using PlikShare.Account.GetKnownUsers;
 using PlikShare.Account.GetKnownUsers.Contracts;
+using PlikShare.AuditLog;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.IdentityProvider;
 using PlikShare.Core.Utils;
@@ -67,9 +68,19 @@ public static class AccountEndpoints
                 .ToArray());
     }
 
-    private static async Task SignAccountOut(SignInManager<ApplicationUser> signInManager)
+    private static async Task SignAccountOut(
+        HttpContext httpContext,
+        SignInManager<ApplicationUser> signInManager,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
+        var actor = httpContext.GetAuditLogActorContext();
+
         await signInManager.SignOutAsync();
+
+        await auditLogService.Log(
+            AuditLogEntryBuilder.AuthSignedOut(actor),
+            cancellationToken);
     }
 
 
@@ -91,6 +102,7 @@ public static class AccountEndpoints
                 CanManageEmailProviders = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageEmailProviders),
                 CanManageAuth = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageAuth),
                 CanManageIntegrations = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageIntegrations),
+                CanManageAuditLog = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageAuditLog),
             },
             HasPassword = user.HasPassword,
             MaxWorkspaceNumber = user.MaxWorkspaceNumber
@@ -102,6 +114,7 @@ public static class AccountEndpoints
         HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var userContext = httpContext.GetUserContext();
@@ -130,7 +143,17 @@ public static class AccountEndpoints
                 user.Id,
                 changePasswordResult);
 
-            if (changePasswordResult.Errors.Any(err => err.Code == "PasswordMismatch"))
+            var reason = changePasswordResult.Errors.Any(err => err.Code == "PasswordMismatch")
+                ? AuditLogFailureReasons.Auth.PasswordMismatch
+                : "failed";
+
+            await auditLogService.Log(
+                AuditLogEntryBuilder.AuthPasswordChangeFailed(
+                    httpContext.GetAuditLogActorContext(),
+                    reason: reason),
+                cancellationToken);
+
+            if (reason == AuditLogFailureReasons.Auth.PasswordMismatch)
             {
                 return ChangePasswordResponseDto.PasswordMismatch;
             }
@@ -141,6 +164,11 @@ public static class AccountEndpoints
         await signInManager.SignInAsync(
             user: user,
             isPersistent: httpContext.User.GetRememberMeOrDefault());
+
+        await auditLogService.Log(
+            AuditLogEntryBuilder.AuthPasswordChanged(
+                httpContext.GetAuditLogActorContext()),
+            cancellationToken);
 
         return ChangePasswordResponseDto.Success;
     }
@@ -184,6 +212,7 @@ public static class AccountEndpoints
         HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var userContext = httpContext.GetUserContext();
@@ -211,6 +240,12 @@ public static class AccountEndpoints
             Log.Warning("Wrong verification code were provided while enabling 2FA for User '{UserExternalId}'.",
                 user.Id);
 
+            await auditLogService.Log(
+                AuditLogEntryBuilder.Auth2FaEnableFailed(
+                    httpContext.GetAuditLogActorContext(),
+                    reason: AuditLogFailureReasons.Auth.InvalidVerificationCode),
+                cancellationToken);
+
             return Enable2FaResponseDto.InvalidVerificationCode;
         }
 
@@ -224,6 +259,12 @@ public static class AccountEndpoints
                 user.Id,
                 result.Errors);
 
+            await auditLogService.Log(
+                AuditLogEntryBuilder.Auth2FaEnableFailed(
+                    httpContext.GetAuditLogActorContext(),
+                    reason: AuditLogFailureReasons.Auth.Failed),
+                cancellationToken);
+
             return Enable2FaResponseDto.Failed;
         }
 
@@ -235,6 +276,11 @@ public static class AccountEndpoints
             user: user,
             isPersistent: httpContext.User.GetRememberMeOrDefault());
 
+        await auditLogService.Log(
+            AuditLogEntryBuilder.Auth2FaEnabled(
+                httpContext.GetAuditLogActorContext()),
+            cancellationToken);
+
         return Enable2FaResponseDto.Enabled(recoveryCodes ?? []);
     }
 
@@ -242,6 +288,7 @@ public static class AccountEndpoints
         HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var userContext = httpContext.GetUserContext();
@@ -276,12 +323,18 @@ public static class AccountEndpoints
             user: user,
             isPersistent: httpContext.User.GetRememberMeOrDefault());
 
+        await auditLogService.Log(
+            AuditLogEntryBuilder.Auth2FaDisabled(
+                httpContext.GetAuditLogActorContext()),
+            cancellationToken);
+
         return Disable2FaResponseDto.Disabled;
     }
 
     private static async Task<GenerateRecoveryCodesResponseDto> GenerateRecoveryCodes(
         HttpContext httpContext,
         UserManager<ApplicationUser> userManager,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var userContext = httpContext.GetUserContext();
@@ -302,6 +355,11 @@ public static class AccountEndpoints
         var recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(
             user: user,
             number: 5);
+
+        await auditLogService.Log(
+            AuditLogEntryBuilder.AuthRecoveryCodesRegenerated(
+                httpContext.GetAuditLogActorContext()),
+            cancellationToken);
 
         return new GenerateRecoveryCodesResponseDto(
             RecoveryCodes: recoveryCodes?.AsList() ?? []);

@@ -12,7 +12,7 @@ public class DeleteFileUploadsSubQuery(IQueue queue)
     public Result Execute(
         List<int> fileUploadIds,
         QueueSagaId? sagaId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var deletedFileUploadParts = DeleteFileUploadPartEntities(
@@ -77,7 +77,7 @@ public class DeleteFileUploadsSubQuery(IQueue queue)
 
     private static List<DeletedFileUploadPart> DeleteFileUploadPartEntities(
         List<int> fileUploadIds,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (fileUploadIds.Count == 0)
@@ -109,7 +109,7 @@ public class DeleteFileUploadsSubQuery(IQueue queue)
 
     private static List<DeletedFileUpload> DeleteFileUploadEntities(
         List<int> fileUploadIds,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (fileUploadIds.Count == 0)
@@ -146,7 +146,7 @@ public class DeleteFileUploadsSubQuery(IQueue queue)
 
     private static List<Workspace> GetWorkspaces(
         int[] workspaceIds,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (workspaceIds.Length == 0)

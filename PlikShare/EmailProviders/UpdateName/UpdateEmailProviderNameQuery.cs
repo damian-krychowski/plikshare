@@ -22,7 +22,7 @@ public class UpdateEmailProviderNameQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         EmailProviderExtId externalId,
         string name)
     {

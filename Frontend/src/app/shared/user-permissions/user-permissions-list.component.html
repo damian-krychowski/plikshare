@@ -63,5 +63,13 @@
             [isReadOnly]="isCanManageIntegrationsReadOnly()"
             (clicked)="onCanManageIntegrationsChange()">
         </app-permission-btn>
+
+        <app-permission-btn
+            tooltip="Can manage audit log"
+            icon="icon-nucleo-scroll-text"
+            [isSelected]="canManageAuditLog()"
+            [isReadOnly]="isCanManageAuditLogReadOnly()"
+            (clicked)="onCanManageAuditLogChange()">
+        </app-permission-btn>
     }
 </div>

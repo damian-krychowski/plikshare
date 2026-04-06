@@ -75,7 +75,7 @@ public class BulkDeleteQuery(
 
 
     private void ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FileExtId[] fileExternalIds,
         FolderExtId[] folderExternalIds,
@@ -235,7 +235,7 @@ public class BulkDeleteQuery(
         int? boxFolderId,
         IUserIdentity userIdentity,
         bool isFileDeleteAllowedByBoxPermissions,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (fileExternalIds.Length == 0)
@@ -287,7 +287,7 @@ public class BulkDeleteQuery(
         WorkspaceContext workspace,
         FileUploadExtId[] fileUploadExternalIds,
         IUserIdentity userIdentity,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (fileUploadExternalIds.Length == 0)
@@ -319,7 +319,7 @@ public class BulkDeleteQuery(
         WorkspaceContext workspace,
         FolderExtId[] folderExternalIds,
         int? boxFolderId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (folderExternalIds.Length == 0)

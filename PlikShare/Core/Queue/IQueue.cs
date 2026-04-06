@@ -10,7 +10,7 @@ public interface IQueue
         Guid correlationId,
         string onCompletedJobType,
         T onCompletedJobDefinition,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction);
 
     SQLiteOneRowCommandResult<QueueJobId> Enqueue<T>(
@@ -20,7 +20,7 @@ public interface IQueue
         DateTimeOffset executeAfterDate,
         string? debounceId,
         QueueSagaId? sagaId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction);
 
     QueueJobId EnqueueOrThrow<T>(
@@ -30,14 +30,14 @@ public interface IQueue
         DateTimeOffset executeAfterDate,
         string? debounceId,
         QueueSagaId? sagaId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction);
 
     List<QueueJobId> EnqueueBulk(
         Guid correlationId,
         List<BulkQueueJobEntity> definitions,
         DateTimeOffset executeAfterDate,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction);
 
     QueueStatus GetNewJobStatus(string jobType);
@@ -59,7 +59,7 @@ public interface IQueue
     public void HandleJobSuccess(
         in QueueJob job,
         QueueJobResult result,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction,
         string consumerIdentity);
     

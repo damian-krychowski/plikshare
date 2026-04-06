@@ -26,7 +26,7 @@ public class UpdateUserPermissionsAndRoleQuery(
     }
 
     private void ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         int targetUserId,
         UserPermissionsAndRolesDto request)
     {
@@ -96,7 +96,7 @@ public class UpdateUserPermissionsAndRoleQuery(
     private static OriginalRoles RemoveRoles(
         int userId,
         int adminRoleId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var result = dbWriteContext
@@ -121,7 +121,7 @@ public class UpdateUserPermissionsAndRoleQuery(
 
     private static List<string> RemoveAllPermissions(
         int userId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -144,7 +144,7 @@ public class UpdateUserPermissionsAndRoleQuery(
     public static void AddAdminRole(
         int userId,
         int adminRoleId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         dbWriteContext
@@ -172,7 +172,7 @@ public class UpdateUserPermissionsAndRoleQuery(
         int userId,
         bool isAdmin,
         List<string> permissions,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         foreach (var permission in permissions)
@@ -208,7 +208,7 @@ public class UpdateUserPermissionsAndRoleQuery(
 
     private static void UpdateUserConcurrencyStamp(
         int userId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var result = dbWriteContext

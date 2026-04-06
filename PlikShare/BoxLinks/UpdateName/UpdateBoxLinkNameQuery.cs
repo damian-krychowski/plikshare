@@ -21,7 +21,7 @@ public class UpdateBoxLinkNameQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxLinkContext boxLink,
         string name)
     {

@@ -20,7 +20,7 @@ public class BatchDeleteBoxesWithDependenciesQuery(
         int workspaceId,
         List<int> boxIds,
         Guid correlationId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var deletedBoxLinks = DeleteBoxLinks(
@@ -92,7 +92,7 @@ public class BatchDeleteBoxesWithDependenciesQuery(
     
     private static List<DeletedBoxLink> DeleteBoxLinks(
         List<int> boxIds,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (boxIds.Count == 0)
@@ -118,7 +118,7 @@ public class BatchDeleteBoxesWithDependenciesQuery(
     
     private static List<DeletedBoxMember> DeleteBoxMembers(
         List<int> boxIds,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (boxIds.Count == 0)
@@ -153,7 +153,7 @@ public class BatchDeleteBoxesWithDependenciesQuery(
     private static List<DeletedBox> DeleteBoxes(
         int workspaceId,
         List<int> boxIds, 
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (boxIds.Count == 0)

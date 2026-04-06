@@ -34,7 +34,7 @@ public class UpdateFolderNameQuery(
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FolderExtId folderExternalId,
         string name,

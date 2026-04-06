@@ -1,6 +1,4 @@
 using Microsoft.Data.Sqlite;
-using PlikShare.Core.Database.AiDatabase;
-using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Utils;
 
 namespace PlikShare.Core.SQLite;
@@ -121,22 +119,7 @@ public static class SQLiteCommandExecutorExtensions
     }
 
     public static SQLiteCommandExecutor<TRow> Cmd<TRow>(
-        this DbWriteQueue.Context dbWriteContext,
-        string sql,
-        Func<SqliteDataReader, TRow> readRowFunc,
-        SqliteTransaction? transaction = null)
-    {
-        var command = new SQLiteCommandExecutor<TRow>(
-            commandText: sql,
-            commandsPool: dbWriteContext.CommandsPool,
-            transaction: transaction,
-            readRowFunc: readRowFunc);
-
-        return command;
-    }
-
-    public static SQLiteCommandExecutor<TRow> Cmd<TRow>(
-        this AiDbWriteQueue.Context dbWriteContext,
+        this SqliteWriteContext dbWriteContext,
         string sql,
         Func<SqliteDataReader, TRow> readRowFunc,
         SqliteTransaction? transaction = null)

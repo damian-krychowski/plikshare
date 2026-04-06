@@ -22,7 +22,7 @@ public class UpdateAuthProviderNameQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         AuthProviderExtId externalId,
         string name)
     {

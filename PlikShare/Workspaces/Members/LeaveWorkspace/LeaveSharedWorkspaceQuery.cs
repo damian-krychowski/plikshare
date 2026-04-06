@@ -31,7 +31,7 @@ public class LeaveSharedWorkspaceQuery(
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         UserContext member,
         Guid correlationId)

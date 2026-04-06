@@ -22,7 +22,7 @@ public class MarkFileAsUploadedQuery(
     }
 
     private void ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         FileExtId fileExternalId)
     {
         try

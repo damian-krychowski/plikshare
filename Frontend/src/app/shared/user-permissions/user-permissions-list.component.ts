@@ -24,6 +24,7 @@ export function hasUserAnyPermission(userSignal: Signal<AppUserPermissionsAndRol
         || user.permissions.canManageEmailProviders()
         || user.permissions.canManageAuth()
         || user.permissions.canManageIntegrations()
+        || user.permissions.canManageAuditLog()
     });
 }
 
@@ -37,6 +38,7 @@ export type UserPermissionsAndRolesChangedEvent = {
     canManageEmailProviders: boolean;
     canManageAuth: boolean;
     canManageIntegrations: boolean;
+    canManageAuditLog: boolean;
 }
 
 @Component({
@@ -75,6 +77,9 @@ export class UserPermissionsListComponent {
 
     canManageIntegrations = computed(() => this.user().permissions.canManageIntegrations());
     isCanManageIntegrationsReadOnly = computed(() => this.isReadOnly() || !this.auth.isAppOwner());
+
+    canManageAuditLog = computed(() => this.user().permissions.canManageAuditLog());
+    isCanManageAuditLogReadOnly = computed(() => this.isReadOnly() || !this.auth.isAppOwner());
 
     constructor(
         public auth: AuthService
@@ -120,6 +125,11 @@ export class UserPermissionsListComponent {
         this.emitConfigChange();
     }
 
+    public onCanManageAuditLogChange() {
+        toggle(this.user().permissions.canManageAuditLog);
+        this.emitConfigChange();
+    }
+
     private emitConfigChange() {
         const isAdmin = this.isAdmin();
 
@@ -133,7 +143,8 @@ export class UserPermissionsListComponent {
             canManageStorages: isAdmin && this.canManageStorages(),
             canManageUsers: isAdmin && this.canManageUsers(),
             canManageAuth: isAdmin && this.canManageAuth(),
-            canManageIntegrations: isAdmin && this.canManageIntegrations()
+            canManageIntegrations: isAdmin && this.canManageIntegrations(),
+            canManageAuditLog: isAdmin && this.canManageAuditLog()
         });
     }
 }

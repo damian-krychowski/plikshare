@@ -43,7 +43,8 @@ public class UserService(
                 CanManageStorages = user.CanManageStorages,
                 CanManageEmailProviders = user.CanManageEmailProviders,
                 CanManageAuth = user.CanManageAuth,
-                CanManageIntegrations = user.CanManageIntegrations
+                CanManageIntegrations = user.CanManageIntegrations,
+                CanManageAuditLog = user.CanManageAuditLog
             },
             Invitation = user.IsInvitation
                 ? new UserInvitation

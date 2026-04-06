@@ -13,6 +13,7 @@ public class UserPermissionsAndRolesDto
     public required bool CanManageEmailProviders { get; init; }
     public required bool CanManageAuth { get; init; }
     public required bool CanManageIntegrations { get; init; }
+    public required bool CanManageAuditLog { get; init; }
 }
 
 public static class UserPermissionsAndRolesDtoExtensions
@@ -41,6 +42,9 @@ public static class UserPermissionsAndRolesDtoExtensions
 
         if(dto.CanManageIntegrations)
             result.Add(Permissions.ManageIntegrations);
+
+        if(dto.CanManageAuditLog)
+            result.Add(Permissions.ManageAuditLog);
 
         return result;
     }

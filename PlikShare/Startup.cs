@@ -8,6 +8,8 @@ using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.Account;
 using PlikShare.Account.GetKnownUsers;
 using PlikShare.Antiforgery;
+using PlikShare.AuditLog;
+using PlikShare.AuditLog.Queries;
 using PlikShare.ArtificialIntelligence;
 using PlikShare.ArtificialIntelligence.Cache;
 using PlikShare.ArtificialIntelligence.CheckConversationStatus;
@@ -61,6 +63,7 @@ using PlikShare.Core.Clock;
 using PlikShare.Core.Configuration;
 using PlikShare.Core.CorrelationId;
 using PlikShare.Core.CORS;
+using PlikShare.Core.Database.AuditLogDatabase.Migrations;
 using PlikShare.Core.Database.MainDatabase.Migrations;
 using PlikShare.Core.Emails;
 using PlikShare.Core.Emails.Alerts;
@@ -299,6 +302,17 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_21_AuthProvidersTableIntroduced>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
+
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_AuditLog_01_InitialDbSetup>();
+
+        builder.Services.AddSingleton<AuditLogChannel>();
+        builder.Services.AddSingleton<AuditLogService>();
+        builder.Services.AddHostedService<AuditLogWriter>();
+        builder.Services.AddSingleton<GetAuditLogQuery>();
+        builder.Services.AddSingleton<GetAuditLogStatsQuery>();
+        builder.Services.AddSingleton<GetAuditLogFilterOptionsQuery>();
+        builder.Services.AddSingleton<DeleteOldAuditLogsQuery>();
+        builder.Services.AddSingleton<ArchiveAuditLogsQuery>();
 
         builder.UseAppSettings();
 
@@ -718,6 +732,7 @@ public class Startup
         app.MapAiEndpoints();
         app.MapAntiforgeryEndpoints();
         app.MapWidgetEndpoints();
+        app.MapAuditLogEndpoints();
         
         //core functionality
         app.InitializeSqLite();

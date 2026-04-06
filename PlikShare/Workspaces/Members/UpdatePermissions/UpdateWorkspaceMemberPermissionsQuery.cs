@@ -25,7 +25,7 @@ public class UpdateWorkspaceMemberPermissionsQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         UserContext member,
         WorkspacePermissions permissions)

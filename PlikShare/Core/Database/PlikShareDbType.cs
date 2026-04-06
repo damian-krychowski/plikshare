@@ -3,5 +3,6 @@
 public enum PlikShareDbType
 {
     Main,
-    Ai
+    Ai,
+    AuditLog
 }

@@ -521,7 +521,7 @@ public class GetOrCreateFolderQuery(
     }
 
     private Dictionary<string, CreatedFolder> CreateFolders(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         List<FolderToCreate> foldersToCreate,
         IUserIdentity userIdentity)

@@ -667,7 +667,7 @@ public class DownloadTextractAnalysisQueueJobExecutor(
     }
     
     private QueueJobId EnqueueTextractFileCopyDeleteJob(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext textractWorkspace,
         S3FileKey fileKey,
         Guid correlationId,

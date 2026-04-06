@@ -19,7 +19,7 @@ public class DeleteAuthProviderQuery(DbWriteQueue dbWriteQueue)
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         AuthProviderExtId externalId)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();

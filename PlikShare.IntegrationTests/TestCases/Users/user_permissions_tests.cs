@@ -36,6 +36,7 @@ public class user_permissions_tests : TestFixture
                 CanManageGeneralSettings = false,
                 CanManageStorages = false,
                 CanManageUsers = false,
+                CanManageAuditLog = false
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -59,7 +60,8 @@ public class user_permissions_tests : TestFixture
             CanManageStorages = false,
             CanManageUsers = false,
             CanManageAuth = false,
-            CanManageIntegrations = false
+            CanManageIntegrations = false,
+            CanManageAuditLog = false
         });
     }
 
@@ -95,6 +97,7 @@ public class user_permissions_tests : TestFixture
                 CanManageGeneralSettings = canManageGeneralSettings,
                 CanManageStorages = canManageStorages,
                 CanManageUsers = canManageUsers,
+                CanManageAuditLog = false
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -118,7 +121,8 @@ public class user_permissions_tests : TestFixture
             CanManageStorages = canManageStorages,
             CanManageUsers = canManageUsers,
             CanManageAuth = canManageAuth,
-            CanManageIntegrations = canManageIntegrations
+            CanManageIntegrations = canManageIntegrations,
+            CanManageAuditLog = false
         });
     }
 
@@ -156,6 +160,7 @@ public class user_permissions_tests : TestFixture
                 CanManageGeneralSettings = canManageGeneralSettings,
                 CanManageStorages = canManageStorages,
                 CanManageUsers = canManageUsers,
+                CanManageAuditLog = false
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -177,7 +182,8 @@ public class user_permissions_tests : TestFixture
                 CanManageEmailProviders = canManageEmailProviders,
                 CanManageGeneralSettings = canManageGeneralSettings,
                 CanManageStorages = canManageStorages,
-                CanManageUsers = canManageUsers
+                CanManageUsers = canManageUsers,
+                CanManageAuditLog = false
             },
             Roles = new UserRoles
             {

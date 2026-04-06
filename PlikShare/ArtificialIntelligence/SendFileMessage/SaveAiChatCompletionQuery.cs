@@ -32,7 +32,7 @@ public class SaveAiChatCompletionQuery(
     }
 
     private Result? ExecuteSaveAiChatCompletion(
-        AiDbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         AiCompletion completion,
         string? newConversationName,
         GetFullAiConversationQuery.AiConversation conversation,

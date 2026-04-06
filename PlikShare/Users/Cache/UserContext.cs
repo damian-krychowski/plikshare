@@ -47,6 +47,7 @@ public sealed class UserPermissions
     public required bool CanManageEmailProviders { get; init; }
     public required bool CanManageAuth { get; init; }
     public required bool CanManageIntegrations { get; init; }
+    public required bool CanManageAuditLog { get; init; }
 }
 
 [ImmutableObject(true)]

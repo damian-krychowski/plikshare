@@ -34,7 +34,7 @@ public class CreateFolderQuery(
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FolderExtId folderExternalId,
         FolderExtId? parentFolderExternalId,
@@ -70,7 +70,7 @@ public class CreateFolderQuery(
     }
 
     private ResultCode CreateTopFolder(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FolderExtId folderExternalId,
         string name,
@@ -143,7 +143,7 @@ public class CreateFolderQuery(
     }
 
     private ResultCode CreateSubfolder(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FolderExtId folderExternalId,
         FolderExtId parentFolderExternalId,

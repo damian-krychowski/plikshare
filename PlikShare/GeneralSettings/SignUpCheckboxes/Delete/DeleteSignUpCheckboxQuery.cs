@@ -19,7 +19,7 @@ public class DeleteSignUpCheckboxQuery(DbWriteQueue dbWriteQueue)
     }
 
     private void ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         int signUpCheckboxId)
     {
         try

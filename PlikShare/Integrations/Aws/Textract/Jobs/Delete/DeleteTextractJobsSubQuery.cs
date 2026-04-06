@@ -8,7 +8,7 @@ public class DeleteTextractJobsSubQuery
 {
     public List<DeletedTextractJob> Execute(
         int integrationId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -29,7 +29,7 @@ public class DeleteTextractJobsSubQuery
     public List<DeletedTextractJob> Execute(
         int workspaceId,
         int[] deletedFileIds,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (deletedFileIds.Length == 0)

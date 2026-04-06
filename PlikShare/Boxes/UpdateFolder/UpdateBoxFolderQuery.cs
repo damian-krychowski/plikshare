@@ -23,7 +23,7 @@ public class UpdateBoxFolderQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxContext box,
         FolderExtId folderExternalId)
     {
@@ -89,7 +89,7 @@ public class UpdateBoxFolderQuery(DbWriteQueue dbWriteQueue)
     private static SQLiteOneRowCommandResult<int> UpdateBox(
         int folderId,
         BoxContext box,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -110,7 +110,7 @@ public class UpdateBoxFolderQuery(DbWriteQueue dbWriteQueue)
     private static SQLiteOneRowCommandResult<int> GetFolder(
         BoxContext box,
         FolderExtId folderExternalId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext

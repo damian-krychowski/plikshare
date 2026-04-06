@@ -24,7 +24,7 @@ public class DeleteIntegrationQuery(
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         IntegrationExtId externalId)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();

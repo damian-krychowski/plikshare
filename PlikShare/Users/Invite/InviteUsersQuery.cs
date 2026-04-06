@@ -40,7 +40,7 @@ public class InviteUsersQuery(
     }
 
     private InviteUsersResponseDto ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         List<Email> emails,
         UserContext inviter,
         Guid correlationId)
@@ -88,7 +88,7 @@ public class InviteUsersQuery(
         Email email,
         UserContext inviter,
         Guid correlationId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var normalizedEmail = email.Normalized;
@@ -229,7 +229,8 @@ public class InviteUsersQuery(
                 CanManageStorages = permissionsAndRoles.CanManageStorages,
                 CanManageUsers = permissionsAndRoles.CanManageUsers,
                 CanManageAuth = permissionsAndRoles.CanManageAuth,
-                CanManageIntegrations = permissionsAndRoles.CanManageIntegrations
+                CanManageIntegrations = permissionsAndRoles.CanManageIntegrations,
+                CanManageAuditLog = permissionsAndRoles.CanManageAuditLog
             }
         };
     }

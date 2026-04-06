@@ -19,7 +19,7 @@ public class DeactivateEmailProviderQuery(DbWriteQueue dbWriteQueue)
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         EmailProviderExtId externalId)
     {
         var deactivated = dbWriteContext

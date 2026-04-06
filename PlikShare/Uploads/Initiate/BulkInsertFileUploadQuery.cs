@@ -31,7 +31,7 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         IUserIdentity userIdentity,
         InsertEntity[] entities,
@@ -90,7 +90,7 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
         WorkspaceContext workspace, 
         IUserIdentity userIdentity, 
         InsertEntity[] entities,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var fileUploads = dbWriteContext

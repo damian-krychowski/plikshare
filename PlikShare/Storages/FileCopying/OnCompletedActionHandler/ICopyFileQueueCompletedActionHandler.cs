@@ -1,5 +1,5 @@
 ﻿using Microsoft.Data.Sqlite;
-using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.SQLite;
 
 namespace PlikShare.Storages.FileCopying.OnCompletedActionHandler;
 
@@ -9,7 +9,7 @@ public interface ICopyFileQueueCompletedActionHandler
 
     //this action should probably schedule some operation on queue and that's it. no async shit or anything
     void OnCopyFileCompleted(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         string actionHandlerDefinition,
         int sourceFileId,
         int sourceWorkspaceId,

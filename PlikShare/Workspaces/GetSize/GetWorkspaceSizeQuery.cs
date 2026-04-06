@@ -58,7 +58,7 @@ public class GetWorkspaceSizeQuery(PlikShareDb plikShareDb)
 
     public static long Execute(
         int workspaceId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction)
     {
         return dbWriteContext

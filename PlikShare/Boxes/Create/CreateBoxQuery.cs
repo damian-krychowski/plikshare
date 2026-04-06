@@ -26,7 +26,7 @@ public class CreateBoxQuery(DbWriteQueue dbWriteQueue)
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         string name,
         FolderExtId folderExternalId)
@@ -104,7 +104,7 @@ public class CreateBoxQuery(DbWriteQueue dbWriteQueue)
         WorkspaceContext workspace,
         string name,
         int folderId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var externalId = BoxExtId.NewId();
@@ -156,7 +156,7 @@ public class CreateBoxQuery(DbWriteQueue dbWriteQueue)
     private static SQLiteOneRowCommandResult<Folder> GetFolder(
         WorkspaceContext workspace, 
         FolderExtId folderExternalId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext

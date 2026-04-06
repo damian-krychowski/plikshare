@@ -29,7 +29,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
         int workspaceId,
         DateTimeOffset deletedAt,
         Guid correlationId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var workspace = dbWriteContext
@@ -274,7 +274,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
 
     private static List<DeletedBoxMembership> DeleteBoxMemberships(
         int workspaceId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         //todo make sure this query works
@@ -306,7 +306,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
 
     private static List<int> DeleteBoxLinks(
         int workspaceId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         //todo make sure this query works
@@ -331,7 +331,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
     
     private static List<DeletedBox> DeleteBoxes(
         int workspaceId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         //todo make sure this query works
@@ -355,7 +355,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
     
     private static List<int> DeleteFolders(
         int workspaceId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -373,7 +373,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
 
     private static List<DeletedCopyFileQueueJob> DeleteCopyFileQueueJobs(
         int workspaceId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         //for all jobs which destination workspace is not the deleted one
@@ -407,7 +407,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
 
     private static List<int> GetFileUploadsToDelete(
         int workspaceId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -426,7 +426,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
     //that method removes all files, so also dependent files (which parentFileId is not null)
     private static List<int> GetFilesToDelete(
         int workspaceId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -444,7 +444,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
     
     private static List<DeletedWorkspaceMembership> DeleteWorkspaceMemberships(
         int workspaceId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         //todo make sure this query works
@@ -468,7 +468,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
     
     private void DeleteWorkspace(
         int workspaceId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var deletedWorkspace = dbWriteContext

@@ -31,6 +31,7 @@ public class GetUsersQuery(
                ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
                ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuth)}) AS u_can_manage_auth,
                ({UserSql.HasClaim(Claims.Permission, Permissions.ManageIntegrations)}) AS u_can_manage_integrations,
+               ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuditLog)}) AS u_can_manage_audit_log,
                u_max_workspace_number,
                u_default_max_workspace_size_in_bytes,
                u_default_max_workspace_team_members
@@ -69,10 +70,11 @@ public class GetUsersQuery(
                             CanManageEmailProviders = reader.GetBoolean(9),
                             CanManageAuth = reader.GetBoolean(10),
                             CanManageIntegrations = reader.GetBoolean(11),
+                            CanManageAuditLog = reader.GetBoolean(12),
                         },
-                        MaxWorkspaceNumber = reader.GetInt32OrNull(12),
-                        DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(13),
-                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(14)
+                        MaxWorkspaceNumber = reader.GetInt32OrNull(13),
+                        DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(14),
+                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(15)
                     };
                 })
             .Execute();

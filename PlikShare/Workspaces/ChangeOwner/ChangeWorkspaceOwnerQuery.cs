@@ -22,7 +22,7 @@ public class ChangeWorkspaceOwnerQuery(DbWriteQueue dbWriteQueue)
     }
 
     private void ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         UserContext newOwner)
     {

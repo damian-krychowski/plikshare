@@ -20,7 +20,7 @@ public class RegenerateBoxLinkAccessCodeQuery(DbWriteQueue dbWriteQueue)
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxLinkContext boxLink)
     {
         var accessCode = Guid.NewGuid().ToBase62();

@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PlikShare.Account.Contracts;
+using PlikShare.AuditLog;
 using PlikShare.Auth.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -38,7 +39,8 @@ public class account_tests : TestFixture
             CanManageUsers = true,
             CanManageGeneralSettings = true,
             CanManageAuth = true,
-            CanManageIntegrations = true
+            CanManageIntegrations = true,
+            CanManageAuditLog = true,
         });
 
         accountDetails.Roles.Should().BeEquivalentTo(new UserRoles
@@ -681,6 +683,369 @@ public class account_tests : TestFixture
         await AssertUserCanGetHisAccountDetails(singInCookie, user);
     }
 
+    [Fact]
+    public async Task enabling_2fa_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await InviteAndRegisterUser(
+            user: AppOwner);
+
+        var (status, newCookie) = await Api.Account.Get2FaStatus(
+            cookie: user.Cookie);
+
+        var totp = TotpCodes.Generate(
+            uri: status.QrCodeUri);
+
+        // when
+        var (enableResult, _) = await Api.Account.Enable2Fa(
+            request: new Enable2FaRequestDto(
+                VerificationCode: totp),
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
+
+        // then
+        enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.TwoFaEnabled,
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task enabling_2fa_with_wrong_code_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await InviteAndRegisterUser(
+            user: AppOwner);
+
+        var (_, newCookie) = await Api.Account.Get2FaStatus(
+            cookie: user.Cookie);
+
+        // when
+        var (enableResult, _) = await Api.Account.Enable2Fa(
+            request: new Enable2FaRequestDto(
+                VerificationCode: "000000"),
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
+
+        // then
+        enableResult.Code.Should().Be(Enable2FaResponseDto.InvalidVerificationCode.Code);
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.TwoFaEnableFailed,
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Warning);
+    }
+
+    [Fact]
+    public async Task disabling_2fa_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await InviteAndRegisterUser(
+            user: AppOwner);
+
+        var (status, newCookie) = await Api.Account.Get2FaStatus(
+            cookie: user.Cookie);
+
+        var totp = TotpCodes.Generate(
+            uri: status.QrCodeUri);
+
+        var (enableResult, newestCookie) = await Api.Account.Enable2Fa(
+            request: new Enable2FaRequestDto(
+                VerificationCode: totp),
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
+
+        enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
+
+        // when
+        var (disableResult, _) = await Api.Account.Disable2Fa(
+            cookie: newestCookie,
+            antiforgeryCookies: user.Antiforgery);
+
+        // then
+        disableResult.Should().BeEquivalentTo(Disable2FaResponseDto.Disabled);
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.TwoFaDisabled,
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Critical);
+    }
+
+    [Fact]
+    public async Task successful_2fa_sign_in_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await InviteAndRegisterUser(
+            user: AppOwner);
+
+        var (status, newCookie) = await Api.Account.Get2FaStatus(
+            cookie: user.Cookie);
+
+        var totp = TotpCodes.Generate(
+            uri: status.QrCodeUri);
+
+        var (enableResult, _) = await Api.Account.Enable2Fa(
+            request: new Enable2FaRequestDto(
+                VerificationCode: totp),
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
+
+        enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
+
+        // when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
+        var (signInResponse, _, twoFactorCookie) = await Api.Auth.SignIn(
+            email: user.Email,
+            password: user.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
+
+        var loginTotp = TotpCodes.Generate(
+            uri: status.QrCodeUri);
+
+        var (signIn2FaResponse, _, _) = await Api.Auth.SignIn2Fa(
+            request: new SignInUser2FaRequestDto(
+                VerificationCode: loginTotp,
+                RememberDevice: false,
+                RememberMe: false),
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        // then
+        signIn2FaResponse.Should().Be(SignInUser2FaResponseDto.Successful);
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.SignedIn2Fa,
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task failed_2fa_sign_in_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await InviteAndRegisterUser(
+            user: AppOwner);
+
+        var (status, newCookie) = await Api.Account.Get2FaStatus(
+            cookie: user.Cookie);
+
+        var totp = TotpCodes.Generate(
+            uri: status.QrCodeUri);
+
+        var (enableResult, _) = await Api.Account.Enable2Fa(
+            request: new Enable2FaRequestDto(
+                VerificationCode: totp),
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
+
+        enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
+
+        // when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
+        var (signInResponse, _, twoFactorCookie) = await Api.Auth.SignIn(
+            email: user.Email,
+            password: user.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
+
+        var (signIn2FaResponse, _, _) = await Api.Auth.SignIn2Fa(
+            request: new SignInUser2FaRequestDto(
+                VerificationCode: "000000",
+                RememberDevice: false,
+                RememberMe: false),
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        // then
+        signIn2FaResponse.Should().Be(SignInUser2FaResponseDto.InvalidVerificationCode);
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.SignIn2FaFailed,
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Warning);
+    }
+
+    [Fact]
+    public async Task recovery_code_sign_in_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await InviteAndRegisterUser(
+            user: AppOwner);
+
+        var (status, newCookie) = await Api.Account.Get2FaStatus(
+            cookie: user.Cookie);
+
+        var totp = TotpCodes.Generate(
+            uri: status.QrCodeUri);
+
+        var (enableResult, _) = await Api.Account.Enable2Fa(
+            request: new Enable2FaRequestDto(
+                VerificationCode: totp),
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
+
+        enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
+
+        // when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
+        var (signInResponse, _, twoFactorCookie) = await Api.Auth.SignIn(
+            email: user.Email,
+            password: user.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
+
+        var (signIn2FaResponse, signIn2FaCookie) = await Api.Auth.SignInRecoveryCode(
+            request: new SignInUserRecoveryCodeRequestDto(
+                RecoveryCode: enableResult.RecoveryCodes[0]),
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        // then
+        signIn2FaResponse.Should().Be(SignInUserRecoveryCodeResponseDto.Successful);
+        signIn2FaCookie.Should().NotBeNull();
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.SignedIn2Fa,
+            expectedActorEmail: user.Email);
+    }
+
+    [Fact]
+    public async Task failed_recovery_code_sign_in_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await InviteAndRegisterUser(
+            user: AppOwner);
+
+        var (status, newCookie) = await Api.Account.Get2FaStatus(
+            cookie: user.Cookie);
+
+        var totp = TotpCodes.Generate(
+            uri: status.QrCodeUri);
+
+        var (enableResult, _) = await Api.Account.Enable2Fa(
+            request: new Enable2FaRequestDto(
+                VerificationCode: totp),
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
+
+        enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
+
+        // when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
+        var (signInResponse, _, twoFactorCookie) = await Api.Auth.SignIn(
+            email: user.Email,
+            password: user.Password,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        signInResponse.Code.Should().Be(SignInUserResponseDto.Required2Fa.Code);
+
+        var (signIn2FaResponse, signIn2FaCookie) = await Api.Auth.SignInRecoveryCode(
+            request: new SignInUserRecoveryCodeRequestDto(
+                RecoveryCode: "0000-0000"),
+            cookie: twoFactorCookie,
+            antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        // then
+        signIn2FaResponse.Should().Be(SignInUserRecoveryCodeResponseDto.InvalidRecoveryCode);
+        signIn2FaCookie.Should().BeNull();
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.SignIn2FaFailed,
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Warning);
+    }
+
+    [Fact]
+    public async Task regenerating_recovery_codes_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await InviteAndRegisterUser(
+            user: AppOwner);
+
+        var (status, newCookie) = await Api.Account.Get2FaStatus(
+            cookie: user.Cookie);
+
+        var totp = TotpCodes.Generate(
+            uri: status.QrCodeUri);
+
+        var (enableResult, newestCookie) = await Api.Account.Enable2Fa(
+            request: new Enable2FaRequestDto(
+                VerificationCode: totp),
+            cookie: newCookie,
+            antiforgeryCookies: user.Antiforgery);
+
+        enableResult.Code.Should().Be(Enable2FaResponseDto.EnabledCode);
+
+        // when
+        await Api.Account.GenerateRecoveryCode(
+            cookie: newestCookie,
+            antiforgeryCookies: user.Antiforgery);
+
+        // then
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.RecoveryCodesRegenerated,
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Warning);
+    }
+
+    [Fact]
+    public async Task changing_password_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await InviteAndRegisterUser(
+            user: AppOwner);
+
+        // when
+        var changeResult = await Api.Account.ChangePassword(
+            request: new ChangePasswordRequestDto(
+                CurrentPassword: user.Password,
+                NewPassword: "NewPassword123!"),
+            cookie: user.Cookie,
+            antiforgeryCookies: user.Antiforgery);
+
+        // then
+        changeResult.Should().BeEquivalentTo(ChangePasswordResponseDto.Success);
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.PasswordChanged,
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task changing_password_with_wrong_current_password_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await InviteAndRegisterUser(
+            user: AppOwner);
+
+        // when
+        var changeResult = await Api.Account.ChangePassword(
+            request: new ChangePasswordRequestDto(
+                CurrentPassword: "WrongPassword123!",
+                NewPassword: "NewPassword123!"),
+            cookie: user.Cookie,
+            antiforgeryCookies: user.Antiforgery);
+
+        // then
+        changeResult.Should().BeEquivalentTo(ChangePasswordResponseDto.PasswordMismatch);
+
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.PasswordChangeFailed,
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Warning);
+    }
+
     private async Task AssertUserCanGetHisAccountDetails(SessionAuthCookie cookie, AppSignedInUser user)
     {
         var accountDetails = await Api.Account.GetDetails(
@@ -703,7 +1068,8 @@ public class account_tests : TestFixture
                 CanManageStorages = false,
                 CanManageUsers = false,
                 CanManageAuth = false,
-                CanManageIntegrations = false
+                CanManageIntegrations = false,
+                CanManageAuditLog = false
             },
             MaxWorkspaceNumber = 0,
             HasPassword = true

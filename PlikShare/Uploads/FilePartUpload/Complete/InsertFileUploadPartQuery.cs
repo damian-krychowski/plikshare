@@ -26,7 +26,7 @@ public class InsertFileUploadPartQuery(
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         int fileUploadId,
         int partNumber,
         string eTag)

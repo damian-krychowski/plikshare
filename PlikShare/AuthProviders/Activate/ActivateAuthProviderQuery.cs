@@ -19,7 +19,7 @@ public class ActivateAuthProviderQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         AuthProviderExtId externalId)
     {
         var result = dbWriteContext

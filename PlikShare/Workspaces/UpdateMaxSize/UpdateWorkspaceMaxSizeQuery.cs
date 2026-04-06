@@ -22,7 +22,7 @@ public class UpdateWorkspaceMaxSizeQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         UpdateWorkspaceMaxSizeDto request)
     {

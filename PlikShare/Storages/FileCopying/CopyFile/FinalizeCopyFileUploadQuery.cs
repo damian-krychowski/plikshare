@@ -29,7 +29,7 @@ public class FinalizeCopyFileUploadQuery(
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         int copyFileQueueJobId)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();

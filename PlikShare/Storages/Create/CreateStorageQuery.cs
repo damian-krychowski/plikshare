@@ -36,7 +36,7 @@ public class CreateStorageQuery(
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         string name,
         string storageType,
         string detailsJson,

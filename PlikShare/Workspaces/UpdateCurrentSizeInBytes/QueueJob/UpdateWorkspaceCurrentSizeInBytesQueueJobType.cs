@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
+using PlikShare.Core.SQLite;
 using Serilog;
 
 namespace PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
@@ -18,7 +19,7 @@ public static class WorkspaceSizeUpdateQueueExtensions
         IClock clock,
         int workspaceId,
         Guid correlationId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var queueJobId =  queue.EnqueueOrThrow(

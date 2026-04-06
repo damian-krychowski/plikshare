@@ -23,7 +23,7 @@ public class CreateBoxLinkQuery(DbWriteQueue dbWriteQueue)
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxContext box,
         string name)
     {

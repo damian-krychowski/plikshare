@@ -28,7 +28,7 @@ public class BulkDeleteFoldersWithDependenciesQuery(
         int[] folderIds,
         DateTimeOffset deletedAt,
         Guid correlationId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var workspace = dbWriteContext
@@ -189,7 +189,7 @@ public class BulkDeleteFoldersWithDependenciesQuery(
     private static int[] GetAllFolderIds(
         int workspaceId,
         int[] folderIds,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (folderIds.Length == 0)
@@ -221,7 +221,7 @@ public class BulkDeleteFoldersWithDependenciesQuery(
     private static List<int> DeleteFolders(
         int workspaceId,
         int[] folderIds,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (folderIds.Length == 0)
@@ -249,7 +249,7 @@ public class BulkDeleteFoldersWithDependenciesQuery(
     private static List<DetachedBox> DetachBoxesFromFolders(
         int workspaceId,
         int[] folderIds,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -276,7 +276,7 @@ public class BulkDeleteFoldersWithDependenciesQuery(
     private static List<int> GetFileUploadsToDelete(
         int workspaceId,
         int[] folderIds,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (folderIds.Length == 0)
@@ -304,7 +304,7 @@ public class BulkDeleteFoldersWithDependenciesQuery(
     private static List<int> GetFilesToDelete(
         int workspaceId,
         int[] folderIds,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         if (folderIds.Length == 0)

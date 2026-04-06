@@ -29,7 +29,7 @@ public class UpdateFileSizeQuery(
     }
 
     private void ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         FileExtId fileExternalId,
         long newSizeInBytes,
         Guid correlationId)

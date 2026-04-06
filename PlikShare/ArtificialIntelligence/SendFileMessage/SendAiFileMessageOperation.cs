@@ -139,7 +139,7 @@ public class SendAiFileMessageOperation(
     }
 
     private  async ValueTask<AiMessage> ExecuteSaveAiMessage(
-        AiDbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         IUserIdentity userIdentity,
         AiConversationContext? aiConversationContext,
         SendAiFileMessageRequestDto request,
@@ -275,7 +275,7 @@ public class SendAiFileMessageOperation(
     private int InsertConversation(
         AiConversationExtId externalId,
         IntegrationExtId integrationExternalId,
-        AiDbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -304,7 +304,7 @@ public class SendAiFileMessageOperation(
 
     private int UpdateConversation(
         int conversationId,
-        AiDbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -345,7 +345,7 @@ public class SendAiFileMessageOperation(
     }
 
     private void ExecuteStoreConversationAsArtifactAndTriggerQueue(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         int workspaceId,
         FileExtId fileExternalId,
         FileArtifactExtId fileArtifactExternalId,
@@ -406,7 +406,7 @@ public class SendAiFileMessageOperation(
     }
 
     private ConversationArtifact InsertConversationArtifactOrThrow(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         int workspaceId,
         FileExtId fileExternalId,
         FileArtifactExtId fileArtifactExternalId,
@@ -488,7 +488,7 @@ public class SendAiFileMessageOperation(
     }
 
     private async ValueTask ExecuteCleanUpAiMessage(
-        AiDbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         AiMessage aiMessage,
         CancellationToken cancellationToken)
     {

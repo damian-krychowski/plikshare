@@ -9,6 +9,7 @@ public class Permissions
     public const string ManageEmailProviders = "manage:email-providers";
     public const string ManageAuth = "manage:auth";
     public const string ManageIntegrations = "manage:integrations";
+    public const string ManageAuditLog = "manage:audit-log";
 
     public static readonly string[] All = [
         AddWorkspace,
@@ -17,7 +18,8 @@ public class Permissions
         ManageStorages,
         ManageEmailProviders,
         ManageAuth,
-        ManageIntegrations
+        ManageIntegrations,
+        ManageAuditLog
     ];
 
     public static readonly string[] Admin = [
@@ -26,7 +28,8 @@ public class Permissions
         ManageStorages,
         ManageEmailProviders,
         ManageAuth,
-        ManageIntegrations
+        ManageIntegrations,
+        ManageAuditLog
     ];
 
     public static bool IsForAdminOnly(string permission) => Admin.Contains(permission);

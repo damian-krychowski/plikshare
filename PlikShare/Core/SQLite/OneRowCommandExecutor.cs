@@ -1,17 +1,12 @@
 using System.Text;
 using Microsoft.Data.Sqlite;
-using PlikShare.Core.Database.AiDatabase;
-using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Utils;
 
 namespace PlikShare.Core.SQLite;
 
 public readonly record struct SQLiteOneRowCommandResult<TRow>(
     bool IsEmpty,
-    in TRow Value)
-{
-    
-}
+    in TRow Value);
 
 public class SQLiteOneRowCommandExecutor<TRow>
 {
@@ -141,24 +136,7 @@ public static class SQLiteOneRowCommandExecutorExtensions
     }
 
     public static SQLiteOneRowCommandExecutor<TRow> OneRowCmd<TRow>(
-        this DbWriteQueue.Context dbWriteQueueContext,
-        string sql,
-        Func<SqliteDataReader, TRow> readRowFunc,
-        SqliteTransaction? transaction = null)
-    {
-        var command = new SQLiteOneRowCommandExecutor<TRow>(
-            commandText: sql,
-            commandsPool: dbWriteQueueContext.CommandsPool,
-            transaction: transaction,
-            readRowFunc: readRowFunc);
-
-        return command;
-    }
-
-
-
-    public static SQLiteOneRowCommandExecutor<TRow> OneRowCmd<TRow>(
-        this AiDbWriteQueue.Context dbWriteQueueContext,
+        this SqliteWriteContext dbWriteQueueContext,
         string sql,
         Func<SqliteDataReader, TRow> readRowFunc,
         SqliteTransaction? transaction = null)

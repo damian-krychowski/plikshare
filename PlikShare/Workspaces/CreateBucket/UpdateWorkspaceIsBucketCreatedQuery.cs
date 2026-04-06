@@ -19,7 +19,7 @@ public class UpdateWorkspaceIsBucketCreatedQuery(
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         int workspaceId)
     {
         var result = dbWriteContext

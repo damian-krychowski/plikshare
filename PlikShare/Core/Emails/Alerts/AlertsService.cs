@@ -4,6 +4,7 @@ using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Emails.Definitions;
 using PlikShare.Core.Queue;
+using PlikShare.Core.SQLite;
 using Serilog;
 
 namespace PlikShare.Core.Emails.Alerts;
@@ -15,7 +16,7 @@ public class AlertsService(
 {
 
     public void SendEmailAlert(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         string title,
         string content,
         SqliteTransaction transaction,

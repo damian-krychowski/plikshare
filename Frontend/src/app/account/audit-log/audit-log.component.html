@@ -1,0 +1,336 @@
+
+<div class="app-container">
+    <div class="top-bar">
+        <div class="top-bar__header">
+            <button class="top-nav-btn"
+                aria-label="Account"
+                mat-flat-button
+                matTooltip="Go back to Account"
+                matTooltipPosition="below"
+                (click)="goToAccount()">
+                <div class="icon-merge">
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>
+                    <i class="icon icon-xl icon-nucleo-scroll-text icon-merge--front"></i>
+                </div>
+            </button>
+
+            <div class="flex-column">
+                <div class="top-bar__title">
+                    Audit Log
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="content">
+        <div class="mt-3"></div>
+
+        <div class="title-header">
+            <div>
+                Overview
+            </div>
+        </div>
+
+        <div class="mt-2"></div>
+
+        <div class="audit-table">
+            <div class="audit-table__header">
+                <div class="col-overview">Total entries</div>
+                <div class="col-overview">Database size</div>
+                <div class="col-overview">Oldest entry</div>
+                <div class="col-overview">Newest entry</div>
+            </div>
+
+            <div class="audit-table__row audit-table__row--static">
+                <div class="col-overview">{{ stats()?.totalLogCount ?? '---' }}</div>
+                <div class="col-overview">{{ dbSizeFormatted() }}</div>
+                <div class="col-overview">{{ stats()?.oldestEntryDate ? (stats()!.oldestEntryDate! | date:'short') : '---' }}</div>
+                <div class="col-overview">{{ stats()?.newestEntryDate ? (stats()!.newestEntryDate! | date:'short') : '---' }}</div>
+            </div>
+        </div>
+
+        <div class="mt-3"></div>
+
+        <div class="title-header">
+            <div>
+                Log entries
+            </div>
+
+            <div class="flex-row flex-gap-05 ml-auto">
+                <app-action-btn
+                    tooltip="Toggle filters"
+                    icon="icon-lucide-search"
+                    (clicked)="toggleFilters()">
+                </app-action-btn>
+
+                <app-action-btn
+                    tooltip="Refresh"
+                    icon="icon-nucleo-reload"
+                    [disabled]="isLoading()"
+                    (clicked)="loadLogs()">
+                </app-action-btn>
+            </div>
+        </div>
+
+        <div class="mt-2"></div>
+
+        @if(showFilters()) {
+            <div class="filters-panel">
+                <div class="filters-row">
+                    <mat-form-field class="filter-field">
+                        <mat-label>From date</mat-label>
+                        <input matInput [matDatepicker]="fromPicker" [ngModel]="filterFromDate()" (ngModelChange)="filterFromDate.set($event)" placeholder="YYYY-MM-DD">
+                        <mat-datepicker-toggle matIconSuffix [for]="fromPicker"></mat-datepicker-toggle>
+                        <mat-datepicker #fromPicker></mat-datepicker>
+                    </mat-form-field>
+
+                    <mat-form-field class="filter-field">
+                        <mat-label>To date</mat-label>
+                        <input matInput [matDatepicker]="toPicker" [ngModel]="filterToDate()" (ngModelChange)="filterToDate.set($event)" placeholder="YYYY-MM-DD">
+                        <mat-datepicker-toggle matIconSuffix [for]="toPicker"></mat-datepicker-toggle>
+                        <mat-datepicker #toPicker></mat-datepicker>
+                    </mat-form-field>
+
+                    <mat-form-field class="filter-field">
+                        <mat-label>Category</mat-label>
+                        <mat-select multiple [ngModel]="filterEventCategories()" (ngModelChange)="filterEventCategories.set($event)">
+                            @for(cat of eventCategories; track cat) {
+                                <mat-option [value]="cat">{{ cat }}</mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field class="filter-field">
+                        <mat-label>Severity</mat-label>
+                        <mat-select multiple [ngModel]="filterSeverities()" (ngModelChange)="filterSeverities.set($event)">
+                            @for(sev of severities; track sev) {
+                                <mat-option [value]="sev">{{ sev }}</mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+
+                <div class="filters-row">
+                    <mat-form-field class="filter-field">
+                        <mat-label>Event type</mat-label>
+                        <mat-select multiple [ngModel]="filterEventTypes()" (ngModelChange)="filterEventTypes.set($event)">
+                            @for(et of availableEventTypes(); track et) {
+                                <mat-option [value]="et">{{ et }}</mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field class="filter-field">
+                        <mat-label>Actor</mat-label>
+                        <mat-select multiple [ngModel]="filterActorIdentities()" (ngModelChange)="filterActorIdentities.set($event)">
+                            @for(actor of availableActors(); track actor) {
+                                <mat-option [value]="actor">{{ actor }}</mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+
+                <div class="filters-row">
+                    <mat-form-field class="filter-field">
+                        <mat-label>Search</mat-label>
+                        <input matInput [ngModel]="filterSearch()" (ngModelChange)="filterSearch.set($event)" placeholder="Search in email, resource name...">
+                    </mat-form-field>
+                </div>
+
+                <div class="filters-actions">
+                    <app-action-text-btn
+                        tooltip=""
+                        text="Apply"
+                        (clicked)="applyFilters()">
+                    </app-action-text-btn>
+
+                    <app-action-text-btn
+                        tooltip=""
+                        text="Clear"
+                        (clicked)="clearFilters()">
+                    </app-action-text-btn>
+                </div>
+            </div>
+
+            <div class="mt-2"></div>
+        }
+
+        @if(isLoading()) {
+            <div class="explanation">
+                Loading audit logs...
+            </div>
+        } @else if(items().length === 0) {
+            <div class="explanation">
+                No audit log entries found.
+            </div>
+        } @else {
+            <div class="audit-table">
+                <div class="audit-table__header">
+                    <div class="col-time">Time</div>
+                    <div class="col-actor">Actor</div>
+                    <div class="col-event">Event</div>
+                    <div class="col-resource">Resource</div>
+                    <div class="col-severity">Severity</div>
+                </div>
+
+                @for(item of items(); track item.externalId) {
+                    <div class="audit-table__row" (click)="toggleExpand(item.externalId)">
+                        <div class="col-time">{{ item.createdAt | date:'short' }}</div>
+                        <div class="col-actor" [title]="item.actorEmail || item.actorIdentity">
+                            {{ item.actorEmail || item.actorIdentity }}
+                        </div>
+                        <div class="col-event">{{ item.eventType }}</div>
+                        <div class="col-resource" [title]="item.resourceName || ''">
+                            {{ item.resourceName || '---' }}
+                        </div>
+                        <div class="col-severity">
+                            <span class="severity-badge" [class]="getSeverityClass(item.eventSeverity)">
+                                {{ item.eventSeverity }}
+                            </span>
+                        </div>
+                    </div>
+
+                    @if(isExpanded(item.externalId)) {
+                        <div class="audit-table__detail">
+                            <div class="detail-grid">
+                                <div class="detail-label">External ID:</div>
+                                <div class="detail-value">{{ item.externalId }}</div>
+
+                                <div class="detail-label">Correlation ID:</div>
+                                <div class="detail-value">{{ item.correlationId || '---' }}</div>
+
+                                <div class="detail-label">Actor type:</div>
+                                <div class="detail-value">{{ item.actorIdentityType }}</div>
+
+                                <div class="detail-label">Actor identity:</div>
+                                <div class="detail-value">{{ item.actorIdentity }}</div>
+
+                                <div class="detail-label">Actor email:</div>
+                                <div class="detail-value">{{ item.actorEmail || '---' }}</div>
+
+                                <div class="detail-label">Actor IP:</div>
+                                <div class="detail-value">{{ item.actorIp || '---' }}</div>
+
+                                <div class="detail-label">Category:</div>
+                                <div class="detail-value">{{ item.eventCategory }}</div>
+
+                                <div class="detail-label">Resource type:</div>
+                                <div class="detail-value">{{ item.resourceType || '---' }}</div>
+
+                                <div class="detail-label">Resource ID:</div>
+                                <div class="detail-value">{{ item.resourceExternalId || '---' }}</div>
+
+                                <div class="detail-label">Workspace:</div>
+                                <div class="detail-value">{{ item.workspaceExternalId || '---' }}</div>
+                            </div>
+
+                            @if(item.details) {
+                                <div class="mt-2"></div>
+                                <div class="detail-label">Details:</div>
+                                <pre class="detail-json">{{ formatDetails(item.details) }}</pre>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+
+            @if(hasMore()) {
+                <div class="mt-2"></div>
+
+                <div class="load-more">
+                    <app-action-text-btn
+                        tooltip=""
+                        [text]="isLoadingMore() ? 'Loading...' : 'Load more'"
+                        [disabled]="isLoadingMore()"
+                        (clicked)="loadMore()">
+                    </app-action-text-btn>
+                </div>
+            }
+        }
+
+        <div class="mt-3"></div>
+
+        <div class="title-header">
+            <div>
+                Management
+            </div>
+        </div>
+
+        <div class="mt-2"></div>
+
+        <div class="management-grid">
+            <div class="management-grid__row">
+                <div class="management-grid__label">
+                    Delete old logs
+                </div>
+
+                <div class="explanation">
+                    Permanently removes all audit log entries created before the selected date.
+                    This action cannot be undone. Consider archiving logs before deleting them.
+                </div>
+
+                <div class="management-grid__controls">
+                    <mat-form-field>
+                        <mat-label>Delete before date</mat-label>
+                        <input matInput [matDatepicker]="deletePicker" [ngModel]="deleteBeforeDate()" (ngModelChange)="deleteBeforeDate.set($event)" placeholder="YYYY-MM-DD">
+                        <mat-datepicker-toggle matIconSuffix [for]="deletePicker"></mat-datepicker-toggle>
+                        <mat-datepicker #deletePicker></mat-datepicker>
+                    </mat-form-field>
+
+                    <app-action-text-btn
+                        tooltip=""
+                        [text]="isDeleting() ? 'Deleting...' : 'Delete'"
+                        [disabled]="isDeleting() || !deleteBeforeDate()"
+                        [operationItem]="'all audit log entries before ' + (deleteBeforeDate() | date:'yyyy-MM-dd')"
+                        [verb]="'delete'"
+                        [isOperationDanger]="true"
+                        appConfirmOperation
+                        (confirmedClick)="deleteOldLogs()">
+                    </app-action-text-btn>
+                </div>
+
+                @if(lastDeleteResult()) {
+                    <div class="explanation">{{ lastDeleteResult() }}</div>
+                }
+            </div>
+
+            <div class="management-grid__row">
+                <div class="management-grid__label">
+                    Archive logs to file
+                </div>
+
+                <div class="explanation">
+                    Exports audit log entries to a JSON file stored in the database volume directory
+                    (audit-log-archives/). If a date is specified, only entries before that date are archived.
+                    Otherwise, all entries are included. Archiving does not delete the original log entries.
+                </div>
+
+                <div class="management-grid__controls">
+                    <mat-form-field>
+                        <mat-label>Before date (optional)</mat-label>
+                        <input matInput [matDatepicker]="archivePicker" [ngModel]="archiveBeforeDate()" (ngModelChange)="archiveBeforeDate.set($event)" placeholder="YYYY-MM-DD">
+                        <mat-datepicker-toggle matIconSuffix [for]="archivePicker"></mat-datepicker-toggle>
+                        <mat-datepicker #archivePicker></mat-datepicker>
+                    </mat-form-field>
+
+                    <app-action-text-btn
+                        tooltip=""
+                        [text]="isArchiving() ? 'Archiving...' : 'Archive'"
+                        [disabled]="isArchiving()"
+                        [operationItem]="'audit log entries'"
+                        [verb]="'archive'"
+                        appConfirmOperation
+                        (confirmedClick)="archiveLogs()">
+                    </app-action-text-btn>
+                </div>
+
+                @if(lastArchiveResult()) {
+                    <div class="explanation">{{ lastArchiveResult() }}</div>
+                }
+            </div>
+        </div>
+
+        <div class="mt-6"></div>
+    </div>
+</div>

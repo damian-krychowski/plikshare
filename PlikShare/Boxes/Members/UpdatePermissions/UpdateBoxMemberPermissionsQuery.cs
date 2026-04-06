@@ -22,7 +22,7 @@ public class UpdateBoxMemberPermissionsQuery(DbWriteQueue dbWriteQueue)
     }
 
     private void ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxMembershipContext boxMembership,
         BoxPermissions permissions)
     {

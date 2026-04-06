@@ -31,7 +31,7 @@ public class UpdateFileNameQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FileExtId fileExternalId,
         string name,
@@ -75,7 +75,7 @@ public class UpdateFileNameQuery(DbWriteQueue dbWriteQueue)
         WorkspaceContext workspace, 
         FileExtId fileExternalId, 
         string name,
-        DbWriteQueue.Context dbWriteContext)
+        SqliteWriteContext dbWriteContext)
     {
         return dbWriteContext
             .OneRowCmd(
@@ -102,7 +102,7 @@ public class UpdateFileNameQuery(DbWriteQueue dbWriteQueue)
         int? boxFolderId,
         IUserIdentity userIdentity,
         bool isRenameAllowedByBoxPermissions,
-        DbWriteQueue.Context dbWriteContext)
+        SqliteWriteContext dbWriteContext)
     {
         return dbWriteContext
             .OneRowCmd(

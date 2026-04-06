@@ -20,7 +20,7 @@ public class DeleteStorageQuery(DbWriteQueue dbWriteQueue)
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         StorageExtId externalId)
     {
         try

@@ -65,7 +65,7 @@ public class CreateWorkspaceQuery(
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         StorageExtId storageExternalId,
         int ownerId,
         string name,
@@ -126,7 +126,7 @@ public class CreateWorkspaceQuery(
     }
 
     public Result ExecuteTransaction(
-        DbWriteQueue.Context dbWriteContext, 
+        SqliteWriteContext dbWriteContext, 
         StorageExtId storageExternalId, 
         int ownerId, 
         string name,

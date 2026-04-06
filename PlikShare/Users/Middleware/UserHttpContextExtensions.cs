@@ -43,7 +43,8 @@ public static class UserHttpContextExtensions
                 CanManageStorages = httpContext.User.HasPermission(Permissions.ManageStorages),
                 CanManageEmailProviders = httpContext.User.HasPermission(Permissions.ManageEmailProviders),
                 CanManageAuth = httpContext.User.HasPermission(Permissions.ManageAuth),
-                CanManageIntegrations = httpContext.User.HasPermission(Permissions.ManageIntegrations)
+                CanManageIntegrations = httpContext.User.HasPermission(Permissions.ManageIntegrations),
+                CanManageAuditLog = httpContext.User.HasPermission(Permissions.ManageAuditLog)
             },
             Invitation = null,
             HasPassword = httpContext.User.GetHasPassword(),

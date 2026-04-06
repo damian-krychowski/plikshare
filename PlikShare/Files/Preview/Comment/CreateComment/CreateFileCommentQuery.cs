@@ -35,7 +35,7 @@ public class CreateFileCommentQuery(DbWriteQueue dbWriteQueue, IClock clock)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FileExtId fileExternalId,
         IUserIdentity userIdentity,

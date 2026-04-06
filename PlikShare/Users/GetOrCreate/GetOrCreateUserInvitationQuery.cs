@@ -27,7 +27,7 @@ public class GetOrCreateUserInvitationQuery(
     }
 
     private User ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         Email email)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
@@ -62,7 +62,7 @@ public class GetOrCreateUserInvitationQuery(
 
     private User GetOrCreateUserInvitation(
         Email email,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var userResult = TrySelectUser(
@@ -100,7 +100,7 @@ public class GetOrCreateUserInvitationQuery(
 
     private SQLiteOneRowCommandResult<User> TryInsertUserInvitation(
         Email email,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var externalId = UserExtId.NewId();
@@ -180,6 +180,7 @@ public class GetOrCreateUserInvitationQuery(
                     CanManageEmailProviders = false,
                     CanManageAuth = false,
                     CanManageIntegrations = false,
+                    CanManageAuditLog = false,
                     MaxWorkspaceNumber = maxWorkspaceNumber,
                     DefaultMaxWorkspaceSizeInBytes = defaultMaxWorkspaceSizeInBytes,
                     DefaultMaxWorkspaceTeamMembers = defaultMaxWorkspaceTeamMembers,
@@ -203,7 +204,7 @@ public class GetOrCreateUserInvitationQuery(
 
     private static SQLiteOneRowCommandResult<User> TrySelectUser(
         Email email,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -225,6 +226,7 @@ public class GetOrCreateUserInvitationQuery(
                           ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
                           ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuth)}) AS u_can_manage_auth,
                           ({UserSql.HasClaim(Claims.Permission, Permissions.ManageIntegrations)}) AS u_can_manage_integrations,
+                          ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuditLog)}) AS u_can_manage_audit_log,
                           u_max_workspace_number,
                           u_default_max_workspace_size_in_bytes,
                           u_default_max_workspace_team_members,
@@ -250,10 +252,11 @@ public class GetOrCreateUserInvitationQuery(
                     CanManageEmailProviders = reader.GetBoolean(12),
                     CanManageAuth = reader.GetBoolean(13),
                     CanManageIntegrations = reader.GetBoolean(14),
-                    MaxWorkspaceNumber = reader.GetInt32OrNull(15),
-                    DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(16),
-                    DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(17),
-                    HasPassword = reader.GetBoolean(18),
+                    CanManageAuditLog = reader.GetBoolean(15),
+                    MaxWorkspaceNumber = reader.GetInt32OrNull(16),
+                    DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(17),
+                    DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(18),
+                    HasPassword = reader.GetBoolean(19),
                     WasJustCreated = false
                 },
                 transaction: transaction)
@@ -278,6 +281,7 @@ public class GetOrCreateUserInvitationQuery(
         public required bool CanManageEmailProviders { get; init; }
         public required bool CanManageAuth { get; init; }
         public required bool CanManageIntegrations { get; init; }
+        public required bool CanManageAuditLog { get; init; }
         public required int? MaxWorkspaceNumber { get; init; }
         public required long? DefaultMaxWorkspaceSizeInBytes { get; init; }
         public required int? DefaultMaxWorkspaceTeamMembers { get; init; }

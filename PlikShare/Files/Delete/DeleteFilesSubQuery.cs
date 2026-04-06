@@ -14,7 +14,7 @@ namespace PlikShare.Files.Delete
             int workspaceId,
             List<int> fileIds,
             QueueSagaId? sagaId,
-            DbWriteQueue.Context dbWriteContext,
+            SqliteWriteContext dbWriteContext,
             SqliteTransaction transaction)
         {
             var workspace = GetWorkspace(
@@ -59,7 +59,7 @@ namespace PlikShare.Files.Delete
         private static List<DeletedFile> DeleteFileEntities(
             int workspaceId,
             List<int> fileIds,
-            DbWriteQueue.Context dbWriteContext,
+            SqliteWriteContext dbWriteContext,
             SqliteTransaction transaction)
         {
             if (fileIds.Count == 0)
@@ -122,7 +122,7 @@ namespace PlikShare.Files.Delete
 
         private static Workspace GetWorkspace(
             int workspaceId,
-            DbWriteQueue.Context dbWriteContext,
+            SqliteWriteContext dbWriteContext,
             SqliteTransaction transaction)
         {
             return dbWriteContext

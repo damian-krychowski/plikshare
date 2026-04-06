@@ -19,7 +19,7 @@ public class ActivateIntegrationQuery(DbWriteQueue dbWriteQueue)
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         IntegrationExtId externalId)
     {
         var result = dbWriteContext

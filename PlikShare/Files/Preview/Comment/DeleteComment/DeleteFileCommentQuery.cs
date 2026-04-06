@@ -31,7 +31,7 @@ public class DeleteFileCommentQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FileExtId fileExternalId,
         FileArtifactExtId commentExternalId,

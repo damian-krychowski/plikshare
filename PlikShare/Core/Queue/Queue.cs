@@ -85,7 +85,7 @@ public class Queue(
         Guid correlationId, 
         string onCompletedJobType, 
         T onCompletedJobDefinition, 
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction)
     {
        return dbWriteContext
@@ -119,7 +119,7 @@ public class Queue(
         DateTimeOffset executeAfterDate,
         string? debounceId,
         QueueSagaId? sagaId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction)
     {
         var result = Enqueue(
@@ -148,7 +148,7 @@ public class Queue(
         DateTimeOffset executeAfterDate, 
         string? debounceId,
         QueueSagaId? sagaId,
-        DbWriteQueue.Context dbWriteContext, 
+        SqliteWriteContext dbWriteContext, 
         SqliteTransaction? transaction)
     {
         var status = queueJobStatusDecisionEngine.GetNewJobStatus(
@@ -208,7 +208,7 @@ public class Queue(
         Guid correlationId, 
         List<BulkQueueJobEntity> definitions, 
         DateTimeOffset executeAfterDate, 
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction)
     {
         if (definitions.Count == 0)
@@ -473,7 +473,7 @@ public class Queue(
     public void HandleJobSuccess(
         in QueueJob job,
         QueueJobResult result,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction,
         string consumerIdentity)
     {
@@ -545,7 +545,7 @@ public class Queue(
     private void MarkJobAsPendingWithDelay(
         int jobId,
         TimeSpan delay,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction,
         string consumerIdentity)
     {
@@ -575,7 +575,7 @@ public class Queue(
 
     private void MarkJobAsBlocked(
        int jobId,
-       DbWriteQueue.Context dbWriteContext,
+       SqliteWriteContext dbWriteContext,
        SqliteTransaction transaction,
        string consumerIdentity)
     {
@@ -602,7 +602,7 @@ public class Queue(
 
     private void MarkJobAsCompleted(
         int jobId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction,
         string consumerIdentity)
     {

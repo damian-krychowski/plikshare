@@ -3,6 +3,7 @@ using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database;
 using PlikShare.Core.Database.AiDatabase;
+using PlikShare.Core.Database.AuditLogDatabase;
 using PlikShare.Core.Database.MainDatabase;
 using Serilog;
 
@@ -12,6 +13,7 @@ public class SQLiteInitialization(
     IClock clock,
     PlikShareDb plikShareDb,
     PlikShareAiDb plikShareAiDb,
+    PlikShareAuditLogDb plikShareAuditLogDb,
     IEnumerable<ISQLiteMigration> migrations)
 {
     public void Initialize()
@@ -34,6 +36,15 @@ public class SQLiteInitialization(
                 utcNow: clock.UtcNow,
                 dbType: PlikShareDbType.Ai,
                 connection: aiConnection);
+        }
+
+        using (var auditLogConnection = plikShareAuditLogDb.OpenInitialConnection())
+        {
+            InitializeDb(
+                migrations: migrations,
+                utcNow: clock.UtcNow,
+                dbType: PlikShareDbType.AuditLog,
+                connection: auditLogConnection);
         }
     }
 

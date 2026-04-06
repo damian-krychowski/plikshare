@@ -55,7 +55,7 @@ public class StartTextractJobOperation(
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace, 
         TextractClient textractClient,
         int fileId, 
@@ -186,7 +186,7 @@ public class StartTextractJobOperation(
     }
 
     private int CreateTextractJob(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         TextractJobExtId externalId,
         int originalWorkspaceId,
         int originalFileId,

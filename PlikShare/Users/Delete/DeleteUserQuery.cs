@@ -20,7 +20,7 @@ public class DeleteUserQuery(DbWriteQueue dbWriteQueue)
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         UserContext user)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();

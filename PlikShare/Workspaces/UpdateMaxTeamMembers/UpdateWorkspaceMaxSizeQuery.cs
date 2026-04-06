@@ -22,7 +22,7 @@ public class UpdateWorkspaceMaxTeamMembersQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         UpdateWorkspaceMaxTeamMembersRequestDto request)
     {

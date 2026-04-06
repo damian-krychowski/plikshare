@@ -34,51 +34,93 @@ public class QueueChannels : IAsyncDisposable
     public async Task WriteNormalJobAsync(QueueJob job, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cleanupCts.Token);
-        await NormalJobs.Writer.WriteAsync(job, linkedCts.Token);
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken, 
+            _cleanupCts.Token);
+
+        await NormalJobs.Writer.WriteAsync(
+            job, 
+            linkedCts.Token);
+
         Interlocked.Increment(ref _normalJobsCount);
     }
 
     public async Task WriteLongRunningJobAsync(QueueJob job, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cleanupCts.Token);
-        await LongRunningJobs.Writer.WriteAsync(job, linkedCts.Token);
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken, 
+            _cleanupCts.Token);
+
+        await LongRunningJobs.Writer.WriteAsync(
+            job, 
+            linkedCts.Token);
+
         Interlocked.Increment(ref _longRunningJobsCount);
     }
 
     public async Task WriteDbOnlyJobAsync(QueueJob job, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cleanupCts.Token);
-        await DbOnlyJobs.Writer.WriteAsync(job, linkedCts.Token);
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            _cleanupCts.Token);
+
+        await DbOnlyJobs.Writer.WriteAsync(
+            job, 
+            linkedCts.Token);
+
         Interlocked.Increment(ref _dbOnlyJobsCount);
     }
 
     public async Task<QueueJob> ReadNormalJobAsync(CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cleanupCts.Token);
-        var job = await NormalJobs.Reader.ReadAsync(linkedCts.Token);
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken, 
+            _cleanupCts.Token);
+
+        var job = await NormalJobs.Reader.ReadAsync(
+            linkedCts.Token);
+
         Interlocked.Decrement(ref _normalJobsCount);
+
         return job;
     }
 
     public async Task<QueueJob> ReadLongRunningJobAsync(CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cleanupCts.Token);
-        var job = await LongRunningJobs.Reader.ReadAsync(linkedCts.Token);
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken, 
+            _cleanupCts.Token);
+
+        var job = await LongRunningJobs.Reader.ReadAsync(
+            linkedCts.Token);
+
         Interlocked.Decrement(ref _longRunningJobsCount);
+
         return job;
     }
 
     public async Task<QueueJob> ReadDbOnlyJobAsync(CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _cleanupCts.Token);
-        var job = await DbOnlyJobs.Reader.ReadAsync(linkedCts.Token);
+
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken, 
+            _cleanupCts.Token);
+
+        var job = await DbOnlyJobs.Reader.ReadAsync(
+            linkedCts.Token);
+
         Interlocked.Decrement(ref _dbOnlyJobsCount);
+
         return job;
     }
 
@@ -86,7 +128,7 @@ public class QueueChannels : IAsyncDisposable
     public int GetLongRunningJobsCount() => (int)Interlocked.Read(ref _longRunningJobsCount);
     public int GetDbOnlyJobsCount() => (int)Interlocked.Read(ref _dbOnlyJobsCount);
 
-    public CapacitySnapshot GetCapacitySnapshot() => new CapacitySnapshot(
+    public CapacitySnapshot GetCapacitySnapshot() => new(
         DbOnlyJobs: _capacity - GetDbOnlyJobsCount(),
         NormalJobs: _capacity - GetNormalJobsCount(),
         LongRunningJobs: _capacity - GetLongRunningJobsCount());

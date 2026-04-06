@@ -18,7 +18,7 @@ public class DeleteEmailProviderQuery(DbWriteQueue dbWriteQueue)
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         EmailProviderExtId externalId)
     {
         var result = dbWriteContext

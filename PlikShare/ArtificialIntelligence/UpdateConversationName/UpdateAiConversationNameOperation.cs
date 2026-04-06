@@ -52,7 +52,7 @@ public class UpdateAiConversationNameOperation(
     }
 
     private ResultCode ExecuteRenameAiConversation(
-        AiDbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         AiConversationExtId externalId,
         string name)
     {

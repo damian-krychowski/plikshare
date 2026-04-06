@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.SQLite;
 
 namespace PlikShare.Core.Queue;
 
@@ -33,7 +34,7 @@ public interface IQueueDbOnlyJobExecutor
     (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
         string definitionJson, 
         Guid correlationId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction);
 }
 

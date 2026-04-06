@@ -43,7 +43,7 @@ public class DeleteAiConversationQueueJobExecutor(
     }
 
     private void DeleteAiConversation(
-        AiDbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         AiConversationExtId externalId)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();

@@ -39,7 +39,7 @@ public class CreateIntegrationWithWorkspaceQuery(
     }
 
     private Result ExecuteOperation<TDetails>(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         string name,
         IntegrationType type,
         TDetails details,

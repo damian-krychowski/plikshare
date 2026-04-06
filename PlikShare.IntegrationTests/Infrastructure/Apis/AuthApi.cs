@@ -250,4 +250,49 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
 
         return responseBody;
     }
+
+    public async Task ForgotPassword(
+        ForgotPasswordRequestDto request,
+        AntiforgeryCookies antiforgeryCookies)
+    {
+        var response = await flurlClient
+            .Request(appUrl, "api/auth/forgot-password")
+            .AllowAnyHttpStatus()
+            .WithAntiforgery(antiforgeryCookies)
+            .PostJsonAsync(request);
+
+        if (!response.ResponseMessage.IsSuccessStatusCode)
+        {
+            var exception = new TestApiCallException(
+                responseBody: await response.GetStringAsync(),
+                statusCode: response.StatusCode);
+
+            throw exception;
+        }
+    }
+
+    public async Task<ResetPasswordResponseDto> ResetPassword(
+        ResetPasswordRequestDto request,
+        AntiforgeryCookies antiforgeryCookies)
+    {
+        var response = await flurlClient
+            .Request(appUrl, "api/auth/reset-password")
+            .AllowAnyHttpStatus()
+            .WithAntiforgery(antiforgeryCookies)
+            .PostJsonAsync(request);
+
+        if (!response.ResponseMessage.IsSuccessStatusCode)
+        {
+            var exception = new TestApiCallException(
+                responseBody: await response.GetStringAsync(),
+                statusCode: response.StatusCode);
+
+            throw exception;
+        }
+
+        var responseBody = await response
+            .GetJsonAsync<ResetPasswordResponseDto>();
+
+        return responseBody;
+    }
 }

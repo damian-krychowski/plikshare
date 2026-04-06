@@ -39,7 +39,7 @@ public class UpdateAuthProviderQuery(
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         AuthProviderExtId externalId,
         string name,
         string clientId,

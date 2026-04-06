@@ -91,6 +91,7 @@ public class UserCache(
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuth)}) AS u_can_manage_auth,
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageIntegrations)}) AS u_can_manage_integrations,
+                    ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuditLog)}) AS u_can_manage_audit_log,
                 	u_invitation_code,
                     u_max_workspace_number,
                     u_default_max_workspace_size_in_bytes,
@@ -132,18 +133,19 @@ public class UserCache(
                             CanManageStorages = reader.GetBoolean(10),
                             CanManageEmailProviders = reader.GetBoolean(11),
                             CanManageAuth = reader.GetBoolean(12),
-                            CanManageIntegrations = reader.GetBoolean(13)
+                            CanManageIntegrations = reader.GetBoolean(13),
+                            CanManageAuditLog = reader.GetBoolean(14)
                         },
                         Invitation = isInvitation
                             ? new UserInvitation
                             {
-                                Code = reader.GetString(14)
+                                Code = reader.GetString(15)
                             }
                             : null,
-                        MaxWorkspaceNumber = reader.GetInt32OrNull(15),
-                        DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(16),
-                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(17),
-                        HasPassword = reader.GetBoolean(18)
+                        MaxWorkspaceNumber = reader.GetInt32OrNull(16),
+                        DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(17),
+                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(18),
+                        HasPassword = reader.GetBoolean(19)
                     };
                 })
             .WithParameter("$userId", userId)
@@ -194,6 +196,7 @@ public class UserCache(
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageEmailProviders)}) AS u_can_manage_email_providers,
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuth)}) AS u_can_manage_auth,
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageIntegrations)}) AS u_can_manage_integrations,
+                    ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuditLog)}) AS u_can_manage_audit_log,
                 	u_invitation_code,
                     u_max_workspace_number,
                     u_default_max_workspace_size_in_bytes,
@@ -233,18 +236,19 @@ public class UserCache(
                             CanManageStorages = reader.GetBoolean(10),
                             CanManageEmailProviders = reader.GetBoolean(11),
                             CanManageAuth = reader.GetBoolean(12),
-                            CanManageIntegrations = reader.GetBoolean(13)
+                            CanManageIntegrations = reader.GetBoolean(13),
+                            CanManageAuditLog = reader.GetBoolean(14)
                         },
                         Invitation = isInvitation
                             ? new UserInvitation
                             {
-                                Code = reader.GetString(14)
+                                Code = reader.GetString(15)
                             }
                             : null,
-                        MaxWorkspaceNumber = reader.GetInt32OrNull(15),
-                        DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(16),
-                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(17),
-                        HasPassword = reader.GetBoolean(18)
+                        MaxWorkspaceNumber = reader.GetInt32OrNull(16),
+                        DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(17),
+                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(18),
+                        HasPassword = reader.GetBoolean(19)
                     };
                 })
             .WithParameter("$userExternalId", externalId.Value)

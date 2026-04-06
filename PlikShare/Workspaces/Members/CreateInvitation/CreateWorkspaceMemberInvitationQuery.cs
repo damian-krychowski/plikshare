@@ -37,7 +37,7 @@ public class CreateWorkspaceMemberInvitationQuery(
     }
 
     private void ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         UserContext inviter,
         UserContext[] members,
@@ -108,7 +108,7 @@ public class CreateWorkspaceMemberInvitationQuery(
         UserContext member,
         Email inviterEmail,
         string workspaceName,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var wasMemberFreshlyInvited = member.Status == UserStatus.Invitation;
@@ -139,7 +139,7 @@ public class CreateWorkspaceMemberInvitationQuery(
         int workspaceId,
         int inviterId,
         bool allowShare,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext

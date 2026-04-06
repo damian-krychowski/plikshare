@@ -146,7 +146,7 @@ namespace PlikShare.Core.IdentityProvider
         }
 
         private IdentityResult ExecuteCreateUser(
-            DbWriteQueue.Context dbWriteContext, 
+            SqliteWriteContext dbWriteContext, 
             ApplicationUser user)
         {
             using var transaction = dbWriteContext.Connection.BeginTransaction();
@@ -218,7 +218,7 @@ namespace PlikShare.Core.IdentityProvider
 
         private static void SaveUserSelectedCheckboxIds(
             ApplicationUser user,
-            DbWriteQueue.Context dbWriteContext,
+            SqliteWriteContext dbWriteContext,
             SqliteTransaction transaction)
         {
             dbWriteContext
@@ -244,7 +244,7 @@ namespace PlikShare.Core.IdentityProvider
 
         private static void UpdateInvitedUser(
             ApplicationUser user,
-            DbWriteQueue.Context dbWriteContext,
+            SqliteWriteContext dbWriteContext,
             SqliteTransaction transaction)
         {
             dbWriteContext
@@ -292,7 +292,7 @@ namespace PlikShare.Core.IdentityProvider
 
         private NewUser CreateNewUser(
             ApplicationUser user,
-            DbWriteQueue.Context dbWriteContext,
+            SqliteWriteContext dbWriteContext,
             SqliteTransaction transaction)
         {
             var maxWorkspaceNumber = user.IsAppOwner
@@ -408,7 +408,7 @@ namespace PlikShare.Core.IdentityProvider
 
         private static bool TryGetUserInvitation(
             ApplicationUser user,
-            DbWriteQueue.Context dbWriteContext,
+            SqliteWriteContext dbWriteContext,
             SqliteTransaction transaction,
             out UserInivation userInvitation)
         {
@@ -977,7 +977,7 @@ namespace PlikShare.Core.IdentityProvider
         }
 
         private IdentityResult ExecuteUpdateUser(
-            DbWriteQueue.Context dbWriteContext,
+            SqliteWriteContext dbWriteContext,
             ApplicationUser user)
         {
             using var transaction = dbWriteContext.Connection.BeginTransaction();

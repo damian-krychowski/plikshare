@@ -22,7 +22,7 @@ public class UpdateBoxLinkPermissionsQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxLinkContext boxLink,
         BoxPermissions permissions)
     {

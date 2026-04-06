@@ -6,6 +6,7 @@ using Flurl;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using PlikShare.AuditLog;
 using PlikShare.AuthProviders.GetDetails;
 using PlikShare.AuthProviders.Id;
 using PlikShare.Core.Configuration;
@@ -103,6 +104,7 @@ public static class SsoEndpoints
         UserCache userCache,
         IHttpClientFactory httpClientFactory,
         IConfig config,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var query = httpContext.Request.Query;
@@ -277,6 +279,27 @@ public static class SsoEndpoints
         await signInManager.SignInAsync(
             user: appUser,
             isPersistent: false);
+
+        var actor = httpContext.GetAuditLogActorContext();
+
+        if (userResult.Code == GetOrCreateSsoUserQuery.ResultCode.NewUserCreated)
+        {
+            await auditLogService.Log(
+                AuditLogEntryBuilder.AuthSsoUserCreated(
+                    actor: actor,
+                    email: email,
+                    providerName: provider.Name),
+                cancellationToken);
+        }
+        else
+        {
+            await auditLogService.Log(
+                AuditLogEntryBuilder.AuthSsoLogin(
+                    actor: actor,
+                    email: email,
+                    providerName: provider.Name),
+                cancellationToken);
+        }
 
         Log.Information(
             "User '{UserEmail}' signed in via SSO provider '{ProviderName}'",

@@ -23,7 +23,7 @@ public class UpdateBoxHeaderQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxContext box,
         string json,
         string html)

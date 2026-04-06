@@ -20,7 +20,7 @@ public class ConfirmEmailProviderQuery(DbWriteQueue dbWriteQueue)
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         EmailProviderExtId externalId,
         string confirmationCode)
     {

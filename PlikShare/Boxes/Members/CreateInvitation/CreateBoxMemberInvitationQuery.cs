@@ -35,7 +35,7 @@ public class CreateBoxMemberInvitationQuery(
     }
 
     private void ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxContext box,
         UserContext inviter,
         UserContext[] members,
@@ -105,7 +105,7 @@ public class CreateBoxMemberInvitationQuery(
         int memberId,
         int boxId, 
         int inviterId,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         return dbWriteContext
@@ -159,7 +159,7 @@ public class CreateBoxMemberInvitationQuery(
         UserContext member,
         Email inviterEmail, 
         string boxName,
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var wasMemberFreshlyInvited = member.Status == UserStatus.Invitation;

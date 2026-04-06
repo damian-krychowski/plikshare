@@ -21,7 +21,7 @@ public class UpdateBoxHeaderIsEnabledQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxContext box,
         bool isHeaderEnabled)
     {

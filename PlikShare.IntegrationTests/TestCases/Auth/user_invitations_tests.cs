@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PlikShare.Account.Contracts;
+using PlikShare.AuditLog;
 using PlikShare.Auth.Contracts;
 using PlikShare.Core.Emails;
 using PlikShare.EmailProviders.ExternalProviders.Resend;
@@ -72,7 +73,8 @@ public class user_invitation_tests : TestFixture
                         CanManageStorages = false,
                         CanManageUsers = false,
                         CanManageAuth = false,
-                        CanManageIntegrations = false
+                        CanManageIntegrations = false,
+                        CanManageAuditLog = false
                     }
                 },
 
@@ -92,7 +94,8 @@ public class user_invitation_tests : TestFixture
                         CanManageStorages = false,
                         CanManageUsers = false,
                         CanManageAuth = false,
-                        CanManageIntegrations = false
+                        CanManageIntegrations = false,
+                        CanManageAuditLog = false
                     }
                 }
             ]
@@ -238,7 +241,8 @@ public class user_invitation_tests : TestFixture
                 CanManageStorages = false,
                 CanManageUsers = false,
                 CanManageAuth = false,
-                CanManageIntegrations = false
+                CanManageIntegrations = false,
+                CanManageAuditLog = false
             },
             MaxWorkspaceNumber = 0,
             HasPassword = true
@@ -325,5 +329,57 @@ public class user_invitation_tests : TestFixture
         //then
         signUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.SingedUpAndSignedIn);
         cookie.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task successful_invited_user_registration_should_produce_audit_log_entry()
+    {
+        //given
+        var invitedUser = await InviteUser(
+            user: AppOwner);
+
+        //when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
+        await Api.Auth.SignUp(
+            request: new SignUpUserRequestDto
+            {
+                Email = invitedUser.Email,
+                Password = Random.Password(),
+                InvitationCode = invitedUser.InvitationCode,
+                SelectedCheckboxIds = []
+            },
+            antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        //then
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.SignedUp,
+            expectedActorEmail: invitedUser.Email);
+    }
+
+    [Fact]
+    public async Task registration_with_wrong_invitation_code_should_produce_audit_log_entry()
+    {
+        //given
+        var invitedUser = await InviteUser(
+            user: AppOwner);
+
+        //when
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
+        await Api.Auth.SignUp(
+            request: new SignUpUserRequestDto
+            {
+                Email = invitedUser.Email,
+                Password = Random.Password(),
+                InvitationCode = Random.InvitationCode("wrong-code"),
+                SelectedCheckboxIds = []
+            },
+            antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        //then
+        await AssertAuditLogContains(
+            expectedEventType: AuditLogEventTypes.Auth.SignUpFailed,
+            expectedSeverity: AuditLogSeverities.Warning);
     }
 }

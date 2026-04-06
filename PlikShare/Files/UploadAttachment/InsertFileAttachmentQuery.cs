@@ -32,7 +32,7 @@ public class InsertFileAttachmentQuery(
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FileExtId parentFileExternalId,
         AttachmentFile attachment,

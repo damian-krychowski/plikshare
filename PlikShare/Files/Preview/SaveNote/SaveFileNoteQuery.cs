@@ -34,7 +34,7 @@ namespace PlikShare.Files.Preview.SaveNote
         }
 
         private ResultCode ExecuteOperation(
-            DbWriteQueue.Context dbWriteContext,
+            SqliteWriteContext dbWriteContext,
             WorkspaceContext workspace,
             FileExtId fileExternalId,
             IUserIdentity userIdentity,

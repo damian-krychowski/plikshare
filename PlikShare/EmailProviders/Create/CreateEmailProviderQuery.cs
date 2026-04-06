@@ -36,7 +36,7 @@ public class CreateEmailProviderQuery(
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         string name,
         EmailProviderType type,
         string emailFrom,

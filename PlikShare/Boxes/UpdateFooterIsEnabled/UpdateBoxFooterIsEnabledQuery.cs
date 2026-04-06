@@ -21,7 +21,7 @@ public class UpdateBoxFooterIsEnabledQuery(DbWriteQueue dbWriteQueue)
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxContext box,
         bool isFooterEnabled)
     {

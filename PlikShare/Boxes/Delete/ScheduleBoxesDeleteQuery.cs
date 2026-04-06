@@ -27,7 +27,7 @@ public class ScheduleBoxesDeleteQuery(
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         BoxContext box,
         Guid correlationId)
     {

@@ -28,7 +28,7 @@ public class RejectWorkspaceInvitationQuery(
     }
 
     private ResultCode ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         WorkspaceMembershipContext workspaceMembership,
         Guid correlationId)
     {

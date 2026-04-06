@@ -23,6 +23,7 @@ export interface GetApplicationSettingsResponse {
         canManageEmailProviders: boolean;
         canManageAuth: boolean;
         canManageIntegrations: boolean;
+        canManageAuditLog: boolean;
     },
     alertOnNewUserRegistered: boolean;
 }

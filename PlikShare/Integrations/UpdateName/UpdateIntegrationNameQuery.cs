@@ -22,7 +22,7 @@ public class UpdateIntegrationNameQuery(DbWriteQueue dbWriteQueue)
     }
 
     private Result ExecuteOperation(
-        DbWriteQueue.Context dbWriteContext,
+        SqliteWriteContext dbWriteContext,
         IntegrationExtId externalId,
         string name)
     {
