@@ -237,6 +237,38 @@ public static class AuditLogDetails
         }
     }
 
+    public static class Folder
+    {
+        public class Created
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required FolderExtId ExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+
+        public class BulkCreated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required int FolderCount { get; init; }
+        }
+
+        public class NameUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required FolderExtId ExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+
+        public class ItemsMoved
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required FolderExtId? DestinationFolderExternalId { get; init; }
+            public required List<FolderExtId> FolderExternalIds { get; init; }
+            public required List<FileExtId> FileExternalIds { get; init; }
+            public required List<FileUploadExtId> FileUploadExternalIds { get; init; }
+        }
+    }
+
     public static class AuthProvider
     {
         public class Created

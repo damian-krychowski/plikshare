@@ -2,6 +2,8 @@ using Flurl.Http;
 using PlikShare.Folders.Create.Contracts;
 using PlikShare.Folders.Id;
 using PlikShare.Folders.List.Contracts;
+using PlikShare.Folders.MoveToFolder.Contracts;
+using PlikShare.Folders.Rename.Contracts;
 using PlikShare.Workspaces.Id;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -59,5 +61,34 @@ public class FoldersApi(IFlurlClient flurlClient, string appUrl)
             apiPath: $"api/workspaces/{workspaceExternalId}/folders/{folderExternalId}",
             cookie: cookie,
             isResponseInProtobuf: true);
+    }
+
+    public async Task UpdateName(
+        WorkspaceExtId workspaceExternalId,
+        FolderExtId folderExternalId,
+        UpdateFolderNameRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/folders/{folderExternalId}/name",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task MoveItems(
+        WorkspaceExtId workspaceExternalId,
+        MoveItemsToFolderRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/folders/move-items",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
 }

@@ -179,11 +179,24 @@ public static class AuditLogEventTypes
         ];
     }
 
+    public static class Folder
+    {
+        public const string Created = "folder.created";
+        public const string BulkCreated = "folder.bulk-created";
+        public const string NameUpdated = "folder.name-updated";
+        public const string ItemsMoved = "folder.items-moved";
+
+        public static readonly string[] All =
+        [
+            Created, BulkCreated, NameUpdated, ItemsMoved
+        ];
+    }
+
     public static readonly string[] All = [
         ..Auth.All, ..User.All, ..Settings.All,
         ..EmailProvider.All, ..AuthProvider.All,
         ..Storage.All, ..Integration.All,
-        ..Workspace.All
+        ..Workspace.All, ..Folder.All
     ];
 }
 

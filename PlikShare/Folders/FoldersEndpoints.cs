@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using PlikShare.AuditLog;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.UserIdentity;
@@ -51,6 +52,7 @@ public static class FoldersEndpoints
     private static async Task<Results<Ok<BulkCreateFolderResponseDto>, BadRequest<HttpError>, NotFound<HttpError>>> BulkCreateFolder(
         HttpContext httpContext,
         GetOrCreateFolderQuery getOrCreateFolderQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -70,34 +72,43 @@ public static class FoldersEndpoints
             ensureUniqueNames: request.EnsureUniqueNames,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            GetOrCreateFolderQuery.ResultCode.Ok => 
-                TypedResults.Ok(
-                    result.Response),
+            case GetOrCreateFolderQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Folder.BulkCreated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        folderCount: result.Response!.Items.Count),
+                    cancellationToken);
 
-            GetOrCreateFolderQuery.ResultCode.ParentFolderNotFound =>
-                HttpErrors.Folder.NotFound(
-                    parentFolderExternalId!.Value),
+                return TypedResults.Ok(
+                    result.Response);
 
-            GetOrCreateFolderQuery.ResultCode.DuplicatedNamesFound =>
-                HttpErrors.Folder.DuplicatedNamesOnInput(
-                    result.TemporaryIdsWithDuplications ?? []),
+            case GetOrCreateFolderQuery.ResultCode.ParentFolderNotFound:
+                return HttpErrors.Folder.NotFound(
+                    parentFolderExternalId!.Value);
 
-            GetOrCreateFolderQuery.ResultCode.DuplicatedTemporaryIds =>
-                HttpErrors.Folder.DuplicatedTemporaryIds(
-                    result.TemporaryIdsWithDuplications ?? []),
+            case GetOrCreateFolderQuery.ResultCode.DuplicatedNamesFound:
+                return HttpErrors.Folder.DuplicatedNamesOnInput(
+                    result.TemporaryIdsWithDuplications ?? []);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(GetOrCreateFolderQuery),
-                resultValueStr: result.Code.ToString())
-        };
+            case GetOrCreateFolderQuery.ResultCode.DuplicatedTemporaryIds:
+                return HttpErrors.Folder.DuplicatedTemporaryIds(
+                    result.TemporaryIdsWithDuplications ?? []);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(GetOrCreateFolderQuery),
+                    resultValueStr: result.Code.ToString());
+        }
     }
 
     private static async Task<Results<Ok<CreateFolderResponseDto>, NotFound<HttpError>>> CreateFolder(
         [FromBody] CreateFolderRequestDto request,
         HttpContext httpContext,
         CreateFolderQuery createFolderQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -111,22 +122,31 @@ public static class FoldersEndpoints
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             cancellationToken: cancellationToken);
 
-        return result switch
+        switch (result)
         {
-            CreateFolderQuery.ResultCode.Ok => 
-                TypedResults.Ok(new CreateFolderResponseDto
+            case CreateFolderQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Folder.Created(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        externalId: request.ExternalId,
+                        name: request.Name),
+                    cancellationToken);
+
+                return TypedResults.Ok(new CreateFolderResponseDto
                 {
                     ExternalId = request.ExternalId
-                }),
+                });
 
-            CreateFolderQuery.ResultCode.ParentFolderNotFound =>
-                HttpErrors.Folder.NotFound(
-                    request.ParentExternalId!.Value),
+            case CreateFolderQuery.ResultCode.ParentFolderNotFound:
+                return HttpErrors.Folder.NotFound(
+                    request.ParentExternalId!.Value);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateFolderQuery),
-                resultValueStr: result.ToString())
-        };
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateFolderQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static GetTopFolderContentResponseDto GetTopFolders(
@@ -172,6 +192,7 @@ public static class FoldersEndpoints
         [FromBody] UpdateFolderNameRequestDto request,
         HttpContext httpContext,
         UpdateFolderNameQuery updateFolderNameQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -185,25 +206,35 @@ public static class FoldersEndpoints
             isOperationAllowedByBoxPermissions: true,
             cancellationToken: cancellationToken);
 
-        return resultCode switch
+        switch (resultCode)
         {
-            UpdateFolderNameQuery.ResultCode.Ok =>
-                TypedResults.Ok(),
+            case UpdateFolderNameQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Folder.NameUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        externalId: folderExternalId,
+                        name: request.Name),
+                    cancellationToken);
 
-            UpdateFolderNameQuery.ResultCode.FolderNotFound =>
-                HttpErrors.Folder.NotFound(
-                    folderExternalId),
+                return TypedResults.Ok();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(UpdateFolderNameQuery),
-                resultValueStr: resultCode.ToString())
-        };
+            case UpdateFolderNameQuery.ResultCode.FolderNotFound:
+                return HttpErrors.Folder.NotFound(
+                    folderExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateFolderNameQuery),
+                    resultValueStr: resultCode.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> MoveItemsToFolder(
         [FromBody] MoveItemsToFolderRequestDto request,
         HttpContext httpContext,
         MoveItemsToFolderQuery moveItemsToFolderQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -217,30 +248,41 @@ public static class FoldersEndpoints
             boxFolderId: null,
             cancellationToken: cancellationToken);
 
-        return resultCode switch
+        switch (resultCode)
         {
-            MoveItemsToFolderQuery.ResultCode.Ok => 
-                TypedResults.Ok(),
+            case MoveItemsToFolderQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Folder.ItemsMoved(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        destinationFolderExternalId: request.DestinationFolderExternalId,
+                        folderExternalIds: request.FolderExternalIds,
+                        fileExternalIds: request.FileExternalIds,
+                        fileUploadExternalIds: request.FileUploadExternalIds),
+                    cancellationToken);
 
-            MoveItemsToFolderQuery.ResultCode.DestinationFolderNotFound =>
-                HttpErrors.Folder.NotFound(
-                    request.DestinationFolderExternalId!.Value),
+                return TypedResults.Ok();
 
-            MoveItemsToFolderQuery.ResultCode.FoldersNotFound =>
-                HttpErrors.Folder.SomeFolderNotFound(),
+            case MoveItemsToFolderQuery.ResultCode.DestinationFolderNotFound:
+                return HttpErrors.Folder.NotFound(
+                    request.DestinationFolderExternalId!.Value);
 
-            MoveItemsToFolderQuery.ResultCode.FilesNotFound =>
-                HttpErrors.Folder.SomeFileNotFound(),
+            case MoveItemsToFolderQuery.ResultCode.FoldersNotFound:
+                return HttpErrors.Folder.SomeFolderNotFound();
 
-            MoveItemsToFolderQuery.ResultCode.UploadsNotFound =>
-                HttpErrors.Folder.SomeFileUploadNotFound(),
+            case MoveItemsToFolderQuery.ResultCode.FilesNotFound:
+                return HttpErrors.Folder.SomeFileNotFound();
 
-            MoveItemsToFolderQuery.ResultCode.FoldersMovedToOwnSubfolder =>
-                HttpErrors.Folder.CannotMoveFoldersToOwnSubfolders(),
+            case MoveItemsToFolderQuery.ResultCode.UploadsNotFound:
+                return HttpErrors.Folder.SomeFileUploadNotFound();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(MoveItemsToFolderQuery),
-                resultValueStr: resultCode.ToString())
-        };
+            case MoveItemsToFolderQuery.ResultCode.FoldersMovedToOwnSubfolder:
+                return HttpErrors.Folder.CannotMoveFoldersToOwnSubfolders();
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(MoveItemsToFolderQuery),
+                    resultValueStr: resultCode.ToString());
+        }
     }
 }
