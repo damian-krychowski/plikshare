@@ -1,22 +1,23 @@
-using System.Text.Json;
+using PlikShare.AuthProviders.Id;
 using PlikShare.Core.UserIdentity;
+using PlikShare.Core.Utils;
+using PlikShare.EmailProviders.Id;
+using PlikShare.Files.Id;
+using PlikShare.Folders.Id;
+using PlikShare.Integrations.Id;
+using PlikShare.Storages.Id;
+using PlikShare.Uploads.Id;
 using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Workspaces.Id;
 
 namespace PlikShare.AuditLog;
 
 public static class Audit
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
-    private static string Serialize<T>(T details) => JsonSerializer.Serialize(details, JsonOptions);
-
     public static class Auth
     {
         public static AuditLogEntry SignedUp(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             string email) => new()
         {
             Actor = actor.Identity,
@@ -29,9 +30,9 @@ public static class Audit
         };
 
         public static AuditLogEntry SignUpFailed(
-            string? actorIp, 
-            Guid correlationId, 
-            string attemptedEmail, 
+            string? actorIp,
+            Guid correlationId,
+            string attemptedEmail,
             string reason) => new()
         {
             Actor = AnonymousIdentity.Instance,
@@ -41,12 +42,12 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Auth,
             EventType = AuditLogEventTypes.Auth.SignUpFailed,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.Auth.Failed { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Auth.Failed {
                 Reason = reason })
         };
 
         public static AuditLogEntry EmailConfirmed(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             string email) => new()
         {
             Actor = actor.Identity,
@@ -59,9 +60,9 @@ public static class Audit
         };
 
         public static AuditLogEntry EmailConfirmationFailed(
-            string? actorIp, 
-            Guid correlationId, 
-            string? email, 
+            string? actorIp,
+            Guid correlationId,
+            string? email,
             string reason) => new()
         {
             Actor = AnonymousIdentity.Instance,
@@ -71,12 +72,12 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Auth,
             EventType = AuditLogEventTypes.Auth.EmailConfirmationFailed,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.Auth.Failed { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Auth.Failed {
                 Reason = reason })
         };
 
         public static AuditLogEntry SignedIn(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             string email,
             string method) => new()
         {
@@ -87,14 +88,14 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Auth,
             EventType = AuditLogEventTypes.Auth.SignedIn,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Auth.SignedIn { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Auth.SignedIn {
                 Method = method })
         };
 
         public static AuditLogEntry SignInFailed(
-            string? actorIp, 
-            Guid correlationId, 
-            string attemptedEmail, 
+            string? actorIp,
+            Guid correlationId,
+            string attemptedEmail,
             string reason) => new()
         {
             Actor = AnonymousIdentity.Instance,
@@ -104,12 +105,12 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Auth,
             EventType = AuditLogEventTypes.Auth.SignInFailed,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.Auth.Failed { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Auth.Failed {
                 Reason = reason })
         };
 
         public static AuditLogEntry SignedIn2Fa(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             string? email) => new()
         {
             Actor = actor.Identity,
@@ -119,12 +120,12 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Auth,
             EventType = AuditLogEventTypes.Auth.SignedIn2Fa,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Auth.SignedIn { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Auth.SignedIn {
                 Method = AuditLogSignInMethods.Authenticator })
         };
 
         public static AuditLogEntry SignedInRecoveryCode(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             string? email) => new()
         {
             Actor = actor.Identity,
@@ -134,14 +135,14 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Auth,
             EventType = AuditLogEventTypes.Auth.SignedIn2Fa,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Auth.SignedIn { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Auth.SignedIn {
                 Method = AuditLogSignInMethods.RecoveryCode })
         };
 
         public static AuditLogEntry SignIn2FaFailed(
-            string? actorIp, 
-            Guid correlationId, 
-            string reason, 
+            string? actorIp,
+            Guid correlationId,
+            string reason,
             string? email) => new()
         {
             Actor = AnonymousIdentity.Instance,
@@ -151,7 +152,7 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Auth,
             EventType = AuditLogEventTypes.Auth.SignIn2FaFailed,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.Auth.Failed { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Auth.Failed {
                 Reason = reason })
         };
 
@@ -180,7 +181,7 @@ public static class Audit
         };
 
         public static AuditLogEntry PasswordChangeFailed(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             string reason) => new()
         {
             Actor = actor.Identity,
@@ -190,13 +191,13 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Auth,
             EventType = AuditLogEventTypes.Auth.PasswordChangeFailed,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.Auth.Failed { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Auth.Failed {
                 Reason = reason })
         };
 
         public static AuditLogEntry PasswordResetRequested(
-            string? actorIp, 
-            Guid correlationId, 
+            string? actorIp,
+            Guid correlationId,
             string email) => new()
         {
             Actor = AnonymousIdentity.Instance,
@@ -209,8 +210,8 @@ public static class Audit
         };
 
         public static AuditLogEntry PasswordResetCompleted(
-            string? actorIp, 
-            Guid correlationId, 
+            string? actorIp,
+            Guid correlationId,
             string? email) => new()
         {
             Actor = AnonymousIdentity.Instance,
@@ -223,9 +224,9 @@ public static class Audit
         };
 
         public static AuditLogEntry PasswordResetFailed(
-            string? actorIp, 
-            Guid correlationId, 
-            string? email, 
+            string? actorIp,
+            Guid correlationId,
+            string? email,
             string reason) => new()
         {
             Actor = AnonymousIdentity.Instance,
@@ -235,7 +236,7 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Auth,
             EventType = AuditLogEventTypes.Auth.PasswordResetFailed,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.Auth.Failed { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Auth.Failed {
                 Reason = reason })
         };
 
@@ -252,7 +253,7 @@ public static class Audit
         };
 
         public static AuditLogEntry TwoFaEnableFailed(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             string reason) => new()
         {
             Actor = actor.Identity,
@@ -262,7 +263,7 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Auth,
             EventType = AuditLogEventTypes.Auth.TwoFaEnableFailed,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.Auth.Failed { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Auth.Failed {
                 Reason = reason })
         };
 
@@ -291,8 +292,8 @@ public static class Audit
         };
 
         public static AuditLogEntry SsoLogin(
-            AuditLogActorContext actor, 
-            string email, 
+            AuditLogActorContext actor,
+            string email,
             string providerName) => new()
         {
             Actor = actor.Identity,
@@ -302,13 +303,13 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Auth,
             EventType = AuditLogEventTypes.Auth.SsoLogin,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Auth.Sso { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Auth.Sso {
                 ProviderName = providerName })
         };
 
         public static AuditLogEntry SsoUserCreated(
-            AuditLogActorContext actor, 
-            string email, 
+            AuditLogActorContext actor,
+            string email,
             string providerName) => new()
         {
             Actor = actor.Identity,
@@ -318,7 +319,7 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Auth,
             EventType = AuditLogEventTypes.Auth.SsoUserCreated,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Auth.Sso { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Auth.Sso {
                 ProviderName = providerName })
         };
     }
@@ -326,7 +327,7 @@ public static class Audit
     public static class User
     {
         public static AuditLogEntry Invited(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             List<string> emails) => new()
         {
             Actor = actor.Identity,
@@ -336,12 +337,12 @@ public static class Audit
             EventCategory = AuditLogEventCategories.User,
             EventType = AuditLogEventTypes.User.Invited,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.User.Invited { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.User.Invited {
                 Emails = emails })
         };
 
         public static AuditLogEntry Deleted(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             string targetEmail) => new()
         {
             Actor = actor.Identity,
@@ -351,13 +352,13 @@ public static class Audit
             EventCategory = AuditLogEventCategories.User,
             EventType = AuditLogEventTypes.User.Deleted,
             Severity = AuditLogSeverities.Critical,
-            DetailsJson = Serialize(new AuditLogDetails.User.Deleted { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.User.Deleted {
                 TargetEmail = targetEmail })
         };
 
         public static AuditLogEntry PermissionsAndRolesUpdated(
-            AuditLogActorContext actor, 
-            string targetEmail, 
+            AuditLogActorContext actor,
+            string targetEmail,
             UserPermissionsAndRolesDto request) => new()
         {
             Actor = actor.Identity,
@@ -367,7 +368,7 @@ public static class Audit
             EventCategory = AuditLogEventCategories.User,
             EventType = AuditLogEventTypes.User.PermissionsAndRolesUpdated,
             Severity = AuditLogSeverities.Critical,
-            DetailsJson = Serialize(new AuditLogDetails.User.PermissionsAndRolesUpdated
+            DetailsJson = Json.Serialize(new AuditLogDetails.User.PermissionsAndRolesUpdated
             {
                 TargetEmail = targetEmail,
                 IsAdmin = request.IsAdmin,
@@ -376,7 +377,7 @@ public static class Audit
         };
 
         public static AuditLogEntry MaxWorkspaceNumberUpdated(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             int? value) => new()
         {
             Actor = actor.Identity,
@@ -386,12 +387,12 @@ public static class Audit
             EventCategory = AuditLogEventCategories.User,
             EventType = AuditLogEventTypes.User.MaxWorkspaceNumberUpdated,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.User.LimitUpdated { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.User.LimitUpdated {
                 Value = value })
         };
 
         public static AuditLogEntry DefaultMaxWorkspaceSizeUpdated(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             long? value) => new()
         {
             Actor = actor.Identity,
@@ -401,12 +402,12 @@ public static class Audit
             EventCategory = AuditLogEventCategories.User,
             EventType = AuditLogEventTypes.User.DefaultMaxWorkspaceSizeUpdated,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.User.LimitUpdated { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.User.LimitUpdated {
                 Value = value })
         };
 
         public static AuditLogEntry DefaultMaxWorkspaceTeamMembersUpdated(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             int? value) => new()
         {
             Actor = actor.Identity,
@@ -416,7 +417,7 @@ public static class Audit
             EventCategory = AuditLogEventCategories.User,
             EventType = AuditLogEventTypes.User.DefaultMaxWorkspaceTeamMembersUpdated,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.User.LimitUpdated { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.User.LimitUpdated {
                 Value = value })
         };
     }
@@ -424,7 +425,7 @@ public static class Audit
     public static class Settings
     {
         public static AuditLogEntry AppNameChanged(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             string? value) => new()
         {
             Actor = actor.Identity,
@@ -434,12 +435,12 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Settings,
             EventType = AuditLogEventTypes.Settings.AppNameChanged,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Settings.ValueChanged { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Settings.ValueChanged {
                 Value = value })
         };
 
         public static AuditLogEntry SignUpOptionChanged(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             string value) => new()
         {
             Actor = actor.Identity,
@@ -449,12 +450,12 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Settings,
             EventType = AuditLogEventTypes.Settings.SignUpOptionChanged,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.Settings.ValueChanged { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Settings.ValueChanged {
                 Value = value })
         };
 
         public static AuditLogEntry DefaultPermissionsChanged(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             UserPermissionsAndRolesDto request) => new()
         {
             Actor = actor.Identity,
@@ -464,7 +465,7 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Settings,
             EventType = AuditLogEventTypes.Settings.DefaultPermissionsChanged,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.Settings.DefaultPermissionsChanged
+            DetailsJson = Json.Serialize(new AuditLogDetails.Settings.DefaultPermissionsChanged
             {
                 IsAdmin = request.IsAdmin,
                 Permissions = request.GetPermissionsList()
@@ -472,7 +473,7 @@ public static class Audit
         };
 
         public static AuditLogEntry DefaultMaxWorkspaceNumberChanged(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             int? value) => new()
         {
             Actor = actor.Identity,
@@ -482,12 +483,12 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Settings,
             EventType = AuditLogEventTypes.Settings.DefaultMaxWorkspaceNumberChanged,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.User.LimitUpdated { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.User.LimitUpdated {
                 Value = value })
         };
 
         public static AuditLogEntry DefaultMaxWorkspaceSizeChanged(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             long? value) => new()
         {
             Actor = actor.Identity,
@@ -497,12 +498,12 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Settings,
             EventType = AuditLogEventTypes.Settings.DefaultMaxWorkspaceSizeChanged,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.User.LimitUpdated { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.User.LimitUpdated {
                 Value = value })
         };
 
         public static AuditLogEntry DefaultMaxWorkspaceTeamMembersChanged(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             int? value) => new()
         {
             Actor = actor.Identity,
@@ -512,12 +513,12 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Settings,
             EventType = AuditLogEventTypes.Settings.DefaultMaxWorkspaceTeamMembersChanged,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.User.LimitUpdated { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.User.LimitUpdated {
                 Value = value })
         };
 
         public static AuditLogEntry AlertOnNewUserChanged(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             bool value) => new()
         {
             Actor = actor.Identity,
@@ -527,7 +528,7 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Settings,
             EventType = AuditLogEventTypes.Settings.AlertOnNewUserChanged,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Settings.ToggleChanged { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Settings.ToggleChanged {
                 Value = value })
         };
 
@@ -580,9 +581,9 @@ public static class Audit
         };
 
         public static AuditLogEntry SignUpCheckboxCreatedOrUpdated(
-            AuditLogActorContext actor, 
-            int? id, 
-            string text, 
+            AuditLogActorContext actor,
+            int? id,
+            string text,
             bool isRequired) => new()
         {
             Actor = actor.Identity,
@@ -592,14 +593,14 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Settings,
             EventType = AuditLogEventTypes.Settings.SignUpCheckboxCreatedOrUpdated,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Settings.SignUpCheckbox {
-                Id = id, 
+            DetailsJson = Json.Serialize(new AuditLogDetails.Settings.SignUpCheckbox {
+                Id = id,
                 Text = text,
                 IsRequired = isRequired })
         };
 
         public static AuditLogEntry SignUpCheckboxDeleted(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             int id) => new()
         {
             Actor = actor.Identity,
@@ -609,7 +610,7 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Settings,
             EventType = AuditLogEventTypes.Settings.SignUpCheckboxDeleted,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Settings.SignUpCheckbox {
+            DetailsJson = Json.Serialize(new AuditLogDetails.Settings.SignUpCheckbox {
                 Id = id,
                 Text = "",
                 IsRequired = false })
@@ -619,9 +620,9 @@ public static class Audit
     public static class EmailProvider
     {
         public static AuditLogEntry Created(
-            AuditLogActorContext actor, 
-            string name, 
-            string type, 
+            AuditLogActorContext actor,
+            string name,
+            string type,
             string emailFrom) => new()
         {
             Actor = actor.Identity,
@@ -631,15 +632,15 @@ public static class Audit
             EventCategory = AuditLogEventCategories.EmailProvider,
             EventType = AuditLogEventTypes.EmailProvider.Created,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.EmailProvider.Created { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.EmailProvider.Created {
                 Name = name,
-                Type = type, 
+                Type = type,
                 EmailFrom = emailFrom })
         };
 
         public static AuditLogEntry Deleted(
-            AuditLogActorContext actor, 
-            string externalId) => new()
+            AuditLogActorContext actor,
+            EmailProviderExtId externalId) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -648,13 +649,13 @@ public static class Audit
             EventCategory = AuditLogEventCategories.EmailProvider,
             EventType = AuditLogEventTypes.EmailProvider.Deleted,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.EmailProvider.Deleted { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.EmailProvider.Deleted {
                 ExternalId = externalId })
         };
 
         public static AuditLogEntry NameUpdated(
-            AuditLogActorContext actor, 
-            string externalId, 
+            AuditLogActorContext actor,
+            EmailProviderExtId externalId,
             string name) => new()
         {
             Actor = actor.Identity,
@@ -664,14 +665,14 @@ public static class Audit
             EventCategory = AuditLogEventCategories.EmailProvider,
             EventType = AuditLogEventTypes.EmailProvider.NameUpdated,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.EmailProvider.NameUpdated { 
-                ExternalId = externalId, 
+            DetailsJson = Json.Serialize(new AuditLogDetails.EmailProvider.NameUpdated {
+                ExternalId = externalId,
                 Name = name })
         };
 
         public static AuditLogEntry Activated(
-            AuditLogActorContext actor, 
-            string externalId) => new()
+            AuditLogActorContext actor,
+            EmailProviderExtId externalId) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -680,13 +681,13 @@ public static class Audit
             EventCategory = AuditLogEventCategories.EmailProvider,
             EventType = AuditLogEventTypes.EmailProvider.Activated,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.EmailProvider.ActivationChanged {
+            DetailsJson = Json.Serialize(new AuditLogDetails.EmailProvider.ActivationChanged {
                 ExternalId = externalId })
         };
 
         public static AuditLogEntry Deactivated(
             AuditLogActorContext actor,
-            string externalId) => new()
+            EmailProviderExtId externalId) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -695,13 +696,13 @@ public static class Audit
             EventCategory = AuditLogEventCategories.EmailProvider,
             EventType = AuditLogEventTypes.EmailProvider.Deactivated,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.EmailProvider.ActivationChanged { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.EmailProvider.ActivationChanged {
                 ExternalId = externalId })
         };
 
         public static AuditLogEntry Confirmed(
-            AuditLogActorContext actor, 
-            string externalId) => new()
+            AuditLogActorContext actor,
+            EmailProviderExtId externalId) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -710,13 +711,13 @@ public static class Audit
             EventCategory = AuditLogEventCategories.EmailProvider,
             EventType = AuditLogEventTypes.EmailProvider.Confirmed,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.EmailProvider.ActivationChanged { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.EmailProvider.ActivationChanged {
                 ExternalId = externalId })
         };
 
         public static AuditLogEntry ConfirmationEmailResent(
-            AuditLogActorContext actor, 
-            string externalId) => new()
+            AuditLogActorContext actor,
+            EmailProviderExtId externalId) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -725,8 +726,230 @@ public static class Audit
             EventCategory = AuditLogEventCategories.EmailProvider,
             EventType = AuditLogEventTypes.EmailProvider.ConfirmationEmailResent,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.EmailProvider.ConfirmationEmailResent { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.EmailProvider.ConfirmationEmailResent {
                 ExternalId = externalId })
+        };
+    }
+
+    public static class Workspace
+    {
+        public static AuditLogEntry Created(
+            AuditLogActorContext actor,
+            WorkspaceExtId externalId,
+            string name) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.Created,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.Created {
+                ExternalId = externalId,
+                Name = name })
+        };
+
+        public static AuditLogEntry Deleted(
+            AuditLogActorContext actor,
+            WorkspaceExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.Deleted,
+            Severity = AuditLogSeverities.Critical,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.Deleted {
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry NameUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId externalId,
+            string name) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.NameUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.NameUpdated {
+                ExternalId = externalId,
+                Name = name })
+        };
+
+        public static AuditLogEntry OwnerChanged(
+            AuditLogActorContext actor,
+            WorkspaceExtId externalId,
+            string newOwnerEmail) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.OwnerChanged,
+            Severity = AuditLogSeverities.Critical,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.OwnerChanged {
+                ExternalId = externalId,
+                NewOwnerEmail = newOwnerEmail })
+        };
+
+        public static AuditLogEntry MaxSizeUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId externalId,
+            long? value) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.MaxSizeUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.MaxSizeUpdated {
+                ExternalId = externalId,
+                Value = value })
+        };
+
+        public static AuditLogEntry MaxTeamMembersUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId externalId,
+            int? value) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.MaxTeamMembersUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.MaxTeamMembersUpdated {
+                ExternalId = externalId,
+                Value = value })
+        };
+
+        public static AuditLogEntry MemberInvited(
+            AuditLogActorContext actor,
+            WorkspaceExtId externalId,
+            List<string> memberEmails) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.MemberInvited,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.MemberInvited {
+                ExternalId = externalId,
+                MemberEmails = memberEmails })
+        };
+
+        public static AuditLogEntry MemberRevoked(
+            AuditLogActorContext actor,
+            WorkspaceExtId externalId,
+            string memberEmail) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.MemberRevoked,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.MemberRevoked {
+                ExternalId = externalId,
+                MemberEmail = memberEmail })
+        };
+
+        public static AuditLogEntry MemberPermissionsUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId externalId,
+            string memberEmail,
+            bool allowShare) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.MemberPermissionsUpdated,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.MemberPermissionsUpdated {
+                ExternalId = externalId,
+                MemberEmail = memberEmail,
+                AllowShare = allowShare })
+        };
+
+        public static AuditLogEntry InvitationAccepted(
+            AuditLogActorContext actor,
+            WorkspaceExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.InvitationAccepted,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.InvitationResponse {
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry InvitationRejected(
+            AuditLogActorContext actor,
+            WorkspaceExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.InvitationRejected,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.InvitationResponse {
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry MemberLeft(
+            AuditLogActorContext actor,
+            WorkspaceExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.MemberLeft,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.MemberLeft {
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry BulkDeleteRequested(
+            AuditLogActorContext actor,
+            WorkspaceExtId externalId,
+            List<FileExtId> fileExternalIds,
+            List<FolderExtId> folderExternalIds,
+            List<FileUploadExtId> fileUploadExternalIds) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.BulkDeleteRequested,
+            Severity = AuditLogSeverities.Critical,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.BulkDeleteRequested {
+                ExternalId = externalId,
+                FileExternalIds = fileExternalIds,
+                FolderExternalIds = folderExternalIds,
+                FileUploadExternalIds = fileUploadExternalIds })
         };
     }
 
@@ -744,14 +967,14 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Storage,
             EventType = AuditLogEventTypes.Storage.Created,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Storage.Created {
+            DetailsJson = Json.Serialize(new AuditLogDetails.Storage.Created {
                 Name = name,
                 Type = type })
         };
 
         public static AuditLogEntry Deleted(
             AuditLogActorContext actor,
-            string externalId) => new()
+            StorageExtId externalId) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -760,13 +983,13 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Storage,
             EventType = AuditLogEventTypes.Storage.Deleted,
             Severity = AuditLogSeverities.Critical,
-            DetailsJson = Serialize(new AuditLogDetails.Storage.Deleted {
+            DetailsJson = Json.Serialize(new AuditLogDetails.Storage.Deleted {
                 ExternalId = externalId })
         };
 
         public static AuditLogEntry NameUpdated(
             AuditLogActorContext actor,
-            string externalId,
+            StorageExtId externalId,
             string name) => new()
         {
             Actor = actor.Identity,
@@ -776,14 +999,14 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Storage,
             EventType = AuditLogEventTypes.Storage.NameUpdated,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Storage.NameUpdated {
+            DetailsJson = Json.Serialize(new AuditLogDetails.Storage.NameUpdated {
                 ExternalId = externalId,
                 Name = name })
         };
 
         public static AuditLogEntry DetailsUpdated(
             AuditLogActorContext actor,
-            string externalId,
+            StorageExtId externalId,
             string type) => new()
         {
             Actor = actor.Identity,
@@ -793,7 +1016,7 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Storage,
             EventType = AuditLogEventTypes.Storage.DetailsUpdated,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.Storage.DetailsUpdated {
+            DetailsJson = Json.Serialize(new AuditLogDetails.Storage.DetailsUpdated {
                 ExternalId = externalId,
                 Type = type })
         };
@@ -813,14 +1036,14 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Integration,
             EventType = AuditLogEventTypes.Integration.Created,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Integration.Created {
+            DetailsJson = Json.Serialize(new AuditLogDetails.Integration.Created {
                 Name = name,
                 Type = type })
         };
 
         public static AuditLogEntry Deleted(
             AuditLogActorContext actor,
-            string externalId) => new()
+            IntegrationExtId externalId) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -829,13 +1052,13 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Integration,
             EventType = AuditLogEventTypes.Integration.Deleted,
             Severity = AuditLogSeverities.Critical,
-            DetailsJson = Serialize(new AuditLogDetails.Integration.Deleted {
+            DetailsJson = Json.Serialize(new AuditLogDetails.Integration.Deleted {
                 ExternalId = externalId })
         };
 
         public static AuditLogEntry NameUpdated(
             AuditLogActorContext actor,
-            string externalId,
+            IntegrationExtId externalId,
             string name) => new()
         {
             Actor = actor.Identity,
@@ -845,14 +1068,14 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Integration,
             EventType = AuditLogEventTypes.Integration.NameUpdated,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Integration.NameUpdated {
+            DetailsJson = Json.Serialize(new AuditLogDetails.Integration.NameUpdated {
                 ExternalId = externalId,
                 Name = name })
         };
 
         public static AuditLogEntry Activated(
             AuditLogActorContext actor,
-            string externalId) => new()
+            IntegrationExtId externalId) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -861,13 +1084,13 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Integration,
             EventType = AuditLogEventTypes.Integration.Activated,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.Integration.ActivationChanged {
+            DetailsJson = Json.Serialize(new AuditLogDetails.Integration.ActivationChanged {
                 ExternalId = externalId })
         };
 
         public static AuditLogEntry Deactivated(
             AuditLogActorContext actor,
-            string externalId) => new()
+            IntegrationExtId externalId) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -876,7 +1099,7 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Integration,
             EventType = AuditLogEventTypes.Integration.Deactivated,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.Integration.ActivationChanged {
+            DetailsJson = Json.Serialize(new AuditLogDetails.Integration.ActivationChanged {
                 ExternalId = externalId })
         };
     }
@@ -884,8 +1107,8 @@ public static class Audit
     public static class AuthProvider
     {
         public static AuditLogEntry Created(
-            AuditLogActorContext actor, 
-            string name, 
+            AuditLogActorContext actor,
+            string name,
             string type) => new()
         {
             Actor = actor.Identity,
@@ -895,14 +1118,14 @@ public static class Audit
             EventCategory = AuditLogEventCategories.AuthProvider,
             EventType = AuditLogEventTypes.AuthProvider.Created,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.AuthProvider.Created { 
-                Name = name, 
+            DetailsJson = Json.Serialize(new AuditLogDetails.AuthProvider.Created {
+                Name = name,
                 Type = type })
         };
 
         public static AuditLogEntry Deleted(
-            AuditLogActorContext actor, 
-            string externalId) => new()
+            AuditLogActorContext actor,
+            AuthProviderExtId externalId) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -911,13 +1134,13 @@ public static class Audit
             EventCategory = AuditLogEventCategories.AuthProvider,
             EventType = AuditLogEventTypes.AuthProvider.Deleted,
             Severity = AuditLogSeverities.Critical,
-            DetailsJson = Serialize(new AuditLogDetails.AuthProvider.Deleted { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.AuthProvider.Deleted {
                 ExternalId = externalId })
         };
 
         public static AuditLogEntry NameUpdated(
-            AuditLogActorContext actor, 
-            string externalId, 
+            AuditLogActorContext actor,
+            AuthProviderExtId externalId,
             string name) => new()
         {
             Actor = actor.Identity,
@@ -927,14 +1150,14 @@ public static class Audit
             EventCategory = AuditLogEventCategories.AuthProvider,
             EventType = AuditLogEventTypes.AuthProvider.NameUpdated,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.AuthProvider.NameUpdated { 
-                ExternalId = externalId, 
+            DetailsJson = Json.Serialize(new AuditLogDetails.AuthProvider.NameUpdated {
+                ExternalId = externalId,
                 Name = name })
         };
 
         public static AuditLogEntry Updated(
-            AuditLogActorContext actor, 
-            string externalId, 
+            AuditLogActorContext actor,
+            AuthProviderExtId externalId,
             string name) => new()
         {
             Actor = actor.Identity,
@@ -944,13 +1167,13 @@ public static class Audit
             EventCategory = AuditLogEventCategories.AuthProvider,
             EventType = AuditLogEventTypes.AuthProvider.Updated,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.AuthProvider.Updated { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.AuthProvider.Updated {
                 ExternalId = externalId, Name = name })
         };
 
         public static AuditLogEntry Activated(
-            AuditLogActorContext actor, 
-            string externalId) => new()
+            AuditLogActorContext actor,
+            AuthProviderExtId externalId) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -959,13 +1182,13 @@ public static class Audit
             EventCategory = AuditLogEventCategories.AuthProvider,
             EventType = AuditLogEventTypes.AuthProvider.Activated,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Serialize(new AuditLogDetails.AuthProvider.ActivationChanged { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.AuthProvider.ActivationChanged {
                 ExternalId = externalId })
         };
 
         public static AuditLogEntry Deactivated(
             AuditLogActorContext actor,
-            string externalId) => new()
+            AuthProviderExtId externalId) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -974,12 +1197,12 @@ public static class Audit
             EventCategory = AuditLogEventCategories.AuthProvider,
             EventType = AuditLogEventTypes.AuthProvider.Deactivated,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.AuthProvider.ActivationChanged { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.AuthProvider.ActivationChanged {
                 ExternalId = externalId })
         };
 
         public static AuditLogEntry PasswordLoginToggled(
-            AuditLogActorContext actor, 
+            AuditLogActorContext actor,
             bool isEnabled) => new()
         {
             Actor = actor.Identity,
@@ -989,7 +1212,7 @@ public static class Audit
             EventCategory = AuditLogEventCategories.AuthProvider,
             EventType = AuditLogEventTypes.AuthProvider.PasswordLoginToggled,
             Severity = AuditLogSeverities.Warning,
-            DetailsJson = Serialize(new AuditLogDetails.AuthProvider.PasswordLoginToggled { 
+            DetailsJson = Json.Serialize(new AuditLogDetails.AuthProvider.PasswordLoginToggled {
                 IsEnabled = isEnabled })
         };
     }

@@ -1,11 +1,13 @@
 using Flurl.Http;
+using PlikShare.AuthProviders.Id;
 using PlikShare.Core.Authorization;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
 public class SsoApi(IFlurlClient flurlClient, string appUrl)
 {
-    public async Task<SsoInitiateResult> Initiate(string authProviderExternalId)
+    public async Task<SsoInitiateResult> Initiate(
+        AuthProviderExtId authProviderExternalId)
     {
         var response = await flurlClient
             .Request(appUrl, $"api/auth/sso/{authProviderExternalId}")

@@ -125,7 +125,7 @@ public static class AuthProvidersEndpoints
 
                 return TypedResults.Ok(new CreateOidcAuthProviderResponseDto
                 {
-                    ExternalId = result.ExternalId!.Value.Value
+                    ExternalId = result.ExternalId!.Value
                 });
 
             case CreateAuthProviderQuery.ResultCode.NameNotUnique:
@@ -155,7 +155,7 @@ public static class AuthProvidersEndpoints
                 await auditLogService.Log(
                     Audit.AuthProvider.Deleted(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: authProviderExternalId.Value),
+                        externalId: authProviderExternalId),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -189,7 +189,7 @@ public static class AuthProvidersEndpoints
                 await auditLogService.Log(
                     Audit.AuthProvider.NameUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: authProviderExternalId.Value,
+                        externalId: authProviderExternalId,
                         name: request.Name),
                     cancellationToken);
 
@@ -225,7 +225,7 @@ public static class AuthProvidersEndpoints
                 await auditLogService.Log(
                     Audit.AuthProvider.Activated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: authProviderExternalId.Value),
+                        externalId: authProviderExternalId),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -257,7 +257,7 @@ public static class AuthProvidersEndpoints
                 await auditLogService.Log(
                     Audit.AuthProvider.Deactivated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: authProviderExternalId.Value),
+                        externalId: authProviderExternalId),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -322,7 +322,7 @@ public static class AuthProvidersEndpoints
                 await auditLogService.Log(
                     Audit.AuthProvider.Updated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: authProviderExternalId.Value,
+                        externalId: authProviderExternalId,
                         name: request.Name),
                     cancellationToken);
                     

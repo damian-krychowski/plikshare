@@ -117,7 +117,7 @@ public static class EmailProvidersEndpoints
                 await auditLogService.Log(
                     Audit.EmailProvider.Deleted(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: emailProviderExternalId.Value),
+                        externalId: emailProviderExternalId),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -152,7 +152,7 @@ public static class EmailProvidersEndpoints
                 await auditLogService.Log(
                     Audit.EmailProvider.NameUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: emailProviderExternalId.Value,
+                        externalId: emailProviderExternalId,
                         name: request.Name),
                     cancellationToken);
                     
@@ -201,7 +201,7 @@ public static class EmailProvidersEndpoints
                     await auditLogService.Log(
                         Audit.EmailProvider.Activated(
                             actor: httpContext.GetAuditLogActorContext(),
-                            externalId: emailProviderExternalId.Value),
+                            externalId: emailProviderExternalId),
                         cancellationToken);
 
                     return TypedResults.Ok();
@@ -242,7 +242,7 @@ public static class EmailProvidersEndpoints
                     await auditLogService.Log(
                         Audit.EmailProvider.Deactivated(
                             actor: httpContext.GetAuditLogActorContext(),
-                            externalId: emailProviderExternalId.Value),
+                            externalId: emailProviderExternalId),
                         cancellationToken);
 
                     return TypedResults.Ok();
@@ -279,7 +279,7 @@ public static class EmailProvidersEndpoints
                 await auditLogService.Log(
                     Audit.EmailProvider.ConfirmationEmailResent(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: emailProviderExternalId.Value),
+                        externalId: emailProviderExternalId),
                     cancellationToken);
                 return TypedResults.Ok();
 
@@ -318,7 +318,7 @@ public static class EmailProvidersEndpoints
                 await auditLogService.Log(
                     Audit.EmailProvider.Confirmed(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: emailProviderExternalId.Value),
+                        externalId: emailProviderExternalId),
                     cancellationToken);
                 return TypedResults.Ok();
 

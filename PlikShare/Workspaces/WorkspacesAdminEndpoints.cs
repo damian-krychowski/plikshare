@@ -12,6 +12,7 @@ using PlikShare.Workspaces.UpdateMaxSize.Contracts;
 using PlikShare.Workspaces.UpdateMaxTeamMembers;
 using PlikShare.Workspaces.UpdateMaxTeamMembers.Contracts;
 using PlikShare.Workspaces.Validation;
+using PlikShare.AuditLog;
 
 namespace PlikShare.Workspaces;
 
@@ -60,6 +61,7 @@ public static class WorkspacesAdminEndpoints
         HttpContext httpContext,
         WorkspaceCache workspaceCache,
         UpdateWorkspaceMaxTeamMembersQuery updateWorkspaceMaxTeamMembersQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -77,6 +79,13 @@ public static class WorkspacesAdminEndpoints
             workspaceMembership.Workspace.ExternalId,
             cancellationToken: cancellationToken);
 
+        await auditLogService.Log(
+            Audit.Workspace.MaxTeamMembersUpdated(
+                actor: httpContext.GetAuditLogActorContext(),
+                externalId: workspaceMembership.Workspace.ExternalId,
+                value: request.MaxTeamMembers),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
@@ -85,10 +94,11 @@ public static class WorkspacesAdminEndpoints
         HttpContext httpContext,
         WorkspaceCache workspaceCache,
         UpdateWorkspaceMaxSizeQuery updateWorkspaceMaxSizeQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
-        
+
         var result = await updateWorkspaceMaxSizeQuery.Execute(
             workspace: workspaceMembership.Workspace,
             request: request,
@@ -102,6 +112,13 @@ public static class WorkspacesAdminEndpoints
             workspaceMembership.Workspace.ExternalId,
             cancellationToken: cancellationToken);
 
+        await auditLogService.Log(
+            Audit.Workspace.MaxSizeUpdated(
+                actor: httpContext.GetAuditLogActorContext(),
+                externalId: workspaceMembership.Workspace.ExternalId,
+                value: request.MaxSizeInBytes),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
@@ -111,6 +128,7 @@ public static class WorkspacesAdminEndpoints
         UserCache userCache,
         WorkspaceCache workspaceCache,
         ChangeWorkspaceOwnerQuery changeWorkspaceOwnerQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -132,6 +150,13 @@ public static class WorkspacesAdminEndpoints
         await workspaceCache.InvalidateEntry(
             workspaceMembership.Workspace.ExternalId,
             cancellationToken: cancellationToken);
+
+        await auditLogService.Log(
+            Audit.Workspace.OwnerChanged(
+                actor: httpContext.GetAuditLogActorContext(),
+                externalId: workspaceMembership.Workspace.ExternalId,
+                newOwnerEmail: newOwner.Email.Value),
+            cancellationToken);
 
         return TypedResults.Ok();
     }

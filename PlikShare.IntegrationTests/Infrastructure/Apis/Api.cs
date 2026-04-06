@@ -14,6 +14,7 @@ public class Api(IFlurlClient flurlClient, string appUrl)
     public EmailProvidersApi EmailProviders { get; } = new(flurlClient, appUrl);
     public UsersApi Users { get; } = new(flurlClient, appUrl);
     public WorkspacesApi Workspaces { get; } = new(flurlClient, appUrl);
+    public WorkspacesAdminApi WorkspacesAdmin { get; } = new(flurlClient, appUrl);
     public FoldersApi Folders { get; } = new(flurlClient, appUrl);
     public BoxesApi Boxes { get; } = new(flurlClient, appUrl);
     public BoxLinksApi BoxLinks { get; } = new(flurlClient, appUrl);

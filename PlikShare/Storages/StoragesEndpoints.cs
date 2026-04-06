@@ -129,7 +129,7 @@ public static class StoragesEndpoints
                 await auditLogService.Log(
                     Audit.Storage.Deleted(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: storageExternalId.Value),
+                        externalId: storageExternalId),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -168,7 +168,7 @@ public static class StoragesEndpoints
                 await auditLogService.Log(
                     Audit.Storage.NameUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: storageExternalId.Value,
+                        externalId: storageExternalId,
                         name: request.Name),
                     cancellationToken);
 
@@ -259,7 +259,7 @@ public static class StoragesEndpoints
                 await auditLogService.Log(
                     Audit.Storage.DetailsUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: storageExternalId.Value,
+                        externalId: storageExternalId,
                         type: StorageType.CloudflareR2),
                     cancellationToken);
 
@@ -348,7 +348,7 @@ public static class StoragesEndpoints
                 await auditLogService.Log(
                     Audit.Storage.DetailsUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: storageExternalId.Value,
+                        externalId: storageExternalId,
                         type: StorageType.AwsS3),
                     cancellationToken);
 
@@ -433,7 +433,7 @@ public static class StoragesEndpoints
                 await auditLogService.Log(
                     Audit.Storage.DetailsUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: storageExternalId.Value,
+                        externalId: storageExternalId,
                         type: StorageType.DigitalOceanSpaces),
                     cancellationToken);
 
@@ -582,7 +582,7 @@ public static class StoragesEndpoints
                 await auditLogService.Log(
                     Audit.Storage.DetailsUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: storageExternalId.Value,
+                        externalId: storageExternalId,
                         type: StorageType.BackblazeB2),
                     cancellationToken);
 

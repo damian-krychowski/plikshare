@@ -34,7 +34,7 @@ public class AuthProvidersApi(IFlurlClient flurlClient, string appUrl)
     }
 
     public async Task Update(
-        string externalId,
+        AuthProviderExtId externalId,
         UpdateAuthProviderRequestDto request,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery)
@@ -48,7 +48,7 @@ public class AuthProvidersApi(IFlurlClient flurlClient, string appUrl)
     }
 
     public async Task UpdateName(
-        string externalId,
+        AuthProviderExtId externalId,
         UpdateAuthProviderNameRequestDto request,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery)
@@ -62,7 +62,7 @@ public class AuthProvidersApi(IFlurlClient flurlClient, string appUrl)
     }
 
     public async Task Activate(
-        string externalId,
+        AuthProviderExtId externalId,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery)
     {
@@ -75,7 +75,7 @@ public class AuthProvidersApi(IFlurlClient flurlClient, string appUrl)
     }
 
     public async Task Deactivate(
-        string externalId,
+        AuthProviderExtId externalId,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery)
     {
@@ -88,7 +88,7 @@ public class AuthProvidersApi(IFlurlClient flurlClient, string appUrl)
     }
 
     public async Task Delete(
-        string externalId,
+        AuthProviderExtId externalId,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery)
     {

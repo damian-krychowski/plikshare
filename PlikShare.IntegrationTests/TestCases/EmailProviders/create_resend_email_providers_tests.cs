@@ -492,7 +492,7 @@ public class create_resend_email_providers_tests: TestFixture
         //then
         await AssertAuditLogContains<AuditLogDetails.EmailProvider.ActivationChanged>(
             expectedEventType: AuditLogEventTypes.EmailProvider.Confirmed,
-            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId.Value),
+            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -534,7 +534,7 @@ public class create_resend_email_providers_tests: TestFixture
         //then
         await AssertAuditLogContains<AuditLogDetails.EmailProvider.ActivationChanged>(
             expectedEventType: AuditLogEventTypes.EmailProvider.Activated,
-            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId.Value),
+            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -581,7 +581,7 @@ public class create_resend_email_providers_tests: TestFixture
         //then
         await AssertAuditLogContains<AuditLogDetails.EmailProvider.ActivationChanged>(
             expectedEventType: AuditLogEventTypes.EmailProvider.Deactivated,
-            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId.Value),
+            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Warning);
     }
@@ -616,7 +616,7 @@ public class create_resend_email_providers_tests: TestFixture
         //then
         await AssertAuditLogContains<AuditLogDetails.EmailProvider.Deleted>(
             expectedEventType: AuditLogEventTypes.EmailProvider.Deleted,
-            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId.Value),
+            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Warning);
     }
@@ -656,7 +656,7 @@ public class create_resend_email_providers_tests: TestFixture
             expectedEventType: AuditLogEventTypes.EmailProvider.NameUpdated,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(provider.ExternalId.Value);
+                details.ExternalId.Should().Be(provider.ExternalId);
                 details.Name.Should().Be(newName);
             },
             expectedActorEmail: user.Email,

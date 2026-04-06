@@ -61,7 +61,7 @@ public class auth_providers_tests : TestFixture, IDisposable
                 IssuerUrl = MockOidcServer.IssuerUrl
             });
 
-        response.ExternalId.Should().NotBeNullOrEmpty();
+        response.ExternalId.Should().NotBeNull();
     }
 
     [Fact]

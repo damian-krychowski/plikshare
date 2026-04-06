@@ -38,9 +38,9 @@ public class UpdateWorkspaceMemberPermissionsQuery(DbWriteQueue dbWriteQueue)
                 .OneRowCmd(
                     sql: """
                          UPDATE wm_workspace_membership
-                         SET 
-                             allow_share = $allowShare
-                         WHERE 
+                         SET
+                             wm_allow_share = $allowShare
+                         WHERE
                              wm_workspace_id = $workspaceId
                              AND wm_member_id = $memberId
                          RETURNING 

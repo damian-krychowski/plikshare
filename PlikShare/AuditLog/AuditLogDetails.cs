@@ -1,3 +1,12 @@
+using PlikShare.AuthProviders.Id;
+using PlikShare.EmailProviders.Id;
+using PlikShare.Files.Id;
+using PlikShare.Folders.Id;
+using PlikShare.Integrations.Id;
+using PlikShare.Storages.Id;
+using PlikShare.Uploads.Id;
+using PlikShare.Workspaces.Id;
+
 namespace PlikShare.AuditLog;
 
 public static class AuditLogDetails
@@ -82,23 +91,98 @@ public static class AuditLogDetails
 
         public class Deleted
         {
-            public required string ExternalId { get; init; }
+            public required EmailProviderExtId ExternalId { get; init; }
         }
 
         public class NameUpdated
         {
-            public required string ExternalId { get; init; }
+            public required EmailProviderExtId ExternalId { get; init; }
             public required string Name { get; init; }
         }
 
         public class ActivationChanged
         {
-            public required string ExternalId { get; init; }
+            public required EmailProviderExtId ExternalId { get; init; }
         }
 
         public class ConfirmationEmailResent
         {
-            public required string ExternalId { get; init; }
+            public required EmailProviderExtId ExternalId { get; init; }
+        }
+    }
+
+    public static class Workspace
+    {
+        public class Created
+        {
+            public required WorkspaceExtId ExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+
+        public class Deleted
+        {
+            public required WorkspaceExtId ExternalId { get; init; }
+        }
+
+        public class NameUpdated
+        {
+            public required WorkspaceExtId ExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+
+        public class OwnerChanged
+        {
+            public required WorkspaceExtId ExternalId { get; init; }
+            public required string NewOwnerEmail { get; init; }
+        }
+
+        public class MaxSizeUpdated
+        {
+            public required WorkspaceExtId ExternalId { get; init; }
+            public required long? Value { get; init; }
+        }
+
+        public class MaxTeamMembersUpdated
+        {
+            public required WorkspaceExtId ExternalId { get; init; }
+            public required int? Value { get; init; }
+        }
+
+        public class MemberInvited
+        {
+            public required WorkspaceExtId ExternalId { get; init; }
+            public required List<string> MemberEmails { get; init; }
+        }
+
+        public class MemberRevoked
+        {
+            public required WorkspaceExtId ExternalId { get; init; }
+            public required string MemberEmail { get; init; }
+        }
+
+        public class MemberPermissionsUpdated
+        {
+            public required WorkspaceExtId ExternalId { get; init; }
+            public required string MemberEmail { get; init; }
+            public required bool AllowShare { get; init; }
+        }
+
+        public class InvitationResponse
+        {
+            public required WorkspaceExtId ExternalId { get; init; }
+        }
+
+        public class MemberLeft
+        {
+            public required WorkspaceExtId ExternalId { get; init; }
+        }
+
+        public class BulkDeleteRequested
+        {
+            public required WorkspaceExtId ExternalId { get; init; }
+            public required List<FileExtId> FileExternalIds { get; init; }
+            public required List<FolderExtId> FolderExternalIds { get; init; }
+            public required List<FileUploadExtId> FileUploadExternalIds { get; init; }
         }
     }
 
@@ -112,18 +196,18 @@ public static class AuditLogDetails
 
         public class Deleted
         {
-            public required string ExternalId { get; init; }
+            public required StorageExtId ExternalId { get; init; }
         }
 
         public class NameUpdated
         {
-            public required string ExternalId { get; init; }
+            public required StorageExtId ExternalId { get; init; }
             public required string Name { get; init; }
         }
 
         public class DetailsUpdated
         {
-            public required string ExternalId { get; init; }
+            public required StorageExtId ExternalId { get; init; }
             public required string Type { get; init; }
         }
     }
@@ -138,18 +222,18 @@ public static class AuditLogDetails
 
         public class Deleted
         {
-            public required string ExternalId { get; init; }
+            public required IntegrationExtId ExternalId { get; init; }
         }
 
         public class NameUpdated
         {
-            public required string ExternalId { get; init; }
+            public required IntegrationExtId ExternalId { get; init; }
             public required string Name { get; init; }
         }
 
         public class ActivationChanged
         {
-            public required string ExternalId { get; init; }
+            public required IntegrationExtId ExternalId { get; init; }
         }
     }
 
@@ -163,24 +247,24 @@ public static class AuditLogDetails
 
         public class Deleted
         {
-            public required string ExternalId { get; init; }
+            public required AuthProviderExtId ExternalId { get; init; }
         }
 
         public class NameUpdated
         {
-            public required string ExternalId { get; init; }
+            public required AuthProviderExtId ExternalId { get; init; }
             public required string Name { get; init; }
         }
 
         public class Updated
         {
-            public required string ExternalId { get; init; }
+            public required AuthProviderExtId ExternalId { get; init; }
             public required string Name { get; init; }
         }
 
         public class ActivationChanged
         {
-            public required string ExternalId { get; init; }
+            public required AuthProviderExtId ExternalId { get; init; }
         }
 
         public class PasswordLoginToggled

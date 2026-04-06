@@ -41,6 +41,7 @@ using PlikShare.Workspaces.SearchFilesTree.Contracts;
 using PlikShare.Workspaces.UpdateName;
 using PlikShare.Workspaces.UpdateName.Contracts;
 using PlikShare.Workspaces.Validation;
+using PlikShare.AuditLog;
 
 namespace PlikShare.Workspaces;
 
@@ -152,6 +153,7 @@ public static class WorkspacesEndpoints
         [FromBody] CreateWorkspaceRequestDto request,
         HttpContext httpContext,
         CreateWorkspaceQuery createWorkspaceQuery,
+        AuditLogService auditLogService,
         IQueue queue,
         CancellationToken cancellationToken)
     {
@@ -170,6 +172,13 @@ public static class WorkspacesEndpoints
         if (result.Code == CreateWorkspaceQuery.ResultCode.MaxNumberOfWorkspacesReached)
             return HttpErrors.User.MaxNumberOfWorkspacesReached(user.ExternalId, user.MaxWorkspaceNumber);
 
+        await auditLogService.Log(
+            Audit.Workspace.Created(
+                actor: httpContext.GetAuditLogActorContext(),
+                externalId: result.Workspace.ExternalId,
+                name: request.Name),
+            cancellationToken);
+
         return TypedResults.Ok(new CreateWorkspaceResponseDto
         {
             ExternalId = result.Workspace.ExternalId,
@@ -182,6 +191,7 @@ public static class WorkspacesEndpoints
         ScheduleWorkspaceDeleteQuery scheduleWorkspaceDeleteQuery,
         WorkspaceCache workspaceCache,
         BoxCache boxCache,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -205,6 +215,12 @@ public static class WorkspacesEndpoints
                     deletedBoxes!,
                     cancellationToken);
 
+                await auditLogService.Log(
+                    Audit.Workspace.Deleted(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: workspaceMembership.Workspace.ExternalId),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case ScheduleWorkspaceDeleteQuery.ResultCode.NotFound:
@@ -225,6 +241,7 @@ public static class WorkspacesEndpoints
         HttpContext httpContext,
         WorkspaceMembershipCache workspaceMembershipCache,
         AcceptWorkspaceInvitationQuery acceptWorkspaceInvitationQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = await workspaceMembershipCache.TryGetWorkspaceMembership(
@@ -250,6 +267,12 @@ public static class WorkspacesEndpoints
                     workspaceMembership,
                     cancellationToken);
 
+                await auditLogService.Log(
+                    Audit.Workspace.InvitationAccepted(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: workspaceExternalId),
+                    cancellationToken);
+
                 return TypedResults.Ok(new AcceptWorkspaceInvitationResponseDto
                 {
                     WorkspaceCurrentSizeInBytes = workspaceMembership.Workspace.CurrentSizeInBytes,
@@ -271,6 +294,7 @@ public static class WorkspacesEndpoints
         HttpContext httpContext,
         WorkspaceMembershipCache workspaceMembershipCache,
         RejectWorkspaceInvitationQuery rejectWorkspaceInvitationQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var user = httpContext.GetUserContext();
@@ -291,18 +315,27 @@ public static class WorkspacesEndpoints
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
-        return result switch
+        switch (result)
         {
-            RejectWorkspaceInvitationQuery.ResultCode.Ok => TypedResults.Ok(),
+            case RejectWorkspaceInvitationQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Workspace.InvitationRejected(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: workspaceExternalId),
+                    cancellationToken);
 
-            RejectWorkspaceInvitationQuery.ResultCode.MembershipNotFound => HttpErrors.Workspace.MemberNotFound(
-                userId: httpContext.GetUserContext().ExternalId,
-                workspaceExternalId: workspaceExternalId),
+                return TypedResults.Ok();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(RejectWorkspaceInvitationQuery),
-                resultValueStr: result.ToString())
-        };
+            case RejectWorkspaceInvitationQuery.ResultCode.MembershipNotFound:
+                return HttpErrors.Workspace.MemberNotFound(
+                    userId: httpContext.GetUserContext().ExternalId,
+                    workspaceExternalId: workspaceExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(RejectWorkspaceInvitationQuery),
+                    resultValueStr: result.ToString());
+        }
     }
 
     private static CheckWorkspaceBucketStatusResponseDto CheckIfWorkspaceBucketWasCreated(
@@ -382,6 +415,7 @@ public static class WorkspacesEndpoints
         HttpContext httpContext,
         WorkspaceCache workspaceCache,
         UpdateWorkspaceNameQuery updateWorkspaceNameQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -396,6 +430,13 @@ public static class WorkspacesEndpoints
             case UpdateWorkspaceNameQuery.ResultCode.Ok:
                 await workspaceCache.InvalidateEntry(
                     workspaceMembership.Workspace.ExternalId,
+                    cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.Workspace.NameUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: workspaceMembership.Workspace.ExternalId,
+                        name: request.Name),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -429,7 +470,7 @@ public static class WorkspacesEndpoints
         CreateWorkspaceMemberInvitationOperation createWorkspaceMemberInvitationOperation,
         CountWorkspaceTotalTeamMembersQuery countWorkspaceTotalTeamMembersQuery,
         HttpContext httpContext,
-
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -466,6 +507,13 @@ public static class WorkspacesEndpoints
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
+        await auditLogService.Log(
+            Audit.Workspace.MemberInvited(
+                actor: httpContext.GetAuditLogActorContext(),
+                externalId: workspaceMembership.Workspace.ExternalId,
+                memberEmails: request.MemberEmails.ToList()),
+            cancellationToken);
+
         return TypedResults.Ok(
             new CreateWorkspaceMemberInvitationResponseDto
             {
@@ -484,6 +532,7 @@ public static class WorkspacesEndpoints
         UserCache userCache,
         RevokeWorkspaceMemberQuery revokeWorkspaceMemberQuery,
         WorkspaceMembershipCache workspaceMembershipCache,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -516,6 +565,13 @@ public static class WorkspacesEndpoints
                     memberId: memberToRevoke.Id,
                     cancellationToken: cancellationToken);
 
+                await auditLogService.Log(
+                    Audit.Workspace.MemberRevoked(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: workspaceMembership.Workspace.ExternalId,
+                        memberEmail: memberToRevoke.Email.Value),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case RevokeWorkspaceMemberQuery.ResultCode.MembershipNotFound:
@@ -536,6 +592,7 @@ public static class WorkspacesEndpoints
         HttpContext httpContext,
         UserCache userCache,
         UpdateWorkspaceMemberPermissionsQuery updateWorkspaceMemberPermissionsQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -561,24 +618,36 @@ public static class WorkspacesEndpoints
                 AllowShare: request.AllowShare),
             cancellationToken: cancellationToken);
 
-        return resultCode switch
+        switch (resultCode)
         {
-            UpdateWorkspaceMemberPermissionsQuery.ResultCode.Ok => TypedResults.Ok(),
+            case UpdateWorkspaceMemberPermissionsQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Workspace.MemberPermissionsUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: workspaceMembership.Workspace.ExternalId,
+                        memberEmail: memberToUpdate.Email.Value,
+                        allowShare: request.AllowShare),
+                    cancellationToken);
 
-            UpdateWorkspaceMemberPermissionsQuery.ResultCode.NotFound => HttpErrors.Workspace.MemberNotFound(
-                memberExternalId,
-                workspaceMembership.Workspace.ExternalId),
+                return TypedResults.Ok();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(UpdateWorkspaceMemberPermissionsQuery),
-                resultValueStr: resultCode.ToString())
-        };
+            case UpdateWorkspaceMemberPermissionsQuery.ResultCode.NotFound:
+                return HttpErrors.Workspace.MemberNotFound(
+                    memberExternalId,
+                    workspaceMembership.Workspace.ExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateWorkspaceMemberPermissionsQuery),
+                    resultValueStr: resultCode.ToString());
+        }
     }
     
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> LeaveSharedWorkspace(
         HttpContext httpContext,
         LeaveSharedWorkspaceQuery leaveSharedWorkspaceQuery,
         WorkspaceMembershipCache workspaceMembershipCache,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -602,6 +671,12 @@ public static class WorkspacesEndpoints
                     memberId: user.Id,
                     cancellationToken: cancellationToken);
 
+                await auditLogService.Log(
+                    Audit.Workspace.MemberLeft(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        externalId: workspaceMembership.Workspace.ExternalId),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case LeaveSharedWorkspaceQuery.ResultCode.MembershipNotFound:
@@ -616,15 +691,16 @@ public static class WorkspacesEndpoints
         }
     }
     
-    private static Task<BulkDeleteResponseDto> BulkDelete(
+    private static async Task<BulkDeleteResponseDto> BulkDelete(
         [FromBody] BulkDeleteRequestDto request,
         HttpContext httpContext,
         BulkDeleteQuery bulkDeleteQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
 
-        return bulkDeleteQuery.Execute(
+        var result = await bulkDeleteQuery.Execute(
             workspace: workspaceMembership.Workspace,
             fileExternalIds: request.FileExternalIds.ToArray(),
             folderExternalIds: request.FolderExternalIds.ToArray(),
@@ -634,5 +710,16 @@ public static class WorkspacesEndpoints
             isFileDeleteAllowedByBoxPermissions: true,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
+
+        await auditLogService.Log(
+            Audit.Workspace.BulkDeleteRequested(
+                actor: httpContext.GetAuditLogActorContext(),
+                externalId: workspaceMembership.Workspace.ExternalId,
+                fileExternalIds: request.FileExternalIds,
+                folderExternalIds: request.FolderExternalIds,
+                fileUploadExternalIds: request.FileUploadExternalIds),
+            cancellationToken);
+
+        return result;
     }
 }

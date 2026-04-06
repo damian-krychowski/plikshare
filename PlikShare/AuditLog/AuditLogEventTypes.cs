@@ -125,6 +125,32 @@ public static class AuditLogEventTypes
         ];
     }
 
+    public static class Workspace
+    {
+        public const string Created = "workspace.created";
+        public const string Deleted = "workspace.deleted";
+        public const string NameUpdated = "workspace.name-updated";
+        public const string OwnerChanged = "workspace.owner-changed";
+        public const string MaxSizeUpdated = "workspace.max-size-updated";
+        public const string MaxTeamMembersUpdated = "workspace.max-team-members-updated";
+        public const string MemberInvited = "workspace.member-invited";
+        public const string MemberRevoked = "workspace.member-revoked";
+        public const string MemberPermissionsUpdated = "workspace.member-permissions-updated";
+        public const string InvitationAccepted = "workspace.invitation-accepted";
+        public const string InvitationRejected = "workspace.invitation-rejected";
+        public const string MemberLeft = "workspace.member-left";
+        public const string BulkDeleteRequested = "workspace.bulk-delete-requested";
+
+        public static readonly string[] All =
+        [
+            Created, Deleted, NameUpdated,
+            OwnerChanged, MaxSizeUpdated, MaxTeamMembersUpdated,
+            MemberInvited, MemberRevoked, MemberPermissionsUpdated,
+            InvitationAccepted, InvitationRejected, MemberLeft,
+            BulkDeleteRequested
+        ];
+    }
+
     public static class Storage
     {
         public const string Created = "storage.created";
@@ -156,7 +182,8 @@ public static class AuditLogEventTypes
     public static readonly string[] All = [
         ..Auth.All, ..User.All, ..Settings.All,
         ..EmailProvider.All, ..AuthProvider.All,
-        ..Storage.All, ..Integration.All
+        ..Storage.All, ..Integration.All,
+        ..Workspace.All
     ];
 }
 

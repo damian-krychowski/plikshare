@@ -190,7 +190,7 @@ public class integrations_tests : TestFixture
         //then
         await AssertAuditLogContains<AuditLogDetails.Integration.Deleted>(
             expectedEventType: AuditLogEventTypes.Integration.Deleted,
-            assertDetails: details => details.ExternalId.Should().Be(response.ExternalId.Value),
+            assertDetails: details => details.ExternalId.Should().Be(response.ExternalId),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Critical);
     }
@@ -217,7 +217,7 @@ public class integrations_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Integration.NameUpdated,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(response.ExternalId.Value);
+                details.ExternalId.Should().Be(response.ExternalId);
                 details.Name.Should().Be(newName);
             },
             expectedActorEmail: AppOwner.Email,
@@ -239,7 +239,7 @@ public class integrations_tests : TestFixture
         //then
         await AssertAuditLogContains<AuditLogDetails.Integration.ActivationChanged>(
             expectedEventType: AuditLogEventTypes.Integration.Activated,
-            assertDetails: details => details.ExternalId.Should().Be(response.ExternalId.Value),
+            assertDetails: details => details.ExternalId.Should().Be(response.ExternalId),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -264,7 +264,7 @@ public class integrations_tests : TestFixture
         //then
         await AssertAuditLogContains<AuditLogDetails.Integration.ActivationChanged>(
             expectedEventType: AuditLogEventTypes.Integration.Deactivated,
-            assertDetails: details => details.ExternalId.Should().Be(response.ExternalId.Value),
+            assertDetails: details => details.ExternalId.Should().Be(response.ExternalId),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Warning);
     }

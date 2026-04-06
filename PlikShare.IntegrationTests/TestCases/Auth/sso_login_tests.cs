@@ -2,6 +2,7 @@ using System.Text.Json;
 using FluentAssertions;
 using PlikShare.AuditLog;
 using PlikShare.AuthProviders.Create.Contracts;
+using PlikShare.AuthProviders.Id;
 using PlikShare.GeneralSettings;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -157,7 +158,8 @@ public class sso_login_tests : TestFixture, IDisposable
     public async Task sso_login_with_nonexistent_provider_redirects_with_error()
     {
         //when
-        var initiateResult = await Api.Sso.Initiate("ap_nonexistent12345");
+        var initiateResult = await Api.Sso.Initiate(
+            AuthProviderExtId.NewId());
 
         //then
         initiateResult.StatusCode.Should().Be(302);

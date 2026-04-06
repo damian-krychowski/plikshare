@@ -1,3 +1,5 @@
+using PlikShare.AuthProviders.Id;
+
 namespace PlikShare.AuthProviders.Create.Contracts;
 
 public class CreateOidcAuthProviderRequestDto
@@ -10,5 +12,5 @@ public class CreateOidcAuthProviderRequestDto
 
 public class CreateOidcAuthProviderResponseDto
 {
-    public required string ExternalId { get; init; }
+    public required AuthProviderExtId ExternalId { get; init; }
 }

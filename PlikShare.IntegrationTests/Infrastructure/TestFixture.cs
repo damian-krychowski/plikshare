@@ -1,14 +1,14 @@
-using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using PlikShare.Auth.Contracts;
-using PlikShare.Core.Database.AuditLogDatabase;
-using PlikShare.Core.SQLite;
+using PlikShare.AuthProviders.Id;
 using PlikShare.Boxes.Create.Contracts;
 using PlikShare.Boxes.CreateLink.Contracts;
 using PlikShare.Boxes.Id;
 using PlikShare.BoxLinks.Id;
 using PlikShare.BoxLinks.UpdatePermissions.Contracts;
+using PlikShare.Core.Database.AuditLogDatabase;
+using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.EmailProviders.Confirm.Contracts;
 using PlikShare.EmailProviders.Entities;
@@ -29,6 +29,7 @@ using PlikShare.Workspaces.Create.Contracts;
 using PlikShare.Workspaces.Id;
 using Serilog;
 using Serilog.Events;
+using System.Text.Json;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.Infrastructure;
@@ -632,7 +633,7 @@ public class TestFixture: IAsyncLifetime
         string EmailFrom);
 
     protected record AppAuthProvider(
-        string ExternalId,
+        AuthProviderExtId ExternalId,
         string Name);
 
     protected async Task<AppAuthProvider> CreateAndActivateAuthProvider(
