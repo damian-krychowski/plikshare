@@ -311,6 +311,7 @@ public class Startup
         builder.Services.AddSingleton<GetAuditLogQuery>();
         builder.Services.AddSingleton<GetAuditLogStatsQuery>();
         builder.Services.AddSingleton<GetAuditLogFilterOptionsQuery>();
+        builder.Services.AddSingleton<GetAuditLogEntryDetailsQuery>();
         builder.Services.AddSingleton<DeleteOldAuditLogsQuery>();
         builder.Services.AddSingleton<ArchiveAuditLogsQuery>();
 

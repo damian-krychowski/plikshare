@@ -230,7 +230,7 @@ public class user_permissions_tests : TestFixture
                 details.IsAdmin.Should().BeTrue();
             },
             expectedActorEmail: AppOwner.Email,
-            expectedSeverity: AuditLogSeverities.Critical);
+            expectedSeverity: AuditLogSeverities.Warning);
     }
 
     [Fact]

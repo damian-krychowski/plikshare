@@ -33,7 +33,7 @@ public class ArchiveAuditLogsQuery(
         var items = connection
             .Cmd(
                 sql: sql,
-                readRowFunc: reader => new AuditLogItemDto
+                readRowFunc: reader => new GetAuditLogEntryDetailsResponseDto
                 {
                     ExternalId = reader.GetString(0),
                     CreatedAt = reader.GetString(1),

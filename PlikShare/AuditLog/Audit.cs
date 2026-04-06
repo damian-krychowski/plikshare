@@ -367,7 +367,7 @@ public static class Audit
             CorrelationId = actor.CorrelationId,
             EventCategory = AuditLogEventCategories.User,
             EventType = AuditLogEventTypes.User.PermissionsAndRolesUpdated,
-            Severity = AuditLogSeverities.Critical,
+            Severity = AuditLogSeverities.Warning,
             DetailsJson = Json.Serialize(new AuditLogDetails.User.PermissionsAndRolesUpdated
             {
                 TargetEmail = targetEmail,
@@ -793,7 +793,7 @@ public static class Audit
             CorrelationId = actor.CorrelationId,
             EventCategory = AuditLogEventCategories.Workspace,
             EventType = AuditLogEventTypes.Workspace.OwnerChanged,
-            Severity = AuditLogSeverities.Critical,
+            Severity = AuditLogSeverities.Warning,
             DetailsJson = Json.Serialize(new AuditLogDetails.Workspace.OwnerChanged {
                 ExternalId = externalId,
                 NewOwnerEmail = newOwnerEmail })
@@ -1063,7 +1063,7 @@ public static class Audit
             CorrelationId = actor.CorrelationId,
             EventCategory = AuditLogEventCategories.Storage,
             EventType = AuditLogEventTypes.Storage.Deleted,
-            Severity = AuditLogSeverities.Critical,
+            Severity = AuditLogSeverities.Warning,
             DetailsJson = Json.Serialize(new AuditLogDetails.Storage.Deleted {
                 ExternalId = externalId })
         };
@@ -1132,7 +1132,7 @@ public static class Audit
             CorrelationId = actor.CorrelationId,
             EventCategory = AuditLogEventCategories.Integration,
             EventType = AuditLogEventTypes.Integration.Deleted,
-            Severity = AuditLogSeverities.Critical,
+            Severity = AuditLogSeverities.Warning,
             DetailsJson = Json.Serialize(new AuditLogDetails.Integration.Deleted {
                 ExternalId = externalId })
         };
@@ -1214,7 +1214,7 @@ public static class Audit
             CorrelationId = actor.CorrelationId,
             EventCategory = AuditLogEventCategories.AuthProvider,
             EventType = AuditLogEventTypes.AuthProvider.Deleted,
-            Severity = AuditLogSeverities.Critical,
+            Severity = AuditLogSeverities.Warning,
             DetailsJson = Json.Serialize(new AuditLogDetails.AuthProvider.Deleted {
                 ExternalId = externalId })
         };

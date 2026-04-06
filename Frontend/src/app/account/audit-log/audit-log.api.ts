@@ -27,6 +27,15 @@ export interface GetAuditLogResponse {
 export interface AuditLogItem {
     externalId: string;
     createdAt: string;
+    actorEmail: string | null;
+    actorIdentity: string;
+    eventType: string;
+    eventSeverity: string;
+}
+
+export interface AuditLogEntryDetails {
+    externalId: string;
+    createdAt: string;
     correlationId: string | null;
     actorIdentityType: string;
     actorIdentity: string;
@@ -77,6 +86,11 @@ export class AuditLogApi {
             request: filters,
             responseProtoType: auditLogResponseProtobuf,
         });
+    }
+
+    async getEntryDetails(externalId: string): Promise<AuditLogEntryDetails> {
+        const call = this._http.get<AuditLogEntryDetails>(`/api/audit-log/${externalId}`);
+        return await firstValueFrom(call);
     }
 
     async getStats(): Promise<AuditLogStats> {

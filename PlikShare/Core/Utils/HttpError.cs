@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using PlikShare.AuditLog.Id;
 using PlikShare.Boxes.Id;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.ExternalIds;
@@ -658,6 +659,16 @@ public static class HttpErrors
             });
     }
     
+    public static class AuditLog
+    {
+        public static NotFound<HttpError> NotFound(AuditLogExtId externalId) =>
+            TypedResults.NotFound(new HttpError
+            {
+                Code = "audit-log-entry-doesnt-exist",
+                Message = $"Audit log entry with externalId '{externalId}' was not found."
+            });
+    }
+
     public static class ArtificialIntelligence
     {
         public static NotFound<HttpError> ConversationNotFound(FileArtifactExtId fileArtifactExternalId) =>

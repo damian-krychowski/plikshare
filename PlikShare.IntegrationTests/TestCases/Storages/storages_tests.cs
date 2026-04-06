@@ -247,7 +247,7 @@ public class storages_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Storage.Deleted,
             assertDetails: details => details.ExternalId.Should().Be(hardDrive.ExternalId),
             expectedActorEmail: AppOwner.Email,
-            expectedSeverity: AuditLogSeverities.Critical);
+            expectedSeverity: AuditLogSeverities.Warning);
     }
 
     [Fact]

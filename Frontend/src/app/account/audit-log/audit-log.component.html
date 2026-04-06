@@ -194,48 +194,52 @@
 
                     @if(isExpanded(item.externalId)) {
                         <div class="audit-table__detail">
-                            <div class="detail-grid">
-                                <div class="detail-label">External ID:</div>
-                                <div class="detail-value">{{ item.externalId }}</div>
+                            @if(isLoadingDetails()) {
+                                <div class="explanation">Loading details...</div>
+                            } @else if(expandedDetails(); as details) {
+                                <div class="detail-grid">
+                                    <div class="detail-label">External ID:</div>
+                                    <div class="detail-value">{{ details.externalId }}</div>
 
-                                <div class="detail-label">Correlation ID:</div>
-                                <div class="detail-value">
-                                    @if(item.correlationId) {
-                                        <span class="correlation-link"
-                                            matTooltip="Filter by this correlation ID"
-                                            matTooltipPosition="below"
-                                            (click)="searchByCorrelationId(item.correlationId); $event.stopPropagation()">
-                                            {{ item.correlationId }}
-                                            <i class="icon icon-sm icon-lucide-search"></i>
-                                        </span>
-                                    } @else {
-                                        ---
-                                    }
+                                    <div class="detail-label">Correlation ID:</div>
+                                    <div class="detail-value">
+                                        @if(details.correlationId) {
+                                            <span class="correlation-link"
+                                                matTooltip="Filter by this correlation ID"
+                                                matTooltipPosition="below"
+                                                (click)="searchByCorrelationId(details.correlationId); $event.stopPropagation()">
+                                                {{ details.correlationId }}
+                                                <i class="icon icon-sm icon-lucide-search"></i>
+                                            </span>
+                                        } @else {
+                                            ---
+                                        }
+                                    </div>
+
+                                    <div class="detail-label">Actor type:</div>
+                                    <div class="detail-value">{{ details.actorIdentityType }}</div>
+
+                                    <div class="detail-label">Actor identity:</div>
+                                    <div class="detail-value">{{ details.actorIdentity }}</div>
+
+                                    <div class="detail-label">Actor email:</div>
+                                    <div class="detail-value">{{ details.actorEmail || '---' }}</div>
+
+                                    <div class="detail-label">Actor IP:</div>
+                                    <div class="detail-value">{{ details.actorIp || '---' }}</div>
+
+                                    <div class="detail-label">Category:</div>
+                                    <div class="detail-value">{{ details.eventCategory }}</div>
+
+                                    <div class="detail-label">Workspace:</div>
+                                    <div class="detail-value">{{ details.workspaceExternalId || '---' }}</div>
                                 </div>
 
-                                <div class="detail-label">Actor type:</div>
-                                <div class="detail-value">{{ item.actorIdentityType }}</div>
-
-                                <div class="detail-label">Actor identity:</div>
-                                <div class="detail-value">{{ item.actorIdentity }}</div>
-
-                                <div class="detail-label">Actor email:</div>
-                                <div class="detail-value">{{ item.actorEmail || '---' }}</div>
-
-                                <div class="detail-label">Actor IP:</div>
-                                <div class="detail-value">{{ item.actorIp || '---' }}</div>
-
-                                <div class="detail-label">Category:</div>
-                                <div class="detail-value">{{ item.eventCategory }}</div>
-
-                                <div class="detail-label">Workspace:</div>
-                                <div class="detail-value">{{ item.workspaceExternalId || '---' }}</div>
-                            </div>
-
-                            @if(item.details) {
-                                <div class="mt-2"></div>
-                                <div class="detail-label">Details:</div>
-                                <pre class="detail-json">{{ formatDetails(item.details) }}</pre>
+                                @if(details.details) {
+                                    <div class="mt-2"></div>
+                                    <div class="detail-label">Details:</div>
+                                    <pre class="detail-json">{{ formatDetails(details.details) }}</pre>
+                                }
                             }
                         </div>
                     }

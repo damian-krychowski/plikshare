@@ -1,8 +1,11 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
 using PlikShare.AuditLog.Contracts;
+using PlikShare.Core.Database.AuditLogDatabase;
+using PlikShare.Core.SQLite;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.AuditLog;
@@ -92,20 +95,60 @@ public class audit_log_tests : TestFixture
         //given
         var appOwner = await SignIn(Users.AppOwner);
 
+        // create events from different categories
+        var storage = await CreateHardDriveStorage(
+            user: appOwner); // storage category
+
+        var workspace = await CreateWorkspace(
+            storage: storage, 
+            user: appOwner); // workspace category
+        
+        await SignIn(Users.AppOwner); // auth category
+
+        // wait for async audit log writes
+        await Task.Delay(500);
+
+        // get expected items from DB — only auth category events
+        var auditLogDb = HostFixture.App.Services
+            .GetRequiredService<PlikShareAuditLogDb>();
+
+        using var connection = auditLogDb.OpenConnection();
+
+        var expectedItems= connection
+                .Cmd(
+                    sql: """
+                         SELECT al_external_id, al_created_at, al_actor_email, al_actor_identity, al_event_type, al_event_severity
+                         FROM al_audit_logs
+                         WHERE al_event_category = $category
+                         ORDER BY al_id DESC
+                         """,
+                    readRowFunc: reader => new AuditLogItemDto
+                    {
+                        ExternalId = reader.GetString(0),
+                        CreatedAt = reader.GetString(1),
+                        ActorEmail = reader.GetStringOrNull(2),
+                        ActorIdentity = reader.GetString(3),
+                        EventType = reader.GetString(4),
+                        EventSeverity = reader.GetString(5)
+                    })
+                .WithParameter("$category", AuditLogEventCategories.Auth)
+                .Execute();
+
+        expectedItems.Should().NotBeEmpty();
+
         //when
         var result = await GetLogsWithRetry(
             request: new GetAuditLogRequestDto
             {
-                PageSize = 50,
+                PageSize = 200,
                 EventCategories = [AuditLogEventCategories.Auth]
             },
             cookie: appOwner.Cookie,
             antiforgery: appOwner.Antiforgery,
-            predicate: r => r.Items.Count > 0);
+            predicate: r => r.Items.Count >= expectedItems.Count);
 
         //then
-        result.Items.Should().NotBeEmpty();
-        result.Items.Should().OnlyContain(item => item.EventCategory == AuditLogEventCategories.Auth);
+        result.Items.Should().BeEquivalentTo(expectedItems);
     }
 
     [Fact]
@@ -114,20 +157,56 @@ public class audit_log_tests : TestFixture
         //given
         var appOwner = await SignIn(Users.AppOwner);
 
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+        await Api.Auth.SignIn(
+            email: Users.AppOwner.Email,
+            password: "wrong-password",
+            antiforgeryCookies: anonymousAntiforgeryCookies); // warning severity
+
+        await Task.Delay(500);
+
+        var auditLogDb = HostFixture.App.Services
+            .GetRequiredService<PlikShareAuditLogDb>();
+
+        List<AuditLogItemDto> expectedItems;
+        using (var connection = auditLogDb.OpenConnection())
+        {
+            expectedItems = connection
+                .Cmd(
+                    sql: """
+                        SELECT al_external_id, al_created_at, al_actor_email, al_actor_identity, al_event_type, al_event_severity
+                        FROM al_audit_logs
+                        WHERE al_event_severity = $severity
+                        ORDER BY al_id DESC
+                        """,
+                    readRowFunc: reader => new AuditLogItemDto
+                    {
+                        ExternalId = reader.GetString(0),
+                        CreatedAt = reader.GetString(1),
+                        ActorEmail = reader.GetStringOrNull(2),
+                        ActorIdentity = reader.GetString(3),
+                        EventType = reader.GetString(4),
+                        EventSeverity = reader.GetString(5)
+                    })
+                .WithParameter("$severity", AuditLogSeverities.Info)
+                .Execute();
+        }
+
+        expectedItems.Should().NotBeEmpty();
+
         //when
         var result = await GetLogsWithRetry(
             request: new GetAuditLogRequestDto
             {
-                PageSize = 50,
+                PageSize = 200,
                 Severities = [AuditLogSeverities.Info]
             },
             cookie: appOwner.Cookie,
             antiforgery: appOwner.Antiforgery,
-            predicate: r => r.Items.Count > 0);
+            predicate: r => r.Items.Count >= expectedItems.Count);
 
         //then
-        result.Items.Should().NotBeEmpty();
-        result.Items.Should().OnlyContain(item => item.EventSeverity == AuditLogSeverities.Info);
+        result.Items.Should().BeEquivalentTo(expectedItems);
     }
 
     [Fact]

@@ -192,7 +192,7 @@ public class integrations_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Integration.Deleted,
             assertDetails: details => details.ExternalId.Should().Be(response.ExternalId),
             expectedActorEmail: AppOwner.Email,
-            expectedSeverity: AuditLogSeverities.Critical);
+            expectedSeverity: AuditLogSeverities.Warning);
     }
 
     [Fact]

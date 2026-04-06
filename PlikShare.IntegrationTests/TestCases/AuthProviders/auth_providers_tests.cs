@@ -395,7 +395,7 @@ public class auth_providers_tests : TestFixture, IDisposable
             expectedEventType: AuditLogEventTypes.AuthProvider.Deleted,
             assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
             expectedActorEmail: user.Email,
-            expectedSeverity: AuditLogSeverities.Critical);
+            expectedSeverity: AuditLogSeverities.Warning);
     }
 
     [Fact]

@@ -25,16 +25,10 @@ public class GetAuditLogQuery(PlikShareAuditLogDb plikShareAuditLogDb)
                         al_id,
                         al_external_id,
                         al_created_at,
-                        al_correlation_id,
-                        al_actor_identity_type,
-                        al_actor_identity,
                         al_actor_email,
-                        al_actor_ip,
-                        al_event_category,
+                        al_actor_identity,
                         al_event_type,
-                        al_event_severity,
-                        al_workspace_external_id,
-                        al_details
+                        al_event_severity
                     FROM al_audit_logs
                     WHERE ($cursor IS NULL OR al_id < $cursor)
                       AND ($eventCategories IS NULL OR al_event_category IN (SELECT value FROM json_each($eventCategories)))
@@ -56,16 +50,10 @@ public class GetAuditLogQuery(PlikShareAuditLogDb plikShareAuditLogDb)
                     {
                         ExternalId = reader.GetString(1),
                         CreatedAt = reader.GetString(2),
-                        CorrelationId = reader.GetStringOrNull(3),
-                        ActorIdentityType = reader.GetString(4),
-                        ActorIdentity = reader.GetString(5),
-                        ActorEmail = reader.GetStringOrNull(6),
-                        ActorIp = reader.GetStringOrNull(7),
-                        EventCategory = reader.GetString(8),
-                        EventType = reader.GetString(9),
-                        EventSeverity = reader.GetString(10),
-                        WorkspaceExternalId = reader.GetStringOrNull(11),
-                        Details = reader.GetStringOrNull(12)
+                        ActorEmail = reader.GetStringOrNull(3),
+                        ActorIdentity = reader.GetString(4),
+                        EventType = reader.GetString(5),
+                        EventSeverity = reader.GetString(6)
                     }
                 })
             .WithParameter("$cursor", request.Cursor)

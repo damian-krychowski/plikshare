@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog.Contracts;
+using PlikShare.AuditLog.Id;
 using PlikShare.AuditLog.Queries;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Protobuf;
+using PlikShare.Core.Utils;
 
 namespace PlikShare.AuditLog;
 
@@ -30,6 +33,9 @@ public static class AuditLogEndpoints
         group.MapGet("/filter-options", GetFilterOptions)
             .WithName("GetAuditLogFilterOptions");
 
+        group.MapGet("/{externalId}", GetAuditLogEntryDetails)
+            .WithName("GetAuditLogEntryDetails");
+
         group.MapPost("/delete-old", DeleteOldAuditLogs)
             .WithName("DeleteOldAuditLogs");
 
@@ -54,6 +60,19 @@ public static class AuditLogEndpoints
         GetAuditLogFilterOptionsQuery getAuditLogFilterOptionsQuery)
     {
         return getAuditLogFilterOptionsQuery.Execute();
+    }
+
+    private static Results<Ok<GetAuditLogEntryDetailsResponseDto>, NotFound<HttpError>> GetAuditLogEntryDetails(
+        AuditLogExtId externalId,
+        GetAuditLogEntryDetailsQuery getAuditLogEntryDetailsQuery)
+    {
+        var result = getAuditLogEntryDetailsQuery.Execute(externalId);
+
+        return result switch
+        {
+            null => HttpErrors.AuditLog.NotFound(externalId),
+            _ => TypedResults.Ok(result)
+        };
     }
 
     private static DeleteOldAuditLogsResponseDto DeleteOldAuditLogs(

@@ -10,7 +10,7 @@ import { MatDatepickerModule } from "@angular/material/datepicker";
 import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE, MAT_NATIVE_DATE_FORMATS } from "@angular/material/core";
 import { IsoDateAdapter } from "./iso-date-adapter";
 import { AuthService } from "../../services/auth.service";
-import { AuditLogApi, AuditLogItem, AuditLogStats, AuditLogFilters } from "./audit-log.api";
+import { AuditLogApi, AuditLogItem, AuditLogEntryDetails, AuditLogStats, AuditLogFilters } from "./audit-log.api";
 import { DatePipe } from "@angular/common";
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
 import { ActionTextButtonComponent } from "../../shared/buttons/action-text-btn/action-text-btn.component";
@@ -46,6 +46,8 @@ export class AuditLogComponent implements OnInit {
     hasMore = signal(false);
     stats = signal<AuditLogStats | null>(null);
     expandedExternalId = signal<string | null>(null);
+    expandedDetails = signal<AuditLogEntryDetails | null>(null);
+    isLoadingDetails = signal(false);
     showFilters = signal(false);
 
     // Filters
@@ -77,12 +79,12 @@ export class AuditLogComponent implements OnInit {
     });
 
     eventCategories = [
-        'auth', 'user', 'workspace', 'file', 'folder',
-        'box', 'box-link', 'storage', 'integration',
-        'email-provider', 'auth-provider', 'settings'
+        'auth', 'auth-provider', 'box', 'box-link',
+        'email-provider', 'file', 'folder', 'integration',
+        'settings', 'storage', 'user', 'workspace'
     ];
 
-    severities = ['info', 'warning', 'critical'];
+    severities = ['critical', 'info', 'warning'];
 
     constructor(
         public auth: AuthService,
@@ -155,8 +157,8 @@ export class AuditLogComponent implements OnInit {
     async loadFilterOptions() {
         try {
             const options = await this._auditLogApi.getFilterOptions();
-            this.availableEventTypes.set(options.eventTypes);
-            this.availableActors.set(options.actors);
+            this.availableEventTypes.set([...options.eventTypes].sort());
+            this.availableActors.set([...options.actors].sort());
         } catch (error) {
             console.error('Failed to load filter options', error);
         }
@@ -188,9 +190,25 @@ export class AuditLogComponent implements OnInit {
         await this.loadLogs();
     }
 
-    toggleExpand(externalId: string) {
-        this.expandedExternalId.update(current =>
-            current === externalId ? null : externalId);
+    async toggleExpand(externalId: string) {
+        if (this.expandedExternalId() === externalId) {
+            this.expandedExternalId.set(null);
+            this.expandedDetails.set(null);
+            return;
+        }
+
+        this.expandedExternalId.set(externalId);
+        this.expandedDetails.set(null);
+        this.isLoadingDetails.set(true);
+
+        try {
+            const details = await this._auditLogApi.getEntryDetails(externalId);
+            this.expandedDetails.set(details);
+        } catch (error) {
+            console.error('Failed to load audit log entry details', error);
+        } finally {
+            this.isLoadingDetails.set(false);
+        }
     }
 
     isExpanded(externalId: string) {

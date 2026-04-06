@@ -337,7 +337,7 @@ public class workspace_tests : TestFixture
                 details.NewOwnerEmail.Should().Be(newOwner.Email);
             },
             expectedActorEmail: AppOwner.Email,
-            expectedSeverity: AuditLogSeverities.Critical);
+            expectedSeverity: AuditLogSeverities.Warning);
     }
 
     [Fact]
