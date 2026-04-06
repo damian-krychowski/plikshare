@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using PlikShare.AuditLog;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Utils;
 using PlikShare.GeneralSettings.Contracts;
@@ -70,21 +71,31 @@ public static class GeneralSettingsEndpoints
             .WithName("SetAlertOnNewUserRegistered");
     }
 
-    private static Results<Ok, BadRequest<HttpError>> SetAlertOnNewUserRegistered(
+    private static async Task<Results<Ok, BadRequest<HttpError>>> SetAlertOnNewUserRegistered(
         [FromBody] SetAlertSettingReuqest request,
         AppSettings appSettings,
-        HttpContext httpContext)
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
         appSettings.SetAlertOnNewUserRegistered(
             isTurnedOn: request.IsTurnedOn);
 
+        await auditLogService.Log(
+            Audit.Settings.AlertOnNewUserChanged(
+                actor: httpContext.GetAuditLogActorContext(),
+                value: request.IsTurnedOn),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
-    private static Results<Ok, BadRequest<HttpError>> SetNewUserDefaultPermissionsAndRoles(
+    private static async Task<Results<Ok, BadRequest<HttpError>>> SetNewUserDefaultPermissionsAndRoles(
         [FromBody] UserPermissionsAndRolesDto request,
         AppSettings appSettings,
-        HttpContext httpContext)
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
         var currentUser = httpContext.GetUserContext();
 
@@ -99,30 +110,66 @@ public static class GeneralSettingsEndpoints
         appSettings.SetNewUserPermissionsAndRoles(
             permissionsAndRoles);
 
+        await auditLogService.Log(
+            Audit.Settings.DefaultPermissionsChanged(
+                actor: httpContext.GetAuditLogActorContext(),
+                request: request),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
-    private static Results<Ok, BadRequest<HttpError>> SetNewUserDefaultMaxWorkspaceTeamMembers(
+    private static async Task<Results<Ok, BadRequest<HttpError>>> SetNewUserDefaultMaxWorkspaceTeamMembers(
         [FromBody] SetNewUserDefaultMaxWorkspaceTeamMembersRequestDto request,
-        AppSettings appSettings)
+        AppSettings appSettings,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
         appSettings.SetNewUserDefaultMaxWorkspaceTeamMembers(request.Value);
+
+        await auditLogService.Log(
+            Audit.Settings.DefaultMaxWorkspaceTeamMembersChanged(
+                actor: httpContext.GetAuditLogActorContext(),
+                value: request.Value),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
-    private static Results<Ok, BadRequest<HttpError>> SetNewUserDefaultMaxWorkspaceSizeInBytes(
+    private static async Task<Results<Ok, BadRequest<HttpError>>> SetNewUserDefaultMaxWorkspaceSizeInBytes(
         [FromBody] SetNewUserDefaultMaxWorkspaceSizeInBytesRequestDto request,
-        AppSettings appSettings)
+        AppSettings appSettings,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
         appSettings.SetNewUserDefaultMaxWorkspaceSizeInBytes(request.Value);
+
+        await auditLogService.Log(
+            Audit.Settings.DefaultMaxWorkspaceSizeChanged(
+                actor: httpContext.GetAuditLogActorContext(),
+                value: request.Value),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
-    private static Results<Ok, BadRequest<HttpError>> SetNewUserDefaultMaxWorkspaceNumber(
+    private static async Task<Results<Ok, BadRequest<HttpError>>> SetNewUserDefaultMaxWorkspaceNumber(
         [FromBody] SetNewUserDefaultMaxWorkspaceNumberRequestDto request,
-        AppSettings appSettings)
+        AppSettings appSettings,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
         appSettings.SetNewUserDefaultMaxWorkspaceNumber(request.Value);
+
+        await auditLogService.Log(
+            Audit.Settings.DefaultMaxWorkspaceNumberChanged(
+                actor: httpContext.GetAuditLogActorContext(),
+                value: request.Value),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
@@ -130,6 +177,8 @@ public static class GeneralSettingsEndpoints
         [FromRoute] int signUpCheckboxId,
         DeleteSignUpCheckboxQuery deleteSignUpCheckboxQuery,
         AppSettings appSettings,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
        await deleteSignUpCheckboxQuery.Execute(
@@ -137,12 +186,20 @@ public static class GeneralSettingsEndpoints
             cancellationToken);
 
         appSettings.RefreshSingUpCheckboxes();
+
+        await auditLogService.Log(
+            Audit.Settings.SignUpCheckboxDeleted(
+                actor: httpContext.GetAuditLogActorContext(),
+                id: signUpCheckboxId),
+            cancellationToken);
     }
 
     private static async Task<CreateOrUpdateSignUpCheckboxResponseDto> CreateOrUpdateSignUpCheckbox(
         [FromBody] CreateOrUpdateSignUpCheckboxRequestDto request,
         CreateOrUpdateSignUpCheckboxQuery createOrUpdateSignUpCheckboxQuery,
         AppSettings appSettings,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var response =  await createOrUpdateSignUpCheckboxQuery.Execute(
@@ -150,6 +207,14 @@ public static class GeneralSettingsEndpoints
             cancellationToken);
 
         appSettings.RefreshSingUpCheckboxes();
+
+        await auditLogService.Log(
+            Audit.Settings.SignUpCheckboxCreatedOrUpdated(
+                actor: httpContext.GetAuditLogActorContext(),
+                id: request.Id,
+                text: request.Text,
+                isRequired: request.IsRequired),
+            cancellationToken);
 
         return response;
     }
@@ -183,31 +248,54 @@ public static class GeneralSettingsEndpoints
         };
     }
 
-    private static Results<Ok, BadRequest<HttpError>> SetApplicationSignUpOption(
+    private static async Task<Results<Ok, BadRequest<HttpError>>> SetApplicationSignUpOption(
         [FromBody] SetSettingRequest request,
-        AppSettings appSettings)
+        AppSettings appSettings,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
         if (AppSettings.SignUpSetting.TryParse(request.Value!, out var singUp))
         {
             appSettings.SetApplicationSignUp(singUp);
+
+            await auditLogService.Log(
+                Audit.Settings.SignUpOptionChanged(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    value: request.Value!),
+                cancellationToken);
+
             return TypedResults.Ok();
         }
 
         return HttpErrors.GeneralSettings.WrongApplicationSignUpValue(request.Value!);
     }
 
-    private static Results<Ok, BadRequest<HttpError>> SetApplicationName(
+    private static async Task<Results<Ok, BadRequest<HttpError>>> SetApplicationName(
         [FromBody] SetSettingRequest request,
-        AppSettings appSettings)
+        AppSettings appSettings,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
         appSettings.SetApplicationName(request.Value);
+
+        await auditLogService.Log(
+            Audit.Settings.AppNameChanged(
+                actor: httpContext.GetAuditLogActorContext(),
+                value: request.Value),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
     private static async Task<Results<Ok, BadRequest<HttpError>>> UploadTermsOfService(
         IFormFile? file,
         AppSettings appSettings,
-        UploadLegalFileOperation uploadLegalFileOperation)
+        UploadLegalFileOperation uploadLegalFileOperation,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0)
             return HttpErrors.GeneralSettings.FileIsNullOrEmpty();
@@ -218,22 +306,40 @@ public static class GeneralSettingsEndpoints
 
         if (file.FileName == appSettings.PrivacyPolicy.FileName)
             return HttpErrors.GeneralSettings.DuplicatedFileName(
-                "Terms of Service", 
+                "Terms of Service",
                 "Privacy Policy");
 
         await uploadLegalFileOperation.ExecuteForTermsOfService(file: file);
+
+        await auditLogService.Log(
+            Audit.Settings.TermsOfServiceUploaded(
+                actor: httpContext.GetAuditLogActorContext()),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
-    private static void DeleteTermsOfService(DeleteLegalFileOperation deleteLegalFileOperation)
+    private static async Task DeleteTermsOfService(
+        DeleteLegalFileOperation deleteLegalFileOperation,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
         deleteLegalFileOperation.ExecuteForTermsOfService();
+
+        await auditLogService.Log(
+            Audit.Settings.TermsOfServiceDeleted(
+                actor: httpContext.GetAuditLogActorContext()),
+            cancellationToken);
     }
 
     private static async Task<Results<Ok, BadRequest<HttpError>>> UploadPrivacyPolicy(
         IFormFile? file,
         AppSettings appSettings,
-        UploadLegalFileOperation uploadLegalFileOperation)
+        UploadLegalFileOperation uploadLegalFileOperation,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0)
             return HttpErrors.GeneralSettings.FileIsNullOrEmpty();
@@ -244,15 +350,30 @@ public static class GeneralSettingsEndpoints
 
         if (file.FileName == appSettings.TermsOfService.FileName)
             return HttpErrors.GeneralSettings.DuplicatedFileName(
-                "Privacy Policy", 
+                "Privacy Policy",
                 "Terms of Service");
 
         await uploadLegalFileOperation.ExecuteForPrivacyPolicy(file: file);
+
+        await auditLogService.Log(
+            Audit.Settings.PrivacyPolicyUploaded(
+                actor: httpContext.GetAuditLogActorContext()),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
-    private static void DeletePrivacyPolicy(DeleteLegalFileOperation deleteLegalFileOperation)
+    private static async Task DeletePrivacyPolicy(
+        DeleteLegalFileOperation deleteLegalFileOperation,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
         deleteLegalFileOperation.ExecuteForPrivacyPolicy();
+
+        await auditLogService.Log(
+            Audit.Settings.PrivacyPolicyDeleted(
+                actor: httpContext.GetAuditLogActorContext()),
+            cancellationToken);
     }
 }

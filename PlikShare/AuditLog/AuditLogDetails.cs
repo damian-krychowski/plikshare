@@ -44,4 +44,30 @@ public static class AuditLogDetails
             public required long? Value { get; init; }
         }
     }
+
+    public static class Settings
+    {
+        public class ValueChanged
+        {
+            public required string? Value { get; init; }
+        }
+
+        public class ToggleChanged
+        {
+            public required bool Value { get; init; }
+        }
+
+        public class DefaultPermissionsChanged
+        {
+            public required bool IsAdmin { get; init; }
+            public required List<string> Permissions { get; init; }
+        }
+
+        public class SignUpCheckbox
+        {
+            public int? Id { get; init; }
+            public required string Text { get; init; }
+            public required bool IsRequired { get; init; }
+        }
+    }
 }

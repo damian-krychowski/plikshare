@@ -59,7 +59,37 @@ public static class AuditLogEventTypes
         ];
     }
 
-    public static readonly string[] All = [..Auth.All, ..User.All];
+    public static class Settings
+    {
+        public const string AppNameChanged = "settings.app-name-changed";
+        public const string SignUpOptionChanged = "settings.sign-up-option-changed";
+        public const string DefaultPermissionsChanged = "settings.default-permissions-changed";
+        public const string DefaultMaxWorkspaceNumberChanged = "settings.default-max-workspace-number-changed";
+        public const string DefaultMaxWorkspaceSizeChanged = "settings.default-max-workspace-size-changed";
+        public const string DefaultMaxWorkspaceTeamMembersChanged = "settings.default-max-workspace-team-members-changed";
+        public const string AlertOnNewUserChanged = "settings.alert-on-new-user-changed";
+        public const string TermsOfServiceUploaded = "settings.terms-of-service-uploaded";
+        public const string TermsOfServiceDeleted = "settings.terms-of-service-deleted";
+        public const string PrivacyPolicyUploaded = "settings.privacy-policy-uploaded";
+        public const string PrivacyPolicyDeleted = "settings.privacy-policy-deleted";
+        public const string SignUpCheckboxCreatedOrUpdated = "settings.sign-up-checkbox-created-or-updated";
+        public const string SignUpCheckboxDeleted = "settings.sign-up-checkbox-deleted";
+        public const string PasswordLoginToggled = "settings.password-login-toggled";
+
+        public static readonly string[] All =
+        [
+            AppNameChanged, SignUpOptionChanged,
+            DefaultPermissionsChanged,
+            DefaultMaxWorkspaceNumberChanged, DefaultMaxWorkspaceSizeChanged, DefaultMaxWorkspaceTeamMembersChanged,
+            AlertOnNewUserChanged,
+            TermsOfServiceUploaded, TermsOfServiceDeleted,
+            PrivacyPolicyUploaded, PrivacyPolicyDeleted,
+            SignUpCheckboxCreatedOrUpdated, SignUpCheckboxDeleted,
+            PasswordLoginToggled
+        ];
+    }
+
+    public static readonly string[] All = [..Auth.All, ..User.All, ..Settings.All];
 }
 
 public static class AuditLogEventCategories
