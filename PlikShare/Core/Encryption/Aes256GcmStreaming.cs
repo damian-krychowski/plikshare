@@ -131,14 +131,17 @@ public static class Aes256GcmStreaming
 
         while (bytesToCopyLeft > 0)
         {
-            var bytesToCopyInThisSegment = Math.Min(nextSegmentBytesLeft, bytesToCopyLeft);
+            var bytesToCopyInThisSegment = Math.Min(
+                nextSegmentBytesLeft, 
+                bytesToCopyLeft);
 
             var readResult = await reader.ReadAtLeastAsync(
                 minimumSize: bytesToCopyInThisSegment);
 
             if (readResult.Buffer.Length == 0 && readResult.IsCompleted)
                 throw new InvalidOperationException(
-                    "Unexpected end of input stream while copying plaintext data");
+                    $"Unexpected end of input stream while copying plaintext data. " +
+                    $"BytesToCopyLeft: {bytesToCopyLeft}, PartNumber: {partNumber}, PartSizeInBytes: {partSizeInBytes}");
 
             var actualBytesToCopy = (int)Math.Min(
                 readResult.Buffer.Length,
@@ -156,10 +159,6 @@ public static class Aes256GcmStreaming
 
             // For subsequent segments after first one
             nextSegmentBytesLeft = SegmentsCiphertextSize;
-
-            if (readResult.IsCompleted && bytesToCopyLeft > 0)
-                throw new InvalidOperationException(
-                    "Input stream completed before all expected plaintext was copied");
         }
     }
 
@@ -909,6 +908,8 @@ public class EncryptedBytesRangeCalculator(
     private readonly long _firstSegmentFullSize = headerSize + firstSegmentCiphertextSize + tagSize;
     private readonly long _nextSegmentFullSize = nextSegmentsCiphertextSize + tagSize;
 
+    private long FirstSegmentTagStartIndex => headerSize + firstSegmentCiphertextSize;
+
     public EncryptedBytesRange FromUnencryptedRange(
         BytesRange unencryptedRange, 
         long unencryptedFileSize)
@@ -929,7 +930,26 @@ public class EncryptedBytesRangeCalculator(
 
     public Segment FindSegment(long encryptedIndex, long encryptedFileLastByteIndex)
     {
-        if (encryptedIndex < firstSegmentCiphertextSize)
+        if (encryptedIndex < 0)
+            throw new ArgumentOutOfRangeException(
+                nameof(encryptedIndex),
+                encryptedIndex,
+                "Encrypted index cannot be negative.");
+
+        if (encryptedIndex < headerSize)
+            throw new ArgumentOutOfRangeException(
+                nameof(encryptedIndex),
+                encryptedIndex,
+                $"Encrypted index {encryptedIndex} falls within the header region [0..{headerSize - 1}]. " +
+                $"It must point to a ciphertext byte.");
+
+        if (encryptedIndex > encryptedFileLastByteIndex)
+            throw new ArgumentOutOfRangeException(
+                nameof(encryptedIndex),
+                encryptedIndex,
+                $"Encrypted index {encryptedIndex} exceeds the last byte of the encrypted file ({encryptedFileLastByteIndex}).");
+
+        if (encryptedIndex < FirstSegmentTagStartIndex)
         {
             return new Segment(
                 Number: 0,
@@ -938,12 +958,31 @@ public class EncryptedBytesRangeCalculator(
                     _firstSegmentFullSize - 1,
                     encryptedFileLastByteIndex));
         }
-        
+
+        if (encryptedIndex < _firstSegmentFullSize)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(encryptedIndex),
+                encryptedIndex,
+                $"Encrypted index {encryptedIndex} falls within the tag region of segment 0 " +
+                $"[{FirstSegmentTagStartIndex}..{_firstSegmentFullSize - 1}].");
+        }
+
         var remainingBytes = encryptedIndex - _firstSegmentFullSize;
         var fullSegments = remainingBytes / _nextSegmentFullSize;
-
-        var segmentNumber = (int)fullSegments + 1;
+        var segmentNumber = (int) fullSegments + 1;
         var segmentStart = _firstSegmentFullSize + (segmentNumber - 1) * _nextSegmentFullSize;
+
+        var indexInSegment = encryptedIndex - segmentStart;
+
+        if (indexInSegment >= nextSegmentsCiphertextSize)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(encryptedIndex),
+                encryptedIndex,
+                $"Encrypted index {encryptedIndex} falls within the tag region of segment {segmentNumber} " +
+                $"[{segmentStart + nextSegmentsCiphertextSize}..{segmentStart + _nextSegmentFullSize - 1}].");
+        }
 
         return new Segment(
             Number: segmentNumber,

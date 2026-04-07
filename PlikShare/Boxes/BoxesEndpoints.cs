@@ -31,6 +31,7 @@ using PlikShare.Boxes.UpdateIsEnabled;
 using PlikShare.Boxes.UpdateIsEnabled.Contracts;
 using PlikShare.Boxes.UpdateName;
 using PlikShare.Boxes.UpdateName.Contracts;
+using PlikShare.AuditLog;
 using PlikShare.Boxes.Validation;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
@@ -115,6 +116,7 @@ public static class BoxesEndpoints
         [FromBody] CreateBoxRequestDto request,
         HttpContext httpContext,
         CreateBoxQuery createBoxQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -125,17 +127,29 @@ public static class BoxesEndpoints
             folderExternalId: request.FolderExternalId,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            CreateBoxQuery.ResultCode.Ok => TypedResults.Ok(new CreateBoxResponseDto(
-                ExternalId: result.BoxExternalId)),
+            case CreateBoxQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Box.Created(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        externalId: result.BoxExternalId,
+                        name: request.Name,
+                        folderExternalId: request.FolderExternalId),
+                    cancellationToken);
 
-            CreateBoxQuery.ResultCode.FolderWasNotFound => HttpErrors.Folder.NotFound(request.FolderExternalId),
+                return TypedResults.Ok(new CreateBoxResponseDto(
+                    ExternalId: result.BoxExternalId));
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateBoxQuery),
-                resultValueStr: result.Code.ToString())
-        };
+            case CreateBoxQuery.ResultCode.FolderWasNotFound:
+                return HttpErrors.Folder.NotFound(request.FolderExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateBoxQuery),
+                    resultValueStr: result.Code.ToString());
+        }
     }
 
     private static GetBoxesResponseDto GetBoxes(
@@ -168,10 +182,13 @@ public static class BoxesEndpoints
         HttpContext httpContext,
         BoxCache boxCache,
         UpdateBoxNameQuery updateBoxNameQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxContext = httpContext.GetBoxContext();
+
         var result = await updateBoxNameQuery.Execute(
-            box: httpContext.GetBoxContext(),
+            box: boxContext,
             name: request.Name,
             cancellationToken: cancellationToken);
 
@@ -179,6 +196,15 @@ public static class BoxesEndpoints
         {
             case UpdateBoxNameQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.Box.NameUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxContext.Workspace.ExternalId,
+                        externalId: boxExternalId,
+                        name: request.Name),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case UpdateBoxNameQuery.ResultCode.BoxNotFound:
@@ -197,10 +223,13 @@ public static class BoxesEndpoints
         HttpContext httpContext,
         BoxCache boxCache,
         UpdateBoxHeaderIsEnabledQuery updateBoxHeaderIsEnabledQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxContext = httpContext.GetBoxContext();
+
         var resultCode = await updateBoxHeaderIsEnabledQuery.Execute(
-            box: httpContext.GetBoxContext(),
+            box: boxContext,
             isHeaderEnabled: request.IsEnabled,
             cancellationToken: cancellationToken);
 
@@ -208,6 +237,15 @@ public static class BoxesEndpoints
         {
             case UpdateBoxHeaderIsEnabledQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.Box.HeaderIsEnabledUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxContext.Workspace.ExternalId,
+                        externalId: boxExternalId,
+                        isEnabled: request.IsEnabled),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case UpdateBoxHeaderIsEnabledQuery.ResultCode.BoxNotFound:
@@ -226,10 +264,13 @@ public static class BoxesEndpoints
         HttpContext httpContext,
         BoxCache boxCache,
         UpdateBoxHeaderQuery updateBoxHeaderQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxContext = httpContext.GetBoxContext();
+
         var resultCode = await updateBoxHeaderQuery.Execute(
-            box: httpContext.GetBoxContext(),
+            box: boxContext,
             json: request.Json,
             html: request.Html,
             cancellationToken: cancellationToken);
@@ -238,6 +279,14 @@ public static class BoxesEndpoints
         {
             case UpdateBoxHeaderQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.Box.HeaderUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxContext.Workspace.ExternalId,
+                        externalId: boxExternalId),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case UpdateBoxHeaderQuery.ResultCode.BoxNotFound:
@@ -256,10 +305,13 @@ public static class BoxesEndpoints
         HttpContext httpContext,
         BoxCache boxCache,
         UpdateBoxFooterIsEnabledQuery updateBoxFooterIsEnabledQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxContext = httpContext.GetBoxContext();
+
         var resultCode = await updateBoxFooterIsEnabledQuery.Execute(
-            box: httpContext.GetBoxContext(),
+            box: boxContext,
             isFooterEnabled: request.IsEnabled,
             cancellationToken: cancellationToken);
 
@@ -267,6 +319,15 @@ public static class BoxesEndpoints
         {
             case UpdateBoxFooterIsEnabledQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.Box.FooterIsEnabledUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxContext.Workspace.ExternalId,
+                        externalId: boxExternalId,
+                        isEnabled: request.IsEnabled),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case UpdateBoxFooterIsEnabledQuery.ResultCode.BoxNotFound:
@@ -285,10 +346,13 @@ public static class BoxesEndpoints
         HttpContext httpContext,
         BoxCache boxCache,
         UpdateBoxFooterQuery updateBoxFooterQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxContext = httpContext.GetBoxContext();
+
         var resultCode = await updateBoxFooterQuery.Execute(
-            box: httpContext.GetBoxContext(),
+            box: boxContext,
             json: request.Json,
             html: request.Html,
             cancellationToken: cancellationToken);
@@ -297,6 +361,14 @@ public static class BoxesEndpoints
         {
             case UpdateBoxFooterQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.Box.FooterUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxContext.Workspace.ExternalId,
+                        externalId: boxExternalId),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case UpdateBoxFooterQuery.ResultCode.BoxNotFound:
@@ -315,10 +387,13 @@ public static class BoxesEndpoints
         HttpContext httpContext,
         BoxCache boxCache,
         UpdateBoxFolderQuery updateBoxFolderQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxContext = httpContext.GetBoxContext();
+
         var result = await updateBoxFolderQuery.Execute(
-            box: httpContext.GetBoxContext(),
+            box: boxContext,
             folderExternalId: request.FolderExternalId,
             cancellationToken: cancellationToken);
 
@@ -326,6 +401,15 @@ public static class BoxesEndpoints
         {
             case UpdateBoxFolderQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.Box.FolderUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxContext.Workspace.ExternalId,
+                        externalId: boxExternalId,
+                        folderExternalId: request.FolderExternalId),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case UpdateBoxFolderQuery.ResultCode.FolderNotFound:
@@ -347,10 +431,13 @@ public static class BoxesEndpoints
         HttpContext httpContext,
         BoxCache boxCache,
         UpdateBoxIsEnabledQuery updateBoxIsEnabledQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxContext = httpContext.GetBoxContext();
+
         var result = await updateBoxIsEnabledQuery.Execute(
-            box: httpContext.GetBoxContext(),
+            box: boxContext,
             isEnabled: request.IsEnabled,
             cancellationToken: cancellationToken);
 
@@ -358,6 +445,15 @@ public static class BoxesEndpoints
         {
             case UpdateBoxIsEnabledQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.Box.IsEnabledUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxContext.Workspace.ExternalId,
+                        externalId: boxExternalId,
+                        isEnabled: request.IsEnabled),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case UpdateBoxIsEnabledQuery.ResultCode.BoxNotFound:
@@ -375,10 +471,13 @@ public static class BoxesEndpoints
         HttpContext httpContext,
         BoxCache boxCache,
         ScheduleBoxesDeleteQuery scheduleBoxesDeleteQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxContext = httpContext.GetBoxContext();
+
         var resultCode = await scheduleBoxesDeleteQuery.Execute(
-            box: httpContext.GetBoxContext(),
+            box: boxContext,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
@@ -386,6 +485,14 @@ public static class BoxesEndpoints
         {
             case ScheduleBoxesDeleteQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.Box.Deleted(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxContext.Workspace.ExternalId,
+                        externalId: boxExternalId),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case ScheduleBoxesDeleteQuery.ResultCode.BoxesNotFound:
@@ -404,6 +511,7 @@ public static class BoxesEndpoints
         HttpContext httpContext,
         CreateBoxMemberInvitationOperation createBoxMemberInvitationOperation,
         CountWorkspaceTotalTeamMembersQuery countWorkspaceTotalTeamMembersQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var boxContext = httpContext.GetBoxContext();
@@ -431,6 +539,14 @@ public static class BoxesEndpoints
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
+        await auditLogService.Log(
+            Audit.Box.MemberInvited(
+                actor: httpContext.GetAuditLogActorContext(),
+                workspaceExternalId: boxContext.Workspace.ExternalId,
+                externalId: boxExternalId,
+                memberEmails: request.MemberEmails),
+            cancellationToken);
+
         return TypedResults.Ok(new CreateBoxInvitationResponseDto
         {
             Members = result
@@ -448,6 +564,7 @@ public static class BoxesEndpoints
         HttpContext httpContext,
         BoxMembershipCache boxMembershipCache,
         RevokeBoxMemberQuery revokeBoxMemberQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var boxMembership = await boxMembershipCache.TryGetBoxMembership(
@@ -467,6 +584,15 @@ public static class BoxesEndpoints
         {
             case RevokeBoxMemberQuery.ResultCode.Ok:
                 await boxMembershipCache.InvalidateEntry(boxMembership, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.Box.MemberRevoked(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxMembership.Box.Workspace.ExternalId,
+                        externalId: boxExternalId,
+                        memberEmail: boxMembership.Member.Email.Value),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case RevokeBoxMemberQuery.ResultCode.MembershipNotFound:
@@ -486,6 +612,7 @@ public static class BoxesEndpoints
         HttpContext httpContext,
         BoxMembershipCache boxMembershipCache,
         UpdateBoxMemberPermissionsQuery updateBoxMemberPermissionsQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var boxMembership = await boxMembershipCache.TryGetBoxMembership(
@@ -496,22 +623,33 @@ public static class BoxesEndpoints
         if (boxMembership is null)
             return HttpErrors.Box.MemberNotFound(boxExternalId, memberExternalId);
 
+        var permissions = new BoxPermissions(
+            AllowList: request.AllowList,
+            AllowUpload: request.AllowUpload,
+            AllowDownload: request.AllowDownload,
+            AllowDeleteFile: request.AllowDeleteFile,
+            AllowRenameFile: request.AllowRenameFile,
+            AllowMoveItems: request.AllowMoveItems,
+            AllowCreateFolder: request.AllowCreateFolder,
+            AllowRenameFolder: request.AllowRenameFolder,
+            AllowDeleteFolder: request.AllowDeleteFolder);
+
         await updateBoxMemberPermissionsQuery.Execute(
             boxMembership: boxMembership,
-            permissions: new BoxPermissions(
-                AllowList: request.AllowList,
-                AllowUpload: request.AllowUpload,
-                AllowDownload: request.AllowDownload,
-                AllowDeleteFile: request.AllowDeleteFile,
-                AllowRenameFile: request.AllowRenameFile,
-                AllowMoveItems: request.AllowMoveItems,
-                AllowCreateFolder: request.AllowCreateFolder,
-                AllowRenameFolder: request.AllowRenameFolder,
-                AllowDeleteFolder: request.AllowDeleteFolder),
+            permissions: permissions,
             cancellationToken: cancellationToken);
 
         await boxMembershipCache.InvalidateEntry(
             boxMembership,
+            cancellationToken);
+
+        await auditLogService.Log(
+            Audit.Box.MemberPermissionsUpdated(
+                actor: httpContext.GetAuditLogActorContext(),
+                workspaceExternalId: boxMembership.Box.Workspace.ExternalId,
+                externalId: boxExternalId,
+                memberEmail: boxMembership.Member.Email.Value,
+                permissions: permissions),
             cancellationToken);
 
         return TypedResults.Ok();
@@ -522,24 +660,39 @@ public static class BoxesEndpoints
         [FromBody] CreateBoxLinkRequestDto request,
         HttpContext httpContext,
         CreateBoxLinkQuery createBoxLinkQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxContext = httpContext.GetBoxContext();
+
         var result = await createBoxLinkQuery.Execute(
-            box: httpContext.GetBoxContext(),
+            box: boxContext,
             name: request.Name,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            CreateBoxLinkQuery.ResultCode.Ok => TypedResults.Ok(new CreateBoxLinkResponseDto(
-                ExternalId: result.BoxLink.ExternalId,
-                AccessCode: result.BoxLink.AccessCode)),
+            case CreateBoxLinkQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Box.LinkCreated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxContext.Workspace.ExternalId,
+                        boxExternalId: boxExternalId,
+                        externalId: result.BoxLink.ExternalId,
+                        name: request.Name),
+                    cancellationToken);
 
-            CreateBoxLinkQuery.ResultCode.BoxNotFound => HttpErrors.Box.NotFound(boxExternalId),
+                return TypedResults.Ok(new CreateBoxLinkResponseDto(
+                    ExternalId: result.BoxLink.ExternalId,
+                    AccessCode: result.BoxLink.AccessCode));
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateBoxLinkQuery),
-                resultValueStr: result.Code.ToString())
-        };
+            case CreateBoxLinkQuery.ResultCode.BoxNotFound:
+                return HttpErrors.Box.NotFound(boxExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateBoxLinkQuery),
+                    resultValueStr: result.Code.ToString());
+        }
     }
 }

@@ -14,6 +14,7 @@ using PlikShare.BoxLinks.UpdatePermissions;
 using PlikShare.BoxLinks.UpdatePermissions.Contracts;
 using PlikShare.BoxLinks.UpdateWidgetOrigins;
 using PlikShare.BoxLinks.UpdateWidgetOrigins.Contracts;
+using PlikShare.AuditLog;
 using PlikShare.BoxLinks.Validation;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Utils;
@@ -61,10 +62,13 @@ public static class BoxLinksEndpoints
         HttpContext httpContext,
         UpdateBoxLinkWidgetOriginsQuery updateBoxLinkWidgetOriginsQuery,
         BoxLinkCache boxLinkCache,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxLinkContext = httpContext.GetBoxLinkContext();
+
         var resultCode = await updateBoxLinkWidgetOriginsQuery.Execute(
-            boxLink: httpContext.GetBoxLinkContext(),
+            boxLink: boxLinkContext,
             widgetOrigins: request.WidgetOrigins,
             cancellationToken: cancellationToken);
 
@@ -72,6 +76,16 @@ public static class BoxLinksEndpoints
         {
             case UpdateBoxLinkWidgetOriginsQuery.ResultCode.Ok:
                 await boxLinkCache.InvalidateEntry(boxLinkExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.BoxLink.WidgetOriginsUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxLinkContext.Box.Workspace.ExternalId,
+                        boxExternalId: boxLinkContext.Box.ExternalId,
+                        externalId: boxLinkExternalId,
+                        widgetOrigins: request.WidgetOrigins),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case UpdateBoxLinkWidgetOriginsQuery.ResultCode.BoxLinkNotFound:
@@ -89,16 +103,28 @@ public static class BoxLinksEndpoints
         DeleteBoxLinkQuery deleteBoxLinkQuery,
         HttpContext httpContext,
         BoxLinkCache boxLinkCache,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxLinkContext = httpContext.GetBoxLinkContext();
+
         var resultCode = await deleteBoxLinkQuery.Execute(
-            boxLink: httpContext.GetBoxLinkContext(),
+            boxLink: boxLinkContext,
             cancellationToken: cancellationToken);
 
         switch (resultCode)
         {
             case DeleteBoxLinkQuery.ResultCode.Ok:
                 await boxLinkCache.InvalidateEntry(boxLinkExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.BoxLink.Deleted(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxLinkContext.Box.Workspace.ExternalId,
+                        boxExternalId: boxLinkContext.Box.ExternalId,
+                        externalId: boxLinkExternalId),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case DeleteBoxLinkQuery.ResultCode.BoxLinkNotFound:
@@ -116,16 +142,28 @@ public static class BoxLinksEndpoints
         RegenerateBoxLinkAccessCodeQuery regenerateBoxLinkAccessCodeQuery,
         HttpContext httpContext,
         BoxLinkCache boxLinkCache,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxLinkContext = httpContext.GetBoxLinkContext();
+
         var result = await regenerateBoxLinkAccessCodeQuery.Execute(
-            boxLink: httpContext.GetBoxLinkContext(),
+            boxLink: boxLinkContext,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
         {
             case RegenerateBoxLinkAccessCodeQuery.ResultCode.Ok:
                 await boxLinkCache.InvalidateEntry(boxLinkExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.BoxLink.AccessCodeRegenerated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxLinkContext.Box.Workspace.ExternalId,
+                        boxExternalId: boxLinkContext.Box.ExternalId,
+                        externalId: boxLinkExternalId),
+                    cancellationToken);
+
                 return TypedResults.Ok(new RegenerateBoxLinkAccessCodeResponseDto(
                     AccessCode: result.AccessCode!));
 
@@ -145,26 +183,41 @@ public static class BoxLinksEndpoints
         UpdateBoxLinkPermissionsQuery updateBoxLinkPermissionsQuery,
         HttpContext httpContext,
         BoxLinkCache boxLinkCache,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxLinkContext = httpContext.GetBoxLinkContext();
+
+        var permissions = new BoxPermissions(
+            AllowDownload: request.AllowDownload,
+            AllowUpload: request.AllowUpload,
+            AllowList: request.AllowList,
+            AllowDeleteFile: request.AllowDeleteFile,
+            AllowRenameFile: request.AllowRenameFile,
+            AllowMoveItems: request.AllowMoveItems,
+            AllowCreateFolder: request.AllowCreateFolder,
+            AllowDeleteFolder: request.AllowDeleteFolder,
+            AllowRenameFolder: request.AllowRenameFolder);
+
         var resultCode = await updateBoxLinkPermissionsQuery.Execute(
-            boxLink: httpContext.GetBoxLinkContext(),
-            permissions: new BoxPermissions(
-                AllowDownload: request.AllowDownload,
-                AllowUpload: request.AllowUpload,
-                AllowList: request.AllowList,
-                AllowDeleteFile: request.AllowDeleteFile,
-                AllowRenameFile: request.AllowRenameFile,
-                AllowMoveItems: request.AllowMoveItems,
-                AllowCreateFolder: request.AllowCreateFolder,
-                AllowDeleteFolder: request.AllowDeleteFolder,
-                AllowRenameFolder: request.AllowRenameFolder),
+            boxLink: boxLinkContext,
+            permissions: permissions,
             cancellationToken: cancellationToken);
 
         switch (resultCode)
         {
             case UpdateBoxLinkPermissionsQuery.ResultCode.Ok:
                 await boxLinkCache.InvalidateEntry(boxLinkExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.BoxLink.PermissionsUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxLinkContext.Box.Workspace.ExternalId,
+                        boxExternalId: boxLinkContext.Box.ExternalId,
+                        externalId: boxLinkExternalId,
+                        permissions: permissions),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case UpdateBoxLinkPermissionsQuery.ResultCode.BoxLinkNotFound:
@@ -183,10 +236,13 @@ public static class BoxLinksEndpoints
         UpdateBoxLinkIsEnabledQuery updateBoxLinkIsEnabledQuery,
         HttpContext httpContext,
         BoxLinkCache boxLinkCache,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxLinkContext = httpContext.GetBoxLinkContext();
+
         var resultCode = await updateBoxLinkIsEnabledQuery.Execute(
-            boxLink: httpContext.GetBoxLinkContext(),
+            boxLink: boxLinkContext,
             isEnabled: request.IsEnabled,
             cancellationToken: cancellationToken);
 
@@ -194,6 +250,16 @@ public static class BoxLinksEndpoints
         {
             case UpdateBoxLinkIsEnabledQuery.ResultCode.Ok:
                 await boxLinkCache.InvalidateEntry(boxLinkExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.BoxLink.IsEnabledUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxLinkContext.Box.Workspace.ExternalId,
+                        boxExternalId: boxLinkContext.Box.ExternalId,
+                        externalId: boxLinkExternalId,
+                        isEnabled: request.IsEnabled),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case UpdateBoxLinkIsEnabledQuery.ResultCode.BoxLinkNotFound:
@@ -212,10 +278,13 @@ public static class BoxLinksEndpoints
        HttpContext httpContext,
        UpdateBoxLinkNameQuery updateBoxLinkNameQuery,
        BoxLinkCache boxLinkCache,
+       AuditLogService auditLogService,
        CancellationToken cancellationToken)
     {
+        var boxLinkContext = httpContext.GetBoxLinkContext();
+
         var resultCode = await updateBoxLinkNameQuery.Execute(
-            boxLink: httpContext.GetBoxLinkContext(),
+            boxLink: boxLinkContext,
             name: request.Name,
             cancellationToken: cancellationToken);
 
@@ -223,6 +292,16 @@ public static class BoxLinksEndpoints
         {
             case UpdateBoxLinkNameQuery.ResultCode.Ok:
                 await boxLinkCache.InvalidateEntry(boxLinkExternalId, cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.BoxLink.NameUpdated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: boxLinkContext.Box.Workspace.ExternalId,
+                        boxExternalId: boxLinkContext.Box.ExternalId,
+                        externalId: boxLinkExternalId,
+                        name: request.Name),
+                    cancellationToken);
+
                 return TypedResults.Ok();
 
             case UpdateBoxLinkNameQuery.ResultCode.BoxLinkNotFound:

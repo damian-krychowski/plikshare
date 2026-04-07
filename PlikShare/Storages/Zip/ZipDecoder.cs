@@ -79,7 +79,7 @@ namespace PlikShare.Storages.Zip;
 /// [28-29] 2 bytes  - Extra field length (m)
 /// [30+]   n bytes  - File name
 /// [30+n]  m bytes  - Extra field
-/// [30+n+m] ...    - File data
+/// [30+n+m] ...     - File data
 /// </summary>
 public static class ZipDecoder
 {
@@ -294,7 +294,9 @@ public static class ZipDecoder
                 fileSizeInBytes: file.SizeInBytes,
                 range: new BytesRange(
                     //we assume that someone could have used zip64 so we are getting ready to read its locator
-                    file.SizeInBytes - EocdMinimumSize,
+                    //for files smaller than EocdMinimumSize (e.g. empty ZIPs with just the 22-byte EOCD
+                    //and no ZIP64 locator), we read from the start of the file to avoid a negative offset
+                    Math.Max(0, file.SizeInBytes - EocdMinimumSize),
                     file.SizeInBytes - 1),
                 workspace: workspace,
                 output: pipe.Writer,

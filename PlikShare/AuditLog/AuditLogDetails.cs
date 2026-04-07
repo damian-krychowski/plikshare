@@ -1,4 +1,7 @@
 using PlikShare.AuthProviders.Id;
+using PlikShare.Boxes.Id;
+using PlikShare.Boxes.Permissions;
+using PlikShare.BoxLinks.Id;
 using PlikShare.EmailProviders.Id;
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
@@ -266,6 +269,149 @@ public static class AuditLogDetails
             public required List<FolderExtId> FolderExternalIds { get; init; }
             public required List<FileExtId> FileExternalIds { get; init; }
             public required List<FileUploadExtId> FileUploadExternalIds { get; init; }
+        }
+    }
+
+    public static class Box
+    {
+        public class Created
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId ExternalId { get; init; }
+            public required string Name { get; init; }
+            public required FolderExtId FolderExternalId { get; init; }
+        }
+
+        public class Deleted
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId ExternalId { get; init; }
+        }
+
+        public class NameUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId ExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+
+        public class HeaderIsEnabledUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId ExternalId { get; init; }
+            public required bool IsEnabled { get; init; }
+        }
+
+        public class HeaderUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId ExternalId { get; init; }
+        }
+
+        public class FooterIsEnabledUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId ExternalId { get; init; }
+            public required bool IsEnabled { get; init; }
+        }
+
+        public class FooterUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId ExternalId { get; init; }
+        }
+
+        public class FolderUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId ExternalId { get; init; }
+            public required FolderExtId FolderExternalId { get; init; }
+        }
+
+        public class IsEnabledUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId ExternalId { get; init; }
+            public required bool IsEnabled { get; init; }
+        }
+
+        public class MemberInvited
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId ExternalId { get; init; }
+            public required List<string> MemberEmails { get; init; }
+        }
+
+        public class MemberRevoked
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId ExternalId { get; init; }
+            public required string MemberEmail { get; init; }
+        }
+
+        public class MemberPermissionsUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId ExternalId { get; init; }
+            public required string MemberEmail { get; init; }
+            public required BoxPermissions Permissions { get; init; }
+        }
+
+        public class LinkCreated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId BoxExternalId { get; init; }
+            public required BoxLinkExtId ExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+    }
+
+    public static class BoxLink
+    {
+        public class Deleted
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId BoxExternalId { get; init; }
+            public required BoxLinkExtId ExternalId { get; init; }
+        }
+
+        public class NameUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId BoxExternalId { get; init; }
+            public required BoxLinkExtId ExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+
+        public class WidgetOriginsUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId BoxExternalId { get; init; }
+            public required BoxLinkExtId ExternalId { get; init; }
+            public required List<string> WidgetOrigins { get; init; }
+        }
+
+        public class IsEnabledUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId BoxExternalId { get; init; }
+            public required BoxLinkExtId ExternalId { get; init; }
+            public required bool IsEnabled { get; init; }
+        }
+
+        public class PermissionsUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId BoxExternalId { get; init; }
+            public required BoxLinkExtId ExternalId { get; init; }
+            public required BoxPermissions Permissions { get; init; }
+        }
+
+        public class AccessCodeRegenerated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required BoxExtId BoxExternalId { get; init; }
+            public required BoxLinkExtId ExternalId { get; init; }
         }
     }
 

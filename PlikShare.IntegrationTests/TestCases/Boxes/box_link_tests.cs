@@ -1,6 +1,8 @@
 using FluentAssertions;
+using PlikShare.AuditLog;
 using PlikShare.Boxes.CreateLink.Contracts;
 using PlikShare.Boxes.Get.Contracts;
+using PlikShare.Boxes.Permissions;
 using PlikShare.BoxLinks.UpdatePermissions.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using Xunit.Abstractions;
@@ -117,7 +119,92 @@ public class box_link_tests: TestFixture
         ]);
     }
     
+    // --- Audit log tests ---
+
+    [Fact]
+    public async Task creating_box_link_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(
+            user: Users.AppOwner);
+
+        var box = await CreateBox(
+            user: user);
+
+        //when
+        var boxLink = await Api.Boxes.CreateBoxLink(
+            workspaceExternalId: box.WorkspaceExternalId,
+            boxExternalId: box.ExternalId,
+            request: new CreateBoxLinkRequestDto(
+                Name: "audit-link"),
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.Box.LinkCreated>(
+            expectedEventType: AuditLogEventTypes.Box.LinkCreated,
+            assertDetails: details =>
+            {
+                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
+                details.BoxExternalId.Should().Be(box.ExternalId);
+                details.ExternalId.Should().Be(boxLink.ExternalId);
+                details.Name.Should().Be("audit-link");
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task updating_box_link_permissions_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(
+            user: Users.AppOwner);
+
+        var boxLink = await CreateBoxLink(
+            user: user);
+
+        //when
+        await Api.BoxLinks.UpdatePermissions(
+            workspaceExternalId: boxLink.WorkspaceExternalId,
+            boxLinkExternalId: boxLink.ExternalId,
+            request: new UpdateBoxLinkPermissionsRequestDto(
+                AllowUpload: true,
+                AllowList: true,
+                AllowCreateFolder: true,
+                AllowDeleteFile: false,
+                AllowDeleteFolder: false,
+                AllowMoveItems: false,
+                AllowRenameFile: false,
+                AllowRenameFolder: false,
+                AllowDownload: true),
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.BoxLink.PermissionsUpdated>(
+            expectedEventType: AuditLogEventTypes.BoxLink.PermissionsUpdated,
+            assertDetails: details =>
+            {
+                details.WorkspaceExternalId.Should().Be(boxLink.WorkspaceExternalId);
+                details.BoxExternalId.Should().Be(boxLink.BoxExternalId);
+                details.ExternalId.Should().Be(boxLink.ExternalId);
+                details.Permissions.Should().BeEquivalentTo(new BoxPermissions(
+                    AllowDownload: true,
+                    AllowUpload: true,
+                    AllowList: true,
+                    AllowDeleteFile: false,
+                    AllowRenameFile: false,
+                    AllowMoveItems: false,
+                    AllowCreateFolder: true,
+                    AllowRenameFolder: false,
+                    AllowDeleteFolder: false));
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Warning);
+    }
+
     public box_link_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
-    { 
+    {
     }
 }

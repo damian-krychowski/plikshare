@@ -3,6 +3,7 @@ using PlikShare.AuditLog;
 using PlikShare.BulkDelete.Contracts;
 using PlikShare.Dashboard.Content.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
+using PlikShare.Storages.Encryption;
 using PlikShare.Workspaces.ChangeOwner.Contracts;
 using PlikShare.Workspaces.Create.Contracts;
 using PlikShare.Workspaces.Get.Contracts;
@@ -26,8 +27,12 @@ public class workspace_tests : TestFixture
         HostFixture8081 hostFixture,
         ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
-        AppOwner = SignIn(user: Users.AppOwner).Result;
-        Storage = CreateHardDriveStorage(user: AppOwner).Result;
+        AppOwner = SignIn(
+            user: Users.AppOwner).Result;
+
+        Storage = CreateHardDriveStorage(
+            user: AppOwner,
+            encryptionType: StorageEncryptionType.None).Result;
     }
 
     // --- Functional tests ---

@@ -6,6 +6,7 @@ using PlikShare.Folders.List.Contracts;
 using PlikShare.Folders.MoveToFolder.Contracts;
 using PlikShare.Folders.Rename.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
+using PlikShare.Storages.Encryption;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Folders;
@@ -20,8 +21,12 @@ public class folder_tests : TestFixture
         HostFixture8081 hostFixture,
         ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
-        AppOwner = SignIn(user: Users.AppOwner).Result;
-        Storage = CreateHardDriveStorage(user: AppOwner).Result;
+        AppOwner = SignIn(
+            user: Users.AppOwner).Result;
+
+        Storage = CreateHardDriveStorage(
+            user: AppOwner,
+            encryptionType: StorageEncryptionType.None).Result;
     }
 
     // --- Functional tests ---

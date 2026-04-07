@@ -1,8 +1,10 @@
 using FluentAssertions;
+using PlikShare.AuditLog;
 using PlikShare.Boxes.Create.Contracts;
 using PlikShare.Boxes.Get.Contracts;
 using PlikShare.Boxes.List.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
+using PlikShare.Storages.Encryption;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Boxes;
@@ -18,7 +20,8 @@ public class create_box_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            user: user);
+            user: user,
+            encryptionType: StorageEncryptionType.None);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
@@ -71,7 +74,8 @@ public class create_box_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            user: user);
+            user: user,
+            encryptionType: StorageEncryptionType.None);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
@@ -128,7 +132,51 @@ public class create_box_tests: TestFixture
         });
     }
     
+    // --- Audit log tests ---
+
+    [Fact]
+    public async Task creating_box_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(
+            user: Users.AppOwner);
+
+        var hardDrive = await CreateHardDriveStorage(
+            user: user,
+            encryptionType: StorageEncryptionType.None);
+
+        var workspace = await CreateWorkspace(
+            storage: hardDrive,
+            user: user);
+
+        var folder = await CreateFolder(
+            workspace: workspace,
+            user: user);
+
+        //when
+        var box = await Api.Boxes.Create(
+            workspaceExternalId: workspace.ExternalId,
+            request: new CreateBoxRequestDto(
+                Name: "my audit box",
+                FolderExternalId: folder.ExternalId),
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.Box.Created>(
+            expectedEventType: AuditLogEventTypes.Box.Created,
+            assertDetails: details =>
+            {
+                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
+                details.ExternalId.Should().Be(box.ExternalId);
+                details.Name.Should().Be("my audit box");
+                details.FolderExternalId.Should().Be(folder.ExternalId);
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
     public create_box_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
-    { 
+    {
     }
 }

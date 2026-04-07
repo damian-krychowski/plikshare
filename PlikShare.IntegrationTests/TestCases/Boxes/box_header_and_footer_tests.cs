@@ -1,4 +1,5 @@
 using FluentAssertions;
+using PlikShare.AuditLog;
 using PlikShare.Boxes.Get.Contracts;
 using PlikShare.Boxes.UpdateFooter.Contracts;
 using PlikShare.Boxes.UpdateFooterIsEnabled.Contracts;
@@ -194,7 +195,135 @@ public class box_header_and_footer_tests: TestFixture
         });
     }
     
+    // --- Audit log tests ---
+
+    [Fact]
+    public async Task enabling_box_header_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(
+            user: Users.AppOwner);
+
+        var box = await CreateBox(
+            user: user);
+
+        //when
+        await Api.Boxes.UpdateHeaderIsEnabled(
+            workspaceExternalId: box.WorkspaceExternalId,
+            boxExternalId: box.ExternalId,
+            request: new UpdateBoxHeaderIsEnabledRequestDto(IsEnabled: true),
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.Box.HeaderIsEnabledUpdated>(
+            expectedEventType: AuditLogEventTypes.Box.HeaderIsEnabledUpdated,
+            assertDetails: details =>
+            {
+                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
+                details.ExternalId.Should().Be(box.ExternalId);
+                details.IsEnabled.Should().BeTrue();
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task setting_box_header_content_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(
+            user: Users.AppOwner);
+
+        var box = await CreateBox(
+            user: user);
+
+        //when
+        await Api.Boxes.UpdateHeader(
+            workspaceExternalId: box.WorkspaceExternalId,
+            boxExternalId: box.ExternalId,
+            request: new UpdateBoxHeaderRequestDto(
+                Json: "header-json",
+                Html: "header-html"),
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.Box.HeaderUpdated>(
+            expectedEventType: AuditLogEventTypes.Box.HeaderUpdated,
+            assertDetails: details =>
+            {
+                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
+                details.ExternalId.Should().Be(box.ExternalId);
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task enabling_box_footer_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(
+            user: Users.AppOwner);
+
+        var box = await CreateBox(
+            user: user);
+
+        //when
+        await Api.Boxes.UpdateFooterIsEnabled(
+            workspaceExternalId: box.WorkspaceExternalId,
+            boxExternalId: box.ExternalId,
+            request: new UpdateBoxFooterIsEnabledRequestDto(IsEnabled: true),
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.Box.FooterIsEnabledUpdated>(
+            expectedEventType: AuditLogEventTypes.Box.FooterIsEnabledUpdated,
+            assertDetails: details =>
+            {
+                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
+                details.ExternalId.Should().Be(box.ExternalId);
+                details.IsEnabled.Should().BeTrue();
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task setting_box_footer_content_should_produce_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(
+            user: Users.AppOwner);
+
+        var box = await CreateBox(
+            user: user);
+
+        //when
+        await Api.Boxes.UpdateFooter(
+            workspaceExternalId: box.WorkspaceExternalId,
+            boxExternalId: box.ExternalId,
+            request: new UpdateBoxFooterRequestDto(
+                Json: "footer-json",
+                Html: "footer-html"),
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.Box.FooterUpdated>(
+            expectedEventType: AuditLogEventTypes.Box.FooterUpdated,
+            assertDetails: details =>
+            {
+                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
+                details.ExternalId.Should().Be(box.ExternalId);
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
     public box_header_and_footer_tests(HostFixture8081 hostFixture, ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
-    { 
+    {
     }
 }

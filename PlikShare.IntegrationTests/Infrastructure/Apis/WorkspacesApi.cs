@@ -1,5 +1,6 @@
 using Flurl.Http;
 using PlikShare.BulkDelete.Contracts;
+using PlikShare.Workspaces.CheckBucketStatus.Contracts;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Create.Contracts;
 using PlikShare.Workspaces.Get.Contracts;
@@ -25,6 +26,16 @@ public class WorkspacesApi(IFlurlClient flurlClient, string appUrl)
             request: request,
             cookie: cookie,
             antiforgery: antiforgery);
+    }
+
+    public async Task<CheckWorkspaceBucketStatusResponseDto> CheckBucketStatus(
+        WorkspaceExtId externalId,
+        SessionAuthCookie? cookie)
+    {
+        return await flurlClient.ExecuteGet<CheckWorkspaceBucketStatusResponseDto>(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{externalId.Value}/is-bucket-created",
+            cookie: cookie);
     }
 
     public async Task<GetWorkspaceDetailsResponseDto> GetDetails(

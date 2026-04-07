@@ -29,4 +29,8 @@ public class Api(IFlurlClient flurlClient, string appUrl)
     public IntegrationsApi Integrations { get; } = new(flurlClient, appUrl);
 
     public AuditLogApi AuditLog { get; } = new(flurlClient, appUrl);
+
+    public UploadsApi Uploads { get; } = new(flurlClient, appUrl);
+    public FilesApi Files { get; } = new(flurlClient, appUrl);
+    public PreSignedFilesApi PreSignedFiles { get; } = new(flurlClient);
 }

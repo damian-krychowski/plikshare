@@ -4,10 +4,16 @@ using PlikShare.Boxes.CreateLink.Contracts;
 using PlikShare.Boxes.Get.Contracts;
 using PlikShare.Boxes.Id;
 using PlikShare.Boxes.List.Contracts;
+using PlikShare.Boxes.Members.CreateInvitation.Contracts;
+using PlikShare.Boxes.Members.UpdatePermissions.Contracts;
+using PlikShare.Boxes.UpdateFolder.Contracts;
 using PlikShare.Boxes.UpdateFooter.Contracts;
 using PlikShare.Boxes.UpdateFooterIsEnabled.Contracts;
 using PlikShare.Boxes.UpdateHeader.Contracts;
 using PlikShare.Boxes.UpdateHeaderIsEnabled.Contracts;
+using PlikShare.Boxes.UpdateIsEnabled.Contracts;
+using PlikShare.Boxes.UpdateName.Contracts;
+using PlikShare.Users.Id;
 using PlikShare.Workspaces.Id;
 using static PlikShare.Core.Utils.HttpErrors;
 
@@ -105,6 +111,109 @@ public class BoxesApi(IFlurlClient flurlClient, string appUrl)
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/boxes/{boxExternalId}/footer",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task UpdateName(
+        WorkspaceExtId workspaceExternalId,
+        BoxExtId boxExternalId,
+        UpdateBoxNameRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/boxes/{boxExternalId}/name",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task UpdateFolder(
+        WorkspaceExtId workspaceExternalId,
+        BoxExtId boxExternalId,
+        UpdateBoxFolderRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/boxes/{boxExternalId}/folder",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task UpdateIsEnabled(
+        WorkspaceExtId workspaceExternalId,
+        BoxExtId boxExternalId,
+        UpdateBoxIsEnabledRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/boxes/{boxExternalId}/is-enabled",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task Delete(
+        WorkspaceExtId workspaceExternalId,
+        BoxExtId boxExternalId,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecuteDelete(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/boxes/{boxExternalId}",
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task<CreateBoxInvitationResponseDto> InviteMember(
+        WorkspaceExtId workspaceExternalId,
+        BoxExtId boxExternalId,
+        CreateBoxInvitationRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        return await flurlClient.ExecutePost<CreateBoxInvitationResponseDto, CreateBoxInvitationRequestDto>(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/boxes/{boxExternalId}/members",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task RevokeMember(
+        WorkspaceExtId workspaceExternalId,
+        BoxExtId boxExternalId,
+        UserExtId memberExternalId,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecuteDelete(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/boxes/{boxExternalId}/members/{memberExternalId}",
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task UpdateMemberPermissions(
+        WorkspaceExtId workspaceExternalId,
+        BoxExtId boxExternalId,
+        UserExtId memberExternalId,
+        UpdateBoxMemberPermissionsRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/boxes/{boxExternalId}/members/{memberExternalId}/permissions",
             request: request,
             cookie: cookie,
             antiforgery: antiforgery);

@@ -7,6 +7,7 @@ using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit.Abstractions;
+using PlikShare.Storages.Encryption;
 
 namespace PlikShare.IntegrationTests.TestCases.AuditLog;
 
@@ -97,7 +98,8 @@ public class audit_log_tests : TestFixture
 
         // create events from different categories
         var storage = await CreateHardDriveStorage(
-            user: appOwner); // storage category
+            user: appOwner,
+            encryptionType: StorageEncryptionType.None); // storage category
 
         var workspace = await CreateWorkspace(
             storage: storage, 

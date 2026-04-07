@@ -6,6 +6,7 @@ using PlikShare.AuthProviders.Id;
 using PlikShare.GeneralSettings;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
+using PlikShare.Storages.Encryption;
 using PlikShare.Users.Id;
 using PlikShare.Users.PermissionsAndRoles;
 using PlikShare.Users.UpdateMaxWorkspaceNumber.Contracts;
@@ -180,7 +181,9 @@ public class sso_login_tests : TestFixture, IDisposable
 
         await GrantWorkspacePermission(ssoUser.ExternalId, admin);
 
-        var storage = await CreateHardDriveStorage(admin);
+        var storage = await CreateHardDriveStorage(
+            user: admin,
+            encryptionType: StorageEncryptionType.None);
 
         // re-login SSO user to pick up new permissions
         ssoUser = await SignInViaSso(authProvider, ssoEmail, ssoSub);
@@ -205,7 +208,9 @@ public class sso_login_tests : TestFixture, IDisposable
 
         await GrantWorkspacePermission(passwordUser.ExternalId, admin);
 
-        var storage = await CreateHardDriveStorage(admin);
+        var storage = await CreateHardDriveStorage(
+            user: admin,
+            encryptionType: StorageEncryptionType.None);
 
         // re-login to pick up new permissions
         passwordUser = await SignIn(new User(passwordUser.Email, passwordUser.Password));
@@ -247,7 +252,9 @@ public class sso_login_tests : TestFixture, IDisposable
 
         await GrantWorkspacePermission(user1.ExternalId, admin);
 
-        var storage = await CreateHardDriveStorage(admin);
+        var storage = await CreateHardDriveStorage(
+            user: admin,
+            encryptionType: StorageEncryptionType.None);
 
         // re-login to pick up new permissions, then create workspace
         user1 = await SignInViaSso(provider1, ssoEmail, sub1);
@@ -312,7 +319,10 @@ public class sso_login_tests : TestFixture, IDisposable
 
         await GrantWorkspacePermission(ssoUser.ExternalId, admin);
 
-        var storage = await CreateHardDriveStorage(admin);
+        var storage = await CreateHardDriveStorage(
+            user: admin,
+            encryptionType: StorageEncryptionType.None);
+            
         ssoUser = await SignInViaSso(provider1, ssoEmail, sub1);
         var workspace = await CreateWorkspace(storage, ssoUser);
 

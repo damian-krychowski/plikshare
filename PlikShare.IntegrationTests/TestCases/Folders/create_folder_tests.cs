@@ -3,6 +3,7 @@ using PlikShare.Folders.Create.Contracts;
 using PlikShare.Folders.Id;
 using PlikShare.Folders.List.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
+using PlikShare.Storages.Encryption;
 using Xunit.Abstractions;
 
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
@@ -22,7 +23,8 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            user: user);
+            user: user,
+            encryptionType: StorageEncryptionType.None);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
@@ -73,7 +75,8 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            user: user);
+            user: user,
+            encryptionType: StorageEncryptionType.None);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
@@ -160,7 +163,8 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            user: user);
+            user: user,
+            encryptionType: StorageEncryptionType.None);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
@@ -208,7 +212,8 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            user: user);
+            user: user,
+            encryptionType: StorageEncryptionType.None);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
@@ -266,7 +271,8 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            user: user);
+            user: user,
+            encryptionType: StorageEncryptionType.None);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
@@ -322,7 +328,8 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            user: user);
+            user: user,
+            encryptionType: StorageEncryptionType.None);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
@@ -373,7 +380,8 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            user: user);
+            user: user,
+            encryptionType: StorageEncryptionType.None);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
@@ -450,7 +458,8 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            user: user);
+            user: user,
+            encryptionType: StorageEncryptionType.None);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
@@ -508,7 +517,8 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            user: user);
+            user: user,
+            encryptionType: StorageEncryptionType.None);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,
@@ -593,7 +603,8 @@ public class create_folder_tests: TestFixture
             user: Users.AppOwner);
 
         var hardDrive = await CreateHardDriveStorage(
-            user: user);
+            user: user,
+            encryptionType: StorageEncryptionType.None);
 
         var workspace = await CreateWorkspace(
             storage: hardDrive,

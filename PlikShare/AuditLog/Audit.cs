@@ -1,4 +1,7 @@
 using PlikShare.AuthProviders.Id;
+using PlikShare.Boxes.Id;
+using PlikShare.Boxes.Permissions;
+using PlikShare.BoxLinks.Id;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.EmailProviders.Id;
@@ -1031,6 +1034,381 @@ public static class Audit
                 FolderExternalIds = folderExternalIds.ToList(),
                 FileExternalIds = fileExternalIds.ToList(),
                 FileUploadExternalIds = fileUploadExternalIds.ToList() })
+        };
+    }
+
+    public static class Box
+    {
+        public static AuditLogEntry Created(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId externalId,
+            string name,
+            FolderExtId folderExternalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.Created,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.Created {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId,
+                Name = name,
+                FolderExternalId = folderExternalId })
+        };
+
+        public static AuditLogEntry Deleted(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.Deleted,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.Deleted {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry NameUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId externalId,
+            string name) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.NameUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.NameUpdated {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId,
+                Name = name })
+        };
+
+        public static AuditLogEntry HeaderIsEnabledUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId externalId,
+            bool isEnabled) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.HeaderIsEnabledUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.HeaderIsEnabledUpdated {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId,
+                IsEnabled = isEnabled })
+        };
+
+        public static AuditLogEntry HeaderUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.HeaderUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.HeaderUpdated {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry FooterIsEnabledUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId externalId,
+            bool isEnabled) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.FooterIsEnabledUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.FooterIsEnabledUpdated {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId,
+                IsEnabled = isEnabled })
+        };
+
+        public static AuditLogEntry FooterUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.FooterUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.FooterUpdated {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry FolderUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId externalId,
+            FolderExtId folderExternalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.FolderUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.FolderUpdated {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId,
+                FolderExternalId = folderExternalId })
+        };
+
+        public static AuditLogEntry IsEnabledUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId externalId,
+            bool isEnabled) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.IsEnabledUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.IsEnabledUpdated {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId,
+                IsEnabled = isEnabled })
+        };
+
+        public static AuditLogEntry MemberInvited(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId externalId,
+            List<string> memberEmails) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.MemberInvited,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.MemberInvited {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId,
+                MemberEmails = memberEmails })
+        };
+
+        public static AuditLogEntry MemberRevoked(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId externalId,
+            string memberEmail) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.MemberRevoked,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.MemberRevoked {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId,
+                MemberEmail = memberEmail })
+        };
+
+        public static AuditLogEntry MemberPermissionsUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId externalId,
+            string memberEmail,
+            BoxPermissions permissions) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.MemberPermissionsUpdated,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.MemberPermissionsUpdated {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId,
+                MemberEmail = memberEmail,
+                Permissions = permissions })
+        };
+
+        public static AuditLogEntry LinkCreated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId boxExternalId,
+            BoxLinkExtId externalId,
+            string name) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.LinkCreated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.LinkCreated {
+                WorkspaceExternalId = workspaceExternalId,
+                BoxExternalId = boxExternalId,
+                ExternalId = externalId,
+                Name = name })
+        };
+    }
+
+    public static class BoxLink
+    {
+        public static AuditLogEntry Deleted(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId boxExternalId,
+            BoxLinkExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.BoxLink,
+            EventType = AuditLogEventTypes.BoxLink.Deleted,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new AuditLogDetails.BoxLink.Deleted {
+                WorkspaceExternalId = workspaceExternalId,
+                BoxExternalId = boxExternalId,
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry NameUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId boxExternalId,
+            BoxLinkExtId externalId,
+            string name) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.BoxLink,
+            EventType = AuditLogEventTypes.BoxLink.NameUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.BoxLink.NameUpdated {
+                WorkspaceExternalId = workspaceExternalId,
+                BoxExternalId = boxExternalId,
+                ExternalId = externalId,
+                Name = name })
+        };
+
+        public static AuditLogEntry WidgetOriginsUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId boxExternalId,
+            BoxLinkExtId externalId,
+            List<string> widgetOrigins) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.BoxLink,
+            EventType = AuditLogEventTypes.BoxLink.WidgetOriginsUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.BoxLink.WidgetOriginsUpdated {
+                WorkspaceExternalId = workspaceExternalId,
+                BoxExternalId = boxExternalId,
+                ExternalId = externalId,
+                WidgetOrigins = widgetOrigins })
+        };
+
+        public static AuditLogEntry IsEnabledUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId boxExternalId,
+            BoxLinkExtId externalId,
+            bool isEnabled) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.BoxLink,
+            EventType = AuditLogEventTypes.BoxLink.IsEnabledUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.BoxLink.IsEnabledUpdated {
+                WorkspaceExternalId = workspaceExternalId,
+                BoxExternalId = boxExternalId,
+                ExternalId = externalId,
+                IsEnabled = isEnabled })
+        };
+
+        public static AuditLogEntry PermissionsUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId boxExternalId,
+            BoxLinkExtId externalId,
+            BoxPermissions permissions) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.BoxLink,
+            EventType = AuditLogEventTypes.BoxLink.PermissionsUpdated,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new AuditLogDetails.BoxLink.PermissionsUpdated {
+                WorkspaceExternalId = workspaceExternalId,
+                BoxExternalId = boxExternalId,
+                ExternalId = externalId,
+                Permissions = permissions })
+        };
+
+        public static AuditLogEntry AccessCodeRegenerated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            BoxExtId boxExternalId,
+            BoxLinkExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.BoxLink,
+            EventType = AuditLogEventTypes.BoxLink.AccessCodeRegenerated,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new AuditLogDetails.BoxLink.AccessCodeRegenerated {
+                WorkspaceExternalId = workspaceExternalId,
+                BoxExternalId = boxExternalId,
+                ExternalId = externalId })
         };
     }
 

@@ -5,6 +5,7 @@ using PlikShare.Integrations.Create.Contracts;
 using PlikShare.Integrations.List.Contracts;
 using PlikShare.Integrations.UpdateName.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
+using PlikShare.Storages.Encryption;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Integrations;
@@ -19,8 +20,12 @@ public class integrations_tests : TestFixture
         HostFixture8081 hostFixture,
         ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
-        AppOwner = SignIn(user: Users.AppOwner).Result;
-        Storage = CreateHardDriveStorage(user: AppOwner).Result;
+        AppOwner = SignIn(
+            user: Users.AppOwner).Result;
+
+        Storage = CreateHardDriveStorage(
+            user: AppOwner,
+            encryptionType: StorageEncryptionType.None).Result;
     }
 
     [Fact]

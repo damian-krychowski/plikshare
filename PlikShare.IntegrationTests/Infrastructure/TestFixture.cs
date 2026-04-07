@@ -11,6 +11,7 @@ using PlikShare.Core.Database.AuditLogDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.EmailProviders.Confirm.Contracts;
+using PlikShare.Files.Id;
 using PlikShare.EmailProviders.Entities;
 using PlikShare.EmailProviders.ExternalProviders.Resend.Create;
 using PlikShare.EmailProviders.Id;
@@ -23,6 +24,8 @@ using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Entities;
 using PlikShare.Storages.HardDrive.Create.Contracts;
 using PlikShare.Storages.Id;
+using PlikShare.Uploads.Id;
+using PlikShare.Uploads.Initiate.Contracts;
 using PlikShare.Users.Id;
 using PlikShare.Users.Invite.Contracts;
 using PlikShare.Workspaces.Create.Contracts;
@@ -285,6 +288,303 @@ public class TestFixture: IAsyncLifetime
             Name: hardDriveName,
             Type: StorageType.HardDrive,
             Details: $"{MainVolume.Path}/{hardDriveName}");
+    }
+
+    protected async Task<AppStorage> CreateHardDriveStorage(
+        AppSignedInUser user,
+        StorageEncryptionType encryptionType)
+    {
+        var hardDriveName = $"hard-drive-{Guid.NewGuid().ToBase62()}";
+
+        var hardDriveStorageResponse = await Api.Storages.CreateHardDriveStorage(
+            request: new CreateHardDriveStorageRequestDto(
+                Name: hardDriveName,
+                VolumePath: MainVolume.Path,
+                FolderPath: $"/{hardDriveName}",
+                EncryptionType: encryptionType),
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        return new AppStorage(
+            ExternalId: hardDriveStorageResponse.ExternalId,
+            Name: hardDriveName,
+            Type: StorageType.HardDrive,
+            Details: $"{MainVolume.Path}/{hardDriveName}");
+    }
+
+    protected async Task WaitForBucketReady(
+        AppWorkspace workspace,
+        AppSignedInUser user)
+    {
+        for (var i = 0; i < 100; i++)
+        {
+            var status = await Api.Workspaces.CheckBucketStatus(
+                externalId: workspace.ExternalId,
+                cookie: user.Cookie);
+
+            if (status.IsBucketCreated)
+                return;
+
+            await Task.Delay(20);
+        }
+
+        throw new InvalidOperationException(
+            $"Workspace '{workspace.ExternalId}' bucket was not created in time");
+    }
+
+    protected async Task<AppFile> UploadFile(
+        byte[] content,
+        string fileName,
+        string contentType,
+        AppFolder folder,
+        AppWorkspace workspace,
+        AppSignedInUser user)
+    {
+        await WaitForBucketReady(workspace, user);
+
+        var fileUploadExternalId = FileUploadExtId.NewId();
+
+        var initiateResponse = await Api.Uploads.BulkInitiate(
+            workspaceExternalId: workspace.ExternalId,
+            request: new BulkInitiateFileUploadRequestDto
+            {
+                Items =
+                [
+                    new BulkInitiateFileUploadItemDto
+                    {
+                        FileUploadExternalId = fileUploadExternalId.Value,
+                        FolderExternalId = folder.ExternalId.Value,
+                        FileNameWithExtension = fileName,
+                        FileContentType = contentType,
+                        FileSizeInBytes = content.Length
+                    }
+                ]
+            },
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        if (initiateResponse.DirectUploads is not null)
+        {
+            var uploadResults = await Api.PreSignedFiles.MultiFileDirectUpload(
+                preSignedUrl: initiateResponse.DirectUploads.PreSignedMultiFileDirectUploadLink,
+                files: new Dictionary<FileUploadExtId, byte[]>
+                {
+                    [fileUploadExternalId] = content
+                },
+                cookie: user.Cookie);
+
+            return new AppFile(
+                ExternalId: uploadResults[0].FileExternalId,
+                WorkspaceExternalId: workspace.ExternalId,
+                Name: fileName);
+        }
+
+        if (initiateResponse.SingleChunkUploads is { Count: > 0 })
+        {
+            var singleChunk = initiateResponse.SingleChunkUploads[0];
+            var uploadExtId = FileUploadExtId.Parse(singleChunk.FileUploadExternalId);
+
+            var eTag = await Api.PreSignedFiles.UploadFilePart(
+                preSignedUrl: singleChunk.PreSignedUploadLink,
+                content: content,
+                contentType: contentType,
+                cookie: user.Cookie);
+
+            await Api.Uploads.CompletePartUpload(
+                workspaceExternalId: workspace.ExternalId,
+                fileUploadExternalId: uploadExtId,
+                partNumber: 1,
+                request: new Uploads.FilePartUpload.Complete.Contracts.CompleteFilePartUploadRequestDto(
+                    ETag: eTag),
+                cookie: user.Cookie,
+                antiforgery: user.Antiforgery);
+
+            var completeResult = await Api.Uploads.CompleteUpload(
+                workspaceExternalId: workspace.ExternalId,
+                fileUploadExternalId: uploadExtId,
+                cookie: user.Cookie,
+                antiforgery: user.Antiforgery);
+
+            return new AppFile(
+                ExternalId: completeResult.FileExternalId,
+                WorkspaceExternalId: workspace.ExternalId,
+                Name: fileName);
+        }
+
+        if (initiateResponse.MultiStepChunkUploads is { Count: > 0 })
+        {
+            var multiStep = initiateResponse.MultiStepChunkUploads[0];
+            var uploadExtId = FileUploadExtId.Parse(multiStep.FileUploadExternalId);
+
+            for (var partNumber = 1; partNumber <= multiStep.ExpectedPartsCount; partNumber++)
+            {
+                var partInitiate = await Api.Uploads.InitiatePartUpload(
+                    workspaceExternalId: workspace.ExternalId,
+                    fileUploadExternalId: uploadExtId,
+                    partNumber: partNumber,
+                    cookie: user.Cookie,
+                    antiforgery: user.Antiforgery);
+
+                var partContent = content
+                    .AsSpan()
+                    .Slice(
+                        (int)partInitiate.StartsAtByte,
+                        (int)(partInitiate.EndsAtByte - partInitiate.StartsAtByte + 1))
+                    .ToArray();
+
+                var eTag = await Api.PreSignedFiles.UploadFilePart(
+                    preSignedUrl: partInitiate.UploadPreSignedUrl,
+                    content: partContent,
+                    contentType: contentType,
+                    cookie: user.Cookie);
+
+                if (partInitiate.IsCompleteFilePartUploadCallbackRequired)
+                {
+                    await Api.Uploads.CompletePartUpload(
+                        workspaceExternalId: workspace.ExternalId,
+                        fileUploadExternalId: uploadExtId,
+                        partNumber: partNumber,
+                        request: new Uploads.FilePartUpload.Complete.Contracts.CompleteFilePartUploadRequestDto(
+                            ETag: eTag),
+                        cookie: user.Cookie,
+                        antiforgery: user.Antiforgery);
+                }
+            }
+
+            var completeResult = await Api.Uploads.CompleteUpload(
+                workspaceExternalId: workspace.ExternalId,
+                fileUploadExternalId: uploadExtId,
+                cookie: user.Cookie,
+                antiforgery: user.Antiforgery);
+
+            return new AppFile(
+                ExternalId: completeResult.FileExternalId,
+                WorkspaceExternalId: workspace.ExternalId,
+                Name: fileName);
+        }
+
+        throw new InvalidOperationException(
+            "BulkInitiate returned no upload instructions");
+    }
+
+    protected async Task<List<AppFile>> UploadFiles(
+        List<(byte[] Content, string FileName, string ContentType)> files,
+        AppFolder folder,
+        AppWorkspace workspace,
+        AppSignedInUser user)
+    {
+        await WaitForBucketReady(workspace, user);
+
+        var uploadItems = files.Select(f => new
+        {
+            UploadExternalId = FileUploadExtId.NewId(),
+            f.Content,
+            f.FileName,
+            f.ContentType
+        }).ToList();
+
+        var initiateResponse = await Api.Uploads.BulkInitiate(
+            workspaceExternalId: workspace.ExternalId,
+            request: new BulkInitiateFileUploadRequestDto
+            {
+                Items = uploadItems.Select(item => new BulkInitiateFileUploadItemDto
+                {
+                    FileUploadExternalId = item.UploadExternalId.Value,
+                    FolderExternalId = folder.ExternalId.Value,
+                    FileNameWithExtension = item.FileName,
+                    FileContentType = item.ContentType,
+                    FileSizeInBytes = item.Content.Length
+                }).ToArray()
+            },
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        if (initiateResponse.DirectUploads is null)
+            throw new InvalidOperationException(
+                "Expected DirectUploads for multi-file upload but got a different algorithm. " +
+                "Ensure all files are small enough for DirectUpload.");
+
+        var filesToUpload = uploadItems.ToDictionary(
+            item => item.UploadExternalId,
+            item => item.Content);
+
+        var uploadResults = await Api.PreSignedFiles.MultiFileDirectUpload(
+            preSignedUrl: initiateResponse.DirectUploads.PreSignedMultiFileDirectUploadLink,
+            files: filesToUpload,
+            cookie: user.Cookie);
+
+        return uploadResults.Select((result, index) => new AppFile(
+            ExternalId: result.FileExternalId,
+            WorkspaceExternalId: workspace.ExternalId,
+            Name: uploadItems[index].FileName)).ToList();
+    }
+
+    protected async Task<byte[]> DownloadFile(
+        FileExtId fileExternalId,
+        AppWorkspace workspace,
+        AppSignedInUser user)
+    {
+        // Multi-step uploads complete asynchronously via a queue job,
+        // so we may need to retry until the file is ready on storage.
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            try
+            {
+                var downloadLinkResponse = await Api.Files.GetDownloadLink(
+                    workspaceExternalId: workspace.ExternalId,
+                    fileExternalId: fileExternalId,
+                    contentDisposition: "attachment",
+                    cookie: user.Cookie);
+
+                return await Api.PreSignedFiles.DownloadFile(
+                    preSignedUrl: downloadLinkResponse.DownloadPreSignedUrl,
+                    cookie: user.Cookie);
+            }
+            catch (TestApiCallException)
+            {
+                if (attempt == 99)
+                    throw;
+
+                await Task.Delay(100);
+            }
+        }
+
+        throw new InvalidOperationException("Unreachable");
+    }
+
+    protected async Task<PreSignedFilesApi.RangeDownloadResult> DownloadFileRange(
+        FileExtId fileExternalId,
+        long rangeStart,
+        long rangeEnd,
+        AppWorkspace workspace,
+        AppSignedInUser user)
+    {
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            try
+            {
+                var downloadLinkResponse = await Api.Files.GetDownloadLink(
+                    workspaceExternalId: workspace.ExternalId,
+                    fileExternalId: fileExternalId,
+                    contentDisposition: "inline",
+                    cookie: user.Cookie);
+
+                return await Api.PreSignedFiles.DownloadFileRange(
+                    preSignedUrl: downloadLinkResponse.DownloadPreSignedUrl,
+                    rangeStart: rangeStart,
+                    rangeEnd: rangeEnd,
+                    cookie: user.Cookie);
+            }
+            catch (TestApiCallException)
+            {
+                if (attempt == 99)
+                    throw;
+
+                await Task.Delay(100);
+            }
+        }
+
+        throw new InvalidOperationException("Unreachable");
     }
 
     protected async Task<AppWorkspace> CreateWorkspace(
@@ -596,6 +896,11 @@ public class TestFixture: IAsyncLifetime
     protected record AppBox(
         BoxExtId ExternalId,
         FolderExtId FolderExternalId,
+        WorkspaceExtId WorkspaceExternalId,
+        string Name);
+
+    protected record AppFile(
+        FileExtId ExternalId,
         WorkspaceExtId WorkspaceExternalId,
         string Name);
 

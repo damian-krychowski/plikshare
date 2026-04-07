@@ -192,11 +192,54 @@ public static class AuditLogEventTypes
         ];
     }
 
+    public static class Box
+    {
+        public const string Created = "box.created";
+        public const string Deleted = "box.deleted";
+        public const string NameUpdated = "box.name-updated";
+        public const string HeaderIsEnabledUpdated = "box.header-is-enabled-updated";
+        public const string HeaderUpdated = "box.header-updated";
+        public const string FooterIsEnabledUpdated = "box.footer-is-enabled-updated";
+        public const string FooterUpdated = "box.footer-updated";
+        public const string FolderUpdated = "box.folder-updated";
+        public const string IsEnabledUpdated = "box.is-enabled-updated";
+        public const string MemberInvited = "box.member-invited";
+        public const string MemberRevoked = "box.member-revoked";
+        public const string MemberPermissionsUpdated = "box.member-permissions-updated";
+        public const string LinkCreated = "box.link-created";
+
+        public static readonly string[] All =
+        [
+            Created, Deleted, NameUpdated,
+            HeaderIsEnabledUpdated, HeaderUpdated,
+            FooterIsEnabledUpdated, FooterUpdated,
+            FolderUpdated, IsEnabledUpdated,
+            MemberInvited, MemberRevoked, MemberPermissionsUpdated,
+            LinkCreated
+        ];
+    }
+
+    public static class BoxLink
+    {
+        public const string Deleted = "box-link.deleted";
+        public const string NameUpdated = "box-link.name-updated";
+        public const string WidgetOriginsUpdated = "box-link.widget-origins-updated";
+        public const string IsEnabledUpdated = "box-link.is-enabled-updated";
+        public const string PermissionsUpdated = "box-link.permissions-updated";
+        public const string AccessCodeRegenerated = "box-link.access-code-regenerated";
+
+        public static readonly string[] All =
+        [
+            Deleted, NameUpdated, WidgetOriginsUpdated,
+            IsEnabledUpdated, PermissionsUpdated, AccessCodeRegenerated
+        ];
+    }
+
     public static readonly string[] All = [
         ..Auth.All, ..User.All, ..Settings.All,
         ..EmailProvider.All, ..AuthProvider.All,
         ..Storage.All, ..Integration.All,
-        ..Workspace.All, ..Folder.All
+        ..Workspace.All, ..Folder.All, ..Box.All, ..BoxLink.All
     ];
 }
 
