@@ -13,6 +13,7 @@
     gap: 0.75rem;
     flex-wrap: wrap;
     margin-bottom: 0.5rem;
+    align-items: flex-start;
 }
 
 .filter-field {
@@ -29,6 +30,28 @@
     gap: 0.5rem;
     justify-content: flex-end;
 }
+
+::ng-deep .mat-select-search-no-entries-found {
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--company-grey-font);
+}
+
+.filter-field ::ng-deep {
+    .mat-mdc-select-value {
+        overflow: visible !important;
+        white-space: normal !important;
+        text-overflow: unset !important;
+    }
+
+    .mat-mdc-select-value-text {
+        overflow: visible !important;
+        white-space: normal !important;
+        text-overflow: unset !important;
+        line-height: 1.4;
+    }
+}
+
 
 .audit-table {
     border: 1px solid var(--company-grey-accent);

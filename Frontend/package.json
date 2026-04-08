@@ -44,6 +44,7 @@
     "marked": "^17.0.5",
     "mermaid": "^11.14.0",
     "ngx-markdown": "^21.1.0",
+    "ngx-mat-select-search": "^8.0.4",
     "ngx-toastr": "^20.0.5",
     "protobufjs": "^8.0.0",
     "qrcode": "^1.5.4",

@@ -1,5 +1,6 @@
 using System.Text;
 using FluentAssertions;
+using PlikShare.AuditLog;
 using PlikShare.Core.Encryption;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Storages.Encryption;
@@ -701,5 +702,210 @@ public class upload_and_download_tests : TestFixture
         //then
         downloadedContent.Should().HaveCount(originalContent.Length);
         downloadedContent.Should().BeEquivalentTo(originalContent);
+    }
+
+    // --- Audit log tests ---
+
+    [Fact]
+    public async Task uploading_file_should_produce_upload_bulk_initiated_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+
+        var storage = await CreateHardDriveStorage(
+            user,
+            StorageEncryptionType.None);
+
+        var workspace = await CreateWorkspace(storage, user);
+
+        var folder = await CreateFolder(
+            parent: null,
+            workspace,
+            user);
+
+        //when
+        await UploadFile(
+            content: Encoding.UTF8.GetBytes("audit test content"),
+            fileName: "audit-upload.txt",
+            contentType: "text/plain",
+            folder: folder,
+            workspace: workspace,
+            user: user);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.Upload.BulkInitiated>(
+            expectedEventType: AuditLogEventTypes.Upload.BulkInitiated,
+            assertDetails: details =>
+            {
+                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
+                details.FileNames.Should().Contain("audit-upload.txt");
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task completing_multistep_upload_should_produce_upload_completed_audit_log_entry()
+    {
+        //given - file >10MB triggers MultiStepChunkUpload which calls CompleteUpload
+        var user = await SignIn(Users.AppOwner);
+
+        var storage = await CreateHardDriveStorage(
+            user,
+            StorageEncryptionType.None);
+
+        var workspace = await CreateWorkspace(storage, user);
+
+        var folder = await CreateFolder(
+            parent: null,
+            workspace,
+            user);
+
+        var content = new byte[10 * 1024 * 1024 + 1]; // 10MB + 1 byte → 2 parts
+        new System.Random(42).NextBytes(content);
+
+        //when
+        var uploadedFile = await UploadFile(
+            content: content,
+            fileName: "audit-multistep.bin",
+            contentType: "application/octet-stream",
+            folder: folder,
+            workspace: workspace,
+            user: user);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.Upload.Completed>(
+            expectedEventType: AuditLogEventTypes.Upload.Completed,
+            assertDetails: details =>
+            {
+                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
+                details.FileExternalId.Should().Be(uploadedFile.ExternalId);
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task direct_upload_should_produce_multi_file_direct_uploaded_audit_log_entry()
+    {
+        //given - no encryption uses DirectUpload path
+        var user = await SignIn(Users.AppOwner);
+
+        var storage = await CreateHardDriveStorage(
+            user,
+            StorageEncryptionType.None);
+
+        var workspace = await CreateWorkspace(storage, user);
+
+        var folder = await CreateFolder(
+            parent: null,
+            workspace,
+            user);
+
+        //when
+        var uploadedFile = await UploadFile(
+            content: Encoding.UTF8.GetBytes("direct upload audit test"),
+            fileName: "audit-direct.txt",
+            contentType: "text/plain",
+            folder: folder,
+            workspace: workspace,
+            user: user);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.Upload.MultiFileDirectUploaded>(
+            expectedEventType: AuditLogEventTypes.Upload.MultiFileDirectUploaded,
+            assertDetails: details =>
+            {
+                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
+                details.FileExternalIds.Should().Contain(uploadedFile.ExternalId);
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task downloading_file_should_produce_download_link_generated_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+
+        var storage = await CreateHardDriveStorage(
+            user,
+            StorageEncryptionType.None);
+
+        var workspace = await CreateWorkspace(storage, user);
+
+        var folder = await CreateFolder(
+            parent: null,
+            workspace,
+            user);
+
+        var uploadedFile = await UploadFile(
+            content: Encoding.UTF8.GetBytes("download audit test"),
+            fileName: "audit-download.txt",
+            contentType: "text/plain",
+            folder: folder,
+            workspace: workspace,
+            user: user);
+
+        //when
+        await Api.Files.GetDownloadLink(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: uploadedFile.ExternalId,
+            contentDisposition: "attachment",
+            cookie: user.Cookie);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.File.DownloadLinkGenerated>(
+            expectedEventType: AuditLogEventTypes.File.DownloadLinkGenerated,
+            assertDetails: details =>
+            {
+                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
+                details.ExternalId.Should().Be(uploadedFile.ExternalId);
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task downloading_file_should_produce_file_downloaded_audit_log_entry()
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+
+        var storage = await CreateHardDriveStorage(
+            user,
+            StorageEncryptionType.None);
+
+        var workspace = await CreateWorkspace(storage, user);
+
+        var folder = await CreateFolder(
+            parent: null,
+            workspace,
+            user);
+
+        var uploadedFile = await UploadFile(
+            content: Encoding.UTF8.GetBytes("actual download audit test"),
+            fileName: "audit-actual-download.txt",
+            contentType: "text/plain",
+            folder: folder,
+            workspace: workspace,
+            user: user);
+
+        //when
+        await DownloadFile(
+            fileExternalId: uploadedFile.ExternalId,
+            workspace: workspace,
+            user: user);
+
+        //then
+        await AssertAuditLogContains<AuditLogDetails.File.Downloaded>(
+            expectedEventType: AuditLogEventTypes.File.Downloaded,
+            assertDetails: details =>
+            {
+                details.ExternalId.Should().Be(uploadedFile.ExternalId);
+            },
+            expectedActorEmail: user.Email,
+            expectedSeverity: AuditLogSeverities.Info);
     }
 }

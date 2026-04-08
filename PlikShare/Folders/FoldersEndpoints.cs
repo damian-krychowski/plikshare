@@ -79,7 +79,9 @@ public static class FoldersEndpoints
                     Audit.Folder.BulkCreated(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspaceExternalId: workspaceMembership.Workspace.ExternalId,
-                        folderCount: result.Response!.Items.Count),
+                        folderExternalIds: result.Response!.Items
+                            .Select(i => FolderExtId.Parse(i.ExternalId))
+                            .ToList()),
                     cancellationToken);
 
                 return TypedResults.Ok(

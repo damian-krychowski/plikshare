@@ -269,7 +269,12 @@ public class user_permissions_tests : TestFixture
         //then
         await AssertAuditLogContains<AuditLogDetails.User.LimitUpdated>(
             expectedEventType: AuditLogEventTypes.User.MaxWorkspaceNumberUpdated,
-            assertDetails: details => details.Value.Should().Be(5),
+            assertDetails: details =>
+            {
+                details.TargetEmail.Should().Be(User.Email);
+                details.TargetExternalId.Should().Be(User.ExternalId);
+                details.Value.Should().Be(5);
+            },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -290,7 +295,12 @@ public class user_permissions_tests : TestFixture
         //then
         await AssertAuditLogContains<AuditLogDetails.User.LimitUpdated>(
             expectedEventType: AuditLogEventTypes.User.DefaultMaxWorkspaceSizeUpdated,
-            assertDetails: details => details.Value.Should().Be(1024 * 1024 * 100),
+            assertDetails: details =>
+            {
+                details.TargetEmail.Should().Be(User.Email);
+                details.TargetExternalId.Should().Be(User.ExternalId);
+                details.Value.Should().Be(1024 * 1024 * 100);
+            },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -311,7 +321,12 @@ public class user_permissions_tests : TestFixture
         //then
         await AssertAuditLogContains<AuditLogDetails.User.LimitUpdated>(
             expectedEventType: AuditLogEventTypes.User.DefaultMaxWorkspaceTeamMembersUpdated,
-            assertDetails: details => details.Value.Should().Be(10),
+            assertDetails: details =>
+            {
+                details.TargetEmail.Should().Be(User.Email);
+                details.TargetExternalId.Should().Be(User.ExternalId);
+                details.Value.Should().Be(10);
+            },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }

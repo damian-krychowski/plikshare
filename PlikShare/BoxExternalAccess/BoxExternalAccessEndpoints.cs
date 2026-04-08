@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PlikShare.Boxes.Cache;
 using PlikShare.Boxes.Id;
 using PlikShare.Boxes.Permissions;
+using PlikShare.AuditLog;
 using PlikShare.BoxExternalAccess.Authorization;
 using PlikShare.BoxExternalAccess.Contracts;
 using PlikShare.BoxExternalAccess.Handler;
@@ -170,6 +171,7 @@ public static class BoxExternalAccessEndpoints
         HttpContext httpContext,
         BoxMembershipCache boxMembershipCache,
         LeaveBoxMembershipQuery leaveBoxMembershipQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var user = httpContext.GetUserContext();
@@ -190,6 +192,13 @@ public static class BoxExternalAccessEndpoints
         if (result == LeaveBoxMembershipQuery.ResultCode.Ok)
         {
             await boxMembershipCache.InvalidateEntry(boxMembership, cancellationToken);
+
+            await auditLogService.Log(
+                Audit.Box.MemberLeft(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    externalId: boxExternalId),
+                cancellationToken);
+
             return TypedResults.Ok();
         }
 
@@ -209,6 +218,7 @@ public static class BoxExternalAccessEndpoints
         HttpContext httpContext,
         BoxMembershipCache boxMembershipCache,
         AcceptBoxInvitationQuery acceptBoxInvitationQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var user = httpContext.GetUserContext();
@@ -229,6 +239,13 @@ public static class BoxExternalAccessEndpoints
         if (result == AcceptBoxInvitationQuery.ResultCode.Ok)
         {
             await boxMembershipCache.InvalidateEntry(boxMembership, cancellationToken);
+
+            await auditLogService.Log(
+                Audit.Box.InvitationAccepted(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    externalId: boxExternalId),
+                cancellationToken);
+
             return TypedResults.Ok();
         }
 
@@ -245,6 +262,7 @@ public static class BoxExternalAccessEndpoints
             HttpContext httpContext,
             BoxMembershipCache boxMembershipCache,
             RejectBoxInvitationQuery rejectBoxInvitationQuery,
+            AuditLogService auditLogService,
             CancellationToken cancellationToken)
     {
         var user = httpContext.GetUserContext();
@@ -265,6 +283,13 @@ public static class BoxExternalAccessEndpoints
         if (result == RejectBoxInvitationQuery.ResultCode.Ok)
         {
             await boxMembershipCache.InvalidateEntry(boxMembership, cancellationToken);
+
+            await auditLogService.Log(
+                Audit.Box.InvitationRejected(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    externalId: boxExternalId),
+                cancellationToken);
+
             return TypedResults.Ok();
         }
 
@@ -306,31 +331,63 @@ public static class BoxExternalAccessEndpoints
             folderExternalId: folderExternalId);
     }
 
-    private static Task<Results<Ok<GetBoxFileDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult>> GetFileDownloadLink(
+    private static async Task<Results<Ok<GetBoxFileDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult>> GetFileDownloadLink(
         [FromRoute] FileExtId fileExternalId,
         [FromQuery] string contentDisposition,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        return boxExternalAccessHandler.GetFileDownloadLink(
+        var boxAccess = httpContext.GetBoxAccess();
+
+        var result = await boxExternalAccessHandler.GetFileDownloadLink(
             fileExternalId: fileExternalId,
             contentDisposition: contentDisposition,
-            boxAccess: httpContext.GetBoxAccess(),
+            boxAccess: boxAccess,
             boxLinkId: null,
             enforceInternalPassThrough: false,
             cancellationToken: cancellationToken);
+
+        if (result.Result is Ok<GetBoxFileDownloadLinkResponseDto>)
+        {
+            await auditLogService.Log(
+                Audit.File.DownloadLinkGenerated(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    workspaceExternalId: boxAccess.Box.Workspace.ExternalId,
+                    externalId: fileExternalId),
+                cancellationToken);
+        }
+
+        return result;
     }
 
-    private static Results<Ok<GetBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult> GetBulkDownloadLink(
+    private static async Task<Results<Ok<GetBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult>> GetBulkDownloadLink(
         [FromBody] GetBulkDownloadLinkRequestDto request,
         HttpContext httpContext,
-        BoxExternalAccessHandler boxExternalAccessHandler)
+        BoxExternalAccessHandler boxExternalAccessHandler,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
     {
-        return boxExternalAccessHandler.GetBulkDownloadLink(
+        var boxAccess = httpContext.GetBoxAccess();
+
+        var result = boxExternalAccessHandler.GetBulkDownloadLink(
             request: request,
-            boxAccess: httpContext.GetBoxAccess(),
+            boxAccess: boxAccess,
             boxLinkId: null);
+
+        if (result.Result is Ok<GetBulkDownloadLinkResponseDto>)
+        {
+            await auditLogService.Log(
+                Audit.File.BulkDownloadLinkGenerated(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    workspaceExternalId: boxAccess.Box.Workspace.ExternalId,
+                    selectedFileExternalIds: request.SelectedFiles,
+                    selectedFolderExternalIds: request.SelectedFolders),
+                cancellationToken);
+        }
+
+        return result;
     }
 
     private static Task<Results<Ok, NotFound<HttpError>, StatusCodeHttpResult>> UpdateFileName(
@@ -347,19 +404,36 @@ public static class BoxExternalAccessEndpoints
             cancellationToken: cancellationToken);
     }
 
-    private static Task<Results<Ok<BulkDeleteResponseDto>, StatusCodeHttpResult>> DeleteFile(
+    private static async Task<Results<Ok<BulkDeleteResponseDto>, StatusCodeHttpResult>> DeleteFile(
         [FromBody] BoxBulkDeleteRequestDto request,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        return boxExternalAccessHandler.BulkDelete(
+        var boxAccess = httpContext.GetBoxAccess();
+
+        var result = await boxExternalAccessHandler.BulkDelete(
             fileExternalIds: request.FileExternalIds.ToArray(),
             folderExternalIds: request.FolderExternalIds.ToArray(),
             fileUploadExternalIds: request.FileUploadExternalIds.ToArray(),
-            boxAccess: httpContext.GetBoxAccess(),
+            boxAccess: boxAccess,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
+
+        if (result.Result is Ok<BulkDeleteResponseDto>)
+        {
+            await auditLogService.Log(
+                Audit.Workspace.BulkDeleteRequested(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    externalId: boxAccess.Box.Workspace.ExternalId,
+                    fileExternalIds: request.FileExternalIds,
+                    folderExternalIds: request.FolderExternalIds,
+                    fileUploadExternalIds: request.FileUploadExternalIds),
+                cancellationToken);
+        }
+
+        return result;
     }
 
     private static ValueTask<Results<Ok<GetZipFileDetailsResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, JsonHttpResult<HttpError>, StatusCodeHttpResult>> GetZipFilePreviewDetails(
@@ -391,17 +465,33 @@ public static class BoxExternalAccessEndpoints
             cancellationToken: cancellationToken);
     }
 
-    private static Task<Results<Ok<BulkCreateFolderResponseDto>, BadRequest<HttpError>, NotFound<HttpError>, StatusCodeHttpResult>> BulkCreateFolders(
+    private static async Task<Results<Ok<BulkCreateFolderResponseDto>, BadRequest<HttpError>, NotFound<HttpError>, StatusCodeHttpResult>> BulkCreateFolders(
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxAccess = httpContext.GetBoxAccess();
         var request = httpContext.GetProtobufRequest<BulkCreateFolderRequestDto>();
 
-        return boxExternalAccessHandler.BulkCreateFolders(
+        var result = await boxExternalAccessHandler.BulkCreateFolders(
             request: request,
-            boxAccess: httpContext.GetBoxAccess(),
+            boxAccess: boxAccess,
             cancellationToken: cancellationToken);
+
+        if (result.Result is Ok<BulkCreateFolderResponseDto> okBulkCreate)
+        {
+            await auditLogService.Log(
+                Audit.Folder.BulkCreated(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    workspaceExternalId: boxAccess.Box.Workspace.ExternalId,
+                    folderExternalIds: okBulkCreate.Value.Items
+                        .Select(i => FolderExtId.Parse(i.ExternalId))
+                        .ToList()),
+                cancellationToken);
+        }
+
+        return result;
     }
 
     private static Results<Ok<CountSelectedItemsResponseDto>, StatusCodeHttpResult> CountSelectedItems(
@@ -424,56 +514,120 @@ public static class BoxExternalAccessEndpoints
             boxAccess: httpContext.GetBoxAccess());
     }
 
-    private static Task<Results<Ok<CreateFolderResponseDto>, NotFound<HttpError>, StatusCodeHttpResult>> CreateFolder(
+    private static async Task<Results<Ok<CreateFolderResponseDto>, NotFound<HttpError>, StatusCodeHttpResult>> CreateFolder(
         [FromBody] CreateFolderRequestDto request,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        return boxExternalAccessHandler.CreateFolder(
+        var boxAccess = httpContext.GetBoxAccess();
+
+        var result = await boxExternalAccessHandler.CreateFolder(
             request: request,
-            boxAccess: httpContext.GetBoxAccess(),
+            boxAccess: boxAccess,
             cancellationToken: cancellationToken);
+
+        if (result.Result is Ok<CreateFolderResponseDto>)
+        {
+            await auditLogService.Log(
+                Audit.Folder.Created(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    workspaceExternalId: boxAccess.Box.Workspace.ExternalId,
+                    externalId: request.ExternalId,
+                    name: request.Name),
+                cancellationToken);
+        }
+
+        return result;
     }
 
-    private static Task<Results<Ok, NotFound<HttpError>, StatusCodeHttpResult>> UpdateFolderName(
+    private static async Task<Results<Ok, NotFound<HttpError>, StatusCodeHttpResult>> UpdateFolderName(
         [FromRoute] FolderExtId folderExternalId,
         [FromBody] UpdateBoxFolderNameRequestDto request,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        return boxExternalAccessHandler.UpdateFolderName(
+        var boxAccess = httpContext.GetBoxAccess();
+
+        var result = await boxExternalAccessHandler.UpdateFolderName(
             folderExternalId: folderExternalId,
             request: request,
-            boxAccess: httpContext.GetBoxAccess(),
+            boxAccess: boxAccess,
             cancellationToken: cancellationToken);
+
+        if (result.Result is Ok)
+        {
+            await auditLogService.Log(
+                Audit.Folder.NameUpdated(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    workspaceExternalId: boxAccess.Box.Workspace.ExternalId,
+                    externalId: folderExternalId,
+                    name: request.Name),
+                cancellationToken);
+        }
+
+        return result;
     }
 
-    private static Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult>> MoveItemsToFolder(
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult>> MoveItemsToFolder(
         [FromBody] MoveBoxItemsToFolderRequestDto request,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        return boxExternalAccessHandler.MoveItemsToFolder(
+        var boxAccess = httpContext.GetBoxAccess();
+
+        var result = await boxExternalAccessHandler.MoveItemsToFolder(
             request: request,
-            boxAccess: httpContext.GetBoxAccess(),
+            boxAccess: boxAccess,
             cancellationToken: cancellationToken);
+
+        if (result.Result is Ok)
+        {
+            await auditLogService.Log(
+                Audit.Folder.ItemsMoved(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    workspaceExternalId: boxAccess.Box.Workspace.ExternalId,
+                    destinationFolderExternalId: request.DestinationFolderExternalId,
+                    folderExternalIds: request.FolderExternalIds,
+                    fileExternalIds: request.FileExternalIds,
+                    fileUploadExternalIds: request.FileUploadExternalIds),
+                cancellationToken);
+        }
+
+        return result;
     }
 
-    private static Task<Results<Ok<BulkInitiateFileUploadResponseDto>, NotFound<HttpError>, StatusCodeHttpResult, BadRequest<HttpError>>> BulkInitiateFileUpload(
+    private static async Task<Results<Ok<BulkInitiateFileUploadResponseDto>, NotFound<HttpError>, StatusCodeHttpResult, BadRequest<HttpError>>> BulkInitiateFileUpload(
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var boxAccess = httpContext.GetBoxAccess();
         var request = httpContext.GetProtobufRequest<BulkInitiateFileUploadRequestDto>();
 
-        return boxExternalAccessHandler.BulkInitiateFileUpload(
+        var result = await boxExternalAccessHandler.BulkInitiateFileUpload(
             request: request,
-            boxAccess: httpContext.GetBoxAccess(),
+            boxAccess: boxAccess,
             boxLinkId: null,
             cancellationToken: cancellationToken);
+
+        if (result.Result is Ok<BulkInitiateFileUploadResponseDto>)
+        {
+            await auditLogService.Log(
+                Audit.Upload.BulkInitiated(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    workspaceExternalId: boxAccess.Box.Workspace.ExternalId,
+                    fileNames: request.Items.Select(i => i.FileNameWithExtension).ToList()),
+                cancellationToken);
+        }
+
+        return result;
     }
 
     private static Results<Ok<GetFileUploadDetailsResponseDto>, NotFound<HttpError>> GetFileUploadDetails(
@@ -518,17 +672,33 @@ public static class BoxExternalAccessEndpoints
             cancellationToken: cancellationToken);
     }
 
-    private static ValueTask<Results<Ok<CompleteBoxFileUploadResponseDto>, BadRequest<HttpError>, NotFound<HttpError>>> CompleteUpload(
+    private static async ValueTask<Results<Ok<CompleteBoxFileUploadResponseDto>, BadRequest<HttpError>, NotFound<HttpError>>> CompleteUpload(
         [FromRoute] FileUploadExtId fileUploadExternalId,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        return boxExternalAccessHandler.CompleteUpload(
+        var boxAccess = httpContext.GetBoxAccess();
+
+        var result = await boxExternalAccessHandler.CompleteUpload(
             fileUploadExternalId: fileUploadExternalId,
-            boxAccess: httpContext.GetBoxAccess(),
+            boxAccess: boxAccess,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
+
+        if (result.Result is Ok<CompleteBoxFileUploadResponseDto> ok)
+        {
+            await auditLogService.Log(
+                Audit.Upload.Completed(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    workspaceExternalId: boxAccess.Box.Workspace.ExternalId,
+                    fileUploadExternalId: fileUploadExternalId,
+                    fileExternalId: ok.Value.FileExternalId),
+                cancellationToken);
+        }
+
+        return result;
     }
 
     private static GetUploadsListResponseDto ListUploads(

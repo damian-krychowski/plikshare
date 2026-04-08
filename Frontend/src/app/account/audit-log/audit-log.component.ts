@@ -6,6 +6,7 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { MatSelectModule } from "@angular/material/select";
+import { MatSelectSearchComponent } from "ngx-mat-select-search";
 import { MatDatepickerModule } from "@angular/material/datepicker";
 import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE, MAT_NATIVE_DATE_FORMATS } from "@angular/material/core";
 import { IsoDateAdapter } from "./iso-date-adapter";
@@ -15,6 +16,7 @@ import { DatePipe } from "@angular/common";
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
 import { ActionTextButtonComponent } from "../../shared/buttons/action-text-btn/action-text-btn.component";
 import { ConfirmOperationDirective } from "../../shared/operation-confirm/confirm-operation.directive";
+import { getNameWithHighlight } from "../../shared/name-with-highlight";
 
 @Component({
     selector: 'app-audit-log',
@@ -25,6 +27,7 @@ import { ConfirmOperationDirective } from "../../shared/operation-confirm/confir
         MatFormFieldModule,
         MatInputModule,
         MatSelectModule,
+        MatSelectSearchComponent,
         MatDatepickerModule,
         DatePipe,
         ActionButtonComponent,
@@ -64,6 +67,24 @@ export class AuditLogComponent implements OnInit {
     availableEventTypes = signal<string[]>([]);
     availableActors = signal<string[]>([]);
 
+    // Search within dropdowns
+    eventTypeSearch = signal('');
+    actorSearch = signal('');
+
+    filteredEventTypes = computed(() => {
+        const search = this.eventTypeSearch().toLowerCase();
+        const selected = new Set(this.filterEventTypes());
+        if (!search) return this.availableEventTypes();
+        return this.availableEventTypes().filter(et => selected.has(et) || et.toLowerCase().includes(search));
+    });
+
+    filteredActors = computed(() => {
+        const search = this.actorSearch().toLowerCase();
+        const selected = new Set(this.filterActorIdentities());
+        if (!search) return this.availableActors();
+        return this.availableActors().filter(a => selected.has(a) || a.toLowerCase().includes(search));
+    });
+
     // Management
     deleteBeforeDate = signal<Date | null>(null);
     archiveBeforeDate = signal<Date | null>(null);
@@ -81,10 +102,14 @@ export class AuditLogComponent implements OnInit {
     eventCategories = [
         'auth', 'auth-provider', 'box', 'box-link',
         'email-provider', 'file', 'folder', 'integration',
-        'settings', 'storage', 'user', 'workspace'
+        'settings', 'storage', 'upload', 'user', 'workspace'
     ];
 
     severities = ['critical', 'info', 'warning'];
+
+    highlightMatch(text: string, search: string): string {
+        return getNameWithHighlight(text, search.toLowerCase());
+    }
 
     constructor(
         public auth: AuthService,

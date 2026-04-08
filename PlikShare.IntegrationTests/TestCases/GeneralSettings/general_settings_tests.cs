@@ -166,9 +166,9 @@ public class general_settings_tests : TestFixture, IDisposable
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.User.LimitUpdated>(
+        await AssertAuditLogContains<AuditLogDetails.Settings.ValueChanged>(
             expectedEventType: AuditLogEventTypes.Settings.DefaultMaxWorkspaceNumberChanged,
-            assertDetails: details => details.Value.Should().Be(10),
+            assertDetails: details => details.Value.Should().Be("10"),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -197,9 +197,9 @@ public class general_settings_tests : TestFixture, IDisposable
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.User.LimitUpdated>(
+        await AssertAuditLogContains<AuditLogDetails.Settings.ValueChanged>(
             expectedEventType: AuditLogEventTypes.Settings.DefaultMaxWorkspaceSizeChanged,
-            assertDetails: details => details.Value.Should().Be(1024 * 1024 * 200),
+            assertDetails: details => details.Value.Should().Be((1024 * 1024 * 200).ToString()),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -228,9 +228,9 @@ public class general_settings_tests : TestFixture, IDisposable
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.User.LimitUpdated>(
+        await AssertAuditLogContains<AuditLogDetails.Settings.ValueChanged>(
             expectedEventType: AuditLogEventTypes.Settings.DefaultMaxWorkspaceTeamMembersChanged,
-            assertDetails: details => details.Value.Should().Be(15),
+            assertDetails: details => details.Value.Should().Be("15"),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }

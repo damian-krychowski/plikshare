@@ -23,6 +23,7 @@ using PlikShare.Storages.HardDrive.Upload;
 using PlikShare.Storages.S3;
 using PlikShare.Storages.S3.Upload;
 using PlikShare.Storages.Zip;
+using PlikShare.AuditLog;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.CompleteFileUpload;
@@ -85,6 +86,7 @@ public static class PreSignedFilesEndpoints
         InsertFileUploadPartQuery insertFileUploadPartQuery,
         BulkConvertDirectFileUploadsToFilesQuery bulkConvertDirectFileUploadsToFilesQuery,
         FileUploadCache fileUploadCache,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var (payload, workspace) = httpContext.GetProtectedMultiFileDirectUploadPayload();
@@ -183,6 +185,16 @@ public static class PreSignedFilesEndpoints
                     UploadExternalId = upload.ExternalId
                 })
                 .ToList();
+
+            if (results.Count > 0)
+            {
+                await auditLogService.Log(
+                    Audit.Upload.MultiFileDirectUploaded(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspace.ExternalId,
+                        fileExternalIds: results.Select(r => r.FileExternalId).ToList()),
+                    cancellationToken);
+            }
 
             return TypedResults.Ok(results);
         }
@@ -308,6 +320,7 @@ public static class PreSignedFilesEndpoints
         HttpContext httpContext,
         InsertFileUploadPartQuery insertFileUploadPartQuery,
         FileUploadCache fileUploadCache,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var (payload, fileUpload) = httpContext.GetProtectedUploadPayload();
@@ -334,6 +347,13 @@ public static class PreSignedFilesEndpoints
             Log.Debug(
                 "Successfully uploaded file part. FileUploadId: {FileUploadId}, PartNumber: {PartNumber}, Algorithm: {Algorithm}",
                 fileUpload.Id, payload.PartNumber, fileUpload.UploadAlgorithm);
+
+            await auditLogService.Log(
+                Audit.Upload.FilePartUploaded(
+                    actor: httpContext.GetAuditLogActorContext(),
+                    fileUploadExternalId: payload.FileUploadExternalId,
+                    partNumber: payload.PartNumber),
+                cancellationToken);
 
             if (fileUpload.UploadAlgorithm == UploadAlgorithm.MultiStepChunkUpload)
             {
@@ -375,6 +395,7 @@ public static class PreSignedFilesEndpoints
 
     private static async ValueTask<Results<EmptyHttpResult, NotFound<HttpError>, JsonHttpResult<HttpError>>> DownloadFile(
         HttpContext httpContext,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var protectedDownloadPayload = httpContext.GetProtectedDownloadPayload();
@@ -383,6 +404,12 @@ public static class PreSignedFilesEndpoints
 
         Log.Debug("File download with pre-signed url started: {Payload}",
             payload);
+
+        await auditLogService.Log(
+            Audit.File.Downloaded(
+                actor: httpContext.GetAuditLogActorContext(),
+                externalId: payload.FileExternalId),
+            cancellationToken);
 
         
         var rangeRequest = httpContext.TryGetRangeRequest(

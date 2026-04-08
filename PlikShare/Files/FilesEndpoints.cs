@@ -34,6 +34,7 @@ using PlikShare.Files.UpdateSize;
 using PlikShare.Files.UploadAttachment;
 using PlikShare.Storages;
 using PlikShare.Storages.FileReading;
+using PlikShare.AuditLog;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Cache;
 using PlikShare.Workspaces.Validation;
@@ -95,6 +96,7 @@ public static class FilesEndpoints
     HttpContext httpContext,
     InsertFileAttachmentQuery insertFileAttachmentQuery,
     MarkFileAsUploadedQuery markFileAsUploadedQuery,
+    AuditLogService auditLogService,
     CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -175,6 +177,15 @@ public static class FilesEndpoints
             fileExternalId: attachment.ExternalId,
             cancellationToken: cancellationToken);
 
+        await auditLogService.Log(
+            Audit.File.AttachmentUploaded(
+                actor: httpContext.GetAuditLogActorContext(),
+                workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                parentFileExternalId: fileExternalId,
+                attachmentFileExternalId: attachment.ExternalId,
+                name: fileName.Name),
+            cancellationToken);
+
         return TypedResults.Ok();
     }
 
@@ -183,6 +194,7 @@ public static class FilesEndpoints
         HttpContext httpContext,
         GetFilePreSignedDownloadLinkDetailsQuery getFilePreSignedDownloadLinkDetailsQuery,
         UpdateFileSizeQuery updateFileSizeQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -231,6 +243,13 @@ public static class FilesEndpoints
             newSizeInBytes: newSizeInBytes,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
+
+        await auditLogService.Log(
+            Audit.File.ContentUpdated(
+                actor: httpContext.GetAuditLogActorContext(),
+                workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                externalId: fileExternalId),
+            cancellationToken);
 
         return TypedResults.Ok();
     }
@@ -334,6 +353,7 @@ public static class FilesEndpoints
         [FromRoute] FileArtifactExtId commentExternalId,
         HttpContext httpContext,
         UpdateFileCommentQuery updateFileCommentQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -347,22 +367,30 @@ public static class FilesEndpoints
             updatedCommentContentJson: request.ContentJson,
             cancellationToken: cancellationToken);
 
-        return resultCode switch
+        switch (resultCode)
         {
-            UpdateFileCommentQuery.ResultCode.Ok => TypedResults.Ok(),
+            case UpdateFileCommentQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.File.CommentEdited(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        fileExternalId: fileExternalId,
+                        commentExternalId: commentExternalId),
+                    cancellationToken);
 
-            UpdateFileCommentQuery.ResultCode.FileNotFound =>
-                HttpErrors.File.NotFound(
-                    fileExternalId),
+                return TypedResults.Ok();
 
-            UpdateFileCommentQuery.ResultCode.CommentNotFoundOrNotOwner => 
-                HttpErrors.File.CommentNotFound(
-                    commentExternalId),
+            case UpdateFileCommentQuery.ResultCode.FileNotFound:
+                return HttpErrors.File.NotFound(fileExternalId);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateFileCommentQuery),
-                resultValueStr: resultCode.ToString())
-        };
+            case UpdateFileCommentQuery.ResultCode.CommentNotFoundOrNotOwner:
+                return HttpErrors.File.CommentNotFound(commentExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateFileCommentQuery),
+                    resultValueStr: resultCode.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>>> DeleteComment(
@@ -370,6 +398,7 @@ public static class FilesEndpoints
         [FromRoute] FileArtifactExtId commentExternalId,
         HttpContext httpContext,
         DeleteFileCommentQuery deleteFileCommentQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -383,22 +412,30 @@ public static class FilesEndpoints
             isAdmin: workspaceMembership.User.HasAdminRole,
             cancellationToken: cancellationToken);
 
-        return resultCode switch
+        switch (resultCode)
         {
-            DeleteFileCommentQuery.ResultCode.Ok => TypedResults.Ok(),
+            case DeleteFileCommentQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.File.CommentDeleted(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        fileExternalId: fileExternalId,
+                        commentExternalId: commentExternalId),
+                    cancellationToken);
 
-            DeleteFileCommentQuery.ResultCode.FileNotFound => 
-                HttpErrors.File.NotFound(
-                    fileExternalId),
+                return TypedResults.Ok();
 
-            DeleteFileCommentQuery.ResultCode.CommentNotFoundOrNotOwner => 
-                HttpErrors.File.CommentNotFound(
-                    commentExternalId),
+            case DeleteFileCommentQuery.ResultCode.FileNotFound:
+                return HttpErrors.File.NotFound(fileExternalId);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateFileCommentQuery),
-                resultValueStr: resultCode.ToString())
-        };
+            case DeleteFileCommentQuery.ResultCode.CommentNotFoundOrNotOwner:
+                return HttpErrors.File.CommentNotFound(commentExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateFileCommentQuery),
+                    resultValueStr: resultCode.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>>> CreateComment(
@@ -406,6 +443,7 @@ public static class FilesEndpoints
         [FromBody] CreateFileCommentRequestDto request,
         HttpContext httpContext,
         CreateFileCommentQuery createFileCommentQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -419,18 +457,27 @@ public static class FilesEndpoints
             commentContentJson: request.ContentJson,
             cancellationToken: cancellationToken);
 
-        return resultCode switch
+        switch (resultCode)
         {
-            CreateFileCommentQuery.ResultCode.Ok => TypedResults.Ok(),
+            case CreateFileCommentQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.File.CommentCreated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        fileExternalId: fileExternalId,
+                        commentExternalId: request.ExternalId),
+                    cancellationToken);
 
-            CreateFileCommentQuery.ResultCode.FileNotFound => 
-                HttpErrors.File.NotFound(
-                    fileExternalId),
+                return TypedResults.Ok();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateFileCommentQuery),
-                resultValueStr: resultCode.ToString())
-        };
+            case CreateFileCommentQuery.ResultCode.FileNotFound:
+                return HttpErrors.File.NotFound(fileExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateFileCommentQuery),
+                    resultValueStr: resultCode.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>>> UpdateNote(
@@ -438,6 +485,7 @@ public static class FilesEndpoints
         [FromBody] SaveFileNoteRequestDto request,
         HttpContext httpContext,
         SaveFileNoteQuery saveFileNoteQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -449,19 +497,27 @@ public static class FilesEndpoints
                 UserExternalId: workspaceMembership.User.ExternalId),
             contentJson: request.ContentJson,
             cancellationToken: cancellationToken);
-        
-        return resultCode switch
+
+        switch (resultCode)
         {
-            SaveFileNoteQuery.ResultCode.Ok => TypedResults.Ok(),
+            case SaveFileNoteQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.File.NoteSaved(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        externalId: fileExternalId),
+                    cancellationToken);
 
-            SaveFileNoteQuery.ResultCode.FileNotFound => 
-                HttpErrors.File.NotFound(
-                    fileExternalId),
+                return TypedResults.Ok();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(SaveFileNoteQuery),
-                resultValueStr: resultCode.ToString())
-        };
+            case SaveFileNoteQuery.ResultCode.FileNotFound:
+                return HttpErrors.File.NotFound(fileExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(SaveFileNoteQuery),
+                    resultValueStr: resultCode.ToString());
+        }
     }
 
     private static Results<Ok<GetFilePreviewDetailsResponseDto>, NotFound<HttpError>> GetFilePreviewDetails(
@@ -484,11 +540,13 @@ public static class FilesEndpoints
         return TypedResults.Ok(result);
     }
 
-    private static Results<Ok<GetBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>>
+    private static async Task<Results<Ok<GetBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>>>
         GetBulkDownloadLink(
             [FromBody] GetBulkDownloadLinkRequestDto request,
             HttpContext httpContext,
-            GetBulkDownloadLinkOperation getBulkDownloadLinkOperation)
+            GetBulkDownloadLinkOperation getBulkDownloadLinkOperation,
+            AuditLogService auditLogService,
+            CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
 
@@ -499,24 +557,33 @@ public static class FilesEndpoints
             boxFolderId: null,
             boxLinkId: null);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            GetBulkDownloadLinkOperation.ResultCode.Ok => TypedResults.Ok(new GetBulkDownloadLinkResponseDto{
+            case GetBulkDownloadLinkOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.File.BulkDownloadLinkGenerated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        selectedFileExternalIds: request.SelectedFiles,
+                        selectedFolderExternalIds: request.SelectedFolders),
+                    cancellationToken);
+
+                return TypedResults.Ok(new GetBulkDownloadLinkResponseDto
+                {
                     PreSignedUrl = result.PreSignedUrl!
-            }),
+                });
 
-            GetBulkDownloadLinkOperation.ResultCode.FilesNotFound => 
-                HttpErrors.File.SomeFilesNotFound(
-                    result.NotFoundFileExternalIds!),
+            case GetBulkDownloadLinkOperation.ResultCode.FilesNotFound:
+                return HttpErrors.File.SomeFilesNotFound(result.NotFoundFileExternalIds!);
 
-            GetBulkDownloadLinkOperation.ResultCode.FoldersNotFound => 
-                HttpErrors.Folder.NotFound(
-                    result.NotFoundFolderExternalIds),
+            case GetBulkDownloadLinkOperation.ResultCode.FoldersNotFound:
+                return HttpErrors.Folder.NotFound(result.NotFoundFolderExternalIds);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(GetFileDownloadLinkOperation),
-                resultValueStr: result.Code.ToString())
-        };
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(GetFileDownloadLinkOperation),
+                    resultValueStr: result.Code.ToString());
+        }
     }
 
     private static async Task<Results<Ok<GetFileDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>>>
@@ -525,6 +592,7 @@ public static class FilesEndpoints
             [FromQuery] string contentDisposition,
             HttpContext httpContext,
             GetFileDownloadLinkOperation getFileDownloadLinkOperation,
+            AuditLogService auditLogService,
             CancellationToken cancellationToken)
     {
         if (!ContentDispositionHelper.TryParse(contentDisposition, out var contentDispositionType))
@@ -543,20 +611,28 @@ public static class FilesEndpoints
             enforceInternalPassThrough: false,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            GetFileDownloadLinkOperation.ResultCode.Ok => TypedResults.Ok(
-                new GetFileDownloadLinkResponseDto(
-                    DownloadPreSignedUrl: result.DownloadPreSignedUrl!)),
+            case GetFileDownloadLinkOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.File.DownloadLinkGenerated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        externalId: fileExternalId),
+                    cancellationToken);
 
-            GetFileDownloadLinkOperation.ResultCode.FileNotFound => 
-                HttpErrors.File.NotFound(
-                    fileExternalId),
+                return TypedResults.Ok(
+                    new GetFileDownloadLinkResponseDto(
+                        DownloadPreSignedUrl: result.DownloadPreSignedUrl!));
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(GetFileDownloadLinkOperation),
-                resultValueStr: result.Code.ToString())
-        };
+            case GetFileDownloadLinkOperation.ResultCode.FileNotFound:
+                return HttpErrors.File.NotFound(fileExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(GetFileDownloadLinkOperation),
+                    resultValueStr: result.Code.ToString());
+        }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>>> UpdateFileName(
@@ -564,6 +640,7 @@ public static class FilesEndpoints
         [FromBody] UpdateFileNameRequestDto request,
         HttpContext httpContext,
         UpdateFileNameQuery updateFileNameQuery,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -577,18 +654,26 @@ public static class FilesEndpoints
             isRenameAllowedByBoxPermissions: true,
             cancellationToken: cancellationToken);
 
-        return resultCode switch
+        switch (resultCode)
         {
-            UpdateFileNameQuery.ResultCode.Ok => 
-                TypedResults.Ok(),
+            case UpdateFileNameQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.File.Renamed(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        externalId: fileExternalId,
+                        name: request.Name),
+                    cancellationToken);
 
-            UpdateFileNameQuery.ResultCode.FileNotFound => 
-                HttpErrors.File.NotFound(
-                    fileExternalId),
+                return TypedResults.Ok();
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(UpdateFileNameQuery),
-                resultValueStr: resultCode.ToString())
-        };
+            case UpdateFileNameQuery.ResultCode.FileNotFound:
+                return HttpErrors.File.NotFound(fileExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateFileNameQuery),
+                    resultValueStr: resultCode.ToString());
+        }
     }
 }

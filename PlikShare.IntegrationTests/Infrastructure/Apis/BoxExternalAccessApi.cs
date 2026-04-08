@@ -15,4 +15,42 @@ public class BoxExternalAccessApi(IFlurlClient flurlClient, string appUrl)
             apiPath: $"api/boxes/{boxExternalId}/html",
             cookie: cookie);
     }
+
+    public async Task AcceptInvitation(
+        BoxExtId boxExternalId,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePost(
+            appUrl: appUrl,
+            apiPath: $"api/boxes/{boxExternalId}/accept-invitation",
+            request: new { },
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task RejectInvitation(
+        BoxExtId boxExternalId,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePost(
+            appUrl: appUrl,
+            apiPath: $"api/boxes/{boxExternalId}/reject-invitation",
+            request: new { },
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task LeaveBox(
+        BoxExtId boxExternalId,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecuteDelete(
+            appUrl: appUrl,
+            apiPath: $"api/boxes/{boxExternalId}",
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
 }

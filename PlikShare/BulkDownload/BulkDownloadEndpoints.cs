@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using PlikShare.AuditLog;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Clock;
 using PlikShare.Core.CORS;
@@ -42,6 +43,7 @@ public static class BulkDownloadEndpoints
             BulkDownloadDetailsQuery bulkDownloadDetailsQuery,
             HardDriveBulkDownloadOperation hardDriveBulkDownloadOperation,
             S3BulkDownloadOperation s3BulkDownloadOperation,
+            AuditLogService auditLogService,
             CancellationToken cancellationToken)
     {
         var (extractionResult, payload) = preSignedUrlsService.TryExtractPreSignedBulkDownloadPayload(
@@ -89,6 +91,7 @@ public static class BulkDownloadEndpoints
             bulkDownloadDetailsQuery,
             hardDriveBulkDownloadOperation,
             s3BulkDownloadOperation,
+            auditLogService,
             cancellationToken);
     }
 
@@ -100,6 +103,7 @@ public static class BulkDownloadEndpoints
         BulkDownloadDetailsQuery bulkDownloadDetailsQuery,
         HardDriveBulkDownloadOperation hardDriveBulkDownloadOperation,
         S3BulkDownloadOperation s3BulkDownloadOperation,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceContext = await workspaceCache.TryGetWorkspace(
@@ -126,6 +130,12 @@ public static class BulkDownloadEndpoints
             Log.Debug("Bulk download will include following files: {Files}",
                 bulkDownloadDetails.Files.Select(f => f.ExternalId));
         }
+
+        await auditLogService.Log(
+            Audit.File.BulkDownloaded(
+                actor: httpContext.GetAuditLogActorContext(),
+                fileExternalIds: bulkDownloadDetails.Files.Select(f => f.ExternalId).ToList()),
+            cancellationToken);
 
         httpContext.Response.Headers.ContentType = "application/zip";
         httpContext.Response.Headers.ContentDisposition = $"attachment; filename=bulk-download-{clock.UtcNow:yyyyMMddHHmmss}.zip";

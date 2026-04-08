@@ -8,6 +8,7 @@ using PlikShare.Folders.Id;
 using PlikShare.Integrations.Id;
 using PlikShare.Storages.Id;
 using PlikShare.Uploads.Id;
+using PlikShare.Users.Id;
 using PlikShare.Workspaces.Id;
 
 namespace PlikShare.AuditLog;
@@ -53,6 +54,8 @@ public static class AuditLogDetails
 
         public class LimitUpdated
         {
+            public required string TargetEmail { get; init; }
+            public required UserExtId TargetExternalId { get; init; }
             public required long? Value { get; init; }
         }
     }
@@ -252,7 +255,7 @@ public static class AuditLogDetails
         public class BulkCreated
         {
             public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required int FolderCount { get; init; }
+            public required List<FolderExtId> FolderExternalIds { get; init; }
         }
 
         public class NameUpdated
@@ -364,6 +367,21 @@ public static class AuditLogDetails
             public required BoxLinkExtId ExternalId { get; init; }
             public required string Name { get; init; }
         }
+
+        public class InvitationAccepted
+        {
+            public required BoxExtId ExternalId { get; init; }
+        }
+
+        public class InvitationRejected
+        {
+            public required BoxExtId ExternalId { get; init; }
+        }
+
+        public class MemberLeft
+        {
+            public required BoxExtId ExternalId { get; init; }
+        }
     }
 
     public static class BoxLink
@@ -412,6 +430,108 @@ public static class AuditLogDetails
             public required WorkspaceExtId WorkspaceExternalId { get; init; }
             public required BoxExtId BoxExternalId { get; init; }
             public required BoxLinkExtId ExternalId { get; init; }
+        }
+    }
+
+    public static class File
+    {
+        public class Renamed
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required FileExtId ExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+
+        public class NoteSaved
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required FileExtId ExternalId { get; init; }
+        }
+
+        public class CommentCreated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required FileExtId FileExternalId { get; init; }
+            public required FileArtifactExtId CommentExternalId { get; init; }
+        }
+
+        public class CommentDeleted
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required FileExtId FileExternalId { get; init; }
+            public required FileArtifactExtId CommentExternalId { get; init; }
+        }
+
+        public class CommentEdited
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required FileExtId FileExternalId { get; init; }
+            public required FileArtifactExtId CommentExternalId { get; init; }
+        }
+
+        public class ContentUpdated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required FileExtId ExternalId { get; init; }
+        }
+
+        public class AttachmentUploaded
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required FileExtId ParentFileExternalId { get; init; }
+            public required FileExtId AttachmentFileExternalId { get; init; }
+            public required string Name { get; init; }
+        }
+
+        public class DownloadLinkGenerated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required FileExtId ExternalId { get; init; }
+        }
+
+        public class BulkDownloadLinkGenerated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required List<FileExtId> SelectedFileExternalIds { get; init; }
+            public required List<FolderExtId> SelectedFolderExternalIds { get; init; }
+        }
+
+        public class Downloaded
+        {
+            public required FileExtId ExternalId { get; init; }
+        }
+
+        public class BulkDownloaded
+        {
+            public required List<FileExtId> FileExternalIds { get; init; }
+        }
+    }
+
+    public static class Upload
+    {
+        public class BulkInitiated
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required List<string> FileNames { get; init; }
+        }
+
+        public class Completed
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required FileUploadExtId FileUploadExternalId { get; init; }
+            public required FileExtId FileExternalId { get; init; }
+        }
+
+        public class FilePartUploaded
+        {
+            public required FileUploadExtId FileUploadExternalId { get; init; }
+            public required int PartNumber { get; init; }
+        }
+
+        public class MultiFileDirectUploaded
+        {
+            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required List<FileExtId> FileExternalIds { get; init; }
         }
     }
 

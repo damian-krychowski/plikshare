@@ -207,6 +207,9 @@ public static class AuditLogEventTypes
         public const string MemberRevoked = "box.member-revoked";
         public const string MemberPermissionsUpdated = "box.member-permissions-updated";
         public const string LinkCreated = "box.link-created";
+        public const string InvitationAccepted = "box.invitation-accepted";
+        public const string InvitationRejected = "box.invitation-rejected";
+        public const string MemberLeft = "box.member-left";
 
         public static readonly string[] All =
         [
@@ -215,7 +218,8 @@ public static class AuditLogEventTypes
             FooterIsEnabledUpdated, FooterUpdated,
             FolderUpdated, IsEnabledUpdated,
             MemberInvited, MemberRevoked, MemberPermissionsUpdated,
-            LinkCreated
+            LinkCreated,
+            InvitationAccepted, InvitationRejected, MemberLeft
         ];
     }
 
@@ -235,11 +239,50 @@ public static class AuditLogEventTypes
         ];
     }
 
+    public static class File
+    {
+        public const string Renamed = "file.renamed";
+        public const string NoteSaved = "file.note-saved";
+        public const string CommentCreated = "file.comment-created";
+        public const string CommentDeleted = "file.comment-deleted";
+        public const string CommentEdited = "file.comment-edited";
+        public const string ContentUpdated = "file.content-updated";
+        public const string AttachmentUploaded = "file.attachment-uploaded";
+        public const string DownloadLinkGenerated = "file.download-link-generated";
+        public const string BulkDownloadLinkGenerated = "file.bulk-download-link-generated";
+        public const string Downloaded = "file.downloaded";
+        public const string BulkDownloaded = "file.bulk-downloaded";
+
+        public static readonly string[] All =
+        [
+            Renamed, NoteSaved,
+            CommentCreated, CommentDeleted, CommentEdited,
+            ContentUpdated, AttachmentUploaded,
+            DownloadLinkGenerated, BulkDownloadLinkGenerated,
+            Downloaded, BulkDownloaded
+        ];
+    }
+
+    public static class Upload
+    {
+        public const string BulkInitiated = "upload.bulk-initiated";
+        public const string Completed = "upload.completed";
+        public const string FilePartUploaded = "upload.file-part-uploaded";
+        public const string MultiFileDirectUploaded = "upload.multi-file-direct-uploaded";
+
+        public static readonly string[] All =
+        [
+            BulkInitiated, Completed,
+            FilePartUploaded, MultiFileDirectUploaded
+        ];
+    }
+
     public static readonly string[] All = [
         ..Auth.All, ..User.All, ..Settings.All,
         ..EmailProvider.All, ..AuthProvider.All,
         ..Storage.All, ..Integration.All,
-        ..Workspace.All, ..Folder.All, ..Box.All, ..BoxLink.All
+        ..Workspace.All, ..Folder.All, ..Box.All, ..BoxLink.All,
+        ..File.All, ..Upload.All
     ];
 }
 
@@ -257,12 +300,13 @@ public static class AuditLogEventCategories
     public const string EmailProvider = "email-provider";
     public const string AuthProvider = "auth-provider";
     public const string Settings = "settings";
+    public const string Upload = "upload";
 
     public static readonly string[] All =
     [
         Auth, User, Workspace, File, Folder,
         Box, BoxLink, Storage, Integration,
-        EmailProvider, AuthProvider, Settings
+        EmailProvider, AuthProvider, Settings, Upload
     ];
 }
 

@@ -238,7 +238,7 @@ public class folder_tests : TestFixture
             assertDetails: details =>
             {
                 details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.FolderCount.Should().Be(3);
+                details.FolderExternalIds.Should().HaveCount(3);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);

@@ -10,6 +10,7 @@ using PlikShare.Folders.Id;
 using PlikShare.Integrations.Id;
 using PlikShare.Storages.Id;
 using PlikShare.Uploads.Id;
+using PlikShare.Users.Id;
 using PlikShare.Users.PermissionsAndRoles;
 using PlikShare.Workspaces.Id;
 
@@ -381,6 +382,8 @@ public static class Audit
 
         public static AuditLogEntry MaxWorkspaceNumberUpdated(
             AuditLogActorContext actor,
+            string targetEmail,
+            UserExtId targetExternalId,
             int? value) => new()
         {
             Actor = actor.Identity,
@@ -391,11 +394,15 @@ public static class Audit
             EventType = AuditLogEventTypes.User.MaxWorkspaceNumberUpdated,
             Severity = AuditLogSeverities.Info,
             DetailsJson = Json.Serialize(new AuditLogDetails.User.LimitUpdated {
+                TargetEmail = targetEmail,
+                TargetExternalId = targetExternalId,
                 Value = value })
         };
 
         public static AuditLogEntry DefaultMaxWorkspaceSizeUpdated(
             AuditLogActorContext actor,
+            string targetEmail,
+            UserExtId targetExternalId,
             long? value) => new()
         {
             Actor = actor.Identity,
@@ -406,11 +413,15 @@ public static class Audit
             EventType = AuditLogEventTypes.User.DefaultMaxWorkspaceSizeUpdated,
             Severity = AuditLogSeverities.Info,
             DetailsJson = Json.Serialize(new AuditLogDetails.User.LimitUpdated {
+                TargetEmail = targetEmail,
+                TargetExternalId = targetExternalId,
                 Value = value })
         };
 
         public static AuditLogEntry DefaultMaxWorkspaceTeamMembersUpdated(
             AuditLogActorContext actor,
+            string targetEmail,
+            UserExtId targetExternalId,
             int? value) => new()
         {
             Actor = actor.Identity,
@@ -421,6 +432,8 @@ public static class Audit
             EventType = AuditLogEventTypes.User.DefaultMaxWorkspaceTeamMembersUpdated,
             Severity = AuditLogSeverities.Info,
             DetailsJson = Json.Serialize(new AuditLogDetails.User.LimitUpdated {
+                TargetEmail = targetEmail,
+                TargetExternalId = targetExternalId,
                 Value = value })
         };
     }
@@ -486,8 +499,8 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Settings,
             EventType = AuditLogEventTypes.Settings.DefaultMaxWorkspaceNumberChanged,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Json.Serialize(new AuditLogDetails.User.LimitUpdated {
-                Value = value })
+            DetailsJson = Json.Serialize(new AuditLogDetails.Settings.ValueChanged {
+                Value = value?.ToString() })
         };
 
         public static AuditLogEntry DefaultMaxWorkspaceSizeChanged(
@@ -501,8 +514,8 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Settings,
             EventType = AuditLogEventTypes.Settings.DefaultMaxWorkspaceSizeChanged,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Json.Serialize(new AuditLogDetails.User.LimitUpdated {
-                Value = value })
+            DetailsJson = Json.Serialize(new AuditLogDetails.Settings.ValueChanged {
+                Value = value?.ToString() })
         };
 
         public static AuditLogEntry DefaultMaxWorkspaceTeamMembersChanged(
@@ -516,8 +529,8 @@ public static class Audit
             EventCategory = AuditLogEventCategories.Settings,
             EventType = AuditLogEventTypes.Settings.DefaultMaxWorkspaceTeamMembersChanged,
             Severity = AuditLogSeverities.Info,
-            DetailsJson = Json.Serialize(new AuditLogDetails.User.LimitUpdated {
-                Value = value })
+            DetailsJson = Json.Serialize(new AuditLogDetails.Settings.ValueChanged {
+                Value = value?.ToString() })
         };
 
         public static AuditLogEntry AlertOnNewUserChanged(
@@ -980,7 +993,7 @@ public static class Audit
         public static AuditLogEntry BulkCreated(
             AuditLogActorContext actor,
             WorkspaceExtId workspaceExternalId,
-            int folderCount) => new()
+            List<FolderExtId> folderExternalIds) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -991,7 +1004,7 @@ public static class Audit
             Severity = AuditLogSeverities.Info,
             DetailsJson = Json.Serialize(new AuditLogDetails.Folder.BulkCreated {
                 WorkspaceExternalId = workspaceExternalId,
-                FolderCount = folderCount })
+                FolderExternalIds = folderExternalIds })
         };
 
         public static AuditLogEntry NameUpdated(
@@ -1285,6 +1298,51 @@ public static class Audit
                 ExternalId = externalId,
                 Name = name })
         };
+
+        public static AuditLogEntry InvitationAccepted(
+            AuditLogActorContext actor,
+            BoxExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.InvitationAccepted,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.InvitationAccepted {
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry InvitationRejected(
+            AuditLogActorContext actor,
+            BoxExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.InvitationRejected,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.InvitationRejected {
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry MemberLeft(
+            AuditLogActorContext actor,
+            BoxExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.MemberLeft,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Box.MemberLeft {
+                ExternalId = externalId })
+        };
     }
 
     public static class BoxLink
@@ -1409,6 +1467,279 @@ public static class Audit
                 WorkspaceExternalId = workspaceExternalId,
                 BoxExternalId = boxExternalId,
                 ExternalId = externalId })
+        };
+    }
+
+    public static class File
+    {
+        public static AuditLogEntry Renamed(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            FileExtId externalId,
+            string name) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.File,
+            EventType = AuditLogEventTypes.File.Renamed,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.File.Renamed {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId,
+                Name = name })
+        };
+
+        public static AuditLogEntry NoteSaved(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            FileExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.File,
+            EventType = AuditLogEventTypes.File.NoteSaved,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.File.NoteSaved {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry CommentCreated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            FileExtId fileExternalId,
+            FileArtifactExtId commentExternalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.File,
+            EventType = AuditLogEventTypes.File.CommentCreated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.File.CommentCreated {
+                WorkspaceExternalId = workspaceExternalId,
+                FileExternalId = fileExternalId,
+                CommentExternalId = commentExternalId })
+        };
+
+        public static AuditLogEntry CommentDeleted(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            FileExtId fileExternalId,
+            FileArtifactExtId commentExternalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.File,
+            EventType = AuditLogEventTypes.File.CommentDeleted,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new AuditLogDetails.File.CommentDeleted {
+                WorkspaceExternalId = workspaceExternalId,
+                FileExternalId = fileExternalId,
+                CommentExternalId = commentExternalId })
+        };
+
+        public static AuditLogEntry CommentEdited(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            FileExtId fileExternalId,
+            FileArtifactExtId commentExternalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.File,
+            EventType = AuditLogEventTypes.File.CommentEdited,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.File.CommentEdited {
+                WorkspaceExternalId = workspaceExternalId,
+                FileExternalId = fileExternalId,
+                CommentExternalId = commentExternalId })
+        };
+
+        public static AuditLogEntry ContentUpdated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            FileExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.File,
+            EventType = AuditLogEventTypes.File.ContentUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.File.ContentUpdated {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry AttachmentUploaded(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            FileExtId parentFileExternalId,
+            FileExtId attachmentFileExternalId,
+            string name) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.File,
+            EventType = AuditLogEventTypes.File.AttachmentUploaded,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.File.AttachmentUploaded {
+                WorkspaceExternalId = workspaceExternalId,
+                ParentFileExternalId = parentFileExternalId,
+                AttachmentFileExternalId = attachmentFileExternalId,
+                Name = name })
+        };
+
+        public static AuditLogEntry DownloadLinkGenerated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            FileExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.File,
+            EventType = AuditLogEventTypes.File.DownloadLinkGenerated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.File.DownloadLinkGenerated {
+                WorkspaceExternalId = workspaceExternalId,
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry BulkDownloadLinkGenerated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            List<FileExtId> selectedFileExternalIds,
+            List<FolderExtId> selectedFolderExternalIds) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.File,
+            EventType = AuditLogEventTypes.File.BulkDownloadLinkGenerated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.File.BulkDownloadLinkGenerated {
+                WorkspaceExternalId = workspaceExternalId,
+                SelectedFileExternalIds = selectedFileExternalIds,
+                SelectedFolderExternalIds = selectedFolderExternalIds })
+        };
+
+        public static AuditLogEntry Downloaded(
+            AuditLogActorContext actor,
+            FileExtId externalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.File,
+            EventType = AuditLogEventTypes.File.Downloaded,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.File.Downloaded {
+                ExternalId = externalId })
+        };
+
+        public static AuditLogEntry BulkDownloaded(
+            AuditLogActorContext actor,
+            List<FileExtId> fileExternalIds) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.File,
+            EventType = AuditLogEventTypes.File.BulkDownloaded,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.File.BulkDownloaded {
+                FileExternalIds = fileExternalIds })
+        };
+    }
+
+    public static class Upload
+    {
+        public static AuditLogEntry BulkInitiated(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            List<string> fileNames) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Upload,
+            EventType = AuditLogEventTypes.Upload.BulkInitiated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Upload.BulkInitiated {
+                WorkspaceExternalId = workspaceExternalId,
+                FileNames = fileNames })
+        };
+
+        public static AuditLogEntry Completed(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            FileUploadExtId fileUploadExternalId,
+            FileExtId fileExternalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Upload,
+            EventType = AuditLogEventTypes.Upload.Completed,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Upload.Completed {
+                WorkspaceExternalId = workspaceExternalId,
+                FileUploadExternalId = fileUploadExternalId,
+                FileExternalId = fileExternalId })
+        };
+
+        public static AuditLogEntry FilePartUploaded(
+            AuditLogActorContext actor,
+            FileUploadExtId fileUploadExternalId,
+            int partNumber) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Upload,
+            EventType = AuditLogEventTypes.Upload.FilePartUploaded,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Upload.FilePartUploaded {
+                FileUploadExternalId = fileUploadExternalId,
+                PartNumber = partNumber })
+        };
+
+        public static AuditLogEntry MultiFileDirectUploaded(
+            AuditLogActorContext actor,
+            WorkspaceExtId workspaceExternalId,
+            List<FileExtId> fileExternalIds) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Upload,
+            EventType = AuditLogEventTypes.Upload.MultiFileDirectUploaded,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AuditLogDetails.Upload.MultiFileDirectUploaded {
+                WorkspaceExternalId = workspaceExternalId,
+                FileExternalIds = fileExternalIds })
         };
     }
 

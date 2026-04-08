@@ -148,6 +148,8 @@ public static class UsersEndpoints
         await auditLogService.Log(
             Audit.User.MaxWorkspaceNumberUpdated(
                 actor: httpContext.GetAuditLogActorContext(),
+                targetEmail: user!.Email.Value,
+                targetExternalId: user.ExternalId,
                 value: request.MaxWorkspaceNumber),
             cancellationToken);
 
@@ -179,6 +181,8 @@ public static class UsersEndpoints
         await auditLogService.Log(
             Audit.User.DefaultMaxWorkspaceSizeUpdated(
                 actor: httpContext.GetAuditLogActorContext(),
+                targetEmail: user!.Email.Value,
+                targetExternalId: user.ExternalId,
                 value: request.DefaultMaxWorkspaceSizeInBytes),
             cancellationToken);
 
@@ -210,6 +214,8 @@ public static class UsersEndpoints
         await auditLogService.Log(
             Audit.User.DefaultMaxWorkspaceTeamMembersUpdated(
                 actor: httpContext.GetAuditLogActorContext(),
+                targetEmail: user!.Email.Value,
+                targetExternalId: user.ExternalId,
                 value: request.DefaultMaxWorkspaceTeamMembers),
             cancellationToken);
 

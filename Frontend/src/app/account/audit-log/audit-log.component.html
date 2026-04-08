@@ -111,12 +111,19 @@
                     </mat-form-field>
                 </div>
 
-                <div class="filters-row">
+                <div class="filters-row filters-row--top">
                     <mat-form-field class="filter-field">
                         <mat-label>Event type</mat-label>
                         <mat-select multiple [ngModel]="filterEventTypes()" (ngModelChange)="filterEventTypes.set($event)">
-                            @for(et of availableEventTypes(); track et) {
-                                <mat-option [value]="et">{{ et }}</mat-option>
+                            <ngx-mat-select-search
+                                [ngModel]="eventTypeSearch()"
+                                (ngModelChange)="eventTypeSearch.set($event)"
+                                placeholderLabel="Search event types..."
+                                noEntriesFoundLabel="No matching event types"
+                                [hideClearSearchButton]="true">
+                            </ngx-mat-select-search>
+                            @for(et of filteredEventTypes(); track et) {
+                                <mat-option [value]="et"><span [innerHTML]="highlightMatch(et, eventTypeSearch())"></span></mat-option>
                             }
                         </mat-select>
                     </mat-form-field>
@@ -124,8 +131,15 @@
                     <mat-form-field class="filter-field">
                         <mat-label>Actor</mat-label>
                         <mat-select multiple [ngModel]="filterActorIdentities()" (ngModelChange)="filterActorIdentities.set($event)">
-                            @for(actor of availableActors(); track actor) {
-                                <mat-option [value]="actor">{{ actor }}</mat-option>
+                            <ngx-mat-select-search
+                                [ngModel]="actorSearch()"
+                                (ngModelChange)="actorSearch.set($event)"
+                                placeholderLabel="Search actors..."
+                                noEntriesFoundLabel="No matching actors"
+                                [hideClearSearchButton]="true">
+                            </ngx-mat-select-search>
+                            @for(actor of filteredActors(); track actor) {
+                                <mat-option [value]="actor"><span [innerHTML]="highlightMatch(actor, actorSearch())"></span></mat-option>
                             }
                         </mat-select>
                     </mat-form-field>

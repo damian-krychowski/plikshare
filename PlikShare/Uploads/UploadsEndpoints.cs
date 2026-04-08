@@ -20,6 +20,7 @@ using PlikShare.Uploads.Initiate;
 using PlikShare.Uploads.Initiate.Contracts;
 using PlikShare.Uploads.List;
 using PlikShare.Uploads.List.Contracts;
+using PlikShare.AuditLog;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Validation;
 
@@ -65,6 +66,7 @@ public static class UploadsEndpoints
         HttpContext httpContext,
         BulkInitiateFileUploadOperation bulkInitiateFileUploadOperation,
         WorkspaceCache workspaceCache,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -87,21 +89,29 @@ public static class UploadsEndpoints
             workspaceId: workspaceMembership.Workspace.Id,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            BulkInitiateFileUploadOperation.ResultCode.Ok => TypedResults.Ok(
-                result.Response),
+            case BulkInitiateFileUploadOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Upload.BulkInitiated(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        fileNames: request.Items.Select(i => i.FileNameWithExtension).ToList()),
+                    cancellationToken);
 
-            BulkInitiateFileUploadOperation.ResultCode.FoldersNotFound => HttpErrors.Folder.NotFound(
-                result.MissingFolders),
+                return TypedResults.Ok(result.Response);
 
-            BulkInitiateFileUploadOperation.ResultCode.NotEnoughSpace => HttpErrors.Workspace.NotEnoughSpace(
-                workspaceMembership.Workspace.ExternalId),
-                
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(BulkInitiateFileUploadOperation),
-                resultValueStr: result.Code.ToString())
-        };
+            case BulkInitiateFileUploadOperation.ResultCode.FoldersNotFound:
+                return HttpErrors.Folder.NotFound(result.MissingFolders);
+
+            case BulkInitiateFileUploadOperation.ResultCode.NotEnoughSpace:
+                return HttpErrors.Workspace.NotEnoughSpace(workspaceMembership.Workspace.ExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(BulkInitiateFileUploadOperation),
+                    resultValueStr: result.Code.ToString());
+        }
     }
 
     private static Results<Ok<GetFileUploadDetailsResponseDto>, NotFound<HttpError>> GetDetails(
@@ -217,6 +227,7 @@ public static class UploadsEndpoints
         [FromRoute] FileUploadExtId fileUploadExternalId,
         HttpContext httpContext,
         ConvertFileUploadToFileOperation convertFileUploadToFileOperation,
+        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -228,25 +239,32 @@ public static class UploadsEndpoints
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            ConvertFileUploadToFileOperation.ResultCode.Ok => 
-                TypedResults.Ok(
+            case ConvertFileUploadToFileOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Upload.Completed(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                        fileUploadExternalId: fileUploadExternalId,
+                        fileExternalId: result.FileExternalId),
+                    cancellationToken);
+
+                return TypedResults.Ok(
                     new CompleteFileUploadResponseDto(
-                        FileExternalId: result.FileExternalId)),
+                        FileExternalId: result.FileExternalId));
 
-            ConvertFileUploadToFileOperation.ResultCode.FileUploadNotFound => 
-                HttpErrors.Upload.NotFound(
-                    fileUploadExternalId),  
+            case ConvertFileUploadToFileOperation.ResultCode.FileUploadNotFound:
+                return HttpErrors.Upload.NotFound(fileUploadExternalId);
 
-            ConvertFileUploadToFileOperation.ResultCode.FileUploadNotYetCompleted => 
-                HttpErrors.Upload.NotCompleted(
-                    fileUploadExternalId),
+            case ConvertFileUploadToFileOperation.ResultCode.FileUploadNotYetCompleted:
+                return HttpErrors.Upload.NotCompleted(fileUploadExternalId);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(ConvertFileUploadToFileOperation),
-                resultValueStr: result.Code.ToString())
-        };
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(ConvertFileUploadToFileOperation),
+                    resultValueStr: result.Code.ToString());
+        }
     }
 
     private static GetUploadsListResponseDto ListUploads(
