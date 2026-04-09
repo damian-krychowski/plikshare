@@ -80,6 +80,8 @@ namespace PlikShare.Files.Preview.SaveNote
                                 fa_created_at = EXCLUDED.fa_created_at,
                                 fa_owner_identity_type = EXCLUDED.fa_owner_identity_type,
                                 fa_owner_identity = EXCLUDED.fa_owner_identity
+                            WHERE
+                                fa_content IS NOT EXCLUDED.fa_content
                             RETURNING
                                 fa_id
                         ",
@@ -97,12 +99,28 @@ namespace PlikShare.Files.Preview.SaveNote
 
                 if (result.IsEmpty)
                 {
-                    Logger.Error(
-                        "File not found while saving note. FileExternalId='{FileExternalId}', WorkspaceExternalId='{WorkspaceExternalId}'",
-                        fileExternalId,
-                        workspace.ExternalId);
+                    var noteExists = dbWriteContext
+                        .OneRowCmd(
+                            sql: @"
+                                SELECT 1 
+                                FROM fa_file_artifacts 
+                                WHERE fa_uniqueness_id = $uniquenessId
+                            ",
+                            readRowFunc: reader => true)
+                        .WithParameter("$uniquenessId", uniquenessId)
+                        .Execute();
 
-                    return ResultCode.FileNotFound;
+                    if (noteExists.IsEmpty)
+                    {
+                        Logger.Error(
+                            "File not found while saving note. FileExternalId='{FileExternalId}', WorkspaceExternalId='{WorkspaceExternalId}'",
+                            fileExternalId,
+                            workspace.ExternalId);
+
+                        return ResultCode.FileNotFound;
+                    }
+
+                    return ResultCode.ContentNotChanged;
                 }
 
                 Logger.Information(
@@ -137,7 +155,8 @@ namespace PlikShare.Files.Preview.SaveNote
         public enum ResultCode
         {
             Ok = 0,
-            FileNotFound
+            FileNotFound,
+            ContentNotChanged
         }
     }
 }

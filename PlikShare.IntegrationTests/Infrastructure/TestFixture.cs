@@ -221,6 +221,45 @@ public class TestFixture: IAsyncLifetime
             $"Audit log entry with event type '{expectedEventType}' was not found");
     }
 
+    protected async Task AssertAuditLogDoesNotContain(
+        string expectedEventType,
+        string? expectedActorEmail = null)
+    {
+        // Wait a bit to make sure any async audit log writes would have completed
+        await Task.Delay(200);
+
+        var auditLogDb = HostFixture.App.Services
+            .GetRequiredService<PlikShareAuditLogDb>();
+
+        using var connection = auditLogDb.OpenConnection();
+
+        var entries = connection
+            .Cmd(
+                sql: """
+                    SELECT al_event_type, al_actor_email
+                    FROM al_audit_logs
+                    WHERE al_event_type = $eventType
+                    ORDER BY al_id DESC
+                    LIMIT 10
+                    """,
+                readRowFunc: reader => new
+                {
+                    EventType = reader.GetString(0),
+                    ActorEmail = reader.GetStringOrNull(1)
+                })
+            .WithParameter("$eventType", expectedEventType)
+            .Execute();
+
+        var matching = entries.Where(e =>
+            expectedActorEmail is null || e.ActorEmail == expectedActorEmail)
+            .ToList();
+
+        matching.Should().BeEmpty(
+            $"expected no audit log entry with event type '{expectedEventType}'" +
+            (expectedActorEmail is not null ? $", actor email '{expectedActorEmail}'" : "") +
+            " but found {0}", matching.Count);
+    }
+
     protected async Task WaitFor(Action assertion)
     {
         Exception? lastException = null;

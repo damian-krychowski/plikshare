@@ -254,6 +254,35 @@ public class file_tests : TestFixture
     }
 
     [Fact]
+    public async Task saving_note_with_unchanged_content_should_not_produce_audit_log_entry()
+    {
+        //given
+        var (file, workspace) = await UploadTestFile();
+
+        await Api.Files.UpdateNote(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: file.ExternalId,
+            request: new SaveFileNoteRequestDto(ContentJson: "{\"text\":\"same note\"}"),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        ClearAuditLog();
+
+        //when - save the same note content again
+        await Api.Files.UpdateNote(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: file.ExternalId,
+            request: new SaveFileNoteRequestDto(ContentJson: "{\"text\":\"same note\"}"),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then - no audit log entry should be produced for unchanged content
+        await AssertAuditLogDoesNotContain(
+            expectedEventType: AuditLogEventTypes.File.NoteSaved,
+            expectedActorEmail: AppOwner.Email);
+    }
+
+    [Fact]
     public async Task creating_comment_should_produce_audit_log_entry()
     {
         //given

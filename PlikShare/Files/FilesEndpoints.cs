@@ -510,6 +510,9 @@ public static class FilesEndpoints
 
                 return TypedResults.Ok();
 
+            case SaveFileNoteQuery.ResultCode.ContentNotChanged:
+                return TypedResults.Ok();
+
             case SaveFileNoteQuery.ResultCode.FileNotFound:
                 return HttpErrors.File.NotFound(fileExternalId);
 

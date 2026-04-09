@@ -16,6 +16,26 @@ export type LexicalEditorChanges = {
 export const LEXICAL_EMPTY_JSON =  '{"root":{"children":[{"children":[],"direction":null,"format":"","indent":0,"type":"paragraph","version":1}],"direction":null,"format":"","indent":0,"type":"root","version":1}}';
 export const LEXICAL_EMPTY_AFTER_RESET = '{"root":{"children":[],"direction":null,"format":"","indent":0,"type":"root","version":1}}';
 
+export function isLexicalContentEmpty(json: string): boolean {
+    try {
+        const parsed = JSON.parse(json);
+        const root = parsed?.root;
+        if (!root || root.type !== 'root') return false;
+
+        const children = root.children;
+        if (!Array.isArray(children)) return false;
+        if (children.length === 0) return true;
+        if (children.length !== 1) return false;
+
+        const child = children[0];
+        return child.type === 'paragraph' &&
+               Array.isArray(child.children) &&
+               child.children.length === 0;
+    } catch {
+        return false;
+    }
+}
+
 const containerElementRef = "customReactComponentContainer";
 
 @Component({

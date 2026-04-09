@@ -3,7 +3,7 @@ import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { EditorState } from "lexical";
 import { Debouncer } from "../../services/debouncer";
-import { LEXICAL_EMPTY_JSON, LexicalEditorWrapperComponent } from "../lexical/lexical-editor-wrapper.component";
+import { isLexicalContentEmpty, LexicalEditorWrapperComponent } from "../lexical/lexical-editor-wrapper.component";
 
 type RichTextEditorState = 'nothing-changed' | 'saved' | 'typing' | 'saving';
 
@@ -57,7 +57,7 @@ export class RichTextEditorComponent {
         const originalJson = this.json();
 
         const hasJsonChanged = originalJson == null
-            ? currentJson != LEXICAL_EMPTY_JSON
+            ? !isLexicalContentEmpty(currentJson)
             : currentJson != originalJson;
                 
         if(hasJsonChanged) {
