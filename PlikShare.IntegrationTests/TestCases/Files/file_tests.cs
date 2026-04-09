@@ -219,9 +219,9 @@ public class file_tests : TestFixture
             expectedEventType: AuditLogEventTypes.File.Renamed,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.ExternalId.Should().Be(file.ExternalId);
-                details.Name.Should().Be("audit-renamed");
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.File.ExternalId.Should().Be(file.ExternalId);
+                details.File.Name.Should().Be("audit-renamed");
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -246,8 +246,8 @@ public class file_tests : TestFixture
             expectedEventType: AuditLogEventTypes.File.NoteSaved,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.ExternalId.Should().Be(file.ExternalId);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.File.ExternalId.Should().Be(file.ExternalId);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -304,8 +304,8 @@ public class file_tests : TestFixture
             expectedEventType: AuditLogEventTypes.File.CommentCreated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.FileExternalId.Should().Be(file.ExternalId);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.File.ExternalId.Should().Be(file.ExternalId);
                 details.CommentExternalId.Should().Be(commentExternalId);
             },
             expectedActorEmail: AppOwner.Email,
@@ -342,8 +342,8 @@ public class file_tests : TestFixture
             expectedEventType: AuditLogEventTypes.File.CommentEdited,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.FileExternalId.Should().Be(file.ExternalId);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.File.ExternalId.Should().Be(file.ExternalId);
                 details.CommentExternalId.Should().Be(commentExternalId);
             },
             expectedActorEmail: AppOwner.Email,
@@ -379,8 +379,8 @@ public class file_tests : TestFixture
             expectedEventType: AuditLogEventTypes.File.CommentDeleted,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.FileExternalId.Should().Be(file.ExternalId);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.File.ExternalId.Should().Be(file.ExternalId);
                 details.CommentExternalId.Should().Be(commentExternalId);
             },
             expectedActorEmail: AppOwner.Email,
@@ -421,8 +421,8 @@ public class file_tests : TestFixture
             expectedEventType: AuditLogEventTypes.File.ContentUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.ExternalId.Should().Be(file.ExternalId);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.File.ExternalId.Should().Be(file.ExternalId);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);

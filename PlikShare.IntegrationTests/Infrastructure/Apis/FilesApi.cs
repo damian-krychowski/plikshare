@@ -1,5 +1,6 @@
 using Flurl.Http;
 using PlikShare.Core.Utils;
+using PlikShare.Files.BulkDownload.Contracts;
 using PlikShare.Files.Download.Contracts;
 using PlikShare.Files.Id;
 using PlikShare.Files.Preview.Comment.CreateComment.Contracts;
@@ -9,6 +10,7 @@ using PlikShare.Files.Preview.GetZipContentDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipDetails.Contracts;
 using PlikShare.Files.Preview.SaveNote.Contracts;
 using PlikShare.Files.Rename.Contracts;
+using PlikShare.Folders.Id;
 using PlikShare.Storages.Zip;
 using PlikShare.Workspaces.Id;
 
@@ -149,6 +151,29 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
             apiPath: $"api/workspaces/{workspaceExternalId}/files/{fileExternalId}/preview/zip",
             cookie: cookie,
             isResponseInProtobuf: true);
+    }
+
+    public async Task<GetBulkDownloadLinkResponseDto> GetBulkDownloadLink(
+        WorkspaceExtId workspaceExternalId,
+        List<FileExtId> selectedFiles,
+        List<FolderExtId> selectedFolders,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery,
+        List<FileExtId>? excludedFiles = null,
+        List<FolderExtId>? excludedFolders = null)
+    {
+        return await flurlClient.ExecutePost<GetBulkDownloadLinkResponseDto, GetBulkDownloadLinkRequestDto>(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/files/bulk-download-link",
+            request: new GetBulkDownloadLinkRequestDto
+            {
+                SelectedFiles = selectedFiles,
+                SelectedFolders = selectedFolders,
+                ExcludedFiles = excludedFiles ?? [],
+                ExcludedFolders = excludedFolders ?? []
+            },
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
 
     public async Task<GetZipContentDownloadLinkResponseDto> GetZipContentDownloadLink(

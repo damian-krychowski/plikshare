@@ -351,11 +351,16 @@ public static class BoxExternalAccessEndpoints
 
         if (result.Result is Ok<GetBoxFileDownloadLinkResponseDto>)
         {
-            await auditLogService.Log(
-                Audit.File.DownloadLinkGenerated(
+            await auditLogService.LogWithFileContext(
+                fileExternalId: fileExternalId,
+                buildEntry: ctx => Audit.File.DownloadLinkGenerated(
                     actor: httpContext.GetAuditLogActorContext(),
-                    workspaceExternalId: boxAccess.Box.Workspace.ExternalId,
-                    externalId: fileExternalId),
+                    workspace: new AuditLogDetails.WorkspaceRef
+                    {
+                        ExternalId = boxAccess.Box.Workspace.ExternalId,
+                        Name = boxAccess.Box.Workspace.Name
+                    },
+                    file: ctx.ToFileRef(fileExternalId)),
                 cancellationToken);
         }
 
@@ -381,7 +386,11 @@ public static class BoxExternalAccessEndpoints
             await auditLogService.Log(
                 Audit.File.BulkDownloadLinkGenerated(
                     actor: httpContext.GetAuditLogActorContext(),
-                    workspaceExternalId: boxAccess.Box.Workspace.ExternalId,
+                    workspace: new AuditLogDetails.WorkspaceRef
+                    {
+                        ExternalId = boxAccess.Box.Workspace.ExternalId,
+                        Name = boxAccess.Box.Workspace.Name
+                    },
                     selectedFileExternalIds: request.SelectedFiles,
                     selectedFolderExternalIds: request.SelectedFolders),
                 cancellationToken);

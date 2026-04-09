@@ -134,7 +134,18 @@ public static class BulkDownloadEndpoints
         await auditLogService.Log(
             Audit.File.BulkDownloaded(
                 actor: httpContext.GetAuditLogActorContext(),
-                fileExternalIds: bulkDownloadDetails.Files.Select(f => f.ExternalId).ToList()),
+                workspace: new AuditLogDetails.WorkspaceRef
+                {
+                    ExternalId = workspaceContext.ExternalId,
+                    Name = workspaceContext.Name
+                },
+                files: bulkDownloadDetails.Files.Select(f => new AuditLogDetails.FileRef
+                {
+                    ExternalId = f.ExternalId,
+                    Name = f.FullName,
+                    SizeInBytes = f.SizeInBytes,
+                    FolderPath = bulkDownloadDetails.FolderSubtree.GetFullPath(f.FolderId)
+                }).ToList()),
             cancellationToken);
 
         httpContext.Response.Headers.ContentType = "application/zip";

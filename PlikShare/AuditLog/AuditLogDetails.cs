@@ -15,6 +15,20 @@ namespace PlikShare.AuditLog;
 
 public static class AuditLogDetails
 {
+    public class WorkspaceRef
+    {
+        public required WorkspaceExtId ExternalId { get; init; }
+        public required string Name { get; init; }
+    }
+
+    public class FileRef
+    {
+        public required FileExtId ExternalId { get; init; }
+        public required string Name { get; init; }
+        public required long SizeInBytes { get; init; }
+        public string? FolderPath { get; init; }
+    }
+
     public static class Auth
     {
         public class SignedIn
@@ -437,73 +451,75 @@ public static class AuditLogDetails
     {
         public class Renamed
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required FileExtId ExternalId { get; init; }
-            public required string Name { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required FileRef File { get; init; }
         }
 
         public class NoteSaved
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required FileExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required FileRef File { get; init; }
         }
 
         public class CommentCreated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required FileExtId FileExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required FileRef File { get; init; }
             public required FileArtifactExtId CommentExternalId { get; init; }
+            public required string ContentJson { get; init; }
         }
 
         public class CommentDeleted
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required FileExtId FileExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required FileRef File { get; init; }
             public required FileArtifactExtId CommentExternalId { get; init; }
         }
 
         public class CommentEdited
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required FileExtId FileExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required FileRef File { get; init; }
             public required FileArtifactExtId CommentExternalId { get; init; }
+            public required string ContentJson { get; init; }
         }
 
         public class ContentUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required FileExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required FileRef File { get; init; }
         }
 
         public class AttachmentUploaded
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required FileExtId ParentFileExternalId { get; init; }
-            public required FileExtId AttachmentFileExternalId { get; init; }
-            public required string Name { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required FileRef ParentFile { get; init; }
+            public required FileRef Attachment { get; init; }
         }
 
         public class DownloadLinkGenerated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required FileExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required FileRef File { get; init; }
         }
 
         public class BulkDownloadLinkGenerated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
             public required List<FileExtId> SelectedFileExternalIds { get; init; }
             public required List<FolderExtId> SelectedFolderExternalIds { get; init; }
         }
 
         public class Downloaded
         {
-            public required FileExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required FileRef File { get; init; }
         }
 
         public class BulkDownloaded
         {
-            public required List<FileExtId> FileExternalIds { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required List<FileRef> Files { get; init; }
         }
     }
 

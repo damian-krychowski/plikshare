@@ -860,8 +860,8 @@ public class upload_and_download_tests : TestFixture
             expectedEventType: AuditLogEventTypes.File.DownloadLinkGenerated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.ExternalId.Should().Be(uploadedFile.ExternalId);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.File.ExternalId.Should().Be(uploadedFile.ExternalId);
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -903,7 +903,7 @@ public class upload_and_download_tests : TestFixture
             expectedEventType: AuditLogEventTypes.File.Downloaded,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(uploadedFile.ExternalId);
+                details.File.ExternalId.Should().Be(uploadedFile.ExternalId);
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);

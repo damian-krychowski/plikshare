@@ -22,13 +22,20 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
 
         var selectedFiles = GetSelectedFiles(
             workspaceId: workspaceId,
-            fileIds: selectedFileIds, 
+            fileIds: selectedFileIds,
             connection: connection);
+
+        var selectedFileFolderIds = selectedFiles
+            .Where(f => f.FolderId is not null)
+            .Select(f => f.FolderId!.Value)
+            .Distinct()
+            .ToArray();
 
         var folders = GetAllFolders(
             workspaceId: workspaceId,
             selectedFolderIds: selectedFolderIds,
             excludedFolderIds: excludedFolderIds,
+            selectedFileFolderIds: selectedFileFolderIds,
             connection: connection);
 
         var nestedFiles = GetFilesFromFolders(
@@ -59,9 +66,10 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                         fi_external_id,
                         fi_name || fi_extension,
                         fi_s3_key_secret_part,
-                        fi_size_in_bytes
+                        fi_size_in_bytes,
+                        fi_folder_id
                     FROM fi_files
-                    WHERE 
+                    WHERE
                         fi_workspace_id = $workspaceId
                         AND fi_id IN (
                             SELECT value FROM json_each($fileIds)
@@ -73,7 +81,7 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                     FullName = reader.GetString(1),
                     S3KeySecretPart = reader.GetString(2),
                     SizeInBytes = reader.GetInt64(3),
-                    FolderId = null
+                    FolderId = reader.GetInt32OrNull(4)
                 })
             .WithParameter("$workspaceId", workspaceId)
             .WithJsonParameter("$fileIds", fileIds)
@@ -126,23 +134,45 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
         int workspaceId,
         int[] selectedFolderIds,
         int[] excludedFolderIds,
+        int[] selectedFileFolderIds,
         SqliteConnection connection)
     {
+        // This query fetches four groups of folders in a single shot:
+        // 1. The selected (top) folders and their ancestors up to workspace root
+        // 2. Folders containing directly-selected files and their ancestors
+        //    — both needed to build full paths for audit log
+        // 3. Descendants of the selected folders (excluding subtrees under excluded folders)
+        //    — these are the folders whose files will be included in the zip
+        //
+        // After fetching, PrepareFolderSubtree separates them into two dictionaries:
+        // - downloadFolders: selected folders + their descendants (used for zip structure)
+        // - ancestorFolders: everything else (used only for full path resolution in audit log)
         var folders = connection
             .Cmd(
-                sql: @" 
+                sql: @"
                     SELECT
                         fo_id,
                         fo_name,
                         fo_ancestor_folder_ids
                     FROM fo_folders
-                    WHERE  
+                    WHERE
                         fo_workspace_id = $workspaceId
                         AND fo_is_being_deleted = FALSE
-                        AND fo_id IN (
-                            SELECT value FROM json_each($selectedFolderIds)
+                        AND (
+                            fo_id IN (SELECT value FROM json_each($selectedFolderIds))
+                            OR fo_id IN (
+                                SELECT ancestor.value
+                                FROM fo_folders AS sf, json_each(sf.fo_ancestor_folder_ids) AS ancestor
+                                WHERE sf.fo_id IN (SELECT value FROM json_each($selectedFolderIds))
+                            )
+                            OR fo_id IN (SELECT value FROM json_each($selectedFileFolderIds))
+                            OR fo_id IN (
+                                SELECT ancestor.value
+                                FROM fo_folders AS ff, json_each(ff.fo_ancestor_folder_ids) AS ancestor
+                                WHERE ff.fo_id IN (SELECT value FROM json_each($selectedFileFolderIds))
+                            )
                         )
-                    UNION ALL                    
+                    UNION ALL
                     SELECT
                         fo.fo_id,
                         fo.fo_name,
@@ -173,11 +203,45 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
             .WithParameter("$workspaceId", workspaceId)
             .WithJsonParameter("$selectedFolderIds", selectedFolderIds)
             .WithJsonParameter("$excludedFolderIds", excludedFolderIds)
+            .WithJsonParameter("$selectedFileFolderIds", selectedFileFolderIds)
             .Execute();
 
-        return new FolderSubtree(
-            selectedFolderIds,
+        return PrepareFolderSubtree(
+            selectedFolderIds, 
             folders);
+    }
+
+    // Separates the flat list of folders from the query into two groups:
+    // - downloadFolders: the selected folders and everything below them (used by zip and GetPath)
+    // - ancestorFolders: everything above the selected folders (used only by GetFullPath for audit log)
+    // A folder is a "download folder" if it IS a selected folder or has a selected folder among its ancestors.
+    // Otherwise it's an ancestor folder (it sits above the selection in the tree).
+    private static FolderSubtree PrepareFolderSubtree(
+        int[] selectedFolderIds,
+        List<BulkDownloadFolder> folders)
+    {
+        var selectedFolderIdSet = selectedFolderIds.ToHashSet();
+
+        var downloadFolders = new Dictionary<int, BulkDownloadFolder>();
+        var ancestorFolders = new Dictionary<int, BulkDownloadFolder>();
+
+        foreach (var folder in folders)
+        {
+            if (selectedFolderIdSet.Contains(folder.Id)
+                || folder.AncestorFolderIds.Any(selectedFolderIdSet.Contains))
+            {
+                downloadFolders.Add(folder.Id, folder);
+            }
+            else
+            {
+                ancestorFolders.Add(folder.Id, folder);
+            }
+        }
+
+        return new FolderSubtree(
+            selectedFolderIdSet,
+            downloadFolders,
+            ancestorFolders);
     }
 }
 
@@ -202,41 +266,50 @@ public class BulkDownloadFile
     public required int? FolderId { get; init; }
 }
 
+// FolderSubtree holds the full folder context for a bulk download operation.
+// It maintains two separate dictionaries:
+// - folders: selected folders and their descendants — these determine zip structure
+// - ancestorFolders: folders above the selection — only used for building full workspace paths (audit log)
+//
+// GetAllIds() returns only download folder IDs (used to query files for the zip).
+// GetPath() builds relative paths from the selected (top) folder down — used for zip entry paths.
+// GetFullPath() builds absolute paths from workspace root — used for audit log entries.
+// GetLevelInTree() returns nesting depth relative to the top folder — used for zip ordering.
+//
+// Folders that belong to ancestorFolders are treated as "outside the selection" by GetPath,
+// GetLevelInTree etc. — they return null/0 as if the file were at the zip root.
 //todo add unit tests
-public class FolderSubtree
+public class FolderSubtree(
+    HashSet<int> topFolderIds,
+    Dictionary<int, BulkDownloadFolder> folders,
+    Dictionary<int, BulkDownloadFolder> ancestorFolders)
 {
-    private readonly Dictionary<int, BulkDownloadFolder> _foldersDict;
-    private readonly HashSet<int> _topFolderIds;
     private readonly Dictionary<int, string> _pathsDict = new ();
 
-    public FolderSubtree(
-        int[] topFolderIds,
-        List<BulkDownloadFolder> folders)
-    {
-        _foldersDict = folders.ToDictionary(
-            keySelector: f => f.Id,
-            elementSelector: f => f);
+    // Returns only download folder IDs (selected + descendants), excluding ancestor folders.
+    // Used to determine which folders' files should be included in the zip.
+    public int[] GetAllIds() => folders.Keys.ToArray();
 
-        _topFolderIds = topFolderIds.ToHashSet();
-    }
-
-    public int[] GetAllIds() => _foldersDict.Keys.ToArray();
-
+    // Returns nesting depth relative to the nearest top (selected) folder.
+    // Files in ancestor folders or with no folder are treated as root level (0).
     public int GetLevelInTree(int? folderId)
     {
         if (folderId is null)
             return 0;
 
-        if (!_foldersDict.TryGetValue(folderId.Value, out var folder))
+        // Folder is above the selection — treat as root level for zip purposes
+        if (ancestorFolders.ContainsKey(folderId.Value))
+            return 0;
+
+        if (topFolderIds.Contains(folderId.Value))
+            return 0;
+
+        if (!folders.TryGetValue(folderId.Value, out var folder))
             throw new ArgumentOutOfRangeException(
                 paramName: nameof(folderId),
                 message: $"FolderId {folderId} was not found in the bulk download folders subtree");
 
-        if (_topFolderIds.Contains(folder.Id))
-            return 0;
-
-
-        foreach (var topFolderId in _topFolderIds)
+        foreach (var topFolderId in topFolderIds)
         {
             var index = Array.IndexOf(
                 array: folder.AncestorFolderIds,
@@ -252,9 +325,53 @@ public class FolderSubtree
             $"None top folder was found among ancestors of folder with id: {folderId}");
     }
 
+    // Builds the full path from workspace root to this folder, using both
+    // download folders and ancestor folders for name resolution.
+    // Used for audit log entries where the complete workspace path is needed.
+    public string? GetFullPath(int? folderId)
+    {
+        if (folderId is null)
+            return null;
+
+        var folder = GetAnyFolderOrThrow(folderId.Value);
+
+        var parts = new List<string>();
+
+        foreach (var ancestorId in folder.AncestorFolderIds)
+        {
+            var ancestor = GetAnyFolderOrThrow(ancestorId);
+            parts.Add(ancestor.Name);
+        }
+
+        parts.Add(folder.Name);
+
+        return string.Join("/", parts);
+    }
+
+    // Looks up a folder in both dictionaries — download folders first, then ancestors.
+    private BulkDownloadFolder GetAnyFolderOrThrow(int folderId)
+    {
+        if (folders.TryGetValue(folderId, out var folder))
+            return folder;
+
+        if (ancestorFolders.TryGetValue(folderId, out folder))
+            return folder;
+
+        throw new ArgumentOutOfRangeException(
+                paramName: nameof(folderId),
+                message: $"FolderId {folderId} was not found in the folder subtree or ancestors");
+    }
+
+    // Builds a relative path from the nearest top (selected) folder down.
+    // Used for zip entry paths. Returns null for files in ancestor folders
+    // (they land at the zip root).
     public string? GetPath(int? folderId)
     {
         if (folderId is null)
+            return null;
+
+        // Folder is above the selection — file goes to zip root
+        if (ancestorFolders.ContainsKey(folderId.Value))
             return null;
         
         if (_pathsDict.TryGetValue(folderId.Value, out var existingPath))
@@ -286,7 +403,7 @@ public class FolderSubtree
 
             if (!wasTopDetected)
             {
-                if (_topFolderIds.Contains(ancestorId))
+                if (topFolderIds.Contains(ancestorId))
                 {
                     wasTopDetected = true;
                     path = GetFolderNameOrThrow(ancestorId);
@@ -316,7 +433,7 @@ public class FolderSubtree
 
     private BulkDownloadFolder GetFolderOrThrow(int folderId)
     {
-        if (!_foldersDict.TryGetValue(folderId, out var folder))
+        if (!folders.TryGetValue(folderId, out var folder))
             throw new ArgumentOutOfRangeException(
                 paramName: nameof(folderId),
                 message: $"FolderId {folderId} was not found in the bulk download folders subtree");

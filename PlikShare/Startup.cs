@@ -314,6 +314,7 @@ public class Startup
         builder.Services.AddSingleton<GetAuditLogEntryDetailsQuery>();
         builder.Services.AddSingleton<DeleteOldAuditLogsQuery>();
         builder.Services.AddSingleton<ArchiveAuditLogsQuery>();
+        builder.Services.AddSingleton<GetFileAuditContextQuery>();
 
         builder.UseAppSettings();
 

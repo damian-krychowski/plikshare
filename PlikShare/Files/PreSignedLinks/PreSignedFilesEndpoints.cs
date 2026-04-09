@@ -400,7 +400,7 @@ public static class PreSignedFilesEndpoints
     {
         var protectedDownloadPayload = httpContext.GetProtectedDownloadPayload();
 
-        var (payload, file, _) = protectedDownloadPayload;
+        var (payload, file, workspace) = protectedDownloadPayload;
 
         Log.Debug("File download with pre-signed url started: {Payload}",
             payload);
@@ -408,7 +408,18 @@ public static class PreSignedFilesEndpoints
         await auditLogService.Log(
             Audit.File.Downloaded(
                 actor: httpContext.GetAuditLogActorContext(),
-                externalId: payload.FileExternalId),
+                workspace: new AuditLogDetails.WorkspaceRef
+                {
+                    ExternalId = workspace.ExternalId,
+                    Name = workspace.Name
+                },
+                file: new AuditLogDetails.FileRef
+                {
+                    ExternalId = payload.FileExternalId,
+                    Name = file.FullName,
+                    SizeInBytes = file.SizeInBytes,
+                    FolderPath = file.FolderPath
+                }),
             cancellationToken);
 
         

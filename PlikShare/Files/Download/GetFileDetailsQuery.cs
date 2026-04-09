@@ -21,26 +21,37 @@ public class GetFileDetailsQuery(PlikShareDb plikShareDb)
             .OneRowCmd(
                 sql: @"
                     SELECT
-                        fi_name,
-                        fi_content_type,
-                        fi_extension,
-                        fi_s3_key_secret_part,
-                        fi_size_in_bytes,
-                        fi_encryption_key_version,
-                        fi_encryption_salt,
-                        fi_encryption_nonce_prefix
-                    FROM fi_files
+                        fi.fi_name,
+                        fi.fi_content_type,
+                        fi.fi_extension,
+                        fi.fi_s3_key_secret_part,
+                        fi.fi_size_in_bytes,
+                        fi.fi_encryption_key_version,
+                        fi.fi_encryption_salt,
+                        fi.fi_encryption_nonce_prefix,
+                        (
+                            SELECT json_group_array(json_object(
+                                'name', af.fo_name,
+                                'externalId', af.fo_external_id
+                            ))
+                            FROM fo_folders AS af
+                            WHERE af.fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
+                                OR af.fo_id = fi.fi_folder_id
+                            ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+                        )
+                    FROM fi_files AS fi
+                    LEFT JOIN fo_folders AS f ON fi.fi_folder_id = f.fo_id
                     WHERE
-                        fi_workspace_id = $workspaceId
-                        AND fi_external_id = $fileExternalId
+                        fi.fi_workspace_id = $workspaceId
+                        AND fi.fi_external_id = $fileExternalId
                         AND (
-                            $boxFolderId IS NULL 
+                            $boxFolderId IS NULL
                             OR EXISTS (
                                 SELECT 1
                                 FROM fo_folders
-                                WHERE 
+                                WHERE
                                     fo_workspace_id = $workspaceId
-                                    AND fo_id = fi_folder_id
+                                    AND fo_id = fi.fi_folder_id
                                     AND fo_is_being_deleted = FALSE
                                     AND (
                                         fo_id = $boxFolderId
@@ -78,7 +89,8 @@ public class GetFileDetailsQuery(PlikShareDb plikShareDb)
                                     Salt = reader.GetFieldValue<byte[]>(6),
                                     NoncePrefix = reader.GetFieldValue<byte[]>(7)
                                 }
-                            }
+                            },
+                        FolderAncestors = reader.GetFromJsonOrNull<FileRecordFolderAncestor[]>(8) ?? []
                     };
                 })
             .WithParameter("$workspaceId", workspaceId)
