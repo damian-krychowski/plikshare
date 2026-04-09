@@ -545,35 +545,42 @@ public static class AuditLogDetails
             public required List<FileRef> Files { get; init; }
             public BoxRef? Box { get; init; }
         }
+
+        public class UploadInitiated
+        {
+            public required WorkspaceRef Workspace { get; init; }
+            public required List<UploadInitiatedFileRef> Files { get; init; }
+            public BoxRef? Box { get; init; }
+
+            public class UploadInitiatedFileRef
+            {
+                public required FileRef File { get; init; }
+                public required FileUploadExtId FileUploadExternalId { get; init; }
+            }
+        }
+
+        public class MultiUploadCompleted
+        {
+            public required WorkspaceRef Workspace { get; init; }
+            public required List<MultiUploadCompletedFileRef> Files { get; init; }
+            public BoxRef? Box { get; init; }
+
+            public class MultiUploadCompletedFileRef
+            {
+                public required FileRef File { get; init; }
+                public required FileUploadExtId FileUploadExternalId { get; init; }
+            }
+        }
+
+        public class UploadCompleted
+        {
+            public required WorkspaceRef Workspace { get; init; }
+            public required FileRef File { get; init; }
+            public required FileUploadExtId FileUploadExternalId { get; init; }
+            public BoxRef? Box { get; init; }
+        }
     }
 
-    public static class Upload
-    {
-        public class BulkInitiated
-        {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required List<string> FileNames { get; init; }
-        }
-
-        public class Completed
-        {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required FileUploadExtId FileUploadExternalId { get; init; }
-            public required FileExtId FileExternalId { get; init; }
-        }
-
-        public class FilePartUploaded
-        {
-            public required FileUploadExtId FileUploadExternalId { get; init; }
-            public required int PartNumber { get; init; }
-        }
-
-        public class MultiFileDirectUploaded
-        {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required List<FileExtId> FileExternalIds { get; init; }
-        }
-    }
 
     public static class AuthProvider
     {

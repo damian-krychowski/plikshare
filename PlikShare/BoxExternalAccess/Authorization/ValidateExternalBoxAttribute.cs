@@ -44,8 +44,11 @@ public class ValidateExternalBoxFilter(
         var boxAccess = new BoxAccess(
             IsEnabled: boxMembershipContext.Box.IsEnabled,
             Box: boxMembershipContext.Box,
+            BoxLink: null,
             Permissions: boxMembershipContext.Permissions,
-            UserIdentity: new UserIdentity(user.ExternalId));
+            UserIdentity: new UserIdentity(user.ExternalId),
+            UserEmail: user.Email.Value,
+            UserIp: context.HttpContext.Connection.RemoteIpAddress?.ToString());
 
         context.HttpContext.Items[BoxAccess.HttpContextName] = boxAccess;
 

@@ -35,9 +35,12 @@ public class ValidateAccessCodeFilter(
         var boxAccess =  new BoxAccess(
             IsEnabled: boxLinkContext is { IsEnabled: true, Box.IsEnabled: true },
             Box: boxLinkContext.Box,
+            BoxLink: boxLinkContext,
             Permissions: boxLinkContext.Permissions,
             UserIdentity: new BoxLinkSessionUserIdentity(
-                BoxLinkSessionId: context.HttpContext.User.GetBoxLinkSessionIdOrThrow()));
+                BoxLinkSessionId: context.HttpContext.User.GetBoxLinkSessionIdOrThrow()),
+            UserEmail: null,
+            UserIp: context.HttpContext.Connection.RemoteIpAddress?.ToString());
 
         context.HttpContext.Items[BoxAccess.HttpContextName] = boxAccess;
         context.HttpContext.Items[ValidateBoxLinkFilter.BoxLinkContext] = boxLinkContext;

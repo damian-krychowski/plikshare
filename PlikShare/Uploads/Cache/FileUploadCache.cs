@@ -5,6 +5,7 @@ using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Files.Id;
+using PlikShare.Folders.Id;
 using PlikShare.Storages;
 using PlikShare.Storages.Encryption;
 using PlikShare.Uploads.Algorithm;
@@ -66,6 +67,10 @@ public class FileUploadCache(
             PartsCount = partsCount,
             UploadAlgorithm = uploadAlgorithm,
 
+            FileName = cached.FileName,
+            FileExtension = cached.FileExtension,
+            FolderAncestors = cached.FolderAncestors,
+
             Workspace = workspace,
         };
     }
@@ -98,27 +103,40 @@ public class FileUploadCache(
         var result = connection
             .OneRowCmd(
                 sql: @"
-                    SELECT 
-                        fu_id,
-                        fu_file_external_id,
-                        fu_file_content_type,
-                        fu_file_size_in_bytes,
-                        fu_file_s3_key_secret_part,
-                        fu_s3_upload_id,
-                        fu_encryption_key_version,
-                        fu_encryption_salt,
-                        fu_encryption_nonce_prefix,
-                        fu_workspace_id,
-                        fu_owner_identity,
-                        fu_owner_identity_type                        
-                    FROM fu_file_uploads
-                    WHERE 
-                        fu_external_id = $fileUploadExternalId
+                    SELECT
+                        fu.fu_id,
+                        fu.fu_file_external_id,
+                        fu.fu_file_content_type,
+                        fu.fu_file_size_in_bytes,
+                        fu.fu_file_s3_key_secret_part,
+                        fu.fu_s3_upload_id,
+                        fu.fu_encryption_key_version,
+                        fu.fu_encryption_salt,
+                        fu.fu_encryption_nonce_prefix,
+                        fu.fu_workspace_id,
+                        fu.fu_owner_identity,
+                        fu.fu_owner_identity_type,
+                        fu.fu_file_name,
+                        fu.fu_file_extension,
+                        (
+                            SELECT json_group_array(json_object(
+                                'name', af.fo_name,
+                                'externalId', af.fo_external_id
+                            ))
+                            FROM fo_folders AS af
+                            WHERE (af.fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
+                                   OR af.fo_id = fu.fu_folder_id)
+                            ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+                        )
+                    FROM fu_file_uploads AS fu
+                    LEFT JOIN fo_folders AS f ON fu.fu_folder_id = f.fo_id
+                    WHERE
+                        fu.fu_external_id = $fileUploadExternalId
                 ",
                 readRowFunc: reader =>
                 {
                     var encryptionKeyVersion = reader.GetByteOrNull(6);
-                    
+
                     return new FileUploadCached
                     {
                         Id = reader.GetInt32(0),
@@ -151,7 +169,10 @@ public class FileUploadCache(
                         ContentType = reader.GetString(2),
                         WorkspaceId = reader.GetInt32(9),
                         OwnerIdentity = reader.GetString(10),
-                        OwnerIdentityType = reader.GetString(11)
+                        OwnerIdentityType = reader.GetString(11),
+                        FileName = reader.GetString(12),
+                        FileExtension = reader.GetString(13),
+                        FolderAncestors = reader.GetFromJsonOrNull<CachedFolderAncestor[]>(14) ?? []
                     };
                 })
             .WithParameter("$fileUploadExternalId", externalId.Value)
@@ -179,6 +200,25 @@ public class FileUploadCache(
         public required int WorkspaceId { get; init; }
         public required string OwnerIdentity { get; init; }
         public required string OwnerIdentityType { get; init; }
+        public required string FileName { get; init; }
+        public required string FileExtension { get; init; }
+        public required CachedFolderAncestor[] FolderAncestors { get; init; }
+    }
+}
+
+public class CachedFolderAncestor
+{
+    public required FolderExtId ExternalId { get; init; }
+    public required string Name { get; init; }
+}
+
+static class CachedFolderAncestorExtensions
+{
+    extension(CachedFolderAncestor[] ancestors)
+    {
+        public string? ToFolderPath() => ancestors.Length == 0
+            ? null
+            : string.Join("/", ancestors.Select(a => a.Name));
     }
 }
 
@@ -193,6 +233,9 @@ public sealed class FileUploadContext
     public required string OwnerIdentityType { get; init; }
     public required UploadAlgorithm UploadAlgorithm { get; init; }
     public required int PartsCount { get; init; }
+    public required string FileName { get; init; }
+    public required string FileExtension { get; init; }
+    public required CachedFolderAncestor[] FolderAncestors { get; init; }
 
     public required WorkspaceContext Workspace { get; init; }
 }

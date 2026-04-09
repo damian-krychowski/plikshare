@@ -733,12 +733,12 @@ public class upload_and_download_tests : TestFixture
             user: user);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Upload.BulkInitiated>(
-            expectedEventType: AuditLogEventTypes.Upload.BulkInitiated,
+        await AssertAuditLogContains<AuditLogDetails.File.UploadInitiated>(
+            expectedEventType: AuditLogEventTypes.File.UploadInitiated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.FileNames.Should().Contain("audit-upload.txt");
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.Files.Should().Contain(f => f.File.Name == "audit-upload.txt");
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -774,12 +774,12 @@ public class upload_and_download_tests : TestFixture
             user: user);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Upload.Completed>(
-            expectedEventType: AuditLogEventTypes.Upload.Completed,
+        await AssertAuditLogContains<AuditLogDetails.File.UploadCompleted>(
+            expectedEventType: AuditLogEventTypes.File.UploadCompleted,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.FileExternalId.Should().Be(uploadedFile.ExternalId);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.File.ExternalId.Should().Be(uploadedFile.ExternalId);
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -812,12 +812,12 @@ public class upload_and_download_tests : TestFixture
             user: user);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Upload.MultiFileDirectUploaded>(
-            expectedEventType: AuditLogEventTypes.Upload.MultiFileDirectUploaded,
+        await AssertAuditLogContains<AuditLogDetails.File.MultiUploadCompleted>(
+            expectedEventType: AuditLogEventTypes.File.MultiUploadCompleted,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.FileExternalIds.Should().Contain(uploadedFile.ExternalId);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.Files.Should().Contain(f => f.File.ExternalId == uploadedFile.ExternalId);
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);

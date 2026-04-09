@@ -110,6 +110,7 @@ public class BulkInitiateFileUploadOperation(
             userIdentity,
             batchUploadResults,
             insertFileUploadsResult,
+            folderValidationResults,
             cancellationToken);
 
         var response = PrepareResponse(
@@ -121,9 +122,22 @@ public class BulkInitiateFileUploadOperation(
                 ? null  //not to reveal size of the workspace to unauthorized users of a box
                 : workspaceSpace.NewWorkspaceSizeInBytes);
 
+        var initiatedFiles = batchUploadResults
+            .Select(bu => new InitiatedFile(
+                FileExternalId: bu.S3Key.FileExternalId,
+                FileUploadExternalId: new Uploads.Id.FileUploadExtId(bu.FileUploadExternalId),
+                FileName: $"{bu.Name}{bu.Extension}",
+                SizeInBytes: bu.SizeInBytes,
+                FolderPath: bu.FolderExternalId is not null
+                    && folderValidationResults.TryGetValue(bu.FolderExternalId, out var fvr)
+                    ? fvr.FolderAncestors?.ToFolderPath()
+                    : null))
+            .ToList();
+
         return new Result(
             Code: ResultCode.Ok,
-            Response: response);
+            Response: response,
+            InitiatedFiles: initiatedFiles);
     }
 
     private WorkspaceSpace CheckWorkspaceSpace(
@@ -471,6 +485,7 @@ public class BulkInitiateFileUploadOperation(
         IUserIdentity userIdentity,
         List<UploadDetails> batchUploadResults,
         BulkInsertFileUploadQuery.Result insertFileUploadsResult,
+        Dictionary<string, FolderValidationResult> folderValidationResults,
         CancellationToken cancellationToken)
     {
         for (var i = 0; i < batchUploadResults.Count; i++)
@@ -480,6 +495,11 @@ public class BulkInitiateFileUploadOperation(
             var insertResult = insertFileUploadsResult
                 .FileUploads
                 !.First(r => r.ExternalId.Value == upload.FileUploadExternalId);
+
+            var folderAncestors = upload.FolderExternalId is not null
+                && folderValidationResults.TryGetValue(upload.FolderExternalId, out var fvr)
+                    ? fvr.FolderAncestors ?? []
+                    : [];
 
             await fileUploadCache.PreInitialize(
                 toCache: new FileUploadCache.FileUploadCached{
@@ -495,7 +515,10 @@ public class BulkInitiateFileUploadOperation(
                     ContentType = upload.ContentType,
                     WorkspaceId = workspace.Id,
                     OwnerIdentity = userIdentity.Identity,
-                    OwnerIdentityType = userIdentity.IdentityType
+                    OwnerIdentityType = userIdentity.IdentityType,
+                    FileName = upload.Name,
+                    FileExtension = upload.Extension,
+                    FolderAncestors = folderAncestors
                 },
                 cancellationToken: cancellationToken);
         }
@@ -536,29 +559,40 @@ public class BulkInitiateFileUploadOperation(
         var existingFolders = connection
             .Cmd(
                 sql:"""
-                    SELECT 
-                        fo_id,
-                        fo_external_id
-                    FROM 
-                        fo_folders
-                    WHERE 
-                        fo_external_id IN (
+                    SELECT
+                        f.fo_id,
+                        f.fo_external_id,
+                        (
+                            SELECT json_group_array(json_object(
+                                'name', af.fo_name,
+                                'externalId', af.fo_external_id
+                            ))
+                            FROM fo_folders AS af
+                            WHERE (af.fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
+                                   OR af.fo_id = f.fo_id)
+                            ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+                        )
+                    FROM
+                        fo_folders AS f
+                    WHERE
+                        f.fo_external_id IN (
                             SELECT value FROM json_each($folderExternalIds)
                         )
-                        AND fo_workspace_id = $workspaceId
-                        AND fo_is_being_deleted = FALSE
+                        AND f.fo_workspace_id = $workspaceId
+                        AND f.fo_is_being_deleted = FALSE
                         AND (
-                            $boxFolderId IS NULL 
-                            OR fo_id = $boxFolderId 
+                            $boxFolderId IS NULL
+                            OR f.fo_id = $boxFolderId
                             OR $boxFolderId IN (
-                                SELECT value FROM json_each(fo_ancestor_folder_ids)
+                                SELECT value FROM json_each(f.fo_ancestor_folder_ids)
                             )
                         )
                     """,
                 readRowFunc: reader => new FolderValidationResult(
                     Code: FolderValidationResultCode.Ok,
                     FolderId: reader.GetInt32(0),
-                    FolderExternalId: reader.GetString(1)))
+                    FolderExternalId: reader.GetString(1),
+                    FolderAncestors: reader.GetFromJsonOrNull<CachedFolderAncestor[]>(2) ?? []))
             .WithJsonParameter("$folderExternalIds", folderExternalIds)
             .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$boxFolderId", boxFolderId)
@@ -593,33 +627,47 @@ public class BulkInitiateFileUploadOperation(
     {
         using var connection = plikShareDb.OpenConnection();
 
-        var existingFolderId = connection
+        var existingFolder = connection
             .OneRowCmd(
                 sql: """
-                     SELECT 
-                         fo_id
-                     FROM 
-                         fo_folders
-                     WHERE 
-                         fo_external_id = $folderExternalId
-                         AND fo_workspace_id = $workspaceId
-                         AND fo_is_being_deleted = FALSE
+                     SELECT
+                         f.fo_id,
+                         (
+                             SELECT json_group_array(json_object(
+                                 'name', af.fo_name,
+                                 'externalId', af.fo_external_id
+                             ))
+                             FROM fo_folders AS af
+                             WHERE (af.fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
+                                    OR af.fo_id = f.fo_id)
+                             ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+                         )
+                     FROM
+                         fo_folders AS f
+                     WHERE
+                         f.fo_external_id = $folderExternalId
+                         AND f.fo_workspace_id = $workspaceId
+                         AND f.fo_is_being_deleted = FALSE
                          AND (
-                             $boxFolderId IS NULL 
-                             OR fo_id = $boxFolderId 
+                             $boxFolderId IS NULL
+                             OR f.fo_id = $boxFolderId
                              OR $boxFolderId IN (
-                                 SELECT value FROM json_each(fo_ancestor_folder_ids)
+                                 SELECT value FROM json_each(f.fo_ancestor_folder_ids)
                              )
                          )
                      LIMIT 1
                      """,
-                readRowFunc: reader => reader.GetInt32(0))
+                readRowFunc: reader => new
+                {
+                    Id = reader.GetInt32(0),
+                    Ancestors = reader.GetFromJsonOrNull<CachedFolderAncestor[]>(1) ?? []
+                })
             .WithParameter("$folderExternalId", folderExternalId)
             .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$boxFolderId", boxFolderId)
             .Execute();
-        
-        if (existingFolderId.IsEmpty)
+
+        if (existingFolder.IsEmpty)
         {
             return (
                 Code: FoldersValidationResultCode.FoldersNotFound,
@@ -645,7 +693,8 @@ public class BulkInitiateFileUploadOperation(
                     folderExternalId, new FolderValidationResult(
                         Code: FolderValidationResultCode.Ok,
                         FolderExternalId: folderExternalId,
-                        FolderId: existingFolderId.Value)
+                        FolderId: existingFolder.Value.Id,
+                        FolderAncestors: existingFolder.Value.Ancestors)
                 }
             }
         );
@@ -654,7 +703,15 @@ public class BulkInitiateFileUploadOperation(
     public record Result(
         ResultCode Code,
         BulkInitiateFileUploadResponseDto? Response = null,
+        List<InitiatedFile>? InitiatedFiles = null,
         List<string>? MissingFolders = null);
+
+    public record InitiatedFile(
+        Files.Id.FileExtId FileExternalId,
+        Uploads.Id.FileUploadExtId FileUploadExternalId,
+        string FileName,
+        long SizeInBytes,
+        string? FolderPath);
 
     public enum ResultCode
     {
@@ -668,7 +725,8 @@ public class BulkInitiateFileUploadOperation(
     private record FolderValidationResult(
         FolderValidationResultCode Code,
         string FolderExternalId,
-        int FolderId);
+        int FolderId,
+        CachedFolderAncestor[]? FolderAncestors = null);
 
     private enum FolderValidationResultCode
     {

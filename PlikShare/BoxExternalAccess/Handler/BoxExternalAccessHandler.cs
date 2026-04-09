@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using PlikShare.AuditLog;
 using PlikShare.BoxExternalAccess.Authorization;
+using PlikShare.Uploads.Cache;
 using PlikShare.BoxExternalAccess.Contracts;
 using PlikShare.BoxExternalAccess.Handler.GetContent;
 using PlikShare.BoxExternalAccess.Handler.GetHtml;
@@ -61,7 +63,8 @@ public class BoxExternalAccessHandler(
     CreateFolderQuery createFolderQuery,
     CountSelectedItemsQuery countSelectedItemsQuery,
     SearchFilesTreeQuery searchFilesTreeQuery,
-    WorkspaceCache workspaceCache)
+    WorkspaceCache workspaceCache,
+    AuditLogService auditLogService)
 {
     public Results<Ok<GetBoxHtmlResponseDto>, NotFound<HttpError>> GetBoxHtml(
         BoxAccess boxAccess)
@@ -113,8 +116,8 @@ public class BoxExternalAccessHandler(
         FileExtId fileExternalId,
         string contentDisposition,
         BoxAccess boxAccess,
-        int? boxLinkId,
         bool enforceInternalPassThrough,
+        Guid correlationId,
         CancellationToken cancellationToken)
     {
         if (!ContentDispositionHelper.TryParse(contentDisposition, out var contentDispositionType))
@@ -128,32 +131,46 @@ public class BoxExternalAccessHandler(
             fileExternalId: fileExternalId,
             contentDisposition: contentDispositionType,
             boxFolderId: boxAccess.Box.Folder.Id,
-            boxLinkId: boxLinkId,
+            boxLinkId: boxAccess.BoxLink?.Id,
             userIdentity: boxAccess.UserIdentity,
             enforceInternalPassThrough: enforceInternalPassThrough,
             cancellationToken: cancellationToken);
-        
-        return result.Code switch
-        {
-            GetFileDownloadLinkOperation.ResultCode.Ok => 
-                TypedResults.Ok(
-                    new GetBoxFileDownloadLinkResponseDto(
-                        result.DownloadPreSignedUrl!)),
 
-            GetFileDownloadLinkOperation.ResultCode.FileNotFound => 
-                HttpErrors.File.NotFound(
-                    fileExternalId),
-            
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(GetFileDownloadLinkOperation),
-                resultValueStr: result.Code.ToString())
-        };
+        switch (result.Code)
+        {
+            case GetFileDownloadLinkOperation.ResultCode.Ok:
+                await auditLogService.LogWithFileContext(
+                    fileExternalId: fileExternalId,
+                    buildEntry: fileRef => Audit.File.DownloadLinkGenerated(
+                        actor: boxAccess.ToAuditLogActorContext(correlationId),
+                        workspace: new AuditLogDetails.WorkspaceRef
+                        {
+                            ExternalId = boxAccess.Box.Workspace.ExternalId,
+                            Name = boxAccess.Box.Workspace.Name
+                        },
+                        file: fileRef,
+                        box: boxAccess.ToAuditLogBoxRef()),
+                    cancellationToken);
+
+                return TypedResults.Ok(
+                    new GetBoxFileDownloadLinkResponseDto(
+                        result.DownloadPreSignedUrl!));
+
+            case GetFileDownloadLinkOperation.ResultCode.FileNotFound:
+                return HttpErrors.File.NotFound(fileExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(GetFileDownloadLinkOperation),
+                    resultValueStr: result.Code.ToString());
+        }
     }
 
-    public Results<Ok<GetBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult> GetBulkDownloadLink(
+    public async Task<Results<Ok<GetBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult>> GetBulkDownloadLink(
         GetBulkDownloadLinkRequestDto request,
         BoxAccess boxAccess,
-        int? boxLinkId)
+        Guid correlationId,
+        CancellationToken cancellationToken)
     {
         if (boxAccess.IsOff || boxAccess.Box.Folder is null)
             return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
@@ -163,28 +180,42 @@ public class BoxExternalAccessHandler(
             request: request,
             userIdentity: boxAccess.UserIdentity,
             boxFolderId: boxAccess.Box.Folder.Id,
-            boxLinkId: boxLinkId);
+            boxLinkId: boxAccess.BoxLink?.Id);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            GetBulkDownloadLinkOperation.ResultCode.Ok => 
-                TypedResults.Ok(new GetBulkDownloadLinkResponseDto
+            case GetBulkDownloadLinkOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.File.BulkDownloadLinkGenerated(
+                        actor: boxAccess.ToAuditLogActorContext(correlationId),
+                        workspace: new AuditLogDetails.WorkspaceRef
+                        {
+                            ExternalId = boxAccess.Box.Workspace.ExternalId,
+                            Name = boxAccess.Box.Workspace.Name
+                        },
+                        selectedFileExternalIds: request.SelectedFiles,
+                        selectedFolderExternalIds: request.SelectedFolders,
+                        box: boxAccess.ToAuditLogBoxRef()),
+                    cancellationToken);
+
+                return TypedResults.Ok(new GetBulkDownloadLinkResponseDto
                 {
                     PreSignedUrl = result.PreSignedUrl!
-                }),
+                });
 
-            GetBulkDownloadLinkOperation.ResultCode.FilesNotFound => 
-                HttpErrors.File.SomeFilesNotFound(
-                    result.NotFoundFileExternalIds ?? []),
+            case GetBulkDownloadLinkOperation.ResultCode.FilesNotFound:
+                return HttpErrors.File.SomeFilesNotFound(
+                    result.NotFoundFileExternalIds ?? []);
 
-            GetBulkDownloadLinkOperation.ResultCode.FoldersNotFound =>
-                HttpErrors.Folder.NotFound(
-                    result.NotFoundFolderExternalIds ?? []),
+            case GetBulkDownloadLinkOperation.ResultCode.FoldersNotFound:
+                return HttpErrors.Folder.NotFound(
+                    result.NotFoundFolderExternalIds ?? []);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(GetFileDownloadLinkOperation),
-                resultValueStr: result.Code.ToString())
-        };
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(GetFileDownloadLinkOperation),
+                    resultValueStr: result.Code.ToString());
+        }
     }
 
     public async Task<Results<Ok, NotFound<HttpError>, StatusCodeHttpResult>> UpdateFileName(
@@ -274,7 +305,6 @@ public class BoxExternalAccessHandler(
         FileExtId fileExternalId,
         GetZipContentDownloadLinkRequestDto request,
         BoxAccess boxAccess,
-        int? boxLinkId,
         CancellationToken cancellationToken)
     {
         if (boxAccess.IsOff || boxAccess.Box.Folder is null)
@@ -286,7 +316,7 @@ public class BoxExternalAccessHandler(
             zipFile: request.Item,
             contentDisposition: request.ContentDisposition,
             boxFolderId: boxAccess.Box.Folder.Id,
-            boxLinkId: boxLinkId,
+            boxLinkId: boxAccess.BoxLink?.Id,
             userIdentity: boxAccess.UserIdentity,
             cancellationToken: cancellationToken);
 
@@ -505,7 +535,7 @@ public class BoxExternalAccessHandler(
     public async Task<Results<Ok<BulkInitiateFileUploadResponseDto>, NotFound<HttpError>, StatusCodeHttpResult, BadRequest<HttpError>>> BulkInitiateFileUpload(
         BulkInitiateFileUploadRequestDto request,
         BoxAccess boxAccess,
-        int? boxLinkId,
+        Guid correlationId,
         CancellationToken cancellationToken)
     {
         if (boxAccess.IsOff || boxAccess.Box.Folder is null)
@@ -520,34 +550,55 @@ public class BoxExternalAccessHandler(
         }
 
         var result = await bulkInitiateFileUploadOperation.Execute(
-            workspace: boxAccess.Box.Workspace, 
+            workspace: boxAccess.Box.Workspace,
             fileDetailsList: request.Items,
             userIdentity: boxAccess.UserIdentity,
             boxFolderId: boxAccess.Box.Folder.Id,
-            boxLinkId: boxLinkId,
+            boxLinkId: boxAccess.BoxLink?.Id,
             cancellationToken: cancellationToken);
 
         await workspaceCache.InvalidateEntry(
             workspaceId: boxAccess.Box.Workspace.Id,
             cancellationToken: cancellationToken);
 
-        return result.Code switch
+        switch (result.Code)
         {
-            BulkInitiateFileUploadOperation.ResultCode.Ok => 
-                TypedResults.Ok(
-                    result.Response),
+            case BulkInitiateFileUploadOperation.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.File.UploadInitiated(
+                        actor: boxAccess.ToAuditLogActorContext(correlationId),
+                        workspace: new AuditLogDetails.WorkspaceRef
+                        {
+                            ExternalId = boxAccess.Box.Workspace.ExternalId,
+                            Name = boxAccess.Box.Workspace.Name
+                        },
+                        files: result.InitiatedFiles!.Select(f => new AuditLogDetails.File.UploadInitiated.UploadInitiatedFileRef
+                        {
+                            File = new AuditLogDetails.FileRef
+                            {
+                                ExternalId = f.FileExternalId,
+                                Name = f.FileName,
+                                SizeInBytes = f.SizeInBytes,
+                                FolderPath = f.FolderPath
+                            },
+                            FileUploadExternalId = f.FileUploadExternalId
+                        }).ToList(),
+                        box: boxAccess.ToAuditLogBoxRef()),
+                    cancellationToken);
 
-            BulkInitiateFileUploadOperation.ResultCode.FoldersNotFound => 
-                HttpErrors.Folder.NotFound(
-                    result.MissingFolders),
+                return TypedResults.Ok(result.Response);
 
-            BulkInitiateFileUploadOperation.ResultCode.NotEnoughSpace =>
-                HttpErrors.Box.NotEnoughSpace(),
+            case BulkInitiateFileUploadOperation.ResultCode.FoldersNotFound:
+                return HttpErrors.Folder.NotFound(result.MissingFolders);
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(BulkInitiateFileUploadOperation),
-                resultValueStr: result.Code.ToString())
-        };
+            case BulkInitiateFileUploadOperation.ResultCode.NotEnoughSpace:
+                return HttpErrors.Box.NotEnoughSpace();
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(BulkInitiateFileUploadOperation),
+                    resultValueStr: result.Code.ToString());
+        }
     }
     public Results<Ok<GetFileUploadDetailsResponseDto>, NotFound<HttpError>> GetFileUploadDetails(
         FileUploadExtId fileUploadExternalId,
@@ -582,10 +633,9 @@ public class BoxExternalAccessHandler(
     }
 
     public async Task<Results<Ok<InitiateBoxFilePartUploadResponseDto>, NotFound<HttpError>>> InitiateFilePartUpload(
-        FileUploadExtId fileUploadExternalId, 
+        FileUploadExtId fileUploadExternalId,
         int partNumber,
         BoxAccess boxAccess,
-        int? boxLinkId,
         bool enforceInternalPassThrough,
         CancellationToken cancellationToken)
     {
@@ -593,7 +643,7 @@ public class BoxExternalAccessHandler(
             workspace: boxAccess.Box.Workspace,
             fileUploadExternalId: fileUploadExternalId,
             partNumber: partNumber,
-            boxLinkId: boxLinkId,
+            boxLinkId: boxAccess.BoxLink?.Id,
             userIdentity: boxAccess.UserIdentity,
             enforceInternalPassThrough: enforceInternalPassThrough,
             cancellationToken: cancellationToken);
@@ -661,28 +711,49 @@ public class BoxExternalAccessHandler(
         var result = await convertFileUploadToFileOperation.Execute(
             workspace: boxAccess.Box.Workspace,
             fileUploadExternalId: fileUploadExternalId,
-            userIdentity:boxAccess.UserIdentity,
+            userIdentity: boxAccess.UserIdentity,
             correlationId: correlationId,
             cancellationToken: cancellationToken);
-    
-        return result.Code switch
+
+        switch (result.Code)
         {
-            ConvertFileUploadToFileOperation.ResultCode.Ok => TypedResults.Ok(
-                new CompleteBoxFileUploadResponseDto(
-                    FileExternalId: result.FileExternalId)),
+            case ConvertFileUploadToFileOperation.ResultCode.Ok:
+                var fileUpload = result.FileUpload!;
 
-            ConvertFileUploadToFileOperation.ResultCode.FileUploadNotFound =>
-                HttpErrors.Upload.NotFound(
-                    fileUploadExternalId),
+                await auditLogService.Log(
+                    Audit.File.UploadCompleted(
+                        actor: boxAccess.ToAuditLogActorContext(correlationId),
+                        workspace: new AuditLogDetails.WorkspaceRef
+                        {
+                            ExternalId = boxAccess.Box.Workspace.ExternalId,
+                            Name = boxAccess.Box.Workspace.Name
+                        },
+                        file: new AuditLogDetails.FileRef
+                        {
+                            ExternalId = fileUpload.FileToUpload.S3FileKey.FileExternalId,
+                            Name = $"{fileUpload.FileName}{fileUpload.FileExtension}",
+                            SizeInBytes = fileUpload.FileToUpload.SizeInBytes,
+                            FolderPath = fileUpload.FolderAncestors.ToFolderPath()
+                        },
+                        fileUploadExternalId: fileUpload.ExternalId,
+                        box: boxAccess.ToAuditLogBoxRef()),
+                    cancellationToken);
 
-            ConvertFileUploadToFileOperation.ResultCode.FileUploadNotYetCompleted =>
-                HttpErrors.Upload.NotCompleted(
-                    fileUploadExternalId),
+                return TypedResults.Ok(
+                    new CompleteBoxFileUploadResponseDto(
+                        FileExternalId: fileUpload.FileToUpload.S3FileKey.FileExternalId));
 
-            _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(ConvertFileUploadToFileOperation),
-                resultValueStr: result.Code.ToString())
-        };
+            case ConvertFileUploadToFileOperation.ResultCode.FileUploadNotFound:
+                return HttpErrors.Upload.NotFound(fileUploadExternalId);
+
+            case ConvertFileUploadToFileOperation.ResultCode.FileUploadNotYetCompleted:
+                return HttpErrors.Upload.NotCompleted(fileUploadExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(ConvertFileUploadToFileOperation),
+                    resultValueStr: result.Code.ToString());
+        }
     }
     
     public GetUploadsListResponseDto ListUploads(

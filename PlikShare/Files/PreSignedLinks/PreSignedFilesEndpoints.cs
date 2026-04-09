@@ -186,13 +186,27 @@ public static class PreSignedFilesEndpoints
                 })
                 .ToList();
 
-            if (results.Count > 0)
+            if (processedFileUploads.Count > 0)
             {
                 await auditLogService.Log(
-                    Audit.Upload.MultiFileDirectUploaded(
+                    Audit.File.MultiUploadCompleted(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: workspace.ExternalId,
-                        fileExternalIds: results.Select(r => r.FileExternalId).ToList()),
+                        workspace: new AuditLogDetails.WorkspaceRef
+                        {
+                            ExternalId = workspace.ExternalId,
+                            Name = workspace.Name
+                        },
+                        files: processedFileUploads.Select(u => new AuditLogDetails.File.MultiUploadCompleted.MultiUploadCompletedFileRef
+                        {
+                            File = new AuditLogDetails.FileRef
+                            {
+                                ExternalId = u!.FileToUpload.S3FileKey.FileExternalId,
+                                Name = $"{u.FileName}{u.FileExtension}",
+                                SizeInBytes = u.FileToUpload.SizeInBytes,
+                                FolderPath = u.FolderAncestors.ToFolderPath()
+                            },
+                            FileUploadExternalId = u.ExternalId
+                        }).ToList()),
                     cancellationToken);
             }
 
@@ -347,13 +361,6 @@ public static class PreSignedFilesEndpoints
             Log.Debug(
                 "Successfully uploaded file part. FileUploadId: {FileUploadId}, PartNumber: {PartNumber}, Algorithm: {Algorithm}",
                 fileUpload.Id, payload.PartNumber, fileUpload.UploadAlgorithm);
-
-            await auditLogService.Log(
-                Audit.Upload.FilePartUploaded(
-                    actor: httpContext.GetAuditLogActorContext(),
-                    fileUploadExternalId: payload.FileUploadExternalId,
-                    partNumber: payload.PartNumber),
-                cancellationToken);
 
             if (fileUpload.UploadAlgorithm == UploadAlgorithm.MultiStepChunkUpload)
             {

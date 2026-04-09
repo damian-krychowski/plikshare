@@ -252,6 +252,9 @@ public static class AuditLogEventTypes
         public const string BulkDownloadLinkGenerated = "file.bulk-download-link-generated";
         public const string Downloaded = "file.downloaded";
         public const string BulkDownloaded = "file.bulk-downloaded";
+        public const string UploadInitiated = "file.upload-initiated";
+        public const string UploadCompleted = "file.upload-completed";
+        public const string MultiUploadCompleted = "file.multi-upload-completed";
 
         public static readonly string[] All =
         [
@@ -259,22 +262,14 @@ public static class AuditLogEventTypes
             CommentCreated, CommentDeleted, CommentEdited,
             ContentUpdated, AttachmentUploaded,
             DownloadLinkGenerated, BulkDownloadLinkGenerated,
-            Downloaded, BulkDownloaded
+            Downloaded, BulkDownloaded,
+            UploadInitiated, UploadCompleted, MultiUploadCompleted
         ];
     }
 
     public static class Upload
     {
-        public const string BulkInitiated = "upload.bulk-initiated";
-        public const string Completed = "upload.completed";
-        public const string FilePartUploaded = "upload.file-part-uploaded";
-        public const string MultiFileDirectUploaded = "upload.multi-file-direct-uploaded";
-
-        public static readonly string[] All =
-        [
-            BulkInitiated, Completed,
-            FilePartUploaded, MultiFileDirectUploaded
-        ];
+        public static readonly string[] All = [];
     }
 
     public static readonly string[] All = [

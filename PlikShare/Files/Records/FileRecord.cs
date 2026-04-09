@@ -23,9 +23,14 @@ static class FileRecordExtensions
     {
         public string FullName => $"{file.Name}{file.Extension}";
 
-        public string? FolderPath => file.FolderAncestors.Length == 0
+        public string? FolderPath => file.FolderAncestors.ToFolderPath();
+    }
+
+    extension(FileRecordFolderAncestor[] ancestors)
+    {
+        public string? ToFolderPath() => ancestors.Length == 0
             ? null
-            : string.Join("/", file.FolderAncestors.Select(a => a.Name));
+            : string.Join("/", ancestors.Select(a => a.Name));
     }
 }
 

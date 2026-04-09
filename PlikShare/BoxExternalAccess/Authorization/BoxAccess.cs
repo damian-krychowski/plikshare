@@ -1,5 +1,6 @@
 using PlikShare.Boxes.Cache;
 using PlikShare.Boxes.Permissions;
+using PlikShare.BoxLinks.Cache;
 using PlikShare.Core.UserIdentity;
 
 namespace PlikShare.BoxExternalAccess.Authorization;
@@ -7,14 +8,17 @@ namespace PlikShare.BoxExternalAccess.Authorization;
 public record BoxAccess(
     bool IsEnabled,
     BoxContext Box,
-    BoxPermissions Permissions, 
-    IUserIdentity UserIdentity)
+    BoxLinkContext? BoxLink,
+    BoxPermissions Permissions,
+    IUserIdentity UserIdentity,
+    string? UserEmail,
+    string? UserIp)
 {
     public const string HttpContextName = "BoxAccess";
     public bool IsOff => !IsEnabled || Box.Folder is null;
-    
+
     public bool IsAccessedThroughLink => UserIdentity is BoxLinkSessionUserIdentity;
-    
+
     public bool IsBoxOwnedByUser()
     {
         if (UserIdentity is UserIdentity userIdentity)

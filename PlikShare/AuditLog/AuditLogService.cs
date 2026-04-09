@@ -12,13 +12,13 @@ public class AuditLogService(
 
     public async ValueTask LogWithFileContext(
         FileExtId fileExternalId,
-        Func<FileAuditContext, AuditLogEntry> buildEntry,
+        Func<AuditLogDetails.FileRef, AuditLogEntry> buildEntry,
         CancellationToken cancellationToken)
     {
-        var fileContext = getFileAuditContextQuery.Execute(
+        var fileRef = getFileAuditContextQuery.Execute(
             fileExternalId: fileExternalId);
 
-        if (fileContext is null)
+        if (fileRef is null)
         {
             Logger.Warning(
                 "Could not resolve file audit context for File '{FileExternalId}', skipping audit log entry",
@@ -27,18 +27,18 @@ public class AuditLogService(
             return;
         }
 
-        await Log(buildEntry(fileContext), cancellationToken);
+        await Log(buildEntry(fileRef), cancellationToken);
     }
 
     public async ValueTask LogWithFileContexts(
         List<FileExtId> fileExternalIds,
-        Func<Dictionary<FileExtId, FileAuditContext>, AuditLogEntry> buildEntry,
+        Func<Dictionary<FileExtId, AuditLogDetails.FileRef>, AuditLogEntry> buildEntry,
         CancellationToken cancellationToken)
     {
-        var fileContexts = getFileAuditContextQuery.ExecuteMany(
+        var fileRefs = getFileAuditContextQuery.ExecuteMany(
             fileExternalIds: fileExternalIds);
 
-        await Log(buildEntry(fileContexts), cancellationToken);
+        await Log(buildEntry(fileRefs), cancellationToken);
     }
 
     public async ValueTask Log(AuditLogEntry entry, CancellationToken cancellationToken)

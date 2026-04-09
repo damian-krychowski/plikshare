@@ -6,7 +6,7 @@ namespace PlikShare.AuditLog.Queries;
 
 public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
 {
-    public FileAuditContext? Execute(
+    public AuditLogDetails.FileRef? Execute(
         FileExtId fileExternalId)
     {
         using var connection = plikShareDb.OpenConnection();
@@ -33,9 +33,10 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
                     WHERE fi.fi_external_id = $fileExternalId
                     LIMIT 1
                     """,
-                readRowFunc: reader => new FileAuditContext
+                readRowFunc: reader => new AuditLogDetails.FileRef
                 {
-                    FileName = reader.GetString(0),
+                    ExternalId = fileExternalId,
+                    Name = reader.GetString(0),
                     SizeInBytes = reader.GetInt64(1),
                     FolderPath = reader.GetStringOrNull(2)
                 })
@@ -47,11 +48,11 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
             : result.Value;
     }
 
-    public Dictionary<FileExtId, FileAuditContext> ExecuteMany(
+    public Dictionary<FileExtId, AuditLogDetails.FileRef> ExecuteMany(
         List<FileExtId> fileExternalIds)
     {
         if (fileExternalIds.Count == 0)
-            return new Dictionary<FileExtId, FileAuditContext>();
+            return new Dictionary<FileExtId, AuditLogDetails.FileRef>();
 
         using var connection = plikShareDb.OpenConnection();
 
@@ -77,34 +78,25 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
                     LEFT JOIN fo_folders AS f ON fi.fi_folder_id = f.fo_id
                     WHERE fi.fi_external_id IN (SELECT value FROM json_each($fileExternalIds))
                     """,
-                readRowFunc: reader => new
+                readRowFunc: reader =>
                 {
-                    ExternalId = new FileExtId(reader.GetString(0)),
-                    Context = new FileAuditContext
+                    var externalId = new FileExtId(reader.GetString(0));
+
+                    return new
                     {
-                        FileName = reader.GetString(1),
-                        SizeInBytes = reader.GetInt64(2),
-                        FolderPath = reader.GetStringOrNull(3)
-                    }
+                        ExternalId = externalId,
+                        FileRef = new AuditLogDetails.FileRef
+                        {
+                            ExternalId = externalId,
+                            Name = reader.GetString(1),
+                            SizeInBytes = reader.GetInt64(2),
+                            FolderPath = reader.GetStringOrNull(3)
+                        }
+                    };
                 })
             .WithJsonParameter("$fileExternalIds", fileExternalIds)
             .Execute();
 
-        return items.ToDictionary(x => x.ExternalId, x => x.Context);
+        return items.ToDictionary(x => x.ExternalId, x => x.FileRef);
     }
-}
-
-public class FileAuditContext
-{
-    public required string FileName { get; init; }
-    public required long SizeInBytes { get; init; }
-    public string? FolderPath { get; init; }
-
-    public AuditLogDetails.FileRef ToFileRef(FileExtId externalId) => new()
-    {
-        ExternalId = externalId,
-        Name = FileName,
-        SizeInBytes = SizeInBytes,
-        FolderPath = FolderPath
-    };
 }

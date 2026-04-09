@@ -221,7 +221,7 @@ public class file_tests : TestFixture
             {
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
                 details.File.ExternalId.Should().Be(file.ExternalId);
-                details.File.Name.Should().Be("audit-renamed");
+                details.File.Name.Should().Be("audit-renamed.txt");
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);

@@ -5,6 +5,7 @@ using PlikShare.Core.CorrelationId;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
+using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.CompleteFileUpload;
 using PlikShare.Uploads.CompleteFileUpload.Contracts;
 using PlikShare.Uploads.Count;
@@ -93,10 +94,24 @@ public static class UploadsEndpoints
         {
             case BulkInitiateFileUploadOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Upload.BulkInitiated(
+                    Audit.File.UploadInitiated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
-                        fileNames: request.Items.Select(i => i.FileNameWithExtension).ToList()),
+                        workspace: new AuditLogDetails.WorkspaceRef
+                        {
+                            ExternalId = workspaceMembership.Workspace.ExternalId,
+                            Name = workspaceMembership.Workspace.Name
+                        },
+                        files: result.InitiatedFiles!.Select(f => new AuditLogDetails.File.UploadInitiated.UploadInitiatedFileRef
+                        {
+                            File = new AuditLogDetails.FileRef
+                            {
+                                ExternalId = f.FileExternalId,
+                                Name = f.FileName,
+                                SizeInBytes = f.SizeInBytes,
+                                FolderPath = f.FolderPath
+                            },
+                            FileUploadExternalId = f.FileUploadExternalId
+                        }).ToList()),
                     cancellationToken);
 
                 return TypedResults.Ok(result.Response);
@@ -242,17 +257,29 @@ public static class UploadsEndpoints
         switch (result.Code)
         {
             case ConvertFileUploadToFileOperation.ResultCode.Ok:
+                var fileUpload = result.FileUpload!;
+
                 await auditLogService.Log(
-                    Audit.Upload.Completed(
+                    Audit.File.UploadCompleted(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
-                        fileUploadExternalId: fileUploadExternalId,
-                        fileExternalId: result.FileExternalId),
+                        workspace: new AuditLogDetails.WorkspaceRef
+                        {
+                            ExternalId = workspaceMembership.Workspace.ExternalId,
+                            Name = workspaceMembership.Workspace.Name
+                        },
+                        file: new AuditLogDetails.FileRef
+                        {
+                            ExternalId = fileUpload.FileToUpload.S3FileKey.FileExternalId,
+                            Name = $"{fileUpload.FileName}{fileUpload.FileExtension}",
+                            SizeInBytes = fileUpload.FileToUpload.SizeInBytes,
+                            FolderPath = fileUpload.FolderAncestors.ToFolderPath()
+                        },
+                        fileUploadExternalId: fileUpload.ExternalId),
                     cancellationToken);
 
                 return TypedResults.Ok(
                     new CompleteFileUploadResponseDto(
-                        FileExternalId: result.FileExternalId));
+                        FileExternalId: fileUpload.FileToUpload.S3FileKey.FileExternalId));
 
             case ConvertFileUploadToFileOperation.ResultCode.FileUploadNotFound:
                 return HttpErrors.Upload.NotFound(fileUploadExternalId);

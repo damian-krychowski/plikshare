@@ -51,12 +51,12 @@ public class ConvertFileUploadToFileOperation(
 
         return new Result(
             Code: ResultCode.Ok,
-            FileExternalId: fileUpload.FileToUpload.S3FileKey.FileExternalId);
+            FileUpload: fileUpload);
     }
 
     public readonly record struct Result(
         ResultCode Code,
-        FileExtId FileExternalId = default);
+        FileUploadContext? FileUpload = null);
 
     public enum ResultCode
     {
