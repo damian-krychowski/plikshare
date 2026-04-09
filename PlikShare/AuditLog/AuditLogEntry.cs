@@ -14,6 +14,8 @@ public record AuditLogEntry
     public required string Severity { get; init; }
 
     public string? WorkspaceExternalId { get; init; }
+    public string? BoxExternalId { get; init; }
+    public string? BoxLinkExternalId { get; init; }
 
     public string? DetailsJson { get; init; }
 }

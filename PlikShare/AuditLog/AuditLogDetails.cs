@@ -29,6 +29,19 @@ public static class AuditLogDetails
         public string? FolderPath { get; init; }
     }
 
+    public class BoxRef
+    {
+        public required BoxExtId ExternalId { get; init; }
+        public required string Name { get; init; }
+        public BoxLinkRef? BoxLink { get; init; }
+    }
+
+    public class BoxLinkRef
+    {
+        public required BoxLinkExtId ExternalId { get; init; }
+        public required string Name { get; init; }
+    }
+
     public static class Auth
     {
         public class SignedIn
@@ -453,12 +466,14 @@ public static class AuditLogDetails
         {
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
+            public BoxRef? Box { get; init; }
         }
 
         public class NoteSaved
         {
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
+            public BoxRef? Box { get; init; }
         }
 
         public class CommentCreated
@@ -467,6 +482,7 @@ public static class AuditLogDetails
             public required FileRef File { get; init; }
             public required FileArtifactExtId CommentExternalId { get; init; }
             public required string ContentJson { get; init; }
+            public BoxRef? Box { get; init; }
         }
 
         public class CommentDeleted
@@ -474,6 +490,7 @@ public static class AuditLogDetails
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
             public required FileArtifactExtId CommentExternalId { get; init; }
+            public BoxRef? Box { get; init; }
         }
 
         public class CommentEdited
@@ -482,12 +499,14 @@ public static class AuditLogDetails
             public required FileRef File { get; init; }
             public required FileArtifactExtId CommentExternalId { get; init; }
             public required string ContentJson { get; init; }
+            public BoxRef? Box { get; init; }
         }
 
         public class ContentUpdated
         {
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
+            public BoxRef? Box { get; init; }
         }
 
         public class AttachmentUploaded
@@ -495,12 +514,14 @@ public static class AuditLogDetails
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef ParentFile { get; init; }
             public required FileRef Attachment { get; init; }
+            public BoxRef? Box { get; init; }
         }
 
         public class DownloadLinkGenerated
         {
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
+            public BoxRef? Box { get; init; }
         }
 
         public class BulkDownloadLinkGenerated
@@ -508,18 +529,21 @@ public static class AuditLogDetails
             public required WorkspaceRef Workspace { get; init; }
             public required List<FileExtId> SelectedFileExternalIds { get; init; }
             public required List<FolderExtId> SelectedFolderExternalIds { get; init; }
+            public BoxRef? Box { get; init; }
         }
 
         public class Downloaded
         {
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
+            public BoxRef? Box { get; init; }
         }
 
         public class BulkDownloaded
         {
             public required WorkspaceRef Workspace { get; init; }
             public required List<FileRef> Files { get; init; }
+            public BoxRef? Box { get; init; }
         }
     }
 

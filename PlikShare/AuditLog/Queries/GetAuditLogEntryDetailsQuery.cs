@@ -26,6 +26,8 @@ public class GetAuditLogEntryDetailsQuery(PlikShareAuditLogDb plikShareAuditLogD
                         al_event_type,
                         al_event_severity,
                         al_workspace_external_id,
+                        al_box_external_id,
+                        al_box_link_external_id,
                         al_details
                     FROM al_audit_logs
                     WHERE al_external_id = $externalId
@@ -44,7 +46,9 @@ public class GetAuditLogEntryDetailsQuery(PlikShareAuditLogDb plikShareAuditLogD
                     EventType = reader.GetString(8),
                     EventSeverity = reader.GetString(9),
                     WorkspaceExternalId = reader.GetStringOrNull(10),
-                    Details = reader.GetStringOrNull(11)
+                    BoxExternalId = reader.GetStringOrNull(11),
+                    BoxLinkExternalId = reader.GetStringOrNull(12),
+                    Details = reader.GetStringOrNull(13)
                 })
             .WithParameter("$externalId", externalId.Value)
             .Execute();

@@ -360,7 +360,12 @@ public static class BoxExternalAccessEndpoints
                         ExternalId = boxAccess.Box.Workspace.ExternalId,
                         Name = boxAccess.Box.Workspace.Name
                     },
-                    file: ctx.ToFileRef(fileExternalId)),
+                    file: ctx.ToFileRef(fileExternalId),
+                    box: new AuditLogDetails.BoxRef
+                    {
+                        ExternalId = boxAccess.Box.ExternalId,
+                        Name = boxAccess.Box.Name
+                    }),
                 cancellationToken);
         }
 
@@ -392,7 +397,12 @@ public static class BoxExternalAccessEndpoints
                         Name = boxAccess.Box.Workspace.Name
                     },
                     selectedFileExternalIds: request.SelectedFiles,
-                    selectedFolderExternalIds: request.SelectedFolders),
+                    selectedFolderExternalIds: request.SelectedFolders,
+                    box: new AuditLogDetails.BoxRef
+                    {
+                        ExternalId = boxAccess.Box.ExternalId,
+                        Name = boxAccess.Box.Name
+                    }),
                 cancellationToken);
         }
 

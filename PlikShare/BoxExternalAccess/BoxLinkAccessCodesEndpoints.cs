@@ -515,11 +515,12 @@ public static class BoxLinkAccessCodesEndpoints
         CancellationToken cancellationToken)
     {
         var boxAccess = httpContext.GetBoxAccess();
+        var boxLinkContext = httpContext.GetBoxLinkContext();
 
         var result = boxExternalAccessHandler.GetBulkDownloadLink(
             request: request,
             boxAccess: boxAccess,
-            boxLinkId: httpContext.GetBoxLinkContext().Id);
+            boxLinkId: boxLinkContext.Id);
 
         if (result.Result is Ok<GetBulkDownloadLinkResponseDto>)
         {
@@ -532,7 +533,17 @@ public static class BoxLinkAccessCodesEndpoints
                         Name = boxAccess.Box.Workspace.Name
                     },
                     selectedFileExternalIds: request.SelectedFiles,
-                    selectedFolderExternalIds: request.SelectedFolders),
+                    selectedFolderExternalIds: request.SelectedFolders,
+                    box: new AuditLogDetails.BoxRef
+                    {
+                        ExternalId = boxAccess.Box.ExternalId,
+                        Name = boxAccess.Box.Name,
+                        BoxLink = new AuditLogDetails.BoxLinkRef
+                        {
+                            ExternalId = boxLinkContext.ExternalId,
+                            Name = boxLinkContext.Name
+                        }
+                    }),
                 cancellationToken);
         }
 
@@ -549,12 +560,13 @@ public static class BoxLinkAccessCodesEndpoints
         CancellationToken cancellationToken)
     {
         var boxAccess = httpContext.GetBoxAccess();
+        var boxLinkContext = httpContext.GetBoxLinkContext();
 
         var result = await boxExternalAccessHandler.GetFileDownloadLink(
             fileExternalId: fileExternalId,
             contentDisposition: contentDisposition,
             boxAccess: boxAccess,
-            boxLinkId: httpContext.GetBoxLinkContext().Id,
+            boxLinkId: boxLinkContext.Id,
             enforceInternalPassThrough: httpContext.Request.Headers.Origin != config.AppUrl,
             cancellationToken: cancellationToken);
 
@@ -569,7 +581,17 @@ public static class BoxLinkAccessCodesEndpoints
                         ExternalId = boxAccess.Box.Workspace.ExternalId,
                         Name = boxAccess.Box.Workspace.Name
                     },
-                    file: ctx.ToFileRef(fileExternalId)),
+                    file: ctx.ToFileRef(fileExternalId),
+                    box: new AuditLogDetails.BoxRef
+                    {
+                        ExternalId = boxAccess.Box.ExternalId,
+                        Name = boxAccess.Box.Name,
+                        BoxLink = new AuditLogDetails.BoxLinkRef
+                        {
+                            ExternalId = boxLinkContext.ExternalId,
+                            Name = boxLinkContext.Name
+                        }
+                    }),
                 cancellationToken);
         }
 

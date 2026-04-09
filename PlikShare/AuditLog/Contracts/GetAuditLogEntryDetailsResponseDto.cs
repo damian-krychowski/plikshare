@@ -13,5 +13,7 @@ public class GetAuditLogEntryDetailsResponseDto
     public required string EventType { get; init; }
     public required string EventSeverity { get; init; }
     public string? WorkspaceExternalId { get; init; }
+    public string? BoxExternalId { get; init; }
+    public string? BoxLinkExternalId { get; init; }
     public string? Details { get; init; }
 }

@@ -304,6 +304,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_AuditLog_01_InitialDbSetup>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_AuditLog_02_BoxColumnsAdded>();
 
         builder.Services.AddSingleton<AuditLogChannel>();
         builder.Services.AddSingleton<AuditLogService>();

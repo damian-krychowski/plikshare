@@ -88,6 +88,8 @@ public class AuditLogWriter(
                         al_event_type,
                         al_event_severity,
                         al_workspace_external_id,
+                        al_box_external_id,
+                        al_box_link_external_id,
                         al_details
                     ) VALUES (
                         $externalId,
@@ -101,6 +103,8 @@ public class AuditLogWriter(
                         $eventType,
                         $eventSeverity,
                         $workspaceExternalId,
+                        $boxExternalId,
+                        $boxLinkExternalId,
                         $details
                     )
                     RETURNING al_id
@@ -117,6 +121,8 @@ public class AuditLogWriter(
             .WithParameter("$eventType", entry.EventType)
             .WithParameter("$eventSeverity", entry.Severity)
             .WithParameter("$workspaceExternalId", entry.WorkspaceExternalId)
+            .WithParameter("$boxExternalId", entry.BoxExternalId)
+            .WithParameter("$boxLinkExternalId", entry.BoxLinkExternalId)
             .WithParameter("$details", entry.DetailsJson)
             .Execute();
     }
