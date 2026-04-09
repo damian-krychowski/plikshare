@@ -1,5 +1,5 @@
-import { Component, OnInit, signal, computed } from "@angular/core";
-import { Router } from "@angular/router";
+import { Component, OnInit, OnDestroy, signal, computed, effect } from "@angular/core";
+import { ActivatedRoute, Router } from "@angular/router";
 import { FormsModule } from "@angular/forms";
 import { MatButtonModule } from "@angular/material/button";
 import { MatTooltipModule } from "@angular/material/tooltip";
@@ -41,7 +41,7 @@ import { getNameWithHighlight } from "../../shared/name-with-highlight";
     templateUrl: './audit-log.component.html',
     styleUrl: './audit-log.component.scss'
 })
-export class AuditLogComponent implements OnInit {
+export class AuditLogComponent implements OnInit, OnDestroy {
     isLoading = signal(false);
     isLoadingMore = signal(false);
     items = signal<AuditLogItem[]>([]);
@@ -53,11 +53,15 @@ export class AuditLogComponent implements OnInit {
     isLoadingDetails = signal(false);
     showFilters = signal(false);
 
+    private _filtersDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private _initialized = false;
+
     // Filters
     filterFromDate = signal<Date | null>(null);
     filterToDate = signal<Date | null>(null);
     filterEventCategories = signal<string[]>([]);
     filterEventTypes = signal<string[]>([]);
+    filterExcludeEventTypes = signal<string[]>([]);
     filterSeverities = signal<string[]>([]);
     filterActorIdentities = signal<string[]>([]);
     filterCorrelationId = signal('');
@@ -69,13 +73,25 @@ export class AuditLogComponent implements OnInit {
 
     // Search within dropdowns
     eventTypeSearch = signal('');
+    excludeEventTypeSearch = signal('');
     actorSearch = signal('');
 
     filteredEventTypes = computed(() => {
         const search = this.eventTypeSearch().toLowerCase();
         const selected = new Set(this.filterEventTypes());
-        if (!search) return this.availableEventTypes();
-        return this.availableEventTypes().filter(et => selected.has(et) || et.toLowerCase().includes(search));
+        const excluded = new Set(this.filterExcludeEventTypes());
+        const available = this.availableEventTypes().filter(et => selected.has(et) || !excluded.has(et));
+        if (!search) return available;
+        return available.filter(et => selected.has(et) || et.toLowerCase().includes(search));
+    });
+
+    filteredExcludeEventTypes = computed(() => {
+        const search = this.excludeEventTypeSearch().toLowerCase();
+        const selected = new Set(this.filterExcludeEventTypes());
+        const included = new Set(this.filterEventTypes());
+        const available = this.availableEventTypes().filter(et => selected.has(et) || !included.has(et));
+        if (!search) return available;
+        return available.filter(et => selected.has(et) || et.toLowerCase().includes(search));
     });
 
     filteredActors = computed(() => {
@@ -111,15 +127,51 @@ export class AuditLogComponent implements OnInit {
         return getNameWithHighlight(text, search.toLowerCase());
     }
 
+    private _filtersSnapshot = computed(() => ({
+        fromDate: this.filterFromDate(),
+        toDate: this.filterToDate(),
+        eventCategories: this.filterEventCategories(),
+        eventTypes: this.filterEventTypes(),
+        excludeEventTypes: this.filterExcludeEventTypes(),
+        severities: this.filterSeverities(),
+        actorIdentities: this.filterActorIdentities(),
+        correlationId: this.filterCorrelationId(),
+        search: this.filterSearch(),
+    }));
+
     constructor(
         public auth: AuthService,
         private _router: Router,
+        private _route: ActivatedRoute,
         private _auditLogApi: AuditLogApi
-    ) {}
+    ) {
+        effect(() => {
+            this._filtersSnapshot();
+
+            if (!this._initialized) return;
+
+            if (this._filtersDebounceTimer) {
+                clearTimeout(this._filtersDebounceTimer);
+            }
+
+            this._filtersDebounceTimer = setTimeout(() => {
+                this.syncFiltersToQueryParams();
+                this.loadLogs();
+            }, 300);
+        });
+    }
+
+    ngOnDestroy() {
+        if (this._filtersDebounceTimer) {
+            clearTimeout(this._filtersDebounceTimer);
+        }
+    }
 
     async ngOnInit() {
         await this.auth.initiateSessionIfNeeded();
+        this.loadFiltersFromQueryParams();
         await Promise.all([this.loadLogs(), this.loadStats(), this.loadFilterOptions()]);
+        this._initialized = true;
     }
 
     goToAccount() {
@@ -134,6 +186,7 @@ export class AuditLogComponent implements OnInit {
             toDate: this.filterToDate()?.toISOString() ?? null,
             eventCategories: this.filterEventCategories().length > 0 ? this.filterEventCategories() : null,
             eventTypes: this.filterEventTypes().length > 0 ? this.filterEventTypes() : null,
+            excludeEventTypes: this.filterExcludeEventTypes().length > 0 ? this.filterExcludeEventTypes() : null,
             severities: this.filterSeverities().length > 0 ? this.filterSeverities() : null,
             actorIdentities: this.filterActorIdentities().length > 0 ? this.filterActorIdentities() : null,
             correlationId: this.filterCorrelationId() || null,
@@ -189,30 +242,78 @@ export class AuditLogComponent implements OnInit {
         }
     }
 
-    async applyFilters() {
-        await this.loadLogs();
-    }
-
-    async clearFilters() {
+    clearFilters() {
         this.filterFromDate.set(null);
         this.filterToDate.set(null);
         this.filterEventCategories.set([]);
         this.filterEventTypes.set([]);
+        this.filterExcludeEventTypes.set([]);
         this.filterSeverities.set([]);
         this.filterActorIdentities.set([]);
         this.filterCorrelationId.set('');
         this.filterSearch.set('');
-        await this.loadLogs();
     }
 
     toggleFilters() {
         this.showFilters.update(v => !v);
     }
 
-    async searchByCorrelationId(correlationId: string) {
+    searchByCorrelationId(correlationId: string) {
         this.filterCorrelationId.set(correlationId);
         this.showFilters.set(true);
-        await this.loadLogs();
+    }
+
+    private loadFiltersFromQueryParams() {
+        const params = this._route.snapshot.queryParamMap;
+
+        const fromDate = params.get('fromDate');
+        const toDate = params.get('toDate');
+        const eventCategories = params.getAll('eventCategories');
+        const eventTypes = params.getAll('eventTypes');
+        const excludeEventTypes = params.getAll('excludeEventTypes');
+        const severities = params.getAll('severities');
+        const actors = params.getAll('actors');
+        const correlationId = params.get('correlationId');
+        const search = params.get('search');
+
+        if (fromDate) this.filterFromDate.set(new Date(fromDate));
+        if (toDate) this.filterToDate.set(new Date(toDate));
+        if (eventCategories.length > 0) this.filterEventCategories.set(eventCategories);
+        if (eventTypes.length > 0) this.filterEventTypes.set(eventTypes);
+        if (excludeEventTypes.length > 0) this.filterExcludeEventTypes.set(excludeEventTypes);
+        if (severities.length > 0) this.filterSeverities.set(severities);
+        if (actors.length > 0) this.filterActorIdentities.set(actors);
+        if (correlationId) this.filterCorrelationId.set(correlationId);
+        if (search) this.filterSearch.set(search);
+
+        const hasAnyFilter = fromDate || toDate || eventCategories.length > 0
+            || eventTypes.length > 0 || excludeEventTypes.length > 0
+            || severities.length > 0 || actors.length > 0
+            || correlationId || search;
+
+        if (hasAnyFilter) {
+            this.showFilters.set(true);
+        }
+    }
+
+    private syncFiltersToQueryParams() {
+        const queryParams: Record<string, string | string[] | null> = {
+            fromDate: this.filterFromDate()?.toISOString() ?? null,
+            toDate: this.filterToDate()?.toISOString() ?? null,
+            eventCategories: this.filterEventCategories().length > 0 ? this.filterEventCategories() : null,
+            eventTypes: this.filterEventTypes().length > 0 ? this.filterEventTypes() : null,
+            excludeEventTypes: this.filterExcludeEventTypes().length > 0 ? this.filterExcludeEventTypes() : null,
+            severities: this.filterSeverities().length > 0 ? this.filterSeverities() : null,
+            actors: this.filterActorIdentities().length > 0 ? this.filterActorIdentities() : null,
+            correlationId: this.filterCorrelationId() || null,
+            search: this.filterSearch() || null,
+        };
+
+        this._router.navigate([], {
+            relativeTo: this._route,
+            queryParams,
+            replaceUrl: true
+        });
     }
 
     async toggleExpand(externalId: string) {

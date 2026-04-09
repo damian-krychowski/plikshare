@@ -212,6 +212,43 @@ public class audit_log_tests : TestFixture
     }
 
     [Fact]
+    public async Task audit_log_should_filter_by_exclude_event_types()
+    {
+        //given
+        ClearAuditLog();
+
+        var appOwner = await SignIn(Users.AppOwner); // produces auth.signed-in
+
+        var storage = await CreateHardDriveStorage(
+            user: appOwner,
+            encryptionType: StorageEncryptionType.None); // produces storage.created
+
+        // wait for all events to be written
+        await GetLogsWithRetry(
+            request: new GetAuditLogRequestDto { PageSize = 200 },
+            cookie: appOwner.Cookie,
+            antiforgery: appOwner.Antiforgery,
+            predicate: r => r.Items.Count >= 2);
+
+        //when
+        var result = await Api.AuditLog.GetLogs(
+            request: new GetAuditLogRequestDto
+            {
+                PageSize = 200,
+                ExcludeEventTypes = [AuditLogEventTypes.Auth.SignedIn]
+            },
+            cookie: appOwner.Cookie,
+            antiforgery: appOwner.Antiforgery);
+
+        //then
+        result.Items.Should().NotBeEmpty();
+        result.Items.Should().AllSatisfy(item =>
+            item.EventType.Should().NotBe(AuditLogEventTypes.Auth.SignedIn));
+        result.Items.Should().Contain(item =>
+            item.EventType == AuditLogEventTypes.Storage.Created);
+    }
+
+    [Fact]
     public async Task failed_sign_in_should_create_warning_audit_log_entry()
     {
         //given

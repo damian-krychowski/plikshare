@@ -8,6 +8,7 @@ public class GetAuditLogRequestDto
     public string? ToDate { get; init; }
     public List<string>? EventCategories { get; init; }
     public List<string>? EventTypes { get; init; }
+    public List<string>? ExcludeEventTypes { get; init; }
     public List<string>? Severities { get; init; }
     public List<string>? ActorIdentities { get; init; }
     public string? CorrelationId { get; init; }

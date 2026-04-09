@@ -113,7 +113,7 @@
 
                 <div class="filters-row filters-row--top">
                     <mat-form-field class="filter-field">
-                        <mat-label>Event type</mat-label>
+                        <mat-label>Include event types</mat-label>
                         <mat-select multiple [ngModel]="filterEventTypes()" (ngModelChange)="filterEventTypes.set($event)">
                             <ngx-mat-select-search
                                 [ngModel]="eventTypeSearch()"
@@ -129,6 +129,24 @@
                     </mat-form-field>
 
                     <mat-form-field class="filter-field">
+                        <mat-label>Exclude event types</mat-label>
+                        <mat-select multiple [ngModel]="filterExcludeEventTypes()" (ngModelChange)="filterExcludeEventTypes.set($event)">
+                            <ngx-mat-select-search
+                                [ngModel]="excludeEventTypeSearch()"
+                                (ngModelChange)="excludeEventTypeSearch.set($event)"
+                                placeholderLabel="Search event types..."
+                                noEntriesFoundLabel="No matching event types"
+                                [hideClearSearchButton]="true">
+                            </ngx-mat-select-search>
+                            @for(et of filteredExcludeEventTypes(); track et) {
+                                <mat-option [value]="et"><span [innerHTML]="highlightMatch(et, excludeEventTypeSearch())"></span></mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+
+                <div class="filters-row filters-row--top">
+                    <mat-form-field class="filter-field">
                         <mat-label>Actor</mat-label>
                         <mat-select multiple [ngModel]="filterActorIdentities()" (ngModelChange)="filterActorIdentities.set($event)">
                             <ngx-mat-select-search
@@ -143,14 +161,14 @@
                             }
                         </mat-select>
                     </mat-form-field>
-                </div>
 
-                <div class="filters-row">
                     <mat-form-field class="filter-field">
                         <mat-label>Correlation ID</mat-label>
                         <input matInput [ngModel]="filterCorrelationId()" (ngModelChange)="filterCorrelationId.set($event)">
                     </mat-form-field>
+                </div>
 
+                <div class="filters-row">
                     <mat-form-field class="filter-field">
                         <mat-label>Search</mat-label>
                         <input matInput [ngModel]="filterSearch()" (ngModelChange)="filterSearch.set($event)" placeholder="Search in email...">
@@ -158,12 +176,6 @@
                 </div>
 
                 <div class="filters-actions">
-                    <app-action-text-btn
-                        tooltip=""
-                        text="Apply"
-                        (clicked)="applyFilters()">
-                    </app-action-text-btn>
-
                     <app-action-text-btn
                         tooltip=""
                         text="Clear"

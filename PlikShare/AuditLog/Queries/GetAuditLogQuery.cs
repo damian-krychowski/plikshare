@@ -1,4 +1,3 @@
-using System.Text.Json;
 using PlikShare.AuditLog.Contracts;
 using PlikShare.Core.Database.AuditLogDatabase;
 using PlikShare.Core.SQLite;
@@ -12,11 +11,6 @@ public class GetAuditLogQuery(PlikShareAuditLogDb plikShareAuditLogDb)
         using var connection = plikShareAuditLogDb.OpenConnection();
 
         var pageSize = Math.Clamp(request.PageSize, 1, 200);
-
-        var categoriesJson = ToJsonArrayOrNull(request.EventCategories);
-        var eventTypesJson = ToJsonArrayOrNull(request.EventTypes);
-        var severitiesJson = ToJsonArrayOrNull(request.Severities);
-        var actorIdentitiesJson = ToJsonArrayOrNull(request.ActorIdentities);
 
         var items = connection
             .Cmd(
@@ -33,6 +27,7 @@ public class GetAuditLogQuery(PlikShareAuditLogDb plikShareAuditLogDb)
                     WHERE ($cursor IS NULL OR al_id < $cursor)
                       AND ($eventCategories IS NULL OR al_event_category IN (SELECT value FROM json_each($eventCategories)))
                       AND ($eventTypes IS NULL OR al_event_type IN (SELECT value FROM json_each($eventTypes)))
+                      AND ($excludeEventTypes IS NULL OR al_event_type NOT IN (SELECT value FROM json_each($excludeEventTypes)))
                       AND ($severities IS NULL OR al_event_severity IN (SELECT value FROM json_each($severities)))
                       AND ($fromDate IS NULL OR al_created_at >= $fromDate)
                       AND ($toDate IS NULL OR al_created_at <= $toDate)
@@ -57,12 +52,13 @@ public class GetAuditLogQuery(PlikShareAuditLogDb plikShareAuditLogDb)
                     }
                 })
             .WithParameter("$cursor", request.Cursor)
-            .WithParameter("$eventCategories", categoriesJson)
-            .WithParameter("$eventTypes", eventTypesJson)
-            .WithParameter("$severities", severitiesJson)
+            .WithJsonParameter("$eventCategories", request.EventCategories)
+            .WithJsonParameter("$eventTypes", request.EventTypes)
+            .WithJsonParameter("$excludeEventTypes", request.ExcludeEventTypes)
+            .WithJsonParameter("$severities", request.Severities)
             .WithParameter("$fromDate", request.FromDate)
             .WithParameter("$toDate", request.ToDate)
-            .WithParameter("$actorIdentities", actorIdentitiesJson)
+            .WithJsonParameter("$actorIdentities", request.ActorIdentities)
             .WithParameter("$correlationId", request.CorrelationId)
             .WithParameter("$workspaceExternalId", request.WorkspaceExternalId)
             .WithParameter("$search", request.Search)
@@ -78,13 +74,5 @@ public class GetAuditLogQuery(PlikShareAuditLogDb plikShareAuditLogDb)
             NextCursor = hasMore ? resultItems.Last().Id : null,
             HasMore = hasMore
         };
-    }
-
-    private static string? ToJsonArrayOrNull(List<string>? values)
-    {
-        if (values is null || values.Count == 0)
-            return null;
-
-        return JsonSerializer.Serialize(values);
     }
 }

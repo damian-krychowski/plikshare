@@ -11,6 +11,7 @@ export interface AuditLogFilters {
     toDate?: string | null;
     eventCategories?: string[] | null;
     eventTypes?: string[] | null;
+    excludeEventTypes?: string[] | null;
     severities?: string[] | null;
     actorIdentities?: string[] | null;
     correlationId?: string | null;
