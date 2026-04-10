@@ -665,11 +665,36 @@ public class TestFixture: IAsyncLifetime
     }
 
     protected async Task<AppFolder> CreateFolder(
+        string name,
+        AppWorkspace workspace,
+        AppSignedInUser user)
+    {
+        return await CreateFolder(
+            parent: null,
+            name: name,
+            workspace: workspace,
+            user: user);
+    }
+
+    protected Task<AppFolder> CreateFolder(
         AppFolder? parent,
         AppWorkspace workspace,
         AppSignedInUser user)
     {
-        var folderName = $"folder-{Guid.NewGuid().ToBase62()}";
+        return CreateFolder(
+            parent: parent,
+            name: $"folder-{Guid.NewGuid().ToBase62()}",
+            workspace: workspace,
+            user: user);
+    }
+
+    private async Task<AppFolder> CreateFolder(
+        AppFolder? parent,
+        string name,
+        AppWorkspace workspace,
+        AppSignedInUser user)
+    {
+        var folderName = name;
         
         var folderResponse = await Api.Folders.Create(
             request: new CreateFolderRequestDto

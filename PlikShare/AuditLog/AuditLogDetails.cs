@@ -42,6 +42,22 @@ public static class AuditLogDetails
         public required string Name { get; init; }
     }
 
+    public class FolderRef
+    {
+        public required FolderExtId ExternalId { get; init; }
+        public required string Name { get; init; }
+        public string? FolderPath { get; init; }
+    }
+
+    public class FileUploadRef
+    {
+        public required FileUploadExtId ExternalId { get; init; }
+        public required FileExtId FileExternalId { get; init; }
+        public required string Name { get; init; }
+        public required long SizeInBytes { get; init; }
+        public string? FolderPath { get; init; }
+    }
+
     public static class Auth
     {
         public class SignedIn
@@ -274,31 +290,33 @@ public static class AuditLogDetails
     {
         public class Created
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required FolderExtId ExternalId { get; init; }
-            public required string Name { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required FolderRef Folder { get; init; }
+            public BoxRef? Box { get; init; }
         }
 
         public class BulkCreated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required List<FolderExtId> FolderExternalIds { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required List<FolderRef> Folders { get; init; }
+            public BoxRef? Box { get; init; }
         }
 
         public class NameUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required FolderExtId ExternalId { get; init; }
-            public required string Name { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required FolderRef Folder { get; init; }
+            public BoxRef? Box { get; init; }
         }
 
         public class ItemsMoved
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required FolderExtId? DestinationFolderExternalId { get; init; }
-            public required List<FolderExtId> FolderExternalIds { get; init; }
-            public required List<FileExtId> FileExternalIds { get; init; }
-            public required List<FileUploadExtId> FileUploadExternalIds { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required FolderRef? DestinationFolder { get; init; }
+            public required List<FolderRef> Folders { get; init; }
+            public required List<FileRef> Files { get; init; }
+            public required List<FileUploadRef> FileUploads { get; init; }
+            public BoxRef? Box { get; init; }
         }
     }
 
@@ -549,34 +567,21 @@ public static class AuditLogDetails
         public class UploadInitiated
         {
             public required WorkspaceRef Workspace { get; init; }
-            public required List<UploadInitiatedFileRef> Files { get; init; }
+            public required List<FileUploadRef> FileUploads { get; init; }
             public BoxRef? Box { get; init; }
-
-            public class UploadInitiatedFileRef
-            {
-                public required FileRef File { get; init; }
-                public required FileUploadExtId FileUploadExternalId { get; init; }
-            }
         }
 
         public class MultiUploadCompleted
         {
             public required WorkspaceRef Workspace { get; init; }
-            public required List<MultiUploadCompletedFileRef> Files { get; init; }
+            public required List<FileUploadRef> FileUploads { get; init; }
             public BoxRef? Box { get; init; }
-
-            public class MultiUploadCompletedFileRef
-            {
-                public required FileRef File { get; init; }
-                public required FileUploadExtId FileUploadExternalId { get; init; }
-            }
         }
 
         public class UploadCompleted
         {
             public required WorkspaceRef Workspace { get; init; }
-            public required FileRef File { get; init; }
-            public required FileUploadExtId FileUploadExternalId { get; init; }
+            public required FileUploadRef FileUpload { get; init; }
             public BoxRef? Box { get; init; }
         }
     }

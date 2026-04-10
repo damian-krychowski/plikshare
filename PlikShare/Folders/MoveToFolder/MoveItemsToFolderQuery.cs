@@ -231,23 +231,23 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
     {
         return dbWriteContext
             .OneRowCmd(
-                sql: @"
-                        SELECT
-                            fo_id,
-                            fo_ancestor_folder_ids
-                        FROM fo_folders
-                        WHERE
-                            fo_external_id = $destinationFolderExternalId
-                            AND fo_workspace_id = $workspaceId
-                            AND fo_is_being_deleted = FALSE
-                            AND (
-                                $boxFolderId IS NULL
-                                OR $boxFolderId = fo_id
-                                OR $boxFolderId IN (
-                                    SELECT value FROM json_each(fo_ancestor_folder_ids)
-                                )
-                            )
-                    ",
+                sql: """
+                     SELECT
+                         fo_id,
+                         fo_ancestor_folder_ids
+                     FROM fo_folders
+                     WHERE
+                         fo_external_id = $destinationFolderExternalId
+                         AND fo_workspace_id = $workspaceId
+                         AND fo_is_being_deleted = FALSE
+                         AND (
+                             $boxFolderId IS NULL
+                             OR $boxFolderId = fo_id
+                             OR $boxFolderId IN (
+                                 SELECT value FROM json_each(fo_ancestor_folder_ids)
+                             )
+                         )
+                     """,
                 readRowFunc: reader => new DestinationFolder(
                     Id: reader.GetInt32(0),
                     AncestorFolderIds: reader.GetFromJson<int[]>(1)),
@@ -271,34 +271,34 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
 
         return dbWriteContext
             .Cmd(
-                sql: @"
-                        UPDATE fi_files
-                        SET fi_folder_id = $destinationFolderId
-                        WHERE
-                            fi_external_id IN (
-                                SELECT value FROM json_each($fileExternalIds)
-                            )
-                            AND fi_workspace_id = $workspaceId
-                            AND (
-                                $boxFolderId IS NULL
-                                OR EXISTS (
-                                    SELECT 1
-                                    FROM fo_folders
-                                    WHERE 
-                                        fo_id = fi_folder_id
-                                        AND fo_workspace_id = $workspaceId
-                                        AND fo_is_being_deleted = FALSE
-                                        AND (
-                                            $boxFolderId = fo_id
-                                            OR $boxFolderId IN (
-                                                SELECT value FROM json_each(fo_ancestor_folder_ids)
-                                            )
-                                        )
-                                )
-                            )
-                        RETURNING
-                            fi_id                            
-                    ",
+                sql: """
+                     UPDATE fi_files
+                     SET fi_folder_id = $destinationFolderId
+                     WHERE
+                         fi_external_id IN (
+                             SELECT value FROM json_each($fileExternalIds)
+                         )
+                         AND fi_workspace_id = $workspaceId
+                         AND (
+                             $boxFolderId IS NULL
+                             OR EXISTS (
+                                 SELECT 1
+                                 FROM fo_folders
+                                 WHERE 
+                                     fo_id = fi_folder_id
+                                     AND fo_workspace_id = $workspaceId
+                                     AND fo_is_being_deleted = FALSE
+                                     AND (
+                                         $boxFolderId = fo_id
+                                         OR $boxFolderId IN (
+                                             SELECT value FROM json_each(fo_ancestor_folder_ids)
+                                         )
+                                     )
+                             )
+                         )
+                     RETURNING
+                         fi_id
+                     """,
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
             .WithParameter("$destinationFolderId", destinationFolderId)
@@ -321,34 +321,34 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
 
         return dbWriteContext
             .Cmd(
-                sql: @"
-                        UPDATE fu_file_uploads
-                        SET fu_folder_id = $destinationFolderId
-                        WHERE
-                            fu_external_id IN (
-                                SELECT value FROM json_each($fileUploadExternalIds)
-                            )
-                            AND fu_workspace_id = $workspaceId
-                            AND (
-                                $boxFolderId IS NULL
-                                OR EXISTS (
-                                    SELECT 1
-                                    FROM fo_folders
-                                    WHERE 
-                                        fo_id = fu_folder_id
-                                        AND fo_workspace_id = $workspaceId
-                                        AND fo_is_being_deleted = FALSE
-                                        AND (
-                                            $boxFolderId = fo_id
-                                            OR $boxFolderId IN (
-                                                SELECT value FROM json_each(fo_ancestor_folder_ids)
-                                            )
-                                        )
-                                )
-                            )
-                        RETURNING
-                            fu_id                            
-                    ",
+                sql: """
+                     UPDATE fu_file_uploads
+                     SET fu_folder_id = $destinationFolderId
+                     WHERE
+                         fu_external_id IN (
+                             SELECT value FROM json_each($fileUploadExternalIds)
+                         )
+                         AND fu_workspace_id = $workspaceId
+                         AND (
+                             $boxFolderId IS NULL
+                             OR EXISTS (
+                                 SELECT 1
+                                 FROM fo_folders
+                                 WHERE 
+                                     fo_id = fu_folder_id
+                                     AND fo_workspace_id = $workspaceId
+                                     AND fo_is_being_deleted = FALSE
+                                     AND (
+                                         $boxFolderId = fo_id
+                                         OR $boxFolderId IN (
+                                             SELECT value FROM json_each(fo_ancestor_folder_ids)
+                                         )
+                                     )
+                             )
+                         )
+                     RETURNING
+                         fu_id
+                     """,
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
             .WithParameter("$destinationFolderId", destinationFolderId)
@@ -371,23 +371,23 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
 
         return dbWriteContext
             .Cmd(
-                sql: @"
-                        SELECT
-                            fo_id,
-                            fo_ancestor_folder_ids
-                        FROM fo_folders
-                        WHERE
-                            fo_external_id IN (
-                                SELECT value FROM json_each($folderExternalIds)
-                            )
-                            AND fo_workspace_id = $workspaceId
-                            AND (
-                                $boxFolderId IS NULL
-                                OR $boxFolderId IN (
-                                    SELECT value FROM json_each(fo_ancestor_folder_ids)
-                                )
-                            )
-                    ",
+                sql: """
+                     SELECT
+                         fo_id,
+                         fo_ancestor_folder_ids
+                     FROM fo_folders
+                     WHERE
+                         fo_external_id IN (
+                             SELECT value FROM json_each($folderExternalIds)
+                         )
+                         AND fo_workspace_id = $workspaceId
+                         AND (
+                             $boxFolderId IS NULL
+                             OR $boxFolderId IN (
+                                 SELECT value FROM json_each(fo_ancestor_folder_ids)
+                             )
+                         )
+                     """,
                 readRowFunc: reader => new FolderToMove(
                     Id: reader.GetInt32(0),
                     AncestorFolderIds: reader.GetFromJson<int[]>(1)),
@@ -408,36 +408,36 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
     {
         return dbWriteContext
             .Cmd(
-                sql: @"
-                    UPDATE fo_folders
-                    SET
-                        fo_parent_folder_id = (CASE
-                            WHEN fo_id = $folderToMoveId THEN $destinationFolderId
-                            ELSE fo_parent_folder_id
-                        END),
-                        fo_ancestor_folder_ids = (
-                            SELECT json_group_array(value)
-                            FROM (
-                                SELECT value 
-                                FROM json_each($destinationFolderPath)
-                                UNION ALL 
-                                SELECT value 
-                                FROM json_each(fo_ancestor_folder_ids)
-                                WHERE json_each.key >= $folderToMovePathLength
-                            )
-                        )
-                    WHERE
-                        fo_workspace_id = $workspaceId
-                        AND (
-                            $folderToMoveId = fo_id
-                            OR $folderToMoveId IN (
-                                SELECT value FROM json_each(fo_ancestor_folder_ids)
-                            )
-                        )
-                    RETURNING
-                        fo_id,
-                        fo_ancestor_folder_ids
-                    ",
+                sql: """
+                     UPDATE fo_folders
+                     SET
+                         fo_parent_folder_id = (CASE
+                             WHEN fo_id = $folderToMoveId THEN $destinationFolderId
+                             ELSE fo_parent_folder_id
+                         END),
+                         fo_ancestor_folder_ids = (
+                             SELECT json_group_array(value)
+                             FROM (
+                                 SELECT value 
+                                 FROM json_each($destinationFolderPath)
+                                 UNION ALL 
+                                 SELECT value 
+                                 FROM json_each(fo_ancestor_folder_ids)
+                                 WHERE json_each.key >= $folderToMovePathLength
+                             )
+                         )
+                     WHERE
+                         fo_workspace_id = $workspaceId
+                         AND (
+                             $folderToMoveId = fo_id
+                             OR $folderToMoveId IN (
+                                 SELECT value FROM json_each(fo_ancestor_folder_ids)
+                             )
+                         )
+                     RETURNING
+                         fo_id,
+                         fo_ancestor_folder_ids
+                     """,
                 readRowFunc: reader => new MovedFolder(
                     Id: reader.GetInt32(0),
                     AncestorFolderIds: reader.GetFromJson<int[]>(1)),

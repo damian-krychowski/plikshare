@@ -23,6 +23,10 @@ public class GetOrCreateFolderQuery(
         bool ensureUniqueNames,
         CancellationToken cancellationToken = default)
     {
+        if (parentFolderExternalId is null && boxFolderId is not null)
+            throw new InvalidOperationException(
+                $"Top folders cannot be created from within the box with boxFolderId is not null ({boxFolderId})");
+
         if (folderTreeItems.Count == 0)
             return new BulkResult(
                 Code: ResultCode.Ok,
@@ -47,7 +51,7 @@ public class GetOrCreateFolderQuery(
                 Code: ResultCode.DuplicatedNamesFound,
                 TemporaryIdsWithDuplications: duplicatedNames);
 
-        var (code, foldersToCreate, existingFolders) = CheckParentFolderAndGetFoldersToCreate(
+        var (code, foldersToCreate, existingFolderDtos) = CheckParentFolderAndGetFoldersToCreate(
             workspace: workspace, 
             parentFolderExternalId: parentFolderExternalId, 
             boxFolderId: boxFolderId, 
@@ -57,22 +61,23 @@ public class GetOrCreateFolderQuery(
         if (code == ResultCode.ParentFolderNotFound)
             return new BulkResult(Code: ResultCode.ParentFolderNotFound);
 
-        var createdFolders = foldersToCreate.Count > 0
-            ? await CreateMissingFolders(
-                workspace: workspace,
-                userIdentity: userIdentity,
-                inputTreeNodes: foldersToCreate,
-                cancellationToken: cancellationToken)
-            : [];
-
-        existingFolders.AddRange(createdFolders);
+        var (createdFoldersDtos, createdFolders) = await CreateMissingFolders(
+            workspace: workspace,
+            userIdentity: userIdentity,
+            inputTreeNodes: foldersToCreate,
+            cancellationToken: cancellationToken);
 
         return new BulkResult(
             Code: ResultCode.Ok,
             Response: new BulkCreateFolderResponseDto
             {
-                Items = existingFolders
-            });
+                Items =
+                [
+                    ..existingFolderDtos,
+                    ..createdFoldersDtos
+                ]
+            },
+            CreatedFolders: createdFolders);
     }
 
     private List<int> CheckForDuplicatedTemporaryIds(
@@ -133,21 +138,18 @@ public class GetOrCreateFolderQuery(
         return [];
     }
 
-    private (ResultCode Code, List<FolderTreeNode> InputTreeNodes, List<BulkCreateFolderItemDto> ExistingFolders) CheckParentFolderAndGetFoldersToCreate(
+    private CheckParentFolderResult CheckParentFolderAndGetFoldersToCreate(
         WorkspaceContext workspace,
         FolderExtId? parentFolderExternalId,
         int? boxFolderId,
         List<FolderTreeDto> folderTreeItems,
         bool ensureUniqueNames)
     {
-        if(parentFolderExternalId is null && boxFolderId is not null)
-            throw new InvalidOperationException(
-                $"Top folders cannot be created from within the box with boxFolderId is not null ({boxFolderId})"); ;
-
         if (parentFolderExternalId is null && !ensureUniqueNames)
-            return (
+        {
+            return new CheckParentFolderResult(
                 Code: ResultCode.Ok,
-                InputTreeNodes:
+                FoldersToCreate:
                 [
                     new FolderTreeNode
                     {
@@ -156,6 +158,7 @@ public class GetOrCreateFolderQuery(
                     }
                 ],
                 ExistingFolders: []);
+        }
 
         using var connection = plikShareDb.OpenConnection();
 
@@ -170,9 +173,9 @@ public class GetOrCreateFolderQuery(
                 connection: connection);
 
             if (parentFolderResult.IsEmpty)
-                return (
+                return new CheckParentFolderResult(
                     Code: ResultCode.ParentFolderNotFound,
-                    InputTreeNodes: [],
+                    FoldersToCreate: [],
                     ExistingFolders: []
                 );
 
@@ -180,9 +183,9 @@ public class GetOrCreateFolderQuery(
         }
 
         if (!ensureUniqueNames)
-            return (
+            return new CheckParentFolderResult(
                 Code: ResultCode.Ok,
-                InputTreeNodes: [
+                FoldersToCreate: [
                     new FolderTreeNode
                     {
                         Parent = parentFolder,
@@ -211,9 +214,9 @@ public class GetOrCreateFolderQuery(
             })
             .ToList();
 
-        return (
+        return new CheckParentFolderResult(
             Code: ResultCode.Ok,
-            InputTreeNodes: inputTreeNodes,
+            FoldersToCreate: inputTreeNodes,
             ExistingFolders: existingFolders
         );
     }
@@ -240,7 +243,7 @@ public class GetOrCreateFolderQuery(
             var nextLevelItems = new List<FolderTreeNode>();
             var folderTreeNodes = stack.Pop();
 
-            var existingFolders = folderTreeNodes.Count == 1 && folderTreeNodes[0].Parent is null
+            var existingFolders = folderTreeNodes is [{ Parent: null }]
                 ? GetExistingTopFolders(
                     commandsPool,
                     workspace)
@@ -339,19 +342,24 @@ public class GetOrCreateFolderQuery(
         return result;
     }
 
-    private async Task<List<BulkCreateFolderItemDto>> CreateMissingFolders(
+    private async ValueTask<CreateMissingFoldersResult> CreateMissingFolders(
         WorkspaceContext workspace,
         IUserIdentity userIdentity,
         List<FolderTreeNode> inputTreeNodes,
         CancellationToken cancellationToken)
     {
+        if (inputTreeNodes.Count == 0)
+            return new CreateMissingFoldersResult([], []);
+
         var results = new List<BulkCreateFolderItemDto>();
+        var resultFolders = new List<Folder>();
+
         var stack = new Stack<List<FolderTreeNode>>();
 
         stack.Push(inputTreeNodes);
        
         var foldersToCreate = new List<FolderToCreate>();
-        var subfoldersDataList = new List<(FolderTreeNode Node, FolderTreeDto Subfolder, FolderExtId ExternalId)>();
+        var subfoldersDataList = new List<SubfolderData>();
 
         while (stack.Any())
         {
@@ -371,7 +379,10 @@ public class GetOrCreateFolderQuery(
 
                     var externalId = FolderExtId.NewId();
 
-                    subfoldersDataList.Add((node, subfolder, externalId));
+                    subfoldersDataList.Add(new SubfolderData(
+                        Node: node, 
+                        Subfolder: subfolder, 
+                        ExternalId: externalId));
 
                     foldersToCreate.Add(new FolderToCreate
                     {
@@ -398,7 +409,7 @@ public class GetOrCreateFolderQuery(
                     var subfolderData = subfoldersDataList[index];
 
                     var (node, subfolder, externalId) = subfolderData;
-                    var createdFolder = createdFolders[subfolderData.ExternalId.Value];
+                    var createdFolder = createdFolders[externalId.Value];
 
                     results.Add(new BulkCreateFolderItemDto
                     {
@@ -416,8 +427,22 @@ public class GetOrCreateFolderQuery(
                         AncestorFolderIdsForSubfolders =
                         [
                             ..node.Parent?.AncestorFolderIdsForSubfolders ?? [], createdFolder.Id
-                        ]
+                        ],
+
+                        Ancestors = node.Parent is null
+                            ? []
+                            :
+                            [
+                                ..node.Parent.Ancestors,
+                                new FolderAncestor
+                                {
+                                    Name = node.Parent.Name,
+                                    ExternalId = node.Parent.ExternalId
+                                }
+                            ]
                     };
+
+                    resultFolders.Add(folder);
 
                     if (subfolder.Subfolders is not null && subfolder.Subfolders.Count > 0)
                     {
@@ -436,7 +461,9 @@ public class GetOrCreateFolderQuery(
             }
         }
 
-        return results;
+        return new CreateMissingFoldersResult(
+            Items: results,
+            CreatedFolders: resultFolders);
     }
     
     private List<Folder> GetExistingTopFolders(
@@ -445,17 +472,17 @@ public class GetOrCreateFolderQuery(
     {
         var result = commandsPool
             .Cmd(
-                sql: @"
-                SELECT 
-                    fo_id,
-                    fo_external_id,
-                    fo_name
-                FROM fo_folders AS fo
-                WHERE 
-                    fo_workspace_id = $workspaceId
-                    AND fo_is_being_deleted = FALSE
-                    AND fo_parent_folder_id IS NULL
-            ",
+                sql: """
+                     SELECT 
+                         fo.fo_id,
+                         fo.fo_external_id,
+                         fo.fo_name
+                     FROM fo_folders AS fo
+                     WHERE 
+                         fo.fo_workspace_id = $workspaceId
+                         AND fo.fo_is_being_deleted = FALSE
+                         AND fo.fo_parent_folder_id IS NULL
+                     """,
                 readRowFunc: reader =>
                 {
                     var id = reader.GetInt32(0);
@@ -466,7 +493,8 @@ public class GetOrCreateFolderQuery(
                         ParentId = null,
                         ExternalId = reader.GetString(1),
                         Name = reader.GetString(2),
-                        AncestorFolderIdsForSubfolders = [id]
+                        AncestorFolderIdsForSubfolders = [id],
+                        Ancestors = []
                     };
                 })
             .WithParameter("$workspaceId", workspace.Id)
@@ -484,15 +512,27 @@ public class GetOrCreateFolderQuery(
             .Cmd(
                 sql: """
                      SELECT 
-                         fo_id,
-                         fo_external_id,
-                         fo_name,
-                         fo_ancestor_folder_ids
+                         fo.fo_id,
+                         fo.fo_external_id,
+                         fo.fo_name,
+                         fo.fo_ancestor_folder_ids,
+                         (
+                             SELECT json_group_array(json_object(
+                                 'name', sub.fo_name,
+                                 'externalId', sub.fo_external_id
+                             ))
+                             FROM (
+                                 SELECT af.fo_name, af.fo_external_id
+                                 FROM fo_folders AS af
+                                 WHERE af.fo_id IN (SELECT value FROM json_each(fo.fo_ancestor_folder_ids))
+                                 ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+                             ) AS sub
+                         ) AS fo_ancestors
                      FROM fo_folders AS fo
                      WHERE 
-                         fo_workspace_id = $workspaceId
-                         AND fo_is_being_deleted = FALSE
-                         AND fo_parent_folder_id IN (
+                         fo.fo_workspace_id = $workspaceId
+                         AND fo.fo_is_being_deleted = FALSE
+                         AND fo.fo_parent_folder_id IN (
                              SELECT value FROM json_each($parentIds)
                          )
                      """,
@@ -510,7 +550,8 @@ public class GetOrCreateFolderQuery(
                         ParentId = parentId,
                         ExternalId = externalId,
                         Name = name, 
-                        AncestorFolderIdsForSubfolders = [.. ancestorFolderIds, id]
+                        AncestorFolderIdsForSubfolders = [.. ancestorFolderIds, id],
+                        Ancestors = reader.GetFromJsonOrNull<FolderAncestor[]>(4) ?? []
                     };
                 })
             .WithParameter("$workspaceId", workspace.Id)
@@ -582,21 +623,33 @@ public class GetOrCreateFolderQuery(
             .OneRowCmd(
                 sql: """
                      SELECT 
-                         fo_id, 
-                         fo_parent_folder_id,
-                         fo_ancestor_folder_ids,
-                         fo_name
+                         f.fo_id, 
+                         f.fo_parent_folder_id,
+                         f.fo_ancestor_folder_ids,
+                         f.fo_name,
+                         (
+                             SELECT json_group_array(json_object(
+                                 'name', sub.fo_name,
+                                 'externalId', sub.fo_external_id
+                             ))
+                             FROM (
+                                 SELECT af.fo_name, af.fo_external_id
+                                 FROM fo_folders AS af
+                                 WHERE af.fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
+                                 ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+                             ) AS sub
+                         )
                      FROM 
-                         fo_folders
+                         fo_folders AS f
                      WHERE 
-                         fo_external_id = $parentExternalId
-                         AND fo_workspace_id = $workspaceId
-                         AND fo_is_being_deleted = FALSE
+                         f.fo_external_id = $parentExternalId
+                       AND f.fo_workspace_id = $workspaceId
+                         AND f.fo_is_being_deleted = FALSE
                          AND (
                              $boxFolderId IS NULL 
-                             OR $boxFolderId = fo_id 
+                             OR $boxFolderId = f.fo_id 
                              OR $boxFolderId IN (
-                                 SELECT value FROM json_each(fo_ancestor_folder_ids) 
+                                 SELECT value FROM json_each(f.fo_ancestor_folder_ids) 
                              ) 
                          )
                      LIMIT 1
@@ -612,8 +665,9 @@ public class GetOrCreateFolderQuery(
                         Id = id,
                         ParentId = parentId,
                         AncestorFolderIdsForSubfolders = [..ancestorFolderIds, id],
-                        Name = reader.GetString(2),
-                        ExternalId = parentFolderExternalId.Value
+                        Name = reader.GetString(3),
+                        ExternalId = parentFolderExternalId.Value,
+                        Ancestors = reader.GetFromJsonOrNull<FolderAncestor[]>(4) ?? []
                     };
                 })
             .WithParameter("$parentExternalId", parentFolderExternalId.Value)
@@ -632,10 +686,11 @@ public class GetOrCreateFolderQuery(
 
     public readonly record struct BulkResult(
         ResultCode Code,
-        BulkCreateFolderResponseDto? Response = default,
-        List<int>? TemporaryIdsWithDuplications = default);
+        BulkCreateFolderResponseDto? Response = null,
+        List<Folder>? CreatedFolders = null,
+        List<int>? TemporaryIdsWithDuplications = null);
 
-    private class Folder
+    public class Folder
     {
         public required int Id { get; init; }
         public required int? ParentId { get; init; }
@@ -644,6 +699,14 @@ public class GetOrCreateFolderQuery(
 
         //this field is folder AncestorFoldersIds + Id - so how ancestor folders ids will look like for its children
         public required int[] AncestorFolderIdsForSubfolders { get; init; }
+
+        public required FolderAncestor[] Ancestors { get; init; }
+    }
+
+    public class FolderAncestor
+    {
+        public required string ExternalId { get; init; }
+        public required string Name { get; init; }
     }
 
     public class FolderToCreate
@@ -665,5 +728,19 @@ public class GetOrCreateFolderQuery(
         public required Folder? Parent { get; init; }
         public required List<FolderTreeDto> Subfolders { get; init; }
     }
+    
+    private readonly record struct CheckParentFolderResult(
+        ResultCode Code,
+        List<FolderTreeNode> FoldersToCreate,
+        List<BulkCreateFolderItemDto> ExistingFolders);
+
+    private record SubfolderData(
+        FolderTreeNode Node, 
+        FolderTreeDto Subfolder, 
+        FolderExtId ExternalId);
+
+    private record CreateMissingFoldersResult(
+        List<BulkCreateFolderItemDto> Items,
+        List<Folder> CreatedFolders);
 }
 

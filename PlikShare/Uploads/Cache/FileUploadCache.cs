@@ -102,37 +102,40 @@ public class FileUploadCache(
 
         var result = connection
             .OneRowCmd(
-                sql: @"
-                    SELECT
-                        fu.fu_id,
-                        fu.fu_file_external_id,
-                        fu.fu_file_content_type,
-                        fu.fu_file_size_in_bytes,
-                        fu.fu_file_s3_key_secret_part,
-                        fu.fu_s3_upload_id,
-                        fu.fu_encryption_key_version,
-                        fu.fu_encryption_salt,
-                        fu.fu_encryption_nonce_prefix,
-                        fu.fu_workspace_id,
-                        fu.fu_owner_identity,
-                        fu.fu_owner_identity_type,
-                        fu.fu_file_name,
-                        fu.fu_file_extension,
-                        (
-                            SELECT json_group_array(json_object(
-                                'name', af.fo_name,
-                                'externalId', af.fo_external_id
-                            ))
-                            FROM fo_folders AS af
-                            WHERE (af.fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
-                                   OR af.fo_id = fu.fu_folder_id)
-                            ORDER BY json_array_length(af.fo_ancestor_folder_ids)
-                        )
-                    FROM fu_file_uploads AS fu
-                    LEFT JOIN fo_folders AS f ON fu.fu_folder_id = f.fo_id
-                    WHERE
-                        fu.fu_external_id = $fileUploadExternalId
-                ",
+                sql: """
+                     SELECT
+                         fu.fu_id,
+                         fu.fu_file_external_id,
+                         fu.fu_file_content_type,
+                         fu.fu_file_size_in_bytes,
+                         fu.fu_file_s3_key_secret_part,
+                         fu.fu_s3_upload_id,
+                         fu.fu_encryption_key_version,
+                         fu.fu_encryption_salt,
+                         fu.fu_encryption_nonce_prefix,
+                         fu.fu_workspace_id,
+                         fu.fu_owner_identity,
+                         fu.fu_owner_identity_type,
+                         fu.fu_file_name,
+                         fu.fu_file_extension,
+                         (
+                             SELECT json_group_array(json_object(
+                                 'name', sub.fo_name,
+                                 'externalId', sub.fo_external_id
+                             ))
+                             FROM (
+                                 SELECT af.fo_name, af.fo_external_id
+                                 FROM fo_folders AS af
+                                 WHERE af.fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
+                                     OR af.fo_id = fu.fu_folder_id
+                                 ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+                             ) AS sub
+                         )
+                     FROM fu_file_uploads AS fu
+                     LEFT JOIN fo_folders AS f ON fu.fu_folder_id = f.fo_id
+                     WHERE
+                         fu.fu_external_id = $fileUploadExternalId
+                     """,
                 readRowFunc: reader =>
                 {
                     var encryptionKeyVersion = reader.GetByteOrNull(6);

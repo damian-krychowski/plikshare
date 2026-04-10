@@ -182,9 +182,11 @@ public class folder_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Folder.Created,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.ExternalId.Should().Be(folderExternalId);
-                details.Name.Should().Be(folderName);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.Folder.ExternalId.Should().Be(folderExternalId);
+                details.Folder.Name.Should().Be(folderName);
+                details.Folder.FolderPath.Should().BeNull();
+                details.Box.Should().BeNull();
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -237,8 +239,12 @@ public class folder_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Folder.BulkCreated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.FolderExternalIds.Should().HaveCount(3);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.Folders.Should().HaveCount(3);
+                details.Folders.Should().Contain(f => f.Name == "Folder A" && f.FolderPath == null);
+                details.Folders.Should().Contain(f => f.Name == "Folder B" && f.FolderPath == null);
+                details.Folders.Should().Contain(f => f.Name == "Folder B_A" && f.FolderPath == "Folder B");
+                details.Box.Should().BeNull();
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -272,9 +278,10 @@ public class folder_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Folder.NameUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.ExternalId.Should().Be(folder.ExternalId);
-                details.Name.Should().Be(newName);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.Folder.ExternalId.Should().Be(folder.ExternalId);
+                details.Folder.Name.Should().Be(newName);
+                details.Box.Should().BeNull();
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -312,11 +319,13 @@ public class folder_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Folder.ItemsMoved,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.DestinationFolderExternalId.Should().Be(folderB.ExternalId);
-                details.FolderExternalIds.Should().Contain(folderA.ExternalId);
-                details.FileExternalIds.Should().BeEmpty();
-                details.FileUploadExternalIds.Should().BeEmpty();
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.DestinationFolder.Should().NotBeNull();
+                details.DestinationFolder!.ExternalId.Should().Be(folderB.ExternalId);
+                details.Folders.Should().ContainSingle(f => f.ExternalId == folderA.ExternalId);
+                details.Files.Should().BeEmpty();
+                details.FileUploads.Should().BeEmpty();
+                details.Box.Should().BeNull();
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);

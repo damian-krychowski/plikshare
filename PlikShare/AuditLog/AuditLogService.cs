@@ -1,14 +1,38 @@
 using System.Threading.Channels;
 using PlikShare.AuditLog.Queries;
 using PlikShare.Files.Id;
+using PlikShare.Folders.Id;
+using PlikShare.Uploads.Id;
 
 namespace PlikShare.AuditLog;
 
 public class AuditLogService(
     AuditLogChannel channel,
-    GetFileAuditContextQuery getFileAuditContextQuery)
+    GetFileAuditContextQuery getFileAuditContextQuery,
+    GetFolderAuditContextQuery getFolderAuditContextQuery,
+    GetFileUploadAuditContextQuery getFileUploadAuditContextQuery)
 {
     private static readonly Serilog.ILogger Logger = Serilog.Log.ForContext<AuditLogService>();
+
+    public async ValueTask LogWithFolderContext(
+        FolderExtId folderExternalId,
+        Func<AuditLogDetails.FolderRef, AuditLogEntry> buildEntry,
+        CancellationToken cancellationToken)
+    {
+        var folderRef = getFolderAuditContextQuery.Execute(
+            folderExternalId: folderExternalId);
+
+        if (folderRef is null)
+        {
+            Logger.Warning(
+                "Could not resolve folder audit context for Folder '{FolderExternalId}', skipping audit log entry",
+                folderExternalId);
+
+            return;
+        }
+
+        await Log(buildEntry(folderRef), cancellationToken);
+    }
 
     public async ValueTask LogWithFileContext(
         FileExtId fileExternalId,
@@ -40,6 +64,33 @@ public class AuditLogService(
 
         await Log(buildEntry(fileRefs), cancellationToken);
     }
+
+    public ItemsMovedContext GetItemsMovedContext(
+        FolderExtId? destinationFolderExternalId,
+        List<FolderExtId> folderExternalIds,
+        List<FileExtId> fileExternalIds,
+        List<FileUploadExtId> fileUploadExternalIds)
+    {
+        var destinationFolder = destinationFolderExternalId is not null
+            ? getFolderAuditContextQuery.Execute(destinationFolderExternalId.Value)
+            : null;
+
+        var folders = getFolderAuditContextQuery.ExecuteMany(folderExternalIds);
+        var files = getFileAuditContextQuery.ExecuteMany(fileExternalIds);
+        var fileUploads = getFileUploadAuditContextQuery.ExecuteMany(fileUploadExternalIds);
+
+        return new ItemsMovedContext(
+            DestinationFolder: destinationFolder,
+            Folders: folders.Values.ToList(),
+            Files: files.Values.ToList(),
+            FileUploads: fileUploads.Values.ToList());
+    }
+
+    public record ItemsMovedContext(
+        AuditLogDetails.FolderRef? DestinationFolder,
+        List<AuditLogDetails.FolderRef> Folders,
+        List<AuditLogDetails.FileRef> Files,
+        List<AuditLogDetails.FileUploadRef> FileUploads);
 
     public async ValueTask Log(AuditLogEntry entry, CancellationToken cancellationToken)
     {

@@ -101,16 +101,13 @@ public static class UploadsEndpoints
                             ExternalId = workspaceMembership.Workspace.ExternalId,
                             Name = workspaceMembership.Workspace.Name
                         },
-                        files: result.InitiatedFiles!.Select(f => new AuditLogDetails.File.UploadInitiated.UploadInitiatedFileRef
+                        fileUploads: result.InitiatedFiles!.Select(f => new AuditLogDetails.FileUploadRef
                         {
-                            File = new AuditLogDetails.FileRef
-                            {
-                                ExternalId = f.FileExternalId,
-                                Name = f.FileName,
-                                SizeInBytes = f.SizeInBytes,
-                                FolderPath = f.FolderPath
-                            },
-                            FileUploadExternalId = f.FileUploadExternalId
+                            ExternalId = f.FileUploadExternalId,
+                            FileExternalId = f.FileExternalId,
+                            Name = f.FileName,
+                            SizeInBytes = f.SizeInBytes,
+                            FolderPath = f.FolderPath
                         }).ToList()),
                     cancellationToken);
 
@@ -267,14 +264,14 @@ public static class UploadsEndpoints
                             ExternalId = workspaceMembership.Workspace.ExternalId,
                             Name = workspaceMembership.Workspace.Name
                         },
-                        file: new AuditLogDetails.FileRef
+                        fileUpload: new AuditLogDetails.FileUploadRef
                         {
-                            ExternalId = fileUpload.FileToUpload.S3FileKey.FileExternalId,
+                            ExternalId = fileUpload.ExternalId,
+                            FileExternalId = fileUpload.FileToUpload.S3FileKey.FileExternalId,
                             Name = $"{fileUpload.FileName}{fileUpload.FileExtension}",
                             SizeInBytes = fileUpload.FileToUpload.SizeInBytes,
                             FolderPath = fileUpload.FolderAncestors.ToFolderPath()
-                        },
-                        fileUploadExternalId: fileUpload.ExternalId),
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok(

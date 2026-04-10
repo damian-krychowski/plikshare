@@ -738,7 +738,7 @@ public class upload_and_download_tests : TestFixture
             assertDetails: details =>
             {
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
-                details.Files.Should().Contain(f => f.File.Name == "audit-upload.txt");
+                details.FileUploads.Should().Contain(f => f.Name == "audit-upload.txt");
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -779,7 +779,7 @@ public class upload_and_download_tests : TestFixture
             assertDetails: details =>
             {
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
-                details.File.ExternalId.Should().Be(uploadedFile.ExternalId);
+                details.FileUpload.FileExternalId.Should().Be(uploadedFile.ExternalId);
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -817,7 +817,7 @@ public class upload_and_download_tests : TestFixture
             assertDetails: details =>
             {
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
-                details.Files.Should().Contain(f => f.File.ExternalId == uploadedFile.ExternalId);
+                details.FileUploads.Should().Contain(f => f.FileExternalId == uploadedFile.ExternalId);
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);

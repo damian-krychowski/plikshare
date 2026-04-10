@@ -373,6 +373,7 @@ public class BoxExternalAccessHandler(
     public async Task<Results<Ok<BulkCreateFolderResponseDto>, BadRequest<HttpError>, NotFound<HttpError>, StatusCodeHttpResult>> BulkCreateFolders(
         BulkCreateFolderRequestDto request,
         BoxAccess boxAccess,
+        Guid correlationId,
         CancellationToken cancellationToken)
     {
         if (boxAccess.IsOff || boxAccess.Box.Folder is null)
@@ -391,21 +392,36 @@ public class BoxExternalAccessHandler(
             ensureUniqueNames: request.EnsureUniqueNames,
             cancellationToken: cancellationToken);
 
+        if (result.Code == GetOrCreateFolderQuery.ResultCode.Ok)
+        {
+            await auditLogService.Log(
+                Audit.Folder.BulkCreated(
+                    actor: boxAccess.ToAuditLogActorContext(correlationId),
+                    workspace: new AuditLogDetails.WorkspaceRef
+                    {
+                        ExternalId = boxAccess.Box.Workspace.ExternalId,
+                        Name = boxAccess.Box.Workspace.Name
+                    },
+                    folders: result.CreatedFolders.ToAuditLogFolderRefs(),
+                    box: boxAccess.ToAuditLogBoxRef()),
+                cancellationToken);
+        }
+
         return result.Code switch
         {
-            GetOrCreateFolderQuery.ResultCode.Ok => 
+            GetOrCreateFolderQuery.ResultCode.Ok =>
                 TypedResults.Ok(
                     result.Response),
 
-            GetOrCreateFolderQuery.ResultCode.ParentFolderNotFound => 
+            GetOrCreateFolderQuery.ResultCode.ParentFolderNotFound =>
                 HttpErrors.Folder.NotFound(
                     parentFolderExternalId),
 
-            GetOrCreateFolderQuery.ResultCode.DuplicatedNamesFound => 
+            GetOrCreateFolderQuery.ResultCode.DuplicatedNamesFound =>
                 HttpErrors.Folder.DuplicatedNamesOnInput(
                     result.TemporaryIdsWithDuplications ?? []),
 
-            GetOrCreateFolderQuery.ResultCode.DuplicatedTemporaryIds => 
+            GetOrCreateFolderQuery.ResultCode.DuplicatedTemporaryIds =>
                 HttpErrors.Folder.DuplicatedTemporaryIds(
                     result.TemporaryIdsWithDuplications ?? []),
 
@@ -418,6 +434,7 @@ public class BoxExternalAccessHandler(
     public async Task<Results<Ok<CreateFolderResponseDto>, NotFound<HttpError>, StatusCodeHttpResult>> CreateFolder(
         CreateFolderRequestDto request,
         BoxAccess boxAccess,
+        Guid correlationId,
         CancellationToken cancellationToken)
     {
         if (boxAccess.IsOff || boxAccess.Box.Folder is null)
@@ -433,16 +450,32 @@ public class BoxExternalAccessHandler(
             boxFolderId: boxAccess.Box.Folder.Id,
             userIdentity: boxAccess.UserIdentity,
             cancellationToken: cancellationToken);
-        
+
+        if (result == CreateFolderQuery.ResultCode.Ok)
+        {
+            await auditLogService.LogWithFolderContext(
+                folderExternalId: request.ExternalId,
+                buildEntry: folderRef => Audit.Folder.Created(
+                    actor: boxAccess.ToAuditLogActorContext(correlationId),
+                    workspace: new AuditLogDetails.WorkspaceRef
+                    {
+                        ExternalId = boxAccess.Box.Workspace.ExternalId,
+                        Name = boxAccess.Box.Workspace.Name
+                    },
+                    folder: folderRef,
+                    box: boxAccess.ToAuditLogBoxRef()),
+                cancellationToken);
+        }
+
         return result switch
         {
-            CreateFolderQuery.ResultCode.Ok => 
+            CreateFolderQuery.ResultCode.Ok =>
                 TypedResults.Ok(new CreateFolderResponseDto
                 {
                     ExternalId = request.ExternalId
                 }),
 
-            CreateFolderQuery.ResultCode.ParentFolderNotFound => 
+            CreateFolderQuery.ResultCode.ParentFolderNotFound =>
                 HttpErrors.Folder.NotFound(
                     folderExternalId),
 
@@ -457,6 +490,7 @@ public class BoxExternalAccessHandler(
         FolderExtId folderExternalId,
         UpdateBoxFolderNameRequestDto request,
         BoxAccess boxAccess,
+        Guid correlationId,
         CancellationToken cancellationToken)
     {
         if (boxAccess.IsOff || boxAccess.Box.Folder is null)
@@ -471,15 +505,31 @@ public class BoxExternalAccessHandler(
             isOperationAllowedByBoxPermissions: boxAccess.Permissions is {AllowList: true, AllowRenameFolder: true},
             cancellationToken: cancellationToken);
 
+        if (resultCode == UpdateFolderNameQuery.ResultCode.Ok)
+        {
+            await auditLogService.LogWithFolderContext(
+                folderExternalId: folderExternalId,
+                buildEntry: folderRef => Audit.Folder.NameUpdated(
+                    actor: boxAccess.ToAuditLogActorContext(correlationId),
+                    workspace: new AuditLogDetails.WorkspaceRef
+                    {
+                        ExternalId = boxAccess.Box.Workspace.ExternalId,
+                        Name = boxAccess.Box.Workspace.Name
+                    },
+                    folder: folderRef,
+                    box: boxAccess.ToAuditLogBoxRef()),
+                cancellationToken);
+        }
+
         return resultCode switch
         {
-            UpdateFolderNameQuery.ResultCode.Ok => 
+            UpdateFolderNameQuery.ResultCode.Ok =>
                 TypedResults.Ok(),
-            
-            UpdateFolderNameQuery.ResultCode.FolderNotFound => 
+
+            UpdateFolderNameQuery.ResultCode.FolderNotFound =>
                 HttpErrors.Folder.NotFound(
                     folderExternalId),
-            
+
             _ => throw new UnexpectedOperationResultException(
                 operationName: nameof(UpdateFolderNameQuery),
                 resultValueStr: resultCode.ToString())
@@ -489,12 +539,19 @@ public class BoxExternalAccessHandler(
     public async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult>>  MoveItemsToFolder(
         MoveBoxItemsToFolderRequestDto request,
         BoxAccess boxAccess,
+        Guid correlationId,
         CancellationToken cancellationToken)
     {
         if (boxAccess.IsOff || boxAccess.Box.Folder is null)
             return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
 
         var destinationFolderExternalId = request.DestinationFolderExternalId ?? boxAccess.Box.Folder.ExternalId;
+
+        var itemsContext = auditLogService.GetItemsMovedContext(
+            destinationFolderExternalId: destinationFolderExternalId,
+            folderExternalIds: request.FolderExternalIds.ToList(),
+            fileExternalIds: request.FileExternalIds.ToList(),
+            fileUploadExternalIds: request.FileUploadExternalIds.ToList());
 
         var resultCode = await moveItemsToFolderQuery.Execute(
             workspace: boxAccess.Box.Workspace,
@@ -504,10 +561,28 @@ public class BoxExternalAccessHandler(
             destinationFolderExternalId: destinationFolderExternalId,
             boxFolderId: boxAccess.Box.Folder.Id,
             cancellationToken: cancellationToken);
-        
+
+        if (resultCode == MoveItemsToFolderQuery.ResultCode.Ok)
+        {
+            await auditLogService.Log(
+                Audit.Folder.ItemsMoved(
+                    actor: boxAccess.ToAuditLogActorContext(correlationId),
+                    workspace: new AuditLogDetails.WorkspaceRef
+                    {
+                        ExternalId = boxAccess.Box.Workspace.ExternalId,
+                        Name = boxAccess.Box.Workspace.Name
+                    },
+                    destinationFolder: itemsContext.DestinationFolder,
+                    folders: itemsContext.Folders,
+                    files: itemsContext.Files,
+                    fileUploads: itemsContext.FileUploads,
+                    box: boxAccess.ToAuditLogBoxRef()),
+                cancellationToken);
+        }
+
         return resultCode switch
         {
-            MoveItemsToFolderQuery.ResultCode.Ok => 
+            MoveItemsToFolderQuery.ResultCode.Ok =>
                 TypedResults.Ok(),
             
             MoveItemsToFolderQuery.ResultCode.DestinationFolderNotFound => 
@@ -572,16 +647,13 @@ public class BoxExternalAccessHandler(
                             ExternalId = boxAccess.Box.Workspace.ExternalId,
                             Name = boxAccess.Box.Workspace.Name
                         },
-                        files: result.InitiatedFiles!.Select(f => new AuditLogDetails.File.UploadInitiated.UploadInitiatedFileRef
+                        fileUploads: result.InitiatedFiles!.Select(f => new AuditLogDetails.FileUploadRef
                         {
-                            File = new AuditLogDetails.FileRef
-                            {
-                                ExternalId = f.FileExternalId,
-                                Name = f.FileName,
-                                SizeInBytes = f.SizeInBytes,
-                                FolderPath = f.FolderPath
-                            },
-                            FileUploadExternalId = f.FileUploadExternalId
+                            ExternalId = f.FileUploadExternalId,
+                            FileExternalId = f.FileExternalId,
+                            Name = f.FileName,
+                            SizeInBytes = f.SizeInBytes,
+                            FolderPath = f.FolderPath
                         }).ToList(),
                         box: boxAccess.ToAuditLogBoxRef()),
                     cancellationToken);
@@ -728,14 +800,14 @@ public class BoxExternalAccessHandler(
                             ExternalId = boxAccess.Box.Workspace.ExternalId,
                             Name = boxAccess.Box.Workspace.Name
                         },
-                        file: new AuditLogDetails.FileRef
+                        fileUpload: new AuditLogDetails.FileUploadRef
                         {
-                            ExternalId = fileUpload.FileToUpload.S3FileKey.FileExternalId,
+                            ExternalId = fileUpload.ExternalId,
+                            FileExternalId = fileUpload.FileToUpload.S3FileKey.FileExternalId,
                             Name = $"{fileUpload.FileName}{fileUpload.FileExtension}",
                             SizeInBytes = fileUpload.FileToUpload.SizeInBytes,
                             FolderPath = fileUpload.FolderAncestors.ToFolderPath()
                         },
-                        fileUploadExternalId: fileUpload.ExternalId,
                         box: boxAccess.ToAuditLogBoxRef()),
                     cancellationToken);
 

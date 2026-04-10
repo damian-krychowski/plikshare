@@ -564,13 +564,16 @@ public class BulkInitiateFileUploadOperation(
                         f.fo_external_id,
                         (
                             SELECT json_group_array(json_object(
-                                'name', af.fo_name,
-                                'externalId', af.fo_external_id
+                                'name', sub.fo_name,
+                                'externalId', sub.fo_external_id
                             ))
-                            FROM fo_folders AS af
-                            WHERE (af.fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
-                                   OR af.fo_id = f.fo_id)
-                            ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+                            FROM (
+                                SELECT af.fo_name, af.fo_external_id
+                                FROM fo_folders AS af
+                                WHERE af.fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
+                                    OR af.fo_id = f.fo_id
+                                ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+                            ) AS sub
                         )
                     FROM
                         fo_folders AS f
@@ -634,13 +637,16 @@ public class BulkInitiateFileUploadOperation(
                          f.fo_id,
                          (
                              SELECT json_group_array(json_object(
-                                 'name', af.fo_name,
-                                 'externalId', af.fo_external_id
+                                 'name', sub.fo_name,
+                                 'externalId', sub.fo_external_id
                              ))
-                             FROM fo_folders AS af
-                             WHERE (af.fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
-                                    OR af.fo_id = f.fo_id)
-                             ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+                             FROM (
+                                 SELECT af.fo_name, af.fo_external_id
+                                 FROM fo_folders AS af
+                                 WHERE af.fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
+                                     OR af.fo_id = f.fo_id
+                                 ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+                             ) AS sub
                          )
                      FROM
                          fo_folders AS f

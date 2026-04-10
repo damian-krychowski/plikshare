@@ -78,10 +78,12 @@ public static class FoldersEndpoints
                 await auditLogService.Log(
                     Audit.Folder.BulkCreated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
-                        folderExternalIds: result.Response!.Items
-                            .Select(i => FolderExtId.Parse(i.ExternalId))
-                            .ToList()),
+                        workspace: new AuditLogDetails.WorkspaceRef
+                        {
+                            ExternalId = workspaceMembership.Workspace.ExternalId,
+                            Name = workspaceMembership.Workspace.Name
+                        },
+                        folders: result.CreatedFolders.ToAuditLogFolderRefs()),
                     cancellationToken);
 
                 return TypedResults.Ok(
@@ -127,12 +129,16 @@ public static class FoldersEndpoints
         switch (result)
         {
             case CreateFolderQuery.ResultCode.Ok:
-                await auditLogService.Log(
-                    Audit.Folder.Created(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: request.ExternalId,
+                    buildEntry: folderRef => Audit.Folder.Created(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
-                        externalId: request.ExternalId,
-                        name: request.Name),
+                        workspace: new AuditLogDetails.WorkspaceRef
+                        {
+                            ExternalId = workspaceMembership.Workspace.ExternalId,
+                            Name = workspaceMembership.Workspace.Name
+                        },
+                        folder: folderRef),
                     cancellationToken);
 
                 return TypedResults.Ok(new CreateFolderResponseDto
@@ -211,12 +217,16 @@ public static class FoldersEndpoints
         switch (resultCode)
         {
             case UpdateFolderNameQuery.ResultCode.Ok:
-                await auditLogService.Log(
-                    Audit.Folder.NameUpdated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: folderExternalId,
+                    buildEntry: folderRef => Audit.Folder.NameUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
-                        externalId: folderExternalId,
-                        name: request.Name),
+                        workspace: new AuditLogDetails.WorkspaceRef
+                        {
+                            ExternalId = workspaceMembership.Workspace.ExternalId,
+                            Name = workspaceMembership.Workspace.Name
+                        },
+                        folder: folderRef),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -241,6 +251,12 @@ public static class FoldersEndpoints
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
 
+        var itemsContext = auditLogService.GetItemsMovedContext(
+            destinationFolderExternalId: request.DestinationFolderExternalId,
+            folderExternalIds: request.FolderExternalIds.ToList(),
+            fileExternalIds: request.FileExternalIds.ToList(),
+            fileUploadExternalIds: request.FileUploadExternalIds.ToList());
+
         var resultCode = await moveItemsToFolderQuery.Execute(
             workspace: workspaceMembership.Workspace,
             folderExternalIds: request.FolderExternalIds,
@@ -256,11 +272,15 @@ public static class FoldersEndpoints
                 await auditLogService.Log(
                     Audit.Folder.ItemsMoved(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
-                        destinationFolderExternalId: request.DestinationFolderExternalId,
-                        folderExternalIds: request.FolderExternalIds,
-                        fileExternalIds: request.FileExternalIds,
-                        fileUploadExternalIds: request.FileUploadExternalIds),
+                        workspace: new AuditLogDetails.WorkspaceRef
+                        {
+                            ExternalId = workspaceMembership.Workspace.ExternalId,
+                            Name = workspaceMembership.Workspace.Name
+                        },
+                        destinationFolder: itemsContext.DestinationFolder,
+                        folders: itemsContext.Folders,
+                        files: itemsContext.Files,
+                        fileUploads: itemsContext.FileUploads),
                     cancellationToken);
 
                 return TypedResults.Ok();

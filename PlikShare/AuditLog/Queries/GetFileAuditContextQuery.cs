@@ -23,8 +23,7 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
                                 SELECT fo_name
                                 FROM fo_folders
                                 WHERE (fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
-                                       OR fo_id = fi.fi_folder_id)
-                                  AND fo_is_being_deleted = FALSE
+                                       OR fo_id = fi.fi_folder_id)                                  
                                 ORDER BY json_array_length(fo_ancestor_folder_ids)
                             ) AS af
                         )
@@ -70,7 +69,6 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
                                 FROM fo_folders
                                 WHERE (fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
                                        OR fo_id = fi.fi_folder_id)
-                                  AND fo_is_being_deleted = FALSE
                                 ORDER BY json_array_length(fo_ancestor_folder_ids)
                             ) AS af
                         )

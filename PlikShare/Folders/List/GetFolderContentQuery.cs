@@ -240,40 +240,43 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 
 	    var result = connection
 		    .OneRowCmd(
-			    sql: @"
-					SELECT 
-						cf.fo_external_id, 
-						cf.fo_name,
-						(
-						    SELECT json_group_array(json_object(
-						        'name', af.fo_name,
-						        'externalId', af.fo_external_id
-						    )) AS fo_ancestors
-						    FROM fo_folders AS af
-						    WHERE
-						        af.fo_id IN (
-						            SELECT value FROM json_each(cf.fo_ancestor_folder_ids)
-						        )						          
-						        AND af.fo_workspace_id = $workspaceId
-						        AND af.fo_is_being_deleted = FALSE
-							    AND (
+			    sql: """
+			     SELECT 
+			        cf.fo_external_id, 
+			        cf.fo_name,
+			        (
+			            SELECT json_group_array(json_object(
+			                'name', sub.fo_name,
+			                'externalId', sub.fo_external_id
+			            ))
+			            FROM (
+			                SELECT af.fo_name, af.fo_external_id
+			                FROM fo_folders AS af
+			                WHERE
+			                    af.fo_id IN (
+			                        SELECT value FROM json_each(cf.fo_ancestor_folder_ids)
+			                    )
+			                    AND af.fo_workspace_id = $workspaceId
+			                    AND af.fo_is_being_deleted = FALSE
+			                    AND (
 			                        $boxFolderId IS NULL 
 			                        OR $boxFolderId IN (
 			                            SELECT value FROM json_each(af.fo_ancestor_folder_ids) 
 			                        )
 			                    )
-						    ORDER BY json_array_length(af.fo_ancestor_folder_ids)
-						) AS fo_ancestors
-					FROM fo_folders AS cf
-					WHERE 
-						cf.fo_id = $folderId
-						AND (
-							$boxFolderId IS NULL
-							OR $boxFolderId IN (
-							    SELECT value FROM json_each(cf.fo_ancestor_folder_ids)
-							)
-						)
-				",
+			                ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+			            ) AS sub
+			        ) AS fo_ancestors
+			    FROM fo_folders AS cf
+			    WHERE 
+			        cf.fo_id = $folderId
+			        AND (
+			            $boxFolderId IS NULL
+			            OR $boxFolderId IN (
+			                SELECT value FROM json_each(cf.fo_ancestor_folder_ids)
+			            )
+			        )
+			    """,
 				readRowFunc: reader => new CurrentFolderDto
                 {
                     ExternalId = reader.GetString(0),

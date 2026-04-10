@@ -23,8 +23,8 @@ public class GetFilePreSignedDownloadLinkDetailsQuery(PlikShareDb plikShareDb)
 
         var result = connection
             .OneRowCmd(
-                sql: @"
-                    SELECT
+                sql: """
+                   SELECT
                         fi.fi_name,
                         fi.fi_content_type,
                         fi.fi_extension,
@@ -36,19 +36,22 @@ public class GetFilePreSignedDownloadLinkDetailsQuery(PlikShareDb plikShareDb)
                         fi.fi_encryption_nonce_prefix,
                         (
                             SELECT json_group_array(json_object(
-                                'name', af.fo_name,
-                                'externalId', af.fo_external_id
+                                'name', sub.fo_name,
+                                'externalId', sub.fo_external_id
                             ))
-                            FROM fo_folders AS af
-                            WHERE af.fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
-                                OR af.fo_id = fi.fi_folder_id
-                            ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+                            FROM (
+                                SELECT af.fo_name, af.fo_external_id
+                                FROM fo_folders AS af
+                                WHERE af.fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
+                                    OR af.fo_id = fi.fi_folder_id
+                                ORDER BY json_array_length(af.fo_ancestor_folder_ids)
+                            ) AS sub
                         )
                     FROM fi_files AS fi
                     LEFT JOIN fo_folders AS f ON fi.fi_folder_id = f.fo_id
                     WHERE fi.fi_external_id = $externalId
                     LIMIT 1
-                ",
+                """,
                 readRowFunc: reader =>
                 {
                     var encryptionKeyVersion = reader.GetByteOrNull(6);

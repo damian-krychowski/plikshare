@@ -196,16 +196,13 @@ public static class PreSignedFilesEndpoints
                             ExternalId = workspace.ExternalId,
                             Name = workspace.Name
                         },
-                        files: processedFileUploads.Select(u => new AuditLogDetails.File.MultiUploadCompleted.MultiUploadCompletedFileRef
+                        fileUploads: processedFileUploads.Select(u => new AuditLogDetails.FileUploadRef
                         {
-                            File = new AuditLogDetails.FileRef
-                            {
-                                ExternalId = u!.FileToUpload.S3FileKey.FileExternalId,
-                                Name = $"{u.FileName}{u.FileExtension}",
-                                SizeInBytes = u.FileToUpload.SizeInBytes,
-                                FolderPath = u.FolderAncestors.ToFolderPath()
-                            },
-                            FileUploadExternalId = u.ExternalId
+                            ExternalId = u!.ExternalId,
+                            FileExternalId = u.FileToUpload.S3FileKey.FileExternalId,
+                            Name = $"{u.FileName}{u.FileExtension}",
+                            SizeInBytes = u.FileToUpload.SizeInBytes,
+                            FolderPath = u.FolderAncestors.ToFolderPath()
                         }).ToList()),
                     cancellationToken);
             }
