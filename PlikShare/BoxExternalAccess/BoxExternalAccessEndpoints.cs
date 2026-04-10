@@ -193,10 +193,17 @@ public static class BoxExternalAccessEndpoints
         {
             await boxMembershipCache.InvalidateEntry(boxMembership, cancellationToken);
 
-            await auditLogService.Log(
-                Audit.Box.MemberLeft(
+            await auditLogService.LogWithFolderContext(
+                folderExternalId: boxMembership.Box.Folder?.ExternalId,
+                buildEntry: folderRef => Audit.Box.MemberLeft(
                     actor: httpContext.GetAuditLogActorContext(),
-                    externalId: boxExternalId),
+                    workspace: boxMembership.Box.Workspace.ToAuditLogWorkspaceRef(),
+                    box: new AuditLogDetails.BoxRef
+                    {
+                        ExternalId = boxMembership.Box.ExternalId,
+                        Name = boxMembership.Box.Name,
+                        Folder = folderRef
+                    }),
                 cancellationToken);
 
             return TypedResults.Ok();
@@ -240,10 +247,17 @@ public static class BoxExternalAccessEndpoints
         {
             await boxMembershipCache.InvalidateEntry(boxMembership, cancellationToken);
 
-            await auditLogService.Log(
-                Audit.Box.InvitationAccepted(
+            await auditLogService.LogWithFolderContext(
+                folderExternalId: boxMembership.Box.Folder?.ExternalId,
+                buildEntry: folderRef => Audit.Box.InvitationAccepted(
                     actor: httpContext.GetAuditLogActorContext(),
-                    externalId: boxExternalId),
+                    workspace: boxMembership.Box.Workspace.ToAuditLogWorkspaceRef(),
+                    box: new AuditLogDetails.BoxRef
+                    {
+                        ExternalId = boxMembership.Box.ExternalId,
+                        Name = boxMembership.Box.Name,
+                        Folder = folderRef
+                    }),
                 cancellationToken);
 
             return TypedResults.Ok();
@@ -284,10 +298,17 @@ public static class BoxExternalAccessEndpoints
         {
             await boxMembershipCache.InvalidateEntry(boxMembership, cancellationToken);
 
-            await auditLogService.Log(
-                Audit.Box.InvitationRejected(
+            await auditLogService.LogWithFolderContext(
+                folderExternalId: boxMembership.Box.Folder?.ExternalId,
+                buildEntry: folderRef => Audit.Box.InvitationRejected(
                     actor: httpContext.GetAuditLogActorContext(),
-                    externalId: boxExternalId),
+                    workspace: boxMembership.Box.Workspace.ToAuditLogWorkspaceRef(),
+                    box: new AuditLogDetails.BoxRef
+                    {
+                        ExternalId = boxMembership.Box.ExternalId,
+                        Name = boxMembership.Box.Name,
+                        Folder = folderRef
+                    }),
                 cancellationToken);
 
             return TypedResults.Ok();
@@ -376,36 +397,19 @@ public static class BoxExternalAccessEndpoints
             cancellationToken: cancellationToken);
     }
 
-    private static async Task<Results<Ok<BulkDeleteResponseDto>, StatusCodeHttpResult>> DeleteFile(
+    private static Task<Results<Ok<BulkDeleteResponseDto>, StatusCodeHttpResult>> DeleteFile(
         [FromBody] BoxBulkDeleteRequestDto request,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,
-        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var boxAccess = httpContext.GetBoxAccess();
-
-        var result = await boxExternalAccessHandler.BulkDelete(
+        return boxExternalAccessHandler.BulkDelete(
             fileExternalIds: request.FileExternalIds.ToArray(),
             folderExternalIds: request.FolderExternalIds.ToArray(),
             fileUploadExternalIds: request.FileUploadExternalIds.ToArray(),
-            boxAccess: boxAccess,
+            boxAccess: httpContext.GetBoxAccess(),
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
-
-        if (result.Result is Ok<BulkDeleteResponseDto>)
-        {
-            await auditLogService.Log(
-                Audit.Workspace.BulkDeleteRequested(
-                    actor: httpContext.GetAuditLogActorContext(),
-                    externalId: boxAccess.Box.Workspace.ExternalId,
-                    fileExternalIds: request.FileExternalIds,
-                    folderExternalIds: request.FolderExternalIds,
-                    fileUploadExternalIds: request.FileUploadExternalIds),
-                cancellationToken);
-        }
-
-        return result;
     }
 
     private static ValueTask<Results<Ok<GetZipFileDetailsResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, JsonHttpResult<HttpError>, StatusCodeHttpResult>> GetZipFilePreviewDetails(

@@ -18,7 +18,7 @@ public class UpdateDigitalOceanSpacesStorageDetailsOperation(
     UpdateStorageDetailsQuery updateStorageDetailsQuery,
     PreSignedUrlsService preSignedUrlsService)
 {
-    public async Task<ResultCode> Execute(
+    public async Task<Result> Execute(
         StorageExtId externalId,
         DigitalOceanSpacesDetailsEntity newDetails,
         CancellationToken cancellationToken)
@@ -30,8 +30,8 @@ public class UpdateDigitalOceanSpacesStorageDetailsOperation(
             cancellationToken: cancellationToken);
 
         if (newClientResult.Code == S3Client.DigitalOceanSpacesResultCode.CouldNotConnect)
-            return ResultCode.CouldNotConnect;
-        
+            return new Result(ResultCode.CouldNotConnect);
+
         var result = await updateStorageDetailsQuery.Execute(
             externalId: externalId,
             storageType: StorageType.DigitalOceanSpaces,
@@ -42,11 +42,11 @@ public class UpdateDigitalOceanSpacesStorageDetailsOperation(
         {
             case UpdateStorageDetailsQuery.ResultCode.Ok:
                 RegisterClient(externalId, result, newClientResult);
-                return ResultCode.Ok;
-            
+                return new Result(ResultCode.Ok, result.StorageData?.Name);
+
             case UpdateStorageDetailsQuery.ResultCode.NotFound:
-                return ResultCode.NotFound;
-            
+                return new Result(ResultCode.NotFound);
+
             default:
                 throw new ArgumentOutOfRangeException();
         }
@@ -75,6 +75,10 @@ public class UpdateDigitalOceanSpacesStorageDetailsOperation(
             encryptionType: result.StorageData.EncryptionType,
             encryptionDetails: encryptionDetails));
     }
+
+    public readonly record struct Result(
+        ResultCode Code,
+        string? Name = null);
 
     public enum ResultCode
     {

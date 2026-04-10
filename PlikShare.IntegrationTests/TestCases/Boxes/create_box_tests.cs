@@ -167,10 +167,11 @@ public class create_box_tests: TestFixture
             expectedEventType: AuditLogEventTypes.Box.Created,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.ExternalId.Should().Be(box.ExternalId);
-                details.Name.Should().Be("my audit box");
-                details.FolderExternalId.Should().Be(folder.ExternalId);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
+                details.Box.Name.Should().Be("my audit box");
+                details.Box.Folder.Should().NotBeNull();
+                details.Box.Folder!.ExternalId.Should().Be(folder.ExternalId);
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);

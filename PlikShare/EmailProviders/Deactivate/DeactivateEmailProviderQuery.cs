@@ -28,9 +28,13 @@ public class DeactivateEmailProviderQuery(DbWriteQueue dbWriteQueue)
                      UPDATE ep_email_providers
                      SET ep_is_active = FALSE
                      WHERE ep_external_id = $externalId
-                     RETURNING ep_id
+                     RETURNING ep_id, ep_name
                      """,
-                readRowFunc: reader => reader.GetInt32(0))
+                readRowFunc: reader => new 
+                { 
+                    Id = reader.GetInt32(0), 
+                    Name = reader.GetString(1) 
+                })
             .WithParameter("$externalId", externalId.Value)
             .Execute();
         
@@ -44,7 +48,8 @@ public class DeactivateEmailProviderQuery(DbWriteQueue dbWriteQueue)
 
         return new Result(
             Code: ResultCode.Ok,
-            EmailProviderId: deactivated.Value);
+            EmailProviderId: deactivated.Value.Id,
+            Name: deactivated.Value.Name);
     }
     
     public enum ResultCode
@@ -55,5 +60,6 @@ public class DeactivateEmailProviderQuery(DbWriteQueue dbWriteQueue)
 
     public readonly record struct Result(
         ResultCode Code,
-        int EmailProviderId = default);
+        int EmailProviderId = default,
+        string? Name = null);
 }

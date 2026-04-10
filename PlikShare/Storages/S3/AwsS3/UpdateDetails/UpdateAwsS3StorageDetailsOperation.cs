@@ -18,7 +18,7 @@ public class UpdateAwsS3StorageDetailsOperation(
     UpdateStorageDetailsQuery updateStorageDetailsQuery,
     PreSignedUrlsService preSignedUrlsService)
 {
-    public async Task<ResultCode> Execute(
+    public async Task<Result> Execute(
         StorageExtId externalId,
         AwsS3DetailsEntity newDetails,
         CancellationToken cancellationToken = default)
@@ -30,8 +30,8 @@ public class UpdateAwsS3StorageDetailsOperation(
             cancellationToken: cancellationToken);
 
         if (newClientResult.Code == S3Client.AwsResultCode.CouldNotConnect)
-            return ResultCode.CouldNotConnect;
-        
+            return new Result(ResultCode.CouldNotConnect);
+
         var result = await updateStorageDetailsQuery.Execute(
             externalId: externalId,
             storageType: StorageType.AwsS3,
@@ -42,11 +42,11 @@ public class UpdateAwsS3StorageDetailsOperation(
         {
             case UpdateStorageDetailsQuery.ResultCode.Ok:
                 RegisterClient(externalId, result, newClientResult);
-                return ResultCode.Ok;
-            
+                return new Result(ResultCode.Ok, result.StorageData?.Name);
+
             case UpdateStorageDetailsQuery.ResultCode.NotFound:
-                return ResultCode.NotFound;
-            
+                return new Result(ResultCode.NotFound);
+
             default:
                 throw new ArgumentOutOfRangeException();
         }
@@ -76,6 +76,10 @@ public class UpdateAwsS3StorageDetailsOperation(
             encryptionType: result.StorageData.EncryptionType,
             encryptionDetails: encryptionDetails));
     }
+
+    public readonly record struct Result(
+        ResultCode Code,
+        string? Name = null);
 
     public enum ResultCode
     {

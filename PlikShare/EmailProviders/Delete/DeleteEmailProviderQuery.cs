@@ -26,9 +26,12 @@ public class DeleteEmailProviderQuery(DbWriteQueue dbWriteQueue)
                 sql: """
                      DELETE FROM ep_email_providers
                      WHERE ep_external_id = $externalId
-                     RETURNING ep_id
+                     RETURNING ep_id, ep_name
                      """,
-                readRowFunc: reader => reader.GetInt32(0))
+                readRowFunc: reader => new { 
+                    Id = reader.GetInt32(0), 
+                    Name = reader.GetString(1) 
+                })
             .WithParameter("$externalId", externalId.Value)
             .Execute();
 
@@ -36,13 +39,15 @@ public class DeleteEmailProviderQuery(DbWriteQueue dbWriteQueue)
             ? new Result(
                 Code: ResultCode.NotFound)
             : new Result(
-                Code: ResultCode.Ok, 
-                EmailProviderId: result.Value);
+                Code: ResultCode.Ok,
+                EmailProviderId: result.Value.Id,
+                Name: result.Value.Name);
     }
     
     public readonly record struct Result(
         ResultCode Code,
-        int EmailProviderId = 0);
+        int EmailProviderId = 0,
+        string? Name = null);
     
     public enum ResultCode
     {

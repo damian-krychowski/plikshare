@@ -18,7 +18,7 @@ public class UpdateBackblazeB2StorageDetailsOperation(
     UpdateStorageDetailsQuery updateStorageDetailsQuery,
     PreSignedUrlsService preSignedUrlsService)
 {
-    public async Task<ResultCode> Execute(
+    public async Task<Result> Execute(
         StorageExtId externalId,
         BackblazeB2DetailsEntity newDetails,
         CancellationToken cancellationToken = default)
@@ -30,11 +30,11 @@ public class UpdateBackblazeB2StorageDetailsOperation(
             cancellationToken: cancellationToken);
 
         if (newClientResult.Code == S3Client.BackblazeResultCode.InvalidUrl)
-            return ResultCode.InvalidUrl;
+            return new Result(ResultCode.InvalidUrl);
 
         if (newClientResult.Code == S3Client.BackblazeResultCode.CouldNotConnect)
-            return ResultCode.CouldNotConnect;
-        
+            return new Result(ResultCode.CouldNotConnect);
+
         var result = await updateStorageDetailsQuery.Execute(
             externalId: externalId,
             storageType: StorageType.BackblazeB2,
@@ -46,11 +46,11 @@ public class UpdateBackblazeB2StorageDetailsOperation(
             case UpdateStorageDetailsQuery.ResultCode.Ok:
                 RegisterClient(externalId, result, newClientResult);
 
-                return ResultCode.Ok;
-            
+                return new Result(ResultCode.Ok, result.StorageData?.Name);
+
             case UpdateStorageDetailsQuery.ResultCode.NotFound:
-                return ResultCode.NotFound;
-            
+                return new Result(ResultCode.NotFound);
+
             default:
                 throw new ArgumentOutOfRangeException();
         }
@@ -79,6 +79,10 @@ public class UpdateBackblazeB2StorageDetailsOperation(
             encryptionType: result.StorageData.EncryptionType,
             encryptionDetails: encryptionDetails));
     }
+
+    public readonly record struct Result(
+        ResultCode Code,
+        string? Name = null);
 
     public enum ResultCode
     {

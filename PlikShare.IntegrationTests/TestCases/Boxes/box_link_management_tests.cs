@@ -172,10 +172,10 @@ public class box_link_management_tests : TestFixture
             expectedEventType: AuditLogEventTypes.BoxLink.NameUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(boxLink.WorkspaceExternalId);
-                details.BoxExternalId.Should().Be(boxLink.BoxExternalId);
-                details.ExternalId.Should().Be(boxLink.ExternalId);
-                details.Name.Should().Be("new-link-name");
+                details.Workspace.ExternalId.Should().Be(boxLink.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(boxLink.BoxExternalId);
+                details.BoxLink.ExternalId.Should().Be(boxLink.ExternalId);
+                details.BoxLink.Name.Should().Be("new-link-name");
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -204,9 +204,9 @@ public class box_link_management_tests : TestFixture
             expectedEventType: AuditLogEventTypes.BoxLink.WidgetOriginsUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(boxLink.WorkspaceExternalId);
-                details.BoxExternalId.Should().Be(boxLink.BoxExternalId);
-                details.ExternalId.Should().Be(boxLink.ExternalId);
+                details.Workspace.ExternalId.Should().Be(boxLink.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(boxLink.BoxExternalId);
+                details.BoxLink.ExternalId.Should().Be(boxLink.ExternalId);
                 details.WidgetOrigins.Should().BeEquivalentTo(widgetOrigins);
             },
             expectedActorEmail: AppOwner.Email,
@@ -232,9 +232,9 @@ public class box_link_management_tests : TestFixture
             expectedEventType: AuditLogEventTypes.BoxLink.IsEnabledUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(boxLink.WorkspaceExternalId);
-                details.BoxExternalId.Should().Be(boxLink.BoxExternalId);
-                details.ExternalId.Should().Be(boxLink.ExternalId);
+                details.Workspace.ExternalId.Should().Be(boxLink.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(boxLink.BoxExternalId);
+                details.BoxLink.ExternalId.Should().Be(boxLink.ExternalId);
                 details.IsEnabled.Should().BeFalse();
             },
             expectedActorEmail: AppOwner.Email,
@@ -259,9 +259,9 @@ public class box_link_management_tests : TestFixture
             expectedEventType: AuditLogEventTypes.BoxLink.AccessCodeRegenerated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(boxLink.WorkspaceExternalId);
-                details.BoxExternalId.Should().Be(boxLink.BoxExternalId);
-                details.ExternalId.Should().Be(boxLink.ExternalId);
+                details.Workspace.ExternalId.Should().Be(boxLink.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(boxLink.BoxExternalId);
+                details.BoxLink.ExternalId.Should().Be(boxLink.ExternalId);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Warning);
@@ -285,9 +285,9 @@ public class box_link_management_tests : TestFixture
             expectedEventType: AuditLogEventTypes.BoxLink.Deleted,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(boxLink.WorkspaceExternalId);
-                details.BoxExternalId.Should().Be(boxLink.BoxExternalId);
-                details.ExternalId.Should().Be(boxLink.ExternalId);
+                details.Workspace.ExternalId.Should().Be(boxLink.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(boxLink.BoxExternalId);
+                details.BoxLink.ExternalId.Should().Be(boxLink.ExternalId);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Warning);

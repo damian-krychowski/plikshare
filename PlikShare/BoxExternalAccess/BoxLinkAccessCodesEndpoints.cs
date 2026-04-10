@@ -368,36 +368,19 @@ public static class BoxLinkAccessCodesEndpoints
             cancellationToken: cancellationToken);
     }
 
-    private static async Task<Results<Ok<BulkDeleteResponseDto>, StatusCodeHttpResult>> DeleteFile(
+    private static Task<Results<Ok<BulkDeleteResponseDto>, StatusCodeHttpResult>> DeleteFile(
         [FromBody] BoxBulkDeleteRequestDto request,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,
-        AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var boxAccess = httpContext.GetBoxAccess();
-
-        var result = await boxExternalAccessHandler.BulkDelete(
+        return boxExternalAccessHandler.BulkDelete(
             fileExternalIds: request.FileExternalIds.ToArray(),
             folderExternalIds: request.FolderExternalIds.ToArray(),
             fileUploadExternalIds: request.FileUploadExternalIds.ToArray(),
-            boxAccess: boxAccess,
+            boxAccess: httpContext.GetBoxAccess(),
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
-
-        if (result.Result is Ok<BulkDeleteResponseDto>)
-        {
-            await auditLogService.Log(
-                Audit.Workspace.BulkDeleteRequested(
-                    actor: httpContext.GetAuditLogActorContext(),
-                    externalId: boxAccess.Box.Workspace.ExternalId,
-                    fileExternalIds: request.FileExternalIds,
-                    folderExternalIds: request.FolderExternalIds,
-                    fileUploadExternalIds: request.FileUploadExternalIds),
-                cancellationToken);
-        }
-
-        return result;
     }
 
     private static Task<Results<Ok, NotFound<HttpError>, StatusCodeHttpResult>> UpdateFileName(

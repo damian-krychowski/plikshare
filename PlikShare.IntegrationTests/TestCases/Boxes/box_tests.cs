@@ -161,9 +161,9 @@ public class box_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Box.NameUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
-                details.ExternalId.Should().Be(box.ExternalId);
-                details.Name.Should().Be("new-name");
+                details.Workspace.ExternalId.Should().Be(box.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
+                details.Box.Name.Should().Be("new-name");
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -188,8 +188,8 @@ public class box_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Box.IsEnabledUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
-                details.ExternalId.Should().Be(box.ExternalId);
+                details.Workspace.ExternalId.Should().Be(box.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
                 details.IsEnabled.Should().BeFalse();
             },
             expectedActorEmail: AppOwner.Email,
@@ -230,9 +230,9 @@ public class box_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Box.FolderUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(workspace.ExternalId);
-                details.ExternalId.Should().Be(box.ExternalId);
-                details.FolderExternalId.Should().Be(newFolder.ExternalId);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
+                details.NewFolder.ExternalId.Should().Be(newFolder.ExternalId);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -256,8 +256,8 @@ public class box_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Box.Deleted,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
-                details.ExternalId.Should().Be(box.ExternalId);
+                details.Workspace.ExternalId.Should().Be(box.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Warning);

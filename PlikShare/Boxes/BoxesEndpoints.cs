@@ -130,13 +130,17 @@ public static class BoxesEndpoints
         switch (result.Code)
         {
             case CreateBoxQuery.ResultCode.Ok:
-                await auditLogService.Log(
-                    Audit.Box.Created(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: request.FolderExternalId,
+                    buildEntry: folderRef => Audit.Box.Created(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: workspaceMembership.Workspace.ExternalId,
-                        externalId: result.BoxExternalId,
-                        name: request.Name,
-                        folderExternalId: request.FolderExternalId),
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = result.BoxExternalId,
+                            Name = request.Name,
+                            Folder = folderRef
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok(new CreateBoxResponseDto(
@@ -197,12 +201,17 @@ public static class BoxesEndpoints
             case UpdateBoxNameQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.Box.NameUpdated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxContext.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.Box.NameUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxContext.Workspace.ExternalId,
-                        externalId: boxExternalId,
-                        name: request.Name),
+                        workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxContext.ExternalId,
+                            Name = boxContext.Name,
+                            Folder = folderRef
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -238,11 +247,17 @@ public static class BoxesEndpoints
             case UpdateBoxHeaderIsEnabledQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.Box.HeaderIsEnabledUpdated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxContext.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.Box.HeaderIsEnabledUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxContext.Workspace.ExternalId,
-                        externalId: boxExternalId,
+                        workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxContext.ExternalId,
+                            Name = boxContext.Name,
+                            Folder = folderRef
+                        },
                         isEnabled: request.IsEnabled),
                     cancellationToken);
 
@@ -280,11 +295,18 @@ public static class BoxesEndpoints
             case UpdateBoxHeaderQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.Box.HeaderUpdated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxContext.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.Box.HeaderUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxContext.Workspace.ExternalId,
-                        externalId: boxExternalId),
+                        workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxContext.ExternalId,
+                            Name = boxContext.Name,
+                            Folder = folderRef
+                        },
+                        contentJson: request.Json),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -320,11 +342,17 @@ public static class BoxesEndpoints
             case UpdateBoxFooterIsEnabledQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.Box.FooterIsEnabledUpdated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxContext.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.Box.FooterIsEnabledUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxContext.Workspace.ExternalId,
-                        externalId: boxExternalId,
+                        workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxContext.ExternalId,
+                            Name = boxContext.Name,
+                            Folder = folderRef
+                        },
                         isEnabled: request.IsEnabled),
                     cancellationToken);
 
@@ -362,11 +390,18 @@ public static class BoxesEndpoints
             case UpdateBoxFooterQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.Box.FooterUpdated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxContext.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.Box.FooterUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxContext.Workspace.ExternalId,
-                        externalId: boxExternalId),
+                        workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxContext.ExternalId,
+                            Name = boxContext.Name,
+                            Folder = folderRef
+                        },
+                        contentJson: request.Json),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -402,12 +437,18 @@ public static class BoxesEndpoints
             case UpdateBoxFolderQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.Box.FolderUpdated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: request.FolderExternalId,
+                    buildEntry: newFolderRef => Audit.Box.FolderUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxContext.Workspace.ExternalId,
-                        externalId: boxExternalId,
-                        folderExternalId: request.FolderExternalId),
+                        workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxContext.ExternalId,
+                            Name = boxContext.Name,
+                            Folder = newFolderRef
+                        },
+                        newFolder: newFolderRef),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -446,11 +487,17 @@ public static class BoxesEndpoints
             case UpdateBoxIsEnabledQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.Box.IsEnabledUpdated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxContext.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.Box.IsEnabledUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxContext.Workspace.ExternalId,
-                        externalId: boxExternalId,
+                        workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxContext.ExternalId,
+                            Name = boxContext.Name,
+                            Folder = folderRef
+                        },
                         isEnabled: request.IsEnabled),
                     cancellationToken);
 
@@ -486,11 +533,17 @@ public static class BoxesEndpoints
             case ScheduleBoxesDeleteQuery.ResultCode.Ok:
                 await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.Box.Deleted(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxContext.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.Box.Deleted(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxContext.Workspace.ExternalId,
-                        externalId: boxExternalId),
+                        workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxContext.ExternalId,
+                            Name = boxContext.Name,
+                            Folder = folderRef
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -539,12 +592,21 @@ public static class BoxesEndpoints
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
-        await auditLogService.Log(
-            Audit.Box.MemberInvited(
+        await auditLogService.LogWithFolderContext(
+            folderExternalId: boxContext.Folder?.ExternalId,
+            buildEntry: folderRef => Audit.Box.MemberInvited(
                 actor: httpContext.GetAuditLogActorContext(),
-                workspaceExternalId: boxContext.Workspace.ExternalId,
-                externalId: boxExternalId,
-                memberEmails: request.MemberEmails),
+                workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
+                box: new AuditLogDetails.BoxRef
+                {
+                    ExternalId = boxContext.ExternalId,
+                    Name = boxContext.Name,
+                    Folder = folderRef
+                },
+                members: result
+                    .Members
+                    ?.Select(m => m.ToAuditLogUserRef())
+                    .ToList() ?? []),
             cancellationToken);
 
         return TypedResults.Ok(new CreateBoxInvitationResponseDto
@@ -585,12 +647,18 @@ public static class BoxesEndpoints
             case RevokeBoxMemberQuery.ResultCode.Ok:
                 await boxMembershipCache.InvalidateEntry(boxMembership, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.Box.MemberRevoked(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxMembership.Box.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.Box.MemberRevoked(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxMembership.Box.Workspace.ExternalId,
-                        externalId: boxExternalId,
-                        memberEmail: boxMembership.Member.Email.Value),
+                        workspace: boxMembership.Box.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxMembership.Box.ExternalId,
+                            Name = boxMembership.Box.Name,
+                            Folder = folderRef
+                        },
+                        member: boxMembership.Member.ToAuditLogUserRef()),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -643,12 +711,18 @@ public static class BoxesEndpoints
             boxMembership,
             cancellationToken);
 
-        await auditLogService.Log(
-            Audit.Box.MemberPermissionsUpdated(
+        await auditLogService.LogWithFolderContext(
+            folderExternalId: boxMembership.Box.Folder?.ExternalId,
+            buildEntry: folderRef => Audit.Box.MemberPermissionsUpdated(
                 actor: httpContext.GetAuditLogActorContext(),
-                workspaceExternalId: boxMembership.Box.Workspace.ExternalId,
-                externalId: boxExternalId,
-                memberEmail: boxMembership.Member.Email.Value,
+                workspace: boxMembership.Box.Workspace.ToAuditLogWorkspaceRef(),
+                box: new AuditLogDetails.BoxRef
+                {
+                    ExternalId = boxMembership.Box.ExternalId,
+                    Name = boxMembership.Box.Name,
+                    Folder = folderRef
+                },
+                member: boxMembership.Member.ToAuditLogUserRef(),
                 permissions: permissions),
             cancellationToken);
 
@@ -673,13 +747,19 @@ public static class BoxesEndpoints
         switch (result.Code)
         {
             case CreateBoxLinkQuery.ResultCode.Ok:
-                await auditLogService.Log(
-                    Audit.Box.LinkCreated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxContext.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.Box.LinkCreated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxContext.Workspace.ExternalId,
-                        boxExternalId: boxExternalId,
-                        externalId: result.BoxLink.ExternalId,
-                        name: request.Name),
+                        workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxContext.ExternalId,
+                            Name = boxContext.Name,
+                            Folder = folderRef
+                        },
+                        linkExternalId: result.BoxLink.ExternalId,
+                        linkName: request.Name),
                     cancellationToken);
 
                 return TypedResults.Ok(new CreateBoxLinkResponseDto(

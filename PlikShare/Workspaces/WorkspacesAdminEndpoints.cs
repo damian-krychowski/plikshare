@@ -79,10 +79,12 @@ public static class WorkspacesAdminEndpoints
             workspaceMembership.Workspace.ExternalId,
             cancellationToken: cancellationToken);
 
-        await auditLogService.Log(
-            Audit.Workspace.MaxTeamMembersUpdated(
+        await auditLogService.LogWithStorageContext(
+            storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
+            buildEntry: storageRef => Audit.Workspace.MaxTeamMembersUpdated(
                 actor: httpContext.GetAuditLogActorContext(),
-                externalId: workspaceMembership.Workspace.ExternalId,
+                storage: storageRef,
+                workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                 value: request.MaxTeamMembers),
             cancellationToken);
 
@@ -112,10 +114,12 @@ public static class WorkspacesAdminEndpoints
             workspaceMembership.Workspace.ExternalId,
             cancellationToken: cancellationToken);
 
-        await auditLogService.Log(
-            Audit.Workspace.MaxSizeUpdated(
+        await auditLogService.LogWithStorageContext(
+            storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
+            buildEntry: storageRef => Audit.Workspace.MaxSizeUpdated(
                 actor: httpContext.GetAuditLogActorContext(),
-                externalId: workspaceMembership.Workspace.ExternalId,
+                storage: storageRef,
+                workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                 value: request.MaxSizeInBytes),
             cancellationToken);
 
@@ -151,11 +155,13 @@ public static class WorkspacesAdminEndpoints
             workspaceMembership.Workspace.ExternalId,
             cancellationToken: cancellationToken);
 
-        await auditLogService.Log(
-            Audit.Workspace.OwnerChanged(
+        await auditLogService.LogWithStorageContext(
+            storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
+            buildEntry: storageRef => Audit.Workspace.OwnerChanged(
                 actor: httpContext.GetAuditLogActorContext(),
-                externalId: workspaceMembership.Workspace.ExternalId,
-                newOwnerEmail: newOwner.Email.Value),
+                storage: storageRef,
+                workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
+                newOwner: newOwner.ToAuditLogUserRef()),
             cancellationToken);
 
         return TypedResults.Ok();

@@ -34,16 +34,19 @@ public class UpdateStorageNameQuery(DbWriteQueue dbWriteQueue)
                          UPDATE s_storages
                          SET s_name = $name
                          WHERE s_external_id = $externalId
-                         RETURNING s_id
+                         RETURNING s_id, s_type
                          """,
-                    readRowFunc: reader => reader.GetInt32(0))
+                    readRowFunc: reader => new {
+                        Id = reader.GetInt32(0),
+                        Type = reader.GetString(1)
+                    })
                 .WithParameter("$name", name)
                 .WithParameter("$externalId", externalId.Value)
                 .Execute();
 
             return result.IsEmpty
                 ? new Result(Code: ResultCode.NotFound)
-                : new Result(Code: ResultCode.Ok, StorageId: result.Value);
+                : new Result(Code: ResultCode.Ok, StorageId: result.Value.Id, Type: result.Value.Type);
         }
         catch (SqliteException e)
         {
@@ -70,7 +73,8 @@ public class UpdateStorageNameQuery(DbWriteQueue dbWriteQueue)
 
     public readonly record struct Result(
         ResultCode Code,
-        int StorageId = 0);
+        int StorageId = 0,
+        string? Type = null);
     
     public enum ResultCode
     {

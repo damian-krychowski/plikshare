@@ -220,8 +220,8 @@ public class box_header_and_footer_tests: TestFixture
             expectedEventType: AuditLogEventTypes.Box.HeaderIsEnabledUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
-                details.ExternalId.Should().Be(box.ExternalId);
+                details.Workspace.ExternalId.Should().Be(box.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
                 details.IsEnabled.Should().BeTrue();
             },
             expectedActorEmail: user.Email,
@@ -253,8 +253,8 @@ public class box_header_and_footer_tests: TestFixture
             expectedEventType: AuditLogEventTypes.Box.HeaderUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
-                details.ExternalId.Should().Be(box.ExternalId);
+                details.Workspace.ExternalId.Should().Be(box.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -283,8 +283,8 @@ public class box_header_and_footer_tests: TestFixture
             expectedEventType: AuditLogEventTypes.Box.FooterIsEnabledUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
-                details.ExternalId.Should().Be(box.ExternalId);
+                details.Workspace.ExternalId.Should().Be(box.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
                 details.IsEnabled.Should().BeTrue();
             },
             expectedActorEmail: user.Email,
@@ -316,8 +316,8 @@ public class box_header_and_footer_tests: TestFixture
             expectedEventType: AuditLogEventTypes.Box.FooterUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
-                details.ExternalId.Should().Be(box.ExternalId);
+                details.Workspace.ExternalId.Should().Be(box.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);

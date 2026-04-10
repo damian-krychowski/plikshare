@@ -77,12 +77,22 @@ public static class BoxLinksEndpoints
             case UpdateBoxLinkWidgetOriginsQuery.ResultCode.Ok:
                 await boxLinkCache.InvalidateEntry(boxLinkExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.BoxLink.WidgetOriginsUpdated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxLinkContext.Box.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.BoxLink.WidgetOriginsUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxLinkContext.Box.Workspace.ExternalId,
-                        boxExternalId: boxLinkContext.Box.ExternalId,
-                        externalId: boxLinkExternalId,
+                        workspace: boxLinkContext.Box.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxLinkContext.Box.ExternalId,
+                            Name = boxLinkContext.Box.Name,
+                            Folder = folderRef
+                        },
+                        boxLink: new AuditLogDetails.BoxLinkRef
+                        {
+                            ExternalId = boxLinkContext.ExternalId,
+                            Name = boxLinkContext.Name
+                        },
                         widgetOrigins: request.WidgetOrigins),
                     cancellationToken);
 
@@ -117,12 +127,22 @@ public static class BoxLinksEndpoints
             case DeleteBoxLinkQuery.ResultCode.Ok:
                 await boxLinkCache.InvalidateEntry(boxLinkExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.BoxLink.Deleted(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxLinkContext.Box.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.BoxLink.Deleted(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxLinkContext.Box.Workspace.ExternalId,
-                        boxExternalId: boxLinkContext.Box.ExternalId,
-                        externalId: boxLinkExternalId),
+                        workspace: boxLinkContext.Box.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxLinkContext.Box.ExternalId,
+                            Name = boxLinkContext.Box.Name,
+                            Folder = folderRef
+                        },
+                        boxLink: new AuditLogDetails.BoxLinkRef
+                        {
+                            ExternalId = boxLinkContext.ExternalId,
+                            Name = boxLinkContext.Name
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -156,12 +176,22 @@ public static class BoxLinksEndpoints
             case RegenerateBoxLinkAccessCodeQuery.ResultCode.Ok:
                 await boxLinkCache.InvalidateEntry(boxLinkExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.BoxLink.AccessCodeRegenerated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxLinkContext.Box.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.BoxLink.AccessCodeRegenerated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxLinkContext.Box.Workspace.ExternalId,
-                        boxExternalId: boxLinkContext.Box.ExternalId,
-                        externalId: boxLinkExternalId),
+                        workspace: boxLinkContext.Box.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxLinkContext.Box.ExternalId,
+                            Name = boxLinkContext.Box.Name,
+                            Folder = folderRef
+                        },
+                        boxLink: new AuditLogDetails.BoxLinkRef
+                        {
+                            ExternalId = boxLinkContext.ExternalId,
+                            Name = boxLinkContext.Name
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok(new RegenerateBoxLinkAccessCodeResponseDto(
@@ -209,12 +239,22 @@ public static class BoxLinksEndpoints
             case UpdateBoxLinkPermissionsQuery.ResultCode.Ok:
                 await boxLinkCache.InvalidateEntry(boxLinkExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.BoxLink.PermissionsUpdated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxLinkContext.Box.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.BoxLink.PermissionsUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxLinkContext.Box.Workspace.ExternalId,
-                        boxExternalId: boxLinkContext.Box.ExternalId,
-                        externalId: boxLinkExternalId,
+                        workspace: boxLinkContext.Box.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxLinkContext.Box.ExternalId,
+                            Name = boxLinkContext.Box.Name,
+                            Folder = folderRef
+                        },
+                        boxLink: new AuditLogDetails.BoxLinkRef
+                        {
+                            ExternalId = boxLinkContext.ExternalId,
+                            Name = boxLinkContext.Name
+                        },
                         permissions: permissions),
                     cancellationToken);
 
@@ -251,12 +291,22 @@ public static class BoxLinksEndpoints
             case UpdateBoxLinkIsEnabledQuery.ResultCode.Ok:
                 await boxLinkCache.InvalidateEntry(boxLinkExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.BoxLink.IsEnabledUpdated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxLinkContext.Box.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.BoxLink.IsEnabledUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxLinkContext.Box.Workspace.ExternalId,
-                        boxExternalId: boxLinkContext.Box.ExternalId,
-                        externalId: boxLinkExternalId,
+                        workspace: boxLinkContext.Box.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxLinkContext.Box.ExternalId,
+                            Name = boxLinkContext.Box.Name,
+                            Folder = folderRef
+                        },
+                        boxLink: new AuditLogDetails.BoxLinkRef
+                        {
+                            ExternalId = boxLinkContext.ExternalId,
+                            Name = boxLinkContext.Name
+                        },
                         isEnabled: request.IsEnabled),
                     cancellationToken);
 
@@ -293,13 +343,22 @@ public static class BoxLinksEndpoints
             case UpdateBoxLinkNameQuery.ResultCode.Ok:
                 await boxLinkCache.InvalidateEntry(boxLinkExternalId, cancellationToken);
 
-                await auditLogService.Log(
-                    Audit.BoxLink.NameUpdated(
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxLinkContext.Box.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.BoxLink.NameUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: boxLinkContext.Box.Workspace.ExternalId,
-                        boxExternalId: boxLinkContext.Box.ExternalId,
-                        externalId: boxLinkExternalId,
-                        name: request.Name),
+                        workspace: boxLinkContext.Box.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new AuditLogDetails.BoxRef
+                        {
+                            ExternalId = boxLinkContext.Box.ExternalId,
+                            Name = boxLinkContext.Box.Name,
+                            Folder = folderRef
+                        },
+                        boxLink: new AuditLogDetails.BoxLinkRef
+                        {
+                            ExternalId = boxLinkContext.ExternalId,
+                            Name = boxLinkContext.Name
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok();

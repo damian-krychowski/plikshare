@@ -96,11 +96,7 @@ public static class UploadsEndpoints
                 await auditLogService.Log(
                     Audit.File.UploadInitiated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspaceMembership.Workspace.ExternalId,
-                            Name = workspaceMembership.Workspace.Name
-                        },
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         fileUploads: result.InitiatedFiles!.Select(f => new AuditLogDetails.FileUploadRef
                         {
                             ExternalId = f.FileUploadExternalId,
@@ -259,11 +255,7 @@ public static class UploadsEndpoints
                 await auditLogService.Log(
                     Audit.File.UploadCompleted(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspaceMembership.Workspace.ExternalId,
-                            Name = workspaceMembership.Workspace.Name
-                        },
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         fileUpload: new AuditLogDetails.FileUploadRef
                         {
                             ExternalId = fileUpload.ExternalId,

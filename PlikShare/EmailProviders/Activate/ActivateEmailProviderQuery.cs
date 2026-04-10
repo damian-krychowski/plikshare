@@ -31,7 +31,8 @@ public class ActivateEmailProviderQuery(
                     EmailFrom = resultEncrypted.EmailProvider.EmailFrom,
                     Type = resultEncrypted.EmailProvider.Type,
                     DetailsJson = masterDataEncryption.Decrypt(
-                        resultEncrypted.EmailProvider.DetailsJsonEncrypted)
+                        resultEncrypted.EmailProvider.DetailsJsonEncrypted),
+                    Name = resultEncrypted.EmailProvider.Name
                 });
     }
 
@@ -54,15 +55,17 @@ public class ActivateEmailProviderQuery(
                              ep_type,
                              ep_email_from,
                              ep_details_encrypted,
-                             ep_is_confirmed
+                             ep_is_confirmed,
+                             ep_name
                          """,
-                    readRowFunc: reader => new 
+                    readRowFunc: reader => new
                     {
                         Id = reader.GetInt32(0),
                         Type = EmailProviderType.Build(reader.GetString(1)),
                         EmailFrom = reader.GetString(2),
                         DetailsJsonEncrypted = reader.GetFieldValue<byte[]>(3),
-                        IsConfirmed = reader.GetBoolean(4)
+                        IsConfirmed = reader.GetBoolean(4),
+                        Name = reader.GetString(5)
                     },
                     transaction: transaction)
                 .WithParameter("$externalId", externalId.Value)
@@ -112,7 +115,8 @@ public class ActivateEmailProviderQuery(
                     Id = provider.Id,
                     Type = provider.Type,
                     DetailsJsonEncrypted = provider.DetailsJsonEncrypted,
-                    EmailFrom = provider.EmailFrom
+                    EmailFrom = provider.EmailFrom,
+                    Name = provider.Name
                 });
         }
         catch (Exception e)
@@ -147,6 +151,7 @@ public class ActivateEmailProviderQuery(
         public required EmailProviderType Type { get; init; }
         public required byte[] DetailsJsonEncrypted { get; init; }
         public required string EmailFrom { get; init; }
+        public required string Name { get; init; }
     }
 
     public class EmailProvider
@@ -155,5 +160,6 @@ public class ActivateEmailProviderQuery(
         public required EmailProviderType Type { get; init; }
         public required string DetailsJson { get; init; }
         public required string EmailFrom { get; init; }
+        public required string Name { get; init; }
     }
 }

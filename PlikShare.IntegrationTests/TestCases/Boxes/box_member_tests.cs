@@ -167,9 +167,9 @@ public class box_member_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Box.MemberInvited,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
-                details.ExternalId.Should().Be(box.ExternalId);
-                details.MemberEmails.Should().Contain(invitedUser.Email);
+                details.Workspace.ExternalId.Should().Be(box.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
+                details.Members.Should().Contain(m => m.Email == invitedUser.Email);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -205,9 +205,9 @@ public class box_member_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Box.MemberRevoked,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
-                details.ExternalId.Should().Be(box.ExternalId);
-                details.MemberEmail.Should().Be(invitedUser.Email);
+                details.Workspace.ExternalId.Should().Be(box.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
+                details.Member.Email.Should().Be(invitedUser.Email);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Warning);
@@ -255,9 +255,9 @@ public class box_member_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Box.MemberPermissionsUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
-                details.ExternalId.Should().Be(box.ExternalId);
-                details.MemberEmail.Should().Be(invitedUser.Email);
+                details.Workspace.ExternalId.Should().Be(box.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
+                details.Member.Email.Should().Be(invitedUser.Email);
                 details.Permissions.Should().BeEquivalentTo(new BoxPermissions(
                     AllowDownload: true,
                     AllowUpload: true,

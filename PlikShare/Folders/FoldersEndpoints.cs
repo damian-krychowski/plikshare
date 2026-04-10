@@ -78,11 +78,7 @@ public static class FoldersEndpoints
                 await auditLogService.Log(
                     Audit.Folder.BulkCreated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspaceMembership.Workspace.ExternalId,
-                            Name = workspaceMembership.Workspace.Name
-                        },
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         folders: result.CreatedFolders.ToAuditLogFolderRefs()),
                     cancellationToken);
 
@@ -133,11 +129,7 @@ public static class FoldersEndpoints
                     folderExternalId: request.ExternalId,
                     buildEntry: folderRef => Audit.Folder.Created(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspaceMembership.Workspace.ExternalId,
-                            Name = workspaceMembership.Workspace.Name
-                        },
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         folder: folderRef),
                     cancellationToken);
 
@@ -221,11 +213,7 @@ public static class FoldersEndpoints
                     folderExternalId: folderExternalId,
                     buildEntry: folderRef => Audit.Folder.NameUpdated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspaceMembership.Workspace.ExternalId,
-                            Name = workspaceMembership.Workspace.Name
-                        },
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         folder: folderRef),
                     cancellationToken);
 
@@ -272,11 +260,7 @@ public static class FoldersEndpoints
                 await auditLogService.Log(
                     Audit.Folder.ItemsMoved(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspaceMembership.Workspace.ExternalId,
-                            Name = workspaceMembership.Workspace.Name
-                        },
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         destinationFolder: itemsContext.DestinationFolder,
                         folders: itemsContext.Folders,
                         files: itemsContext.Files,

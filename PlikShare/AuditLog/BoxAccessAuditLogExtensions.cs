@@ -12,12 +12,12 @@ static class BoxAccessAuditLogExtensions
             Ip: boxAccess.UserIp,
             CorrelationId: correlationId);
 
-        public AuditLogDetails.BoxRef ToAuditLogBoxRef() => new()
+        public AuditLogDetails.BoxAccessRef ToAuditLogBoxRef() => new()
         {
             ExternalId = boxAccess.Box.ExternalId,
             Name = boxAccess.Box.Name,
             BoxLink = boxAccess.BoxLink is not null
-                ? new AuditLogDetails.BoxLinkRef
+                ? new AuditLogDetails.BoxLinkAccessRef
                 {
                     ExternalId = boxAccess.BoxLink.ExternalId,
                     Name = boxAccess.BoxLink.Name

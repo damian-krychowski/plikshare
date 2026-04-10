@@ -98,7 +98,11 @@ public static class UsersEndpoints
         await auditLogService.Log(
             Audit.User.Invited(
                 actor: httpContext.GetAuditLogActorContext(),
-                emails: request.Emails),
+                users: response.Users.Select(u => new AuditLogDetails.UserRef
+                {
+                    ExternalId = u.ExternalId,
+                    Email = u.Email
+                }).ToList()),
             cancellationToken);
 
         return response;
@@ -148,8 +152,7 @@ public static class UsersEndpoints
         await auditLogService.Log(
             Audit.User.MaxWorkspaceNumberUpdated(
                 actor: httpContext.GetAuditLogActorContext(),
-                targetEmail: user!.Email.Value,
-                targetExternalId: user.ExternalId,
+                target: user.ToAuditLogUserRef(),
                 value: request.MaxWorkspaceNumber),
             cancellationToken);
 
@@ -181,8 +184,7 @@ public static class UsersEndpoints
         await auditLogService.Log(
             Audit.User.DefaultMaxWorkspaceSizeUpdated(
                 actor: httpContext.GetAuditLogActorContext(),
-                targetEmail: user!.Email.Value,
-                targetExternalId: user.ExternalId,
+                target: user.ToAuditLogUserRef(),
                 value: request.DefaultMaxWorkspaceSizeInBytes),
             cancellationToken);
 
@@ -214,8 +216,7 @@ public static class UsersEndpoints
         await auditLogService.Log(
             Audit.User.DefaultMaxWorkspaceTeamMembersUpdated(
                 actor: httpContext.GetAuditLogActorContext(),
-                targetEmail: user!.Email.Value,
-                targetExternalId: user.ExternalId,
+                target: user.ToAuditLogUserRef(),
                 value: request.DefaultMaxWorkspaceTeamMembers),
             cancellationToken);
 
@@ -258,7 +259,7 @@ public static class UsersEndpoints
         await auditLogService.Log(
             Audit.User.PermissionsAndRolesUpdated(
                 actor: httpContext.GetAuditLogActorContext(),
-                targetEmail: targetUser.Email.Value,
+                target: targetUser.ToAuditLogUserRef(),
                 request: request),
             cancellationToken);
 
@@ -315,7 +316,7 @@ public static class UsersEndpoints
         await auditLogService.Log(
             Audit.User.Deleted(
                 actor: httpContext.GetAuditLogActorContext(),
-                targetEmail: user.Email.Value),
+                target: user.ToAuditLogUserRef()),
             cancellationToken);
 
         return TypedResults.Ok();

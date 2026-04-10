@@ -30,9 +30,13 @@ public class DeleteStorageQuery(DbWriteQueue dbWriteQueue)
                     sql: """
                          DELETE FROM s_storages
                          WHERE s_external_id = $externalId
-                         RETURNING s_id
+                         RETURNING s_id, s_name, s_type
                          """,
-                    readRowFunc: reader => reader.GetInt32(0))
+                    readRowFunc: reader => new {
+                        Id = reader.GetInt32(0),
+                        Name = reader.GetString(1),
+                        Type = reader.GetString(2)
+                    })
                 .WithParameter("$externalId", externalId.Value)
                 .Execute();
 
@@ -50,7 +54,9 @@ public class DeleteStorageQuery(DbWriteQueue dbWriteQueue)
 
             return new Result(
                 Code: ResultCode.Ok,
-                StorageId: result.Value);
+                StorageId: result.Value.Id,
+                Name: result.Value.Name,
+                Type: result.Value.Type);
         }
         catch (SqliteException e) when(e.HasForeignKeyFailed())
         {
@@ -68,7 +74,9 @@ public class DeleteStorageQuery(DbWriteQueue dbWriteQueue)
 
     public readonly record struct Result(
         ResultCode Code,
-        int StorageId = 0);
+        int StorageId = 0,
+        string? Name = null,
+        string? Type = null);
     
     public enum ResultCode
     {

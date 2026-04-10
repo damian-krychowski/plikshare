@@ -27,10 +27,11 @@ public class ConfirmEmailProviderQuery(DbWriteQueue dbWriteQueue)
         var emailProvider = dbWriteContext
             .OneRowCmd(
                 sql: """
-                     SELECT 
+                     SELECT
                          ep_id,
                          ep_confirmation_code,
-                         ep_is_confirmed
+                         ep_is_confirmed,
+                         ep_name
                      FROM ep_email_providers
                      WHERE ep_external_id = $externalId
                      LIMIT 1
@@ -39,7 +40,8 @@ public class ConfirmEmailProviderQuery(DbWriteQueue dbWriteQueue)
                 {
                     Id = reader.GetInt32(0),
                     ConfirmationCode = reader.GetString(1),
-                    IsConfirmed = reader.GetBoolean(2)
+                    IsConfirmed = reader.GetBoolean(2),
+                    Name = reader.GetString(3)
                 })
             .WithParameter("$externalId", externalId.Value)
             .Execute();
@@ -70,7 +72,8 @@ public class ConfirmEmailProviderQuery(DbWriteQueue dbWriteQueue)
 
         return new Result(
             Code: ResultCode.Ok,
-            EmailProviderId: confirmedProvider.Value);
+            EmailProviderId: confirmedProvider.Value,
+            Name: emailProvider.Value.Name);
     }
 
     public enum ResultCode
@@ -83,5 +86,6 @@ public class ConfirmEmailProviderQuery(DbWriteQueue dbWriteQueue)
 
     public readonly record struct Result(
         ResultCode Code,
-        int EmailProviderId = 0);
+        int EmailProviderId = 0,
+        string? Name = null);
 }

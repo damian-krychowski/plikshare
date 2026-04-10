@@ -11,7 +11,7 @@ public class ResendConfirmationEmailOperation(
     EmailSenderFactory emailSenderFactory,
     GetEmailProviderQuery getEmailProviderQuery)
 {
-    public async Task<ResultCode> Execute(
+    public async Task<Result> Execute(
         EmailProviderExtId externalId,
         Email emailTo,
         CancellationToken cancellationToken = default)
@@ -20,18 +20,18 @@ public class ResendConfirmationEmailOperation(
             externalId: externalId);
 
         if (result.Code == GetEmailProviderQuery.ResultCode.NotFound)
-            return ResultCode.NotFound;
+            return new Result(ResultCode.NotFound);
 
         if (result.EmailProvider!.IsConfirmed)
-            return ResultCode.AlreadyConfirmed;
-        
+            return new Result(ResultCode.AlreadyConfirmed);
+
         try
         {
             var emailSender = emailSenderFactory.Build(
                 emailProviderType: result.EmailProvider.Type,
                 emailFrom: result.EmailProvider.EmailFrom,
                 detailsJson: result.EmailProvider.DetailsJson);
-            
+
             await emailProviderConfirmationEmail.Send(
                 emailProviderName: result.EmailProvider.Name,
                 confirmationCode: result.EmailProvider.ConfirmationCode,
@@ -39,16 +39,20 @@ public class ResendConfirmationEmailOperation(
                 emailSender: emailSender,
                 cancellationToken: cancellationToken);
 
-            return ResultCode.Ok;
+            return new Result(ResultCode.Ok, result.EmailProvider.Name);
         }
         catch (Exception e)
         {
             Log.Error(e, "Something went wrong while resending Email Provider confirmation email.");
 
-            return ResultCode.CouldNotSendTestEmail;
+            return new Result(ResultCode.CouldNotSendTestEmail);
         }
     }
-    
+
+    public readonly record struct Result(
+        ResultCode Code,
+        string? Name = null);
+
     public enum ResultCode
     {
         Ok,

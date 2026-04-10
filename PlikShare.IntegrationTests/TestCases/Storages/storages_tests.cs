@@ -214,8 +214,8 @@ public class storages_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Storage.Created,
             assertDetails: details =>
             {
-                details.Name.Should().Be(storageName);
-                details.Type.Should().Be(StorageType.HardDrive);
+                details.Storage.Name.Should().Be(storageName);
+                details.Storage.Type.Should().Be(StorageType.HardDrive);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -245,7 +245,7 @@ public class storages_tests : TestFixture
         //then
         await AssertAuditLogContains<AuditLogDetails.Storage.Deleted>(
             expectedEventType: AuditLogEventTypes.Storage.Deleted,
-            assertDetails: details => details.ExternalId.Should().Be(hardDrive.ExternalId),
+            assertDetails: details => details.Storage.ExternalId.Should().Be(hardDrive.ExternalId),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Warning);
     }
@@ -280,8 +280,8 @@ public class storages_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Storage.NameUpdated,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(hardDrive.ExternalId);
-                details.Name.Should().Be(newName);
+                details.Storage.ExternalId.Should().Be(hardDrive.ExternalId);
+                details.Storage.Name.Should().Be(newName);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);

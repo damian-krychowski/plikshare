@@ -318,6 +318,7 @@ public class Startup
         builder.Services.AddSingleton<GetFileAuditContextQuery>();
         builder.Services.AddSingleton<GetFolderAuditContextQuery>();
         builder.Services.AddSingleton<GetFileUploadAuditContextQuery>();
+        builder.Services.AddSingleton<GetStorageAuditContextQuery>();
 
         builder.UseAppSettings();
 

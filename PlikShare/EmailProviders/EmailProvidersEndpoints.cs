@@ -117,7 +117,8 @@ public static class EmailProvidersEndpoints
                 await auditLogService.Log(
                     Audit.EmailProvider.Deleted(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: emailProviderExternalId),
+                        externalId: emailProviderExternalId,
+                        name: result.Name!),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -201,7 +202,8 @@ public static class EmailProvidersEndpoints
                     await auditLogService.Log(
                         Audit.EmailProvider.Activated(
                             actor: httpContext.GetAuditLogActorContext(),
-                            externalId: emailProviderExternalId),
+                            externalId: emailProviderExternalId,
+                            name: result.EmailProvider!.Name),
                         cancellationToken);
 
                     return TypedResults.Ok();
@@ -242,7 +244,8 @@ public static class EmailProvidersEndpoints
                     await auditLogService.Log(
                         Audit.EmailProvider.Deactivated(
                             actor: httpContext.GetAuditLogActorContext(),
-                            externalId: emailProviderExternalId),
+                            externalId: emailProviderExternalId,
+                            name: result.Name!),
                         cancellationToken);
 
                     return TypedResults.Ok();
@@ -273,13 +276,14 @@ public static class EmailProvidersEndpoints
                 ? new Email(request.EmailTo)
                 : httpContext.GetUserContext().Email);
 
-        switch (result)
+        switch (result.Code)
         {
             case ResendConfirmationEmailOperation.ResultCode.Ok:
                 await auditLogService.Log(
                     Audit.EmailProvider.ConfirmationEmailResent(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: emailProviderExternalId),
+                        externalId: emailProviderExternalId,
+                        name: result.Name!),
                     cancellationToken);
                 return TypedResults.Ok();
 
@@ -318,7 +322,8 @@ public static class EmailProvidersEndpoints
                 await auditLogService.Log(
                     Audit.EmailProvider.Confirmed(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: emailProviderExternalId),
+                        externalId: emailProviderExternalId,
+                        name: result.Name!),
                     cancellationToken);
                 return TypedResults.Ok();
 
@@ -365,6 +370,7 @@ public static class EmailProvidersEndpoints
                 await auditLogService.Log(
                     Audit.EmailProvider.Created(
                         actor: httpContext.GetAuditLogActorContext(),
+                        externalId: result.EmailProviderExternalId!.Value,
                         name: request.Name,
                         type: EmailProviderType.AwsSes.Value,
                         emailFrom: request.EmailFrom),
@@ -411,6 +417,7 @@ public static class EmailProvidersEndpoints
                 await auditLogService.Log(
                     Audit.EmailProvider.Created(
                         actor: httpContext.GetAuditLogActorContext(),
+                        externalId: result.EmailProviderExternalId!.Value,
                         name: request.Name,
                         type: EmailProviderType.Resend.Value,
                         emailFrom: request.EmailFrom),
@@ -461,6 +468,7 @@ public static class EmailProvidersEndpoints
                 await auditLogService.Log(
                     Audit.EmailProvider.Created(
                         actor: httpContext.GetAuditLogActorContext(),
+                        externalId: result.EmailProviderExternalId!.Value,
                         name: request.Name,
                         type: EmailProviderType.Smtp.Value,
                         emailFrom: request.EmailFrom),

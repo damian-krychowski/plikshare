@@ -254,8 +254,8 @@ public class workspace_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Workspace.Created,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(response.ExternalId);
-                details.Name.Should().Be(workspaceName);
+                details.Workspace.ExternalId.Should().Be(response.ExternalId);
+                details.Workspace.Name.Should().Be(workspaceName);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -279,7 +279,7 @@ public class workspace_tests : TestFixture
         await AssertAuditLogContains<AuditLogDetails.Workspace.Deleted>(
             expectedEventType: AuditLogEventTypes.Workspace.Deleted,
             assertDetails: details =>
-                details.ExternalId.Should().Be(workspace.ExternalId),
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Critical);
     }
@@ -307,8 +307,8 @@ public class workspace_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Workspace.NameUpdated,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(workspace.ExternalId);
-                details.Name.Should().Be(newName);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.Workspace.Name.Should().Be(newName);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -338,8 +338,8 @@ public class workspace_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Workspace.OwnerChanged,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(workspace.ExternalId);
-                details.NewOwnerEmail.Should().Be(newOwner.Email);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.NewOwner.Email.Should().Be(newOwner.Email);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Warning);
@@ -368,7 +368,7 @@ public class workspace_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Workspace.MaxSizeUpdated,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(workspace.ExternalId);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
                 details.Value.Should().Be(1024 * 1024 * 100);
             },
             expectedActorEmail: AppOwner.Email,
@@ -398,7 +398,7 @@ public class workspace_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Workspace.MaxTeamMembersUpdated,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(workspace.ExternalId);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
                 details.Value.Should().Be(10);
             },
             expectedActorEmail: AppOwner.Email,
@@ -430,8 +430,8 @@ public class workspace_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Workspace.MemberInvited,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(workspace.ExternalId);
-                details.MemberEmails.Should().Contain(member.Email);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.Members.Should().Contain(m => m.Email == member.Email);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -468,8 +468,8 @@ public class workspace_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Workspace.MemberRevoked,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(workspace.ExternalId);
-                details.MemberEmail.Should().Be(member.Email);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.Member.Email.Should().Be(member.Email);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Warning);
@@ -510,8 +510,8 @@ public class workspace_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Workspace.MemberPermissionsUpdated,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(workspace.ExternalId);
-                details.MemberEmail.Should().Be(member.Email);
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.Member.Email.Should().Be(member.Email);
                 details.AllowShare.Should().BeTrue();
             },
             expectedActorEmail: AppOwner.Email,
@@ -547,7 +547,7 @@ public class workspace_tests : TestFixture
         await AssertAuditLogContains<AuditLogDetails.Workspace.InvitationResponse>(
             expectedEventType: AuditLogEventTypes.Workspace.InvitationAccepted,
             assertDetails: details =>
-                details.ExternalId.Should().Be(workspace.ExternalId),
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId),
             expectedActorEmail: member.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -581,7 +581,7 @@ public class workspace_tests : TestFixture
         await AssertAuditLogContains<AuditLogDetails.Workspace.InvitationResponse>(
             expectedEventType: AuditLogEventTypes.Workspace.InvitationRejected,
             assertDetails: details =>
-                details.ExternalId.Should().Be(workspace.ExternalId),
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId),
             expectedActorEmail: member.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -620,7 +620,7 @@ public class workspace_tests : TestFixture
         await AssertAuditLogContains<AuditLogDetails.Workspace.MemberLeft>(
             expectedEventType: AuditLogEventTypes.Workspace.MemberLeft,
             assertDetails: details =>
-                details.ExternalId.Should().Be(workspace.ExternalId),
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId),
             expectedActorEmail: member.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -654,10 +654,10 @@ public class workspace_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Workspace.BulkDeleteRequested,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(workspace.ExternalId);
-                details.FolderExternalIds.Should().Contain(folder.ExternalId);
-                details.FileExternalIds.Should().BeEmpty();
-                details.FileUploadExternalIds.Should().BeEmpty();
+                details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
+                details.Folders.Should().Contain(f => f.ExternalId == folder.ExternalId);
+                details.Files.Should().BeEmpty();
+                details.FileUploads.Should().BeEmpty();
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Critical);

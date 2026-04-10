@@ -134,11 +134,7 @@ public static class BulkDownloadEndpoints
         await auditLogService.Log(
             Audit.File.BulkDownloaded(
                 actor: httpContext.GetAuditLogActorContext(),
-                workspace: new AuditLogDetails.WorkspaceRef
-                {
-                    ExternalId = workspaceContext.ExternalId,
-                    Name = workspaceContext.Name
-                },
+                workspace: workspaceContext.ToAuditLogWorkspaceRef(),
                 files: bulkDownloadDetails.Files.Select(f => new AuditLogDetails.FileRef
                 {
                     ExternalId = f.ExternalId,

@@ -226,7 +226,7 @@ public class user_permissions_tests : TestFixture
             expectedEventType: AuditLogEventTypes.User.PermissionsAndRolesUpdated,
             assertDetails: details =>
             {
-                details.TargetEmail.Should().Be(User.Email);
+                details.Target.Email.Should().Be(User.Email);
                 details.IsAdmin.Should().BeTrue();
             },
             expectedActorEmail: AppOwner.Email,
@@ -248,7 +248,7 @@ public class user_permissions_tests : TestFixture
         //then
         await AssertAuditLogContains<AuditLogDetails.User.Deleted>(
             expectedEventType: AuditLogEventTypes.User.Deleted,
-            assertDetails: details => details.TargetEmail.Should().Be(userToDelete.Email),
+            assertDetails: details => details.Target.Email.Should().Be(userToDelete.Email),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Critical);
     }
@@ -271,8 +271,8 @@ public class user_permissions_tests : TestFixture
             expectedEventType: AuditLogEventTypes.User.MaxWorkspaceNumberUpdated,
             assertDetails: details =>
             {
-                details.TargetEmail.Should().Be(User.Email);
-                details.TargetExternalId.Should().Be(User.ExternalId);
+                details.Target.Email.Should().Be(User.Email);
+                details.Target.ExternalId.Should().Be(User.ExternalId);
                 details.Value.Should().Be(5);
             },
             expectedActorEmail: AppOwner.Email,
@@ -297,8 +297,8 @@ public class user_permissions_tests : TestFixture
             expectedEventType: AuditLogEventTypes.User.DefaultMaxWorkspaceSizeUpdated,
             assertDetails: details =>
             {
-                details.TargetEmail.Should().Be(User.Email);
-                details.TargetExternalId.Should().Be(User.ExternalId);
+                details.Target.Email.Should().Be(User.Email);
+                details.Target.ExternalId.Should().Be(User.ExternalId);
                 details.Value.Should().Be(1024 * 1024 * 100);
             },
             expectedActorEmail: AppOwner.Email,
@@ -323,8 +323,8 @@ public class user_permissions_tests : TestFixture
             expectedEventType: AuditLogEventTypes.User.DefaultMaxWorkspaceTeamMembersUpdated,
             assertDetails: details =>
             {
-                details.TargetEmail.Should().Be(User.Email);
-                details.TargetExternalId.Should().Be(User.ExternalId);
+                details.Target.Email.Should().Be(User.Email);
+                details.Target.ExternalId.Should().Be(User.ExternalId);
                 details.Value.Should().Be(10);
             },
             expectedActorEmail: AppOwner.Email,

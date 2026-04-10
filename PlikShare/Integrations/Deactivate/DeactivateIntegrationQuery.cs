@@ -30,11 +30,13 @@ public class DeactivateIntegrationQuery(DbWriteQueue dbWriteQueue)
                     WHERE i_external_id = $externalId
                     RETURNING
                         i_id,
-                        i_type
+                        i_type,
+                        i_name
                 ",
                 readRowFunc: reader => new Integration(
                     Id: reader.GetInt32(0),
-                    Type: reader.GetEnum<IntegrationType>(1)))
+                    Type: reader.GetEnum<IntegrationType>(1),
+                    Name: reader.GetString(2)))
             .WithParameter("$externalId", externalId.Value)
             .Execute();
 
@@ -62,7 +64,8 @@ public class DeactivateIntegrationQuery(DbWriteQueue dbWriteQueue)
 
     public readonly record struct Integration(
         int Id,
-        IntegrationType Type);
+        IntegrationType Type,
+        string Name);
 
     public enum ResultCode
     {

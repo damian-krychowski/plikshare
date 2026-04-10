@@ -181,11 +181,7 @@ public static class FilesEndpoints
             fileExternalId: fileExternalId,
             buildEntry: fileRef => Audit.File.AttachmentUploaded(
                 actor: httpContext.GetAuditLogActorContext(),
-                workspace: new AuditLogDetails.WorkspaceRef
-                {
-                    ExternalId = workspaceMembership.Workspace.ExternalId,
-                    Name = workspaceMembership.Workspace.Name
-                },
+                workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                 parentFile: fileRef,
                 attachment: new AuditLogDetails.FileRef
                 {
@@ -257,11 +253,7 @@ public static class FilesEndpoints
             fileExternalId: fileExternalId,
             buildEntry: fileRef => Audit.File.ContentUpdated(
                 actor: httpContext.GetAuditLogActorContext(),
-                workspace: new AuditLogDetails.WorkspaceRef
-                {
-                    ExternalId = workspaceMembership.Workspace.ExternalId,
-                    Name = workspaceMembership.Workspace.Name
-                },
+                workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                 file: fileRef),
             cancellationToken);
 
@@ -388,11 +380,7 @@ public static class FilesEndpoints
                     fileExternalId: fileExternalId,
                     buildEntry: fileRef => Audit.File.CommentEdited(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspaceMembership.Workspace.ExternalId,
-                            Name = workspaceMembership.Workspace.Name
-                        },
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef,
                         commentExternalId: commentExternalId,
                         contentJson: request.ContentJson),
@@ -439,11 +427,7 @@ public static class FilesEndpoints
                     fileExternalId: fileExternalId,
                     buildEntry: fileRef => Audit.File.CommentDeleted(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspaceMembership.Workspace.ExternalId,
-                            Name = workspaceMembership.Workspace.Name
-                        },
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef,
                         commentExternalId: commentExternalId),
                     cancellationToken);
@@ -489,11 +473,7 @@ public static class FilesEndpoints
                     fileExternalId: fileExternalId,
                     buildEntry: fileRef => Audit.File.CommentCreated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspaceMembership.Workspace.ExternalId,
-                            Name = workspaceMembership.Workspace.Name
-                        },
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef,
                         commentExternalId: request.ExternalId,
                         contentJson: request.ContentJson),
@@ -536,11 +516,7 @@ public static class FilesEndpoints
                     fileExternalId: fileExternalId,
                     buildEntry: fileRef => Audit.File.NoteSaved(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspaceMembership.Workspace.ExternalId,
-                            Name = workspaceMembership.Workspace.Name
-                        },
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef),
                     cancellationToken);
 
@@ -602,11 +578,7 @@ public static class FilesEndpoints
                 await auditLogService.Log(
                     Audit.File.BulkDownloadLinkGenerated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspaceMembership.Workspace.ExternalId,
-                            Name = workspaceMembership.Workspace.Name
-                        },
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         selectedFileExternalIds: request.SelectedFiles,
                         selectedFolderExternalIds: request.SelectedFolders),
                     cancellationToken);
@@ -661,11 +633,7 @@ public static class FilesEndpoints
                     fileExternalId: fileExternalId,
                     buildEntry: fileRef => Audit.File.DownloadLinkGenerated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspaceMembership.Workspace.ExternalId,
-                            Name = workspaceMembership.Workspace.Name
-                        },
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef),
                     cancellationToken);
 
@@ -709,11 +677,7 @@ public static class FilesEndpoints
                     fileExternalId: fileExternalId,
                     buildEntry: fileRef => Audit.File.Renamed(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspaceMembership.Workspace.ExternalId,
-                            Name = workspaceMembership.Workspace.Name
-                        },
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef),
                     cancellationToken);
 

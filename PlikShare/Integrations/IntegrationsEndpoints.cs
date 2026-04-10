@@ -85,6 +85,7 @@ public static class IntegrationsEndpoints
                 await auditLogService.Log(
                     Audit.Integration.Created(
                         actor: httpContext.GetAuditLogActorContext(),
+                        externalId: result.Integration.ExternalId,
                         name: request.Name,
                         type: integrationType.ToString()),
                     cancellationToken);
@@ -144,7 +145,8 @@ public static class IntegrationsEndpoints
             await auditLogService.Log(
                 Audit.Integration.Deleted(
                     actor: httpContext.GetAuditLogActorContext(),
-                    externalId: integrationExternalId),
+                    externalId: integrationExternalId,
+                    name: result.Integration.Name),
                 cancellationToken);
         }
 
@@ -220,7 +222,8 @@ public static class IntegrationsEndpoints
                 await auditLogService.Log(
                     Audit.Integration.Activated(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: integrationExternalId),
+                        externalId: integrationExternalId,
+                        name: result.Integration.Name),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -266,7 +269,8 @@ public static class IntegrationsEndpoints
             await auditLogService.Log(
                 Audit.Integration.Deactivated(
                     actor: httpContext.GetAuditLogActorContext(),
-                    externalId: integrationExternalId),
+                    externalId: integrationExternalId,
+                    name: result.Integration.Name),
                 cancellationToken);
         }
 

@@ -145,10 +145,10 @@ public class box_link_tests: TestFixture
             expectedEventType: AuditLogEventTypes.Box.LinkCreated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(box.WorkspaceExternalId);
-                details.BoxExternalId.Should().Be(box.ExternalId);
-                details.ExternalId.Should().Be(boxLink.ExternalId);
-                details.Name.Should().Be("audit-link");
+                details.Workspace.ExternalId.Should().Be(box.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
+                details.LinkExternalId.Should().Be(boxLink.ExternalId);
+                details.LinkName.Should().Be("audit-link");
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -186,9 +186,9 @@ public class box_link_tests: TestFixture
             expectedEventType: AuditLogEventTypes.BoxLink.PermissionsUpdated,
             assertDetails: details =>
             {
-                details.WorkspaceExternalId.Should().Be(boxLink.WorkspaceExternalId);
-                details.BoxExternalId.Should().Be(boxLink.BoxExternalId);
-                details.ExternalId.Should().Be(boxLink.ExternalId);
+                details.Workspace.ExternalId.Should().Be(boxLink.WorkspaceExternalId);
+                details.Box.ExternalId.Should().Be(boxLink.BoxExternalId);
+                details.BoxLink.ExternalId.Should().Be(boxLink.ExternalId);
                 details.Permissions.Should().BeEquivalentTo(new BoxPermissions(
                     AllowDownload: true,
                     AllowUpload: true,

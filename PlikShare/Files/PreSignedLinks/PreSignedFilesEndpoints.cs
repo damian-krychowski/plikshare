@@ -191,11 +191,7 @@ public static class PreSignedFilesEndpoints
                 await auditLogService.Log(
                     Audit.File.MultiUploadCompleted(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: new AuditLogDetails.WorkspaceRef
-                        {
-                            ExternalId = workspace.ExternalId,
-                            Name = workspace.Name
-                        },
+                        workspace: workspace.ToAuditLogWorkspaceRef(),
                         fileUploads: processedFileUploads.Select(u => new AuditLogDetails.FileUploadRef
                         {
                             ExternalId = u!.ExternalId,
@@ -412,11 +408,7 @@ public static class PreSignedFilesEndpoints
         await auditLogService.Log(
             Audit.File.Downloaded(
                 actor: httpContext.GetAuditLogActorContext(),
-                workspace: new AuditLogDetails.WorkspaceRef
-                {
-                    ExternalId = workspace.ExternalId,
-                    Name = workspace.Name
-                },
+                workspace: workspace.ToAuditLogWorkspaceRef(),
                 file: new AuditLogDetails.FileRef
                 {
                     ExternalId = payload.FileExternalId,

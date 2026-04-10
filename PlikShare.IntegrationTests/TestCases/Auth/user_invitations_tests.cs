@@ -379,7 +379,7 @@ public class user_invitation_tests : TestFixture
         //then
         await AssertAuditLogContains<AuditLogDetails.User.Invited>(
             expectedEventType: AuditLogEventTypes.User.Invited,
-            assertDetails: details => details.Emails.Should().BeEquivalentTo(new[] { userEmail }),
+            assertDetails: details => details.Users.Should().Contain(u => u.Email == userEmail),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }

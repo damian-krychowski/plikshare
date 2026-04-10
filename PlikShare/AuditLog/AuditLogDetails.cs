@@ -21,6 +21,19 @@ public static class AuditLogDetails
         public required string Name { get; init; }
     }
 
+    public class UserRef
+    {
+        public required UserExtId ExternalId { get; init; }
+        public required string Email { get; init; }
+    }
+
+    public class StorageRef
+    {
+        public required StorageExtId ExternalId { get; init; }
+        public required string Name { get; init; }
+        public required string Type { get; init; }
+    }
+
     public class FileRef
     {
         public required FileExtId ExternalId { get; init; }
@@ -29,17 +42,31 @@ public static class AuditLogDetails
         public string? FolderPath { get; init; }
     }
 
+    public class BoxAccessRef
+    {
+        public required BoxExtId ExternalId { get; init; }
+        public required string Name { get; init; }
+        public BoxLinkAccessRef? BoxLink { get; init; }
+    }
+
+    public class BoxLinkAccessRef
+    {
+        public required BoxLinkExtId ExternalId { get; init; }
+        public required string Name { get; init; }
+    }
+
     public class BoxRef
     {
         public required BoxExtId ExternalId { get; init; }
         public required string Name { get; init; }
-        public BoxLinkRef? BoxLink { get; init; }
+        public FolderRef? Folder { get; init; }
     }
 
     public class BoxLinkRef
     {
         public required BoxLinkExtId ExternalId { get; init; }
         public required string Name { get; init; }
+        public string? AccessCode { get; init; }
     }
 
     public class FolderRef
@@ -80,25 +107,24 @@ public static class AuditLogDetails
     {
         public class Invited
         {
-            public required List<string> Emails { get; init; }
+            public required List<UserRef> Users { get; init; }
         }
 
         public class Deleted
         {
-            public required string TargetEmail { get; init; }
+            public required UserRef Target { get; init; }
         }
 
         public class PermissionsAndRolesUpdated
         {
-            public required string TargetEmail { get; init; }
+            public required UserRef Target { get; init; }
             public required bool IsAdmin { get; init; }
             public required List<string> Permissions { get; init; }
         }
 
         public class LimitUpdated
         {
-            public required string TargetEmail { get; init; }
-            public required UserExtId TargetExternalId { get; init; }
+            public required UserRef Target { get; init; }
             public required long? Value { get; init; }
         }
     }
@@ -133,6 +159,7 @@ public static class AuditLogDetails
     {
         public class Created
         {
+            public required EmailProviderExtId ExternalId { get; init; }
             public required string Name { get; init; }
             public required string Type { get; init; }
             public required string EmailFrom { get; init; }
@@ -141,6 +168,7 @@ public static class AuditLogDetails
         public class Deleted
         {
             public required EmailProviderExtId ExternalId { get; init; }
+            public required string Name { get; init; }
         }
 
         public class NameUpdated
@@ -152,11 +180,13 @@ public static class AuditLogDetails
         public class ActivationChanged
         {
             public required EmailProviderExtId ExternalId { get; init; }
+            public required string Name { get; init; }
         }
 
         public class ConfirmationEmailResent
         {
             public required EmailProviderExtId ExternalId { get; init; }
+            public required string Name { get; init; }
         }
     }
 
@@ -164,74 +194,86 @@ public static class AuditLogDetails
     {
         public class Created
         {
-            public required WorkspaceExtId ExternalId { get; init; }
-            public required string Name { get; init; }
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required long? MaxSizeInBytes { get; init; }
+            public required string BucketName {get;init;}
         }
 
         public class Deleted
         {
-            public required WorkspaceExtId ExternalId { get; init; }
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
         }
 
         public class NameUpdated
         {
-            public required WorkspaceExtId ExternalId { get; init; }
-            public required string Name { get; init; }
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
         }
 
         public class OwnerChanged
         {
-            public required WorkspaceExtId ExternalId { get; init; }
-            public required string NewOwnerEmail { get; init; }
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required UserRef NewOwner { get; init; }
         }
 
         public class MaxSizeUpdated
         {
-            public required WorkspaceExtId ExternalId { get; init; }
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
             public required long? Value { get; init; }
         }
 
         public class MaxTeamMembersUpdated
         {
-            public required WorkspaceExtId ExternalId { get; init; }
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
             public required int? Value { get; init; }
         }
 
         public class MemberInvited
         {
-            public required WorkspaceExtId ExternalId { get; init; }
-            public required List<string> MemberEmails { get; init; }
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required List<UserRef> Members { get; init; }
         }
 
         public class MemberRevoked
         {
-            public required WorkspaceExtId ExternalId { get; init; }
-            public required string MemberEmail { get; init; }
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required UserRef Member { get; init; }
         }
 
         public class MemberPermissionsUpdated
         {
-            public required WorkspaceExtId ExternalId { get; init; }
-            public required string MemberEmail { get; init; }
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required UserRef Member { get; init; }
             public required bool AllowShare { get; init; }
         }
 
         public class InvitationResponse
         {
-            public required WorkspaceExtId ExternalId { get; init; }
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
         }
 
         public class MemberLeft
         {
-            public required WorkspaceExtId ExternalId { get; init; }
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
         }
 
         public class BulkDeleteRequested
         {
-            public required WorkspaceExtId ExternalId { get; init; }
-            public required List<FileExtId> FileExternalIds { get; init; }
-            public required List<FolderExtId> FolderExternalIds { get; init; }
-            public required List<FileUploadExtId> FileUploadExternalIds { get; init; }
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required List<FileRef> Files { get; init; }
+            public required List<FolderRef> Folders { get; init; }
+            public required List<FileUploadRef> FileUploads { get; init; }
         }
     }
 
@@ -239,25 +281,22 @@ public static class AuditLogDetails
     {
         public class Created
         {
-            public required string Name { get; init; }
-            public required string Type { get; init; }
+            public required StorageRef Storage { get; init; }
         }
 
         public class Deleted
         {
-            public required StorageExtId ExternalId { get; init; }
+            public required StorageRef Storage { get; init; }
         }
 
         public class NameUpdated
         {
-            public required StorageExtId ExternalId { get; init; }
-            public required string Name { get; init; }
+            public required StorageRef Storage { get; init; }
         }
 
         public class DetailsUpdated
         {
-            public required StorageExtId ExternalId { get; init; }
-            public required string Type { get; init; }
+            public required StorageRef Storage { get; init; }
         }
     }
 
@@ -265,6 +304,7 @@ public static class AuditLogDetails
     {
         public class Created
         {
+            public required IntegrationExtId ExternalId { get; init; }
             public required string Name { get; init; }
             public required string Type { get; init; }
         }
@@ -272,6 +312,7 @@ public static class AuditLogDetails
         public class Deleted
         {
             public required IntegrationExtId ExternalId { get; init; }
+            public required string Name { get; init; }
         }
 
         public class NameUpdated
@@ -283,6 +324,7 @@ public static class AuditLogDetails
         public class ActivationChanged
         {
             public required IntegrationExtId ExternalId { get; init; }
+            public required string Name { get; init; }
         }
     }
 
@@ -292,21 +334,21 @@ public static class AuditLogDetails
         {
             public required WorkspaceRef Workspace { get; init; }
             public required FolderRef Folder { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class BulkCreated
         {
             public required WorkspaceRef Workspace { get; init; }
             public required List<FolderRef> Folders { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class NameUpdated
         {
             public required WorkspaceRef Workspace { get; init; }
             public required FolderRef Folder { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class ItemsMoved
@@ -316,7 +358,7 @@ public static class AuditLogDetails
             public required List<FolderRef> Folders { get; init; }
             public required List<FileRef> Files { get; init; }
             public required List<FileUploadRef> FileUploads { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
     }
 
@@ -324,108 +366,110 @@ public static class AuditLogDetails
     {
         public class Created
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId ExternalId { get; init; }
-            public required string Name { get; init; }
-            public required FolderExtId FolderExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
         }
 
         public class Deleted
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
         }
 
         public class NameUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId ExternalId { get; init; }
-            public required string Name { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
         }
 
         public class HeaderIsEnabledUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
             public required bool IsEnabled { get; init; }
         }
 
         public class HeaderUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required string ContentJson { get; init; }
         }
 
         public class FooterIsEnabledUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
             public required bool IsEnabled { get; init; }
         }
 
         public class FooterUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required string ContentJson { get; init; }
         }
 
         public class FolderUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId ExternalId { get; init; }
-            public required FolderExtId FolderExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required FolderRef NewFolder { get; init; }
         }
 
         public class IsEnabledUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
             public required bool IsEnabled { get; init; }
         }
 
         public class MemberInvited
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId ExternalId { get; init; }
-            public required List<string> MemberEmails { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required List<UserRef> Members { get; init; }
         }
 
         public class MemberRevoked
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId ExternalId { get; init; }
-            public required string MemberEmail { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required UserRef Member { get; init; }
         }
 
         public class MemberPermissionsUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId ExternalId { get; init; }
-            public required string MemberEmail { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required UserRef Member { get; init; }
             public required BoxPermissions Permissions { get; init; }
         }
 
         public class LinkCreated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId BoxExternalId { get; init; }
-            public required BoxLinkExtId ExternalId { get; init; }
-            public required string Name { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required BoxLinkExtId LinkExternalId { get; init; }
+            public required string LinkName { get; init; }
         }
 
         public class InvitationAccepted
         {
-            public required BoxExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
         }
 
         public class InvitationRejected
         {
-            public required BoxExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
         }
 
         public class MemberLeft
         {
-            public required BoxExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
         }
     }
 
@@ -433,48 +477,47 @@ public static class AuditLogDetails
     {
         public class Deleted
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId BoxExternalId { get; init; }
-            public required BoxLinkExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required BoxLinkRef BoxLink { get; init; }
         }
 
         public class NameUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId BoxExternalId { get; init; }
-            public required BoxLinkExtId ExternalId { get; init; }
-            public required string Name { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required BoxLinkRef BoxLink { get; init; }
         }
 
         public class WidgetOriginsUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId BoxExternalId { get; init; }
-            public required BoxLinkExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required BoxLinkRef BoxLink { get; init; }
             public required List<string> WidgetOrigins { get; init; }
         }
 
         public class IsEnabledUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId BoxExternalId { get; init; }
-            public required BoxLinkExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required BoxLinkRef BoxLink { get; init; }
             public required bool IsEnabled { get; init; }
         }
 
         public class PermissionsUpdated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId BoxExternalId { get; init; }
-            public required BoxLinkExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required BoxLinkRef BoxLink { get; init; }
             public required BoxPermissions Permissions { get; init; }
         }
 
         public class AccessCodeRegenerated
         {
-            public required WorkspaceExtId WorkspaceExternalId { get; init; }
-            public required BoxExtId BoxExternalId { get; init; }
-            public required BoxLinkExtId ExternalId { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required BoxLinkRef BoxLink { get; init; }
         }
     }
 
@@ -484,14 +527,14 @@ public static class AuditLogDetails
         {
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class NoteSaved
         {
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class CommentCreated
@@ -500,7 +543,7 @@ public static class AuditLogDetails
             public required FileRef File { get; init; }
             public required FileArtifactExtId CommentExternalId { get; init; }
             public required string ContentJson { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class CommentDeleted
@@ -508,7 +551,7 @@ public static class AuditLogDetails
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
             public required FileArtifactExtId CommentExternalId { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class CommentEdited
@@ -517,14 +560,14 @@ public static class AuditLogDetails
             public required FileRef File { get; init; }
             public required FileArtifactExtId CommentExternalId { get; init; }
             public required string ContentJson { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class ContentUpdated
         {
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class AttachmentUploaded
@@ -532,14 +575,14 @@ public static class AuditLogDetails
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef ParentFile { get; init; }
             public required FileRef Attachment { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class DownloadLinkGenerated
         {
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class BulkDownloadLinkGenerated
@@ -547,42 +590,42 @@ public static class AuditLogDetails
             public required WorkspaceRef Workspace { get; init; }
             public required List<FileExtId> SelectedFileExternalIds { get; init; }
             public required List<FolderExtId> SelectedFolderExternalIds { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class Downloaded
         {
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class BulkDownloaded
         {
             public required WorkspaceRef Workspace { get; init; }
             public required List<FileRef> Files { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class UploadInitiated
         {
             public required WorkspaceRef Workspace { get; init; }
             public required List<FileUploadRef> FileUploads { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class MultiUploadCompleted
         {
             public required WorkspaceRef Workspace { get; init; }
             public required List<FileUploadRef> FileUploads { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
 
         public class UploadCompleted
         {
             public required WorkspaceRef Workspace { get; init; }
             public required FileUploadRef FileUpload { get; init; }
-            public BoxRef? Box { get; init; }
+            public BoxAccessRef? Box { get; init; }
         }
     }
 

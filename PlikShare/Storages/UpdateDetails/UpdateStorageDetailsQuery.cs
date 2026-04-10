@@ -46,10 +46,11 @@ public class UpdateStorageDetailsQuery(
                      WHERE 
                          s_external_id = $externalId
                          AND s_type = $type
-                     RETURNING 
+                     RETURNING
                          s_id,
                          s_encryption_type,
-                         s_encryption_details_encrypted
+                         s_encryption_details_encrypted,
+                         s_name
                      """,
                 readRowFunc: reader =>
                 {
@@ -63,7 +64,8 @@ public class UpdateStorageDetailsQuery(
                         EncryptionType: encryptionType,
                         EncryptionDetailsEncrypted: encryptionType == StorageEncryptionType.None
                             ? null
-                            : reader.GetFieldValue<byte[]>(2));
+                            : reader.GetFieldValue<byte[]>(2),
+                        Name: reader.GetString(3));
                 })
             .WithParameter("$externalId", externalId.Value)
             .WithParameter("$type", storageType)
@@ -94,6 +96,7 @@ public class UpdateStorageDetailsQuery(
     public record StorageData(
         int Id,
         StorageEncryptionType EncryptionType,
-        byte[]? EncryptionDetailsEncrypted);
+        byte[]? EncryptionDetailsEncrypted,
+        string Name);
 
 }

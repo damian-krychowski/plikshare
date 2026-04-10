@@ -147,7 +147,7 @@ public class box_invitation_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Box.InvitationAccepted,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(box.ExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
             },
             expectedActorEmail: invitedUser.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -179,7 +179,7 @@ public class box_invitation_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Box.InvitationRejected,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(box.ExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
             },
             expectedActorEmail: invitedUser.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -216,7 +216,7 @@ public class box_invitation_tests : TestFixture
             expectedEventType: AuditLogEventTypes.Box.MemberLeft,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(box.ExternalId);
+                details.Box.ExternalId.Should().Be(box.ExternalId);
             },
             expectedActorEmail: invitedUser.Email,
             expectedSeverity: AuditLogSeverities.Info);
