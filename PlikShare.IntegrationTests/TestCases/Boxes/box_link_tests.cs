@@ -1,11 +1,13 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Boxes.CreateLink.Contracts;
 using PlikShare.Boxes.Get.Contracts;
 using PlikShare.Boxes.Permissions;
 using PlikShare.BoxLinks.UpdatePermissions.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Boxes;
 
@@ -141,7 +143,7 @@ public class box_link_tests: TestFixture
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.LinkCreated>(
+        await AssertAuditLogContains<Audit.Box.LinkCreated>(
             expectedEventType: AuditLogEventTypes.Box.LinkCreated,
             assertDetails: details =>
             {
@@ -182,7 +184,7 @@ public class box_link_tests: TestFixture
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.BoxLink.PermissionsUpdated>(
+        await AssertAuditLogContains<Audit.BoxLink.PermissionsUpdated>(
             expectedEventType: AuditLogEventTypes.BoxLink.PermissionsUpdated,
             assertDetails: details =>
             {

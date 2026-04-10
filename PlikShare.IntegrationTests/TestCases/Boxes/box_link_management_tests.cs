@@ -1,11 +1,13 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Boxes.Get.Contracts;
 using PlikShare.BoxLinks.UpdateIsEnabled.Contracts;
 using PlikShare.BoxLinks.UpdateName.Contracts;
 using PlikShare.BoxLinks.UpdateWidgetOrigins.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Boxes;
 
@@ -168,7 +170,7 @@ public class box_link_management_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.BoxLink.NameUpdated>(
+        await AssertAuditLogContains<Audit.BoxLink.NameUpdated>(
             expectedEventType: AuditLogEventTypes.BoxLink.NameUpdated,
             assertDetails: details =>
             {
@@ -200,7 +202,7 @@ public class box_link_management_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.BoxLink.WidgetOriginsUpdated>(
+        await AssertAuditLogContains<Audit.BoxLink.WidgetOriginsUpdated>(
             expectedEventType: AuditLogEventTypes.BoxLink.WidgetOriginsUpdated,
             assertDetails: details =>
             {
@@ -228,7 +230,7 @@ public class box_link_management_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.BoxLink.IsEnabledUpdated>(
+        await AssertAuditLogContains<Audit.BoxLink.IsEnabledUpdated>(
             expectedEventType: AuditLogEventTypes.BoxLink.IsEnabledUpdated,
             assertDetails: details =>
             {
@@ -255,7 +257,7 @@ public class box_link_management_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.BoxLink.AccessCodeRegenerated>(
+        await AssertAuditLogContains<Audit.BoxLink.AccessCodeRegenerated>(
             expectedEventType: AuditLogEventTypes.BoxLink.AccessCodeRegenerated,
             assertDetails: details =>
             {
@@ -281,7 +283,7 @@ public class box_link_management_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.BoxLink.Deleted>(
+        await AssertAuditLogContains<Audit.BoxLink.Deleted>(
             expectedEventType: AuditLogEventTypes.BoxLink.Deleted,
             assertDetails: details =>
             {

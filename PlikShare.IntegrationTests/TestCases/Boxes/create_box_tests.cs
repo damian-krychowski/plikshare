@@ -1,11 +1,13 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Boxes.Create.Contracts;
 using PlikShare.Boxes.Get.Contracts;
 using PlikShare.Boxes.List.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Storages.Encryption;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Boxes;
 
@@ -163,7 +165,7 @@ public class create_box_tests: TestFixture
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.Created>(
+        await AssertAuditLogContains<Audit.Box.Created>(
             expectedEventType: AuditLogEventTypes.Box.Created,
             assertDetails: details =>
             {

@@ -2,6 +2,7 @@ using FluentAssertions;
 using PlikShare.Account.Contracts;
 using PlikShare.AuditLog;
 using System.Text.Json;
+using PlikShare.AuditLog.Details;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Users.Cache;
 using PlikShare.Users.PermissionsAndRoles;
@@ -9,6 +10,7 @@ using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes.Contracts;
 using PlikShare.Users.UpdateDefaultMaxWorkspaceTeamMembers.Contracts;
 using PlikShare.Users.UpdateMaxWorkspaceNumber.Contracts;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Users;
 
@@ -222,7 +224,7 @@ public class user_permissions_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.User.PermissionsAndRolesUpdated>(
+        await AssertAuditLogContains<Audit.User.PermissionsAndRolesUpdated>(
             expectedEventType: AuditLogEventTypes.User.PermissionsAndRolesUpdated,
             assertDetails: details =>
             {
@@ -246,7 +248,7 @@ public class user_permissions_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.User.Deleted>(
+        await AssertAuditLogContains<Audit.User.Deleted>(
             expectedEventType: AuditLogEventTypes.User.Deleted,
             assertDetails: details => details.Target.Email.Should().Be(userToDelete.Email),
             expectedActorEmail: AppOwner.Email,
@@ -267,7 +269,7 @@ public class user_permissions_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.User.LimitUpdated>(
+        await AssertAuditLogContains<Audit.User.LimitUpdated>(
             expectedEventType: AuditLogEventTypes.User.MaxWorkspaceNumberUpdated,
             assertDetails: details =>
             {
@@ -293,7 +295,7 @@ public class user_permissions_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.User.LimitUpdated>(
+        await AssertAuditLogContains<Audit.User.LimitUpdated>(
             expectedEventType: AuditLogEventTypes.User.DefaultMaxWorkspaceSizeUpdated,
             assertDetails: details =>
             {
@@ -319,7 +321,7 @@ public class user_permissions_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.User.LimitUpdated>(
+        await AssertAuditLogContains<Audit.User.LimitUpdated>(
             expectedEventType: AuditLogEventTypes.User.DefaultMaxWorkspaceTeamMembersUpdated,
             assertDetails: details =>
             {

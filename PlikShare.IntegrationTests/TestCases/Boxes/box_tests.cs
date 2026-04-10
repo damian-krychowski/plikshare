@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Boxes.Get.Contracts;
 using PlikShare.Boxes.List.Contracts;
 using PlikShare.Boxes.UpdateFolder.Contracts;
@@ -8,6 +9,7 @@ using PlikShare.Boxes.UpdateName.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Storages.Encryption;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Boxes;
 
@@ -157,7 +159,7 @@ public class box_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.NameUpdated>(
+        await AssertAuditLogContains<Audit.Box.NameUpdated>(
             expectedEventType: AuditLogEventTypes.Box.NameUpdated,
             assertDetails: details =>
             {
@@ -184,7 +186,7 @@ public class box_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.IsEnabledUpdated>(
+        await AssertAuditLogContains<Audit.Box.IsEnabledUpdated>(
             expectedEventType: AuditLogEventTypes.Box.IsEnabledUpdated,
             assertDetails: details =>
             {
@@ -226,7 +228,7 @@ public class box_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.FolderUpdated>(
+        await AssertAuditLogContains<Audit.Box.FolderUpdated>(
             expectedEventType: AuditLogEventTypes.Box.FolderUpdated,
             assertDetails: details =>
             {
@@ -252,7 +254,7 @@ public class box_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.Deleted>(
+        await AssertAuditLogContains<Audit.Box.Deleted>(
             expectedEventType: AuditLogEventTypes.Box.Deleted,
             assertDetails: details =>
             {

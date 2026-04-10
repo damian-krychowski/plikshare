@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Boxes.Get.Contracts;
 using PlikShare.Boxes.UpdateFooter.Contracts;
 using PlikShare.Boxes.UpdateFooterIsEnabled.Contracts;
@@ -7,6 +8,7 @@ using PlikShare.Boxes.UpdateHeader.Contracts;
 using PlikShare.Boxes.UpdateHeaderIsEnabled.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Boxes;
 
@@ -216,7 +218,7 @@ public class box_header_and_footer_tests: TestFixture
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.HeaderIsEnabledUpdated>(
+        await AssertAuditLogContains<Audit.Box.HeaderIsEnabledUpdated>(
             expectedEventType: AuditLogEventTypes.Box.HeaderIsEnabledUpdated,
             assertDetails: details =>
             {
@@ -249,7 +251,7 @@ public class box_header_and_footer_tests: TestFixture
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.HeaderUpdated>(
+        await AssertAuditLogContains<Audit.Box.HeaderUpdated>(
             expectedEventType: AuditLogEventTypes.Box.HeaderUpdated,
             assertDetails: details =>
             {
@@ -279,7 +281,7 @@ public class box_header_and_footer_tests: TestFixture
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.FooterIsEnabledUpdated>(
+        await AssertAuditLogContains<Audit.Box.FooterIsEnabledUpdated>(
             expectedEventType: AuditLogEventTypes.Box.FooterIsEnabledUpdated,
             assertDetails: details =>
             {
@@ -312,7 +314,7 @@ public class box_header_and_footer_tests: TestFixture
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.FooterUpdated>(
+        await AssertAuditLogContains<Audit.Box.FooterUpdated>(
             expectedEventType: AuditLogEventTypes.Box.FooterUpdated,
             assertDetails: details =>
             {

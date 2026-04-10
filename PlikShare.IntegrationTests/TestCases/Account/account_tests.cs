@@ -2,11 +2,13 @@ using System.Text.Json;
 using FluentAssertions;
 using PlikShare.Account.Contracts;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Auth.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.Users.Cache;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 #pragma warning disable CS8604 // Possible null reference argument.
 
@@ -733,7 +735,7 @@ public class account_tests : TestFixture
         // then
         enableResult.Code.Should().Be(Enable2FaResponseDto.InvalidVerificationCode.Code);
 
-        await AssertAuditLogContains<AuditLogDetails.Auth.Failed>(
+        await AssertAuditLogContains<Audit.Auth.Failed>(
             expectedEventType: AuditLogEventTypes.Auth.TwoFaEnableFailed,
             assertDetails: details => details.Reason.Should().Be(AuditLogFailureReasons.Auth.InvalidVerificationCode),
             expectedActorEmail: user.Email,
@@ -822,7 +824,7 @@ public class account_tests : TestFixture
 
         await AssertAuditLogContains(
             expectedEventType: AuditLogEventTypes.Auth.SignedIn2Fa,
-            assertDetails: (AuditLogDetails.Auth.SignedIn details) => details.Method.Should().Be(AuditLogSignInMethods.Authenticator),
+            assertDetails: (Audit.Auth.SignedIn details) => details.Method.Should().Be(AuditLogSignInMethods.Authenticator),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -869,7 +871,7 @@ public class account_tests : TestFixture
         // then
         signIn2FaResponse.Should().Be(SignInUser2FaResponseDto.InvalidVerificationCode);
 
-        await AssertAuditLogContains<AuditLogDetails.Auth.Failed>(
+        await AssertAuditLogContains<Audit.Auth.Failed>(
             expectedEventType: AuditLogEventTypes.Auth.SignIn2FaFailed,
             assertDetails: details => details.Reason.Should().Be(AuditLogFailureReasons.Auth.InvalidVerificationCode),
             expectedActorEmail: user.Email,
@@ -917,7 +919,7 @@ public class account_tests : TestFixture
         signIn2FaResponse.Should().Be(SignInUserRecoveryCodeResponseDto.Successful);
         signIn2FaCookie.Should().NotBeNull();
 
-        await AssertAuditLogContains<AuditLogDetails.Auth.SignedIn>(
+        await AssertAuditLogContains<Audit.Auth.SignedIn>(
             expectedEventType: AuditLogEventTypes.Auth.SignedIn2Fa,
             assertDetails: details => details.Method.Should().Be(AuditLogSignInMethods.RecoveryCode),
             expectedActorEmail: user.Email);
@@ -966,7 +968,7 @@ public class account_tests : TestFixture
 
         await AssertAuditLogContains(
             expectedEventType: AuditLogEventTypes.Auth.SignIn2FaFailed,
-            assertDetails: (AuditLogDetails.Auth.Failed details) => details.Reason.Should().Be(AuditLogFailureReasons.Auth.InvalidRecoveryCode),
+            assertDetails: (Audit.Auth.Failed details) => details.Reason.Should().Be(AuditLogFailureReasons.Auth.InvalidRecoveryCode),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Warning);
     }
@@ -1048,7 +1050,7 @@ public class account_tests : TestFixture
 
         await AssertAuditLogContains(
             expectedEventType: AuditLogEventTypes.Auth.PasswordChangeFailed,
-            assertDetails: (AuditLogDetails.Auth.Failed details) => details.Reason.Should().Be(AuditLogFailureReasons.Auth.PasswordMismatch),
+            assertDetails: (Audit.Auth.Failed details) => details.Reason.Should().Be(AuditLogFailureReasons.Auth.PasswordMismatch),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Warning);
     }

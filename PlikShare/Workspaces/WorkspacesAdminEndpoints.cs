@@ -13,6 +13,7 @@ using PlikShare.Workspaces.UpdateMaxTeamMembers;
 using PlikShare.Workspaces.UpdateMaxTeamMembers.Contracts;
 using PlikShare.Workspaces.Validation;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 
 namespace PlikShare.Workspaces;
 
@@ -81,7 +82,7 @@ public static class WorkspacesAdminEndpoints
 
         await auditLogService.LogWithStorageContext(
             storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
-            buildEntry: storageRef => Audit.Workspace.MaxTeamMembersUpdated(
+            buildEntry: storageRef => Audit.Workspace.MaxTeamMembersUpdatedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 storage: storageRef,
                 workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
@@ -116,7 +117,7 @@ public static class WorkspacesAdminEndpoints
 
         await auditLogService.LogWithStorageContext(
             storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
-            buildEntry: storageRef => Audit.Workspace.MaxSizeUpdated(
+            buildEntry: storageRef => Audit.Workspace.MaxSizeUpdatedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 storage: storageRef,
                 workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
@@ -157,7 +158,7 @@ public static class WorkspacesAdminEndpoints
 
         await auditLogService.LogWithStorageContext(
             storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
-            buildEntry: storageRef => Audit.Workspace.OwnerChanged(
+            buildEntry: storageRef => Audit.Workspace.OwnerChangedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 storage: storageRef,
                 workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),

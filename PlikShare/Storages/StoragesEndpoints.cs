@@ -34,7 +34,9 @@ using PlikShare.Storages.S3.DigitalOcean.UpdateDetails.Contracts;
 using PlikShare.Storages.UpdateName;
 using PlikShare.Storages.UpdateName.Contracts;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Storages.Entities;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Storages;
 
@@ -127,9 +129,9 @@ public static class StoragesEndpoints
                     result.StorageId);
 
                 await auditLogService.Log(
-                    Audit.Storage.Deleted(
+                    Audit.Storage.DeletedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        storage: new AuditLogDetails.StorageRef
+                        storage: new Audit.StorageRef
                         {
                             ExternalId = storageExternalId,
                             Name = result.Name!,
@@ -171,9 +173,9 @@ public static class StoragesEndpoints
         {
             case UpdateStorageNameQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Storage.NameUpdated(
+                    Audit.Storage.NameUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        storage: new AuditLogDetails.StorageRef
+                        storage: new Audit.StorageRef
                         {
                             ExternalId = storageExternalId,
                             Name = request.Name,
@@ -219,9 +221,9 @@ public static class StoragesEndpoints
         {
             case CreateCloudflareR2StorageOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Storage.Created(
+                    Audit.Storage.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        storage: new AuditLogDetails.StorageRef
+                        storage: new Audit.StorageRef
                         {
                             ExternalId = result.StorageExternalId!.Value,
                             Name = request.Name,
@@ -270,9 +272,9 @@ public static class StoragesEndpoints
         {
             case UpdateCloudflareR2StorageDetailsOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Storage.DetailsUpdated(
+                    Audit.Storage.DetailsUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        storage: new AuditLogDetails.StorageRef
+                        storage: new Audit.StorageRef
                         {
                             ExternalId = storageExternalId,
                             Name = result.Name!,
@@ -320,9 +322,9 @@ public static class StoragesEndpoints
         {
             case CreateAwsS3StorageOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Storage.Created(
+                    Audit.Storage.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        storage: new AuditLogDetails.StorageRef
+                        storage: new Audit.StorageRef
                         {
                             ExternalId = result.StorageExternalId!.Value,
                             Name = request.Name,
@@ -367,9 +369,9 @@ public static class StoragesEndpoints
         {
             case UpdateAwsS3StorageDetailsOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Storage.DetailsUpdated(
+                    Audit.Storage.DetailsUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        storage: new AuditLogDetails.StorageRef
+                        storage: new Audit.StorageRef
                         {
                             ExternalId = storageExternalId,
                             Name = result.Name!,
@@ -413,9 +415,9 @@ public static class StoragesEndpoints
         {
             case CreateDigitalOceanStorageOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Storage.Created(
+                    Audit.Storage.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        storage: new AuditLogDetails.StorageRef
+                        storage: new Audit.StorageRef
                         {
                             ExternalId = result.StorageExternalId!.Value,
                             Name = request.Name,
@@ -460,9 +462,9 @@ public static class StoragesEndpoints
         {
             case UpdateDigitalOceanSpacesStorageDetailsOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Storage.DetailsUpdated(
+                    Audit.Storage.DetailsUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        storage: new AuditLogDetails.StorageRef
+                        storage: new Audit.StorageRef
                         {
                             ExternalId = storageExternalId,
                             Name = result.Name!,
@@ -504,9 +506,9 @@ public static class StoragesEndpoints
         {
             case CreateHardDriveStorageOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Storage.Created(
+                    Audit.Storage.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        storage: new AuditLogDetails.StorageRef
+                        storage: new Audit.StorageRef
                         {
                             ExternalId = result.StorageExternalId!.Value,
                             Name = request.Name,
@@ -567,9 +569,9 @@ public static class StoragesEndpoints
         {
             case CreateBackblazeB2StorageOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Storage.Created(
+                    Audit.Storage.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        storage: new AuditLogDetails.StorageRef
+                        storage: new Audit.StorageRef
                         {
                             ExternalId = result.StorageExternalId!.Value,
                             Name = request.Name,
@@ -621,9 +623,9 @@ public static class StoragesEndpoints
         {
             case UpdateBackblazeB2StorageDetailsOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Storage.DetailsUpdated(
+                    Audit.Storage.DetailsUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        storage: new AuditLogDetails.StorageRef
+                        storage: new Audit.StorageRef
                         {
                             ExternalId = storageExternalId,
                             Name = result.Name!,

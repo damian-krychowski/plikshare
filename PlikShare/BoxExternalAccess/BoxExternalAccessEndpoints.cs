@@ -4,6 +4,7 @@ using PlikShare.Boxes.Cache;
 using PlikShare.Boxes.Id;
 using PlikShare.Boxes.Permissions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.BoxExternalAccess.Authorization;
 using PlikShare.BoxExternalAccess.Contracts;
 using PlikShare.BoxExternalAccess.Handler;
@@ -30,6 +31,7 @@ using PlikShare.Users.Middleware;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.CountSelectedItems.Contracts;
 using PlikShare.Workspaces.SearchFilesTree.Contracts;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.BoxExternalAccess;
 
@@ -195,10 +197,10 @@ public static class BoxExternalAccessEndpoints
 
             await auditLogService.LogWithFolderContext(
                 folderExternalId: boxMembership.Box.Folder?.ExternalId,
-                buildEntry: folderRef => Audit.Box.MemberLeft(
+                buildEntry: folderRef => Audit.Box.MemberLeftEntry(
                     actor: httpContext.GetAuditLogActorContext(),
                     workspace: boxMembership.Box.Workspace.ToAuditLogWorkspaceRef(),
-                    box: new AuditLogDetails.BoxRef
+                    box: new Audit.BoxRef
                     {
                         ExternalId = boxMembership.Box.ExternalId,
                         Name = boxMembership.Box.Name,
@@ -249,10 +251,10 @@ public static class BoxExternalAccessEndpoints
 
             await auditLogService.LogWithFolderContext(
                 folderExternalId: boxMembership.Box.Folder?.ExternalId,
-                buildEntry: folderRef => Audit.Box.InvitationAccepted(
+                buildEntry: folderRef => Audit.Box.InvitationAcceptedEntry(
                     actor: httpContext.GetAuditLogActorContext(),
                     workspace: boxMembership.Box.Workspace.ToAuditLogWorkspaceRef(),
-                    box: new AuditLogDetails.BoxRef
+                    box: new Audit.BoxRef
                     {
                         ExternalId = boxMembership.Box.ExternalId,
                         Name = boxMembership.Box.Name,
@@ -300,10 +302,10 @@ public static class BoxExternalAccessEndpoints
 
             await auditLogService.LogWithFolderContext(
                 folderExternalId: boxMembership.Box.Folder?.ExternalId,
-                buildEntry: folderRef => Audit.Box.InvitationRejected(
+                buildEntry: folderRef => Audit.Box.InvitationRejectedEntry(
                     actor: httpContext.GetAuditLogActorContext(),
                     workspace: boxMembership.Box.Workspace.ToAuditLogWorkspaceRef(),
-                    box: new AuditLogDetails.BoxRef
+                    box: new Audit.BoxRef
                     {
                         ExternalId = boxMembership.Box.ExternalId,
                         Name = boxMembership.Box.Name,

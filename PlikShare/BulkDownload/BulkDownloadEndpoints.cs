@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Clock;
 using PlikShare.Core.CORS;
@@ -15,6 +16,7 @@ using PlikShare.Storages.S3.BulkDownload;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 using Serilog.Events;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 // ReSharper disable PossibleMultipleEnumeration
 
@@ -132,10 +134,10 @@ public static class BulkDownloadEndpoints
         }
 
         await auditLogService.Log(
-            Audit.File.BulkDownloaded(
+            Audit.File.BulkDownloadedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 workspace: workspaceContext.ToAuditLogWorkspaceRef(),
-                files: bulkDownloadDetails.Files.Select(f => new AuditLogDetails.FileRef
+                files: bulkDownloadDetails.Files.Select(f => new Audit.FileRef
                 {
                     ExternalId = f.ExternalId,
                     Name = f.FullName,

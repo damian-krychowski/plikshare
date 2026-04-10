@@ -34,16 +34,20 @@ public class UpdateIntegrationNameQuery(DbWriteQueue dbWriteQueue)
                         UPDATE i_integrations
                         SET i_name = $name
                         WHERE i_external_id = $externalId
-                        RETURNING i_id
+                        RETURNING i_id, i_type
                     ",
-                    readRowFunc: reader => reader.GetInt32(0))
+                    readRowFunc: reader => new
+                    {
+                        Id = reader.GetInt32(0),
+                        Type = reader.GetString(1)
+                    })
                 .WithParameter("$name", name)
                 .WithParameter("$externalId", externalId.Value)
                 .Execute();
 
             return result.IsEmpty
                 ? new Result(Code: ResultCode.NotFound)
-                : new Result(Code: ResultCode.Ok, IntegrationId: result.Value);
+                : new Result(Code: ResultCode.Ok, IntegrationId: result.Value.Id, Type: result.Value.Type);
         }
         catch (SqliteException e)
         {
@@ -70,7 +74,8 @@ public class UpdateIntegrationNameQuery(DbWriteQueue dbWriteQueue)
 
     public readonly record struct Result(
         ResultCode Code,
-        int IntegrationId = default);
+        int IntegrationId = default,
+        string? Type = null);
     
     public enum ResultCode
     {

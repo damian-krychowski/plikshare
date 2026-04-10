@@ -1,3 +1,4 @@
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
@@ -7,11 +8,11 @@ namespace PlikShare.AuditLog.Queries;
 
 public class GetFileUploadAuditContextQuery(PlikShareDb plikShareDb)
 {
-    public Dictionary<FileUploadExtId, AuditLogDetails.FileUploadRef> ExecuteMany(
+    public Dictionary<FileUploadExtId, Audit.FileUploadRef> ExecuteMany(
         List<FileUploadExtId> fileUploadExternalIds)
     {
         if (fileUploadExternalIds.Count == 0)
-            return new Dictionary<FileUploadExtId, AuditLogDetails.FileUploadRef>();
+            return new Dictionary<FileUploadExtId, Audit.FileUploadRef>();
 
         using var connection = plikShareDb.OpenConnection();
 
@@ -44,7 +45,7 @@ public class GetFileUploadAuditContextQuery(PlikShareDb plikShareDb)
                     return new
                     {
                         ExternalId = externalId,
-                        FileUploadRef = new AuditLogDetails.FileUploadRef
+                        FileUploadRef = new Audit.FileUploadRef
                         {
                             ExternalId = externalId,
                             FileExternalId = new FileExtId(reader.GetString(1)),

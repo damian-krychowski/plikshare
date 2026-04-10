@@ -1,8 +1,10 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Boxes.Members.CreateInvitation.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Boxes;
 
@@ -143,7 +145,7 @@ public class box_invitation_tests : TestFixture
             antiforgery: invitedUser.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.InvitationAccepted>(
+        await AssertAuditLogContains<Audit.Box.InvitationAccepted>(
             expectedEventType: AuditLogEventTypes.Box.InvitationAccepted,
             assertDetails: details =>
             {
@@ -175,7 +177,7 @@ public class box_invitation_tests : TestFixture
             antiforgery: invitedUser.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.InvitationRejected>(
+        await AssertAuditLogContains<Audit.Box.InvitationRejected>(
             expectedEventType: AuditLogEventTypes.Box.InvitationRejected,
             assertDetails: details =>
             {
@@ -212,7 +214,7 @@ public class box_invitation_tests : TestFixture
             antiforgery: invitedUser.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.MemberLeft>(
+        await AssertAuditLogContains<Audit.Box.MemberLeft>(
             expectedEventType: AuditLogEventTypes.Box.MemberLeft,
             assertDetails: details =>
             {

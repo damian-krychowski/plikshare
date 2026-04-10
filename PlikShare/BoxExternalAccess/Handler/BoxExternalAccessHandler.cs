@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.BoxExternalAccess.Authorization;
 using PlikShare.Uploads.Cache;
 using PlikShare.BoxExternalAccess.Contracts;
@@ -39,6 +40,7 @@ using PlikShare.Workspaces.CountSelectedItems;
 using PlikShare.Workspaces.CountSelectedItems.Contracts;
 using PlikShare.Workspaces.SearchFilesTree;
 using PlikShare.Workspaces.SearchFilesTree.Contracts;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.BoxExternalAccess.Handler;
 
@@ -141,7 +143,7 @@ public class BoxExternalAccessHandler(
             case GetFileDownloadLinkOperation.ResultCode.Ok:
                 await auditLogService.LogWithFileContext(
                     fileExternalId: fileExternalId,
-                    buildEntry: fileRef => Audit.File.DownloadLinkGenerated(
+                    buildEntry: fileRef => Audit.File.DownloadLinkGeneratedEntry(
                         actor: boxAccess.ToAuditLogActorContext(correlationId),
                         workspace: boxAccess.Box.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef,
@@ -182,7 +184,7 @@ public class BoxExternalAccessHandler(
         {
             case GetBulkDownloadLinkOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.File.BulkDownloadLinkGenerated(
+                    Audit.File.BulkDownloadLinkGeneratedEntry(
                         actor: boxAccess.ToAuditLogActorContext(correlationId),
                         workspace: boxAccess.Box.Workspace.ToAuditLogWorkspaceRef(),
                         selectedFileExternalIds: request.SelectedFiles,
@@ -366,7 +368,7 @@ public class BoxExternalAccessHandler(
 
         await auditLogService.LogWithStorageContext(
             storageExternalId: boxAccess.Box.Workspace.Storage.ExternalId,
-            buildEntry: storageRef => Audit.Workspace.BulkDeleteRequested(
+            buildEntry: storageRef => Audit.Workspace.BulkDeleteRequestedEntry(
                 actor: boxAccess.ToAuditLogActorContext(correlationId),
                 storage: storageRef,
                 workspace: boxAccess.Box.Workspace.ToAuditLogWorkspaceRef(),
@@ -403,7 +405,7 @@ public class BoxExternalAccessHandler(
         if (result.Code == GetOrCreateFolderQuery.ResultCode.Ok)
         {
             await auditLogService.Log(
-                Audit.Folder.BulkCreated(
+                Audit.Folder.BulkCreatedEntry(
                     actor: boxAccess.ToAuditLogActorContext(correlationId),
                     workspace: boxAccess.Box.Workspace.ToAuditLogWorkspaceRef(),
                     folders: result.CreatedFolders.ToAuditLogFolderRefs(),
@@ -459,7 +461,7 @@ public class BoxExternalAccessHandler(
         {
             await auditLogService.LogWithFolderContext(
                 folderExternalId: request.ExternalId,
-                buildEntry: folderRef => Audit.Folder.Created(
+                buildEntry: folderRef => Audit.Folder.CreatedEntry(
                     actor: boxAccess.ToAuditLogActorContext(correlationId),
                     workspace: boxAccess.Box.Workspace.ToAuditLogWorkspaceRef(),
                     folder: folderRef,
@@ -509,7 +511,7 @@ public class BoxExternalAccessHandler(
         {
             await auditLogService.LogWithFolderContext(
                 folderExternalId: folderExternalId,
-                buildEntry: folderRef => Audit.Folder.NameUpdated(
+                buildEntry: folderRef => Audit.Folder.NameUpdatedEntry(
                     actor: boxAccess.ToAuditLogActorContext(correlationId),
                     workspace: boxAccess.Box.Workspace.ToAuditLogWorkspaceRef(),
                     folder: folderRef,
@@ -561,7 +563,7 @@ public class BoxExternalAccessHandler(
         if (resultCode == MoveItemsToFolderQuery.ResultCode.Ok)
         {
             await auditLogService.Log(
-                Audit.Folder.ItemsMoved(
+                Audit.Folder.ItemsMovedEntry(
                     actor: boxAccess.ToAuditLogActorContext(correlationId),
                     workspace: boxAccess.Box.Workspace.ToAuditLogWorkspaceRef(),
                     destinationFolder: itemsContext.DestinationFolder,
@@ -632,10 +634,10 @@ public class BoxExternalAccessHandler(
         {
             case BulkInitiateFileUploadOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.File.UploadInitiated(
+                    Audit.File.UploadInitiatedEntry(
                         actor: boxAccess.ToAuditLogActorContext(correlationId),
                         workspace: boxAccess.Box.Workspace.ToAuditLogWorkspaceRef(),
-                        fileUploads: result.InitiatedFiles!.Select(f => new AuditLogDetails.FileUploadRef
+                        fileUploads: result.InitiatedFiles!.Select(f => new Audit.FileUploadRef
                         {
                             ExternalId = f.FileUploadExternalId,
                             FileExternalId = f.FileExternalId,
@@ -781,10 +783,10 @@ public class BoxExternalAccessHandler(
                 var fileUpload = result.FileUpload!;
 
                 await auditLogService.Log(
-                    Audit.File.UploadCompleted(
+                    Audit.File.UploadCompletedEntry(
                         actor: boxAccess.ToAuditLogActorContext(correlationId),
                         workspace: boxAccess.Box.Workspace.ToAuditLogWorkspaceRef(),
-                        fileUpload: new AuditLogDetails.FileUploadRef
+                        fileUpload: new Audit.FileUploadRef
                         {
                             ExternalId = fileUpload.ExternalId,
                             FileExternalId = fileUpload.FileToUpload.S3FileKey.FileExternalId,

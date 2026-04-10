@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Boxes.Cache;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
@@ -28,6 +29,7 @@ using PlikShare.Users.UpdateMaxWorkspaceNumber.Contracts;
 using PlikShare.Users.UpdatePermissionsAndRoles;
 using PlikShare.Users.Validation;
 using PlikShare.Workspaces.Cache;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Users;
 
@@ -96,9 +98,9 @@ public static class UsersEndpoints
             cancellationToken: cancellationToken);
 
         await auditLogService.Log(
-            Audit.User.Invited(
+            Audit.User.InvitedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
-                users: response.Users.Select(u => new AuditLogDetails.UserRef
+                users: response.Users.Select(u => new Audit.UserRef
                 {
                     ExternalId = u.ExternalId,
                     Email = u.Email
@@ -150,7 +152,7 @@ public static class UsersEndpoints
             cancellationToken);
 
         await auditLogService.Log(
-            Audit.User.MaxWorkspaceNumberUpdated(
+            Audit.User.MaxWorkspaceNumberUpdatedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 target: user.ToAuditLogUserRef(),
                 value: request.MaxWorkspaceNumber),
@@ -182,7 +184,7 @@ public static class UsersEndpoints
             cancellationToken);
 
         await auditLogService.Log(
-            Audit.User.DefaultMaxWorkspaceSizeUpdated(
+            Audit.User.DefaultMaxWorkspaceSizeUpdatedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 target: user.ToAuditLogUserRef(),
                 value: request.DefaultMaxWorkspaceSizeInBytes),
@@ -214,7 +216,7 @@ public static class UsersEndpoints
             cancellationToken);
 
         await auditLogService.Log(
-            Audit.User.DefaultMaxWorkspaceTeamMembersUpdated(
+            Audit.User.DefaultMaxWorkspaceTeamMembersUpdatedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 target: user.ToAuditLogUserRef(),
                 value: request.DefaultMaxWorkspaceTeamMembers),
@@ -257,7 +259,7 @@ public static class UsersEndpoints
             cancellationToken);
 
         await auditLogService.Log(
-            Audit.User.PermissionsAndRolesUpdated(
+            Audit.User.PermissionsAndRolesUpdatedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 target: targetUser.ToAuditLogUserRef(),
                 request: request),
@@ -314,7 +316,7 @@ public static class UsersEndpoints
         }
 
         await auditLogService.Log(
-            Audit.User.Deleted(
+            Audit.User.DeletedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 target: user.ToAuditLogUserRef()),
             cancellationToken);

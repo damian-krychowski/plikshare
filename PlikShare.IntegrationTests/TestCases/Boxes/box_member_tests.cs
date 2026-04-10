@@ -1,11 +1,13 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Boxes.Get.Contracts;
 using PlikShare.Boxes.Members.CreateInvitation.Contracts;
 using PlikShare.Boxes.Members.UpdatePermissions.Contracts;
 using PlikShare.Boxes.Permissions;
 using PlikShare.IntegrationTests.Infrastructure;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Boxes;
 
@@ -163,7 +165,7 @@ public class box_member_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.MemberInvited>(
+        await AssertAuditLogContains<Audit.Box.MemberInvited>(
             expectedEventType: AuditLogEventTypes.Box.MemberInvited,
             assertDetails: details =>
             {
@@ -201,7 +203,7 @@ public class box_member_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.MemberRevoked>(
+        await AssertAuditLogContains<Audit.Box.MemberRevoked>(
             expectedEventType: AuditLogEventTypes.Box.MemberRevoked,
             assertDetails: details =>
             {
@@ -251,7 +253,7 @@ public class box_member_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Box.MemberPermissionsUpdated>(
+        await AssertAuditLogContains<Audit.Box.MemberPermissionsUpdated>(
             expectedEventType: AuditLogEventTypes.Box.MemberPermissionsUpdated,
             assertDetails: details =>
             {

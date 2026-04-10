@@ -39,7 +39,7 @@ public class ResendConfirmationEmailOperation(
                 emailSender: emailSender,
                 cancellationToken: cancellationToken);
 
-            return new Result(ResultCode.Ok, result.EmailProvider.Name);
+            return new Result(ResultCode.Ok, result.EmailProvider.Name, result.EmailProvider.Type.Value);
         }
         catch (Exception e)
         {
@@ -51,7 +51,8 @@ public class ResendConfirmationEmailOperation(
 
     public readonly record struct Result(
         ResultCode Code,
-        string? Name = null);
+        string? Name = null,
+        string? Type = null);
 
     public enum ResultCode
     {

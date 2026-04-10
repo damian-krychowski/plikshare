@@ -1,10 +1,12 @@
 using System.Text;
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Encryption;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Storages.Encryption;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Files;
 
@@ -118,7 +120,7 @@ public class upload_and_download_tests : TestFixture
             user);
 
         var originalContent = new byte[1024];
-        new System.Random(42).NextBytes(originalContent);
+        new Random(42).NextBytes(originalContent);
 
         //when
         var uploadedFile = await UploadFile(
@@ -159,7 +161,7 @@ public class upload_and_download_tests : TestFixture
             user);
 
         var originalContent = new byte[1024];
-        new System.Random(42).NextBytes(originalContent);
+        new Random(42).NextBytes(originalContent);
 
         //when
         var uploadedFile = await UploadFile(
@@ -202,7 +204,7 @@ public class upload_and_download_tests : TestFixture
         var file1Content = Encoding.UTF8.GetBytes("First file content");
         var file2Content = Encoding.UTF8.GetBytes("Second file content - a bit longer");
         var file3Content = new byte[512];
-        new System.Random(123).NextBytes(file3Content);
+        new Random(123).NextBytes(file3Content);
 
         //when
         var uploadedFiles = await UploadFiles(
@@ -251,7 +253,7 @@ public class upload_and_download_tests : TestFixture
         var file1Content = Encoding.UTF8.GetBytes("Encrypted first file");
         var file2Content = Encoding.UTF8.GetBytes("Encrypted second file - longer content here");
         var file3Content = new byte[768];
-        new System.Random(456).NextBytes(file3Content);
+        new Random(456).NextBytes(file3Content);
 
         //when
         var uploadedFiles = await UploadFiles(
@@ -309,7 +311,7 @@ public class upload_and_download_tests : TestFixture
             user);
 
         var originalContent = new byte[11 * 1024 * 1024]; // 11MB -> 2 parts
-        new System.Random(789).NextBytes(originalContent);
+        new Random(789).NextBytes(originalContent);
 
         //when
         var uploadedFile = await UploadFile(
@@ -355,7 +357,7 @@ public class upload_and_download_tests : TestFixture
         // This ensures part 2 fills exactly one segment, avoiding a Kestrel PipeReader
         // edge case where ReadAtLeastAsync returns IsCompleted on a partially-consumed buffer.
         var originalContent = new byte[11_534_119];
-        new System.Random(789).NextBytes(originalContent);
+        new Random(789).NextBytes(originalContent);
 
         //when
         var uploadedFile = await UploadFile(
@@ -412,7 +414,7 @@ public class upload_and_download_tests : TestFixture
             user);
 
         var originalContent = new byte[10_485_559 + 1_048_560 + 217]; // 11,534,336 bytes
-        new System.Random(101).NextBytes(originalContent);
+        new Random(101).NextBytes(originalContent);
 
         //when
         var uploadedFile = await UploadFile(
@@ -498,7 +500,7 @@ public class upload_and_download_tests : TestFixture
 
         var firstSegmentCiphertextSize = Aes256GcmStreaming.SegmentSize - 16 - 41; // 1,048,519
         var originalContent = new byte[firstSegmentCiphertextSize];
-        new System.Random(200).NextBytes(originalContent);
+        new Random(200).NextBytes(originalContent);
 
         //when
         var uploadedFile = await UploadFile(
@@ -544,7 +546,7 @@ public class upload_and_download_tests : TestFixture
 
         var firstSegmentCiphertextSize = Aes256GcmStreaming.SegmentSize - 16 - 41;
         var originalContent = new byte[firstSegmentCiphertextSize + 1];
-        new System.Random(201).NextBytes(originalContent);
+        new Random(201).NextBytes(originalContent);
 
         //when
         var uploadedFile = await UploadFile(
@@ -589,7 +591,7 @@ public class upload_and_download_tests : TestFixture
             user);
 
         var originalContent = new byte[Aes256GcmStreaming.FirstFilePartSizeInBytes];
-        new System.Random(202).NextBytes(originalContent);
+        new Random(202).NextBytes(originalContent);
 
         //when
         var uploadedFile = await UploadFile(
@@ -634,7 +636,7 @@ public class upload_and_download_tests : TestFixture
             user);
 
         var originalContent = new byte[Aes256GcmStreaming.FirstFilePartSizeInBytes + 1];
-        new System.Random(203).NextBytes(originalContent);
+        new Random(203).NextBytes(originalContent);
 
         //when
         var uploadedFile = await UploadFile(
@@ -683,7 +685,7 @@ public class upload_and_download_tests : TestFixture
             Aes256GcmStreaming.FirstFilePartSizeInBytes +
             Aes256GcmStreaming.FilePartSizeInBytes +
             1000];
-        new System.Random(204).NextBytes(originalContent);
+        new Random(204).NextBytes(originalContent);
 
         //when
         var uploadedFile = await UploadFile(
@@ -733,7 +735,7 @@ public class upload_and_download_tests : TestFixture
             user: user);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.File.UploadInitiated>(
+        await AssertAuditLogContains<Audit.File.UploadInitiated>(
             expectedEventType: AuditLogEventTypes.File.UploadInitiated,
             assertDetails: details =>
             {
@@ -762,7 +764,7 @@ public class upload_and_download_tests : TestFixture
             user);
 
         var content = new byte[10 * 1024 * 1024 + 1]; // 10MB + 1 byte → 2 parts
-        new System.Random(42).NextBytes(content);
+        new Random(42).NextBytes(content);
 
         //when
         var uploadedFile = await UploadFile(
@@ -774,7 +776,7 @@ public class upload_and_download_tests : TestFixture
             user: user);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.File.UploadCompleted>(
+        await AssertAuditLogContains<Audit.File.UploadCompleted>(
             expectedEventType: AuditLogEventTypes.File.UploadCompleted,
             assertDetails: details =>
             {
@@ -812,7 +814,7 @@ public class upload_and_download_tests : TestFixture
             user: user);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.File.MultiUploadCompleted>(
+        await AssertAuditLogContains<Audit.File.MultiUploadCompleted>(
             expectedEventType: AuditLogEventTypes.File.MultiUploadCompleted,
             assertDetails: details =>
             {
@@ -856,7 +858,7 @@ public class upload_and_download_tests : TestFixture
             cookie: user.Cookie);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.File.DownloadLinkGenerated>(
+        await AssertAuditLogContains<Audit.File.DownloadLinkGenerated>(
             expectedEventType: AuditLogEventTypes.File.DownloadLinkGenerated,
             assertDetails: details =>
             {
@@ -899,7 +901,7 @@ public class upload_and_download_tests : TestFixture
             user: user);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.File.Downloaded>(
+        await AssertAuditLogContains<Audit.File.Downloaded>(
             expectedEventType: AuditLogEventTypes.File.Downloaded,
             assertDetails: details =>
             {

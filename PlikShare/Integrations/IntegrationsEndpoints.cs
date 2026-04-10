@@ -18,6 +18,8 @@ using PlikShare.Integrations.UpdateName;
 using PlikShare.Integrations.UpdateName.Contracts;
 using PlikShare.Users.Middleware;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Integrations;
 
@@ -83,11 +85,14 @@ public static class IntegrationsEndpoints
         {
             case CreateIntegrationWithWorkspaceQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Integration.Created(
+                    Audit.Integration.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: result.Integration.ExternalId,
-                        name: request.Name,
-                        type: integrationType.ToString()),
+                        integration: new Audit.IntegrationRef
+                        {
+                            ExternalId = result.Integration.ExternalId,
+                            Name = request.Name,
+                            Type = integrationType.ToString()
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok(new CreateIntegrationResponseDto
@@ -143,10 +148,14 @@ public static class IntegrationsEndpoints
             }
 
             await auditLogService.Log(
-                Audit.Integration.Deleted(
+                Audit.Integration.DeletedEntry(
                     actor: httpContext.GetAuditLogActorContext(),
-                    externalId: integrationExternalId,
-                    name: result.Integration.Name),
+                    integration: new Audit.IntegrationRef
+                    {
+                        ExternalId = integrationExternalId,
+                        Name = result.Integration.Name,
+                        Type = result.Integration.Type.ToString()
+                    }),
                 cancellationToken);
         }
 
@@ -182,10 +191,14 @@ public static class IntegrationsEndpoints
         {
             case UpdateIntegrationNameQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Integration.NameUpdated(
+                    Audit.Integration.NameUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: integrationExternalId,
-                        name: request.Name),
+                        integration: new Audit.IntegrationRef
+                        {
+                            ExternalId = integrationExternalId,
+                            Name = request.Name,
+                            Type = result.Type!
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -220,10 +233,14 @@ public static class IntegrationsEndpoints
         {
             case ActivateIntegrationQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Integration.Activated(
+                    Audit.Integration.ActivatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: integrationExternalId,
-                        name: result.Integration.Name),
+                        integration: new Audit.IntegrationRef
+                        {
+                            ExternalId = integrationExternalId,
+                            Name = result.Integration.Name,
+                            Type = result.Integration.Type.ToString()
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -267,10 +284,14 @@ public static class IntegrationsEndpoints
             }
 
             await auditLogService.Log(
-                Audit.Integration.Deactivated(
+                Audit.Integration.DeactivatedEntry(
                     actor: httpContext.GetAuditLogActorContext(),
-                    externalId: integrationExternalId,
-                    name: result.Integration.Name),
+                    integration: new Audit.IntegrationRef
+                    {
+                        ExternalId = integrationExternalId,
+                        Name = result.Integration.Name,
+                        Type = result.Integration.Type.ToString()
+                    }),
                 cancellationToken);
         }
 

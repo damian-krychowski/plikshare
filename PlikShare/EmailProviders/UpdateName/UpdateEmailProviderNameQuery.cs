@@ -8,7 +8,7 @@ namespace PlikShare.EmailProviders.UpdateName;
 
 public class UpdateEmailProviderNameQuery(DbWriteQueue dbWriteQueue)
 {
-    public Task<ResultCode> Execute(
+    public Task<Result> Execute(
         EmailProviderExtId externalId,
         string name,
         CancellationToken cancellationToken)
@@ -21,7 +21,7 @@ public class UpdateEmailProviderNameQuery(DbWriteQueue dbWriteQueue)
             cancellationToken: cancellationToken);
     }
 
-    private ResultCode ExecuteOperation(
+    private Result ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         EmailProviderExtId externalId,
         string name)
@@ -34,28 +34,32 @@ public class UpdateEmailProviderNameQuery(DbWriteQueue dbWriteQueue)
                          UPDATE ep_email_providers
                          SET ep_name = $name
                          WHERE ep_external_id = $externalId
-                         RETURNING ep_id
+                         RETURNING ep_id, ep_type
                          """,
-                    readRowFunc: reader => reader.GetInt32(0))
+                    readRowFunc: reader => new
+                    {
+                        Id = reader.GetInt32(0),
+                        Type = reader.GetString(1)
+                    })
                 .WithParameter("$name", name)
                 .WithParameter("$externalId", externalId.Value)
                 .Execute();
 
             return result.IsEmpty
-                ? ResultCode.NotFound
-                : ResultCode.Ok;
+                ? new Result(Code: ResultCode.NotFound)
+                : new Result(Code: ResultCode.Ok, Type: result.Value.Type);
         }
         catch (SqliteException e)
         {
             if (e.HasUniqueConstraintFailed(tableName: "ep_email_providers", columnName: "ep_name"))
             {
-                return ResultCode.NameNotUnique;
+                return new Result(Code: ResultCode.NameNotUnique);
             }
-            
+
             Log.Error(e, "Something went wrong while updating Email Provider '{EmailProviderExternalId}' name to '{Name}'",
                 externalId,
                 name);
-            
+
             throw;
         }
         catch (Exception e)
@@ -63,11 +67,15 @@ public class UpdateEmailProviderNameQuery(DbWriteQueue dbWriteQueue)
             Log.Error(e, "Something went wrong while updating Email Provider '{EmailProviderExternalId}' name to '{Name}'",
                 externalId,
                 name);
-            
+
             throw;
         }
     }
-    
+
+    public readonly record struct Result(
+        ResultCode Code,
+        string? Type = null);
+
     public enum ResultCode
     {
         Ok = 0,

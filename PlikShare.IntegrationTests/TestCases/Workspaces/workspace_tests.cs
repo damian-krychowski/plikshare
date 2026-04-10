@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.BulkDelete.Contracts;
 using PlikShare.Dashboard.Content.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
@@ -14,6 +15,7 @@ using PlikShare.Workspaces.UpdateMaxSize.Contracts;
 using PlikShare.Workspaces.UpdateMaxTeamMembers.Contracts;
 using PlikShare.Workspaces.UpdateName.Contracts;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Workspaces;
 
@@ -250,7 +252,7 @@ public class workspace_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Workspace.Created>(
+        await AssertAuditLogContains<Audit.Workspace.Created>(
             expectedEventType: AuditLogEventTypes.Workspace.Created,
             assertDetails: details =>
             {
@@ -276,7 +278,7 @@ public class workspace_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Workspace.Deleted>(
+        await AssertAuditLogContains<Audit.Workspace.Deleted>(
             expectedEventType: AuditLogEventTypes.Workspace.Deleted,
             assertDetails: details =>
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId),
@@ -303,7 +305,7 @@ public class workspace_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Workspace.NameUpdated>(
+        await AssertAuditLogContains<Audit.Workspace.NameUpdated>(
             expectedEventType: AuditLogEventTypes.Workspace.NameUpdated,
             assertDetails: details =>
             {
@@ -334,7 +336,7 @@ public class workspace_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Workspace.OwnerChanged>(
+        await AssertAuditLogContains<Audit.Workspace.OwnerChanged>(
             expectedEventType: AuditLogEventTypes.Workspace.OwnerChanged,
             assertDetails: details =>
             {
@@ -364,7 +366,7 @@ public class workspace_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Workspace.MaxSizeUpdated>(
+        await AssertAuditLogContains<Audit.Workspace.MaxSizeUpdated>(
             expectedEventType: AuditLogEventTypes.Workspace.MaxSizeUpdated,
             assertDetails: details =>
             {
@@ -394,7 +396,7 @@ public class workspace_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Workspace.MaxTeamMembersUpdated>(
+        await AssertAuditLogContains<Audit.Workspace.MaxTeamMembersUpdated>(
             expectedEventType: AuditLogEventTypes.Workspace.MaxTeamMembersUpdated,
             assertDetails: details =>
             {
@@ -426,7 +428,7 @@ public class workspace_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Workspace.MemberInvited>(
+        await AssertAuditLogContains<Audit.Workspace.MemberInvited>(
             expectedEventType: AuditLogEventTypes.Workspace.MemberInvited,
             assertDetails: details =>
             {
@@ -464,7 +466,7 @@ public class workspace_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Workspace.MemberRevoked>(
+        await AssertAuditLogContains<Audit.Workspace.MemberRevoked>(
             expectedEventType: AuditLogEventTypes.Workspace.MemberRevoked,
             assertDetails: details =>
             {
@@ -506,7 +508,7 @@ public class workspace_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Workspace.MemberPermissionsUpdated>(
+        await AssertAuditLogContains<Audit.Workspace.MemberPermissionsUpdated>(
             expectedEventType: AuditLogEventTypes.Workspace.MemberPermissionsUpdated,
             assertDetails: details =>
             {
@@ -544,7 +546,7 @@ public class workspace_tests : TestFixture
             antiforgery: member.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Workspace.InvitationResponse>(
+        await AssertAuditLogContains<Audit.Workspace.InvitationResponse>(
             expectedEventType: AuditLogEventTypes.Workspace.InvitationAccepted,
             assertDetails: details =>
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId),
@@ -578,7 +580,7 @@ public class workspace_tests : TestFixture
             antiforgery: member.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Workspace.InvitationResponse>(
+        await AssertAuditLogContains<Audit.Workspace.InvitationResponse>(
             expectedEventType: AuditLogEventTypes.Workspace.InvitationRejected,
             assertDetails: details =>
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId),
@@ -617,7 +619,7 @@ public class workspace_tests : TestFixture
             antiforgery: member.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Workspace.MemberLeft>(
+        await AssertAuditLogContains<Audit.Workspace.MemberLeft>(
             expectedEventType: AuditLogEventTypes.Workspace.MemberLeft,
             assertDetails: details =>
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId),
@@ -650,7 +652,7 @@ public class workspace_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Workspace.BulkDeleteRequested>(
+        await AssertAuditLogContains<Audit.Workspace.BulkDeleteRequested>(
             expectedEventType: AuditLogEventTypes.Workspace.BulkDeleteRequested,
             assertDetails: details =>
             {

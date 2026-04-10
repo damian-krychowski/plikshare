@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Utils;
 using PlikShare.GeneralSettings.Contracts;
@@ -82,7 +83,7 @@ public static class GeneralSettingsEndpoints
             isTurnedOn: request.IsTurnedOn);
 
         await auditLogService.Log(
-            Audit.Settings.AlertOnNewUserChanged(
+            Audit.Settings.AlertOnNewUserChangedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 value: request.IsTurnedOn),
             cancellationToken);
@@ -111,7 +112,7 @@ public static class GeneralSettingsEndpoints
             permissionsAndRoles);
 
         await auditLogService.Log(
-            Audit.Settings.DefaultPermissionsChanged(
+            Audit.Settings.DefaultPermissionsChangedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 request: request),
             cancellationToken);
@@ -129,7 +130,7 @@ public static class GeneralSettingsEndpoints
         appSettings.SetNewUserDefaultMaxWorkspaceTeamMembers(request.Value);
 
         await auditLogService.Log(
-            Audit.Settings.DefaultMaxWorkspaceTeamMembersChanged(
+            Audit.Settings.DefaultMaxWorkspaceTeamMembersChangedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 value: request.Value),
             cancellationToken);
@@ -147,7 +148,7 @@ public static class GeneralSettingsEndpoints
         appSettings.SetNewUserDefaultMaxWorkspaceSizeInBytes(request.Value);
 
         await auditLogService.Log(
-            Audit.Settings.DefaultMaxWorkspaceSizeChanged(
+            Audit.Settings.DefaultMaxWorkspaceSizeChangedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 value: request.Value),
             cancellationToken);
@@ -165,7 +166,7 @@ public static class GeneralSettingsEndpoints
         appSettings.SetNewUserDefaultMaxWorkspaceNumber(request.Value);
 
         await auditLogService.Log(
-            Audit.Settings.DefaultMaxWorkspaceNumberChanged(
+            Audit.Settings.DefaultMaxWorkspaceNumberChangedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 value: request.Value),
             cancellationToken);
@@ -188,7 +189,7 @@ public static class GeneralSettingsEndpoints
         appSettings.RefreshSingUpCheckboxes();
 
         await auditLogService.Log(
-            Audit.Settings.SignUpCheckboxDeleted(
+            Audit.Settings.SignUpCheckboxDeletedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 id: signUpCheckboxId),
             cancellationToken);
@@ -209,7 +210,7 @@ public static class GeneralSettingsEndpoints
         appSettings.RefreshSingUpCheckboxes();
 
         await auditLogService.Log(
-            Audit.Settings.SignUpCheckboxCreatedOrUpdated(
+            Audit.Settings.SignUpCheckboxCreatedOrUpdatedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 id: request.Id,
                 text: request.Text,
@@ -260,7 +261,7 @@ public static class GeneralSettingsEndpoints
             appSettings.SetApplicationSignUp(singUp);
 
             await auditLogService.Log(
-                Audit.Settings.SignUpOptionChanged(
+                Audit.Settings.SignUpOptionChangedEntry(
                     actor: httpContext.GetAuditLogActorContext(),
                     value: request.Value!),
                 cancellationToken);
@@ -281,7 +282,7 @@ public static class GeneralSettingsEndpoints
         appSettings.SetApplicationName(request.Value);
 
         await auditLogService.Log(
-            Audit.Settings.AppNameChanged(
+            Audit.Settings.AppNameChangedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 value: request.Value),
             cancellationToken);
@@ -312,7 +313,7 @@ public static class GeneralSettingsEndpoints
         await uploadLegalFileOperation.ExecuteForTermsOfService(file: file);
 
         await auditLogService.Log(
-            Audit.Settings.TermsOfServiceUploaded(
+            Audit.Settings.TermsOfServiceUploadedEntry(
                 actor: httpContext.GetAuditLogActorContext()),
             cancellationToken);
 
@@ -328,7 +329,7 @@ public static class GeneralSettingsEndpoints
         deleteLegalFileOperation.ExecuteForTermsOfService();
 
         await auditLogService.Log(
-            Audit.Settings.TermsOfServiceDeleted(
+            Audit.Settings.TermsOfServiceDeletedEntry(
                 actor: httpContext.GetAuditLogActorContext()),
             cancellationToken);
     }
@@ -356,7 +357,7 @@ public static class GeneralSettingsEndpoints
         await uploadLegalFileOperation.ExecuteForPrivacyPolicy(file: file);
 
         await auditLogService.Log(
-            Audit.Settings.PrivacyPolicyUploaded(
+            Audit.Settings.PrivacyPolicyUploadedEntry(
                 actor: httpContext.GetAuditLogActorContext()),
             cancellationToken);
 
@@ -372,7 +373,7 @@ public static class GeneralSettingsEndpoints
         deleteLegalFileOperation.ExecuteForPrivacyPolicy();
 
         await auditLogService.Log(
-            Audit.Settings.PrivacyPolicyDeleted(
+            Audit.Settings.PrivacyPolicyDeletedEntry(
                 actor: httpContext.GetAuditLogActorContext()),
             cancellationToken);
     }

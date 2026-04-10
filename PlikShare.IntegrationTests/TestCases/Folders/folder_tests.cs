@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Folders.Create.Contracts;
 using PlikShare.Folders.Id;
 using PlikShare.Folders.List.Contracts;
@@ -8,6 +9,7 @@ using PlikShare.Folders.Rename.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Storages.Encryption;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Folders;
 
@@ -178,7 +180,7 @@ public class folder_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Folder.Created>(
+        await AssertAuditLogContains<Audit.Folder.Created>(
             expectedEventType: AuditLogEventTypes.Folder.Created,
             assertDetails: details =>
             {
@@ -235,7 +237,7 @@ public class folder_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Folder.BulkCreated>(
+        await AssertAuditLogContains<Audit.Folder.BulkCreated>(
             expectedEventType: AuditLogEventTypes.Folder.BulkCreated,
             assertDetails: details =>
             {
@@ -274,7 +276,7 @@ public class folder_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Folder.NameUpdated>(
+        await AssertAuditLogContains<Audit.Folder.NameUpdated>(
             expectedEventType: AuditLogEventTypes.Folder.NameUpdated,
             assertDetails: details =>
             {
@@ -315,7 +317,7 @@ public class folder_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Folder.ItemsMoved>(
+        await AssertAuditLogContains<Audit.Folder.ItemsMoved>(
             expectedEventType: AuditLogEventTypes.Folder.ItemsMoved,
             assertDetails: details =>
             {

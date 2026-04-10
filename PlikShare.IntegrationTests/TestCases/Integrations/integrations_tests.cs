@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Integrations;
 using PlikShare.Integrations.Create.Contracts;
 using PlikShare.Integrations.List.Contracts;
@@ -7,6 +8,7 @@ using PlikShare.Integrations.UpdateName.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Storages.Encryption;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Integrations;
 
@@ -169,12 +171,12 @@ public class integrations_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Integration.Created>(
+        await AssertAuditLogContains<Audit.Integration.Created>(
             expectedEventType: AuditLogEventTypes.Integration.Created,
             assertDetails: details =>
             {
-                details.Name.Should().Be(integrationName);
-                details.Type.Should().Be(IntegrationType.AwsTextract.ToString());
+                details.Integration.Name.Should().Be(integrationName);
+                details.Integration.Type.Should().Be(IntegrationType.AwsTextract.ToString());
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -193,9 +195,9 @@ public class integrations_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Integration.Deleted>(
+        await AssertAuditLogContains<Audit.Integration.Deleted>(
             expectedEventType: AuditLogEventTypes.Integration.Deleted,
-            assertDetails: details => details.ExternalId.Should().Be(response.ExternalId),
+            assertDetails: details => details.Integration.ExternalId.Should().Be(response.ExternalId),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Warning);
     }
@@ -218,12 +220,12 @@ public class integrations_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Integration.NameUpdated>(
+        await AssertAuditLogContains<Audit.Integration.NameUpdated>(
             expectedEventType: AuditLogEventTypes.Integration.NameUpdated,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(response.ExternalId);
-                details.Name.Should().Be(newName);
+                details.Integration.ExternalId.Should().Be(response.ExternalId);
+                details.Integration.Name.Should().Be(newName);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -242,9 +244,9 @@ public class integrations_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Integration.ActivationChanged>(
+        await AssertAuditLogContains<Audit.Integration.ActivationChanged>(
             expectedEventType: AuditLogEventTypes.Integration.Activated,
-            assertDetails: details => details.ExternalId.Should().Be(response.ExternalId),
+            assertDetails: details => details.Integration.ExternalId.Should().Be(response.ExternalId),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -267,9 +269,9 @@ public class integrations_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Integration.ActivationChanged>(
+        await AssertAuditLogContains<Audit.Integration.ActivationChanged>(
             expectedEventType: AuditLogEventTypes.Integration.Deactivated,
-            assertDetails: details => details.ExternalId.Should().Be(response.ExternalId),
+            assertDetails: details => details.Integration.ExternalId.Should().Be(response.ExternalId),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Warning);
     }

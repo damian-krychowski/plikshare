@@ -5,6 +5,7 @@ using PlikShare.Account.Contracts;
 using PlikShare.Account.GetKnownUsers;
 using PlikShare.Account.GetKnownUsers.Contracts;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.IdentityProvider;
 using PlikShare.Core.Utils;
@@ -79,7 +80,7 @@ public static class AccountEndpoints
         await signInManager.SignOutAsync();
 
         await auditLogService.Log(
-            Audit.Auth.SignedOut(actor),
+            Audit.Auth.SignedOutEntry(actor),
             cancellationToken);
     }
 
@@ -148,7 +149,7 @@ public static class AccountEndpoints
                 : "failed";
 
             await auditLogService.Log(
-                Audit.Auth.PasswordChangeFailed(
+                Audit.Auth.PasswordChangeFailedEntry(
                     httpContext.GetAuditLogActorContext(),
                     reason: reason),
                 cancellationToken);
@@ -166,7 +167,7 @@ public static class AccountEndpoints
             isPersistent: httpContext.User.GetRememberMeOrDefault());
 
         await auditLogService.Log(
-            Audit.Auth.PasswordChanged(
+            Audit.Auth.PasswordChangedEntry(
                 httpContext.GetAuditLogActorContext()),
             cancellationToken);
 
@@ -241,7 +242,7 @@ public static class AccountEndpoints
                 user.Id);
 
             await auditLogService.Log(
-                Audit.Auth.TwoFaEnableFailed(
+                Audit.Auth.TwoFaEnableFailedEntry(
                     httpContext.GetAuditLogActorContext(),
                     reason: AuditLogFailureReasons.Auth.InvalidVerificationCode),
                 cancellationToken);
@@ -260,7 +261,7 @@ public static class AccountEndpoints
                 result.Errors);
 
             await auditLogService.Log(
-                Audit.Auth.TwoFaEnableFailed(
+                Audit.Auth.TwoFaEnableFailedEntry(
                     httpContext.GetAuditLogActorContext(),
                     reason: AuditLogFailureReasons.Auth.Failed),
                 cancellationToken);
@@ -277,7 +278,7 @@ public static class AccountEndpoints
             isPersistent: httpContext.User.GetRememberMeOrDefault());
 
         await auditLogService.Log(
-            Audit.Auth.TwoFaEnabled(
+            Audit.Auth.TwoFaEnabledEntry(
                 httpContext.GetAuditLogActorContext()),
             cancellationToken);
 
@@ -324,7 +325,7 @@ public static class AccountEndpoints
             isPersistent: httpContext.User.GetRememberMeOrDefault());
 
         await auditLogService.Log(
-            Audit.Auth.TwoFaDisabled(
+            Audit.Auth.TwoFaDisabledEntry(
                 httpContext.GetAuditLogActorContext()),
             cancellationToken);
 
@@ -357,7 +358,7 @@ public static class AccountEndpoints
             number: 5);
 
         await auditLogService.Log(
-            Audit.Auth.RecoveryCodesRegenerated(
+            Audit.Auth.RecoveryCodesRegeneratedEntry(
                 httpContext.GetAuditLogActorContext()),
             cancellationToken);
 

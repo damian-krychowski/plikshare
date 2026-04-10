@@ -24,12 +24,14 @@ using PlikShare.Storages.S3;
 using PlikShare.Storages.S3.Upload;
 using PlikShare.Storages.Zip;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.CompleteFileUpload;
 using PlikShare.Uploads.FilePartUpload.Complete;
 using PlikShare.Uploads.Id;
 using Serilog;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 // ReSharper disable PossibleMultipleEnumeration
 
@@ -189,10 +191,10 @@ public static class PreSignedFilesEndpoints
             if (processedFileUploads.Count > 0)
             {
                 await auditLogService.Log(
-                    Audit.File.MultiUploadCompleted(
+                    Audit.File.MultiUploadCompletedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspace.ToAuditLogWorkspaceRef(),
-                        fileUploads: processedFileUploads.Select(u => new AuditLogDetails.FileUploadRef
+                        fileUploads: processedFileUploads.Select(u => new Audit.FileUploadRef
                         {
                             ExternalId = u!.ExternalId,
                             FileExternalId = u.FileToUpload.S3FileKey.FileExternalId,
@@ -406,10 +408,10 @@ public static class PreSignedFilesEndpoints
             payload);
 
         await auditLogService.Log(
-            Audit.File.Downloaded(
+            Audit.File.DownloadedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 workspace: workspace.ToAuditLogWorkspaceRef(),
-                file: new AuditLogDetails.FileRef
+                file: new Audit.FileRef
                 {
                     ExternalId = payload.FileExternalId,
                     Name = file.FullName,

@@ -25,7 +25,7 @@ public class range_download_tests : TestFixture
         var folder = await CreateFolder(parent: null, workspace, user);
 
         var originalContent = new byte[4096];
-        new System.Random(300).NextBytes(originalContent);
+        new Random(300).NextBytes(originalContent);
 
         var uploadedFile = await UploadFile(
             content: originalContent,
@@ -61,7 +61,7 @@ public class range_download_tests : TestFixture
         var folder = await CreateFolder(parent: null, workspace, user);
 
         var originalContent = new byte[4096];
-        new System.Random(301).NextBytes(originalContent);
+        new Random(301).NextBytes(originalContent);
 
         var uploadedFile = await UploadFile(
             content: originalContent,
@@ -97,7 +97,7 @@ public class range_download_tests : TestFixture
         var folder = await CreateFolder(parent: null, workspace, user);
 
         var originalContent = new byte[4096];
-        new System.Random(302).NextBytes(originalContent);
+        new Random(302).NextBytes(originalContent);
 
         var uploadedFile = await UploadFile(
             content: originalContent,
@@ -133,7 +133,7 @@ public class range_download_tests : TestFixture
         var folder = await CreateFolder(parent: null, workspace, user);
 
         var originalContent = new byte[4096];
-        new System.Random(303).NextBytes(originalContent);
+        new Random(303).NextBytes(originalContent);
 
         var uploadedFile = await UploadFile(
             content: originalContent,
@@ -169,7 +169,7 @@ public class range_download_tests : TestFixture
         var folder = await CreateFolder(parent: null, workspace, user);
 
         var originalContent = new byte[4096];
-        new System.Random(304).NextBytes(originalContent);
+        new Random(304).NextBytes(originalContent);
 
         var uploadedFile = await UploadFile(
             content: originalContent,
@@ -205,7 +205,7 @@ public class range_download_tests : TestFixture
         var folder = await CreateFolder(parent: null, workspace, user);
 
         var originalContent = new byte[4096];
-        new System.Random(305).NextBytes(originalContent);
+        new Random(305).NextBytes(originalContent);
 
         var uploadedFile = await UploadFile(
             content: originalContent,
@@ -241,7 +241,7 @@ public class range_download_tests : TestFixture
         var folder = await CreateFolder(parent: null, workspace, user);
 
         var originalContent = new byte[4096];
-        new System.Random(306).NextBytes(originalContent);
+        new Random(306).NextBytes(originalContent);
 
         var uploadedFile = await UploadFile(
             content: originalContent,
@@ -280,7 +280,7 @@ public class range_download_tests : TestFixture
         var folder = await CreateFolder(parent: null, workspace, user);
 
         var originalContent = new byte[2 * 1024 * 1024]; // 2MB -> 2 segments
-        new System.Random(307).NextBytes(originalContent);
+        new Random(307).NextBytes(originalContent);
 
         var uploadedFile = await UploadFile(
             content: originalContent,
@@ -320,7 +320,7 @@ public class range_download_tests : TestFixture
         var folder = await CreateFolder(parent: null, workspace, user);
 
         var originalContent = new byte[4096];
-        new System.Random(308).NextBytes(originalContent);
+        new Random(308).NextBytes(originalContent);
 
         var uploadedFile = await UploadFile(
             content: originalContent,

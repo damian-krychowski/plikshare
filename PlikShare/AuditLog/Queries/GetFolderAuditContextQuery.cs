@@ -1,3 +1,4 @@
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Folders.Id;
@@ -6,7 +7,7 @@ namespace PlikShare.AuditLog.Queries;
 
 public class GetFolderAuditContextQuery(PlikShareDb plikShareDb)
 {
-    public AuditLogDetails.FolderRef? Execute(
+    public Audit.FolderRef? Execute(
         FolderExtId folderExternalId)
     {
         using var connection = plikShareDb.OpenConnection();
@@ -29,7 +30,7 @@ public class GetFolderAuditContextQuery(PlikShareDb plikShareDb)
                     WHERE f.fo_external_id = $folderExternalId
                     LIMIT 1
                     """,
-                readRowFunc: reader => new AuditLogDetails.FolderRef
+                readRowFunc: reader => new Audit.FolderRef
                 {
                     ExternalId = folderExternalId,
                     Name = reader.GetString(0),
@@ -43,11 +44,11 @@ public class GetFolderAuditContextQuery(PlikShareDb plikShareDb)
             : result.Value;
     }
 
-    public Dictionary<FolderExtId, AuditLogDetails.FolderRef> ExecuteMany(
+    public Dictionary<FolderExtId, Audit.FolderRef> ExecuteMany(
         List<FolderExtId> folderExternalIds)
     {
         if (folderExternalIds.Count == 0)
-            return new Dictionary<FolderExtId, AuditLogDetails.FolderRef>();
+            return new Dictionary<FolderExtId, Audit.FolderRef>();
 
         using var connection = plikShareDb.OpenConnection();
 
@@ -76,7 +77,7 @@ public class GetFolderAuditContextQuery(PlikShareDb plikShareDb)
                     return new
                     {
                         ExternalId = externalId,
-                        FolderRef = new AuditLogDetails.FolderRef
+                        FolderRef = new Audit.FolderRef
                         {
                             ExternalId = externalId,
                             Name = reader.GetString(1),

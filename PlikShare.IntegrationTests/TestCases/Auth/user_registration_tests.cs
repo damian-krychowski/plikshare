@@ -4,6 +4,7 @@ using System.Web;
 using FluentAssertions;
 using PlikShare.Account.Contracts;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Auth.Contracts;
 using PlikShare.Core.Emails;
 using PlikShare.GeneralSettings;
@@ -12,6 +13,7 @@ using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Id;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Auth;
 
@@ -269,7 +271,7 @@ public class user_registration_tests : TestFixture
         //then
         result.Should().Be(ConfirmEmailResponseDto.InvalidToken);
 
-        await AssertAuditLogContains<AuditLogDetails.Auth.Failed>(
+        await AssertAuditLogContains<Audit.Auth.Failed>(
             expectedEventType: AuditLogEventTypes.Auth.EmailConfirmationFailed,
             assertDetails: details => details.Reason.Should().Be(AuditLogFailureReasons.Auth.InvalidToken),
             expectedSeverity: AuditLogSeverities.Warning);
@@ -295,7 +297,7 @@ public class user_registration_tests : TestFixture
         //then
         signInResponse.Should().Be(SignInUserResponseDto.Successful);
 
-        await AssertAuditLogContains<AuditLogDetails.Auth.SignedIn>(
+        await AssertAuditLogContains<Audit.Auth.SignedIn>(
             expectedEventType: AuditLogEventTypes.Auth.SignedIn,
             assertDetails: details => details.Method.Should().Be(AuditLogSignInMethods.Password),
             expectedActorEmail: userEmail);
@@ -379,7 +381,7 @@ public class user_registration_tests : TestFixture
         //then
         result.Should().Be(ResetPasswordResponseDto.InvalidToken);
 
-        await AssertAuditLogContains<AuditLogDetails.Auth.Failed>(
+        await AssertAuditLogContains<Audit.Auth.Failed>(
             expectedEventType: AuditLogEventTypes.Auth.PasswordResetFailed,
             assertDetails: details => details.Reason.Should().Be(AuditLogFailureReasons.Auth.InvalidToken),
             expectedSeverity: AuditLogSeverities.Warning);

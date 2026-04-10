@@ -1,3 +1,4 @@
+using PlikShare.AuditLog.Details;
 using PlikShare.Folders.Create;
 using PlikShare.Folders.Id;
 
@@ -7,7 +8,7 @@ static class GetOrCreateFolderQueryAuditLogExtensions
 {
     extension(GetOrCreateFolderQuery.Folder folder)
     {
-        public AuditLogDetails.FolderRef ToAuditLogFolderRef() => new()
+        public Audit.FolderRef ToAuditLogFolderRef() => new()
         {
             ExternalId = FolderExtId.Parse(folder.ExternalId),
             Name = folder.Name,
@@ -19,7 +20,7 @@ static class GetOrCreateFolderQueryAuditLogExtensions
 
     extension(IEnumerable<GetOrCreateFolderQuery.Folder>? folders)
     {
-        public List<AuditLogDetails.FolderRef> ToAuditLogFolderRefs() => folders
+        public List<Audit.FolderRef> ToAuditLogFolderRefs() => folders
             ?.Select(f => f.ToAuditLogFolderRef())
             .ToList() ?? [];
     }

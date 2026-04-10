@@ -22,8 +22,10 @@ using PlikShare.Uploads.Initiate.Contracts;
 using PlikShare.Uploads.List;
 using PlikShare.Uploads.List.Contracts;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Validation;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Uploads;
 
@@ -94,10 +96,10 @@ public static class UploadsEndpoints
         {
             case BulkInitiateFileUploadOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.File.UploadInitiated(
+                    Audit.File.UploadInitiatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
-                        fileUploads: result.InitiatedFiles!.Select(f => new AuditLogDetails.FileUploadRef
+                        fileUploads: result.InitiatedFiles!.Select(f => new Audit.FileUploadRef
                         {
                             ExternalId = f.FileUploadExternalId,
                             FileExternalId = f.FileExternalId,
@@ -253,10 +255,10 @@ public static class UploadsEndpoints
                 var fileUpload = result.FileUpload!;
 
                 await auditLogService.Log(
-                    Audit.File.UploadCompleted(
+                    Audit.File.UploadCompletedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
-                        fileUpload: new AuditLogDetails.FileUploadRef
+                        fileUpload: new Audit.FileUploadRef
                         {
                             ExternalId = fileUpload.ExternalId,
                             FileExternalId = fileUpload.FileToUpload.S3FileKey.FileExternalId,

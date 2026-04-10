@@ -6,11 +6,13 @@ using PlikShare.Core.Emails;
 using PlikShare.EmailProviders.ExternalProviders.Resend;
 using PlikShare.GeneralSettings;
 using System.Text.Json;
+using PlikShare.AuditLog.Details;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Invite.Contracts;
 using PlikShare.Users.PermissionsAndRoles;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Auth;
 
@@ -377,7 +379,7 @@ public class user_invitation_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.User.Invited>(
+        await AssertAuditLogContains<Audit.User.Invited>(
             expectedEventType: AuditLogEventTypes.User.Invited,
             assertDetails: details => details.Users.Should().Contain(u => u.Email == userEmail),
             expectedActorEmail: AppOwner.Email,
@@ -405,7 +407,7 @@ public class user_invitation_tests : TestFixture
             antiforgeryCookies: anonymousAntiforgeryCookies);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Auth.Failed>(
+        await AssertAuditLogContains<Audit.Auth.Failed>(
             expectedEventType: AuditLogEventTypes.Auth.SignUpFailed,
             assertDetails: details => details.Reason.Should().Be(AuditLogFailureReasons.Auth.WrongInvitationCode),
             expectedSeverity: AuditLogSeverities.Warning);

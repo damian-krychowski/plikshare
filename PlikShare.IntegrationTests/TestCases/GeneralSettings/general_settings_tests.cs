@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.GeneralSettings;
 using PlikShare.GeneralSettings.Contracts;
 using PlikShare.GeneralSettings.SignUpCheckboxes.CreateOrUpdate.Contracts;
@@ -7,6 +8,7 @@ using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Core.Authorization;
 using PlikShare.Users.PermissionsAndRoles;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.GeneralSettings;
 
@@ -46,7 +48,7 @@ public class general_settings_tests : TestFixture, IDisposable
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Settings.ValueChanged>(
+        await AssertAuditLogContains<Audit.Settings.ValueChanged>(
             expectedEventType: AuditLogEventTypes.Settings.AppNameChanged,
             assertDetails: details => details.Value.Should().Be("Audit Test App"),
             expectedActorEmail: AppOwner.Email,
@@ -77,7 +79,7 @@ public class general_settings_tests : TestFixture, IDisposable
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Settings.ValueChanged>(
+        await AssertAuditLogContains<Audit.Settings.ValueChanged>(
             expectedEventType: AuditLogEventTypes.Settings.SignUpOptionChanged,
             assertDetails: details => details.Value.Should().Be(AppSettings.SignUpSetting.Everyone.Value),
             expectedActorEmail: AppOwner.Email,
@@ -131,7 +133,7 @@ public class general_settings_tests : TestFixture, IDisposable
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Settings.DefaultPermissionsChanged>(
+        await AssertAuditLogContains<Audit.Settings.DefaultPermissionsChanged>(
             expectedEventType: AuditLogEventTypes.Settings.DefaultPermissionsChanged,
             assertDetails: details =>
             {
@@ -166,7 +168,7 @@ public class general_settings_tests : TestFixture, IDisposable
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Settings.ValueChanged>(
+        await AssertAuditLogContains<Audit.Settings.ValueChanged>(
             expectedEventType: AuditLogEventTypes.Settings.DefaultMaxWorkspaceNumberChanged,
             assertDetails: details => details.Value.Should().Be("10"),
             expectedActorEmail: AppOwner.Email,
@@ -197,7 +199,7 @@ public class general_settings_tests : TestFixture, IDisposable
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Settings.ValueChanged>(
+        await AssertAuditLogContains<Audit.Settings.ValueChanged>(
             expectedEventType: AuditLogEventTypes.Settings.DefaultMaxWorkspaceSizeChanged,
             assertDetails: details => details.Value.Should().Be((1024 * 1024 * 200).ToString()),
             expectedActorEmail: AppOwner.Email,
@@ -228,7 +230,7 @@ public class general_settings_tests : TestFixture, IDisposable
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Settings.ValueChanged>(
+        await AssertAuditLogContains<Audit.Settings.ValueChanged>(
             expectedEventType: AuditLogEventTypes.Settings.DefaultMaxWorkspaceTeamMembersChanged,
             assertDetails: details => details.Value.Should().Be("15"),
             expectedActorEmail: AppOwner.Email,
@@ -259,7 +261,7 @@ public class general_settings_tests : TestFixture, IDisposable
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Settings.ToggleChanged>(
+        await AssertAuditLogContains<Audit.Settings.ToggleChanged>(
             expectedEventType: AuditLogEventTypes.Settings.AlertOnNewUserChanged,
             assertDetails: details => details.Value.Should().BeTrue(),
             expectedActorEmail: AppOwner.Email,
@@ -302,7 +304,7 @@ public class general_settings_tests : TestFixture, IDisposable
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Settings.SignUpCheckbox>(
+        await AssertAuditLogContains<Audit.Settings.SignUpCheckbox>(
             expectedEventType: AuditLogEventTypes.Settings.SignUpCheckboxCreatedOrUpdated,
             assertDetails: details =>
             {
@@ -359,7 +361,7 @@ public class general_settings_tests : TestFixture, IDisposable
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Settings.SignUpCheckbox>(
+        await AssertAuditLogContains<Audit.Settings.SignUpCheckbox>(
             expectedEventType: AuditLogEventTypes.Settings.SignUpCheckboxDeleted,
             assertDetails: details => details.Id.Should().Be(response.NewId),
             expectedActorEmail: AppOwner.Email,

@@ -27,8 +27,10 @@ using PlikShare.EmailProviders.ResendConfirmationEmail.Contracts;
 using PlikShare.EmailProviders.UpdateName;
 using PlikShare.EmailProviders.UpdateName.Contracts;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Middleware;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.EmailProviders;
 
@@ -115,10 +117,14 @@ public static class EmailProvidersEndpoints
                     result.EmailProviderId);
 
                 await auditLogService.Log(
-                    Audit.EmailProvider.Deleted(
+                    Audit.EmailProvider.DeletedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: emailProviderExternalId,
-                        name: result.Name!),
+                        emailProvider: new Audit.EmailProviderRef
+                        {
+                            ExternalId = emailProviderExternalId,
+                            Name = result.Name!,
+                            Type = result.Type!
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -147,16 +153,20 @@ public static class EmailProvidersEndpoints
             request.Name,
             cancellationToken: cancellationToken);
 
-        switch (result)
+        switch (result.Code)
         {
             case UpdateEmailProviderNameQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.EmailProvider.NameUpdated(
+                    Audit.EmailProvider.NameUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: emailProviderExternalId,
-                        name: request.Name),
+                        emailProvider: new Audit.EmailProviderRef
+                        {
+                            ExternalId = emailProviderExternalId,
+                            Name = request.Name,
+                            Type = result.Type!
+                        }),
                     cancellationToken);
-                    
+
                 return TypedResults.Ok();
 
             case UpdateEmailProviderNameQuery.ResultCode.NotFound:
@@ -200,10 +210,14 @@ public static class EmailProvidersEndpoints
                     queue.UnlockBlockedQueueJobs();
 
                     await auditLogService.Log(
-                        Audit.EmailProvider.Activated(
+                        Audit.EmailProvider.ActivatedEntry(
                             actor: httpContext.GetAuditLogActorContext(),
-                            externalId: emailProviderExternalId,
-                            name: result.EmailProvider!.Name),
+                            emailProvider: new Audit.EmailProviderRef
+                            {
+                                ExternalId = emailProviderExternalId,
+                                Name = result.EmailProvider!.Name,
+                                Type = result.EmailProvider.Type.Value
+                            }),
                         cancellationToken);
 
                     return TypedResults.Ok();
@@ -242,10 +256,14 @@ public static class EmailProvidersEndpoints
                     emailProviderStore.TryRemove(result.EmailProviderId);
 
                     await auditLogService.Log(
-                        Audit.EmailProvider.Deactivated(
+                        Audit.EmailProvider.DeactivatedEntry(
                             actor: httpContext.GetAuditLogActorContext(),
-                            externalId: emailProviderExternalId,
-                            name: result.Name!),
+                            emailProvider: new Audit.EmailProviderRef
+                            {
+                                ExternalId = emailProviderExternalId,
+                                Name = result.Name!,
+                                Type = result.Type!
+                            }),
                         cancellationToken);
 
                     return TypedResults.Ok();
@@ -280,10 +298,14 @@ public static class EmailProvidersEndpoints
         {
             case ResendConfirmationEmailOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.EmailProvider.ConfirmationEmailResent(
+                    Audit.EmailProvider.ConfirmationEmailResentEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: emailProviderExternalId,
-                        name: result.Name!),
+                        emailProvider: new Audit.EmailProviderRef
+                        {
+                            ExternalId = emailProviderExternalId,
+                            Name = result.Name!,
+                            Type = result.Type!
+                        }),
                     cancellationToken);
                 return TypedResults.Ok();
 
@@ -320,10 +342,14 @@ public static class EmailProvidersEndpoints
         {
             case ConfirmEmailProviderQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.EmailProvider.Confirmed(
+                    Audit.EmailProvider.ConfirmedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: emailProviderExternalId,
-                        name: result.Name!),
+                        emailProvider: new Audit.EmailProviderRef
+                        {
+                            ExternalId = emailProviderExternalId,
+                            Name = result.Name!,
+                            Type = result.Type!
+                        }),
                     cancellationToken);
                 return TypedResults.Ok();
 
@@ -368,11 +394,14 @@ public static class EmailProvidersEndpoints
         {
             case CreateEmailProviderOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.EmailProvider.Created(
+                    Audit.EmailProvider.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: result.EmailProviderExternalId!.Value,
-                        name: request.Name,
-                        type: EmailProviderType.AwsSes.Value,
+                        emailProvider: new Audit.EmailProviderRef
+                        {
+                            ExternalId = result.EmailProviderExternalId!.Value,
+                            Name = request.Name,
+                            Type = EmailProviderType.AwsSes.Value
+                        },
                         emailFrom: request.EmailFrom),
                     cancellationToken);
                 return TypedResults.Ok(new CreateAwsSesEmailProviderResponseDto(
@@ -415,11 +444,14 @@ public static class EmailProvidersEndpoints
         {
             case CreateEmailProviderOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.EmailProvider.Created(
+                    Audit.EmailProvider.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: result.EmailProviderExternalId!.Value,
-                        name: request.Name,
-                        type: EmailProviderType.Resend.Value,
+                        emailProvider: new Audit.EmailProviderRef
+                        {
+                            ExternalId = result.EmailProviderExternalId!.Value,
+                            Name = request.Name,
+                            Type = EmailProviderType.Resend.Value
+                        },
                         emailFrom: request.EmailFrom),
                     cancellationToken);
                 return TypedResults.Ok(new CreateAwsSesEmailProviderResponseDto(
@@ -466,11 +498,14 @@ public static class EmailProvidersEndpoints
         {
             case CreateEmailProviderOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.EmailProvider.Created(
+                    Audit.EmailProvider.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: result.EmailProviderExternalId!.Value,
-                        name: request.Name,
-                        type: EmailProviderType.Smtp.Value,
+                        emailProvider: new Audit.EmailProviderRef
+                        {
+                            ExternalId = result.EmailProviderExternalId!.Value,
+                            Name = request.Name,
+                            Type = EmailProviderType.Smtp.Value
+                        },
                         emailFrom: request.EmailFrom),
                     cancellationToken);
                 return TypedResults.Ok(new CreateAwsSesEmailProviderResponseDto(

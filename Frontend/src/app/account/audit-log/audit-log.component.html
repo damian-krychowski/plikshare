@@ -206,7 +206,10 @@
 
                 @for(item of items(); track item.externalId) {
                     <div class="audit-table__row" (click)="toggleExpand(item.externalId)">
-                        <div class="col-time">{{ item.createdAt | date:'short' }}</div>
+                        <div class="col-time">
+                            <div class="col-time__hour">{{ item.createdAt | date:'HH:mm:ss' }}</div>
+                            <div class="col-time__date">{{ item.createdAt | date:'yyyy-MM-dd' }}</div>
+                        </div>
                         <div class="col-actor" [title]="item.actorEmail || item.actorIdentity">
                             {{ item.actorEmail || item.actorIdentity }}
                         </div>

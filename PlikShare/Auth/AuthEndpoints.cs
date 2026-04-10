@@ -2,6 +2,7 @@ using Flurl;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Auth.CheckInvitation;
 using PlikShare.Auth.Contracts;
 using PlikShare.Core.Clock;
@@ -75,7 +76,7 @@ public static class AuthEndpoints
         if (!isPasswordLoginEnabled)
         {
             await auditLogService.Log(
-                Audit.Auth.SignUpFailed(
+                Audit.Auth.SignUpFailedEntry(
                     actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                     correlationId: httpContext.GetCorrelationId(),
                     attemptedEmail: request.Email,
@@ -92,7 +93,7 @@ public static class AuthEndpoints
         if(!areAllRequiredCheckboxesPresent)
         {
             await auditLogService.Log(
-                Audit.Auth.SignUpFailed(
+                Audit.Auth.SignUpFailedEntry(
                     actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                     correlationId: httpContext.GetCorrelationId(),
                     attemptedEmail: request.Email,
@@ -110,7 +111,7 @@ public static class AuthEndpoints
             if (!isInvitationCodeProvided)
             {
                 await auditLogService.Log(
-                    Audit.Auth.SignUpFailed(
+                    Audit.Auth.SignUpFailedEntry(
                         actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                         correlationId: httpContext.GetCorrelationId(),
                         attemptedEmail: request.Email,
@@ -130,7 +131,7 @@ public static class AuthEndpoints
             if (invitationCheckResult == CheckUserInvitationCodeQuery.ResultCode.WrongInvitationCode)
             {
                 await auditLogService.Log(
-                    Audit.Auth.SignUpFailed(
+                    Audit.Auth.SignUpFailedEntry(
                         actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                         correlationId: httpContext.GetCorrelationId(),
                         attemptedEmail: request.Email,
@@ -172,7 +173,7 @@ public static class AuthEndpoints
                     EmailAnonymization.Anonymize(request.Email));
 
                 await auditLogService.Log(
-                    Audit.Auth.SignUpFailed(
+                    Audit.Auth.SignUpFailedEntry(
                         actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                         correlationId: httpContext.GetCorrelationId(),
                         attemptedEmail: request.Email,
@@ -208,7 +209,7 @@ public static class AuthEndpoints
                 isPersistent: false);
 
             await auditLogService.Log(
-                Audit.Auth.SignedUp(
+                Audit.Auth.SignedUpEntry(
                     actor: httpContext.GetAuditLogActorContext(),
                     email: request.Email),
                 cancellationToken);
@@ -226,7 +227,7 @@ public static class AuthEndpoints
             cancellationToken: cancellationToken);
 
         await auditLogService.Log(
-            Audit.Auth.SignedUp(
+            Audit.Auth.SignedUpEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 email: request.Email), 
             cancellationToken);
@@ -293,7 +294,7 @@ public static class AuthEndpoints
                 request.Code);
 
             await auditLogService.Log(
-                Audit.Auth.EmailConfirmationFailed(
+                Audit.Auth.EmailConfirmationFailedEntry(
                     actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                     correlationId: httpContext.GetCorrelationId(),
                     email: null,
@@ -312,7 +313,7 @@ public static class AuthEndpoints
             if (result.Errors.Any(err => err.Code == "InvalidToken"))
             {
                 await auditLogService.Log(
-                    Audit.Auth.EmailConfirmationFailed(
+                    Audit.Auth.EmailConfirmationFailedEntry(
                         actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                         correlationId: httpContext.GetCorrelationId(),
                         email: user.Email,
@@ -332,7 +333,7 @@ public static class AuthEndpoints
         }
 
         await auditLogService.Log(
-            Audit.Auth.EmailConfirmed(
+            Audit.Auth.EmailConfirmedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 email: user.Email ?? request.UserExternalId),
             cancellationToken);
@@ -355,7 +356,7 @@ public static class AuthEndpoints
         if (!isPasswordLoginEnabled)
         {
             await auditLogService.Log(
-                Audit.Auth.SignInFailed(
+                Audit.Auth.SignInFailedEntry(
                     actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                     correlationId: httpContext.GetCorrelationId(),
                     attemptedEmail: request.Email,
@@ -374,7 +375,7 @@ public static class AuthEndpoints
         if (result.Succeeded)
         {
             await auditLogService.Log(
-                Audit.Auth.SignedIn(
+                Audit.Auth.SignedInSuccessEntry(
                     actor: httpContext.GetAuditLogActorContext(),
                     email: request.Email,
                     method: AuditLogSignInMethods.Password),
@@ -389,7 +390,7 @@ public static class AuthEndpoints
         if (result.IsLockedOut)
         {
             await auditLogService.Log(
-                Audit.Auth.SignInFailed(
+                Audit.Auth.SignInFailedEntry(
                     actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                     correlationId: httpContext.GetCorrelationId(),
                     attemptedEmail: request.Email,
@@ -400,7 +401,7 @@ public static class AuthEndpoints
         }
 
         await auditLogService.Log(
-            Audit.Auth.SignInFailed(
+            Audit.Auth.SignInFailedEntry(
                 actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                 correlationId: httpContext.GetCorrelationId(),
                 attemptedEmail: request.Email,
@@ -422,7 +423,7 @@ public static class AuthEndpoints
         if (user is null)
         {
             await auditLogService.Log(
-                Audit.Auth.SignIn2FaFailed(
+                Audit.Auth.SignIn2FaFailedEntry(
                     actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                     correlationId: httpContext.GetCorrelationId(),
                     reason: AuditLogFailureReasons.Auth.No2FaSession,
@@ -440,7 +441,7 @@ public static class AuthEndpoints
         if (result.Succeeded)
         {
             await auditLogService.Log(
-                Audit.Auth.SignedIn2Fa(
+                Audit.Auth.SignedIn2FaEntry(
                     actor: httpContext.GetAuditLogActorContext(),
                     email: user.Email),
                 cancellationToken);
@@ -451,7 +452,7 @@ public static class AuthEndpoints
         if (result.IsLockedOut)
         {
             await auditLogService.Log(
-                Audit.Auth.SignIn2FaFailed(
+                Audit.Auth.SignIn2FaFailedEntry(
                     actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                     correlationId: httpContext.GetCorrelationId(),
                     reason: AuditLogFailureReasons.Auth.LockedOut,
@@ -462,7 +463,7 @@ public static class AuthEndpoints
         }
 
         await auditLogService.Log(
-            Audit.Auth.SignIn2FaFailed(
+            Audit.Auth.SignIn2FaFailedEntry(
                 actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                 correlationId: httpContext.GetCorrelationId(),
                 reason: AuditLogFailureReasons.Auth.InvalidVerificationCode,
@@ -484,7 +485,7 @@ public static class AuthEndpoints
         if (user is null)
         {
             await auditLogService.Log(
-                Audit.Auth.SignIn2FaFailed(
+                Audit.Auth.SignIn2FaFailedEntry(
                     actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                     correlationId: httpContext.GetCorrelationId(),
                     reason: AuditLogFailureReasons.Auth.No2FaSession,
@@ -500,7 +501,7 @@ public static class AuthEndpoints
         if (result.Succeeded)
         {
             await auditLogService.Log(
-                Audit.Auth.SignedInRecoveryCode(
+                Audit.Auth.SignedInRecoveryCodeEntry(
                     actor: httpContext.GetAuditLogActorContext(),
                     email: user.Email),
                 cancellationToken);
@@ -511,7 +512,7 @@ public static class AuthEndpoints
         if (result.IsLockedOut)
         {
             await auditLogService.Log(
-                Audit.Auth.SignIn2FaFailed(
+                Audit.Auth.SignIn2FaFailedEntry(
                     actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                     correlationId: httpContext.GetCorrelationId(),
                     reason: AuditLogFailureReasons.Auth.LockedOut,
@@ -522,7 +523,7 @@ public static class AuthEndpoints
         }
 
         await auditLogService.Log(
-            Audit.Auth.SignIn2FaFailed(
+            Audit.Auth.SignIn2FaFailedEntry(
                 actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                 correlationId: httpContext.GetCorrelationId(),
                 reason: AuditLogFailureReasons.Auth.InvalidRecoveryCode,
@@ -588,7 +589,7 @@ public static class AuthEndpoints
             cancellationToken: cancellationToken);
 
         await auditLogService.Log(
-            Audit.Auth.PasswordResetRequested(
+            Audit.Auth.PasswordResetRequestedEntry(
                 actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                 correlationId: httpContext.GetCorrelationId(),
                 email: request.Email),
@@ -620,7 +621,7 @@ public static class AuthEndpoints
                 request.Code);
 
             await auditLogService.Log(
-                Audit.Auth.PasswordResetFailed(
+                Audit.Auth.PasswordResetFailedEntry(
                     actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                     correlationId: httpContext.GetCorrelationId(),
                     email: null,
@@ -640,7 +641,7 @@ public static class AuthEndpoints
             if (result.Errors.Any(err => err.Code == "InvalidToken"))
             {
                 await auditLogService.Log(
-                    Audit.Auth.PasswordResetFailed(
+                    Audit.Auth.PasswordResetFailedEntry(
                         actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                         correlationId: httpContext.GetCorrelationId(),
                         email: user.Email,
@@ -660,7 +661,7 @@ public static class AuthEndpoints
         }
 
         await auditLogService.Log(
-            Audit.Auth.PasswordResetCompleted(
+            Audit.Auth.PasswordResetCompletedEntry(
                 actorIp: httpContext.Connection.RemoteIpAddress?.ToString(),
                 correlationId: httpContext.GetCorrelationId(),
                 email: user.Email),

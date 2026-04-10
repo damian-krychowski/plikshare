@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Emails;
 using PlikShare.Core.Utils;
 using PlikShare.EmailProviders.Confirm.Contracts;
@@ -11,6 +12,7 @@ using PlikShare.EmailProviders.List.Contracts;
 using PlikShare.EmailProviders.UpdateName.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.EmailProviders;
 
@@ -448,12 +450,12 @@ public class create_resend_email_providers_tests: TestFixture
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.EmailProvider.Created>(
+        await AssertAuditLogContains<Audit.EmailProvider.Created>(
             expectedEventType: AuditLogEventTypes.EmailProvider.Created,
             assertDetails: details =>
             {
-                details.Name.Should().Be(emailProviderName);
-                details.Type.Should().Be(EmailProviderType.Resend.Value);
+                details.EmailProvider.Name.Should().Be(emailProviderName);
+                details.EmailProvider.Type.Should().Be(EmailProviderType.Resend.Value);
                 details.EmailFrom.Should().Be(emailFrom);
             },
             expectedActorEmail: user.Email,
@@ -490,9 +492,9 @@ public class create_resend_email_providers_tests: TestFixture
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.EmailProvider.ActivationChanged>(
+        await AssertAuditLogContains<Audit.EmailProvider.ActivationChanged>(
             expectedEventType: AuditLogEventTypes.EmailProvider.Confirmed,
-            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
+            assertDetails: details => details.EmailProvider.ExternalId.Should().Be(provider.ExternalId),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -532,9 +534,9 @@ public class create_resend_email_providers_tests: TestFixture
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.EmailProvider.ActivationChanged>(
+        await AssertAuditLogContains<Audit.EmailProvider.ActivationChanged>(
             expectedEventType: AuditLogEventTypes.EmailProvider.Activated,
-            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
+            assertDetails: details => details.EmailProvider.ExternalId.Should().Be(provider.ExternalId),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -579,9 +581,9 @@ public class create_resend_email_providers_tests: TestFixture
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.EmailProvider.ActivationChanged>(
+        await AssertAuditLogContains<Audit.EmailProvider.ActivationChanged>(
             expectedEventType: AuditLogEventTypes.EmailProvider.Deactivated,
-            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
+            assertDetails: details => details.EmailProvider.ExternalId.Should().Be(provider.ExternalId),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Warning);
     }
@@ -614,9 +616,9 @@ public class create_resend_email_providers_tests: TestFixture
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.EmailProvider.Deleted>(
+        await AssertAuditLogContains<Audit.EmailProvider.Deleted>(
             expectedEventType: AuditLogEventTypes.EmailProvider.Deleted,
-            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
+            assertDetails: details => details.EmailProvider.ExternalId.Should().Be(provider.ExternalId),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Warning);
     }
@@ -652,12 +654,12 @@ public class create_resend_email_providers_tests: TestFixture
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.EmailProvider.NameUpdated>(
+        await AssertAuditLogContains<Audit.EmailProvider.NameUpdated>(
             expectedEventType: AuditLogEventTypes.EmailProvider.NameUpdated,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(provider.ExternalId);
-                details.Name.Should().Be(newName);
+                details.EmailProvider.ExternalId.Should().Be(provider.ExternalId);
+                details.EmailProvider.Name.Should().Be(newName);
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);

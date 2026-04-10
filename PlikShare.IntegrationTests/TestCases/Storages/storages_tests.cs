@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Volumes;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -11,6 +12,7 @@ using PlikShare.Storages.List.Contracts;
 using PlikShare.Storages.UpdateName.Contracts;
 using PlikShare.Workspaces.Create.Contracts;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Storages;
 
@@ -210,7 +212,7 @@ public class storages_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Storage.Created>(
+        await AssertAuditLogContains<Audit.Storage.Created>(
             expectedEventType: AuditLogEventTypes.Storage.Created,
             assertDetails: details =>
             {
@@ -243,7 +245,7 @@ public class storages_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Storage.Deleted>(
+        await AssertAuditLogContains<Audit.Storage.Deleted>(
             expectedEventType: AuditLogEventTypes.Storage.Deleted,
             assertDetails: details => details.Storage.ExternalId.Should().Be(hardDrive.ExternalId),
             expectedActorEmail: AppOwner.Email,
@@ -276,7 +278,7 @@ public class storages_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Storage.NameUpdated>(
+        await AssertAuditLogContains<Audit.Storage.NameUpdated>(
             expectedEventType: AuditLogEventTypes.Storage.NameUpdated,
             assertDetails: details =>
             {

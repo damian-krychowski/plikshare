@@ -32,6 +32,7 @@ using PlikShare.Boxes.UpdateIsEnabled.Contracts;
 using PlikShare.Boxes.UpdateName;
 using PlikShare.Boxes.UpdateName.Contracts;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Boxes.Validation;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
@@ -41,6 +42,7 @@ using PlikShare.Users.Id;
 using PlikShare.Users.Middleware;
 using PlikShare.Workspaces.Members.CountAll;
 using PlikShare.Workspaces.Validation;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Boxes;
 
@@ -132,10 +134,10 @@ public static class BoxesEndpoints
             case CreateBoxQuery.ResultCode.Ok:
                 await auditLogService.LogWithFolderContext(
                     folderExternalId: request.FolderExternalId,
-                    buildEntry: folderRef => Audit.Box.Created(
+                    buildEntry: folderRef => Audit.Box.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
-                        box: new AuditLogDetails.BoxRef
+                        box: new Audit.BoxRef
                         {
                             ExternalId = result.BoxExternalId,
                             Name = request.Name,
@@ -203,13 +205,13 @@ public static class BoxesEndpoints
 
                 await auditLogService.LogWithFolderContext(
                     folderExternalId: boxContext.Folder?.ExternalId,
-                    buildEntry: folderRef => Audit.Box.NameUpdated(
+                    buildEntry: folderRef => Audit.Box.NameUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
-                        box: new AuditLogDetails.BoxRef
+                        box: new Audit.BoxRef
                         {
                             ExternalId = boxContext.ExternalId,
-                            Name = boxContext.Name,
+                            Name = request.Name,
                             Folder = folderRef
                         }),
                     cancellationToken);
@@ -249,10 +251,10 @@ public static class BoxesEndpoints
 
                 await auditLogService.LogWithFolderContext(
                     folderExternalId: boxContext.Folder?.ExternalId,
-                    buildEntry: folderRef => Audit.Box.HeaderIsEnabledUpdated(
+                    buildEntry: folderRef => Audit.Box.HeaderIsEnabledUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
-                        box: new AuditLogDetails.BoxRef
+                        box: new Audit.BoxRef
                         {
                             ExternalId = boxContext.ExternalId,
                             Name = boxContext.Name,
@@ -297,10 +299,10 @@ public static class BoxesEndpoints
 
                 await auditLogService.LogWithFolderContext(
                     folderExternalId: boxContext.Folder?.ExternalId,
-                    buildEntry: folderRef => Audit.Box.HeaderUpdated(
+                    buildEntry: folderRef => Audit.Box.HeaderUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
-                        box: new AuditLogDetails.BoxRef
+                        box: new Audit.BoxRef
                         {
                             ExternalId = boxContext.ExternalId,
                             Name = boxContext.Name,
@@ -344,10 +346,10 @@ public static class BoxesEndpoints
 
                 await auditLogService.LogWithFolderContext(
                     folderExternalId: boxContext.Folder?.ExternalId,
-                    buildEntry: folderRef => Audit.Box.FooterIsEnabledUpdated(
+                    buildEntry: folderRef => Audit.Box.FooterIsEnabledUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
-                        box: new AuditLogDetails.BoxRef
+                        box: new Audit.BoxRef
                         {
                             ExternalId = boxContext.ExternalId,
                             Name = boxContext.Name,
@@ -392,10 +394,10 @@ public static class BoxesEndpoints
 
                 await auditLogService.LogWithFolderContext(
                     folderExternalId: boxContext.Folder?.ExternalId,
-                    buildEntry: folderRef => Audit.Box.FooterUpdated(
+                    buildEntry: folderRef => Audit.Box.FooterUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
-                        box: new AuditLogDetails.BoxRef
+                        box: new Audit.BoxRef
                         {
                             ExternalId = boxContext.ExternalId,
                             Name = boxContext.Name,
@@ -439,10 +441,10 @@ public static class BoxesEndpoints
 
                 await auditLogService.LogWithFolderContext(
                     folderExternalId: request.FolderExternalId,
-                    buildEntry: newFolderRef => Audit.Box.FolderUpdated(
+                    buildEntry: newFolderRef => Audit.Box.FolderUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
-                        box: new AuditLogDetails.BoxRef
+                        box: new Audit.BoxRef
                         {
                             ExternalId = boxContext.ExternalId,
                             Name = boxContext.Name,
@@ -489,10 +491,10 @@ public static class BoxesEndpoints
 
                 await auditLogService.LogWithFolderContext(
                     folderExternalId: boxContext.Folder?.ExternalId,
-                    buildEntry: folderRef => Audit.Box.IsEnabledUpdated(
+                    buildEntry: folderRef => Audit.Box.IsEnabledUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
-                        box: new AuditLogDetails.BoxRef
+                        box: new Audit.BoxRef
                         {
                             ExternalId = boxContext.ExternalId,
                             Name = boxContext.Name,
@@ -535,10 +537,10 @@ public static class BoxesEndpoints
 
                 await auditLogService.LogWithFolderContext(
                     folderExternalId: boxContext.Folder?.ExternalId,
-                    buildEntry: folderRef => Audit.Box.Deleted(
+                    buildEntry: folderRef => Audit.Box.DeletedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
-                        box: new AuditLogDetails.BoxRef
+                        box: new Audit.BoxRef
                         {
                             ExternalId = boxContext.ExternalId,
                             Name = boxContext.Name,
@@ -594,10 +596,10 @@ public static class BoxesEndpoints
 
         await auditLogService.LogWithFolderContext(
             folderExternalId: boxContext.Folder?.ExternalId,
-            buildEntry: folderRef => Audit.Box.MemberInvited(
+            buildEntry: folderRef => Audit.Box.MemberInvitedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
-                box: new AuditLogDetails.BoxRef
+                box: new Audit.BoxRef
                 {
                     ExternalId = boxContext.ExternalId,
                     Name = boxContext.Name,
@@ -649,10 +651,10 @@ public static class BoxesEndpoints
 
                 await auditLogService.LogWithFolderContext(
                     folderExternalId: boxMembership.Box.Folder?.ExternalId,
-                    buildEntry: folderRef => Audit.Box.MemberRevoked(
+                    buildEntry: folderRef => Audit.Box.MemberRevokedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: boxMembership.Box.Workspace.ToAuditLogWorkspaceRef(),
-                        box: new AuditLogDetails.BoxRef
+                        box: new Audit.BoxRef
                         {
                             ExternalId = boxMembership.Box.ExternalId,
                             Name = boxMembership.Box.Name,
@@ -713,10 +715,10 @@ public static class BoxesEndpoints
 
         await auditLogService.LogWithFolderContext(
             folderExternalId: boxMembership.Box.Folder?.ExternalId,
-            buildEntry: folderRef => Audit.Box.MemberPermissionsUpdated(
+            buildEntry: folderRef => Audit.Box.MemberPermissionsUpdatedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 workspace: boxMembership.Box.Workspace.ToAuditLogWorkspaceRef(),
-                box: new AuditLogDetails.BoxRef
+                box: new Audit.BoxRef
                 {
                     ExternalId = boxMembership.Box.ExternalId,
                     Name = boxMembership.Box.Name,
@@ -749,10 +751,10 @@ public static class BoxesEndpoints
             case CreateBoxLinkQuery.ResultCode.Ok:
                 await auditLogService.LogWithFolderContext(
                     folderExternalId: boxContext.Folder?.ExternalId,
-                    buildEntry: folderRef => Audit.Box.LinkCreated(
+                    buildEntry: folderRef => Audit.Box.LinkCreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
-                        box: new AuditLogDetails.BoxRef
+                        box: new Audit.BoxRef
                         {
                             ExternalId = boxContext.ExternalId,
                             Name = boxContext.Name,

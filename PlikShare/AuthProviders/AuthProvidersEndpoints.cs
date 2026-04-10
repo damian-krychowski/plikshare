@@ -19,10 +19,12 @@ using PlikShare.AuthProviders.Update.Contracts;
 using PlikShare.AuthProviders.UpdateName;
 using PlikShare.AuthProviders.UpdateName.Contracts;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Configuration;
 using PlikShare.Core.Utils;
 using PlikShare.GeneralSettings;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.AuthProviders;
 
@@ -117,10 +119,14 @@ public static class AuthProvidersEndpoints
         {
             case CreateAuthProviderQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.AuthProvider.Created(
+                    Audit.AuthProvider.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        name: request.Name,
-                        type: AuthProviderType.Oidc.Value),
+                        authProvider: new Audit.AuthProviderRef
+                        {
+                            ExternalId = result.ExternalId!.Value,
+                            Name = request.Name,
+                            Type = AuthProviderType.Oidc.Value
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok(new CreateOidcAuthProviderResponseDto
@@ -153,9 +159,14 @@ public static class AuthProvidersEndpoints
         {
             case DeleteAuthProviderQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.AuthProvider.Deleted(
+                    Audit.AuthProvider.DeletedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: authProviderExternalId),
+                        authProvider: new Audit.AuthProviderRef
+                        {
+                            ExternalId = authProviderExternalId,
+                            Name = result.Name!,
+                            Type = result.Type!
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -183,14 +194,18 @@ public static class AuthProvidersEndpoints
             name: request.Name,
             cancellationToken: cancellationToken);
 
-        switch (result)
+        switch (result.Code)
         {
             case UpdateAuthProviderNameQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.AuthProvider.NameUpdated(
+                    Audit.AuthProvider.NameUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: authProviderExternalId,
-                        name: request.Name),
+                        authProvider: new Audit.AuthProviderRef
+                        {
+                            ExternalId = authProviderExternalId,
+                            Name = request.Name,
+                            Type = result.Type!
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -219,13 +234,18 @@ public static class AuthProvidersEndpoints
             externalId: authProviderExternalId,
             cancellationToken: cancellationToken);
 
-        switch (result)
+        switch (result.Code)
         {
             case ActivateAuthProviderQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.AuthProvider.Activated(
+                    Audit.AuthProvider.ActivatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: authProviderExternalId),
+                        authProvider: new Audit.AuthProviderRef
+                        {
+                            ExternalId = authProviderExternalId,
+                            Name = result.Name!,
+                            Type = result.Type!
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -251,13 +271,18 @@ public static class AuthProvidersEndpoints
             externalId: authProviderExternalId,
             cancellationToken: cancellationToken);
 
-        switch (result)
+        switch (result.Code)
         {
             case DeactivateAuthProviderQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.AuthProvider.Deactivated(
+                    Audit.AuthProvider.DeactivatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: authProviderExternalId),
+                        authProvider: new Audit.AuthProviderRef
+                        {
+                            ExternalId = authProviderExternalId,
+                            Name = result.Name!,
+                            Type = result.Type!
+                        }),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -316,16 +341,20 @@ public static class AuthProvidersEndpoints
             issuerUrl: request.IssuerUrl,
             cancellationToken: cancellationToken);
 
-        switch (result)
+        switch (result.Code)
         {
             case UpdateAuthProviderQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.AuthProvider.Updated(
+                    Audit.AuthProvider.UpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        externalId: authProviderExternalId,
-                        name: request.Name),
+                        authProvider: new Audit.AuthProviderRef
+                        {
+                            ExternalId = authProviderExternalId,
+                            Name = request.Name,
+                            Type = result.Type!
+                        }),
                     cancellationToken);
-                    
+
                 return TypedResults.Ok();
 
             case UpdateAuthProviderQuery.ResultCode.NotFound:
@@ -362,7 +391,7 @@ public static class AuthProvidersEndpoints
         appSettings.SetPasswordLogin(request.IsEnabled);
 
         await auditLogService.Log(
-            Audit.AuthProvider.PasswordLoginToggled(
+            Audit.AuthProvider.PasswordLoginToggledEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 isEnabled: request.IsEnabled),
             cancellationToken);

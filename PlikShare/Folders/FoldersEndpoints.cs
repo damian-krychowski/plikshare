@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.UserIdentity;
@@ -76,7 +77,7 @@ public static class FoldersEndpoints
         {
             case GetOrCreateFolderQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Folder.BulkCreated(
+                    Audit.Folder.BulkCreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         folders: result.CreatedFolders.ToAuditLogFolderRefs()),
@@ -127,7 +128,7 @@ public static class FoldersEndpoints
             case CreateFolderQuery.ResultCode.Ok:
                 await auditLogService.LogWithFolderContext(
                     folderExternalId: request.ExternalId,
-                    buildEntry: folderRef => Audit.Folder.Created(
+                    buildEntry: folderRef => Audit.Folder.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         folder: folderRef),
@@ -211,7 +212,7 @@ public static class FoldersEndpoints
             case UpdateFolderNameQuery.ResultCode.Ok:
                 await auditLogService.LogWithFolderContext(
                     folderExternalId: folderExternalId,
-                    buildEntry: folderRef => Audit.Folder.NameUpdated(
+                    buildEntry: folderRef => Audit.Folder.NameUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         folder: folderRef),
@@ -258,7 +259,7 @@ public static class FoldersEndpoints
         {
             case MoveItemsToFolderQuery.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.Folder.ItemsMoved(
+                    Audit.Folder.ItemsMovedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         destinationFolder: itemsContext.DestinationFolder,

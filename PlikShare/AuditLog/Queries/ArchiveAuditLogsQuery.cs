@@ -9,7 +9,7 @@ namespace PlikShare.AuditLog.Queries;
 
 public class ArchiveAuditLogsQuery(
     PlikShareAuditLogDb plikShareAuditLogDb,
-    PlikShare.Core.Volumes.Volumes volumes,
+    Volumes volumes,
     IClock clock)
 {
     public ArchiveAuditLogsResponseDto Execute(string? olderThanDate)

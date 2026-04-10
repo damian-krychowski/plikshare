@@ -35,9 +35,11 @@ using PlikShare.Files.UploadAttachment;
 using PlikShare.Storages;
 using PlikShare.Storages.FileReading;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Cache;
 using PlikShare.Workspaces.Validation;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Files;
 
@@ -179,11 +181,11 @@ public static class FilesEndpoints
 
         await auditLogService.LogWithFileContext(
             fileExternalId: fileExternalId,
-            buildEntry: fileRef => Audit.File.AttachmentUploaded(
+            buildEntry: fileRef => Audit.File.AttachmentUploadedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                 parentFile: fileRef,
-                attachment: new AuditLogDetails.FileRef
+                attachment: new Audit.FileRef
                 {
                     ExternalId = attachment.ExternalId,
                     Name = fileName.Name,
@@ -251,7 +253,7 @@ public static class FilesEndpoints
 
         await auditLogService.LogWithFileContext(
             fileExternalId: fileExternalId,
-            buildEntry: fileRef => Audit.File.ContentUpdated(
+            buildEntry: fileRef => Audit.File.ContentUpdatedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                 file: fileRef),
@@ -378,7 +380,7 @@ public static class FilesEndpoints
             case UpdateFileCommentQuery.ResultCode.Ok:
                 await auditLogService.LogWithFileContext(
                     fileExternalId: fileExternalId,
-                    buildEntry: fileRef => Audit.File.CommentEdited(
+                    buildEntry: fileRef => Audit.File.CommentEditedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef,
@@ -425,7 +427,7 @@ public static class FilesEndpoints
             case DeleteFileCommentQuery.ResultCode.Ok:
                 await auditLogService.LogWithFileContext(
                     fileExternalId: fileExternalId,
-                    buildEntry: fileRef => Audit.File.CommentDeleted(
+                    buildEntry: fileRef => Audit.File.CommentDeletedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef,
@@ -471,7 +473,7 @@ public static class FilesEndpoints
             case CreateFileCommentQuery.ResultCode.Ok:
                 await auditLogService.LogWithFileContext(
                     fileExternalId: fileExternalId,
-                    buildEntry: fileRef => Audit.File.CommentCreated(
+                    buildEntry: fileRef => Audit.File.CommentCreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef,
@@ -514,7 +516,7 @@ public static class FilesEndpoints
             case SaveFileNoteQuery.ResultCode.Ok:
                 await auditLogService.LogWithFileContext(
                     fileExternalId: fileExternalId,
-                    buildEntry: fileRef => Audit.File.NoteSaved(
+                    buildEntry: fileRef => Audit.File.NoteSavedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef),
@@ -576,7 +578,7 @@ public static class FilesEndpoints
         {
             case GetBulkDownloadLinkOperation.ResultCode.Ok:
                 await auditLogService.Log(
-                    Audit.File.BulkDownloadLinkGenerated(
+                    Audit.File.BulkDownloadLinkGeneratedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         selectedFileExternalIds: request.SelectedFiles,
@@ -631,7 +633,7 @@ public static class FilesEndpoints
             case GetFileDownloadLinkOperation.ResultCode.Ok:
                 await auditLogService.LogWithFileContext(
                     fileExternalId: fileExternalId,
-                    buildEntry: fileRef => Audit.File.DownloadLinkGenerated(
+                    buildEntry: fileRef => Audit.File.DownloadLinkGeneratedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef),
@@ -675,7 +677,7 @@ public static class FilesEndpoints
             case UpdateFileNameQuery.ResultCode.Ok:
                 await auditLogService.LogWithFileContext(
                     fileExternalId: fileExternalId,
-                    buildEntry: fileRef => Audit.File.Renamed(
+                    buildEntry: fileRef => Audit.File.RenamedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef),

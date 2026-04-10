@@ -8,7 +8,7 @@ namespace PlikShare.AuthProviders.UpdateName;
 
 public class UpdateAuthProviderNameQuery(DbWriteQueue dbWriteQueue)
 {
-    public Task<ResultCode> Execute(
+    public Task<Result> Execute(
         AuthProviderExtId externalId,
         string name,
         CancellationToken cancellationToken)
@@ -21,7 +21,7 @@ public class UpdateAuthProviderNameQuery(DbWriteQueue dbWriteQueue)
             cancellationToken: cancellationToken);
     }
 
-    private ResultCode ExecuteOperation(
+    private Result ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         AuthProviderExtId externalId,
         string name)
@@ -34,22 +34,26 @@ public class UpdateAuthProviderNameQuery(DbWriteQueue dbWriteQueue)
                          UPDATE ap_auth_providers
                          SET ap_name = $name
                          WHERE ap_external_id = $externalId
-                         RETURNING ap_id
+                         RETURNING ap_id, ap_type
                          """,
-                    readRowFunc: reader => reader.GetInt32(0))
+                    readRowFunc: reader => new
+                    {
+                        Id = reader.GetInt32(0),
+                        Type = reader.GetString(1)
+                    })
                 .WithParameter("$name", name)
                 .WithParameter("$externalId", externalId.Value)
                 .Execute();
 
             return result.IsEmpty
-                ? ResultCode.NotFound
-                : ResultCode.Ok;
+                ? new Result(Code: ResultCode.NotFound)
+                : new Result(Code: ResultCode.Ok, Type: result.Value.Type);
         }
         catch (SqliteException e)
         {
             if (e.HasUniqueConstraintFailed(tableName: "ap_auth_providers", columnName: "ap_name"))
             {
-                return ResultCode.NameNotUnique;
+                return new Result(Code: ResultCode.NameNotUnique);
             }
 
             Log.Error(
@@ -71,6 +75,10 @@ public class UpdateAuthProviderNameQuery(DbWriteQueue dbWriteQueue)
             throw;
         }
     }
+
+    public readonly record struct Result(
+        ResultCode Code,
+        string? Type = null);
 
     public enum ResultCode
     {

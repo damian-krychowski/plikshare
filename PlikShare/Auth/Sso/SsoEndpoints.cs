@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.AuthProviders.GetDetails;
 using PlikShare.AuthProviders.Id;
 using PlikShare.Core.Configuration;
@@ -285,7 +286,7 @@ public static class SsoEndpoints
         if (userResult.Code == GetOrCreateSsoUserQuery.ResultCode.NewUserCreated)
         {
             await auditLogService.Log(
-                Audit.Auth.SsoUserCreated(
+                Audit.Auth.SsoUserCreatedEntry(
                     actor: actor,
                     email: email,
                     providerName: provider.Name),
@@ -294,7 +295,7 @@ public static class SsoEndpoints
         else
         {
             await auditLogService.Log(
-                Audit.Auth.SsoLogin(
+                Audit.Auth.SsoLoginEntry(
                     actor: actor,
                     email: email,
                     providerName: provider.Name),

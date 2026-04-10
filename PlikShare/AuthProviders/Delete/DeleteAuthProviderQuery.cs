@@ -31,9 +31,14 @@ public class DeleteAuthProviderQuery(DbWriteQueue dbWriteQueue)
                     sql: """
                          DELETE FROM ap_auth_providers
                          WHERE ap_external_id = $externalId
-                         RETURNING ap_id
+                         RETURNING ap_id, ap_name, ap_type
                          """,
-                    readRowFunc: reader => reader.GetInt32(0),
+                    readRowFunc: reader => new
+                    {
+                        Id = reader.GetInt32(0),
+                        Name = reader.GetString(1),
+                        Type = reader.GetString(2)
+                    },
                     transaction: transaction)
                 .WithParameter("$externalId", externalId.Value)
                 .Execute();
@@ -63,7 +68,9 @@ public class DeleteAuthProviderQuery(DbWriteQueue dbWriteQueue)
 
             return new Result(
                 Code: ResultCode.Ok,
-                AuthProviderId: result.Value);
+                AuthProviderId: result.Value.Id,
+                Name: result.Value.Name,
+                Type: result.Value.Type);
         }
         catch (Exception e)
         {
@@ -80,7 +87,9 @@ public class DeleteAuthProviderQuery(DbWriteQueue dbWriteQueue)
 
     public readonly record struct Result(
         ResultCode Code,
-        int AuthProviderId = 0);
+        int AuthProviderId = 0,
+        string? Name = null,
+        string? Type = null);
 
     public enum ResultCode
     {

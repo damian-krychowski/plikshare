@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.AuthProviders.Create.Contracts;
 using PlikShare.AuthProviders.Id;
 using PlikShare.GeneralSettings;
@@ -11,6 +12,7 @@ using PlikShare.Users.Id;
 using PlikShare.Users.PermissionsAndRoles;
 using PlikShare.Users.UpdateMaxWorkspaceNumber.Contracts;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Auth;
 
@@ -448,7 +450,7 @@ public class sso_login_tests : TestFixture, IDisposable
         await SignInViaSso(authProvider, ssoEmail, ssoSub);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Auth.Sso>(
+        await AssertAuditLogContains<Audit.Auth.Sso>(
             expectedEventType: AuditLogEventTypes.Auth.SsoUserCreated,
             assertDetails: details => details.ProviderName.Should().Be(authProvider.Name),
             expectedActorEmail: ssoEmail);
@@ -471,7 +473,7 @@ public class sso_login_tests : TestFixture, IDisposable
         await SignInViaSso(authProvider, ssoEmail, ssoSub);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.Auth.Sso>(
+        await AssertAuditLogContains<Audit.Auth.Sso>(
             expectedEventType: AuditLogEventTypes.Auth.SsoLogin,
             assertDetails: details => details.ProviderName.Should().Be(authProvider.Name),
             expectedActorEmail: ssoEmail);

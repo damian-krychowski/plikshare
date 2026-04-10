@@ -7,7 +7,7 @@ namespace PlikShare.AuthProviders.Activate;
 
 public class ActivateAuthProviderQuery(DbWriteQueue dbWriteQueue)
 {
-    public Task<ResultCode> Execute(
+    public Task<Result> Execute(
         AuthProviderExtId externalId,
         CancellationToken cancellationToken)
     {
@@ -18,7 +18,7 @@ public class ActivateAuthProviderQuery(DbWriteQueue dbWriteQueue)
             cancellationToken: cancellationToken);
     }
 
-    private ResultCode ExecuteOperation(
+    private Result ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         AuthProviderExtId externalId)
     {
@@ -28,23 +28,36 @@ public class ActivateAuthProviderQuery(DbWriteQueue dbWriteQueue)
                      UPDATE ap_auth_providers
                      SET ap_is_active = TRUE
                      WHERE ap_external_id = $externalId
-                     RETURNING ap_id
+                     RETURNING ap_id, ap_name, ap_type
                      """,
-                readRowFunc: reader => reader.GetInt32(0))
+                readRowFunc: reader => new
+                {
+                    Id = reader.GetInt32(0),
+                    Name = reader.GetString(1),
+                    Type = reader.GetString(2)
+                })
             .WithParameter("$externalId", externalId.Value)
             .Execute();
 
         if (result.IsEmpty)
         {
-            return ResultCode.NotFound;
+            return new Result(Code: ResultCode.NotFound);
         }
 
         Log.Information(
             "Auth Provider '{AuthProviderExternalId}' was activated.",
             externalId);
 
-        return ResultCode.Ok;
+        return new Result(
+            Code: ResultCode.Ok,
+            Name: result.Value.Name,
+            Type: result.Value.Type);
     }
+
+    public readonly record struct Result(
+        ResultCode Code,
+        string? Name = null,
+        string? Type = null);
 
     public enum ResultCode
     {

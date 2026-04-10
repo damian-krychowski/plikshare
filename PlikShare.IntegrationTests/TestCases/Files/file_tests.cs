@@ -1,6 +1,7 @@
 using System.Text;
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Files.Id;
 using PlikShare.Files.Preview.Comment.CreateComment.Contracts;
 using PlikShare.Files.Preview.Comment.EditComment.Contracts;
@@ -9,6 +10,7 @@ using PlikShare.Files.Rename.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Storages.Encryption;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.Files;
 
@@ -215,7 +217,7 @@ public class file_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.File.Renamed>(
+        await AssertAuditLogContains<Audit.File.Renamed>(
             expectedEventType: AuditLogEventTypes.File.Renamed,
             assertDetails: details =>
             {
@@ -242,7 +244,7 @@ public class file_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.File.NoteSaved>(
+        await AssertAuditLogContains<Audit.File.NoteSaved>(
             expectedEventType: AuditLogEventTypes.File.NoteSaved,
             assertDetails: details =>
             {
@@ -300,7 +302,7 @@ public class file_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.File.CommentCreated>(
+        await AssertAuditLogContains<Audit.File.CommentCreated>(
             expectedEventType: AuditLogEventTypes.File.CommentCreated,
             assertDetails: details =>
             {
@@ -338,7 +340,7 @@ public class file_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.File.CommentEdited>(
+        await AssertAuditLogContains<Audit.File.CommentEdited>(
             expectedEventType: AuditLogEventTypes.File.CommentEdited,
             assertDetails: details =>
             {
@@ -375,7 +377,7 @@ public class file_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.File.CommentDeleted>(
+        await AssertAuditLogContains<Audit.File.CommentDeleted>(
             expectedEventType: AuditLogEventTypes.File.CommentDeleted,
             assertDetails: details =>
             {
@@ -417,7 +419,7 @@ public class file_tests : TestFixture
             antiforgery: AppOwner.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.File.ContentUpdated>(
+        await AssertAuditLogContains<Audit.File.ContentUpdated>(
             expectedEventType: AuditLogEventTypes.File.ContentUpdated,
             assertDetails: details =>
             {

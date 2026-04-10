@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using PlikShare.AuditLog.Details;
 using PlikShare.AuditLog.Queries;
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
@@ -18,7 +19,7 @@ public class AuditLogService(
 
     public async ValueTask LogWithStorageContext(
         StorageExtId storageExternalId,
-        Func<AuditLogDetails.StorageRef, AuditLogEntry> buildEntry,
+        Func<Audit.StorageRef, AuditLogEntry> buildEntry,
         CancellationToken cancellationToken)
     {
         var storageRef = getStorageAuditContextQuery.Execute(
@@ -38,7 +39,7 @@ public class AuditLogService(
 
     public async ValueTask LogWithFolderContext(
         FolderExtId? folderExternalId,
-        Func<AuditLogDetails.FolderRef?, AuditLogEntry> buildEntry,
+        Func<Audit.FolderRef?, AuditLogEntry> buildEntry,
         CancellationToken cancellationToken)
     {
         var folderRef = folderExternalId is not null
@@ -50,7 +51,7 @@ public class AuditLogService(
 
     public async ValueTask LogWithFolderContext(
         FolderExtId folderExternalId,
-        Func<AuditLogDetails.FolderRef, AuditLogEntry> buildEntry,
+        Func<Audit.FolderRef, AuditLogEntry> buildEntry,
         CancellationToken cancellationToken)
     {
         var folderRef = getFolderAuditContextQuery.Execute(
@@ -70,7 +71,7 @@ public class AuditLogService(
 
     public async ValueTask LogWithFileContext(
         FileExtId fileExternalId,
-        Func<AuditLogDetails.FileRef, AuditLogEntry> buildEntry,
+        Func<Audit.FileRef, AuditLogEntry> buildEntry,
         CancellationToken cancellationToken)
     {
         var fileRef = getFileAuditContextQuery.Execute(
@@ -90,7 +91,7 @@ public class AuditLogService(
 
     public async ValueTask LogWithFileContexts(
         List<FileExtId> fileExternalIds,
-        Func<Dictionary<FileExtId, AuditLogDetails.FileRef>, AuditLogEntry> buildEntry,
+        Func<Dictionary<FileExtId, Audit.FileRef>, AuditLogEntry> buildEntry,
         CancellationToken cancellationToken)
     {
         var fileRefs = getFileAuditContextQuery.ExecuteMany(
@@ -116,9 +117,9 @@ public class AuditLogService(
     }
 
     public record BulkItemsContext(
-        List<AuditLogDetails.FolderRef> Folders,
-        List<AuditLogDetails.FileRef> Files,
-        List<AuditLogDetails.FileUploadRef> FileUploads);
+        List<Audit.FolderRef> Folders,
+        List<Audit.FileRef> Files,
+        List<Audit.FileUploadRef> FileUploads);
 
     public ItemsMovedContext GetItemsMovedContext(
         FolderExtId? destinationFolderExternalId,
@@ -143,10 +144,10 @@ public class AuditLogService(
     }
 
     public record ItemsMovedContext(
-        AuditLogDetails.FolderRef? DestinationFolder,
-        List<AuditLogDetails.FolderRef> Folders,
-        List<AuditLogDetails.FileRef> Files,
-        List<AuditLogDetails.FileUploadRef> FileUploads);
+        Audit.FolderRef? DestinationFolder,
+        List<Audit.FolderRef> Folders,
+        List<Audit.FileRef> Files,
+        List<Audit.FileUploadRef> FileUploads);
 
     public async ValueTask Log(AuditLogEntry entry, CancellationToken cancellationToken)
     {

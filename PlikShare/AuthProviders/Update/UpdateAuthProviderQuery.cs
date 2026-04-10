@@ -12,7 +12,7 @@ public class UpdateAuthProviderQuery(
     DbWriteQueue dbWriteQueue,
     MasterDataEncryptionBufferedFactory masterDataEncryptionBufferedFactory)
 {
-    public async Task<ResultCode> Execute(
+    public async Task<Result> Execute(
         AuthProviderExtId externalId,
         string name,
         string clientId,
@@ -38,7 +38,7 @@ public class UpdateAuthProviderQuery(
             cancellationToken: cancellationToken);
     }
 
-    private ResultCode ExecuteOperation(
+    private Result ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         AuthProviderExtId externalId,
         string name,
@@ -60,9 +60,13 @@ public class UpdateAuthProviderQuery(
                              ap_issuer_url = $issuerUrl,
                              ap_auto_discovery_url = $autoDiscoveryUrl
                          WHERE ap_external_id = $externalId
-                         RETURNING ap_id
+                         RETURNING ap_id, ap_type
                          """,
-                    readRowFunc: reader => reader.GetInt32(0))
+                    readRowFunc: reader => new
+                    {
+                        Id = reader.GetInt32(0),
+                        Type = reader.GetString(1)
+                    })
                 .WithParameter("$externalId", externalId.Value)
                 .WithParameter("$name", name)
                 .WithParameter("$clientId", clientId)
@@ -73,14 +77,16 @@ public class UpdateAuthProviderQuery(
 
             if (result.IsEmpty)
             {
-                return ResultCode.NotFound;
+                return new Result(Code: ResultCode.NotFound);
             }
 
             Log.Information(
                 "Auth Provider '{AuthProviderExternalId}' was updated.",
                 externalId);
 
-            return ResultCode.Ok;
+            return new Result(
+                Code: ResultCode.Ok,
+                Type: result.Value.Type);
         }
         catch (SqliteException e)
         {
@@ -88,7 +94,7 @@ public class UpdateAuthProviderQuery(
                     tableName: "ap_auth_providers",
                     columnName: "ap_name"))
             {
-                return ResultCode.NameNotUnique;
+                return new Result(Code: ResultCode.NameNotUnique);
             }
 
             Log.Error(
@@ -108,6 +114,10 @@ public class UpdateAuthProviderQuery(
             throw;
         }
     }
+
+    public readonly record struct Result(
+        ResultCode Code,
+        string? Type = null);
 
     public enum ResultCode
     {

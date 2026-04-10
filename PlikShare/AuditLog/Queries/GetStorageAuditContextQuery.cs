@@ -1,3 +1,4 @@
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Storages.Id;
@@ -6,7 +7,7 @@ namespace PlikShare.AuditLog.Queries;
 
 public class GetStorageAuditContextQuery(PlikShareDb plikShareDb)
 {
-    public AuditLogDetails.StorageRef? Execute(
+    public Audit.StorageRef? Execute(
         StorageExtId storageExternalId)
     {
         using var connection = plikShareDb.OpenConnection();
@@ -21,7 +22,7 @@ public class GetStorageAuditContextQuery(PlikShareDb plikShareDb)
                     WHERE s.s_external_id = $storageExternalId
                     LIMIT 1
                     """,
-                readRowFunc: reader => new AuditLogDetails.StorageRef
+                readRowFunc: reader => new Audit.StorageRef
                 {
                     ExternalId = storageExternalId,
                     Name = reader.GetString(0),

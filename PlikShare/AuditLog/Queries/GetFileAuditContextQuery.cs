@@ -1,3 +1,4 @@
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
@@ -6,7 +7,7 @@ namespace PlikShare.AuditLog.Queries;
 
 public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
 {
-    public AuditLogDetails.FileRef? Execute(
+    public Audit.FileRef? Execute(
         FileExtId fileExternalId)
     {
         using var connection = plikShareDb.OpenConnection();
@@ -32,7 +33,7 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
                     WHERE fi.fi_external_id = $fileExternalId
                     LIMIT 1
                     """,
-                readRowFunc: reader => new AuditLogDetails.FileRef
+                readRowFunc: reader => new Audit.FileRef
                 {
                     ExternalId = fileExternalId,
                     Name = reader.GetString(0),
@@ -47,11 +48,11 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
             : result.Value;
     }
 
-    public Dictionary<FileExtId, AuditLogDetails.FileRef> ExecuteMany(
+    public Dictionary<FileExtId, Audit.FileRef> ExecuteMany(
         List<FileExtId> fileExternalIds)
     {
         if (fileExternalIds.Count == 0)
-            return new Dictionary<FileExtId, AuditLogDetails.FileRef>();
+            return new Dictionary<FileExtId, Audit.FileRef>();
 
         using var connection = plikShareDb.OpenConnection();
 
@@ -83,7 +84,7 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
                     return new
                     {
                         ExternalId = externalId,
-                        FileRef = new AuditLogDetails.FileRef
+                        FileRef = new Audit.FileRef
                         {
                             ExternalId = externalId,
                             Name = reader.GetString(1),

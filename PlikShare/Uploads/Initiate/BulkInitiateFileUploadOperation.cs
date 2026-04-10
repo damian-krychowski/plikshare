@@ -125,7 +125,7 @@ public class BulkInitiateFileUploadOperation(
         var initiatedFiles = batchUploadResults
             .Select(bu => new InitiatedFile(
                 FileExternalId: bu.S3Key.FileExternalId,
-                FileUploadExternalId: new Uploads.Id.FileUploadExtId(bu.FileUploadExternalId),
+                FileUploadExternalId: new FileUploadExtId(bu.FileUploadExternalId),
                 FileName: $"{bu.Name}{bu.Extension}",
                 SizeInBytes: bu.SizeInBytes,
                 FolderPath: bu.FolderExternalId is not null
@@ -714,7 +714,7 @@ public class BulkInitiateFileUploadOperation(
 
     public record InitiatedFile(
         Files.Id.FileExtId FileExternalId,
-        Uploads.Id.FileUploadExtId FileUploadExternalId,
+        FileUploadExtId FileUploadExternalId,
         string FileName,
         long SizeInBytes,
         string? FolderPath);

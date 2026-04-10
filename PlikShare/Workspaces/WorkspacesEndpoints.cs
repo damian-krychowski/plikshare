@@ -41,6 +41,8 @@ using PlikShare.Workspaces.UpdateName;
 using PlikShare.Workspaces.UpdateName.Contracts;
 using PlikShare.Workspaces.Validation;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Workspaces;
 
@@ -173,10 +175,10 @@ public static class WorkspacesEndpoints
 
         await auditLogService.LogWithStorageContext(
             storageExternalId: request.StorageExternalId,
-            buildEntry: storageRef => Audit.Workspace.Created(
+            buildEntry: storageRef => Audit.Workspace.CreatedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 storage: storageRef,
-                workspace: new AuditLogDetails.WorkspaceRef
+                workspace: new Audit.WorkspaceRef
                 {
                     ExternalId = result.Workspace.ExternalId,
                     Name = request.Name
@@ -223,7 +225,7 @@ public static class WorkspacesEndpoints
 
                 await auditLogService.LogWithStorageContext(
                     storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
-                    buildEntry: storageRef => Audit.Workspace.Deleted(
+                    buildEntry: storageRef => Audit.Workspace.DeletedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         storage: storageRef,
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef()),
@@ -277,7 +279,7 @@ public static class WorkspacesEndpoints
 
                 await auditLogService.LogWithStorageContext(
                     storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
-                    buildEntry: storageRef => Audit.Workspace.InvitationAccepted(
+                    buildEntry: storageRef => Audit.Workspace.InvitationAcceptedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         storage: storageRef,
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef()),
@@ -330,7 +332,7 @@ public static class WorkspacesEndpoints
             case RejectWorkspaceInvitationQuery.ResultCode.Ok:
                 await auditLogService.LogWithStorageContext(
                     storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
-                    buildEntry: storageRef => Audit.Workspace.InvitationRejected(
+                    buildEntry: storageRef => Audit.Workspace.InvitationRejectedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         storage: storageRef,
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef()),
@@ -446,10 +448,10 @@ public static class WorkspacesEndpoints
 
                 await auditLogService.LogWithStorageContext(
                     storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
-                    buildEntry: storageRef => Audit.Workspace.NameUpdated(
+                    buildEntry: storageRef => Audit.Workspace.NameUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         storage: storageRef,
-                        workspace: new AuditLogDetails.WorkspaceRef
+                        workspace: new Audit.WorkspaceRef
                         {
                             ExternalId = workspaceMembership.Workspace.ExternalId,
                             Name = request.Name
@@ -526,7 +528,7 @@ public static class WorkspacesEndpoints
 
         await auditLogService.LogWithStorageContext(
             storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
-            buildEntry: storageRef => Audit.Workspace.MemberInvited(
+            buildEntry: storageRef => Audit.Workspace.MemberInvitedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 storage: storageRef,
                 workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
@@ -589,7 +591,7 @@ public static class WorkspacesEndpoints
 
                 await auditLogService.LogWithStorageContext(
                     storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
-                    buildEntry: storageRef => Audit.Workspace.MemberRevoked(
+                    buildEntry: storageRef => Audit.Workspace.MemberRevokedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         storage: storageRef,
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
@@ -647,7 +649,7 @@ public static class WorkspacesEndpoints
             case UpdateWorkspaceMemberPermissionsQuery.ResultCode.Ok:
                 await auditLogService.LogWithStorageContext(
                     storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
-                    buildEntry: storageRef => Audit.Workspace.MemberPermissionsUpdated(
+                    buildEntry: storageRef => Audit.Workspace.MemberPermissionsUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         storage: storageRef,
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
@@ -699,7 +701,7 @@ public static class WorkspacesEndpoints
 
                 await auditLogService.LogWithStorageContext(
                     storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
-                    buildEntry: storageRef => Audit.Workspace.MemberLeft(
+                    buildEntry: storageRef => Audit.Workspace.MemberLeftEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         storage: storageRef,
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef()),
@@ -746,7 +748,7 @@ public static class WorkspacesEndpoints
 
         await auditLogService.LogWithStorageContext(
             storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
-            buildEntry: storageRef => Audit.Workspace.BulkDeleteRequested(
+            buildEntry: storageRef => Audit.Workspace.BulkDeleteRequestedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
                 storage: storageRef,
                 workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),

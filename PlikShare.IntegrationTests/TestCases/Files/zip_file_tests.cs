@@ -51,7 +51,7 @@ public class zip_file_tests : TestFixture
             ["data.bin"] = new byte[256],
             ["subdir/nested.txt"] = "Nested file content"u8.ToArray()
         };
-        new System.Random(500).NextBytes(fileContents["data.bin"]);
+        new Random(500).NextBytes(fileContents["data.bin"]);
 
         var zipContent = CreateZipArchive(fileContents);
 
@@ -123,7 +123,7 @@ public class zip_file_tests : TestFixture
             ["readme.md"] = "# Title\nSome markdown"u8.ToArray(),
             ["image.bin"] = new byte[512]
         };
-        new System.Random(501).NextBytes(fileContents["image.bin"]);
+        new Random(501).NextBytes(fileContents["image.bin"]);
 
         var zipContent = CreateZipArchive(fileContents);
 
@@ -189,7 +189,7 @@ public class zip_file_tests : TestFixture
 
         var helloContent = "Hello from inside the ZIP!"u8.ToArray();
         var binaryContent = new byte[1024];
-        new System.Random(502).NextBytes(binaryContent);
+        new Random(502).NextBytes(binaryContent);
 
         var zipContent = CreateZipArchive(new Dictionary<string, byte[]>
         {
@@ -267,7 +267,7 @@ public class zip_file_tests : TestFixture
 
         var textContent = "Encrypted ZIP entry content"u8.ToArray();
         var binaryContent = new byte[2048];
-        new System.Random(503).NextBytes(binaryContent);
+        new Random(503).NextBytes(binaryContent);
 
         var zipContent = CreateZipArchive(new Dictionary<string, byte[]>
         {
@@ -373,7 +373,7 @@ public class zip_file_tests : TestFixture
         var folder = await CreateFolder(parent: null, workspace, user);
 
         var fileContents = new Dictionary<string, byte[]>();
-        var random = new System.Random(600);
+        var random = new Random(600);
 
         for (var i = 0; i < 50; i++)
         {
@@ -695,7 +695,7 @@ public class zip_file_tests : TestFixture
         var folder = await CreateFolder(parent: null, workspace, user);
 
         var fileContents = new Dictionary<string, byte[]>();
-        var random = new System.Random(601);
+        var random = new Random(601);
 
         for (var i = 0; i < 50; i++)
         {

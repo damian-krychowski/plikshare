@@ -1,3 +1,4 @@
+using PlikShare.AuditLog.Details;
 using PlikShare.BoxExternalAccess.Authorization;
 
 namespace PlikShare.AuditLog;
@@ -12,12 +13,12 @@ static class BoxAccessAuditLogExtensions
             Ip: boxAccess.UserIp,
             CorrelationId: correlationId);
 
-        public AuditLogDetails.BoxAccessRef ToAuditLogBoxRef() => new()
+        public Audit.BoxAccessRef ToAuditLogBoxRef() => new()
         {
             ExternalId = boxAccess.Box.ExternalId,
             Name = boxAccess.Box.Name,
             BoxLink = boxAccess.BoxLink is not null
-                ? new AuditLogDetails.BoxLinkAccessRef
+                ? new Audit.BoxLinkAccessRef
                 {
                     ExternalId = boxAccess.BoxLink.ExternalId,
                     Name = boxAccess.BoxLink.Name

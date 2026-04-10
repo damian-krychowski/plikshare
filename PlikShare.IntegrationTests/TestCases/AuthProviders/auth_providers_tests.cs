@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.AuthProviders.Create.Contracts;
 using PlikShare.AuthProviders.Entities;
 using PlikShare.AuthProviders.List.Contracts;
@@ -10,6 +11,7 @@ using PlikShare.AuthProviders.UpdateName.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using Xunit.Abstractions;
+using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.IntegrationTests.TestCases.AuthProviders;
 
@@ -356,12 +358,12 @@ public class auth_providers_tests : TestFixture, IDisposable
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.AuthProvider.Created>(
+        await AssertAuditLogContains<Audit.AuthProvider.Created>(
             expectedEventType: AuditLogEventTypes.AuthProvider.Created,
             assertDetails: details =>
             {
-                details.Name.Should().Be(providerName);
-                details.Type.Should().Be(AuthProviderType.Oidc.Value);
+                details.AuthProvider.Name.Should().Be(providerName);
+                details.AuthProvider.Type.Should().Be(AuthProviderType.Oidc.Value);
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -391,9 +393,9 @@ public class auth_providers_tests : TestFixture, IDisposable
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.AuthProvider.Deleted>(
+        await AssertAuditLogContains<Audit.AuthProvider.Deleted>(
             expectedEventType: AuditLogEventTypes.AuthProvider.Deleted,
-            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
+            assertDetails: details => details.AuthProvider.ExternalId.Should().Be(provider.ExternalId),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Warning);
     }
@@ -427,12 +429,12 @@ public class auth_providers_tests : TestFixture, IDisposable
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.AuthProvider.NameUpdated>(
+        await AssertAuditLogContains<Audit.AuthProvider.NameUpdated>(
             expectedEventType: AuditLogEventTypes.AuthProvider.NameUpdated,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(provider.ExternalId);
-                details.Name.Should().Be(newName);
+                details.AuthProvider.ExternalId.Should().Be(provider.ExternalId);
+                details.AuthProvider.Name.Should().Be(newName);
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -470,12 +472,12 @@ public class auth_providers_tests : TestFixture, IDisposable
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.AuthProvider.Updated>(
+        await AssertAuditLogContains<Audit.AuthProvider.Updated>(
             expectedEventType: AuditLogEventTypes.AuthProvider.Updated,
             assertDetails: details =>
             {
-                details.ExternalId.Should().Be(provider.ExternalId);
-                details.Name.Should().Be(newName);
+                details.AuthProvider.ExternalId.Should().Be(provider.ExternalId);
+                details.AuthProvider.Name.Should().Be(newName);
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Warning);
@@ -505,9 +507,9 @@ public class auth_providers_tests : TestFixture, IDisposable
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.AuthProvider.ActivationChanged>(
+        await AssertAuditLogContains<Audit.AuthProvider.ActivationChanged>(
             expectedEventType: AuditLogEventTypes.AuthProvider.Activated,
-            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
+            assertDetails: details => details.AuthProvider.ExternalId.Should().Be(provider.ExternalId),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);
     }
@@ -541,9 +543,9 @@ public class auth_providers_tests : TestFixture, IDisposable
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.AuthProvider.ActivationChanged>(
+        await AssertAuditLogContains<Audit.AuthProvider.ActivationChanged>(
             expectedEventType: AuditLogEventTypes.AuthProvider.Deactivated,
-            assertDetails: details => details.ExternalId.Should().Be(provider.ExternalId),
+            assertDetails: details => details.AuthProvider.ExternalId.Should().Be(provider.ExternalId),
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Warning);
     }
@@ -564,7 +566,7 @@ public class auth_providers_tests : TestFixture, IDisposable
             antiforgery: user.Antiforgery);
 
         //then
-        await AssertAuditLogContains<AuditLogDetails.AuthProvider.PasswordLoginToggled>(
+        await AssertAuditLogContains<Audit.AuthProvider.PasswordLoginToggled>(
             expectedEventType: AuditLogEventTypes.AuthProvider.PasswordLoginToggled,
             assertDetails: details => details.IsEnabled.Should().BeTrue(),
             expectedActorEmail: user.Email,
