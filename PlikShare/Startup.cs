@@ -539,10 +539,12 @@ public class Startup
 
         builder.Services.AddScoped<IValidator<UpdateFileNameRequestDto>, UpdateFileNameRequestValidator>();
 
-        builder.Services.AddSingleton<CreateHardDriveStorageOperation>();
-        builder.Services.AddSingleton<CreateCloudflareR2StorageOperation>();
-        builder.Services.AddSingleton<CreateBackblazeB2StorageOperation>();
-        builder.Services.AddSingleton<CreateAwsS3StorageOperation>();
+        builder.Services.AddSingleton<HardDriveStorageCreator>();
+        builder.Services.AddSingleton<CloudflareR2StorageCreator>();
+        builder.Services.AddSingleton<BackblazeB2StorageCreator>();
+        builder.Services.AddSingleton<AwsS3StorageCreator>();
+        builder.Services.AddSingleton<DigitalOceanStorageCreator>();
+        builder.Services.AddSingleton<CreateStorageFlow>();
         builder.Services.AddSingleton<GetStoragesQuery>();
         builder.Services.AddSingleton<DeleteStorageQuery>();
         builder.Services.AddSingleton<UpdateCloudflareR2StorageDetailsOperation>();
@@ -551,7 +553,6 @@ public class Startup
         builder.Services.AddSingleton<UpdateStorageDetailsQuery>();
         builder.Services.AddSingleton<UpdateAwsS3StorageDetailsOperation>();
         builder.Services.AddSingleton<CreateStorageQuery>();
-        builder.Services.AddSingleton<CreateDigitalOceanStorageOperation>();
         builder.Services.AddSingleton<UpdateDigitalOceanSpacesStorageDetailsOperation>();
 
         builder.Services.AddSingleton<CheckUserInvitationCodeQuery>();

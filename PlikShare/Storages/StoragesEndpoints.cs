@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Utils;
+using PlikShare.Storages.Create;
 using PlikShare.Storages.Delete;
 using PlikShare.Storages.HardDrive.Create;
 using PlikShare.Storages.HardDrive.Create.Contracts;
@@ -34,7 +35,6 @@ using PlikShare.Storages.S3.DigitalOcean.UpdateDetails.Contracts;
 using PlikShare.Storages.UpdateName;
 using PlikShare.Storages.UpdateName.Contracts;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Storages.Entities;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
@@ -203,23 +203,25 @@ public static class StoragesEndpoints
     // Cloudflare R2 Operations
     private static async Task<Results<Ok<CreateCloudflareR2StorageResponseDto>, BadRequest<HttpError>>> CreateCloudflareR2Storage(
         [FromBody] CreateCloudflareR2StorageRequestDto request,
-        CreateCloudflareR2StorageOperation createCloudflareR2StorageOperation,
+        CloudflareR2StorageCreator cloudflareR2StorageCreator,
+        CreateStorageFlow createStorageFlow,
         HttpContext httpContext,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var result = await createCloudflareR2StorageOperation.Execute(
-            name: request.Name,
-            details: new CloudflareR2DetailsEntity(
+        var result = await createStorageFlow.Execute(
+            creator: cloudflareR2StorageCreator,
+            input: new CloudflareR2DetailsEntity(
                 AccessKeyId: request.AccessKeyId,
                 SecretAccessKey: request.SecretAccessKey,
                 Url: request.Url),
+            name: request.Name,
             encryptionType: request.EncryptionType,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
         {
-            case CreateCloudflareR2StorageOperation.ResultCode.Ok:
+            case StorageCreationResultCode.Ok:
                 await auditLogService.Log(
                     Audit.Storage.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
@@ -234,20 +236,18 @@ public static class StoragesEndpoints
                 return TypedResults.Ok(
                     new CreateCloudflareR2StorageResponseDto(ExternalId: result.StorageExternalId!.Value));
 
-            case CreateCloudflareR2StorageOperation.ResultCode.CouldNotConnect:
+            case StorageCreationResultCode.CouldNotConnect:
                 return HttpErrors.Storage.ConnectionFailed();
 
-            case CreateCloudflareR2StorageOperation.ResultCode.NameNotUnique:
-                return HttpErrors.Storage.NameNotUnique(
-                    request.Name);
+            case StorageCreationResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(request.Name);
 
-            case CreateCloudflareR2StorageOperation.ResultCode.InvalidUrl:
-                return HttpErrors.Storage.InvalidUrl(
-                    request.Url);
+            case StorageCreationResultCode.InvalidUrl:
+                return HttpErrors.Storage.InvalidUrl(request.Url);
 
             default:
                 throw new UnexpectedOperationResultException(
-                    operationName: nameof(CreateCloudflareR2StorageOperation),
+                    operationName: nameof(CreateStorageFlow),
                     resultValueStr: result.ToString());
         }
     }
@@ -297,30 +297,32 @@ public static class StoragesEndpoints
 
             default:
                 throw new UnexpectedOperationResultException(
-                    operationName: nameof(CreateCloudflareR2StorageOperation),
+                    operationName: nameof(UpdateCloudflareR2StorageDetailsOperation),
                     resultValueStr: result.ToString());
         }
     }
 
     private static async Task<Results<Ok<CreateAwsS3StorageResponseDto>, BadRequest<HttpError>>> CreateAwsS3Storage(
         [FromBody] CreateAwsS3StorageRequestDto request,
-        CreateAwsS3StorageOperation createAwsS3StorageOperation,
+        AwsS3StorageCreator awsS3StorageCreator,
+        CreateStorageFlow createStorageFlow,
         HttpContext httpContext,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var result = await createAwsS3StorageOperation.Execute(
-            name: request.Name,
-            details: new AwsS3DetailsEntity(
+        var result = await createStorageFlow.Execute(
+            creator: awsS3StorageCreator,
+            input: new AwsS3DetailsEntity(
                 AccessKey: request.AccessKey,
                 SecretAccessKey: request.SecretAccessKey,
                 Region: request.Region),
+            name: request.Name,
             encryptionType: request.EncryptionType,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
         {
-            case CreateAwsS3StorageOperation.ResultCode.Ok:
+            case StorageCreationResultCode.Ok:
                 await auditLogService.Log(
                     Audit.Storage.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
@@ -335,16 +337,15 @@ public static class StoragesEndpoints
                 return TypedResults.Ok(new CreateAwsS3StorageResponseDto(
                     ExternalId: result.StorageExternalId!.Value));
 
-            case CreateAwsS3StorageOperation.ResultCode.CouldNotConnect:
+            case StorageCreationResultCode.CouldNotConnect:
                 return HttpErrors.Storage.ConnectionFailed();
 
-            case CreateAwsS3StorageOperation.ResultCode.NameNotUnique:
-                return HttpErrors.Storage.NameNotUnique(
-                    request.Name);
+            case StorageCreationResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(request.Name);
 
             default:
                 throw new UnexpectedOperationResultException(
-                    operationName: nameof(CreateAwsS3StorageOperation),
+                    operationName: nameof(CreateStorageFlow),
                     resultValueStr: result.ToString());
         }
     }
@@ -397,23 +398,27 @@ public static class StoragesEndpoints
 
     private static async Task<Results<Ok<CreateDigitalOceanSpacesStorageResponseDto>, BadRequest<HttpError>>> CreateDigitalOceanSpacesStorage(
         [FromBody] CreateDigitalOceanSpacesStorageRequestDto request,
-        CreateDigitalOceanStorageOperation createDigitalOceanStorageOperation,
+        DigitalOceanStorageCreator digitalOceanStorageCreator,
+        CreateStorageFlow createStorageFlow,
         HttpContext httpContext,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var result = await createDigitalOceanStorageOperation.Execute(
-            name: request.Name,
-            details: new DigitalOceanSpacesDetailsEntity(
+        var url = $"https://{request.Region}.digitaloceanspaces.com";
+
+        var result = await createStorageFlow.Execute(
+            creator: digitalOceanStorageCreator,
+            input: new DigitalOceanSpacesDetailsEntity(
                 AccessKey: request.AccessKey,
                 SecretKey: request.SecretKey,
-                Url: $"https://{request.Region}.digitaloceanspaces.com"),
+                Url: url),
+            name: request.Name,
             encryptionType: request.EncryptionType,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
         {
-            case CreateDigitalOceanStorageOperation.ResultCode.Ok:
+            case StorageCreationResultCode.Ok:
                 await auditLogService.Log(
                     Audit.Storage.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
@@ -428,16 +433,18 @@ public static class StoragesEndpoints
                 return TypedResults.Ok(new CreateDigitalOceanSpacesStorageResponseDto(
                     ExternalId: result.StorageExternalId!.Value));
 
-            case CreateDigitalOceanStorageOperation.ResultCode.CouldNotConnect:
+            case StorageCreationResultCode.CouldNotConnect:
                 return HttpErrors.Storage.ConnectionFailed();
 
-            case CreateDigitalOceanStorageOperation.ResultCode.NameNotUnique:
-                return HttpErrors.Storage.NameNotUnique(
-                    request.Name);
+            case StorageCreationResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(request.Name);
+
+            case StorageCreationResultCode.InvalidUrl:
+                return HttpErrors.Storage.InvalidUrl(url);
 
             default:
                 throw new UnexpectedOperationResultException(
-                    operationName: nameof(CreateAwsS3StorageOperation),
+                    operationName: nameof(CreateStorageFlow),
                     resultValueStr: result.ToString());
         }
     }
@@ -490,21 +497,24 @@ public static class StoragesEndpoints
 
     private static async Task<Results<Ok<CreateHardDriveStorageResponseDto>, BadRequest<HttpError>>> CreateHardDriveStorage(
         [FromBody] CreateHardDriveStorageRequestDto request,
-        CreateHardDriveStorageOperation createHardDriveStorageOperation,
+        HardDriveStorageCreator hardDriveStorageCreator,
+        CreateStorageFlow createStorageFlow,
         HttpContext httpContext,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var result = await createHardDriveStorageOperation.Execute(
+        var result = await createStorageFlow.Execute(
+            creator: hardDriveStorageCreator,
+            input: new HardDriveStorageCreator.Input(
+                VolumePath: request.VolumePath,
+                FolderPath: request.FolderPath),
             name: request.Name,
-            volumePath: request.VolumePath,
-            folderPath: request.FolderPath,
             encryptionType: request.EncryptionType,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
         {
-            case CreateHardDriveStorageOperation.ResultCode.Ok:
+            case StorageCreationResultCode.Ok:
                 await auditLogService.Log(
                     Audit.Storage.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
@@ -519,17 +529,15 @@ public static class StoragesEndpoints
                 return TypedResults.Ok(new CreateHardDriveStorageResponseDto(
                     ExternalId: result.StorageExternalId!.Value));
 
-            case CreateHardDriveStorageOperation.ResultCode.NameNotUnique:
-                return HttpErrors.Storage.NameNotUnique(
-                    request.Name);
+            case StorageCreationResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(request.Name);
 
-            case CreateHardDriveStorageOperation.ResultCode.VolumeNotFound:
-                return HttpErrors.Storage.VolumeNotFound(
-                    request.VolumePath);
+            case StorageCreationResultCode.VolumeNotFound:
+                return HttpErrors.Storage.VolumeNotFound(request.VolumePath);
 
             default:
                 throw new UnexpectedOperationResultException(
-                    operationName: nameof(CreateAwsS3StorageOperation),
+                    operationName: nameof(CreateStorageFlow),
                     resultValueStr: result.ToString());
         }
     }
@@ -551,23 +559,25 @@ public static class StoragesEndpoints
     // Backblaze B2 Operations
     private static async Task<Results<Ok<CreateBackblazeB2StorageResponseDto>, BadRequest<HttpError>>> CreateBackblazeB2Storage(
         [FromBody] CreateBackblazeB2StorageRequestDto request,
-        CreateBackblazeB2StorageOperation createBackblazeB2StorageOperation,
+        BackblazeB2StorageCreator backblazeB2StorageCreator,
+        CreateStorageFlow createStorageFlow,
         HttpContext httpContext,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var result = await createBackblazeB2StorageOperation.Execute(
-            name: request.Name,
-            details: new BackblazeB2DetailsEntity(
+        var result = await createStorageFlow.Execute(
+            creator: backblazeB2StorageCreator,
+            input: new BackblazeB2DetailsEntity(
                 KeyId: request.KeyId,
                 ApplicationKey: request.ApplicationKey,
                 Url: request.Url),
+            name: request.Name,
             encryptionType: request.EncryptionType,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
         {
-            case CreateBackblazeB2StorageOperation.ResultCode.Ok:
+            case StorageCreationResultCode.Ok:
                 await auditLogService.Log(
                     Audit.Storage.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
@@ -585,20 +595,18 @@ public static class StoragesEndpoints
                         ExternalId = result.StorageExternalId!.Value
                     });
 
-            case CreateBackblazeB2StorageOperation.ResultCode.CouldNotConnect:
+            case StorageCreationResultCode.CouldNotConnect:
                 return HttpErrors.Storage.ConnectionFailed();
 
-            case CreateBackblazeB2StorageOperation.ResultCode.NameNotUnique:
-                return HttpErrors.Storage.NameNotUnique(
-                    request.Name);
+            case StorageCreationResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(request.Name);
 
-            case CreateBackblazeB2StorageOperation.ResultCode.InvalidUrl:
-                return HttpErrors.Storage.InvalidUrl(
-                    request.Url);
+            case StorageCreationResultCode.InvalidUrl:
+                return HttpErrors.Storage.InvalidUrl(request.Url);
 
             default:
                 throw new UnexpectedOperationResultException(
-                    operationName: nameof(CreateBackblazeB2StorageOperation),
+                    operationName: nameof(CreateStorageFlow),
                     resultValueStr: result.ToString());
         }
     }
@@ -648,7 +656,7 @@ public static class StoragesEndpoints
 
             default:
                 throw new UnexpectedOperationResultException(
-                    operationName: nameof(CreateBackblazeB2StorageOperation),
+                    operationName: nameof(UpdateBackblazeB2StorageDetailsOperation),
                     resultValueStr: result.ToString());
         }
     }
