@@ -8,34 +8,31 @@ public static class IStorageClientExtensions
     public static FileEncryption GenerateFileEncryptionDetails(
         this IStorageClient client)
     {
-        switch (client.EncryptionType)
+        return new FileEncryption
         {
-            case StorageEncryptionType.None:
-                return new FileEncryption
-                {
-                    EncryptionType = StorageEncryptionType.None
-                };
+            EncryptionType = client.EncryptionType,
+            Metadata = GetFileEncryptionMetadata(client)
+        };
+    }
+    private static FileEncryptionMetadata? GetFileEncryptionMetadata(IStorageClient client)
+    {
+        if (client.EncryptionType == StorageEncryptionType.None)
+            return null;
 
-            case StorageEncryptionType.Managed:
-            {
-                var keyProvider = client.EncryptionKeyProvider;
+        if (client.EncryptionType != StorageEncryptionType.Managed &&
+            client.EncryptionType != StorageEncryptionType.Full)
+            throw new InvalidOperationException(
+                $"Unsupported encryption type '{client.EncryptionType}' " +
+                $"for storage '{client.ExternalId}'.");
 
-                return new FileEncryption
-                {
-                    EncryptionType = StorageEncryptionType.Managed,
-                    Metadata = new FileEncryptionMetadata
-                    {
-                        KeyVersion = keyProvider!.GetLatestKeyVersion(),
-                        Salt = keyProvider.GetRandomSalt(),
-                        NoncePrefix = keyProvider.GenerateRandomNoncePrefix()
-                    }
-                };
-            }
+        return new FileEncryptionMetadata
+        {
+            KeyVersion = client
+                .EncryptionKeyProvider
+                !.GetLatestKeyVersion(),
 
-            default:
-                throw new ArgumentOutOfRangeException(
-                    nameof(client.EncryptionType),
-                    $"Unknown EncryptionType value: '{client.EncryptionType}'");
-        }
+            Salt = Aes256GcmStreaming.GenerateSalt(),
+            NoncePrefix = Aes256GcmStreaming.GenerateNoncePrefix()
+        };
     }
 }

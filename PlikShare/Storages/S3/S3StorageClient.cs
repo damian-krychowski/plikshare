@@ -21,20 +21,18 @@ public class S3StorageClient(
     IAmazonS3 s3Client,
     int storageId,
     StorageExtId externalId,
-    string storageType,
     PreSignedUrlsService preSignedUrlsService,
     StorageEncryptionType encryptionType,
-    StorageManagedEncryptionDetails? encryptionDetails) : IStorageClient, IDisposable
+    StorageEncryptionDetails? encryptionDetails) : IStorageClient, IDisposable
 {
     public const int MicroFileThreshold = 1 * SizeInBytes.Mb; //1MB
 
     public int StorageId { get; } = storageId;
     public StorageExtId ExternalId { get; } = externalId;
-    public string StorageType { get; } = storageType;
     public StorageEncryptionType EncryptionType { get; } = encryptionType;
     private readonly RateLimiter _rateLimiter = new(100, 80);
 
-    public StorageEncryptionKeyProvider? EncryptionKeyProvider { get; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
+    public EncryptionKeyProvider? EncryptionKeyProvider { get; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
         encryptionDetails: encryptionDetails);
 
     public async ValueTask DeleteFile(

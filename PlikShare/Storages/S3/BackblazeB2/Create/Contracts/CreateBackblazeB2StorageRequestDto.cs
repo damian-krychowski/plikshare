@@ -10,6 +10,7 @@ public class CreateBackblazeB2StorageRequestDto
     public required string ApplicationKey { get; init; }
     public required string Url { get; init; }
     public required StorageEncryptionType EncryptionType { get; init; }
+    public string? MasterPassword { get; init; }
 }
 
 public class CreateBackblazeB2StorageResponseDto

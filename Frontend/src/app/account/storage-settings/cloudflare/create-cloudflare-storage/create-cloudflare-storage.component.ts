@@ -32,26 +32,32 @@ export class CreateCloudflareStorageComponent{
 
     encryption = new FormControl('none', Validators.required);
     name = new FormControl('', [Validators.required]);
-    accessKeyId = new FormControl('', [Validators.required]);    
-    secretAccessKey = new FormControl('', [Validators.required]);    
-    url = new FormControl('', [Validators.required]);    
+    accessKeyId = new FormControl('', [Validators.required]);
+    secretAccessKey = new FormControl('', [Validators.required]);
+    url = new FormControl('', [Validators.required]);
+    masterPassword = new FormControl('');
+    confirmMasterPassword = new FormControl('');
 
     formGroup: FormGroup;
     wasSubmitted = signal(false);
-      
+
 
     constructor(
         private _dataStore: DataStore,
-        private _storagesApi: StoragesApi,  
-        private _router: Router) {    
-            
+        private _storagesApi: StoragesApi,
+        private _router: Router) {
+
         this.formGroup = new FormGroup({
             name: this.name,
             accessKeyId: this.accessKeyId,
             secretAccessKey: this.secretAccessKey,
             url: this.url,
-            encryption: this.encryption
+            encryption: this.encryption,
+            masterPassword: this.masterPassword,
+            confirmMasterPassword: this.confirmMasterPassword
         });
+
+        this.encryption.valueChanges.subscribe(value => this.updateMasterPasswordValidators(value));
     }
 
     async onCreateStorage() {
@@ -62,7 +68,7 @@ export class CreateCloudflareStorageComponent{
 
         try {
             this.isLoading.set(true);
-            
+
             const encryptionType = this.encryption.value! as AppStorageEncryptionType;
 
             await this._storagesApi.createCloudflareR2Storage({
@@ -70,7 +76,8 @@ export class CreateCloudflareStorageComponent{
                 accessKeyId: this.accessKeyId.value!,
                 secretAccessKey: this.secretAccessKey.value!,
                 url: this.url.value!,
-                encryptionType: encryptionType
+                encryptionType: encryptionType,
+                masterPassword: encryptionType === 'full' ? this.masterPassword.value! : undefined
             });
 
             this._dataStore.clearDashboardData();
@@ -96,5 +103,36 @@ export class CreateCloudflareStorageComponent{
 
     goToStorages() {
         this._router.navigate(['settings/storage']);
+    }
+
+    private updateMasterPasswordValidators(encryptionValue: string | null) {
+        if (encryptionValue === 'full') {
+            this.masterPassword.setValidators([
+                Validators.required,
+                Validators.minLength(8),
+                Validators.pattern(/(?=.*[0-9])/),
+                Validators.pattern(/(?=.*[A-Z])/),
+                Validators.pattern(/(?=.*[a-z])/),
+                Validators.pattern(/(?=.*[!@#$%^&*])/)
+            ]);
+            this.confirmMasterPassword.setValidators([
+                Validators.required,
+                this.matchMasterPassword.bind(this)
+            ]);
+        } else {
+            this.masterPassword.clearValidators();
+            this.confirmMasterPassword.clearValidators();
+            this.masterPassword.setValue('');
+            this.confirmMasterPassword.setValue('');
+        }
+        this.masterPassword.updateValueAndValidity();
+        this.confirmMasterPassword.updateValueAndValidity();
+    }
+
+    private matchMasterPassword(control: FormControl): { [s: string]: boolean } | null {
+        if (this.masterPassword && control.value !== this.masterPassword.value) {
+            return { 'passwordMismatch': true };
+        }
+        return null;
     }
 }

@@ -167,6 +167,7 @@ using PlikShare.Search;
 using PlikShare.Search.Get;
 using PlikShare.Storages;
 using PlikShare.Storages.Create;
+using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Delete;
 using PlikShare.Storages.FileCopying;
 using PlikShare.Storages.FileCopying.BulkInitiateCopyFiles;

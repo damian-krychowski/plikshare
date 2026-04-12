@@ -6,7 +6,8 @@ namespace PlikShare.Storages.Encryption;
 public enum StorageEncryptionType
 {
     None = 0,
-    Managed = 1
+    Managed = 1,
+    Full = 2
 }
 
 public static class StorageEncryptionExtensions
@@ -17,6 +18,7 @@ public static class StorageEncryptionExtensions
         {
             StorageEncryptionType.None => "none",
             StorageEncryptionType.Managed => "managed",
+            StorageEncryptionType.Full => "full",
             _ => throw new ArgumentOutOfRangeException(nameof(encryptionType), encryptionType, null)
         };
     }
@@ -28,50 +30,63 @@ public static class StorageEncryptionExtensions
             null => StorageEncryptionType.None, //by default all storages does not have encryption
             "none" => StorageEncryptionType.None,
             "managed" => StorageEncryptionType.Managed,
+            "full" => StorageEncryptionType.Full,
             _ => throw new ArgumentOutOfRangeException(nameof(dbValue), dbValue, null)
         };
     }
 
-    public static StorageManagedEncryptionDetails? GetEncryptionDetails(
+    public static StorageEncryptionDetails? GetEncryptionDetails(
         StorageEncryptionType encryptionType,
         string encryptionDetailsJson)
     {
         return encryptionType switch
         {
             StorageEncryptionType.None => null,
-            
+
             StorageEncryptionType.Managed => Json.Deserialize<StorageManagedEncryptionDetails>(
+                encryptionDetailsJson),
+
+            StorageEncryptionType.Full => Json.Deserialize<StorageFullEncryptionDetails>(
                 encryptionDetailsJson),
 
             _ => throw new ArgumentOutOfRangeException(nameof(encryptionType), encryptionType, null)
         };
     }
 
-    public static StorageEncryptionKeyProvider? PrepareEncryptionKeyProvider(
-        StorageManagedEncryptionDetails? encryptionDetails)
+    public static EncryptionKeyProvider? PrepareEncryptionKeyProvider(
+        StorageEncryptionDetails? encryptionDetails)
     {
-        switch (encryptionDetails)
-        {
-            case null:
-                return null;
+        if (encryptionDetails is null)
+            return null;
 
-            case var managedEncryptionDetails:
-                return new StorageEncryptionKeyProvider(managedEncryptionDetails.Ikms);
+        if (encryptionDetails.Full is not null)
+        {
+            return new EncryptionKeyProvider
+            {
+                Full = new FullEncryptionKeyProvider(
+                    encryptionDetails.Full)
+            };
         }
+
+        if (encryptionDetails.Managed is not null)
+        {
+            return new EncryptionKeyProvider
+            {
+                Managed = new ManagedEncryptionKeyProvider(
+                    encryptionDetails.Managed.Ikms)
+            };
+        }
+
+        throw new InvalidOperationException(
+            "StorageEncryptionDetails must have either Managed or Full set.");
     }
 
-    public static StorageManagedEncryptionDetails? PrepareEncryptionDetails(
-        StorageEncryptionType encryptionType)
+    public static StorageManagedEncryptionDetails PrepareManagedEncryptionDetails()
     {
-        return encryptionType switch
-        {
-            StorageEncryptionType.None => null,
-            StorageEncryptionType.Managed => new StorageManagedEncryptionDetails(
-                Ikms:
-                [
-                    Convert.ToBase64String(Aes256GcmStreaming.GenerateIkm())
-                ]),
-            _ => throw new ArgumentOutOfRangeException(nameof(encryptionType), encryptionType, null)
-        };
+        return new StorageManagedEncryptionDetails(
+            Ikms:
+            [
+                Convert.ToBase64String(Aes256GcmStreaming.GenerateIkm())
+            ]);
     }
 }

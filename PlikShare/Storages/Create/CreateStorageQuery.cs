@@ -17,7 +17,7 @@ public class CreateStorageQuery(
         string storageType,
         string detailsJson,
         StorageEncryptionType encryptionType,
-        StorageManagedEncryptionDetails? encryptionDetails,
+        StorageEncryptionDetails? encryptionDetails,
         CancellationToken cancellationToken)
     {
         var derivedEncryption = await masterDataEncryptionBufferedFactory.Take(
@@ -41,7 +41,7 @@ public class CreateStorageQuery(
         string storageType,
         string detailsJson,
         StorageEncryptionType encryptionType,
-        StorageManagedEncryptionDetails? encryptionDetails,
+        StorageEncryptionDetails? encryptionDetails,
         IDerivedMasterDataEncryption derivedEncryption)
     {
         try
@@ -74,9 +74,7 @@ public class CreateStorageQuery(
                 .WithParameter("$name", name)
                 .WithParameter("$details", derivedEncryption.Encrypt(detailsJson))
                 .WithParameter("$encryptionType", encryptionType.ToDbValue())
-                .WithParameter("$encryptionDetails", encryptionDetails is null
-                    ? null
-                    : derivedEncryption.EncryptJson(encryptionDetails))
+                .WithParameter("$encryptionDetails", encryptionDetails.EncryptJson(derivedEncryption))
                 .ExecuteOrThrow();
 
 

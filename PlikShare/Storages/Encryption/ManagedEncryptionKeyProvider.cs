@@ -1,13 +1,11 @@
-﻿using PlikShare.Core.Encryption;
+﻿namespace PlikShare.Storages.Encryption;
 
-namespace PlikShare.Storages.Encryption;
-
-public class StorageEncryptionKeyProvider
+public class ManagedEncryptionKeyProvider
 {
     private readonly Dictionary<byte, StorageEncryptionKey> _keys;
     private readonly byte _latestVersion;
 
-    public StorageEncryptionKeyProvider(IList<string> ikms)
+    public ManagedEncryptionKeyProvider(IList<string> ikms)
     {
         _keys = new Dictionary<byte, StorageEncryptionKey>();
 
@@ -35,7 +33,4 @@ public class StorageEncryptionKeyProvider
     public byte GetLatestKeyVersion() => _latestVersion;
 
     public class EncryptionKeyNotFoundException(string message) : Exception(message);
-
-    public byte[] GetRandomSalt() => Aes256GcmStreaming.GenerateSalt();
-    public byte[] GenerateRandomNoncePrefix() => Aes256GcmStreaming.GenerateNoncePrefix();
 }

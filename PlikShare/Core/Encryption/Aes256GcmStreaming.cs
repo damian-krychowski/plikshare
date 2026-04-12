@@ -29,6 +29,8 @@ namespace PlikShare.Core.Encryption;
 /// </summary>
 public static class Aes256GcmStreaming
 {
+    public delegate StorageEncryptionKey GetEncryptionKey(byte version);
+
     /// <summary>
     /// Size of a segment = ciphertext + tag
     /// </summary>
@@ -460,7 +462,7 @@ public static class Aes256GcmStreaming
 
     //assumption: pipe reader need to already start from the first segment beginning
     public static async ValueTask DecryptRange(
-       StorageEncryptionKeyProvider keyProvider,
+       GetEncryptionKey getEncryptionKeyFunc,
        FileEncryptionMetadata encryptionMetadata,
        EncryptedBytesRange range,
        long fileSizeInBytes,
@@ -500,7 +502,7 @@ public static class Aes256GcmStreaming
 
         try
         {
-            var key = keyProvider.GetEncryptionKey(
+            var key = getEncryptionKeyFunc(
                 version: encryptionMetadata.KeyVersion);
 
             using var aesGcm = PrepareAesGcm(
@@ -621,7 +623,7 @@ public static class Aes256GcmStreaming
     }
 
     public static async ValueTask Decrypt(
-        StorageEncryptionKeyProvider keyProvider,
+        GetEncryptionKey getEncryptionKeyFunc,
         long fileSizeInBytes,
         PipeReader input,
         PipeWriter output,
@@ -664,7 +666,7 @@ public static class Aes256GcmStreaming
                 headerBuffer,
                 cancellationToken);
 
-            var key = keyProvider.GetEncryptionKey(
+            var key = getEncryptionKeyFunc(
                 version: header.KeyVersion);
 
             using var aesGcm = PrepareAesGcm(
@@ -1031,4 +1033,3 @@ public record EncryptedBytesRange(
         long Start,
         long End);
 }
-

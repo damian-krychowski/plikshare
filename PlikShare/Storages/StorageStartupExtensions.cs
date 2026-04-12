@@ -122,7 +122,6 @@ public static class StorageStartupExtensions
                     s3Client: client,
                     storageId: storage.StorageId,
                     externalId: storage.ExternalId,
-                    storageType: storage.Type,
                     preSignedUrlsService: preSignedUrlsService,
                     encryptionType: storage.EncryptionType,
                     encryptionDetails: storage.EncryptionDetails));
@@ -144,7 +143,6 @@ public static class StorageStartupExtensions
                     s3Client: client,
                     storageId: storage.StorageId,
                     externalId: storage.ExternalId,
-                    storageType: storage.Type,
                     preSignedUrlsService: preSignedUrlsService,
                     encryptionType: storage.EncryptionType,
                     encryptionDetails: storage.EncryptionDetails));
@@ -166,7 +164,6 @@ public static class StorageStartupExtensions
                     s3Client: client,
                     storageId: storage.StorageId,
                     externalId: storage.ExternalId,
-                    storageType: storage.Type,
                     preSignedUrlsService: preSignedUrlsService,
                     encryptionType: storage.EncryptionType,
                     encryptionDetails: storage.EncryptionDetails));
@@ -188,7 +185,6 @@ public static class StorageStartupExtensions
                     s3Client: client,
                     storageId: storage.StorageId,
                     externalId: storage.ExternalId,
-                    storageType: storage.Type,
                     preSignedUrlsService: preSignedUrlsService,
                     encryptionType: storage.EncryptionType,
                     encryptionDetails: storage.EncryptionDetails));

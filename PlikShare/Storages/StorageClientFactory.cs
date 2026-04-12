@@ -16,7 +16,8 @@ public enum StorageOperationResultCode
     InvalidUrl,
     VolumeNotFound,
     NameNotUnique,
-    NotFound
+    NotFound,
+    MasterPasswordRequired
 }
 
 public record StorageClientFactoryResult(
@@ -35,7 +36,7 @@ public class StorageClientDetails
     public required int StorageId { get; init; }
     public required StorageExtId ExternalId { get; init; }
     public required StorageEncryptionType EncryptionType { get; init; }
-    public required StorageManagedEncryptionDetails? EncryptionDetails { get; init; }
+    public required StorageEncryptionDetails? EncryptionDetails { get; init; }
 }
 
 public interface IStorageClientFactory<TInput>
@@ -67,7 +68,6 @@ public static class StoragePreparationDetailsExtensions
                     s3Client: client,
                     storageId: clientDetails.StorageId,
                     externalId: clientDetails.ExternalId,
-                    storageType: storageType,
                     preSignedUrlsService: preSignedUrlsService,
                     encryptionType: clientDetails.EncryptionType,
                     encryptionDetails: clientDetails.EncryptionDetails)

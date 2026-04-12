@@ -30,25 +30,31 @@ export class CreateBackblazeStorageComponent {
 
     encryption = new FormControl('none', Validators.required);
     name = new FormControl('', [Validators.required]);
-    keyId = new FormControl('', [Validators.required]);    
-    applicationKey = new FormControl('', [Validators.required]);    
+    keyId = new FormControl('', [Validators.required]);
+    applicationKey = new FormControl('', [Validators.required]);
     endpointUrl = new FormControl('', [Validators.required]);
+    masterPassword = new FormControl('');
+    confirmMasterPassword = new FormControl('');
 
     formGroup: FormGroup;
     wasSubmitted = signal(false);
-      
+
     constructor(
         private _dataStore: DataStore,
-        private _storagesApi: StoragesApi,  
-        private _router: Router) {    
-            
+        private _storagesApi: StoragesApi,
+        private _router: Router) {
+
         this.formGroup = new FormGroup({
             name: this.name,
             keyId: this.keyId,
             applicationKey: this.applicationKey,
             endpointUrl: this.endpointUrl,
-            encryption: this.encryption
+            encryption: this.encryption,
+            masterPassword: this.masterPassword,
+            confirmMasterPassword: this.confirmMasterPassword
         });
+
+        this.encryption.valueChanges.subscribe(value => this.updateMasterPasswordValidators(value));
     }
 
     async onCreateStorage() {
@@ -59,7 +65,7 @@ export class CreateBackblazeStorageComponent {
 
         try {
             this.isLoading.set(true);
-            
+
             const encryptionType = this.encryption.value! as AppStorageEncryptionType;
 
             await this._storagesApi.createBackblazeB2Storage({
@@ -67,7 +73,8 @@ export class CreateBackblazeStorageComponent {
                 keyId: this.keyId.value!,
                 applicationKey: this.applicationKey.value!,
                 url: this.endpointUrl.value!,
-                encryptionType: encryptionType
+                encryptionType: encryptionType,
+                masterPassword: encryptionType === 'full' ? this.masterPassword.value! : undefined
             });
 
             this._dataStore.clearDashboardData();
@@ -93,5 +100,36 @@ export class CreateBackblazeStorageComponent {
 
     goToStorages() {
         this._router.navigate(['settings/storage']);
+    }
+
+    private updateMasterPasswordValidators(encryptionValue: string | null) {
+        if (encryptionValue === 'full') {
+            this.masterPassword.setValidators([
+                Validators.required,
+                Validators.minLength(8),
+                Validators.pattern(/(?=.*[0-9])/),
+                Validators.pattern(/(?=.*[A-Z])/),
+                Validators.pattern(/(?=.*[a-z])/),
+                Validators.pattern(/(?=.*[!@#$%^&*])/)
+            ]);
+            this.confirmMasterPassword.setValidators([
+                Validators.required,
+                this.matchMasterPassword.bind(this)
+            ]);
+        } else {
+            this.masterPassword.clearValidators();
+            this.confirmMasterPassword.clearValidators();
+            this.masterPassword.setValue('');
+            this.confirmMasterPassword.setValue('');
+        }
+        this.masterPassword.updateValueAndValidity();
+        this.confirmMasterPassword.updateValueAndValidity();
+    }
+
+    private matchMasterPassword(control: FormControl): { [s: string]: boolean } | null {
+        if (this.masterPassword && control.value !== this.masterPassword.value) {
+            return { 'passwordMismatch': true };
+        }
+        return null;
     }
 }

@@ -181,6 +181,12 @@ public static class HttpErrors
             Code = "volume-not-found",
             Message = $"Volume '{volumePath}' was not found"
         });
+
+        public static BadRequest<HttpError> MasterPasswordRequired() => TypedResults.BadRequest(new HttpError
+        {
+            Code = "master-password-required",
+            Message = "Master password is required for full encryption storage"
+        });
     }
 
     public static class Folder

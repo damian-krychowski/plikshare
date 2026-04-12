@@ -147,13 +147,67 @@
                             <ul>
                                 <li>Increases security by ensuring all data is encrypted before storage</li>
                                 <li>Requires additional server resources and bandwidth</li>
-                                <li>May incur higher infrastructure costs due to processing overhead</li>                        
-                            </ul>                        
+                                <li>May incur higher infrastructure costs due to processing overhead</li>
+                            </ul>
                             Choose this option when data security is a priority and you need to ensure files are encrypted at rest.
+                        </div>
+                    </div>
+
+                    <div class="page-form__radio-option">
+                        <mat-radio-button value="full">Full encryption</mat-radio-button>
+                        <div class="page-form__info">
+                            Files and keys are encrypted with a key derived from a master password.
+                            The password is never stored on the server — <strong>losing it means losing access to all data</strong>.
                         </div>
                     </div>
                 </mat-radio-group>
             </div>
+
+            @if(encryption.value === 'full') {
+                <div class="page-form__section-title">
+                    Master password:
+                </div>
+
+                <mat-form-field class="page-form__field">
+                    <mat-label>Master password</mat-label>
+                    <input
+                        type="password"
+                        autocomplete="new-password"
+                        formControlName="masterPassword"
+                        required
+                        appSecureInput
+                        matInput>
+
+                    @if((masterPassword.touched || wasSubmitted()) && masterPassword.hasError('required')){
+                        <mat-error>Master password is <strong>required</strong></mat-error>
+                    }
+                    @if((masterPassword.touched || wasSubmitted()) && masterPassword.hasError('minlength')){
+                        <mat-error>At least 8 characters are required</mat-error>
+                    }
+                    @if((masterPassword.touched || wasSubmitted()) && masterPassword.hasError('pattern') && !masterPassword.hasError('minlength')){
+                        <mat-error>At least 1 number, 1 uppercase, 1 lowercase and 1 special character is required</mat-error>
+                    }
+                </mat-form-field>
+
+                <mat-form-field class="page-form__field">
+                    <mat-label>Confirm master password</mat-label>
+                    <input
+                        type="password"
+                        autocomplete="new-password"
+                        formControlName="confirmMasterPassword"
+                        required
+                        appSecureInput
+                        matInput>
+
+                    @if((confirmMasterPassword.touched || wasSubmitted()) && confirmMasterPassword.hasError('required')){
+                        <mat-error>Confirm master password is <strong>required</strong></mat-error>
+                    }
+                    @if((confirmMasterPassword.touched || wasSubmitted()) && confirmMasterPassword.hasError('passwordMismatch')){
+                        <mat-error>Passwords do not match</mat-error>
+                    }
+                </mat-form-field>
+            }
+
             <div class="mt-3 d-none-on-mobile"></div>
 
             <div class="page-form__actions"> 

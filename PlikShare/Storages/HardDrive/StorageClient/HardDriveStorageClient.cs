@@ -13,39 +13,23 @@ using Serilog;
 
 namespace PlikShare.Storages.HardDrive.StorageClient;
 
-public class HardDriveStorageClient: IStorageClient
+public class HardDriveStorageClient(
+    PreSignedUrlsService preSignedUrlsService,
+    IClock clock,
+    HardDriveDetailsEntity details,
+    int storageId,
+    StorageExtId externalId,
+    StorageEncryptionType encryptionType,
+    StorageEncryptionDetails? encryptionDetails) : IStorageClient
 {
-    public HardDriveDetailsEntity Details { get; }
-    public StorageEncryptionType EncryptionType { get; }
-    public StorageEncryptionKeyProvider? EncryptionKeyProvider { get; }
+    public HardDriveDetailsEntity Details { get; } = details;
+    public StorageEncryptionType EncryptionType { get; } = encryptionType;
+    public EncryptionKeyProvider? EncryptionKeyProvider { get; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
+        encryptionDetails: encryptionDetails);
 
-    private readonly PreSignedUrlsService _preSignedUrlsService;
-    
-    public int StorageId { get; }
-    public StorageExtId ExternalId { get; }
+    public int StorageId { get; } = storageId;
+    public StorageExtId ExternalId { get; } = externalId;
 
-    private readonly IClock _clock;
-
-    public HardDriveStorageClient(
-        PreSignedUrlsService preSignedUrlsService,
-        IClock clock,
-        HardDriveDetailsEntity details,
-        int storageId,
-        StorageExtId externalId,
-        StorageEncryptionType encryptionType,
-        StorageManagedEncryptionDetails? encryptionDetails)
-    {
-        _preSignedUrlsService = preSignedUrlsService;
-        _clock = clock;
-
-        StorageId = storageId;
-        ExternalId = externalId;
-        Details = details;
-        EncryptionType = encryptionType;
-        EncryptionKeyProvider = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
-            encryptionDetails: encryptionDetails);
-    }
-    
     public ValueTask DeleteFile(
         string bucketName, 
         S3FileKey key, 
@@ -272,7 +256,7 @@ public class HardDriveStorageClient: IStorageClient
         bool enforceInternalPassThrough,
         CancellationToken cancellationToken)
     {
-        var url = _preSignedUrlsService.GeneratePreSignedUploadUrl(
+        var url = preSignedUrlsService.GeneratePreSignedUploadUrl(
             payload: new PreSignedUrlsService.UploadPayload
             {
                 FileUploadExternalId = fileUploadExternalId,
@@ -283,7 +267,7 @@ public class HardDriveStorageClient: IStorageClient
                     Identity = userIdentity.Identity,
                     IdentityType = userIdentity.IdentityType
                 },
-                ExpirationDate = _clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
+                ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
                 BoxLinkId = boxLinkId
             });
 
@@ -307,7 +291,7 @@ public class HardDriveStorageClient: IStorageClient
         bool enforceInternalPassThrough,
         CancellationToken cancellationToken)
     {
-        var result = _preSignedUrlsService.GeneratePreSignedDownloadUrl(
+        var result = preSignedUrlsService.GeneratePreSignedDownloadUrl(
             payload: new PreSignedUrlsService.DownloadPayload
             {
                 FileExternalId = key.FileExternalId,
@@ -317,7 +301,7 @@ public class HardDriveStorageClient: IStorageClient
                     IdentityType = userIdentity.IdentityType
                 },
                 ContentDisposition = contentDisposition,
-                ExpirationDate = _clock.UtcNow.Add(TimeSpan.FromDays(1)),
+                ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
                 BoxLinkId = boxLinkId
             });
         

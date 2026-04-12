@@ -218,6 +218,7 @@ public static class StoragesEndpoints
                 Url: request.Url),
             name: request.Name,
             encryptionType: request.EncryptionType,
+            masterPassword: request.MasterPassword,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -245,6 +246,9 @@ public static class StoragesEndpoints
 
             case StorageOperationResultCode.InvalidUrl:
                 return HttpErrors.Storage.InvalidUrl(request.Url);
+
+            case StorageOperationResultCode.MasterPasswordRequired:
+                return HttpErrors.Storage.MasterPasswordRequired();
 
             default:
                 throw new UnexpectedOperationResultException(
@@ -319,6 +323,7 @@ public static class StoragesEndpoints
                 Region: request.Region),
             name: request.Name,
             encryptionType: request.EncryptionType,
+            masterPassword: request.MasterPassword,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -343,6 +348,9 @@ public static class StoragesEndpoints
 
             case StorageOperationResultCode.NameNotUnique:
                 return HttpErrors.Storage.NameNotUnique(request.Name);
+
+            case StorageOperationResultCode.MasterPasswordRequired:
+                return HttpErrors.Storage.MasterPasswordRequired();
 
             default:
                 throw new UnexpectedOperationResultException(
@@ -416,6 +424,7 @@ public static class StoragesEndpoints
                 Url: url),
             name: request.Name,
             encryptionType: request.EncryptionType,
+            masterPassword: request.MasterPassword,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -443,6 +452,9 @@ public static class StoragesEndpoints
 
             case StorageOperationResultCode.InvalidUrl:
                 return HttpErrors.Storage.InvalidUrl(url);
+
+            case StorageOperationResultCode.MasterPasswordRequired:
+                return HttpErrors.Storage.MasterPasswordRequired();
 
             default:
                 throw new UnexpectedOperationResultException(
@@ -518,6 +530,7 @@ public static class StoragesEndpoints
                 FolderPath: request.FolderPath),
             name: request.Name,
             encryptionType: request.EncryptionType,
+            masterPassword: request.MasterPassword,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -542,6 +555,9 @@ public static class StoragesEndpoints
 
             case StorageOperationResultCode.VolumeNotFound:
                 return HttpErrors.Storage.VolumeNotFound(request.VolumePath);
+
+            case StorageOperationResultCode.MasterPasswordRequired:
+                return HttpErrors.Storage.MasterPasswordRequired();
 
             default:
                 throw new UnexpectedOperationResultException(
@@ -581,6 +597,7 @@ public static class StoragesEndpoints
                 Url: request.Url),
             name: request.Name,
             encryptionType: request.EncryptionType,
+            masterPassword: request.MasterPassword,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -611,6 +628,9 @@ public static class StoragesEndpoints
 
             case StorageOperationResultCode.InvalidUrl:
                 return HttpErrors.Storage.InvalidUrl(request.Url);
+
+            case StorageOperationResultCode.MasterPasswordRequired:
+                return HttpErrors.Storage.MasterPasswordRequired();
 
             default:
                 throw new UnexpectedOperationResultException(

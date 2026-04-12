@@ -5,7 +5,6 @@ using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Exceptions;
 using PlikShare.Storages.FileReading;
 using PlikShare.Storages.HardDrive.StorageClient;
-using PlikShare.Storages.S3;
 using Serilog;
 using System.IO.Pipelines;
 
@@ -18,6 +17,7 @@ public class HardDriveDownloadOperation
         S3FileKey s3FileKey,
         long fileSizeInBytes,
         string filePath,
+        FullEncryptionSession? fullEncryptionAccess,
         HardDriveStorageClient hardDriveStorageClient,
         FileStream stream) : IFile
     {
@@ -48,14 +48,15 @@ public class HardDriveDownloadOperation
                         streamDuration.TotalMilliseconds,
                         streamSpeed / 1024.0 / 1024.0);
                 }
-                else if (hardDriveStorageClient.EncryptionType == StorageEncryptionType.Managed)
+                else
                 {
                     Logger.Debug(
                         "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
                         s3FileKey.FileExternalId);
-
+                    
                     await Aes256GcmStreaming.Decrypt(
-                        keyProvider: hardDriveStorageClient.EncryptionKeyProvider!,
+                        getEncryptionKeyFunc: hardDriveStorageClient.GetEncryptionKeyFunc(
+                            fullEncryptionAccess),
                         fileSizeInBytes: fileSizeInBytes,
                         input: PipeReader.Create(
                             stream,
@@ -73,16 +74,6 @@ public class HardDriveDownloadOperation
                         fileSizeInBytes,
                         decryptDuration.TotalMilliseconds,
                         decryptSpeed / 1024.0 / 1024.0);
-                }
-                else
-                {
-                    Logger.Error(
-                        "Unsupported encryption type {EncryptionType} for Storage {StorageId}",
-                        hardDriveStorageClient.EncryptionType,
-                        hardDriveStorageClient.StorageId);
-
-                    throw new NotImplementedException(
-                        $"Encryption type '{hardDriveStorageClient.EncryptionType}' is not implemented for Storage#{hardDriveStorageClient.StorageId}");
                 }
 
                 var totalDuration = DateTime.UtcNow - startTime;
@@ -154,10 +145,13 @@ public class HardDriveDownloadOperation
         FileEncryption fileEncryption,
         BytesRange range,
         string filePath,
+        FullEncryptionSession? fullEncryptionAccess,
         HardDriveStorageClient hardDriveStorageClient,
         Stream stream) : IFile
     {
-        public async Task WriteTo(PipeWriter output, CancellationToken cancellationToken)
+        public async Task WriteTo(
+            PipeWriter output, 
+            CancellationToken cancellationToken)
         {
             var startTime = DateTime.UtcNow;
 
@@ -196,20 +190,21 @@ public class HardDriveDownloadOperation
                         streamDuration.TotalMilliseconds,
                         streamSpeed / 1024.0 / 1024.0);
                 }
-                else if (hardDriveStorageClient.EncryptionType == StorageEncryptionType.Managed)
+                else 
                 {
                     Logger.Debug(
                         "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
                         s3FileKey.FileExternalId);
-
+                    
                     var encryptedRange = Aes256GcmStreaming.EncryptedBytesRangeCalculator.FromUnencryptedRange(
                         unencryptedRange: range,
                         unencryptedFileSize: fileSizeInBytes);
-
+                    
                     stream.Seek(encryptedRange.FirstSegment.Start, SeekOrigin.Begin);
 
                     await Aes256GcmStreaming.DecryptRange(
-                        keyProvider: hardDriveStorageClient.EncryptionKeyProvider!,
+                        getEncryptionKeyFunc: hardDriveStorageClient.GetEncryptionKeyFunc(
+                            fullEncryptionAccess),
                         encryptionMetadata: fileEncryption.Metadata!,
                         range: encryptedRange,
                         fileSizeInBytes: fileSizeInBytes,
@@ -230,16 +225,6 @@ public class HardDriveDownloadOperation
                         fileSizeInBytes,
                         decryptDuration.TotalMilliseconds,
                         decryptSpeed / 1024.0 / 1024.0);
-                }
-                else
-                {
-                    Logger.Error(
-                        "Unsupported encryption type {EncryptionType} for Storage {StorageId}",
-                        hardDriveStorageClient.EncryptionType,
-                        hardDriveStorageClient.StorageId);
-
-                    throw new NotImplementedException(
-                        $"Encryption type '{hardDriveStorageClient.EncryptionType}' is not implemented for Storage#{hardDriveStorageClient.StorageId}");
                 }
 
                 var totalDuration = DateTime.UtcNow - startTime;
@@ -314,6 +299,7 @@ public class HardDriveDownloadOperation
        S3FileKey s3FileKey,
        long fileSizeInBytes,
        string bucketName,
+       FullEncryptionSession? fullEncryptionAccess,
        HardDriveStorageClient hardDriveStorageClient,
        CancellationToken cancellationToken)
     {
@@ -350,6 +336,7 @@ public class HardDriveDownloadOperation
             s3FileKey, 
             fileSizeInBytes, 
             filePath,
+            fullEncryptionAccess,
             hardDriveStorageClient, 
             fileStream);
     }
@@ -360,6 +347,7 @@ public class HardDriveDownloadOperation
         FileEncryption fileEncryption,
         BytesRange range,
         string bucketName,
+        FullEncryptionSession? fullEncryptionAccess,
         HardDriveStorageClient hardDriveStorageClient,
         CancellationToken cancellationToken)
     {
@@ -398,6 +386,7 @@ public class HardDriveDownloadOperation
             fileEncryption: fileEncryption, 
             range: range, 
             filePath: filePath, 
+            fullEncryptionAccess: fullEncryptionAccess,
             hardDriveStorageClient: hardDriveStorageClient, 
             stream: fileStream);
     }

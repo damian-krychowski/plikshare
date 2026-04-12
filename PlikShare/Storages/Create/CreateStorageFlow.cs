@@ -12,8 +12,12 @@ public class CreateStorageFlow(
         TInput input,
         string name,
         StorageEncryptionType encryptionType,
+        string? masterPassword,
         CancellationToken cancellationToken)
     {
+        if (encryptionType == StorageEncryptionType.Full && string.IsNullOrEmpty(masterPassword))
+            return new Result(Code: StorageOperationResultCode.MasterPasswordRequired);
+
         var preparation = await factory.Prepare(
             input: input,
             cancellationToken: cancellationToken);
@@ -27,8 +31,18 @@ public class CreateStorageFlow(
                 $"StorageClientFactoryResult.Details was null for successful preparation (Code: {preparation.Code}). This should never happen.");
         }
 
-        var encryptionDetails = StorageEncryptionExtensions.PrepareEncryptionDetails(
-            encryptionType: encryptionType);
+        StorageEncryptionDetails? encryptionDetails = encryptionType switch
+        {
+            StorageEncryptionType.None => null,
+
+            StorageEncryptionType.Managed => StorageEncryptionExtensions
+                .PrepareManagedEncryptionDetails(),
+            
+            StorageEncryptionType.Full => StorageFullEncryptionService
+                .GenerateDetails(masterPassword!),
+
+            _ => throw new ArgumentOutOfRangeException(nameof(encryptionType), encryptionType, null)
+        };
 
         var queryResult = await createStorageQuery.Execute(
             name: name,

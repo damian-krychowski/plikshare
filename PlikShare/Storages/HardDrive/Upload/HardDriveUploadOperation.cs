@@ -35,8 +35,8 @@ public static class HardDriveUploadOperation
             if (file.Encryption.EncryptionType == StorageEncryptionType.Managed)
             {
                 var encryptionKey = hardDriveStorage
-                    .EncryptionKeyProvider
-                    !.GetEncryptionKey(
+                    .GetManagedEncryptionKeyProviderOrThrow()
+                    .GetEncryptionKey(
                         version: file.Encryption.Metadata!.KeyVersion);
 
                 Aes256GcmStreaming.EncryptFilePartInPlace(

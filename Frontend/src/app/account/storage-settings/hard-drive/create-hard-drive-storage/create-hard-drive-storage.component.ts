@@ -8,6 +8,7 @@ import { MatSelectModule } from '@angular/material/select';
 import {MatRadioModule} from '@angular/material/radio';
 import { Router } from '@angular/router';
 import { DataStore } from '../../../../services/data-store.service';
+import { SecureInputDirective } from '../../../../shared/secure-input.directive';
 
 @Component({
     selector: 'app-create-hard-drive-storage',
@@ -18,7 +19,8 @@ import { DataStore } from '../../../../services/data-store.service';
         MatSelectModule,
         ReactiveFormsModule,
         MatButtonModule,
-        MatRadioModule
+        MatRadioModule,
+        SecureInputDirective
     ],
     templateUrl: './create-hard-drive-storage.component.html',
     styleUrl: './create-hard-drive-storage.component.scss',
@@ -35,6 +37,8 @@ export class CreateHardDriveStorageComponent implements OnInit {
         Validators.required,
         this.storagePathValidator(),
         this.storageRestrictedPathValidator()]);
+    masterPassword = new FormControl('');
+    confirmMasterPassword = new FormControl('');
 
     formGroup: FormGroup;
     wasSubmitted = signal(false);
@@ -44,15 +48,19 @@ export class CreateHardDriveStorageComponent implements OnInit {
 
     constructor(
         private _dataStore: DataStore,
-        private _storagesApi: StoragesApi,        
+        private _storagesApi: StoragesApi,
         private _router: Router) {
 
         this.formGroup = new FormGroup({
             name: this.name,
             volume: this.volume,
             storagePath: this.storagePath,
-            encryption: this.encryption
+            encryption: this.encryption,
+            masterPassword: this.masterPassword,
+            confirmMasterPassword: this.confirmMasterPassword
         });
+
+        this.encryption.valueChanges.subscribe(value => this.updateMasterPasswordValidators(value));
     }
 
     async ngOnInit(): Promise<void> {
@@ -89,7 +97,8 @@ export class CreateHardDriveStorageComponent implements OnInit {
                 name: this.name.value!,
                 volumePath: volumePath,
                 folderPath: folderPath,
-                encryptionType: encryptionType
+                encryptionType: encryptionType,
+                masterPassword: encryptionType === 'full' ? this.masterPassword.value! : undefined
             });
 
             this._dataStore.clearDashboardData();
@@ -107,6 +116,37 @@ export class CreateHardDriveStorageComponent implements OnInit {
         } finally {
             this.isLoading.set(false);
         }
+    }
+
+    private updateMasterPasswordValidators(encryptionValue: string | null) {
+        if (encryptionValue === 'full') {
+            this.masterPassword.setValidators([
+                Validators.required,
+                Validators.minLength(8),
+                Validators.pattern(/(?=.*[0-9])/),
+                Validators.pattern(/(?=.*[A-Z])/),
+                Validators.pattern(/(?=.*[a-z])/),
+                Validators.pattern(/(?=.*[!@#$%^&*])/)
+            ]);
+            this.confirmMasterPassword.setValidators([
+                Validators.required,
+                this.matchMasterPassword.bind(this)
+            ]);
+        } else {
+            this.masterPassword.clearValidators();
+            this.confirmMasterPassword.clearValidators();
+            this.masterPassword.setValue('');
+            this.confirmMasterPassword.setValue('');
+        }
+        this.masterPassword.updateValueAndValidity();
+        this.confirmMasterPassword.updateValueAndValidity();
+    }
+
+    private matchMasterPassword(control: FormControl): { [s: string]: boolean } | null {
+        if (this.masterPassword && control.value !== this.masterPassword.value) {
+            return { 'passwordMismatch': true };
+        }
+        return null;
     }
 
     private storagePathValidator(): ValidatorFn {
@@ -147,7 +187,7 @@ export class CreateHardDriveStorageComponent implements OnInit {
                 ? { restrictedPath: true }
                 : null;
         };
-    } 
+    }
 
     onVolumeChange(){
         this.storagePath.setValue(null);

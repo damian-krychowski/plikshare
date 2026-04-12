@@ -52,8 +52,12 @@ public class S3DownloadOperation
                         "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
                         s3FileKey.FileExternalId);
 
+                    var keyProvider = s3StorageClient
+                        .GetManagedEncryptionKeyProviderOrThrow();
+
                     await Aes256GcmStreaming.Decrypt(
-                        keyProvider: s3StorageClient.EncryptionKeyProvider!,
+                        getEncryptionKeyFunc: version => keyProvider.GetEncryptionKey(
+                            version),
                         fileSizeInBytes: fileSizeInBytes,
                         input: PipeReader.Create(
                             s3FileStream,
@@ -158,9 +162,12 @@ public class S3DownloadOperation
                     Logger.Debug(
                         "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
                     s3FileKey.FileExternalId);
+                    
+                    var keyProvider = s3StorageClient
+                        .GetManagedEncryptionKeyProviderOrThrow();
 
                     await Aes256GcmStreaming.DecryptRange(
-                        keyProvider: s3StorageClient.EncryptionKeyProvider!,
+                        getEncryptionKeyFunc: version => keyProvider.GetEncryptionKey(version),
                         encryptionMetadata: fileEncryption.Metadata!,
                         range: encryptedRange,
                         fileSizeInBytes: fileSizeInBytes,

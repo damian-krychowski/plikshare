@@ -8,6 +8,7 @@ export interface CreateCloudflareR2StorageRequest {
     secretAccessKey:string;
     url: string;
     encryptionType: AppStorageEncryptionType;
+    masterPassword?: string;
 }
 
 export interface CreateCloudflareR2StorageResponse {
@@ -26,6 +27,7 @@ export interface CreateAwsS3StorageRequest {
     secretAccessKey:string;
     region: string;
     encryptionType: AppStorageEncryptionType;
+    masterPassword?: string;
 }
 
 export interface CreateAwsS3StorageResponse {
@@ -38,6 +40,7 @@ export interface CreateDigitalOceanSpacesStorageRequest {
     secretKey:string;
     region: string;
     encryptionType: AppStorageEncryptionType;
+    masterPassword?: string;
 }
 
 export interface UpdateDigitalOceanSpacesStorageDetailsRequest {
@@ -55,6 +58,7 @@ export interface CreateHardDriveStorageRequest {
     volumePath: string;
     folderPath: string;
     encryptionType: AppStorageEncryptionType;
+    masterPassword?: string;
 }
 
 export interface CreateHardDriveStorageResponse {
@@ -77,7 +81,7 @@ export interface GetStoragesResponse {
 
 export type AppStorageType = 'hard-drive' | 'cloudflare-r2' | 'aws-s3' | 'digitalocean-spaces' | 'backblaze-b2';
 
-export type AppStorageEncryptionType = 'none' | 'managed';
+export type AppStorageEncryptionType = 'none' | 'managed' | 'full';
 
 export type GetStorageItem = 
     GetHardDriveStorageItem 
@@ -157,6 +161,7 @@ export interface CreateBackblazeB2StorageRequest {
     applicationKey: string;
     url: string;
     encryptionType: AppStorageEncryptionType;
+    masterPassword?: string;
 }
 
 export interface CreateBackblazeB2StorageResponse {

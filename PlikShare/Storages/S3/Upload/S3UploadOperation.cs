@@ -35,7 +35,7 @@ public class S3UploadOperation
             if (file.Encryption.EncryptionType == StorageEncryptionType.Managed)
             {
                 var encryptionKey = s3StorageClient
-                    .EncryptionKeyProvider!
+                    .GetManagedEncryptionKeyProviderOrThrow()
                     .GetEncryptionKey(version: file.Encryption.Metadata!.KeyVersion);
 
                 Aes256GcmStreaming.EncryptFilePartInPlace(

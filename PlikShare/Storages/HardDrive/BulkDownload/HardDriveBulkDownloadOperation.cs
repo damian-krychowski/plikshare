@@ -1,13 +1,14 @@
-using System.IO.Compression;
-using System.IO.Pipelines;
 using PlikShare.BulkDownload;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.HardDrive.StorageClient;
+using PlikShare.Storages.S3;
 using Serilog;
 using Serilog.Events;
+using System.IO.Compression;
+using System.IO.Pipelines;
 
 namespace PlikShare.Storages.HardDrive.BulkDownload;
 
@@ -132,8 +133,12 @@ public class HardDriveBulkDownloadOperation(IClock clock)
                             "Starting encrypted file transfer for {FileName} using AES-256-GCM",
                             file.FullName);
 
+                        var keyProvider = hardDriveStorage
+                            .GetManagedEncryptionKeyProviderOrThrow();
+
                         await Aes256GcmStreaming.Decrypt(
-                            keyProvider: hardDriveStorage.EncryptionKeyProvider!,
+                            getEncryptionKeyFunc: version => keyProvider.GetEncryptionKey(
+                                version),
                             fileSizeInBytes: file.SizeInBytes,
                             input: PipeReader.Create(
                                 stream: fileStream,

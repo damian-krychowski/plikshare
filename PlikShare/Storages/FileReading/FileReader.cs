@@ -1,12 +1,12 @@
-﻿using System.IO.Pipelines;
+﻿using PlikShare.Core.Encryption;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Storages.Exceptions;
 using PlikShare.Storages.HardDrive.Download;
 using PlikShare.Storages.HardDrive.StorageClient;
 using PlikShare.Storages.S3;
 using PlikShare.Storages.S3.Download;
-using PlikShare.Users.Cache;
 using PlikShare.Workspaces.Cache;
+using System.IO.Pipelines;
 
 namespace PlikShare.Storages.FileReading;
 
@@ -23,6 +23,7 @@ public static class FileReader
         S3FileKey s3FileKey,
         long fileSizeInBytes,
         WorkspaceContext workspace,
+        FullEncryptionSession? fullEncryptionAccess,
         CancellationToken cancellationToken)
     {
         return GetFile(
@@ -30,6 +31,7 @@ public static class FileReader
             fileSizeInBytes,
             workspace.BucketName,
             workspace.Storage,
+            fullEncryptionAccess,
             cancellationToken);
     }
 
@@ -38,6 +40,7 @@ public static class FileReader
         long fileSizeInBytes,
         string bucketName,
         IStorageClient storage,
+        FullEncryptionSession? fullEncryptionAccess,
         CancellationToken cancellationToken = default)
     {
         return storage switch
@@ -46,6 +49,7 @@ public static class FileReader
                 s3FileKey: s3FileKey,
                 fileSizeInBytes: fileSizeInBytes,
                 bucketName: bucketName,
+                fullEncryptionAccess: fullEncryptionAccess,
                 hardDriveStorageClient: hardDriveStorageClient!,
                 cancellationToken: cancellationToken),
 
@@ -66,6 +70,7 @@ public static class FileReader
         long fileSizeInBytes,
         BytesRange range,
         WorkspaceContext workspace,
+        FullEncryptionSession? fullEncryptionAccess,
         PipeWriter output,
         CancellationToken cancellationToken = default)
     {
@@ -77,6 +82,7 @@ public static class FileReader
                 fileSizeInBytes: fileSizeInBytes,
                 range: range,
                 bucketName: workspace.BucketName,
+                fullEncryptionAccess: fullEncryptionAccess,
                 hardDriveStorageClient: hardDriveStorageClient!,
                 cancellationToken: cancellationToken),
 
@@ -101,6 +107,7 @@ public static class FileReader
         long fileSizeInBytes,
         BytesRange range,
         WorkspaceContext workspace,
+        FullEncryptionSession? fullEncryptionAccess,
         PipeWriter output,
         CancellationToken cancellationToken = default)
     {
@@ -110,6 +117,7 @@ public static class FileReader
             fileSizeInBytes,
             range,
             workspace,
+            fullEncryptionAccess,
             output,
             cancellationToken);
 
