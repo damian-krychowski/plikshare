@@ -5,7 +5,7 @@ using System.Text;
 
 namespace PlikShare.Core.Encryption;
 
-public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryptionKeyProvider): IMasterDataEncryption
+public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryptionKeyProvider) : IMasterDataEncryption
 {
     private const int MasterKeyIdSize = 1;
     private const int SaltSize = 16;
@@ -25,20 +25,27 @@ public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
         Span<byte> salt = stackalloc byte[SaltSize];
         Span<byte> encryptionKey = stackalloc byte[EncryptionKeySize];
 
-        RandomNumberGenerator.Fill(salt);
-        
-        Rfc2898DeriveBytes.Pbkdf2(
-            password: masterKey.PasswordBytes.Span,
-            salt: salt,
-            destination: encryptionKey,
-            iterations: IterationsCountForNewEncryption,
-            hashAlgorithm: HashAlgorithmName.SHA256);
+        try
+        {
+            RandomNumberGenerator.Fill(salt);
 
-        return Encrypt(
-            plainText: plainText, 
-            masterKeyId: masterKey.Id, 
-            salt: salt, 
-            encryptionKey: encryptionKey);
+            Rfc2898DeriveBytes.Pbkdf2(
+                password: masterKey.PasswordBytes.Span,
+                salt: salt,
+                destination: encryptionKey,
+                iterations: IterationsCountForNewEncryption,
+                hashAlgorithm: HashAlgorithmName.SHA256);
+
+            return Encrypt(
+                plainText: plainText,
+                masterKeyId: masterKey.Id,
+                salt: salt,
+                encryptionKey: encryptionKey);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(encryptionKey);
+        }
     }
 
     private static byte[] Encrypt(
@@ -47,61 +54,73 @@ public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
         ReadOnlySpan<byte> salt,
         ReadOnlySpan<byte> encryptionKey)
     {
-        var plaintextBytes = Encoding.UTF8.GetBytes(plainText);
+        var plaintextBytesCount = Encoding.UTF8.GetByteCount(plainText);
+        var plaintextBuffer = ArrayPool<byte>.Shared.Rent(plaintextBytesCount);
 
-        var versionedEncryptedBytesSize = 
-            MasterKeyIdSize 
-            + IterationsFactorSize 
-            + SaltSize 
-            + NonceSize 
-            + TagSize 
-            + plaintextBytes.Length;
+        try
+        {
+            var plaintextSpan = plaintextBuffer.AsSpan(0, plaintextBytesCount);
+            Encoding.UTF8.GetBytes(plainText, plaintextSpan);
 
-        var versionedEncryptedBytes = new byte[versionedEncryptedBytesSize];
-        var versionedEncryptedBytesSpan = versionedEncryptedBytes.AsSpan();
+            var versionedEncryptedBytesSize =
+                MasterKeyIdSize
+                + IterationsFactorSize
+                + SaltSize
+                + NonceSize
+                + TagSize
+                + plaintextBytesCount;
 
-        using var aes = new AesGcm(
-            key: encryptionKey,
-            tagSizeInBytes: TagSize);
+            var versionedEncryptedBytes = new byte[versionedEncryptedBytesSize];
+            var versionedEncryptedBytesSpan = versionedEncryptedBytes.AsSpan();
 
-        var position = 0;
+            using var aes = new AesGcm(
+                key: encryptionKey,
+                tagSizeInBytes: TagSize);
 
-        //1. MasterKeyId
-        versionedEncryptedBytesSpan[position] = masterKeyId;
-        position += MasterKeyIdSize;
+            var position = 0;
 
-        //2. IterationsFactor
-        var iterationsFactorValue = (ushort)(IterationsCountForNewEncryption / IterationsFactorWeight);
+            //1. MasterKeyId
+            versionedEncryptedBytesSpan[position] = masterKeyId;
+            position += MasterKeyIdSize;
 
-        BinaryPrimitives.WriteUInt16LittleEndian(
-            versionedEncryptedBytesSpan.Slice(position, IterationsFactorSize),
-            iterationsFactorValue);
+            //2. IterationsFactor
+            var iterationsFactorValue = (ushort)(IterationsCountForNewEncryption / IterationsFactorWeight);
 
-        position += IterationsFactorSize;
+            BinaryPrimitives.WriteUInt16LittleEndian(
+                versionedEncryptedBytesSpan.Slice(position, IterationsFactorSize),
+                iterationsFactorValue);
 
-        //3. Salt
-        salt.CopyTo(versionedEncryptedBytesSpan.Slice(position, SaltSize));
-        position += SaltSize;
+            position += IterationsFactorSize;
 
-        //4. Nonce
-        var nonceSpan = versionedEncryptedBytesSpan.Slice(position, NonceSize);
-        RandomNumberGenerator.Fill(nonceSpan);
-        position += NonceSize;
+            //3. Salt
+            salt.CopyTo(versionedEncryptedBytesSpan.Slice(position, SaltSize));
+            position += SaltSize;
 
-        //5. Tag
-        var tagSpan = versionedEncryptedBytesSpan.Slice(position, TagSize);
-        position += TagSize;
+            //4. Nonce
+            var nonceSpan = versionedEncryptedBytesSpan.Slice(position, NonceSize);
+            RandomNumberGenerator.Fill(nonceSpan);
+            position += NonceSize;
 
-        //6. Ciphertext
-        var ciphertextSpan = versionedEncryptedBytesSpan.Slice(position, plaintextBytes.Length);
-        
-        aes.Encrypt(
-            nonce: nonceSpan, 
-            plaintext: plaintextBytes, 
-            ciphertext: ciphertextSpan, 
-            tag: tagSpan);
+            //5. Tag
+            var tagSpan = versionedEncryptedBytesSpan.Slice(position, TagSize);
+            position += TagSize;
 
-        return versionedEncryptedBytes;
+            //6. Ciphertext
+            var ciphertextSpan = versionedEncryptedBytesSpan.Slice(position, plaintextBytesCount);
+
+            aes.Encrypt(
+                nonce: nonceSpan,
+                plaintext: plaintextSpan,
+                ciphertext: ciphertextSpan,
+                tag: tagSpan);
+
+            return versionedEncryptedBytes;
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(plaintextBuffer);
+            ArrayPool<byte>.Shared.Return(plaintextBuffer);
+        }
     }
 
     public string Decrypt(byte[] versionedEncryptedBytes)
@@ -114,14 +133,21 @@ public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
 
         Span<byte> encryptionKey = stackalloc byte[EncryptionKeySize];
 
-        Rfc2898DeriveBytes.Pbkdf2(
-            password: masterKey.PasswordBytes.Span,
-            salt: gcmCiphertext.Salt,
-            destination: encryptionKey,
-            iterations: gcmCiphertext.Iterations,
-            hashAlgorithm: HashAlgorithmName.SHA256);
-        
-        return Decrypt(encryptionKey, gcmCiphertext);
+        try
+        {
+            Rfc2898DeriveBytes.Pbkdf2(
+                password: masterKey.PasswordBytes.Span,
+                salt: gcmCiphertext.Salt,
+                destination: encryptionKey,
+                iterations: gcmCiphertext.Iterations,
+                hashAlgorithm: HashAlgorithmName.SHA256);
+
+            return Decrypt(encryptionKey, gcmCiphertext);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(encryptionKey);
+        }
     }
 
     private static string Decrypt(
@@ -140,7 +166,7 @@ public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
             using var aes = new AesGcm(
                 key: encryptionKey,
                 tagSizeInBytes: TagSize);
-            
+
             aes.Decrypt(
                 nonce: gcmCiphertext.Nonce,
                 ciphertext: gcmCiphertext.Ciphertext,
@@ -152,8 +178,8 @@ public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(
-                array: heapBuffer);
+            CryptographicOperations.ZeroMemory(heapBuffer);
+            ArrayPool<byte>.Shared.Return(heapBuffer);
         }
     }
 
@@ -164,9 +190,9 @@ public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
 
         var salt = new byte[SaltSize];
         var encryptionKey = new byte[EncryptionKeySize];
-        
+
         RandomNumberGenerator.Fill(salt);
-        
+
         Rfc2898DeriveBytes.Pbkdf2(
             password: masterKey.PasswordBytes.Span,
             salt: salt,
@@ -196,7 +222,7 @@ public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
             destination: encryptionKey.AsSpan(),
             iterations: gcmCiphertext.Iterations,
             hashAlgorithm: HashAlgorithmName.SHA256);
-        
+
         return new AesGcmDerivedMasterDataEncryption(
             masterKeyId: masterKey.Id,
             salt: gcmCiphertext.Salt.ToArray(),
@@ -207,7 +233,7 @@ public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
     {
         return AesGcmDerivedMasterDataEncryption.Deserialize(serialized);
     }
-    
+
     private class AesGcmDerivedMasterDataEncryption(
         byte masterKeyId,
         byte[] salt,
@@ -270,7 +296,7 @@ public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
         public ReadOnlySpan<byte> Nonce { get; private init; }
         public ReadOnlySpan<byte> Tag { get; private init; }
         public ReadOnlySpan<byte> Ciphertext { get; private init; }
-        
+
         public int Iterations => BinaryPrimitives.ReadUInt16LittleEndian(IterationsFactor) * IterationsFactorWeight;
 
         public static AesGcmCiphertextStr FromBytes(Span<byte> versionedEncryptedBytes)
