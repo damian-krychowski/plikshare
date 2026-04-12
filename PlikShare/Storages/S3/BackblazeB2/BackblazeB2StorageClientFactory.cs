@@ -2,17 +2,16 @@ using PlikShare.Core.Clock;
 using PlikShare.Core.Configuration;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
-using PlikShare.Storages.Create;
 using PlikShare.Storages.Entities;
 
-namespace PlikShare.Storages.S3.BackblazeB2.Create;
+namespace PlikShare.Storages.S3.BackblazeB2;
 
-public class BackblazeB2StorageCreator(
+public class BackblazeB2StorageClientFactory(
     IConfig config,
     IClock clock,
-    PreSignedUrlsService preSignedUrlsService) : IStorageCreator<BackblazeB2DetailsEntity>
+    PreSignedUrlsService preSignedUrlsService) : IStorageClientFactory<BackblazeB2DetailsEntity>
 {
-    public async Task<StoragePreparation> Prepare(
+    public async Task<StorageClientFactoryResult> Prepare(
         BackblazeB2DetailsEntity input,
         CancellationToken cancellationToken)
     {
@@ -23,10 +22,10 @@ public class BackblazeB2StorageCreator(
             cancellationToken: cancellationToken);
 
         if (s3ClientResult.Code == S3Client.BackblazeResultCode.InvalidUrl)
-            return new StoragePreparation(Code: StorageCreationResultCode.InvalidUrl);
+            return new StorageClientFactoryResult(Code: StorageOperationResultCode.InvalidUrl);
 
         if (s3ClientResult.Code == S3Client.BackblazeResultCode.CouldNotConnect)
-            return new StoragePreparation(Code: StorageCreationResultCode.CouldNotConnect);
+            return new StorageClientFactoryResult(Code: StorageOperationResultCode.CouldNotConnect);
 
         if (s3ClientResult.Client is null)
         {
@@ -34,8 +33,8 @@ public class BackblazeB2StorageCreator(
                 $"Backblaze B2 S3 client was null despite successful connection test (Code: {s3ClientResult.Code}). This should never happen.");
         }
 
-        return new StoragePreparation(
-            Code: StorageCreationResultCode.Ok,
+        return new StorageClientFactoryResult(
+            Code: StorageOperationResultCode.Ok,
             Details: new StoragePreparationDetails
             {
                 StorageType = StorageType.BackblazeB2,

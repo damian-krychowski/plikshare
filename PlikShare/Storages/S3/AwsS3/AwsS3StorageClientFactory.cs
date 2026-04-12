@@ -2,17 +2,16 @@ using PlikShare.Core.Clock;
 using PlikShare.Core.Configuration;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
-using PlikShare.Storages.Create;
 using PlikShare.Storages.Entities;
 
-namespace PlikShare.Storages.S3.AwsS3.Create;
+namespace PlikShare.Storages.S3.AwsS3;
 
-public class AwsS3StorageCreator(
+public class AwsS3StorageClientFactory(
     IConfig config,
     IClock clock,
-    PreSignedUrlsService preSignedUrlsService) : IStorageCreator<AwsS3DetailsEntity>
+    PreSignedUrlsService preSignedUrlsService) : IStorageClientFactory<AwsS3DetailsEntity>
 {
-    public async Task<StoragePreparation> Prepare(
+    public async Task<StorageClientFactoryResult> Prepare(
         AwsS3DetailsEntity input,
         CancellationToken cancellationToken)
     {
@@ -23,7 +22,7 @@ public class AwsS3StorageCreator(
             cancellationToken: cancellationToken);
 
         if (s3ClientResult.Code == S3Client.AwsResultCode.CouldNotConnect)
-            return new StoragePreparation(Code: StorageCreationResultCode.CouldNotConnect);
+            return new StorageClientFactoryResult(Code: StorageOperationResultCode.CouldNotConnect);
 
         if (s3ClientResult.Client is null)
         {
@@ -31,8 +30,8 @@ public class AwsS3StorageCreator(
                 $"AWS S3 client was null despite successful connection test (Code: {s3ClientResult.Code}). This should never happen.");
         }
 
-        return new StoragePreparation(
-            Code: StorageCreationResultCode.Ok,
+        return new StorageClientFactoryResult(
+            Code: StorageOperationResultCode.Ok,
             Details: new StoragePreparationDetails
             {
                 StorageType = StorageType.AwsS3,

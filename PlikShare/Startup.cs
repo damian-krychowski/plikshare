@@ -173,19 +173,15 @@ using PlikShare.Storages.FileCopying.BulkInitiateCopyFiles;
 using PlikShare.Storages.FileCopying.CopyFile;
 using PlikShare.Storages.FileCopying.Delete;
 using PlikShare.Storages.FileCopying.OnCompletedActionHandler;
+using PlikShare.Storages.HardDrive;
 using PlikShare.Storages.HardDrive.BulkDownload;
-using PlikShare.Storages.HardDrive.Create;
 using PlikShare.Storages.HardDrive.GetVolumes;
 using PlikShare.Storages.List;
-using PlikShare.Storages.S3.AwsS3.Create;
-using PlikShare.Storages.S3.AwsS3.UpdateDetails;
-using PlikShare.Storages.S3.BackblazeB2.Create;
-using PlikShare.Storages.S3.BackblazeB2.UpdateDetails;
+using PlikShare.Storages.S3.AwsS3;
+using PlikShare.Storages.S3.BackblazeB2;
 using PlikShare.Storages.S3.BulkDownload;
-using PlikShare.Storages.S3.CloudflareR2.Create;
-using PlikShare.Storages.S3.CloudflareR2.UpdateDetails;
-using PlikShare.Storages.S3.DigitalOcean.Create;
-using PlikShare.Storages.S3.DigitalOcean.UpdateDetails;
+using PlikShare.Storages.S3.CloudflareR2;
+using PlikShare.Storages.S3.DigitalOcean;
 using PlikShare.Storages.S3.Download;
 using PlikShare.Storages.S3.Upload;
 using PlikShare.Storages.UpdateDetails;
@@ -539,21 +535,18 @@ public class Startup
 
         builder.Services.AddScoped<IValidator<UpdateFileNameRequestDto>, UpdateFileNameRequestValidator>();
 
-        builder.Services.AddSingleton<HardDriveStorageCreator>();
-        builder.Services.AddSingleton<CloudflareR2StorageCreator>();
-        builder.Services.AddSingleton<BackblazeB2StorageCreator>();
-        builder.Services.AddSingleton<AwsS3StorageCreator>();
-        builder.Services.AddSingleton<DigitalOceanStorageCreator>();
+        builder.Services.AddSingleton<HardDriveStorageClientFactory>();
+        builder.Services.AddSingleton<CloudflareR2StorageClientFactory>();
+        builder.Services.AddSingleton<BackblazeB2StorageClientFactory>();
+        builder.Services.AddSingleton<AwsS3StorageClientFactory>();
+        builder.Services.AddSingleton<DigitalOceanStorageClientFactory>();
         builder.Services.AddSingleton<CreateStorageFlow>();
+        builder.Services.AddSingleton<UpdateStorageFlow>();
         builder.Services.AddSingleton<GetStoragesQuery>();
         builder.Services.AddSingleton<DeleteStorageQuery>();
-        builder.Services.AddSingleton<UpdateCloudflareR2StorageDetailsOperation>();
-        builder.Services.AddSingleton<UpdateBackblazeB2StorageDetailsOperation>();
         builder.Services.AddSingleton<UpdateStorageNameQuery>();
         builder.Services.AddSingleton<UpdateStorageDetailsQuery>();
-        builder.Services.AddSingleton<UpdateAwsS3StorageDetailsOperation>();
         builder.Services.AddSingleton<CreateStorageQuery>();
-        builder.Services.AddSingleton<UpdateDigitalOceanSpacesStorageDetailsOperation>();
 
         builder.Services.AddSingleton<CheckUserInvitationCodeQuery>();
 

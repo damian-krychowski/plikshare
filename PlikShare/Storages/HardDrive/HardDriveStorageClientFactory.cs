@@ -2,25 +2,24 @@ using PlikShare.Core.Clock;
 using PlikShare.Core.Utils;
 using PlikShare.Core.Volumes;
 using PlikShare.Files.PreSignedLinks;
-using PlikShare.Storages.Create;
 using PlikShare.Storages.Entities;
 using PlikShare.Storages.HardDrive.StorageClient;
 
-namespace PlikShare.Storages.HardDrive.Create;
+namespace PlikShare.Storages.HardDrive;
 
-public class HardDriveStorageCreator(
+public class HardDriveStorageClientFactory(
     PreSignedUrlsService preSignedUrlsService,
     Volumes volumes,
-    IClock clock) : IStorageCreator<HardDriveStorageCreator.Input>
+    IClock clock) : IStorageClientFactory<HardDriveStorageClientFactory.Input>
 {
-    public Task<StoragePreparation> Prepare(
+    public Task<StorageClientFactoryResult> Prepare(
         Input input,
         CancellationToken cancellationToken)
     {
         if (!volumes.TryGetVolumeLocationByVolumePath(input.VolumePath, out var volumeLocation))
         {
-            return Task.FromResult(new StoragePreparation(
-                Code: StorageCreationResultCode.VolumeNotFound));
+            return Task.FromResult(new StorageClientFactoryResult(
+                Code: StorageOperationResultCode.VolumeNotFound));
         }
 
         var details = new HardDriveDetailsEntity(
@@ -28,8 +27,8 @@ public class HardDriveStorageCreator(
             FolderPath: Location.NormalizePath(input.FolderPath),
             FullPath: volumeLocation.Combine(input.FolderPath).FullPath);
 
-        return Task.FromResult(new StoragePreparation(
-            Code: StorageCreationResultCode.Ok,
+        return Task.FromResult(new StorageClientFactoryResult(
+            Code: StorageOperationResultCode.Ok,
             Details: new StoragePreparationDetails
             {
                 StorageType = StorageType.HardDrive,

@@ -1,17 +1,18 @@
+using PlikShare.Core.Encryption;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
 
-namespace PlikShare.Storages.Create;
+namespace PlikShare.Storages.UpdateDetails;
 
-public class CreateStorageFlow(
-    CreateStorageQuery createStorageQuery,
+public class UpdateStorageFlow(
+    IMasterDataEncryption masterDataEncryption,
+    UpdateStorageDetailsQuery updateStorageDetailsQuery,
     StorageClientStore storageClientStore)
 {
     public async Task<Result> Execute<TInput>(
         IStorageClientFactory<TInput> factory,
+        StorageExtId externalId,
         TInput input,
-        string name,
-        StorageEncryptionType encryptionType,
         CancellationToken cancellationToken)
     {
         var preparation = await factory.Prepare(
@@ -27,25 +28,29 @@ public class CreateStorageFlow(
                 $"StorageClientFactoryResult.Details was null for successful preparation (Code: {preparation.Code}). This should never happen.");
         }
 
-        var encryptionDetails = StorageEncryptionExtensions.PrepareEncryptionDetails(
-            encryptionType: encryptionType);
-
-        var queryResult = await createStorageQuery.Execute(
-            name: name,
+        var queryResult = await updateStorageDetailsQuery.Execute(
+            externalId: externalId,
             storageType: preparation.Details.StorageType,
             detailsJson: preparation.Details.DetailsJson,
-            encryptionType: encryptionType,
-            encryptionDetails: encryptionDetails,
             cancellationToken: cancellationToken);
 
-        if (queryResult.Code == CreateStorageQuery.ResultCode.NameNotUnique)
-            return new Result(Code: StorageOperationResultCode.NameNotUnique);
+        if (queryResult.Code == UpdateStorageDetailsQuery.ResultCode.NotFound)
+            return new Result(Code: StorageOperationResultCode.NotFound);
+
+        var storageData = queryResult.StorageData!;
+
+        var encryptionDetails = storageData.EncryptionDetailsEncrypted is null
+            ? null
+            : StorageEncryptionExtensions.GetEncryptionDetails(
+                encryptionType: storageData.EncryptionType,
+                encryptionDetailsJson: masterDataEncryption.Decrypt(
+                    storageData.EncryptionDetailsEncrypted));
 
         var storageClientDetails = new StorageClientDetails
         {
-            StorageId = queryResult.StorageId,
-            ExternalId = queryResult.StorageExternalId,
-            EncryptionType = encryptionType,
+            StorageId = storageData.Id,
+            ExternalId = externalId,
+            EncryptionType = storageData.EncryptionType,
             EncryptionDetails = encryptionDetails
         };
 
@@ -56,10 +61,10 @@ public class CreateStorageFlow(
 
         return new Result(
             Code: StorageOperationResultCode.Ok,
-            StorageExternalId: queryResult.StorageExternalId);
+            Name: storageData.Name);
     }
 
     public record Result(
         StorageOperationResultCode Code,
-        StorageExtId? StorageExternalId = null);
+        string? Name = null);
 }

@@ -1,19 +1,20 @@
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
 
-namespace PlikShare.Storages.Create;
+namespace PlikShare.Storages;
 
-public enum StorageCreationResultCode
+public enum StorageOperationResultCode
 {
     Ok,
-    NameNotUnique,
-    VolumeNotFound,
     CouldNotConnect,
-    InvalidUrl
+    InvalidUrl,
+    VolumeNotFound,
+    NameNotUnique,
+    NotFound
 }
 
-public record StoragePreparation(
-    StorageCreationResultCode Code,
+public record StorageClientFactoryResult(
+    StorageOperationResultCode Code,
     StoragePreparationDetails? Details = null);
 
 public class StoragePreparationDetails
@@ -31,9 +32,9 @@ public class StorageClientDetails
     public required StorageManagedEncryptionDetails? EncryptionDetails { get; init; }
 }
 
-public interface IStorageCreator<TInput>
+public interface IStorageClientFactory<TInput>
 {
-    public Task<StoragePreparation> Prepare(
+    public Task<StorageClientFactoryResult> Prepare(
         TInput input,
         CancellationToken cancellationToken);
 }
