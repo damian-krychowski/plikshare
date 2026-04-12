@@ -217,6 +217,7 @@ public static class ZipDecoder
                 fileSizeInBytes: file.SizeInBytes,
                 range: zipFinalEocd.CentralDirectoryBytesRange,
                 workspace: workspace,
+                fullEncryptionSession: null, //todo: propagate full-encryption session from endpoint
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -257,6 +258,7 @@ public static class ZipDecoder
                     zip64Locator.Zip64EocdOffset,
                     zip64Locator.Zip64EocdOffset + Zip64EocdRecord.MinimumSize - 1),
                 workspace: workspace,
+                fullEncryptionSession: null, //todo: propagate full-encryption session from endpoint
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -299,6 +301,7 @@ public static class ZipDecoder
                     Math.Max(0, file.SizeInBytes - EocdMinimumSize),
                     file.SizeInBytes - 1),
                 workspace: workspace,
+                fullEncryptionSession: null, //todo: propagate full-encryption session from endpoint
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -342,6 +345,7 @@ public static class ZipDecoder
                     eocdPossibleStartPosition,
                     file.SizeInBytes - 1),
                 workspace: workspace,
+                fullEncryptionSession: null, //todo: propagate full-encryption session from endpoint
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());

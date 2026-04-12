@@ -10,14 +10,13 @@ using System.IO.Pipelines;
 
 namespace PlikShare.Storages.HardDrive.Download;
 
-
 public class HardDriveDownloadOperation
 {
     private class HdFile(
         S3FileKey s3FileKey,
         long fileSizeInBytes,
         string filePath,
-        FullEncryptionSession? fullEncryptionAccess,
+        FullEncryptionSession? fullEncryptionSession,
         HardDriveStorageClient hardDriveStorageClient,
         FileStream stream) : IFile
     {
@@ -56,7 +55,7 @@ public class HardDriveDownloadOperation
                     
                     await Aes256GcmStreaming.Decrypt(
                         getEncryptionKeyFunc: hardDriveStorageClient.GetEncryptionKeyFunc(
-                            fullEncryptionAccess),
+                            fullEncryptionSession),
                         fileSizeInBytes: fileSizeInBytes,
                         input: PipeReader.Create(
                             stream,
@@ -145,7 +144,7 @@ public class HardDriveDownloadOperation
         FileEncryption fileEncryption,
         BytesRange range,
         string filePath,
-        FullEncryptionSession? fullEncryptionAccess,
+        FullEncryptionSession? fullEncryptionSession,
         HardDriveStorageClient hardDriveStorageClient,
         Stream stream) : IFile
     {
@@ -204,7 +203,7 @@ public class HardDriveDownloadOperation
 
                     await Aes256GcmStreaming.DecryptRange(
                         getEncryptionKeyFunc: hardDriveStorageClient.GetEncryptionKeyFunc(
-                            fullEncryptionAccess),
+                            fullEncryptionSession),
                         encryptionMetadata: fileEncryption.Metadata!,
                         range: encryptedRange,
                         fileSizeInBytes: fileSizeInBytes,
@@ -299,7 +298,7 @@ public class HardDriveDownloadOperation
        S3FileKey s3FileKey,
        long fileSizeInBytes,
        string bucketName,
-       FullEncryptionSession? fullEncryptionAccess,
+       FullEncryptionSession? fullEncryptionSession,
        HardDriveStorageClient hardDriveStorageClient,
        CancellationToken cancellationToken)
     {
@@ -336,7 +335,7 @@ public class HardDriveDownloadOperation
             s3FileKey, 
             fileSizeInBytes, 
             filePath,
-            fullEncryptionAccess,
+            fullEncryptionSession,
             hardDriveStorageClient, 
             fileStream);
     }
@@ -347,7 +346,7 @@ public class HardDriveDownloadOperation
         FileEncryption fileEncryption,
         BytesRange range,
         string bucketName,
-        FullEncryptionSession? fullEncryptionAccess,
+        FullEncryptionSession? fullEncryptionSession,
         HardDriveStorageClient hardDriveStorageClient,
         CancellationToken cancellationToken)
     {
@@ -386,7 +385,7 @@ public class HardDriveDownloadOperation
             fileEncryption: fileEncryption, 
             range: range, 
             filePath: filePath, 
-            fullEncryptionAccess: fullEncryptionAccess,
+            fullEncryptionSession: fullEncryptionSession,
             hardDriveStorageClient: hardDriveStorageClient, 
             stream: fileStream);
     }

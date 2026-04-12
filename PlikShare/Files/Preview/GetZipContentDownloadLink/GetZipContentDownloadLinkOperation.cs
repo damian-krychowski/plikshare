@@ -1,4 +1,5 @@
 ﻿using PlikShare.Core.Clock;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Download;
@@ -22,6 +23,7 @@ public class GetZipContentDownloadLinkOperation(
         int? boxFolderId,
         int? boxLinkId,
         IUserIdentity userIdentity,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken)
     {
         var (isEmpty, file) = getFileDetailsQuery.Execute(
@@ -56,7 +58,8 @@ public class GetZipContentDownloadLinkOperation(
                 },
                 ExpirationDate = clock.UtcNow.AddMinutes(10),
                 ContentDisposition = contentDisposition,
-                BoxLinkId = boxLinkId
+                BoxLinkId = boxLinkId,
+                Kek = fullEncryptionSession?.Kek
             });
 
         return new Result(

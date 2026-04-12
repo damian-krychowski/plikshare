@@ -8,6 +8,7 @@ using PlikShare.Core.Encryption;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
+using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Files.BulkDownload;
 using PlikShare.Files.BulkDownload.Contracts;
 using PlikShare.Files.Download;
@@ -50,7 +51,8 @@ public static class FilesEndpoints
         var group = app.MapGroup("/api/workspaces/{workspaceExternalId}/files")
             .WithTags("Files")
             .RequireAuthorization(policyNames: AuthPolicy.Internal)
-            .AddEndpointFilter<ValidateWorkspaceFilter>();
+            .AddEndpointFilter<ValidateWorkspaceFilter>()
+            .AddEndpointFilter<ValidateFullEncryptionSessionFilter>();
         
         group.MapPost("/bulk-download-link", GetBulkDownloadLink)
             .WithName("GetBulkDownloadLink");
@@ -280,6 +282,7 @@ public static class FilesEndpoints
             boxLinkId: null,
             userIdentity: new UserIdentity(
                 UserExternalId: workspaceMembership.User.ExternalId),
+            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
             cancellationToken: cancellationToken);
 
         return result.Code switch
@@ -572,7 +575,8 @@ public static class FilesEndpoints
             request: request,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             boxFolderId: null,
-            boxLinkId: null);
+            boxLinkId: null,
+            fullEncryptionSession: httpContext.TryGetFullEncryptionSession());
 
         switch (result.Code)
         {
@@ -626,6 +630,7 @@ public static class FilesEndpoints
             contentDisposition: contentDispositionType,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             enforceInternalPassThrough: false,
+            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
             cancellationToken: cancellationToken);
 
         switch (result.Code)

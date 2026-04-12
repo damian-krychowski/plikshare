@@ -14,6 +14,7 @@ public class S3DownloadOperation
         S3FileKey s3FileKey,
         long fileSizeInBytes,
         string bucketName,
+        FullEncryptionSession? fullEncryptionSession,
         S3StorageClient s3StorageClient,
         Stream s3FileStream) : IFile
     {
@@ -46,18 +47,15 @@ public class S3DownloadOperation
                         destination: output,
                         cancellationToken: cancellationToken);
                 }
-                else if (s3StorageClient.EncryptionType == StorageEncryptionType.Managed)
+                else
                 {
                     Logger.Debug(
                         "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
                         s3FileKey.FileExternalId);
 
-                    var keyProvider = s3StorageClient
-                        .GetManagedEncryptionKeyProviderOrThrow();
-
                     await Aes256GcmStreaming.Decrypt(
-                        getEncryptionKeyFunc: version => keyProvider.GetEncryptionKey(
-                            version),
+                        getEncryptionKeyFunc: s3StorageClient.GetEncryptionKeyFunc(
+                            fullEncryptionSession),
                         fileSizeInBytes: fileSizeInBytes,
                         input: PipeReader.Create(
                             s3FileStream,
@@ -66,11 +64,6 @@ public class S3DownloadOperation
                                 leaveOpen: false)),
                         output: output,
                         cancellationToken);
-                }
-                else
-                {
-                    throw new NotImplementedException(
-                        $"Encryption type '{s3StorageClient.EncryptionType}' is not implemented for Storage#{s3StorageClient.StorageId}");
                 }
 
                 var duration = DateTime.UtcNow - startTime;
@@ -121,6 +114,7 @@ public class S3DownloadOperation
         FileEncryption fileEncryption,
         BytesRange range,
         string bucketName,
+        FullEncryptionSession? fullEncryptionSession,
         S3StorageClient s3StorageClient,
         Stream s3FileStream) : IFile
     {
@@ -153,7 +147,7 @@ public class S3DownloadOperation
                         destination: output,
                         cancellationToken: cancellationToken);
                 }
-                else if (s3StorageClient.EncryptionType == StorageEncryptionType.Managed)
+                else
                 {
                     var encryptedRange = Aes256GcmStreaming.EncryptedBytesRangeCalculator.FromUnencryptedRange(
                         unencryptedRange: range,
@@ -163,11 +157,10 @@ public class S3DownloadOperation
                         "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
                     s3FileKey.FileExternalId);
                     
-                    var keyProvider = s3StorageClient
-                        .GetManagedEncryptionKeyProviderOrThrow();
 
                     await Aes256GcmStreaming.DecryptRange(
-                        getEncryptionKeyFunc: version => keyProvider.GetEncryptionKey(version),
+                        getEncryptionKeyFunc: s3StorageClient.GetEncryptionKeyFunc(
+                            fullEncryptionSession),
                         encryptionMetadata: fileEncryption.Metadata!,
                         range: encryptedRange,
                         fileSizeInBytes: fileSizeInBytes,
@@ -178,11 +171,6 @@ public class S3DownloadOperation
                                 leaveOpen: false)),
                         output: output,
                         cancellationToken);
-                }
-                else
-                {
-                    throw new NotImplementedException(
-                        $"Encryption type '{s3StorageClient.EncryptionType}' is not implemented for Storage#{s3StorageClient.StorageId}");
                 }
 
                 var duration = DateTime.UtcNow - startTime;
@@ -233,6 +221,7 @@ public class S3DownloadOperation
         S3FileKey s3FileKey,
         long fileSizeInBytes,
         string bucketName,
+        FullEncryptionSession? fullEncryptionSession,
         S3StorageClient s3StorageClient,
         CancellationToken cancellationToken)
     {
@@ -250,6 +239,7 @@ public class S3DownloadOperation
             s3FileKey,
             fileSizeInBytes, 
             bucketName, 
+            fullEncryptionSession,
             s3StorageClient, 
             stream);
     }
@@ -260,6 +250,7 @@ public class S3DownloadOperation
         long fileSizeInBytes,
         BytesRange range,
         string bucketName,
+        FullEncryptionSession? fullEncryptionSession,
         S3StorageClient s3StorageClient,
         CancellationToken cancellationToken)
     {
@@ -283,11 +274,12 @@ public class S3DownloadOperation
                 fileEncryption,
                 range,
                 bucketName,
+                fullEncryptionSession,
                 s3StorageClient,
                 stream);
         }
 
-        if (s3StorageClient.EncryptionType == StorageEncryptionType.Managed)
+        if (s3StorageClient.EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full)
         {
             var encryptedRange = Aes256GcmStreaming.EncryptedBytesRangeCalculator.FromUnencryptedRange(
                 unencryptedRange: range,
@@ -307,6 +299,7 @@ public class S3DownloadOperation
                 fileEncryption,
                 range,
                 bucketName,
+                fullEncryptionSession,
                 s3StorageClient,
                 stream);
         }

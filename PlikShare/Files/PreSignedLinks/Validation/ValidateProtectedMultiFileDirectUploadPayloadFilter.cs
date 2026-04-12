@@ -1,4 +1,5 @@
 using PlikShare.Core.Authorization;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Workspaces.Cache;
@@ -89,6 +90,12 @@ public class ValidateProtectedMultiFileDirectUploadPayloadFilter : IEndpointFilt
         context.HttpContext.Items[ProtectedMultiFileDirectUploadPayloadContext] = new ProtectedMultiFileDirectUploadPayload(
             Payload: payload,
             Workspace: workspace);
+
+        if (payload.Kek is not null)
+        {
+            context.HttpContext.Items[FullEncryptionSession.HttpContextName] =
+                new FullEncryptionSession { Kek = payload.Kek };
+        }
 
         return await next(context);
     }

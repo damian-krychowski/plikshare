@@ -23,7 +23,7 @@ public static class FileReader
         S3FileKey s3FileKey,
         long fileSizeInBytes,
         WorkspaceContext workspace,
-        FullEncryptionSession? fullEncryptionAccess,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken)
     {
         return GetFile(
@@ -31,7 +31,7 @@ public static class FileReader
             fileSizeInBytes,
             workspace.BucketName,
             workspace.Storage,
-            fullEncryptionAccess,
+            fullEncryptionSession,
             cancellationToken);
     }
 
@@ -40,7 +40,7 @@ public static class FileReader
         long fileSizeInBytes,
         string bucketName,
         IStorageClient storage,
-        FullEncryptionSession? fullEncryptionAccess,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken = default)
     {
         return storage switch
@@ -49,16 +49,17 @@ public static class FileReader
                 s3FileKey: s3FileKey,
                 fileSizeInBytes: fileSizeInBytes,
                 bucketName: bucketName,
-                fullEncryptionAccess: fullEncryptionAccess,
+                fullEncryptionSession: fullEncryptionSession,
                 hardDriveStorageClient: hardDriveStorageClient!,
                 cancellationToken: cancellationToken),
 
             S3StorageClient s3StorageClient => await S3DownloadOperation.GetFile(
                 s3FileKey: s3FileKey,
-                fileSizeInBytes, 
-                bucketName, 
-                s3StorageClient, 
-                cancellationToken),
+                fileSizeInBytes: fileSizeInBytes, 
+                bucketName: bucketName,
+                fullEncryptionSession: fullEncryptionSession,
+                s3StorageClient: s3StorageClient, 
+                cancellationToken: cancellationToken),
 
             _ => throw new ArgumentOutOfRangeException(nameof(storage))
         };
@@ -70,7 +71,7 @@ public static class FileReader
         long fileSizeInBytes,
         BytesRange range,
         WorkspaceContext workspace,
-        FullEncryptionSession? fullEncryptionAccess,
+        FullEncryptionSession? fullEncryptionSession,
         PipeWriter output,
         CancellationToken cancellationToken = default)
     {
@@ -82,7 +83,7 @@ public static class FileReader
                 fileSizeInBytes: fileSizeInBytes,
                 range: range,
                 bucketName: workspace.BucketName,
-                fullEncryptionAccess: fullEncryptionAccess,
+                fullEncryptionSession: fullEncryptionSession,
                 hardDriveStorageClient: hardDriveStorageClient!,
                 cancellationToken: cancellationToken),
 
@@ -92,6 +93,7 @@ public static class FileReader
                 fileSizeInBytes: fileSizeInBytes,
                 range: range,
                 workspace.BucketName,
+                fullEncryptionSession: fullEncryptionSession,
                 s3StorageClient: s3StorageClient,
                 cancellationToken: cancellationToken),
 
@@ -107,7 +109,7 @@ public static class FileReader
         long fileSizeInBytes,
         BytesRange range,
         WorkspaceContext workspace,
-        FullEncryptionSession? fullEncryptionAccess,
+        FullEncryptionSession? fullEncryptionSession,
         PipeWriter output,
         CancellationToken cancellationToken = default)
     {
@@ -117,7 +119,7 @@ public static class FileReader
             fileSizeInBytes,
             range,
             workspace,
-            fullEncryptionAccess,
+            fullEncryptionSession,
             output,
             cancellationToken);
 

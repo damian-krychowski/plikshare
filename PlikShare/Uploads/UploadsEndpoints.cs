@@ -5,6 +5,7 @@ using PlikShare.Core.CorrelationId;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
+using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.CompleteFileUpload;
 using PlikShare.Uploads.CompleteFileUpload.Contracts;
@@ -36,7 +37,8 @@ public static class UploadsEndpoints
         var group = app.MapGroup("/api/workspaces/{workspaceExternalId}/uploads")
             .WithTags("Uploads")
             .RequireAuthorization(policyNames: AuthPolicy.Internal)
-            .AddEndpointFilter<ValidateWorkspaceFilter>();
+            .AddEndpointFilter<ValidateWorkspaceFilter>()
+            .AddEndpointFilter<ValidateFullEncryptionSessionFilter>();
 
         // Base upload operations
         group.MapGet("/", ListUploads)
@@ -86,6 +88,7 @@ public static class UploadsEndpoints
                 UserExternalId: workspaceMembership.User.ExternalId),
             boxFolderId: null,
             boxLinkId: null,
+            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
             cancellationToken: cancellationToken);
 
         await workspaceCache.InvalidateEntry(
@@ -174,6 +177,7 @@ public static class UploadsEndpoints
             boxLinkId: null,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             enforceInternalPassThrough: false,
+            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
             cancellationToken: cancellationToken);
 
         return result.Code switch

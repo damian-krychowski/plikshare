@@ -281,6 +281,13 @@ public class PreSignedUrlsService(
         public required PreSignedUrlOwner PreSignedBy { get; init; }
         public required DateTimeOffset ExpirationDate { get; init; }
         public required int? BoxLinkId { get; init; }
+
+        /// <summary>
+        /// KEK required to decrypt DEK for storages using full encryption.
+        /// Null for storages using None or Managed encryption.
+        /// Protected alongside the rest of the payload by DataProtection.
+        /// </summary>
+        public required byte[]? Kek { get; init; }
     }
 
     [ImmutableObject(true)]

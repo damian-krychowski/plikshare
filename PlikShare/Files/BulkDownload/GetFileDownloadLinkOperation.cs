@@ -1,4 +1,5 @@
 using PlikShare.Core.Clock;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Files.BulkDownload.Contracts;
 using PlikShare.Files.Id;
@@ -18,7 +19,8 @@ public class GetBulkDownloadLinkOperation(
         GetBulkDownloadLinkRequestDto request,
         IUserIdentity userIdentity,
         int? boxFolderId,
-        int? boxLinkId)
+        int? boxLinkId,
+        FullEncryptionSession? fullEncryptionSession)
     {
         var downloadDetails = getBulkDownloadDetailsQuery.Execute(
             workspace: workspace,
@@ -74,7 +76,8 @@ public class GetBulkDownloadLinkOperation(
                     IdentityType = userIdentity.IdentityType
                 },
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
-                BoxLinkId = boxLinkId
+                BoxLinkId = boxLinkId,
+                Kek = fullEncryptionSession?.Kek
             });
 
         return new Result(

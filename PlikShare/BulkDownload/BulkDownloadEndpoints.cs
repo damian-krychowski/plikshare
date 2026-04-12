@@ -8,6 +8,8 @@ using PlikShare.Core.CORS;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
+using PlikShare.Files.PreSignedLinks.Validation;
+using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Storages.Entities;
 using PlikShare.Storages.HardDrive.BulkDownload;
 using PlikShare.Storages.HardDrive.StorageClient;
@@ -32,82 +34,25 @@ public static class BulkDownloadEndpoints
             .RequireCors(CorsPolicies.PreSignedLink);
 
         group.MapGet("/{protectedPayload}", BulkDownload)
+            .AddEndpointFilter<ValidateProtectedBulkDownloadPayloadFilter>()
             .WithName("BulkDownload");
     }
 
     private static async ValueTask<Results<EmptyHttpResult, BadRequest<HttpError>, NotFound<HttpError>, StatusCodeHttpResult>>
         BulkDownload(
-            [FromRoute] string protectedPayload,
             HttpContext httpContext,
             IClock clock,
             WorkspaceCache workspaceCache,
-            PreSignedUrlsService preSignedUrlsService,
             BulkDownloadDetailsQuery bulkDownloadDetailsQuery,
             HardDriveBulkDownloadOperation hardDriveBulkDownloadOperation,
             S3BulkDownloadOperation s3BulkDownloadOperation,
             AuditLogService auditLogService,
             CancellationToken cancellationToken)
     {
-        var (extractionResult, payload) = preSignedUrlsService.TryExtractPreSignedBulkDownloadPayload(
-            protectedPayload);
-
-        if (extractionResult == PreSignedUrlsService.ExtractionResult.Invalid)
-        {
-            Log.Warning("An attempt to execute bulk download with invalid pre-signed url: {ProtectedPayload}",
-                protectedPayload);
-
-            return HttpErrors.BulkDownload.InvalidPayload();
-        }
-
-        if (extractionResult == PreSignedUrlsService.ExtractionResult.Expired)
-        {
-            Log.Warning("An attempt to execute bulk download with expired pre-signed url: {@Payload}",
-                payload);
-
-            return HttpErrors.BulkDownload.InvalidPayload();
-        }
-
-        var userIdentities = httpContext.User.GetUserIdentities();
-
-        if (!userIdentities.ContainsIdentity(payload!.PreSignedBy))
-        {
-            Log.Warning(
-                "An attempt to execute bulk download with pre-signed url by someone who is not the owner of the url. " +
-                "Url Owner: {UrlOwner}, current user identities: {UserIdentities}", payload.PreSignedBy,
-                userIdentities.ToList());
-
-            return TypedResults.StatusCode(
-                StatusCodes.Status403Forbidden);
-        }
-
-        if (extractionResult != PreSignedUrlsService.ExtractionResult.Ok)
-            throw new InvalidOperationException($"Unrecognized ExtractionResul value: '{extractionResult}'");
+        var payload = httpContext.GetProtectedBulkDownloadPayload();
 
         Log.Debug("Bulk download started: {@Payload}", payload);
-
-        return await ExecuteBulkDownload(
-            payload,
-            httpContext,
-            clock,
-            workspaceCache,
-            bulkDownloadDetailsQuery,
-            hardDriveBulkDownloadOperation,
-            s3BulkDownloadOperation,
-            auditLogService,
-            cancellationToken);
-    }
-
-    private static async Task<Results<EmptyHttpResult, BadRequest<HttpError>, NotFound<HttpError>, StatusCodeHttpResult>> ExecuteBulkDownload(
-        PreSignedUrlsService.BulkDownloadPayload payload,
-        HttpContext httpContext,
-        IClock clock,
-        WorkspaceCache workspaceCache,
-        BulkDownloadDetailsQuery bulkDownloadDetailsQuery,
-        HardDriveBulkDownloadOperation hardDriveBulkDownloadOperation,
-        S3BulkDownloadOperation s3BulkDownloadOperation,
-        AuditLogService auditLogService,
-        CancellationToken cancellationToken)
-    {
+        
         var workspaceContext = await workspaceCache.TryGetWorkspace(
             payload.WorkspaceId,
             cancellationToken);
@@ -117,15 +62,15 @@ public static class BulkDownloadEndpoints
             Log.Warning("Could not execute bulk download with pre-signed url because Workspace#{WorkspaceId} was not found.",
                 payload.WorkspaceId);
 
-            return HttpErrors.BulkDownload.WorkspaceNotFound();
+           return HttpErrors.BulkDownload.WorkspaceNotFound();
         }
 
         var bulkDownloadDetails = bulkDownloadDetailsQuery.GetDetailsFromDb(
-            workspaceId: payload.WorkspaceId,
-            selectedFileIds: payload.SelectedFileIds,
-            excludedFileIds: payload.ExcludedFileIds,
-            selectedFolderIds: payload.SelectedFolderIds,
-            excludedFolderIds: payload.ExcludedFolderIds);
+                workspaceId: payload.WorkspaceId,
+                selectedFileIds: payload.SelectedFileIds,
+                excludedFileIds: payload.ExcludedFileIds,
+                selectedFolderIds: payload.SelectedFolderIds,
+                excludedFolderIds: payload.ExcludedFolderIds);
 
         if (Log.IsEnabled(LogEventLevel.Debug))
         {
@@ -157,6 +102,7 @@ public static class BulkDownloadEndpoints
                     await s3BulkDownloadOperation.Execute(
                         bulkDownloadDetails: bulkDownloadDetails,
                         bucketName: workspaceContext.BucketName,
+                        fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
                         s3StorageClient: s3StorageClient,
                         responsePipeWriter: httpContext.Response.BodyWriter,
                         cancellationToken: cancellationToken);
@@ -166,6 +112,7 @@ public static class BulkDownloadEndpoints
                     await hardDriveBulkDownloadOperation.Execute(
                         bulkDownloadDetails: bulkDownloadDetails,
                         bucketName: workspaceContext.BucketName,
+                        fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
                         hardDriveStorage: hardDriveStorageClient,
                         responsePipeWriter: httpContext.Response.BodyWriter,
                         cancellationToken: cancellationToken);

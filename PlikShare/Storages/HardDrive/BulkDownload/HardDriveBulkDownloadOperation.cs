@@ -19,6 +19,7 @@ public class HardDriveBulkDownloadOperation(IClock clock)
     public async Task Execute(
         BulkDownloadDetails bulkDownloadDetails,
         string bucketName,
+        FullEncryptionSession? fullEncryptionSession,
         HardDriveStorageClient hardDriveStorage,
         PipeWriter responsePipeWriter,
         CancellationToken cancellationToken)
@@ -127,18 +128,15 @@ public class HardDriveBulkDownloadOperation(IClock clock)
                             PlikShareStreams.DefaultBufferSize,
                             cancellationToken);
                     }
-                    else if (hardDriveStorage.EncryptionType == StorageEncryptionType.Managed)
+                    else
                     {
                         _logger.Debug(
                             "Starting encrypted file transfer for {FileName} using AES-256-GCM",
                             file.FullName);
 
-                        var keyProvider = hardDriveStorage
-                            .GetManagedEncryptionKeyProviderOrThrow();
-
                         await Aes256GcmStreaming.Decrypt(
-                            getEncryptionKeyFunc: version => keyProvider.GetEncryptionKey(
-                                version),
+                            getEncryptionKeyFunc: hardDriveStorage.GetEncryptionKeyFunc(
+                                fullEncryptionSession),
                             fileSizeInBytes: file.SizeInBytes,
                             input: PipeReader.Create(
                                 stream: fileStream,
@@ -150,11 +148,6 @@ public class HardDriveBulkDownloadOperation(IClock clock)
                                 writerOptions: new StreamPipeWriterOptions(
                                     leaveOpen: false)),
                             cancellationToken);
-                    }
-                    else
-                    {
-                        throw new NotImplementedException(
-                            $"Encryption type '{hardDriveStorage.EncryptionType}' is not implemented for Storage#{hardDriveStorage.StorageId}");
                     }
 
                     processedFiles++;

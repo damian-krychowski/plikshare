@@ -1,3 +1,4 @@
+using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.Chunking;
@@ -17,6 +18,7 @@ public class InitiateFilePartUploadOperation(
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken)
     {
         var fileUpload = await GetFileUploadFromCache(
@@ -60,6 +62,7 @@ public class InitiateFilePartUploadOperation(
                 boxLinkId: boxLinkId,
                 userIdentity: userIdentity,
                 enforceInternalPassThrough: enforceInternalPassThrough,
+                fullEncryptionSession: fullEncryptionSession,
                 cancellationToken: cancellationToken);
 
         var (startsAtByte, endsAtByte) = FileParts.GetPartByteRange(

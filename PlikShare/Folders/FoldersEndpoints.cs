@@ -15,6 +15,7 @@ using PlikShare.Folders.MoveToFolder;
 using PlikShare.Folders.MoveToFolder.Contracts;
 using PlikShare.Folders.Rename;
 using PlikShare.Folders.Rename.Contracts;
+using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Workspaces.Validation;
 
 namespace PlikShare.Folders;
@@ -26,7 +27,8 @@ public static class FoldersEndpoints
         var group = app.MapGroup("/api/workspaces/{workspaceExternalId}/folders")
             .WithTags("Folders")
             .RequireAuthorization(policyNames: AuthPolicy.Internal)
-            .AddEndpointFilter<ValidateWorkspaceFilter>();
+            .AddEndpointFilter<ValidateWorkspaceFilter>()
+            .AddEndpointFilter<ValidateFullEncryptionSessionFilter>();
 
         group.MapPost("/", CreateFolder)
             .WithName("CreateFolder");

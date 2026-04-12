@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
@@ -36,6 +37,7 @@ public class BulkInitiateFileUploadOperation(
         IUserIdentity userIdentity,
         int? boxFolderId,
         int? boxLinkId,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken = default)
     {
         var workspaceSpace = CheckWorkspaceSpace(
@@ -120,7 +122,8 @@ public class BulkInitiateFileUploadOperation(
             batchUploadResults: batchUploadResults,
             newWorkspaceSizeInBytes: boxFolderId is not null
                 ? null  //not to reveal size of the workspace to unauthorized users of a box
-                : workspaceSpace.NewWorkspaceSizeInBytes);
+                : workspaceSpace.NewWorkspaceSizeInBytes,
+            fullEncryptionSession: fullEncryptionSession);
 
         var initiatedFiles = batchUploadResults
             .Select(bu => new InitiatedFile(
@@ -164,7 +167,8 @@ public class BulkInitiateFileUploadOperation(
         int? boxLinkId,
         IUserIdentity userIdentity,
         List<UploadDetails> batchUploadResults,
-        long? newWorkspaceSizeInBytes)
+        long? newWorkspaceSizeInBytes,
+        FullEncryptionSession? fullEncryptionSession)
     {
         var directUploadsCount = 0;
         var singleChunkUploads = new List<BulkInitiateSingleChunkUploadResponseDto>();
@@ -217,7 +221,8 @@ public class BulkInitiateFileUploadOperation(
                                 IdentityType = userIdentity.IdentityType
                             },
                             ExpirationDate = clock.UtcNow.AddMinutes(15),
-                            BoxLinkId = boxLinkId
+                            BoxLinkId = boxLinkId,
+                            Kek = fullEncryptionSession?.Kek
                         })
                 }
                 : null,

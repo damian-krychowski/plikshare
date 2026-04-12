@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace PlikShare.Storages.Encryption;
 
@@ -143,5 +144,53 @@ public static class StorageFullEncryptionService
         ReadOnlySpan<byte> encryptedData)
     {
         return DecryptAesGcm(kek, encryptedData);
+    }
+
+    private static bool TryDeriveKek(
+        string masterPassword,
+        StorageFullEncryptionDetails details,
+        Span<byte> kekOutput)
+    {
+        if (kekOutput.Length != KekSize)
+            throw new ArgumentException(
+                $"KEK output buffer must be {KekSize} bytes.", nameof(kekOutput));
+
+        DeriveKek(
+            masterPassword, 
+            details.Salt, 
+            kekOutput);
+
+        var computedHash = ComputeVerifyHash(
+            kekOutput);
+
+        return CryptographicOperations.FixedTimeEquals(
+            computedHash, 
+            details.VerifyHash);
+    }
+
+    public static string? TryUnlockProtectedKek(
+        string masterPassword,
+        StorageFullEncryptionDetails details,
+        IDataProtectionProvider dataProtectionProvider,
+        string dataProtectionPurpose)
+    {
+        var kek = new byte[KekSize];
+
+        try
+        {
+            if (!TryDeriveKek(masterPassword, details, kek))
+                return null;
+
+            var protector = dataProtectionProvider.CreateProtector(
+                dataProtectionPurpose);
+
+            var protectedKek = protector.Protect(kek);
+
+            return Convert.ToBase64String(protectedKek);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(kek);
+        }
     }
 }

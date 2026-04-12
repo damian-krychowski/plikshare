@@ -168,6 +168,7 @@ using PlikShare.Search.Get;
 using PlikShare.Storages;
 using PlikShare.Storages.Create;
 using PlikShare.Storages.Encryption;
+using PlikShare.Storages.UnlockFullEncryption;
 using PlikShare.Storages.Delete;
 using PlikShare.Storages.FileCopying;
 using PlikShare.Storages.FileCopying.BulkInitiateCopyFiles;
@@ -543,6 +544,7 @@ public class Startup
         builder.Services.AddSingleton<DigitalOceanStorageClientFactory>();
         builder.Services.AddSingleton<CreateStorageFlow>();
         builder.Services.AddSingleton<UpdateStorageFlow>();
+        builder.Services.AddSingleton<UnlockFullEncryptionOperation>();
         builder.Services.AddSingleton<GetStoragesQuery>();
         builder.Services.AddSingleton<DeleteStorageQuery>();
         builder.Services.AddSingleton<UpdateStorageNameQuery>();

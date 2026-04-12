@@ -124,6 +124,7 @@ public static class ZipEntryReader
                 fileSizeInBytes: file.SizeInBytes,
                 range: reasonableFileRange,
                 workspace: workspace,
+                fullEncryptionSession: null, //todo: propagate full-encryption session from endpoint
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -163,6 +164,7 @@ public static class ZipEntryReader
                         fileSizeInBytes: file.SizeInBytes,
                         range: missingBytesRange,
                         workspace: workspace,
+                        fullEncryptionSession: null, //todo: propagate full-encryption session from endpoint
                         output: pipe.Writer,
                         cancellationToken: cancellationToken),
                     cancellationToken: cancellationToken);

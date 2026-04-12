@@ -33,10 +33,15 @@ using PlikShare.Storages.S3.DigitalOcean.Create;
 using PlikShare.Storages.S3.DigitalOcean.Create.Contracts;
 using PlikShare.Storages.S3.DigitalOcean.UpdateDetails;
 using PlikShare.Storages.S3.DigitalOcean.UpdateDetails.Contracts;
+using PlikShare.Storages.UnlockFullEncryption;
 using PlikShare.Storages.UpdateName;
 using PlikShare.Storages.UpdateName.Contracts;
 using PlikShare.AuditLog;
+using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Entities;
+using PlikShare.Core.Clock;
+using Microsoft.AspNetCore.DataProtection;
+using System.Security.Cryptography;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Storages;
@@ -98,6 +103,17 @@ public static class StoragesEndpoints
 
         group.MapPatch("/backblaze-b2/{storageExternalId}/details", UpdateBackblazeB2StorageDetails)
             .WithName("UpdateBackblazeB2StorageDetails");
+
+        // Full encryption unlock — available for any authenticated user (not admin-only)
+        var unlockGroup = app.MapGroup("/api/storages")
+            .WithTags("Storages")
+            .RequireAuthorization(new AuthorizeAttribute
+            {
+                Policy = AuthPolicy.Internal
+            });
+
+        unlockGroup.MapPost("/{storageExternalId}/unlock-full-encryption", UnlockFullEncryption)
+            .WithName("UnlockFullEncryptionStorage");
     }
 
     // Basic Storage Operations
@@ -688,4 +704,51 @@ public static class StoragesEndpoints
                     resultValueStr: result.ToString());
         }
     }
+
+    private static Results<Ok, UnauthorizedHttpResult, BadRequest<HttpError>, NotFound<HttpError>> UnlockFullEncryption(
+        [FromRoute] StorageExtId storageExternalId,
+        [FromBody] UnlockFullEncryptionRequestDto request,
+        UnlockFullEncryptionOperation unlockFullEncryptionOperation,
+        IClock clock,
+        HttpContext httpContext)
+    {
+        var result = unlockFullEncryptionOperation.Execute(
+            storageExternalId: storageExternalId,
+            masterPassword: request.MasterPassword);
+
+        switch (result.Code)
+        {
+            case UnlockFullEncryptionOperation.ResultCode.StorageNotFound:
+                return HttpErrors.Storage.NotFound(storageExternalId);
+
+            case UnlockFullEncryptionOperation.ResultCode.EncryptionModeMismatch:
+                return HttpErrors.Storage.EncryptionModeMismatch();
+
+            case UnlockFullEncryptionOperation.ResultCode.InvalidPassword:
+                return TypedResults.Unauthorized();
+
+            case UnlockFullEncryptionOperation.ResultCode.Ok:
+                httpContext.Response.Cookies.Append(
+                    FullEncryptionSessionCookie.GetCookieName(storageExternalId),
+                    result.CookieValue!,
+                    new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.Strict,
+                        IsEssential = true,
+                        Expires = clock.UtcNow.Add(TimeSpan.FromMinutes(30))
+                    });
+
+                return TypedResults.Ok();
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UnlockFullEncryptionOperation),
+                    resultValueStr: result.ToString());
+        }
+    }
 }
+
+public record UnlockFullEncryptionRequestDto(
+    string MasterPassword);

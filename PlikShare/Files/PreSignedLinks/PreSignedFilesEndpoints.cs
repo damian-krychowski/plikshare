@@ -9,6 +9,7 @@ using PlikShare.Core.CorrelationId;
 using PlikShare.Core.CORS;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
+using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Files.Id;
 using PlikShare.Files.PreSignedLinks.Contracts;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
@@ -469,6 +470,7 @@ public static class PreSignedFilesEndpoints
                 fileSizeInBytes: file.SizeInBytes,
                 range: rangeRequest.Range,
                 workspace: workspace,
+                fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
                 output: httpContext.Response.BodyWriter,
                 cancellationToken: cancellationToken);
 
@@ -540,6 +542,7 @@ public static class PreSignedFilesEndpoints
                 },
                 fileSizeInBytes: file.SizeInBytes,
                 workspace: workspace,
+                fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
                 cancellationToken: cancellationToken);
             
             httpContext.Response.Headers.AcceptRanges = "bytes";

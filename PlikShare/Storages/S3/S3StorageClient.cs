@@ -2,6 +2,7 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using CommunityToolkit.HighPerformance;
 using PlikShare.Core.Clock;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
@@ -30,6 +31,8 @@ public class S3StorageClient(
     public int StorageId { get; } = storageId;
     public StorageExtId ExternalId { get; } = externalId;
     public StorageEncryptionType EncryptionType { get; } = encryptionType;
+    public StorageEncryptionDetails? EncryptionDetails { get; } = encryptionDetails;
+
     private readonly RateLimiter _rateLimiter = new(100, 80);
 
     public EncryptionKeyProvider? EncryptionKeyProvider { get; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
@@ -146,9 +149,10 @@ public class S3StorageClient(
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken = default)
     {
-        if (EncryptionType == StorageEncryptionType.Managed || enforceInternalPassThrough)
+        if (EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full || enforceInternalPassThrough)
         {
             var url = preSignedUrlsService.GeneratePreSignedUploadUrl(
                 new PreSignedUrlsService.UploadPayload
@@ -162,7 +166,8 @@ public class S3StorageClient(
                         IdentityType = userIdentity.IdentityType
                     },
                     ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
-                    BoxLinkId = boxLinkId
+                    BoxLinkId = boxLinkId,
+                    Kek = fullEncryptionSession?.Kek
                 });
 
             return new PreSignedUploadLinkResult
@@ -175,10 +180,10 @@ public class S3StorageClient(
         if (EncryptionType == StorageEncryptionType.None)
         {
             var url = await GetDirectS3PreSignedUploadFilePartLink(
-                bucketName, 
-                key, 
-                uploadId, 
-                partNumber, 
+                bucketName,
+                key,
+                uploadId,
+                partNumber,
                 contentType);
 
             return new PreSignedUploadLinkResult
@@ -265,9 +270,10 @@ public class S3StorageClient(
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken = default)
     {
-        if (EncryptionType == StorageEncryptionType.Managed || enforceInternalPassThrough)
+        if (EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full || enforceInternalPassThrough)
         {
             return preSignedUrlsService.GeneratePreSignedDownloadUrl(
                 new PreSignedUrlsService.DownloadPayload
@@ -280,7 +286,8 @@ public class S3StorageClient(
                     },
                     ContentDisposition = contentDisposition,
                     ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
-                    BoxLinkId = boxLinkId
+                    BoxLinkId = boxLinkId,
+                    Kek = fullEncryptionSession?.Kek
                 });
         }
 

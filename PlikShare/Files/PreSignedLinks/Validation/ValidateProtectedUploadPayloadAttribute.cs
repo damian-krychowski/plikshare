@@ -1,4 +1,5 @@
 using PlikShare.Core.Authorization;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Uploads.Algorithm;
@@ -110,7 +111,13 @@ public class ValidateProtectedUploadPayloadFilter : IEndpointFilter
         context.HttpContext.Items[ProtectedUploadPayloadContext] = new ProtectedUploadPayload(
             Payload: payload,
             FileUpload: fileUpload);
-        
+
+        if (payload.Kek is not null)
+        {
+            context.HttpContext.Items[FullEncryptionSession.HttpContextName] =
+                new FullEncryptionSession { Kek = payload.Kek };
+        }
+
         return await next(context);
     }
 }

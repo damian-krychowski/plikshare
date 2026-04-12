@@ -1,4 +1,5 @@
 using PlikShare.Core.Authorization;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Records;
@@ -97,6 +98,12 @@ public class ValidateProtectedZipContentDownloadPayloadFilter : IEndpointFilter
             Payload: payload,
             File : file.Details!,
             Workspace: workspace);
+
+        if (payload.Kek is not null)
+        {
+            context.HttpContext.Items[FullEncryptionSession.HttpContextName] =
+                new FullEncryptionSession { Kek = payload.Kek };
+        }
 
         return await next(context);
     }

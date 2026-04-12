@@ -1,5 +1,6 @@
 using Amazon.S3.Model;
 using PlikShare.Core.Clock;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
@@ -24,6 +25,7 @@ public class HardDriveStorageClient(
 {
     public HardDriveDetailsEntity Details { get; } = details;
     public StorageEncryptionType EncryptionType { get; } = encryptionType;
+    public StorageEncryptionDetails? EncryptionDetails { get; } = encryptionDetails;
     public EncryptionKeyProvider? EncryptionKeyProvider { get; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
         encryptionDetails: encryptionDetails);
 
@@ -245,15 +247,16 @@ public class HardDriveStorageClient(
     }
 
     public ValueTask<PreSignedUploadLinkResult> GetPreSignedUploadFilePartLink(
-        string bucketName, 
+        string bucketName,
         FileUploadExtId fileUploadExternalId,
-        S3FileKey key, 
-        string uploadId, 
+        S3FileKey key,
+        string uploadId,
         int partNumber,
         string contentType,
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken)
     {
         var url = preSignedUrlsService.GeneratePreSignedUploadUrl(
@@ -268,7 +271,8 @@ public class HardDriveStorageClient(
                     IdentityType = userIdentity.IdentityType
                 },
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
-                BoxLinkId = boxLinkId
+                BoxLinkId = boxLinkId,
+                Kek = fullEncryptionSession?.Kek
             });
 
         var result = new PreSignedUploadLinkResult
@@ -281,14 +285,15 @@ public class HardDriveStorageClient(
     }
 
     public ValueTask<string> GetPreSignedDownloadFileLink(
-        string bucketName, 
-        S3FileKey key, 
-        string contentType, 
+        string bucketName,
+        S3FileKey key,
+        string contentType,
         string fileName,
         ContentDispositionType contentDisposition,
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken)
     {
         var result = preSignedUrlsService.GeneratePreSignedDownloadUrl(
@@ -302,9 +307,10 @@ public class HardDriveStorageClient(
                 },
                 ContentDisposition = contentDisposition,
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
-                BoxLinkId = boxLinkId
+                BoxLinkId = boxLinkId,
+                Kek = fullEncryptionSession?.Kek
             });
-        
+
         return ValueTask.FromResult(result);
     }
 

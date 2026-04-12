@@ -311,6 +311,7 @@ public class CopyFileQueueJobExecutor(
                 s3FileKey: job.SourceS3FileKey,
                 fileSizeInBytes: job.FileSizeInBytes,
                 workspace: sourceWorkspace,
+                fullEncryptionSession: null, //todo: background jobs cannot access full-encryption sessions yet
                 cancellationToken: stoppingToken);
 
             await fileStream.WriteTo(

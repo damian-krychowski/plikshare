@@ -187,6 +187,20 @@ public static class HttpErrors
             Code = "master-password-required",
             Message = "Master password is required for full encryption storage"
         });
+
+        public static BadRequest<HttpError> EncryptionModeMismatch() => TypedResults.BadRequest(new HttpError
+        {
+            Code = "storage-encryption-mode-mismatch",
+            Message = "Storage has a different encryption mode."
+        });
+
+        public static IResult FullEncryptionSessionRequired() => TypedResults.Json(
+            new HttpError
+            {
+                Code = "full-encryption-session-required",
+                Message = "Full encryption session is required. Unlock the storage with your master password."
+            },
+            statusCode: StatusCodes.Status423Locked);
     }
 
     public static class Folder

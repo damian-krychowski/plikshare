@@ -14,6 +14,7 @@ public interface IStorageClient
     int StorageId { get; }
     StorageExtId ExternalId { get; }
     public StorageEncryptionType EncryptionType { get; }
+    public StorageEncryptionDetails? EncryptionDetails { get; }
     public EncryptionKeyProvider? EncryptionKeyProvider { get; }
     
     ValueTask DeleteFile(
@@ -43,6 +44,7 @@ public interface IStorageClient
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken = default);
 
     ValueTask<string> GetPreSignedDownloadFileLink(
@@ -54,6 +56,7 @@ public interface IStorageClient
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken = default);
 
     Task AbortMultiPartUpload(
@@ -120,7 +123,7 @@ public static class StorageClientExtensions
         }
 
         public Aes256GcmStreaming.GetEncryptionKey GetEncryptionKeyFunc(
-            FullEncryptionSession? fullEncryptionAccess)
+            FullEncryptionSession? fullEncryptionSession)
         {
             if (storageClient.EncryptionType == StorageEncryptionType.None)
             {
@@ -139,10 +142,10 @@ public static class StorageClientExtensions
 
             if (storageClient.EncryptionType == StorageEncryptionType.Full)
             {
-                if (fullEncryptionAccess is null)
+                if (fullEncryptionSession is null)
                 {
                     throw new ArgumentNullException(
-                        nameof(fullEncryptionAccess),
+                        nameof(fullEncryptionSession),
                         $"Full encryption access is required for storage '{storageClient.ExternalId}' " +
                         $"with encryption type '{StorageEncryptionType.Full}'.");
                 }
@@ -151,7 +154,7 @@ public static class StorageClientExtensions
 
                 return version => keyProvider.GetEncryptionKey(
                     version,
-                    fullEncryptionAccess.Kek);
+                    fullEncryptionSession.Kek);
             }
 
             throw new InvalidOperationException(

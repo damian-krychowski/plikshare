@@ -14,6 +14,7 @@ using PlikShare.Core.CorrelationId;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
+using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Workspaces.Validation;
 
 namespace PlikShare.ArtificialIntelligence;
@@ -31,7 +32,8 @@ public static class ArtificialIntelligenceEndpoints
 
         var workspaceGroup = group.MapGroup("/workspaces/{workspaceExternalId}")
             .WithTags("ArtificialIntelligence_Workspace")
-            .AddEndpointFilter<ValidateWorkspaceFilter>();
+            .AddEndpointFilter<ValidateWorkspaceFilter>()
+            .AddEndpointFilter<ValidateFullEncryptionSessionFilter>();
 
         workspaceGroup.MapPost("/files/{fileExternalId}/messages", SendFileAiMessage)
             .WithName("SendFileAiMessage");

@@ -4,7 +4,7 @@ public class FullEncryptionKeyProvider
 {
     private readonly Dictionary<byte, StorageEncryptionKey> _encryptedDeks;
     private readonly byte _latestVersion;
-
+    
     public FullEncryptionKeyProvider(
         StorageFullEncryptionDetails encryptionDetails)
     {

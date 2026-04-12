@@ -1,3 +1,4 @@
+using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
@@ -17,6 +18,7 @@ public class GetFileDownloadLinkOperation(
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken)
     {
         var fileQueryResult = getFileDetailsQuery.Execute(
@@ -42,6 +44,7 @@ public class GetFileDownloadLinkOperation(
                 boxLinkId: boxLinkId,
                 userIdentity: userIdentity,
                 enforceInternalPassThrough: enforceInternalPassThrough,
+                fullEncryptionSession: fullEncryptionSession,
                 cancellationToken: cancellationToken);
 
         return new Result(

@@ -16,6 +16,7 @@ public class S3BulkDownloadOperation
     public async Task Execute(
         BulkDownloadDetails bulkDownloadDetails,
         string bucketName,
+        FullEncryptionSession? fullEncryptionSession,
         S3StorageClient s3StorageClient,
         PipeWriter responsePipeWriter,
         CancellationToken cancellationToken)
@@ -106,18 +107,15 @@ public class S3BulkDownloadOperation
                             PlikShareStreams.DefaultBufferSize,
                             cancellationToken);
                     }
-                    else if (s3StorageClient.EncryptionType == StorageEncryptionType.Managed)
+                    else
                     {
                         _logger.Debug(
                             "Starting encrypted file transfer for {FileName} using AES-256-GCM",
                             file.FullName);
 
-                        var keyProvider = s3StorageClient
-                            .GetManagedEncryptionKeyProviderOrThrow();
-
                         await Aes256GcmStreaming.Decrypt(
-                            getEncryptionKeyFunc: version => keyProvider.GetEncryptionKey(
-                                version),
+                            getEncryptionKeyFunc: s3StorageClient.GetEncryptionKeyFunc(
+                                fullEncryptionSession),
                             fileSizeInBytes: file.SizeInBytes,
                             input: PipeReader.Create(
                                 stream: s3FileStream,
@@ -129,11 +127,6 @@ public class S3BulkDownloadOperation
                                 writerOptions: new StreamPipeWriterOptions(
                                     leaveOpen: false)),
                             cancellationToken);
-                    }
-                    else
-                    {
-                        throw new NotImplementedException(
-                            $"Encryption type '{s3StorageClient.EncryptionType}' is not implemented for Storage#{s3StorageClient.StorageId}");
                     }
 
                     processedFiles++;
