@@ -105,6 +105,9 @@ export const routes: Routes = [{
     loadComponent: () => import('./account/integrations/openai/chatgpt/create/create-chatgpt.component').then(m => m.CreateChatGptComponent),
     canActivate: [AdminGuardService]
 }, {
+    path: 'full-encryption-sessions',
+    loadComponent: () => import('./full-encryption-sessions/full-encryption-sessions.component').then(m => m.FullEncryptionSessionsComponent)
+}, {
     path: 'workspaces/:workspaceExternalId',
     loadComponent: () => import('./workspace-manager/workspace-manager.component').then(m => m.WorkspaceManagerComponent),
     children: [{

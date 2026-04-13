@@ -74,6 +74,12 @@ public class GetDashboardContentResponseDto
 
         [ProtoMember(9)]
         public required bool IsBucketCreated { get; init; }
+
+        [ProtoMember(10)]
+        public required string StorageExternalId { get; init; }
+
+        [ProtoMember(11)]
+        public required string StorageEncryptionType { get; init; }
     }
 
     [ProtoContract]
@@ -102,6 +108,12 @@ public class GetDashboardContentResponseDto
 
         [ProtoMember(8)]
         public required bool IsBucketCreated { get; init; }
+
+        [ProtoMember(9)]
+        public required string StorageExternalId { get; init; }
+
+        [ProtoMember(10)]
+        public required string StorageEncryptionType { get; init; }
     }
 
     [ProtoContract]

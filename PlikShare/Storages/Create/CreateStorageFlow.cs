@@ -59,6 +59,7 @@ public class CreateStorageFlow(
         {
             StorageId = queryResult.StorageId,
             ExternalId = queryResult.StorageExternalId,
+            Name = name,
             EncryptionType = encryptionType,
             EncryptionDetails = encryptionDetails
         };

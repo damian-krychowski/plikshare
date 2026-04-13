@@ -22,6 +22,7 @@ public class S3StorageClient(
     IAmazonS3 s3Client,
     int storageId,
     StorageExtId externalId,
+    string name,
     PreSignedUrlsService preSignedUrlsService,
     StorageEncryptionType encryptionType,
     StorageEncryptionDetails? encryptionDetails) : IStorageClient, IDisposable
@@ -30,6 +31,7 @@ public class S3StorageClient(
 
     public int StorageId { get; } = storageId;
     public StorageExtId ExternalId { get; } = externalId;
+    public string Name { get; } = name;
     public StorageEncryptionType EncryptionType { get; } = encryptionType;
     public StorageEncryptionDetails? EncryptionDetails { get; } = encryptionDetails;
 

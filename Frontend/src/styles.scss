@@ -173,6 +173,20 @@ select {
     color: var(--company-danger) !important;
 }
 
+.top-nav-btn .mat-badge-content {
+    font-size: var(--company-small-font) !important;
+    line-height: 1 !important;
+    bottom: 15px !important;
+    left: 43px !important;
+    z-index: 1 !important;
+    background-color: var(--company-blue-selected) !important;
+    color: black !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+}
+
 .mat-mdc-dialog-container {
     @media (max-width: variables.$mobile-breakpoint) {
         position: fixed !important;

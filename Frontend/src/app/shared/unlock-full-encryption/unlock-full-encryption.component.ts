@@ -5,6 +5,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { StoragesApi } from '../../services/storages.api';
+import { FullEncryptionSessionsStore } from '../../services/full-encryption-sessions.store';
 import { SecureInputDirective } from '../secure-input.directive';
 
 export interface UnlockFullEncryptionDialogData {
@@ -37,6 +38,7 @@ export class UnlockFullEncryptionComponent {
     constructor(
         @Inject(MAT_DIALOG_DATA) public data: UnlockFullEncryptionDialogData,
         private _storagesApi: StoragesApi,
+        private _sessionsStore: FullEncryptionSessionsStore,
         public dialogRef: MatDialogRef<UnlockFullEncryptionComponent, boolean>) {
 
         this.formGroup = new FormGroup({
@@ -57,6 +59,8 @@ export class UnlockFullEncryptionComponent {
             await this._storagesApi.unlockFullEncryption(
                 this.data.storageExternalId,
                 { masterPassword: this.masterPassword.value! });
+
+            await this._sessionsStore.notifyUnlocked();
 
             this.dialogRef.close(true);
         } catch (err: any) {

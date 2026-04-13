@@ -11,6 +11,7 @@ export class ConfirmOperationDirective {
     verb = input.required<string>();
     isOperationDanger = input(false);
     isOperationDisabled = input(false);
+    operationSubtitle = input<string | undefined>(undefined);
     confirmedClick = output<any>();
 
 
@@ -32,7 +33,8 @@ export class ConfirmOperationDirective {
             data: {
                 item: this.operationItem(),
                 verb: this.verb(),
-                isDanger: this.isOperationDanger()
+                isDanger: this.isOperationDanger(),
+                subtitle: this.operationSubtitle()
             }
         });
 

@@ -23,10 +23,13 @@
         </app-search-input>
 
         @if(!searchInput.isSearchActive()) {
+            <app-full-encryption-sessions-btn>
+            </app-full-encryption-sessions-btn>
+
             <app-settings-menu-btn
-                [isDanger]="!hasAnyStorage()">                
-            </app-settings-menu-btn>         
-        }    
+                [isDanger]="!hasAnyStorage()">
+            </app-settings-menu-btn>
+        }
     </div>
     
     <div class="overflow-hidden app-search-container" 

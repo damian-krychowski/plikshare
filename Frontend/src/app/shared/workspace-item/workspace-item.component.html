@@ -52,6 +52,18 @@
                         <span class="ml-1">Storage: {{storageNameValue}}</span>
                     }
 
+                    @if(isFullEncryption()) {
+                        @if(isFullEncryptionUnlocked()) {
+                            <i class="icon icon-sm icon-nucleo-lock-open ml-1"
+                                matTooltip="Full encryption — unlocked for this session"
+                                matTooltipPosition="above"></i>
+                        } @else {
+                            <i class="icon icon-sm icon-nucleo-lock ml-1"
+                                matTooltip="Full encryption — locked"
+                                matTooltipPosition="above"></i>
+                        }
+                    }
+
                     @if(!isOwnedByUser()) {
                         <app-user-link
                             class="ml-1"

@@ -504,6 +504,8 @@ export class SearchService {
                 allowShare: item.allowShare,
             },
             storageName: signal(null),
+            storageExternalId: '',
+            storageEncryptionType: 'none',
             isNameEditing: signal(false),
             isHighlighted: signal(false)
         };

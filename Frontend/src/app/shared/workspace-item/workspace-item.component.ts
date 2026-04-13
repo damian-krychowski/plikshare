@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit, Signal, WritableSignal, computed, input, output, signal } from '@angular/core';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { NavigationExtras, Router } from '@angular/router';
 import { StorageSizePipe } from '../storage-size.pipe';
 import { WorkspacesApi } from '../../services/workspaces.api';
@@ -18,10 +19,12 @@ import { ActionButtonComponent } from '../buttons/action-btn/action-btn.componen
 import { UserPickerComponent } from '../user-picker/user-picker.component';
 import { AppUserDetails } from '../user-item/app-user';
 import { observeIsHighlighted } from '../../services/is-highlighted-utils';
+import { AppStorageEncryptionType } from '../../services/storages.api';
+import { FullEncryptionSessionsStore } from '../../services/full-encryption-sessions.store';
 
 export type AppWorkspace = {
     type: 'app-workspace';
-    
+
     externalId: WritableSignal<string | null>;
     name: WritableSignal<string>;
     currentSizeInBytes: WritableSignal<number>;
@@ -30,10 +33,12 @@ export type AppWorkspace = {
     wasUserInvited: Signal<boolean>;
     permissions: {
         allowShare: boolean;
-    };    
+    };
     isUsedByIntegration: boolean;
     isBucketCreated: WritableSignal<boolean>;
     storageName: Signal<string | null>;
+    storageExternalId: string;
+    storageEncryptionType: AppStorageEncryptionType;
     isNameEditing: WritableSignal<boolean>;
     isHighlighted: WritableSignal<boolean>;
 };
@@ -42,6 +47,7 @@ export type AppWorkspace = {
     selector: 'app-workspace-item',
     imports: [
         MatProgressBarModule,
+        MatTooltipModule,
         StorageSizePipe,
         EditableTxtComponent,
         ConfirmOperationDirective,
@@ -71,6 +77,10 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
     maxSizeInBytes = computed(() => this.workspace().maxSizeInBytes());
 
     storageName = computed(() => this.workspace().storageName());
+    storageEncryptionType = computed(() => this.workspace().storageEncryptionType);
+    isFullEncryption = computed(() => this.workspace().storageEncryptionType === 'full');
+    isFullEncryptionUnlocked = computed(() => this.isFullEncryption()
+        && this._sessionsStore.items().some(i => i.storageExternalId === this.workspace().storageExternalId));
     owner = computed(() => this.workspace().owner());
 
     isNameEditing = computed(() => this.workspace().isNameEditing());    
@@ -99,7 +109,8 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
         private _router: Router,
         private _inAppSharing: InAppSharing,
         private _dialog: MatDialog,
-        public dataStore: DataStore
+        public dataStore: DataStore,
+        private _sessionsStore: FullEncryptionSessionsStore
     ) {
 
     }
@@ -228,6 +239,9 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
         const externalId = this.externalId();
 
         if(!externalId)
+            return;
+
+        if(this.isFullEncryption() && !this.isFullEncryptionUnlocked())
             return;
 
         this.dataStore.prefetchWorkspaceTopFolders(

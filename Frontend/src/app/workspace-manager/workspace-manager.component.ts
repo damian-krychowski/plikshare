@@ -12,6 +12,7 @@ import { AuthService } from '../services/auth.service';
 import { FileUploadManager } from '../services/file-upload-manager/file-upload-manager';
 import {MatBadgeModule} from '@angular/material/badge';
 import { SettingsMenuBtnComponent } from '../shared/setting-menu-btn/settings-menu-btn.component';
+import { FullEncryptionSessionsBtnComponent } from '../shared/full-encryption-sessions-btn/full-encryption-sessions-btn.component';
 import { SignOutService } from '../services/sign-out.service';
 import { FooterComponent } from '../static-pages/shared/footer/footer.component';
 import { WorkspaceSizeComponent } from '../shared/workspace-size/workspace-size.component';
@@ -27,6 +28,7 @@ import { WorkspaceSizeComponent } from '../shared/workspace-size/workspace-size.
         SearchComponent,
         MatBadgeModule,
         SettingsMenuBtnComponent,
+        FullEncryptionSessionsBtnComponent,
         FooterComponent,
         WorkspaceSizeComponent
     ],

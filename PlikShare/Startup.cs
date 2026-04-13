@@ -168,6 +168,7 @@ using PlikShare.Search.Get;
 using PlikShare.Storages;
 using PlikShare.Storages.Create;
 using PlikShare.Storages.Encryption;
+using PlikShare.Storages.FullEncryptionSessions;
 using PlikShare.Storages.UnlockFullEncryption;
 using PlikShare.Storages.Delete;
 using PlikShare.Storages.FileCopying;
@@ -710,6 +711,7 @@ public class Startup
         app.MapLegalFilesEndpoints();
         app.MapHealthCheckEndpoints();
         app.MapStoragesEndpoints();
+        app.MapFullEncryptionSessionsEndpoints();
         app.MapDashboardEndpoints();
         app.MapEmailProvidersEndpoints();
         app.MapAuthProvidersEndpoints();

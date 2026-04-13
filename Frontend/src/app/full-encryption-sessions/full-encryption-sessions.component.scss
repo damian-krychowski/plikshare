@@ -1,0 +1,38 @@
+@forward "./../../styles/app-header.scss";
+@forward "./../../styles/top-bar.scss";
+@forward "./../../styles/top-nav-btn.scss";
+@forward "./../../styles/item-bar.scss";
+@forward "./../../styles/icon-merge.scss";
+@forward "./../../styles/mobile-display.scss";
+
+
+.empty-state {
+    padding: 1rem;
+    color: var(--company-grey-font);
+    font-style: italic;
+}
+
+.info-box {
+    border: 1px solid var(--company-grey-accent);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    color: var(--company-grey-font);
+    font-size: var(--company-small-font);
+
+    &__title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    p {
+        margin: 0 0 0.5rem 0;
+        line-height: 1.5;
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+}

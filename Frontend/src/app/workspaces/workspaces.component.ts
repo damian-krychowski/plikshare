@@ -12,6 +12,7 @@ import { InAppSharing } from '../services/in-app-sharing.service';
 import { AppExternalBox, ExternalBoxItemComponent } from '../shared/external-box-item/external-box-item.component';
 import { MatDialog } from '@angular/material/dialog';
 import { SettingsMenuBtnComponent } from '../shared/setting-menu-btn/settings-menu-btn.component';
+import { FullEncryptionSessionsBtnComponent } from '../shared/full-encryption-sessions-btn/full-encryption-sessions-btn.component';
 import { AppStorage } from '../shared/storage-item/storage-item.component';
 import { StoragePickerComponent } from '../shared/storage-picker/storage-picker.component';
 import { AppWorkspaceInvitation, WorkspaceInvitationItemComponent } from '../shared/workspace-invitation-item/workspace-invitation-item.component';
@@ -32,6 +33,7 @@ import { GenericDialogService } from '../shared/generic-message-dialog/generic-d
         SearchComponent,
         ExternalBoxItemComponent,
         SettingsMenuBtnComponent,
+        FullEncryptionSessionsBtnComponent,
         WorkspaceInvitationItemComponent,
         BoxInvitationItemComponent,
         ItemButtonComponent,
@@ -210,6 +212,8 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                         allowShare: item.permissions.allowShare
                     },
                     storageName: signal(item.storageName),
+                    storageExternalId: item.storageExternalId,
+                    storageEncryptionType: item.storageEncryptionType,
                     isNameEditing: signal(false),
                     isHighlighted: signal(false)
                 };
@@ -248,6 +252,8 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                     allowShare: item.permissions.allowShare,
                 },
                 storageName: signal(item.storageName),
+                storageExternalId: item.storageExternalId,
+                storageEncryptionType: item.storageEncryptionType,
                 isNameEditing: signal(false),
                 isHighlighted: signal(false)
             })));
@@ -359,6 +365,8 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                 allowShare: true
             },
             storageName: signal(storage.name()),
+            storageExternalId: storage.externalId,
+            storageEncryptionType: storage.encryptionType,
             isNameEditing: signal(true),
             isHighlighted: signal(false)
         };
@@ -404,6 +412,8 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                 isUsedByIntegration: invitation.isUsedByIntegration,
                 isBucketCreated: signal(invitation.isBucketCreated),
                 storageName: signal(null),
+                storageExternalId: '',
+                storageEncryptionType: 'none',
                 isNameEditing: signal(false),
                 isHighlighted: signal(false)
             }

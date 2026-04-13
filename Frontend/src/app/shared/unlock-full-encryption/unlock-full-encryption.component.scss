@@ -1,6 +1,12 @@
 @forward "./../../../styles/questionaire.scss";
 @forward "./../../../styles/mobile-display.scss";
 
+.questionaire > .questionaire__info {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    padding-bottom: 1rem;
+}
+
 .mat-mdc-form-field-error-wrapper {
     padding: 0 !important;
 }

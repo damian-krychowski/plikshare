@@ -25,6 +25,8 @@ export interface GetDashboardDataResponse {
             email: string;
         };
         storageName: string | null;
+        storageExternalId: string;
+        storageEncryptionType: AppStorageEncryptionType;
         permissions: {
             allowShare: boolean;
         };
@@ -42,6 +44,8 @@ export interface GetDashboardDataResponse {
             email: string;
         };
         storageName: string | null;
+        storageExternalId: string;
+        storageEncryptionType: AppStorageEncryptionType;
         permissions: {
             allowShare: boolean;
         };
@@ -64,6 +68,8 @@ export interface GetDashboardDataResponse {
             allowShare: boolean;
         };
         storageName: string | null;
+        storageExternalId: string;
+        storageEncryptionType: AppStorageEncryptionType;
         isUsedByIntegration: boolean;
         isBucketCreated: boolean;
     }[];

@@ -107,8 +107,11 @@
         </app-search-input>
 
         @if(!searchInput.isSearchActive()) {
+            <app-full-encryption-sessions-btn class="d-none-on-mobile-early">
+            </app-full-encryption-sessions-btn>
+
             <app-settings-menu-btn class="d-none-on-mobile-early">
-            </app-settings-menu-btn>   
+            </app-settings-menu-btn>
 
             <button class="top-nav-btn d-none-on-desktop-early"
                 (click)="toggleMenu()"

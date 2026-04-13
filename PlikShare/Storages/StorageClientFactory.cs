@@ -35,6 +35,7 @@ public class StorageClientDetails
 {
     public required int StorageId { get; init; }
     public required StorageExtId ExternalId { get; init; }
+    public required string Name { get; init; }
     public required StorageEncryptionType EncryptionType { get; init; }
     public required StorageEncryptionDetails? EncryptionDetails { get; init; }
 }
@@ -68,6 +69,7 @@ public static class StoragePreparationDetailsExtensions
                     s3Client: client,
                     storageId: clientDetails.StorageId,
                     externalId: clientDetails.ExternalId,
+                    name: clientDetails.Name,
                     preSignedUrlsService: preSignedUrlsService,
                     encryptionType: clientDetails.EncryptionType,
                     encryptionDetails: clientDetails.EncryptionDetails)

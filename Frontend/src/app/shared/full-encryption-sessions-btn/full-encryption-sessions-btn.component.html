@@ -1,0 +1,11 @@
+@if (store.count() > 0) {
+    <button class="top-nav-btn"
+        aria-label="Unlocked encrypted storages"
+        mat-flat-button
+        matTooltip="Unlocked encrypted storages"
+        matTooltipPosition="below"
+        [matBadge]="store.count()"
+        (click)="goToSessions()">
+        <i class="icon icon-xl icon-nucleo-lock-open"></i>
+    </button>
+}

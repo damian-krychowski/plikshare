@@ -50,6 +50,7 @@ public class UpdateStorageFlow(
         {
             StorageId = storageData.Id,
             ExternalId = externalId,
+            Name = storageData.Name,
             EncryptionType = storageData.EncryptionType,
             EncryptionDetails = encryptionDetails
         };

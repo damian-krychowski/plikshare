@@ -35,7 +35,9 @@ export function getDashboardContentDtoProtobuf() {
         .add(new protobuf.Field("storageName", 6, "string"))
         .add(new protobuf.Field("permissions", 7, "WorkspacePermissions"))
         .add(new protobuf.Field("isUsedByIntegration", 8, "bool"))
-        .add(new protobuf.Field("isBucketCreated", 9, "bool"));
+        .add(new protobuf.Field("isBucketCreated", 9, "bool"))
+        .add(new protobuf.Field("storageExternalId", 10, "string"))
+        .add(new protobuf.Field("storageEncryptionType", 11, "string"));
 
     const workspaceInvitationType = new protobuf.Type("WorkspaceInvitation")
         .add(new protobuf.Field("workspaceExternalId", 1, "string"))
@@ -45,7 +47,9 @@ export function getDashboardContentDtoProtobuf() {
         .add(new protobuf.Field("permissions", 5, "WorkspacePermissions"))
         .add(new protobuf.Field("storageName", 6, "string"))
         .add(new protobuf.Field("isUsedByIntegration", 7, "bool"))
-        .add(new protobuf.Field("isBucketCreated", 8, "bool"));
+        .add(new protobuf.Field("isBucketCreated", 8, "bool"))
+        .add(new protobuf.Field("storageExternalId", 9, "string"))
+        .add(new protobuf.Field("storageEncryptionType", 10, "string"));
 
     const externalBoxType = new protobuf.Type("ExternalBox")
         .add(new protobuf.Field("boxExternalId", 1, "string"))

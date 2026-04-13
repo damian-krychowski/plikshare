@@ -67,10 +67,11 @@ public static class StorageStartupExtensions
         var storages = connection
             .Cmd(
                 sql: @"
-                    SELECT 
+                    SELECT
                         s_id,
                         s_external_id,
-                        s_type, 
+                        s_name,
+                        s_type,
                         s_details_encrypted,
                         s_encryption_type,
                         s_encryption_details_encrypted
@@ -80,17 +81,19 @@ public static class StorageStartupExtensions
                 {
                     var storageId = reader.GetInt32(0);
                     var externalId = reader.GetExtId<StorageExtId>(1);
-                    var type = reader.GetString(2);
+                    var name = reader.GetString(2);
+                    var type = reader.GetString(3);
                     var detailsJson = masterDataEncryption.Decrypt(
-                        reader.GetFieldValue<byte[]>(3));
+                        reader.GetFieldValue<byte[]>(4));
 
                     var encryptionType = StorageEncryptionExtensions.FromDbValue(
-                        dbValue: reader.GetStringOrNull(4));
-                    
+                        dbValue: reader.GetStringOrNull(5));
+
                     return new
                     {
                         StorageId = storageId,
                         ExternalId = externalId,
+                        Name = name,
                         Type = type,
                         DetailsJson = detailsJson,
                         EncryptionType = encryptionType,
@@ -99,7 +102,7 @@ public static class StorageStartupExtensions
                             : StorageEncryptionExtensions.GetEncryptionDetails(
                                 encryptionType: encryptionType,
                                 encryptionDetailsJson: masterDataEncryption.Decrypt(
-                                    reader.GetFieldValue<byte[]>(5)))
+                                    reader.GetFieldValue<byte[]>(6)))
                     };
                 })
             .Execute();
@@ -122,6 +125,7 @@ public static class StorageStartupExtensions
                     s3Client: client,
                     storageId: storage.StorageId,
                     externalId: storage.ExternalId,
+                    name: storage.Name,
                     preSignedUrlsService: preSignedUrlsService,
                     encryptionType: storage.EncryptionType,
                     encryptionDetails: storage.EncryptionDetails));
@@ -136,13 +140,14 @@ public static class StorageStartupExtensions
                     accessKeyId: details!.AccessKeyId,
                     secretAccessKey: details.SecretAccessKey,
                     url: details.Url);
-                
+
                 clientStore.RegisterClient(new S3StorageClient(
                     appUrl: config.AppUrl,
                     clock: clock,
                     s3Client: client,
                     storageId: storage.StorageId,
                     externalId: storage.ExternalId,
+                    name: storage.Name,
                     preSignedUrlsService: preSignedUrlsService,
                     encryptionType: storage.EncryptionType,
                     encryptionDetails: storage.EncryptionDetails));
@@ -157,18 +162,19 @@ public static class StorageStartupExtensions
                     accessKey: details!.AccessKey,
                     secretAccessKey: details.SecretAccessKey,
                     region: details.Region);
-                
+
                 clientStore.RegisterClient(new S3StorageClient(
                     appUrl: config.AppUrl,
                     clock: clock,
                     s3Client: client,
                     storageId: storage.StorageId,
                     externalId: storage.ExternalId,
+                    name: storage.Name,
                     preSignedUrlsService: preSignedUrlsService,
                     encryptionType: storage.EncryptionType,
                     encryptionDetails: storage.EncryptionDetails));
             }
-            
+
             if (storage.Type == StorageType.DigitalOceanSpaces)
             {
                 var details = Json.Deserialize<DigitalOceanSpacesDetailsEntity>(
@@ -178,13 +184,14 @@ public static class StorageStartupExtensions
                     accessKey: details!.AccessKey,
                     secretKey: details.SecretKey,
                     url: details.Url);
-                
+
                 clientStore.RegisterClient(new S3StorageClient(
                     appUrl: config.AppUrl,
                     clock: clock,
                     s3Client: client,
                     storageId: storage.StorageId,
                     externalId: storage.ExternalId,
+                    name: storage.Name,
                     preSignedUrlsService: preSignedUrlsService,
                     encryptionType: storage.EncryptionType,
                     encryptionDetails: storage.EncryptionDetails));
@@ -200,6 +207,7 @@ public static class StorageStartupExtensions
                         storage.DetailsJson)!,
                     storageId: storage.StorageId,
                     externalId: storage.ExternalId,
+                    name: storage.Name,
                     clock: clock,
                     encryptionType: storage.EncryptionType,
                     encryptionDetails: storage.EncryptionDetails));

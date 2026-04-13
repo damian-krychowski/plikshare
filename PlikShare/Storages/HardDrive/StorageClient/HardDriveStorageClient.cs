@@ -20,10 +20,12 @@ public class HardDriveStorageClient(
     HardDriveDetailsEntity details,
     int storageId,
     StorageExtId externalId,
+    string name,
     StorageEncryptionType encryptionType,
     StorageEncryptionDetails? encryptionDetails) : IStorageClient
 {
     public HardDriveDetailsEntity Details { get; } = details;
+    public string Name { get; } = name;
     public StorageEncryptionType EncryptionType { get; } = encryptionType;
     public StorageEncryptionDetails? EncryptionDetails { get; } = encryptionDetails;
     public EncryptionKeyProvider? EncryptionKeyProvider { get; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(

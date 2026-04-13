@@ -145,6 +145,8 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                             allowShare: true
                         },
                         storageName: signal(w.storageName),
+                        storageExternalId: '',
+                        storageEncryptionType: 'none',
                         wasUserInvited: signal(false),
                         isUsedByIntegration: w.isUsedByIntegration,
                         isBucketCreated: signal(w.isBucketCreated)
@@ -173,6 +175,8 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                             allowShare: w.permissions.allowShare
                         },
                         storageName: signal(w.storageName),
+                        storageExternalId: '',
+                        storageEncryptionType: 'none',
                         wasUserInvited: signal(true),
                         isUsedByIntegration: w.isUsedByIntegration,
                         isBucketCreated: signal(w.isBucketCreated)

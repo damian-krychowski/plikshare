@@ -206,7 +206,7 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
         var entities = connection
             .Cmd(
                 sql: @"
-                    SELECT 
+                    SELECT
                         w_external_id,
                         w_name,
                         w_current_size_in_bytes,
@@ -223,11 +223,11 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                             WHEN $isUserAdmin = TRUE THEN storage.s_name
                         END) AS w_storage_name,
                         (
-                            SELECT EXISTS (       
+                            SELECT EXISTS (
                                 SELECT 1
                                 FROM i_integrations
                                 WHERE i_workspace_id = w_id
-                            )                        
+                            )
                         ) AS w_is_used_by_integration,
                         w_is_bucket_created,
                         (CASE
@@ -235,21 +235,26 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                             WHEN w_owner_id != $userId AND wm_was_invitation_accepted = TRUE THEN 1
                             WHEN w_owner_id != $userId AND wm_was_invitation_accepted = FALSE THEN 2
                             ELSE 3
-                        END) AS w_type_delimiter_value
+                        END) AS w_type_delimiter_value,
+                        storage.s_external_id AS w_storage_external_id,
+                        (CASE
+                            WHEN storage.s_encryption_type IS NULL THEN 'none'
+                            ELSE storage.s_encryption_type
+                        END) AS w_storage_encryption_type
                     FROM w_workspaces
                     INNER JOIN u_users AS owner
                         ON owner.u_id = w_owner_id
                     INNER JOIN s_storages AS storage
                         ON storage.s_id = w_storage_id
                     LEFT JOIN wm_workspace_membership
-                        ON wm_workspace_id = w_id 
+                        ON wm_workspace_id = w_id
                         AND wm_member_id = $userId
                     LEFT JOIN u_users AS inviter
                         ON inviter.u_id = wm_inviter_id
-                    WHERE 
+                    WHERE
                         w_is_being_deleted = FALSE
                         AND ((w_owner_id = $userId OR wm_member_id = $userId) OR ($isUserAdmin = TRUE))
-                    ORDER BY 
+                    ORDER BY
                         w_type_delimiter_value ASC,
                         wm_was_invitation_accepted ASC,
                         w_id ASC
@@ -274,7 +279,9 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                     StorageName = reader.GetStringOrNull(9),
                     IsUsedByIntegration = reader.GetBoolean(10),
                     IsBucketCreated = reader.GetBoolean(11),
-                    TypeDelimiter = reader.GetInt32(12)
+                    TypeDelimiter = reader.GetInt32(12),
+                    StorageExternalId = reader.GetString(13),
+                    StorageEncryptionType = reader.GetString(14)
                 })
             .WithParameter("$userId", user.Id)
             .WithParameter("$isUserAdmin", user.Roles.IsAppOwner || user.Roles.IsAdmin)
@@ -296,7 +303,9 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                         StorageName = entity.StorageName,
                         Permissions = entity.Permissions,
                         IsUsedByIntegration = entity.IsUsedByIntegration,
-                        IsBucketCreated = entity.IsBucketCreated
+                        IsBucketCreated = entity.IsBucketCreated,
+                        StorageExternalId = entity.StorageExternalId,
+                        StorageEncryptionType = entity.StorageEncryptionType
                     });
                     break;
 
@@ -316,7 +325,9 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                         Permissions = entity.Permissions,
                         StorageName = entity.StorageName,
                         IsUsedByIntegration = entity.IsUsedByIntegration,
-                        IsBucketCreated = entity.IsBucketCreated
+                        IsBucketCreated = entity.IsBucketCreated,
+                        StorageExternalId = entity.StorageExternalId,
+                        StorageEncryptionType = entity.StorageEncryptionType
                     });
                     break;
 
@@ -331,7 +342,9 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                         StorageName = entity.StorageName,
                         Permissions = entity.Permissions,
                         IsUsedByIntegration = entity.IsUsedByIntegration,
-                        IsBucketCreated = entity.IsBucketCreated
+                        IsBucketCreated = entity.IsBucketCreated,
+                        StorageExternalId = entity.StorageExternalId,
+                        StorageEncryptionType = entity.StorageEncryptionType
                     });
                     break;
 

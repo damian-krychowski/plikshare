@@ -1,0 +1,117 @@
+<div class="app-container">
+    <div class="top-bar">
+        <div class="top-bar__header">
+            <button class="top-nav-btn"
+                aria-label="Back"
+                mat-flat-button
+                matTooltip="Go back"
+                matTooltipPosition="below"
+                (click)="goBack()">
+                <div class="icon-merge">
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>
+                    <i class="icon icon-xl icon-nucleo-lock-open icon-merge--front"></i>
+                </div>
+            </button>
+
+            <div class="flex-column">
+                <div class="top-bar__title">
+                    Unlocked encrypted storages
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="content">
+        <div class="mt-3"></div>
+
+        <div class="info-box">
+            <div class="info-box__title">
+                <i class="icon icon-lg icon-nucleo-info"></i>
+                How this works
+            </div>
+
+            <p>
+                Storages below use <strong>full encryption</strong>. When you unlock one, your
+                <strong>password</strong> is sent to the server over HTTPS just once. The server uses it to derive the
+                key that protects your files and then discards the password — it is
+                <strong>never stored, never written to disk, and never logged</strong>.
+            </p>
+
+            <p>
+                That key is then sealed inside an <strong>encrypted session cookie</strong> that only this server can
+                read. For the rest of your session, the browser sends that cookie with each request so the server can
+                decrypt files on the fly.
+            </p>
+
+            <p>
+                <strong>Locking</strong> a storage simply discards the cookie. Your files stay encrypted at rest, and
+                you will be asked for the password again the next time you want to use the storage.
+            </p>
+        </div>
+
+        <div class="mt-3"></div>
+
+        <div class="title-header">
+            <div>
+                Currently unlocked:
+            </div>
+
+            @if (store.count() > 0) {
+                <div class="flex-row flex-gap-05 ml-auto">
+                    <app-action-btn
+                        tooltip="Lock all"
+                        icon="icon-nucleo-lock"
+                        [isOperationDanger]="true"
+                        [operationItem]="'all unlocked storages'"
+                        [verb]="'lock'"
+                        [operationSubtitle]="'After locking, you will need to enter the password again the next time you access any of these storages.'"
+                        appConfirmOperation
+                        (confirmedClick)="lockAll()">
+                    </app-action-btn>
+                </div>
+            }
+        </div>
+
+        <div class="mt-2"></div>
+
+        @for (session of store.items(); track session.storageExternalId) {
+            <div class="item-bar flex-row">
+                <div class="item">
+                    <i class="icon icon-xl icon-nucleo-lock-open"></i>
+
+                    <div class="item__details">
+                        <div class="item__title">
+                            {{ session.storageName }}
+                        </div>
+
+                        <div class="item__subtitle">
+                            <span>Storage ID: {{ session.storageExternalId }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="item-bar__actions">
+                    <app-action-btn
+                        tooltip="Lock"
+                        icon="icon-nucleo-lock"
+                        [isOperationDanger]="true"
+                        [operationItem]="session.storageName"
+                        [verb]="'lock'"
+                        [operationSubtitle]="'After locking, you will need to enter the password again the next time you access this storage.'"
+                        appConfirmOperation
+                        (confirmedClick)="lock(session.storageExternalId)">
+                    </app-action-btn>
+                </div>
+            </div>
+        } @empty {
+            @if (!isLoading()) {
+                <div class="empty-state">
+                    No storages are currently unlocked.
+                </div>
+            }
+        }
+
+        <div class="bottom-spacer"></div>
+    </div>
+</div>

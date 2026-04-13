@@ -72,6 +72,8 @@ public class workspace_tests : TestFixture
                 AllowShare = true,
             },
             StorageName = Storage.Name,
+            StorageExternalId = Storage.ExternalId.Value,
+            StorageEncryptionType = "none",
             IsBucketCreated = false,
             IsUsedByIntegration = false,
             MaxSizeInBytes = -1,

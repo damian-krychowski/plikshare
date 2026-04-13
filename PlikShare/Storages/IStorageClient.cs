@@ -13,6 +13,7 @@ public interface IStorageClient
 {
     int StorageId { get; }
     StorageExtId ExternalId { get; }
+    string Name { get; }
     public StorageEncryptionType EncryptionType { get; }
     public StorageEncryptionDetails? EncryptionDetails { get; }
     public EncryptionKeyProvider? EncryptionKeyProvider { get; }
