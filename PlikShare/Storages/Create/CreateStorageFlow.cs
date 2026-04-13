@@ -41,8 +41,9 @@ public class CreateStorageFlow(
                 break;
 
             case StorageEncryptionType.Managed:
-                encryptionDetails = StorageEncryptionExtensions
-                    .PrepareManagedEncryptionDetails();
+                var managedResult = StorageManagedEncryptionService.GenerateDetails();
+                encryptionDetails = managedResult.Details;
+                recoveryCode = managedResult.RecoveryCode;
                 break;
 
             case StorageEncryptionType.Full:

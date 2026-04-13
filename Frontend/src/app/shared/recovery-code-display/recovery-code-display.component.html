@@ -5,8 +5,13 @@
 
     <div class="recovery-code__warning">
         <strong>This is the only time you will see this code.</strong>
-        It is the only way to regain access to <em>{{ data.storageName }}</em>
-        if you forget your master password.
+        @if (data.encryptionType === 'full') {
+            It is the only way to regain access to <em>{{ data.storageName }}</em>
+            if you forget your password — or if the database ever gets lost or damaged.
+        } @else {
+            If the database for <em>{{ data.storageName }}</em> ever gets lost or damaged,
+            this code is the only way to decrypt your files directly.
+        }
     </div>
 
     <div class="recovery-code__grid">
@@ -36,8 +41,12 @@
         Anyone who obtains this code can decrypt your files.
         Store it somewhere only you can reach — password manager, offline note, safe.
         <br>
-        <strong>If you lose it, there is no way to recover your files
-        if your database is ever lost.</strong>
+        @if (data.encryptionType === 'full') {
+            <strong>If you lose it and forget your password, your files cannot be recovered.</strong>
+        } @else {
+            <strong>If the database is ever lost or damaged and you don't have this code,
+            your files cannot be recovered.</strong>
+        }
     </div>
 
     <mat-checkbox class="recovery-code__confirm"

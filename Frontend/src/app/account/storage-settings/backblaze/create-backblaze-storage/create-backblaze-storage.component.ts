@@ -82,7 +82,8 @@ export class CreateBackblazeStorageComponent {
             this._dataStore.clearDashboardData();
 
             if (response.recoveryCode) {
-                await this._recoveryCodeDialog.showOnce(response.recoveryCode, this.name.value!);
+                await this._recoveryCodeDialog.showOnce(
+                    response.recoveryCode, this.name.value!, encryptionType);
             }
 
             this.goToStorages();

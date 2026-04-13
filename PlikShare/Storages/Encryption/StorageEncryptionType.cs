@@ -1,5 +1,4 @@
-﻿using PlikShare.Core.Encryption;
-using PlikShare.Core.Utils;
+﻿using PlikShare.Core.Utils;
 
 namespace PlikShare.Storages.Encryption;
 
@@ -81,12 +80,4 @@ public static class StorageEncryptionExtensions
             "StorageEncryptionDetails must have either Managed or Full set.");
     }
 
-    public static StorageManagedEncryptionDetails PrepareManagedEncryptionDetails()
-    {
-        return new StorageManagedEncryptionDetails(
-            Ikms:
-            [
-                Convert.ToBase64String(Aes256GcmStreaming.GenerateIkm())
-            ]);
-    }
 }
