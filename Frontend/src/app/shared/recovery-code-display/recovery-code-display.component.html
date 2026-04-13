@@ -1,0 +1,57 @@
+<div class="recovery-code">
+    <div class="recovery-code__title">
+        Save your recovery code
+    </div>
+
+    <div class="recovery-code__warning">
+        <strong>This is the only time you will see this code.</strong>
+        It is the only way to regain access to <em>{{ data.storageName }}</em>
+        if you forget your master password.
+    </div>
+
+    <div class="recovery-code__grid">
+        @for (word of words(); track $index; let i = $index) {
+            <div class="recovery-code__word">
+                <span class="recovery-code__word-number">{{ i + 1 }}.</span>
+                <span class="recovery-code__word-text">{{ word }}</span>
+            </div>
+        }
+    </div>
+
+    <div class="recovery-code__actions-row">
+        <button mat-stroked-button type="button"
+            (click)="copyToClipboard()"
+            aria-label="Copy recovery code to clipboard">
+            {{ copied() ? 'Copied' : 'Copy' }}
+        </button>
+
+        <button mat-stroked-button type="button"
+            (click)="downloadAsFile()"
+            aria-label="Download recovery code as .txt file">
+            Download .txt
+        </button>
+    </div>
+
+    <div class="recovery-code__danger-notice">
+        Anyone who obtains this code can decrypt your files.
+        Store it somewhere only you can reach — password manager, offline note, safe.
+        <br>
+        <strong>If you lose it, there is no way to recover your files
+        if your database is ever lost.</strong>
+    </div>
+
+    <mat-checkbox class="recovery-code__confirm"
+        [checked]="hasSaved()"
+        (change)="hasSaved.set($event.checked)">
+        I have saved this code in a safe place. I understand it will not be shown again.
+    </mat-checkbox>
+
+    <div class="recovery-code__actions">
+        <button mat-flat-button type="button" color="primary"
+            [disabled]="!hasSaved()"
+            (click)="onDone()"
+            aria-label="Done">
+            Done
+        </button>
+    </div>
+</div>

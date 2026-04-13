@@ -12,6 +12,7 @@ import { DigitalOceanRegions } from '../../../../services/digitalocean-regions';
 import { MatRadioModule } from '@angular/material/radio';
 import { Router } from '@angular/router';
 import { DataStore } from '../../../../services/data-store.service';
+import { RecoveryCodeDialogService } from '../../../../shared/recovery-code-display/recovery-code-dialog.service';
 
 @Component({
     selector: 'app-create-digitalocean-storage',
@@ -50,7 +51,8 @@ export class CreateDigitalOceanStorageComponent{
     constructor(
         private _dataStore: DataStore,
         private _storagesApi: StoragesApi,
-        private _router: Router) {
+        private _router: Router,
+        private _recoveryCodeDialog: RecoveryCodeDialogService) {
 
         this.formGroup = new FormGroup({
             name: this.name,
@@ -76,7 +78,7 @@ export class CreateDigitalOceanStorageComponent{
 
             const encryptionType = this.encryption.value! as AppStorageEncryptionType;
 
-            await this._storagesApi.createDigitalOceanSpacesStorage({
+            const response = await this._storagesApi.createDigitalOceanSpacesStorage({
                 name: this.name.value!,
                 accessKey: this.accessKey.value!,
                 secretKey: this.secretKey.value!,
@@ -86,6 +88,11 @@ export class CreateDigitalOceanStorageComponent{
             });
 
             this._dataStore.clearDashboardData();
+
+            if (response.recoveryCode) {
+                await this._recoveryCodeDialog.showOnce(response.recoveryCode, this.name.value!);
+            }
+
             this.goToStorages();
         } catch (err: any) {
             if (err.error.code === 'storage-connection-failed') {

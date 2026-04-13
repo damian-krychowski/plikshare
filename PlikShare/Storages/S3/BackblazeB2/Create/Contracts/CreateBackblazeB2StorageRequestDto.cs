@@ -16,4 +16,5 @@ public class CreateBackblazeB2StorageRequestDto
 public class CreateBackblazeB2StorageResponseDto
 {
     public required StorageExtId ExternalId { get; init; }
+    public string? RecoveryCode { get; init; }
 };

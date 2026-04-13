@@ -151,6 +151,9 @@ PlikShare is developed and maintained by Damian Krychowski.
 PlikShare is distributed under
 an [AGPLv3 license](https://github.com/damian-krychowski/plikshare/blob/main/LICENSE).
 
+Third-party attributions (BIP-39 wordlist and related test vectors) are listed
+in [THIRDPARTY.md](https://github.com/damian-krychowski/plikshare/blob/main/THIRDPARTY.md).
+
 
 ## Trademark
 

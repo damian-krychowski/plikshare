@@ -81,6 +81,14 @@ public interface IStorageClient
         long fileSizeInBytes);
 
     string GenerateFileS3KeySecretPart();
+
+    /// <summary>
+    /// Atomically swaps encryption details (and the derived key provider) on the
+    /// existing instance. Used after operations that rewrap the DEK in place —
+    /// reset or change of the master password — so the cached client stays in
+    /// sync with the DB without re-registering a new instance in the store.
+    /// </summary>
+    void SetEncryptionDetails(StorageEncryptionDetails? encryptionDetails);
 }
 
 public class PreSignedUploadLinkResult

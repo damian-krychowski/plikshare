@@ -157,10 +157,16 @@ public static class AuditLogEventTypes
         public const string Deleted = "storage.deleted";
         public const string NameUpdated = "storage.name-updated";
         public const string DetailsUpdated = "storage.details-updated";
+        public const string MasterPasswordReset = "storage.master-password-reset";
+        public const string MasterPasswordResetFailed = "storage.master-password-reset-failed";
+        public const string MasterPasswordChanged = "storage.master-password-changed";
+        public const string MasterPasswordChangeFailed = "storage.master-password-change-failed";
 
         public static readonly string[] All =
         [
-            Created, Deleted, NameUpdated, DetailsUpdated
+            Created, Deleted, NameUpdated, DetailsUpdated,
+            MasterPasswordReset, MasterPasswordResetFailed,
+            MasterPasswordChanged, MasterPasswordChangeFailed
         ];
     }
 

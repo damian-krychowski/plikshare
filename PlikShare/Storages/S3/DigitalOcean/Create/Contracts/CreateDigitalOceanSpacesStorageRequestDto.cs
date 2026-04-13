@@ -12,4 +12,5 @@ public record CreateDigitalOceanSpacesStorageRequestDto(
     string? MasterPassword = null);
 
 public record CreateDigitalOceanSpacesStorageResponseDto(
-    StorageExtId ExternalId);
+    StorageExtId ExternalId,
+    string? RecoveryCode = null);

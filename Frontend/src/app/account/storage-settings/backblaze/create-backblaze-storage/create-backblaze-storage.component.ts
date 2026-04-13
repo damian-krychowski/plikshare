@@ -8,6 +8,7 @@ import { SecureInputDirective } from '../../../../shared/secure-input.directive'
 import { MatRadioModule } from '@angular/material/radio';
 import { Router } from '@angular/router';
 import { DataStore } from '../../../../services/data-store.service';
+import { RecoveryCodeDialogService } from '../../../../shared/recovery-code-display/recovery-code-dialog.service';
 
 @Component({
     selector: 'app-create-backblaze-storage',
@@ -42,7 +43,8 @@ export class CreateBackblazeStorageComponent {
     constructor(
         private _dataStore: DataStore,
         private _storagesApi: StoragesApi,
-        private _router: Router) {
+        private _router: Router,
+        private _recoveryCodeDialog: RecoveryCodeDialogService) {
 
         this.formGroup = new FormGroup({
             name: this.name,
@@ -68,7 +70,7 @@ export class CreateBackblazeStorageComponent {
 
             const encryptionType = this.encryption.value! as AppStorageEncryptionType;
 
-            await this._storagesApi.createBackblazeB2Storage({
+            const response = await this._storagesApi.createBackblazeB2Storage({
                 name: this.name.value!,
                 keyId: this.keyId.value!,
                 applicationKey: this.applicationKey.value!,
@@ -78,6 +80,11 @@ export class CreateBackblazeStorageComponent {
             });
 
             this._dataStore.clearDashboardData();
+
+            if (response.recoveryCode) {
+                await this._recoveryCodeDialog.showOnce(response.recoveryCode, this.name.value!);
+            }
+
             this.goToStorages();
         } catch (err: any) {
             if(err.error.code === 'storage-url-invalid'){

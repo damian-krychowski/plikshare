@@ -27,12 +27,26 @@ public class HardDriveStorageClient(
     public HardDriveDetailsEntity Details { get; } = details;
     public string Name { get; } = name;
     public StorageEncryptionType EncryptionType { get; } = encryptionType;
-    public StorageEncryptionDetails? EncryptionDetails { get; } = encryptionDetails;
-    public EncryptionKeyProvider? EncryptionKeyProvider { get; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
+    public StorageEncryptionDetails? EncryptionDetails { get; private set; } = encryptionDetails;
+    public EncryptionKeyProvider? EncryptionKeyProvider { get; private set; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
         encryptionDetails: encryptionDetails);
 
     public int StorageId { get; } = storageId;
     public StorageExtId ExternalId { get; } = externalId;
+
+    public void SetEncryptionDetails(StorageEncryptionDetails? newEncryptionDetails)
+    {
+        // Build the derived provider first, then swap both fields. Reads happen
+        // on many threads; reference-writes are atomic in .NET so a concurrent
+        // read sees either the old pair or the new one consistently enough —
+        // and a mid-swap cross-read would only cause an AES-GCM tag mismatch,
+        // which downstream already handles as an invalid-session error.
+        var newProvider = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
+            encryptionDetails: newEncryptionDetails);
+
+        EncryptionKeyProvider = newProvider;
+        EncryptionDetails = newEncryptionDetails;
+    }
 
     public ValueTask DeleteFile(
         string bucketName, 

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.DataProtection;
+using PlikShare.Core.Encryption;
 
 namespace PlikShare.Storages.Encryption;
 
@@ -9,51 +10,201 @@ public static class StorageFullEncryptionService
     private const int SaltSize = 32;
     private const int KekSize = 32;
     private const int AuthKeySize = 32;
-    private const int DekSize = 32;
+    private const int RecoverySeedSize = 32;
     private const int RsaKeySize = 2048;
     private const int AesGcmNonceSize = 12;
     private const int AesGcmTagSize = 16;
 
     private static readonly byte[] AuthKeyContext = "plikshare-full-auth"u8.ToArray();
 
-    public static StorageFullEncryptionDetails GenerateDetails(string masterPassword)
+    public static GenerateDetailsResult GenerateDetails(string masterPassword)
     {
         var salt = RandomNumberGenerator.GetBytes(SaltSize);
 
         Span<byte> kek = stackalloc byte[KekSize];
-        Span<byte> dek = stackalloc byte[DekSize];
-        byte[]? privateKey = null;
+        Span<byte> recoveryBytes = stackalloc byte[RecoverySeedSize];
+        byte[]? dek = null;
 
         try
         {
             DeriveKek(masterPassword, salt, kek);
 
-            using var rsa = RSA.Create(RsaKeySize);
-            var publicKey = rsa.ExportSubjectPublicKeyInfo();
-            privateKey = rsa.ExportPkcs8PrivateKey();
+            RandomNumberGenerator.Fill(recoveryBytes);
 
-            var encryptedPrivateKey = EncryptAesGcm(kek, privateKey);
-
-            RandomNumberGenerator.Fill(dek);
+            // DEK_v0 is deterministically derived from the recovery seed so the
+            // recovery code alone (without the database) is sufficient to
+            // reconstruct the DEK for offline file recovery.
+            dek = HkdfDekDerivation.DeriveDek(recoveryBytes, version: 0);
 
             var encryptedDek = EncryptAesGcm(kek, dek);
 
-            return new StorageFullEncryptionDetails(
+            var verifyHash = ComputeVerifyHash(kek);
+            var recoveryVerifyHash = RecoveryVerifyHash.Compute(recoveryBytes);
+            var recoveryCode = RecoveryCodeCodec.Encode(recoveryBytes);
+
+            var details = new StorageFullEncryptionDetails(
                 Salt: salt,
-                VerifyHash: ComputeVerifyHash(kek),
-                PublicKey: publicKey,
-                EncryptedPrivateKey: encryptedPrivateKey,
-                EncryptedDeks: [encryptedDek]);
+                VerifyHash: verifyHash,
+                EncryptedDeks: [encryptedDek],
+                RecoveryVerifyHash: recoveryVerifyHash);
+
+            return new GenerateDetailsResult(details, recoveryCode);
         }
         finally
         {
             CryptographicOperations.ZeroMemory(kek);
-            CryptographicOperations.ZeroMemory(dek);
+            CryptographicOperations.ZeroMemory(recoveryBytes);
 
-            if (privateKey != null)
-                CryptographicOperations.ZeroMemory(privateKey);
+            if (dek != null)
+                CryptographicOperations.ZeroMemory(dek);
         }
     }
+
+    public record GenerateDetailsResult(
+        StorageFullEncryptionDetails Details,
+        string RecoveryCode);
+
+    public static ResetPasswordResult TryResetMasterPasswordWithRecoveryCode(
+        string recoveryCode,
+        string newPassword,
+        StorageFullEncryptionDetails currentDetails)
+    {
+        var decode = RecoveryCodeCodec.TryDecode(recoveryCode, out var recoveryBytes);
+
+        try
+        {
+            switch (decode)
+            {
+                case RecoveryCodeCodec.DecodeResult.Ok:
+                    break;
+                case RecoveryCodeCodec.DecodeResult.WrongWordCount:
+                case RecoveryCodeCodec.DecodeResult.UnknownWord:
+                    return new ResetPasswordResult(ResetPasswordResultCode.MalformedRecoveryCode);
+                case RecoveryCodeCodec.DecodeResult.InvalidChecksum:
+                    return new ResetPasswordResult(ResetPasswordResultCode.MalformedRecoveryCode);
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+
+            if (!RecoveryVerifyHash.Verify(recoveryBytes, currentDetails.RecoveryVerifyHash))
+                return new ResetPasswordResult(ResetPasswordResultCode.InvalidRecoveryCode);
+
+            var newSalt = RandomNumberGenerator.GetBytes(SaltSize);
+
+            Span<byte> newKek = stackalloc byte[KekSize];
+            byte[]? dek = null;
+
+            try
+            {
+                DeriveKek(newPassword, newSalt, newKek);
+
+                // DEK_v0 is deterministically derived from the recovery seed.
+                // We re-wrap it with the new password KEK, matching the invariant
+                // maintained by GenerateDetails (recovery path == password path).
+                dek = HkdfDekDerivation.DeriveDek(recoveryBytes, version: 0);
+
+                var newEncryptedDek = EncryptAesGcm(newKek, dek);
+                var newVerifyHash = ComputeVerifyHash(newKek);
+
+                var newDetails = new StorageFullEncryptionDetails(
+                    Salt: newSalt,
+                    VerifyHash: newVerifyHash,
+                    EncryptedDeks: [newEncryptedDek],
+
+                    RecoveryVerifyHash: currentDetails.RecoveryVerifyHash
+                );
+
+                return new ResetPasswordResult(
+                    Code: ResetPasswordResultCode.Ok,
+                    NewDetails: newDetails);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(newKek);
+                if (dek != null)
+                    CryptographicOperations.ZeroMemory(dek);
+            }
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(recoveryBytes);
+        }
+    }
+
+    public enum ResetPasswordResultCode
+    {
+        Ok,
+        MalformedRecoveryCode,
+        InvalidRecoveryCode
+    }
+
+    public record ResetPasswordResult(
+        ResetPasswordResultCode Code,
+        StorageFullEncryptionDetails? NewDetails = null);
+
+    public static ChangePasswordResult TryChangeMasterPassword(
+        string oldPassword,
+        string newPassword,
+        StorageFullEncryptionDetails currentDetails,
+        IDataProtectionProvider dataProtectionProvider,
+        string dataProtectionPurpose)
+    {
+        Span<byte> oldKek = stackalloc byte[KekSize];
+        Span<byte> newKek = stackalloc byte[KekSize];
+        byte[]? dek = null;
+
+        try
+        {
+            DeriveKek(oldPassword, currentDetails.Salt, oldKek);
+
+            if (!CryptographicOperations.FixedTimeEquals(
+                    ComputeVerifyHash(oldKek),
+                    currentDetails.VerifyHash))
+            {
+                return new ChangePasswordResult(ChangePasswordResultCode.InvalidOldPassword);
+            }
+
+            dek = DecryptAesGcm(oldKek, currentDetails.EncryptedDeks[0]);
+
+            var newSalt = RandomNumberGenerator.GetBytes(SaltSize);
+            DeriveKek(newPassword, newSalt, newKek);
+
+            var newEncryptedDek = EncryptAesGcm(newKek, dek);
+            var newVerifyHash = ComputeVerifyHash(newKek);
+
+            var newDetails = new StorageFullEncryptionDetails(
+                Salt: newSalt,
+                VerifyHash: newVerifyHash,
+                EncryptedDeks: [newEncryptedDek],
+                RecoveryVerifyHash: currentDetails.RecoveryVerifyHash);
+
+            var protector = dataProtectionProvider.CreateProtector(dataProtectionPurpose);
+            var protectedKek = protector.Protect(newKek.ToArray());
+
+            return new ChangePasswordResult(
+                Code: ChangePasswordResultCode.Ok,
+                NewDetails: newDetails,
+                ProtectedKek: Convert.ToBase64String(protectedKek));
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(oldKek);
+            CryptographicOperations.ZeroMemory(newKek);
+            if (dek != null)
+                CryptographicOperations.ZeroMemory(dek);
+        }
+    }
+
+    public enum ChangePasswordResultCode
+    {
+        Ok,
+        InvalidOldPassword
+    }
+
+    public record ChangePasswordResult(
+        ChangePasswordResultCode Code,
+        StorageFullEncryptionDetails? NewDetails = null,
+        string? ProtectedKek = null);
 
     private static void DeriveKek(
         string masterPassword,

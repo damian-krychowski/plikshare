@@ -170,6 +170,8 @@ using PlikShare.Storages.Create;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.FullEncryptionSessions;
 using PlikShare.Storages.UnlockFullEncryption;
+using PlikShare.Storages.ResetMasterPassword;
+using PlikShare.Storages.ChangeMasterPassword;
 using PlikShare.Storages.Delete;
 using PlikShare.Storages.FileCopying;
 using PlikShare.Storages.FileCopying.BulkInitiateCopyFiles;
@@ -546,6 +548,9 @@ public class Startup
         builder.Services.AddSingleton<CreateStorageFlow>();
         builder.Services.AddSingleton<UpdateStorageFlow>();
         builder.Services.AddSingleton<UnlockFullEncryptionOperation>();
+        builder.Services.AddSingleton<ResetMasterPasswordOperation>();
+        builder.Services.AddSingleton<ChangeMasterPasswordOperation>();
+        builder.Services.AddSingleton<UpdateStorageEncryptionDetailsQuery>();
         builder.Services.AddSingleton<GetStoragesQuery>();
         builder.Services.AddSingleton<DeleteStorageQuery>();
         builder.Services.AddSingleton<UpdateStorageNameQuery>();

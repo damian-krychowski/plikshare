@@ -213,6 +213,18 @@ public static class HttpErrors
             Code = "invalid-master-password",
             Message = "Master password is incorrect."
         });
+
+        public static BadRequest<HttpError> MalformedRecoveryCode() => TypedResults.BadRequest(new HttpError
+        {
+            Code = "malformed-recovery-code",
+            Message = "Recovery code could not be parsed. Check for typos, missing words, or extra words."
+        });
+
+        public static BadRequest<HttpError> InvalidRecoveryCode() => TypedResults.BadRequest(new HttpError
+        {
+            Code = "invalid-recovery-code",
+            Message = "Recovery code is valid BIP-39 but does not match this storage."
+        });
     }
 
     public static class Folder

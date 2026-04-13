@@ -12,4 +12,5 @@ public record CreateAwsS3StorageRequestDto(
     string? MasterPassword = null);
 
 public record CreateAwsS3StorageResponseDto(
-    StorageExtId ExternalId);
+    StorageExtId ExternalId,
+    string? RecoveryCode = null);

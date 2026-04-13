@@ -1,9 +1,11 @@
 import { Component, computed, input, output, signal, Signal, WritableSignal } from "@angular/core";
+import { MatDialog } from "@angular/material/dialog";
 import { ConfirmOperationDirective } from "../operation-confirm/confirm-operation.directive";
 import { AppStorageEncryptionType, AppStorageType, StoragesApi } from "../../services/storages.api";
 import { EditableTxtComponent } from "../editable-txt/editable-txt.component";
 import { ActionButtonComponent } from "../buttons/action-btn/action-btn.component";
 import { observeIsHighlighted } from "../../services/is-highlighted-utils";
+import { ChangeMasterPasswordComponent, ChangeMasterPasswordDialogData } from "../change-master-password/change-master-password.component";
 
 export type AppStorage = {
     externalId: string;
@@ -42,8 +44,27 @@ export class StorageItemComponent {
     areActionsVisible = signal(false);
 
     constructor(
-        private _storagesApi: StoragesApi
+        private _storagesApi: StoragesApi,
+        private _dialog: MatDialog
     ) { }
+
+    openChangeMasterPasswordDialog() {
+        const storage = this.storage();
+
+        this._dialog.open<
+            ChangeMasterPasswordComponent,
+            ChangeMasterPasswordDialogData,
+            boolean
+        >(ChangeMasterPasswordComponent, {
+            width: '500px',
+            position: { top: '80px' },
+            disableClose: true,
+            data: {
+                storageExternalId: storage.externalId,
+                storageName: storage.name()
+            }
+        });
+    }
 
     async editStorage() {
         if(!this.storage)

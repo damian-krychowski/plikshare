@@ -149,6 +149,7 @@
       <EmbeddedResource Include="Integrations\Aws\Textract\TestConfiguration\plikshare_is_the_best.png">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>
+      <EmbeddedResource Include="Core\Encryption\bip39-english.txt" />
     </ItemGroup>
 
     <ItemGroup>

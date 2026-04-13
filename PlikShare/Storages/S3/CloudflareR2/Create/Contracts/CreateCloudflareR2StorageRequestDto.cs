@@ -12,4 +12,5 @@ public record CreateCloudflareR2StorageRequestDto(
     string? MasterPassword = null);
 
 public record CreateCloudflareR2StorageResponseDto(
-    StorageExtId ExternalId);
+    StorageExtId ExternalId,
+    string? RecoveryCode = null);

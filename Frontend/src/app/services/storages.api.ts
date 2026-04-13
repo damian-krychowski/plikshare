@@ -13,6 +13,7 @@ export interface CreateCloudflareR2StorageRequest {
 
 export interface CreateCloudflareR2StorageResponse {
     externalId: string;
+    recoveryCode?: string;
 }
 
 export interface UpdateCloudflareR2StorageDetailsRequest {
@@ -32,6 +33,7 @@ export interface CreateAwsS3StorageRequest {
 
 export interface CreateAwsS3StorageResponse {
     externalId: string;
+    recoveryCode?: string;
 }
 
 export interface CreateDigitalOceanSpacesStorageRequest {
@@ -51,6 +53,7 @@ export interface UpdateDigitalOceanSpacesStorageDetailsRequest {
 
 export interface CreateDigitalOceanSpacesStorageResponse {
     externalId: string;
+    recoveryCode?: string;
 }
 
 export interface CreateHardDriveStorageRequest {
@@ -63,6 +66,7 @@ export interface CreateHardDriveStorageRequest {
 
 export interface CreateHardDriveStorageResponse {
     externalId: string;
+    recoveryCode?: string;
 }
 
 export interface UpdateAwsS3StorageDetailsRequest {
@@ -159,6 +163,16 @@ export interface UnlockFullEncryptionRequest {
     masterPassword: string;
 }
 
+export interface ResetMasterPasswordRequest {
+    recoveryCode: string;
+    newPassword: string;
+}
+
+export interface ChangeMasterPasswordRequest {
+    oldPassword: string;
+    newPassword: string;
+}
+
 export interface CreateBackblazeB2StorageRequest {
     name: string;
     keyId: string;
@@ -170,6 +184,7 @@ export interface CreateBackblazeB2StorageRequest {
 
 export interface CreateBackblazeB2StorageResponse {
     externalId: string;
+    recoveryCode?: string;
 }
 
 export interface UpdateBackblazeB2StorageDetailsRequest {
@@ -347,6 +362,32 @@ export class StoragesApi {
             ._http
             .post(
                 `/api/storages/${externalId}/unlock-full-encryption`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async resetMasterPassword(externalId: string, request: ResetMasterPasswordRequest): Promise<void> {
+        const call = this
+            ._http
+            .post(
+                `/api/storages/${externalId}/reset-master-password`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async changeMasterPassword(externalId: string, request: ChangeMasterPasswordRequest): Promise<void> {
+        const call = this
+            ._http
+            .post(
+                `/api/storages/${externalId}/change-master-password`, request, {
                 headers: new HttpHeaders({
                     'Content-Type': 'application/json'
                 })

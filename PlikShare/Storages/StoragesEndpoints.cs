@@ -34,9 +34,12 @@ using PlikShare.Storages.S3.DigitalOcean.Create.Contracts;
 using PlikShare.Storages.S3.DigitalOcean.UpdateDetails;
 using PlikShare.Storages.S3.DigitalOcean.UpdateDetails.Contracts;
 using PlikShare.Storages.UnlockFullEncryption;
+using PlikShare.Storages.ResetMasterPassword;
+using PlikShare.Storages.ChangeMasterPassword;
 using PlikShare.Storages.UpdateName;
 using PlikShare.Storages.UpdateName.Contracts;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Queries;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Entities;
 using PlikShare.Core.Clock;
@@ -114,6 +117,12 @@ public static class StoragesEndpoints
 
         unlockGroup.MapPost("/{storageExternalId}/unlock-full-encryption", UnlockFullEncryption)
             .WithName("UnlockFullEncryptionStorage");
+
+        unlockGroup.MapPost("/{storageExternalId}/reset-master-password", ResetMasterPassword)
+            .WithName("ResetStorageMasterPassword");
+
+        unlockGroup.MapPost("/{storageExternalId}/change-master-password", ChangeMasterPassword)
+            .WithName("ChangeStorageMasterPassword");
     }
 
     // Basic Storage Operations
@@ -252,7 +261,9 @@ public static class StoragesEndpoints
                     cancellationToken);
 
                 return TypedResults.Ok(
-                    new CreateCloudflareR2StorageResponseDto(ExternalId: result.StorageExternalId!.Value));
+                    new CreateCloudflareR2StorageResponseDto(
+                        ExternalId: result.StorageExternalId!.Value,
+                        RecoveryCode: result.RecoveryCode));
 
             case StorageOperationResultCode.CouldNotConnect:
                 return HttpErrors.Storage.ConnectionFailed();
@@ -357,7 +368,8 @@ public static class StoragesEndpoints
                     cancellationToken);
 
                 return TypedResults.Ok(new CreateAwsS3StorageResponseDto(
-                    ExternalId: result.StorageExternalId!.Value));
+                    ExternalId: result.StorageExternalId!.Value,
+                    RecoveryCode: result.RecoveryCode));
 
             case StorageOperationResultCode.CouldNotConnect:
                 return HttpErrors.Storage.ConnectionFailed();
@@ -458,7 +470,8 @@ public static class StoragesEndpoints
                     cancellationToken);
 
                 return TypedResults.Ok(new CreateDigitalOceanSpacesStorageResponseDto(
-                    ExternalId: result.StorageExternalId!.Value));
+                    ExternalId: result.StorageExternalId!.Value,
+                    RecoveryCode: result.RecoveryCode));
 
             case StorageOperationResultCode.CouldNotConnect:
                 return HttpErrors.Storage.ConnectionFailed();
@@ -564,7 +577,8 @@ public static class StoragesEndpoints
                     cancellationToken);
 
                 return TypedResults.Ok(new CreateHardDriveStorageResponseDto(
-                    ExternalId: result.StorageExternalId!.Value));
+                    ExternalId: result.StorageExternalId!.Value,
+                    RecoveryCode: result.RecoveryCode));
 
             case StorageOperationResultCode.NameNotUnique:
                 return HttpErrors.Storage.NameNotUnique(request.Name);
@@ -633,7 +647,8 @@ public static class StoragesEndpoints
                 return TypedResults.Ok(
                     new CreateBackblazeB2StorageResponseDto
                     {
-                        ExternalId = result.StorageExternalId!.Value
+                        ExternalId = result.StorageExternalId!.Value,
+                        RecoveryCode = result.RecoveryCode
                     });
 
             case StorageOperationResultCode.CouldNotConnect:
@@ -705,6 +720,148 @@ public static class StoragesEndpoints
         }
     }
 
+    private static async Task<Results<Ok, BadRequest<HttpError>, NotFound<HttpError>>> ChangeMasterPassword(
+        [FromRoute] StorageExtId storageExternalId,
+        [FromBody] ChangeMasterPasswordRequestDto request,
+        ChangeMasterPasswordOperation changeMasterPasswordOperation,
+        GetStorageAuditContextQuery getStorageAuditContextQuery,
+        AuditLogService auditLogService,
+        IClock clock,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var storageAuditRef = getStorageAuditContextQuery.Execute(storageExternalId);
+        var actor = httpContext.GetAuditLogActorContext();
+
+        var result = await changeMasterPasswordOperation.Execute(
+            storageExternalId: storageExternalId,
+            oldPassword: request.OldPassword,
+            newPassword: request.NewPassword,
+            cancellationToken: cancellationToken);
+
+        switch (result.Code)
+        {
+            case ChangeMasterPasswordOperation.ResultCode.StorageNotFound:
+                return HttpErrors.Storage.NotFound(storageExternalId);
+
+            case ChangeMasterPasswordOperation.ResultCode.EncryptionModeMismatch:
+                if (storageAuditRef is not null)
+                    await auditLogService.Log(
+                        Audit.Storage.MasterPasswordChangeFailedEntry(
+                            actor: actor,
+                            storage: storageAuditRef,
+                            reason: "encryption-mode-mismatch"),
+                        cancellationToken);
+                return HttpErrors.Storage.EncryptionModeMismatch();
+
+            case ChangeMasterPasswordOperation.ResultCode.InvalidOldPassword:
+                if (storageAuditRef is not null)
+                    await auditLogService.Log(
+                        Audit.Storage.MasterPasswordChangeFailedEntry(
+                            actor: actor,
+                            storage: storageAuditRef,
+                            reason: "invalid-old-password"),
+                        cancellationToken);
+                return HttpErrors.Storage.InvalidMasterPassword();
+
+            case ChangeMasterPasswordOperation.ResultCode.Ok:
+                if (storageAuditRef is not null)
+                    await auditLogService.Log(
+                        Audit.Storage.MasterPasswordChangedEntry(
+                            actor: actor,
+                            storage: storageAuditRef),
+                        cancellationToken);
+
+                httpContext.Response.Cookies.Append(
+                    FullEncryptionSessionCookie.GetCookieName(storageExternalId),
+                    result.ProtectedKek!,
+                    new CookieOptions
+                    {
+                        HttpOnly = true,
+                        Secure = true,
+                        SameSite = SameSiteMode.Strict,
+                        IsEssential = true,
+                        Expires = clock.UtcNow.Add(TimeSpan.FromMinutes(30))
+                    });
+
+                return TypedResults.Ok();
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(ChangeMasterPasswordOperation),
+                    resultValueStr: result.ToString());
+        }
+    }
+
+    private static async Task<Results<Ok, BadRequest<HttpError>, NotFound<HttpError>>> ResetMasterPassword(
+        [FromRoute] StorageExtId storageExternalId,
+        [FromBody] ResetMasterPasswordRequestDto request,
+        ResetMasterPasswordOperation resetMasterPasswordOperation,
+        GetStorageAuditContextQuery getStorageAuditContextQuery,
+        AuditLogService auditLogService,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var storageAuditRef = getStorageAuditContextQuery.Execute(storageExternalId);
+        var actor = httpContext.GetAuditLogActorContext();
+
+        var resultCode = await resetMasterPasswordOperation.Execute(
+            storageExternalId: storageExternalId,
+            recoveryCode: request.RecoveryCode,
+            newPassword: request.NewPassword,
+            cancellationToken: cancellationToken);
+
+        switch (resultCode)
+        {
+            case ResetMasterPasswordOperation.ResultCode.StorageNotFound:
+                return HttpErrors.Storage.NotFound(storageExternalId);
+
+            case ResetMasterPasswordOperation.ResultCode.EncryptionModeMismatch:
+                if (storageAuditRef is not null)
+                    await auditLogService.Log(
+                        Audit.Storage.MasterPasswordResetFailedEntry(
+                            actor: actor,
+                            storage: storageAuditRef,
+                            reason: "encryption-mode-mismatch"),
+                        cancellationToken);
+                return HttpErrors.Storage.EncryptionModeMismatch();
+
+            case ResetMasterPasswordOperation.ResultCode.MalformedRecoveryCode:
+                if (storageAuditRef is not null)
+                    await auditLogService.Log(
+                        Audit.Storage.MasterPasswordResetFailedEntry(
+                            actor: actor,
+                            storage: storageAuditRef,
+                            reason: "malformed-recovery-code"),
+                        cancellationToken);
+                return HttpErrors.Storage.MalformedRecoveryCode();
+
+            case ResetMasterPasswordOperation.ResultCode.InvalidRecoveryCode:
+                if (storageAuditRef is not null)
+                    await auditLogService.Log(
+                        Audit.Storage.MasterPasswordResetFailedEntry(
+                            actor: actor,
+                            storage: storageAuditRef,
+                            reason: "invalid-recovery-code"),
+                        cancellationToken);
+                return HttpErrors.Storage.InvalidRecoveryCode();
+
+            case ResetMasterPasswordOperation.ResultCode.Ok:
+                if (storageAuditRef is not null)
+                    await auditLogService.Log(
+                        Audit.Storage.MasterPasswordResetEntry(
+                            actor: actor,
+                            storage: storageAuditRef),
+                        cancellationToken);
+                return TypedResults.Ok();
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(ResetMasterPasswordOperation),
+                    resultValueStr: resultCode.ToString());
+        }
+    }
+
     private static Results<Ok, BadRequest<HttpError>, NotFound<HttpError>> UnlockFullEncryption(
         [FromRoute] StorageExtId storageExternalId,
         [FromBody] UnlockFullEncryptionRequestDto request,
@@ -752,3 +909,11 @@ public static class StoragesEndpoints
 
 public record UnlockFullEncryptionRequestDto(
     string MasterPassword);
+
+public record ResetMasterPasswordRequestDto(
+    string RecoveryCode,
+    string NewPassword);
+
+public record ChangeMasterPasswordRequestDto(
+    string OldPassword,
+    string NewPassword);

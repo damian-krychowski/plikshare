@@ -11,4 +11,5 @@ public record CreateHardDriveStorageRequestDto(
     string? MasterPassword = null);
 
 public record CreateHardDriveStorageResponseDto(
-    StorageExtId ExternalId);
+    StorageExtId ExternalId,
+    string? RecoveryCode = null);

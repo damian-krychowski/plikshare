@@ -31,18 +31,29 @@ public class CreateStorageFlow(
                 $"StorageClientFactoryResult.Details was null for successful preparation (Code: {preparation.Code}). This should never happen.");
         }
 
-        StorageEncryptionDetails? encryptionDetails = encryptionType switch
+        StorageEncryptionDetails? encryptionDetails;
+        string? recoveryCode = null;
+
+        switch (encryptionType)
         {
-            StorageEncryptionType.None => null,
+            case StorageEncryptionType.None:
+                encryptionDetails = null;
+                break;
 
-            StorageEncryptionType.Managed => StorageEncryptionExtensions
-                .PrepareManagedEncryptionDetails(),
-            
-            StorageEncryptionType.Full => StorageFullEncryptionService
-                .GenerateDetails(masterPassword!),
+            case StorageEncryptionType.Managed:
+                encryptionDetails = StorageEncryptionExtensions
+                    .PrepareManagedEncryptionDetails();
+                break;
 
-            _ => throw new ArgumentOutOfRangeException(nameof(encryptionType), encryptionType, null)
-        };
+            case StorageEncryptionType.Full:
+                var fullResult = StorageFullEncryptionService.GenerateDetails(masterPassword!);
+                encryptionDetails = fullResult.Details;
+                recoveryCode = fullResult.RecoveryCode;
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(encryptionType), encryptionType, null);
+        }
 
         var queryResult = await createStorageQuery.Execute(
             name: name,
@@ -71,10 +82,12 @@ public class CreateStorageFlow(
 
         return new Result(
             Code: StorageOperationResultCode.Ok,
-            StorageExternalId: queryResult.StorageExternalId);
+            StorageExternalId: queryResult.StorageExternalId,
+            RecoveryCode: recoveryCode);
     }
 
     public record Result(
         StorageOperationResultCode Code,
-        StorageExtId? StorageExternalId = null);
+        StorageExtId? StorageExternalId = null,
+        string? RecoveryCode = null);
 }

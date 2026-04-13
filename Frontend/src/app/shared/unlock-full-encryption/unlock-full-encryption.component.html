@@ -43,6 +43,12 @@
         <div class="mt-3 d-none-on-mobile"></div>
 
         <div class="questionaire__actions">
+            <button type="button" class="unlock-forgot-link"
+                (click)="onForgotPassword()"
+                [disabled]="isLoading()">
+                Forgot password?
+            </button>
+
             <button type="button" class="questionaire__btn mr-1" mat-flat-button
                 aria-label="Cancel"
                 (click)="cancel()"

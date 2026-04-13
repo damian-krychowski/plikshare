@@ -1,12 +1,14 @@
 import { Component, Inject, ViewEncapsulation, signal } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { firstValueFrom } from 'rxjs';
 import { StoragesApi } from '../../services/storages.api';
 import { FullEncryptionSessionsStore } from '../../services/full-encryption-sessions.store';
 import { SecureInputDirective } from '../secure-input.directive';
+import { ResetMasterPasswordComponent, ResetMasterPasswordDialogData } from '../reset-master-password/reset-master-password.component';
 
 export interface UnlockFullEncryptionDialogData {
     storageExternalId: string;
@@ -39,11 +41,36 @@ export class UnlockFullEncryptionComponent {
         @Inject(MAT_DIALOG_DATA) public data: UnlockFullEncryptionDialogData,
         private _storagesApi: StoragesApi,
         private _sessionsStore: FullEncryptionSessionsStore,
+        private _dialog: MatDialog,
         public dialogRef: MatDialogRef<UnlockFullEncryptionComponent, boolean>) {
 
         this.formGroup = new FormGroup({
             masterPassword: this.masterPassword
         });
+    }
+
+    async onForgotPassword() {
+        const ref = this._dialog.open<
+            ResetMasterPasswordComponent,
+            ResetMasterPasswordDialogData,
+            boolean
+        >(ResetMasterPasswordComponent, {
+            width: '500px',
+            position: { top: '80px' },
+            disableClose: true,
+            data: { storageExternalId: this.data.storageExternalId }
+        });
+
+        const wasReset = await firstValueFrom(ref.afterClosed());
+
+        if (wasReset === true) {
+            // Password was reset but no session issued server-side.
+            // Close the unlock dialog; the user will be prompted to unlock again
+            // on the next operation that requires a session. Clear the password
+            // field so the caller-triggered flow doesn't carry stale input.
+            this.masterPassword.setValue('');
+            this.dialogRef.close(false);
+        }
     }
 
     async onUnlock() {

@@ -9,6 +9,7 @@ import {MatRadioModule} from '@angular/material/radio';
 import { Router } from '@angular/router';
 import { DataStore } from '../../../../services/data-store.service';
 import { SecureInputDirective } from '../../../../shared/secure-input.directive';
+import { RecoveryCodeDialogService } from '../../../../shared/recovery-code-display/recovery-code-dialog.service';
 
 @Component({
     selector: 'app-create-hard-drive-storage',
@@ -49,7 +50,8 @@ export class CreateHardDriveStorageComponent implements OnInit {
     constructor(
         private _dataStore: DataStore,
         private _storagesApi: StoragesApi,
-        private _router: Router) {
+        private _router: Router,
+        private _recoveryCodeDialog: RecoveryCodeDialogService) {
 
         this.formGroup = new FormGroup({
             name: this.name,
@@ -93,7 +95,7 @@ export class CreateHardDriveStorageComponent implements OnInit {
             const folderPath = this.storagePath.value!
             const encryptionType = this.encryption.value! as AppStorageEncryptionType;
 
-            await this._storagesApi.createHardDriveStorage({
+            const response = await this._storagesApi.createHardDriveStorage({
                 name: this.name.value!,
                 volumePath: volumePath,
                 folderPath: folderPath,
@@ -102,6 +104,11 @@ export class CreateHardDriveStorageComponent implements OnInit {
             });
 
             this._dataStore.clearDashboardData();
+
+            if (response.recoveryCode) {
+                await this._recoveryCodeDialog.showOnce(response.recoveryCode, this.name.value!);
+            }
+
             this.goToStorages();
         } catch (err: any) {
             if (err.error.code === 'storage-connection-failed') {
