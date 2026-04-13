@@ -18,6 +18,7 @@ public static class HardDriveUploadOperation
         FileToUploadDetails file,
         FilePartDetails part,
         string bucketName,
+        FullEncryptionSession? fullEncryptionSession,
         HardDriveStorageClient hardDriveStorage,
         CancellationToken cancellationToken)
     {
@@ -32,12 +33,11 @@ public static class HardDriveUploadOperation
 
         try
         {
-            if (file.Encryption.EncryptionType == StorageEncryptionType.Managed)
+            if (file.Encryption.EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full)
             {
-                var encryptionKey = hardDriveStorage
-                    .GetManagedEncryptionKeyProviderOrThrow()
-                    .GetEncryptionKey(
-                        version: file.Encryption.Metadata!.KeyVersion);
+                var encryptionKey = hardDriveStorage.GetEncryptionKey(
+                    version: file.Encryption.Metadata!.KeyVersion,
+                    fullEncryptionSession: fullEncryptionSession);
 
                 Aes256GcmStreaming.EncryptFilePartInPlace(
                     key: encryptionKey,

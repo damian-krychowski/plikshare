@@ -248,6 +248,7 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 sizeInBytes: contentBytes.Length,
                 uploadAlgorithm: UploadAlgorithm.DirectUpload),
             workspace: originalFileWorkspace,
+            fullEncryptionSession: null, //todo not yet implemented (KEK not available in queue jobs)
             input: contentBytes,
             cancellationToken: cancellationToken);
     }

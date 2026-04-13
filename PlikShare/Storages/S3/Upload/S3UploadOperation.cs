@@ -2,7 +2,6 @@ using PlikShare.Core.Encryption;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.Records;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.HardDrive.Upload;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Cache;
 using Serilog;
@@ -18,6 +17,7 @@ public class S3UploadOperation
         FileToUploadDetails file,
         FilePartDetails part,
         string bucketName,
+        FullEncryptionSession? fullEncryptionSession,
         S3StorageClient s3StorageClient,
         CancellationToken cancellationToken)
     {
@@ -32,11 +32,11 @@ public class S3UploadOperation
 
         try
         {
-            if (file.Encryption.EncryptionType == StorageEncryptionType.Managed)
+            if (file.Encryption.EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full)
             {
-                var encryptionKey = s3StorageClient
-                    .GetManagedEncryptionKeyProviderOrThrow()
-                    .GetEncryptionKey(version: file.Encryption.Metadata!.KeyVersion);
+                var encryptionKey = s3StorageClient.GetEncryptionKey(
+                    version: file.Encryption.Metadata!.KeyVersion,
+                    fullEncryptionSession: fullEncryptionSession);
 
                 Aes256GcmStreaming.EncryptFilePartInPlace(
                     key: encryptionKey,

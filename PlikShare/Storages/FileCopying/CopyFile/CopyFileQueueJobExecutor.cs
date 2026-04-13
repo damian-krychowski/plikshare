@@ -344,6 +344,7 @@ public class CopyFileQueueJobExecutor(
                     sizeInBytes: (int)job.FileSizeInBytes,
                     uploadAlgorithm: UploadAlgorithm.DirectUpload),
                 workspace: destinationWorkspace,
+                fullEncryptionSession: null, //todo KEK not available in queue jobs yet
                 input: input,
                 cancellationToken: stoppingToken);
 
@@ -390,6 +391,7 @@ public class CopyFileQueueJobExecutor(
                         SizeInBytes: partSizeInBytes,
                         UploadAlgorithm: UploadAlgorithm.MultiStepChunkUpload),
                     workspace: destinationWorkspace,
+                    fullEncryptionSession: null, //todo full encryption session not available (KEK not available in queue jobs yet)
                     input: input,
                     cancellationToken: cancellationToken);
 

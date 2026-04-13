@@ -155,6 +155,10 @@ export interface HardDriveVolumeItem {
     restrictedFolderPaths: string[];
 }
 
+export interface UnlockFullEncryptionRequest {
+    masterPassword: string;
+}
+
 export interface CreateBackblazeB2StorageRequest {
     name: string;
     keyId: string;
@@ -336,6 +340,19 @@ export class StoragesApi {
             });
 
         return await firstValueFrom(call);
+    }
+
+    public async unlockFullEncryption(externalId: string, request: UnlockFullEncryptionRequest): Promise<void> {
+        const call = this
+            ._http
+            .post(
+                `/api/storages/${externalId}/unlock-full-encryption`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
     }
 
     public async updateBackblazeB2StorageDetails(externalId: string, request: UpdateBackblazeB2StorageDetailsRequest): Promise<void> {

@@ -20,6 +20,7 @@ public static class FileWriter
         FileToUploadDetails file,
         FilePartDetails part,
         WorkspaceContext workspace,
+        FullEncryptionSession? fullEncryptionSession,
         PipeReader input,
         CancellationToken cancellationToken)
     {
@@ -58,6 +59,7 @@ public static class FileWriter
                 file: file, 
                 part: part, 
                 workspace: workspace, 
+                fullEncryptionSession: fullEncryptionSession,
                 cancellationToken: cancellationToken);
         }
         finally
@@ -69,7 +71,8 @@ public static class FileWriter
     public static async Task<FilePartUploadResult> Write(
         FileToUploadDetails file,
         FilePartDetails part,
-        WorkspaceContext workspace,
+        WorkspaceContext workspace,        
+        FullEncryptionSession? fullEncryptionSession,
         byte[] input,
         CancellationToken cancellationToken)
     {
@@ -80,6 +83,7 @@ public static class FileWriter
                 file: file,
                 part: part,
                 workspace: workspace,
+                fullEncryptionSession: fullEncryptionSession,
                 cancellationToken: cancellationToken);
         }
 
@@ -105,6 +109,7 @@ public static class FileWriter
                 file: file,
                 part: part,
                 workspace: workspace,
+                fullEncryptionSession: fullEncryptionSession,
                 cancellationToken: cancellationToken);
         }
         finally
@@ -118,6 +123,7 @@ public static class FileWriter
         FileToUploadDetails file,
         FilePartDetails part,
         WorkspaceContext workspace,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken)
     {
         return workspace.Storage switch
@@ -127,6 +133,7 @@ public static class FileWriter
                 file: file,
                 part: part,
                 bucketName: workspace.BucketName,
+                fullEncryptionSession: fullEncryptionSession,
                 hardDriveStorage: hardDriveStorageClient!,
                 cancellationToken: cancellationToken),
 
@@ -135,6 +142,7 @@ public static class FileWriter
                 file: file,
                 part: part,
                 bucketName: workspace.BucketName,
+                fullEncryptionSession: fullEncryptionSession,
                 s3StorageClient: s3StorageClient,
                 cancellationToken: cancellationToken),
 

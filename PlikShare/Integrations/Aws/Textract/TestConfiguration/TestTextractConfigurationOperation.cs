@@ -222,7 +222,10 @@ public class TestTextractConfigurationOperation(
             file: new FileToUploadDetails
             {
                 SizeInBytes = imageBytes.Length,
-                Encryption = new FileEncryption { EncryptionType = StorageEncryptionType.None },
+                Encryption = new FileEncryption 
+                { 
+                    EncryptionType = StorageEncryptionType.None 
+                },
                 S3FileKey = imageFileKey,
                 S3UploadId = String.Empty
             },
@@ -231,8 +234,9 @@ public class TestTextractConfigurationOperation(
                 SizeInBytes = imageBytes.Length,
                 Number = 1,
                 UploadAlgorithm = UploadAlgorithm.DirectUpload
-            },
+            },            
             bucketName: bucketName,
+            fullEncryptionSession: null,
             s3StorageClient: s3StorageClient,
             cancellationToken: cancellationToken);
     }

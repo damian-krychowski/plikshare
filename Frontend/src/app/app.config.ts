@@ -167,13 +167,7 @@ export const appConfig: ApplicationConfig = {
         provideHttpClient(withInterceptorsFromDi(), withFetch()), {
             provide: HTTP_INTERCEPTORS,
             useClass: AuthInterceptor,
-            multi: true,
-            deps: [
-                Router,
-                AuthService,
-                ToastrService,
-                AccessCodesApi
-            ]
+            multi: true
         }, {
             provide: ErrorHandler,
             useClass: LoadingChunkFailedErrorHandler

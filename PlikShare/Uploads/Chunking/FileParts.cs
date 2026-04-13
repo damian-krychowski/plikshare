@@ -16,6 +16,8 @@ public static class FileParts
 
             StorageEncryptionType.Managed => Aes256GcmStreaming.GetExpectedPartsCount(fileSizeInBytes),
 
+            StorageEncryptionType.Full => Aes256GcmStreaming.GetExpectedPartsCount(fileSizeInBytes),
+
             _ => throw new ArgumentOutOfRangeException(nameof(storageEncryptionType), storageEncryptionType, null)
         };
     }
@@ -57,8 +59,18 @@ public static class FileParts
 
         return storageEncryptionType switch
         {
-            StorageEncryptionType.None => CalculateUnencryptedPartByteRange(fileSizeInBytes, partNumber),
-            StorageEncryptionType.Managed => CalculateEncryptedPartByteRange(fileSizeInBytes, partNumber),
+            StorageEncryptionType.None => CalculateUnencryptedPartByteRange(
+                fileSizeInBytes, 
+                partNumber),
+
+            StorageEncryptionType.Managed => CalculateEncryptedPartByteRange(
+                fileSizeInBytes, 
+                partNumber),
+
+            StorageEncryptionType.Full => CalculateEncryptedPartByteRange(
+                fileSizeInBytes, 
+                partNumber),
+
             _ => throw new ArgumentOutOfRangeException(nameof(storageEncryptionType), storageEncryptionType, null)
         };
     }

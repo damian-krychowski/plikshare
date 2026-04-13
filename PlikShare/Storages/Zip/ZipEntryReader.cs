@@ -1,6 +1,7 @@
 ﻿using System.Buffers;
 using System.IO.Compression;
 using System.IO.Pipelines;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Files.Records;
@@ -29,7 +30,8 @@ public static class ZipEntryReader
     public static async Task ReadEntryAsync(
         FileRecord file,
         ZipEntryPayload entry,
-        WorkspaceContext workspace,
+        WorkspaceContext workspace,        
+        FullEncryptionSession? fullEncryptionSession,
         PipeWriter output,
         CancellationToken cancellationToken = default)
     {
@@ -39,6 +41,7 @@ public static class ZipEntryReader
             file, 
             entry, 
             workspace,
+            fullEncryptionSession,
             pipe,
             cancellationToken);
 
@@ -102,6 +105,7 @@ public static class ZipEntryReader
         FileRecord file, 
         ZipEntryPayload entry, 
         WorkspaceContext workspace,
+        FullEncryptionSession? fullEncryptionSession,
         Pipe pipe,
         CancellationToken cancellationToken)
     {
@@ -124,7 +128,7 @@ public static class ZipEntryReader
                 fileSizeInBytes: file.SizeInBytes,
                 range: reasonableFileRange,
                 workspace: workspace,
-                fullEncryptionSession: null, //todo: propagate full-encryption session from endpoint
+                fullEncryptionSession: fullEncryptionSession,
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -164,7 +168,7 @@ public static class ZipEntryReader
                         fileSizeInBytes: file.SizeInBytes,
                         range: missingBytesRange,
                         workspace: workspace,
-                        fullEncryptionSession: null, //todo: propagate full-encryption session from endpoint
+                        fullEncryptionSession: fullEncryptionSession,
                         output: pipe.Writer,
                         cancellationToken: cancellationToken),
                     cancellationToken: cancellationToken);

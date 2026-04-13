@@ -36,7 +36,6 @@ using PlikShare.Files.UploadAttachment;
 using PlikShare.Storages;
 using PlikShare.Storages.FileReading;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Cache;
 using PlikShare.Workspaces.Validation;
@@ -173,6 +172,7 @@ public static class FilesEndpoints
                 sizeInBytes: (int) attachment.SizeInBytes, //the cast is ok because attachment imported here has a size limit
                 uploadAlgorithm: UploadAlgorithm.DirectUpload),
             workspace: workspaceMembership.Workspace,
+            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
             input: PipeReader.Create(
                 stream: file.OpenReadStream()), 
             cancellationToken: cancellationToken);
@@ -244,6 +244,7 @@ public static class FilesEndpoints
                 sizeInBytes: newSizeInBytes,
                 uploadAlgorithm: UploadAlgorithm.DirectUpload),
             workspace: workspaceMembership.Workspace,
+            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
             input: httpContext.Request.BodyReader,
             cancellationToken: cancellationToken);
 
@@ -317,6 +318,7 @@ public static class FilesEndpoints
             workspace: workspaceMembership.Workspace,
             fileExternalId: fileExternalId,
             boxFolderId: null,
+            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
             cancellationToken: cancellationToken);
 
         return result.Code switch

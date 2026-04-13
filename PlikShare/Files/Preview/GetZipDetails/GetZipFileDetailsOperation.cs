@@ -1,4 +1,5 @@
-﻿using PlikShare.Core.Utils;
+﻿using PlikShare.Core.Encryption;
+using PlikShare.Core.Utils;
 using PlikShare.Files.Download;
 using PlikShare.Files.Id;
 using PlikShare.Storages.Exceptions;
@@ -14,6 +15,7 @@ public class GetZipFileDetailsOperation(
         WorkspaceContext workspace,
         FileExtId fileExternalId,
         int? boxFolderId,
+        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken)
     {
         var (isEmpty, file) = getFileDetailsQuery.Execute(
@@ -32,6 +34,7 @@ public class GetZipFileDetailsOperation(
             var result = await ZipDecoder.ReadZipEntries(
                 file: file,
                 workspace: workspace,
+                fullEncryptionSession: fullEncryptionSession,
                 cancellationToken: cancellationToken);
 
             return result.Code switch

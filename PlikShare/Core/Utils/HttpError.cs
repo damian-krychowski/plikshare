@@ -27,6 +27,11 @@ public class HttpErrorWithDetails : HttpError
     public required string InnerError { get; set; }
 }
 
+public class FullEncryptionSessionRequiredHttpError : HttpError
+{
+    public required StorageExtId StorageExternalId { get; set; }
+}
+
 public static class HttpErrors
 {
     public static class Antiforgery
@@ -194,13 +199,20 @@ public static class HttpErrors
             Message = "Storage has a different encryption mode."
         });
 
-        public static IResult FullEncryptionSessionRequired() => TypedResults.Json(
-            new HttpError
+        public static IResult FullEncryptionSessionRequired(StorageExtId storageExternalId) => TypedResults.Json(
+            new FullEncryptionSessionRequiredHttpError
             {
                 Code = "full-encryption-session-required",
-                Message = "Full encryption session is required. Unlock the storage with your master password."
+                Message = "Full encryption session is required. Unlock the storage with your master password.",
+                StorageExternalId = storageExternalId
             },
             statusCode: StatusCodes.Status423Locked);
+
+        public static BadRequest<HttpError> InvalidMasterPassword() => TypedResults.BadRequest(new HttpError
+        {
+            Code = "invalid-master-password",
+            Message = "Master password is incorrect."
+        });
     }
 
     public static class Folder

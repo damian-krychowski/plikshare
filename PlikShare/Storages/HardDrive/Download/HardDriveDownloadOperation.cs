@@ -299,8 +299,7 @@ public class HardDriveDownloadOperation
        long fileSizeInBytes,
        string bucketName,
        FullEncryptionSession? fullEncryptionSession,
-       HardDriveStorageClient hardDriveStorageClient,
-       CancellationToken cancellationToken)
+       HardDriveStorageClient hardDriveStorageClient)
     {
         var filePath = Path.Combine(
             hardDriveStorageClient.Details.FullPath,
@@ -347,8 +346,7 @@ public class HardDriveDownloadOperation
         BytesRange range,
         string bucketName,
         FullEncryptionSession? fullEncryptionSession,
-        HardDriveStorageClient hardDriveStorageClient,
-        CancellationToken cancellationToken)
+        HardDriveStorageClient hardDriveStorageClient)
     {
         var filePath = Path.Combine(
             hardDriveStorageClient.Details.FullPath,

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.DataProtection;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Workspaces.Validation;
+using Serilog;
 
 namespace PlikShare.Storages.Encryption.Authorization;
 
@@ -11,10 +12,15 @@ public class ValidateFullEncryptionSessionFilter : IEndpointFilter
         EndpointFilterInvocationContext context,
         EndpointFilterDelegate next)
     {
-        var workspace = context.HttpContext.GetWorkspaceMembershipDetails().Workspace;
+        var workspace = context
+            .HttpContext
+            .GetWorkspaceMembershipDetails()
+            .Workspace;
 
         if (workspace.Storage.EncryptionType != StorageEncryptionType.Full)
+        {
             return await next(context);
+        }
 
         var cookieName = FullEncryptionSessionCookie.GetCookieName(
             workspace.Storage.ExternalId);
@@ -22,7 +28,8 @@ public class ValidateFullEncryptionSessionFilter : IEndpointFilter
         if (!context.HttpContext.Request.Cookies.TryGetValue(cookieName, out var cookieValue)
             || string.IsNullOrEmpty(cookieValue))
         {
-            return HttpErrors.Storage.FullEncryptionSessionRequired();
+            return HttpErrors.Storage.FullEncryptionSessionRequired(
+                workspace.Storage.ExternalId);
         }
 
         var protector = context.HttpContext.RequestServices
@@ -37,12 +44,13 @@ public class ValidateFullEncryptionSessionFilter : IEndpointFilter
         }
         catch
         {
-            return HttpErrors.Storage.FullEncryptionSessionRequired();
+            return HttpErrors.Storage.FullEncryptionSessionRequired(
+                workspace.Storage.ExternalId);
         }
 
         var session = new FullEncryptionSession { Kek = kek };
         context.HttpContext.Items[FullEncryptionSession.HttpContextName] = session;
-
+        
         return await next(context);
     }
 }

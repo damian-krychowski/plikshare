@@ -50,8 +50,7 @@ public static class FileReader
                 fileSizeInBytes: fileSizeInBytes,
                 bucketName: bucketName,
                 fullEncryptionSession: fullEncryptionSession,
-                hardDriveStorageClient: hardDriveStorageClient!,
-                cancellationToken: cancellationToken),
+                hardDriveStorageClient: hardDriveStorageClient),
 
             S3StorageClient s3StorageClient => await S3DownloadOperation.GetFile(
                 s3FileKey: s3FileKey,
@@ -84,8 +83,7 @@ public static class FileReader
                 range: range,
                 bucketName: workspace.BucketName,
                 fullEncryptionSession: fullEncryptionSession,
-                hardDriveStorageClient: hardDriveStorageClient!,
-                cancellationToken: cancellationToken),
+                hardDriveStorageClient: hardDriveStorageClient),
 
             S3StorageClient s3StorageClient => await S3DownloadOperation.GetFileRange(
                 s3FileKey: s3FileKey,

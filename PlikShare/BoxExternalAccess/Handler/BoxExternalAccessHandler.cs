@@ -41,6 +41,7 @@ using PlikShare.Workspaces.CountSelectedItems.Contracts;
 using PlikShare.Workspaces.SearchFilesTree;
 using PlikShare.Workspaces.SearchFilesTree.Contracts;
 using Audit = PlikShare.AuditLog.Details.Audit;
+using PlikShare.Storages.Encryption.Authorization;
 
 namespace PlikShare.BoxExternalAccess.Handler;
 
@@ -260,6 +261,7 @@ public class BoxExternalAccessHandler(
             workspace: boxAccess.Box.Workspace,
             fileExternalId: fileExternalId,
             boxFolderId: boxAccess.Box.Folder.Id,
+            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
             cancellationToken: cancellationToken);
 
         return result.Code switch

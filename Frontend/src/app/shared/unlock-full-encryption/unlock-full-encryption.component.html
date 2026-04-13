@@ -1,0 +1,60 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        Unlock storage
+    </div>
+
+    <div class="questionaire__info">
+        This storage uses full encryption. Enter the master password to unlock it for this session.
+    </div>
+
+    <form class="questionaire__form" (submit)="onUnlock()" [formGroup]="formGroup">
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Master password</mat-label>
+
+            <input
+                id="masterPassword"
+                type="password"
+                autocomplete="current-password"
+                matInput
+                appSecureInput
+                formControlName="masterPassword"
+                required
+                (change)="onPasswordChange()">
+
+            @if(masterPassword.hasError('required')){
+                <mat-error>
+                    Master password is <strong>required</strong>
+                </mat-error>
+            }
+        </mat-form-field>
+
+        @if(isWrongPassword()){
+            <mat-error>
+                Master password is <strong>incorrect</strong>
+            </mat-error>
+        }
+
+        @if(isSomethingWentWrong()){
+            <mat-error>
+                Something went wrong, please try again later.
+            </mat-error>
+        }
+
+        <div class="mt-3 d-none-on-mobile"></div>
+
+        <div class="questionaire__actions">
+            <button type="button" class="questionaire__btn mr-1" mat-flat-button
+                aria-label="Cancel"
+                (click)="cancel()"
+                [disabled]="isLoading()">
+                Cancel
+            </button>
+
+            <button type="submit" class="questionaire__btn" mat-flat-button
+                aria-label="Unlock"
+                [disabled]="!formGroup.valid || isLoading() || isWrongPassword()">
+                Unlock
+            </button>
+        </div>
+    </form>
+</div>

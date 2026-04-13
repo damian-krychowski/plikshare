@@ -705,7 +705,7 @@ public static class StoragesEndpoints
         }
     }
 
-    private static Results<Ok, UnauthorizedHttpResult, BadRequest<HttpError>, NotFound<HttpError>> UnlockFullEncryption(
+    private static Results<Ok, BadRequest<HttpError>, NotFound<HttpError>> UnlockFullEncryption(
         [FromRoute] StorageExtId storageExternalId,
         [FromBody] UnlockFullEncryptionRequestDto request,
         UnlockFullEncryptionOperation unlockFullEncryptionOperation,
@@ -725,7 +725,7 @@ public static class StoragesEndpoints
                 return HttpErrors.Storage.EncryptionModeMismatch();
 
             case UnlockFullEncryptionOperation.ResultCode.InvalidPassword:
-                return TypedResults.Unauthorized();
+                return HttpErrors.Storage.InvalidMasterPassword();
 
             case UnlockFullEncryptionOperation.ResultCode.Ok:
                 httpContext.Response.Cookies.Append(
