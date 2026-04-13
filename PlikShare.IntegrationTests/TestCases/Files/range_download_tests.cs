@@ -15,12 +15,16 @@ public class range_download_tests : TestFixture
     {
     }
 
-    [Fact]
-    public async Task range_download_first_100_bytes_without_encryption()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task range_download_first_100_bytes(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.None);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -51,48 +55,16 @@ public class range_download_tests : TestFixture
             originalContent.AsSpan(0, 100).ToArray());
     }
 
-    [Fact]
-    public async Task range_download_first_100_bytes_with_encryption()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task range_download_middle_chunk(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
-        var workspace = await CreateWorkspace(storage, user);
-        var folder = await CreateFolder(parent: null, workspace, user);
-
-        var originalContent = new byte[4096];
-        new Random(301).NextBytes(originalContent);
-
-        var uploadedFile = await UploadFile(
-            content: originalContent,
-            fileName: "range-enc-test.bin",
-            contentType: "application/octet-stream",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        //when
-        var result = await DownloadFileRange(
-            fileExternalId: uploadedFile.ExternalId,
-            rangeStart: 0,
-            rangeEnd: 99,
-            workspace: workspace,
-            user: user);
-
-        //then
-        result.StatusCode.Should().Be(206);
-        result.ContentRange.Should().Be("bytes 0-99/4096");
-        result.Content.Should().HaveCount(100);
-        result.Content.Should().BeEquivalentTo(
-            originalContent.AsSpan(0, 100).ToArray());
-    }
-
-    [Fact]
-    public async Task range_download_middle_chunk_without_encryption()
-    {
-        //given
-        var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.None);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -123,48 +95,16 @@ public class range_download_tests : TestFixture
             originalContent.AsSpan(1000, 1000).ToArray());
     }
 
-    [Fact]
-    public async Task range_download_middle_chunk_with_encryption()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task range_download_last_bytes(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
-        var workspace = await CreateWorkspace(storage, user);
-        var folder = await CreateFolder(parent: null, workspace, user);
-
-        var originalContent = new byte[4096];
-        new Random(303).NextBytes(originalContent);
-
-        var uploadedFile = await UploadFile(
-            content: originalContent,
-            fileName: "range-enc-middle.bin",
-            contentType: "application/octet-stream",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        //when
-        var result = await DownloadFileRange(
-            fileExternalId: uploadedFile.ExternalId,
-            rangeStart: 1000,
-            rangeEnd: 1999,
-            workspace: workspace,
-            user: user);
-
-        //then
-        result.StatusCode.Should().Be(206);
-        result.ContentRange.Should().Be("bytes 1000-1999/4096");
-        result.Content.Should().HaveCount(1000);
-        result.Content.Should().BeEquivalentTo(
-            originalContent.AsSpan(1000, 1000).ToArray());
-    }
-
-    [Fact]
-    public async Task range_download_last_bytes_without_encryption()
-    {
-        //given
-        var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.None);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -195,48 +135,16 @@ public class range_download_tests : TestFixture
             originalContent.AsSpan(4000, 96).ToArray());
     }
 
-    [Fact]
-    public async Task range_download_last_bytes_with_encryption()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task range_download_single_byte(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
-        var workspace = await CreateWorkspace(storage, user);
-        var folder = await CreateFolder(parent: null, workspace, user);
-
-        var originalContent = new byte[4096];
-        new Random(305).NextBytes(originalContent);
-
-        var uploadedFile = await UploadFile(
-            content: originalContent,
-            fileName: "range-enc-last.bin",
-            contentType: "application/octet-stream",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        //when
-        var result = await DownloadFileRange(
-            fileExternalId: uploadedFile.ExternalId,
-            rangeStart: 4000,
-            rangeEnd: 4095,
-            workspace: workspace,
-            user: user);
-
-        //then
-        result.StatusCode.Should().Be(206);
-        result.ContentRange.Should().Be("bytes 4000-4095/4096");
-        result.Content.Should().HaveCount(96);
-        result.Content.Should().BeEquivalentTo(
-            originalContent.AsSpan(4000, 96).ToArray());
-    }
-
-    [Fact]
-    public async Task range_download_single_byte_with_encryption()
-    {
-        //given
-        var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -245,7 +153,7 @@ public class range_download_tests : TestFixture
 
         var uploadedFile = await UploadFile(
             content: originalContent,
-            fileName: "range-enc-single.bin",
+            fileName: "range-single.bin",
             contentType: "application/octet-stream",
             folder: folder,
             workspace: workspace,
@@ -266,8 +174,12 @@ public class range_download_tests : TestFixture
         result.Content[0].Should().Be(originalContent[2048]);
     }
 
-    [Fact]
-    public async Task range_download_crossing_segment_boundary_with_encryption()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task range_download_crossing_segment_boundary(
+        StorageEncryptionType encryptionType)
     {
         // File >1 segment, range spans the boundary between segment 1 and 2.
         // FirstSegmentCiphertextSize = 1,048,519 bytes of plaintext in segment 1.
@@ -275,7 +187,7 @@ public class range_download_tests : TestFixture
 
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -284,7 +196,7 @@ public class range_download_tests : TestFixture
 
         var uploadedFile = await UploadFile(
             content: originalContent,
-            fileName: "range-enc-cross-segment.bin",
+            fileName: "range-cross-segment.bin",
             contentType: "application/octet-stream",
             folder: folder,
             workspace: workspace,
@@ -310,12 +222,16 @@ public class range_download_tests : TestFixture
             originalContent.AsSpan((int)rangeStart, expectedLength).ToArray());
     }
 
-    [Fact]
-    public async Task range_download_entire_file_as_range_with_encryption()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task range_download_entire_file_as_range(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -324,7 +240,7 @@ public class range_download_tests : TestFixture
 
         var uploadedFile = await UploadFile(
             content: originalContent,
-            fileName: "range-enc-full.bin",
+            fileName: "range-full.bin",
             contentType: "application/octet-stream",
             folder: folder,
             workspace: workspace,

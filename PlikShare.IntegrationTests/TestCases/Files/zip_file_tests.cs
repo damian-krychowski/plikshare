@@ -36,12 +36,16 @@ public class zip_file_tests : TestFixture
         return memoryStream.ToArray();
     }
 
-    [Fact]
-    public async Task zip_file_listing_without_encryption_returns_correct_entries()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task zip_file_listing_returns_correct_entries(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.None);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -67,7 +71,8 @@ public class zip_file_tests : TestFixture
         var zipDetails = await Api.Files.GetZipDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then — verify against System.IO.Compression.ZipArchive as ground truth
         using var zipStream = new MemoryStream(zipContent);
@@ -109,92 +114,27 @@ public class zip_file_tests : TestFixture
         }
     }
 
-    [Fact]
-    public async Task zip_file_listing_with_encryption_returns_correct_entries()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task zip_entry_download_returns_correct_content(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
-        var fileContents = new Dictionary<string, byte[]>
-        {
-            ["readme.md"] = "# Title\nSome markdown"u8.ToArray(),
-            ["image.bin"] = new byte[512]
-        };
-        new Random(501).NextBytes(fileContents["image.bin"]);
-
-        var zipContent = CreateZipArchive(fileContents);
-
-        var uploadedFile = await UploadFile(
-            content: zipContent,
-            fileName: "encrypted-archive.zip",
-            contentType: "application/zip",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        //when
-        var zipDetails = await Api.Files.GetZipDetails(
-            workspaceExternalId: workspace.ExternalId,
-            fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
-
-        //then
-        using var zipStream = new MemoryStream(zipContent);
-        using var expectedArchive = new ZipArchive(zipStream, ZipArchiveMode.Read);
-        var expectedEntries = expectedArchive.Entries
-            .Where(e => e.Length > 0)
-            .ToList();
-
-        zipDetails.Items.Should().HaveCount(expectedEntries.Count);
-
-        for (var i = 0; i < expectedEntries.Count; i++)
-        {
-            var expected = expectedEntries[i];
-            var actual = zipDetails.Items.Single(item => item.FilePath == expected.FullName);
-
-            actual.SizeInBytes.Should().Be(expected.Length,
-                $"SizeInBytes mismatch for '{expected.FullName}'");
-            actual.CompressedSizeInBytes.Should().Be(expected.CompressedLength,
-                $"CompressedSizeInBytes mismatch for '{expected.FullName}'");
-            actual.FileNameLength.Should().Be((ushort)expected.FullName.Length,
-                $"FileNameLength mismatch for '{expected.FullName}'");
-            actual.IndexInArchive.Should().Be((uint)i,
-                $"IndexInArchive mismatch for '{expected.FullName}'");
-        }
-
-        var offsets = zipDetails
-            .Items
-            .OrderBy(i => i.IndexInArchive)
-            .Select(i => i.OffsetToLocalFileHeader)
-            .ToList();
-            
-        for (var i = 1; i < offsets.Count; i++)
-        {
-            offsets[i].Should().BeGreaterThan(offsets[i - 1],
-                $"OffsetToLocalFileHeader should be strictly increasing (entry {i})");
-        }
-    }
-
-    [Fact]
-    public async Task zip_entry_download_without_encryption_returns_correct_content()
-    {
-        //given
-        var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.None);
-        var workspace = await CreateWorkspace(storage, user);
-        var folder = await CreateFolder(parent: null, workspace, user);
-
-        var helloContent = "Hello from inside the ZIP!"u8.ToArray();
+        var textContent = "Entry content inside the ZIP!"u8.ToArray();
         var binaryContent = new byte[1024];
         new Random(502).NextBytes(binaryContent);
 
         var zipContent = CreateZipArchive(new Dictionary<string, byte[]>
         {
-            ["hello.txt"] = helloContent,
-            ["binary.bin"] = binaryContent
+            ["entry.txt"] = textContent,
+            ["payload.bin"] = binaryContent
         });
 
         var uploadedFile = await UploadFile(
@@ -208,88 +148,11 @@ public class zip_file_tests : TestFixture
         var zipDetails = await Api.Files.GetZipDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //when — download each entry
-        var helloEntry = zipDetails.Items.Single(i => i.FilePath == "hello.txt");
-        var helloDownloadLink = await Api.Files.GetZipContentDownloadLink(
-            workspaceExternalId: workspace.ExternalId,
-            fileExternalId: uploadedFile.ExternalId,
-            item: new ZipFileDto(
-                FilePath: helloEntry.FilePath,
-                CompressedSizeInBytes: helloEntry.CompressedSizeInBytes,
-                SizeInBytes: helloEntry.SizeInBytes,
-                OffsetToLocalFileHeader: helloEntry.OffsetToLocalFileHeader,
-                FileNameLength: helloEntry.FileNameLength,
-                CompressionMethod: helloEntry.CompressionMethod,
-                IndexInArchive: helloEntry.IndexInArchive),
-            contentDisposition: ContentDispositionType.Attachment,
-            cookie: user.Cookie,
-            antiforgery: user.Antiforgery);
-
-        var helloDownloaded = await Api.PreSignedFiles.DownloadFile(
-            preSignedUrl: helloDownloadLink.DownloadPreSignedUrl,
-            cookie: user.Cookie);
-
-        var binaryEntry = zipDetails.Items.Single(i => i.FilePath == "binary.bin");
-        var binaryDownloadLink = await Api.Files.GetZipContentDownloadLink(
-            workspaceExternalId: workspace.ExternalId,
-            fileExternalId: uploadedFile.ExternalId,
-            item: new ZipFileDto(
-                FilePath: binaryEntry.FilePath,
-                CompressedSizeInBytes: binaryEntry.CompressedSizeInBytes,
-                SizeInBytes: binaryEntry.SizeInBytes,
-                OffsetToLocalFileHeader: binaryEntry.OffsetToLocalFileHeader,
-                FileNameLength: binaryEntry.FileNameLength,
-                CompressionMethod: binaryEntry.CompressionMethod,
-                IndexInArchive: binaryEntry.IndexInArchive),
-            contentDisposition: ContentDispositionType.Attachment,
-            cookie: user.Cookie,
-            antiforgery: user.Antiforgery);
-
-        var binaryDownloaded = await Api.PreSignedFiles.DownloadFile(
-            preSignedUrl: binaryDownloadLink.DownloadPreSignedUrl,
-            cookie: user.Cookie);
-
-        //then
-        helloDownloaded.Should().BeEquivalentTo(helloContent);
-        binaryDownloaded.Should().BeEquivalentTo(binaryContent);
-    }
-
-    [Fact]
-    public async Task zip_entry_download_with_encryption_returns_correct_content()
-    {
-        //given
-        var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
-        var workspace = await CreateWorkspace(storage, user);
-        var folder = await CreateFolder(parent: null, workspace, user);
-
-        var textContent = "Encrypted ZIP entry content"u8.ToArray();
-        var binaryContent = new byte[2048];
-        new Random(503).NextBytes(binaryContent);
-
-        var zipContent = CreateZipArchive(new Dictionary<string, byte[]>
-        {
-            ["secret.txt"] = textContent,
-            ["payload.bin"] = binaryContent
-        });
-
-        var uploadedFile = await UploadFile(
-            content: zipContent,
-            fileName: "encrypted-download-test.zip",
-            contentType: "application/zip",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        var zipDetails = await Api.Files.GetZipDetails(
-            workspaceExternalId: workspace.ExternalId,
-            fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
-
-        //when
-        var textEntry = zipDetails.Items.Single(i => i.FilePath == "secret.txt");
+        var textEntry = zipDetails.Items.Single(i => i.FilePath == "entry.txt");
         var textDownloadLink = await Api.Files.GetZipContentDownloadLink(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
@@ -303,7 +166,8 @@ public class zip_file_tests : TestFixture
                 IndexInArchive: textEntry.IndexInArchive),
             contentDisposition: ContentDispositionType.Attachment,
             cookie: user.Cookie,
-            antiforgery: user.Antiforgery);
+            antiforgery: user.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         var textDownloaded = await Api.PreSignedFiles.DownloadFile(
             preSignedUrl: textDownloadLink.DownloadPreSignedUrl,
@@ -323,7 +187,8 @@ public class zip_file_tests : TestFixture
                 IndexInArchive: binaryEntry.IndexInArchive),
             contentDisposition: ContentDispositionType.Attachment,
             cookie: user.Cookie,
-            antiforgery: user.Antiforgery);
+            antiforgery: user.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         var binaryDownloaded = await Api.PreSignedFiles.DownloadFile(
             preSignedUrl: binaryDownloadLink.DownloadPreSignedUrl,
@@ -334,12 +199,16 @@ public class zip_file_tests : TestFixture
         binaryDownloaded.Should().BeEquivalentTo(binaryContent);
     }
 
-    [Fact]
-    public async Task empty_zip_listing_returns_no_entries()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task empty_zip_listing_returns_no_entries(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.None);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -357,18 +226,23 @@ public class zip_file_tests : TestFixture
         var zipDetails = await Api.Files.GetZipDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         (zipDetails.Items ?? []).Should().BeEmpty();
     }
 
-    [Fact]
-    public async Task zip_with_many_files_returns_all_entries()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task zip_with_many_files_returns_all_entries(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.None);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -396,7 +270,8 @@ public class zip_file_tests : TestFixture
         var zipDetails = await Api.Files.GetZipDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         zipDetails.Items.Should().HaveCount(50);
@@ -416,12 +291,16 @@ public class zip_file_tests : TestFixture
             .BeEquivalentTo(Enumerable.Range(0, 50).Select(i => (uint)i));
     }
 
-    [Fact]
-    public async Task zip_with_deeply_nested_directories_returns_full_paths()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task zip_with_deeply_nested_directories_returns_full_paths(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.None);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -449,7 +328,8 @@ public class zip_file_tests : TestFixture
         var zipDetails = await Api.Files.GetZipDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         zipDetails.Items.Should().HaveCount(6);
@@ -473,12 +353,16 @@ public class zip_file_tests : TestFixture
         }
     }
 
-    [Fact]
-    public async Task zip_with_single_file_returns_one_entry()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task zip_with_single_file_returns_one_entry(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.None);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -500,7 +384,8 @@ public class zip_file_tests : TestFixture
         var zipDetails = await Api.Files.GetZipDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         zipDetails.Items.Should().HaveCount(1);
@@ -510,12 +395,16 @@ public class zip_file_tests : TestFixture
         entry.IndexInArchive.Should().Be(0);
     }
 
-    [Fact]
-    public async Task zip_with_comment_is_parsed_correctly()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task zip_with_comment_is_parsed_correctly(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.None);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -538,7 +427,8 @@ public class zip_file_tests : TestFixture
         var zipDetails = await Api.Files.GetZipDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         zipDetails.Items.Should().HaveCount(1);
@@ -546,12 +436,16 @@ public class zip_file_tests : TestFixture
         zipDetails.Items[0].SizeInBytes.Should().Be(12);
     }
 
-    [Fact]
-    public async Task zip_with_long_file_names_returns_correct_paths()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task zip_with_long_file_names_returns_correct_paths(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.None);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -578,7 +472,8 @@ public class zip_file_tests : TestFixture
         var zipDetails = await Api.Files.GetZipDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         zipDetails.Items.Should().HaveCount(1);
@@ -586,12 +481,16 @@ public class zip_file_tests : TestFixture
         zipDetails.Items[0].FileNameLength.Should().Be((ushort)longPath.Length);
     }
 
-    [Fact]
-    public async Task zip_with_mix_of_empty_and_nonempty_files_returns_only_nonempty()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task zip_with_mix_of_empty_and_nonempty_files_returns_only_nonempty(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.None);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -618,7 +517,8 @@ public class zip_file_tests : TestFixture
         var zipDetails = await Api.Files.GetZipDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then — only non-empty files should be returned
         zipDetails.Items.Should().HaveCount(2);
@@ -626,12 +526,16 @@ public class zip_file_tests : TestFixture
             ["has-content.txt", "also-content.bin"]);
     }
 
-    [Fact]
-    public async Task non_zip_file_with_zip_extension_returns_error()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task non_zip_file_with_zip_extension_returns_error(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.None);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
         var workspace = await CreateWorkspace(storage, user);
         var folder = await CreateFolder(parent: null, workspace, user);
 
@@ -649,313 +553,8 @@ public class zip_file_tests : TestFixture
         var act = () => Api.Files.GetZipDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
-
-        //then
-        var exception = await act.Should().ThrowAsync<TestApiCallException>();
-        exception.Which.StatusCode.Should().Be(400);
-    }
-
-    [Fact]
-    public async Task empty_zip_listing_with_encryption_returns_no_entries()
-    {
-        //given
-        var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
-        var workspace = await CreateWorkspace(storage, user);
-        var folder = await CreateFolder(parent: null, workspace, user);
-
-        var zipContent = CreateZipArchive(new Dictionary<string, byte[]>());
-
-        var uploadedFile = await UploadFile(
-            content: zipContent,
-            fileName: "empty-enc.zip",
-            contentType: "application/zip",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        //when
-        var zipDetails = await Api.Files.GetZipDetails(
-            workspaceExternalId: workspace.ExternalId,
-            fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
-
-        //then
-        (zipDetails.Items ?? []).Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task zip_with_many_files_with_encryption_returns_all_entries()
-    {
-        //given
-        var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
-        var workspace = await CreateWorkspace(storage, user);
-        var folder = await CreateFolder(parent: null, workspace, user);
-
-        var fileContents = new Dictionary<string, byte[]>();
-        var random = new Random(601);
-
-        for (var i = 0; i < 50; i++)
-        {
-            var content = new byte[random.Next(10, 500)];
-            random.NextBytes(content);
-            fileContents[$"file-{i:D3}.bin"] = content;
-        }
-
-        var zipContent = CreateZipArchive(fileContents);
-
-        var uploadedFile = await UploadFile(
-            content: zipContent,
-            fileName: "many-files-enc.zip",
-            contentType: "application/zip",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        //when
-        var zipDetails = await Api.Files.GetZipDetails(
-            workspaceExternalId: workspace.ExternalId,
-            fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
-
-        //then
-        zipDetails.Items.Should().HaveCount(50);
-
-        foreach (var (fileName, content) in fileContents)
-        {
-            var entry = zipDetails.Items.Single(i => i.FilePath == fileName);
-            entry.SizeInBytes.Should().Be(content.Length,
-                $"SizeInBytes mismatch for '{fileName}'");
-        }
-    }
-
-    [Fact]
-    public async Task zip_with_deeply_nested_directories_with_encryption_returns_full_paths()
-    {
-        //given
-        var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
-        var workspace = await CreateWorkspace(storage, user);
-        var folder = await CreateFolder(parent: null, workspace, user);
-
-        var fileContents = new Dictionary<string, byte[]>
-        {
-            ["root.txt"] = "root"u8.ToArray(),
-            ["a/level1.txt"] = "level 1"u8.ToArray(),
-            ["a/b/level2.txt"] = "level 2"u8.ToArray(),
-            ["a/b/c/level3.txt"] = "level 3"u8.ToArray(),
-            ["a/b/c/d/level4.txt"] = "level 4"u8.ToArray(),
-            ["x/y/sibling.txt"] = "sibling branch"u8.ToArray()
-        };
-
-        var zipContent = CreateZipArchive(fileContents);
-
-        var uploadedFile = await UploadFile(
-            content: zipContent,
-            fileName: "nested-dirs-enc.zip",
-            contentType: "application/zip",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        //when
-        var zipDetails = await Api.Files.GetZipDetails(
-            workspaceExternalId: workspace.ExternalId,
-            fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
-
-        //then
-        zipDetails.Items.Should().HaveCount(6);
-
-        zipDetails.Items.Select(i => i.FilePath).Should().BeEquivalentTo([
-            "root.txt",
-            "a/level1.txt",
-            "a/b/level2.txt",
-            "a/b/c/level3.txt",
-            "a/b/c/d/level4.txt",
-            "x/y/sibling.txt"
-        ]);
-    }
-
-    [Fact]
-    public async Task zip_with_single_file_with_encryption_returns_one_entry()
-    {
-        //given
-        var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
-        var workspace = await CreateWorkspace(storage, user);
-        var folder = await CreateFolder(parent: null, workspace, user);
-
-        var content = "single file"u8.ToArray();
-        var zipContent = CreateZipArchive(new Dictionary<string, byte[]>
-        {
-            ["only-file.txt"] = content
-        });
-
-        var uploadedFile = await UploadFile(
-            content: zipContent,
-            fileName: "single-enc.zip",
-            contentType: "application/zip",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        //when
-        var zipDetails = await Api.Files.GetZipDetails(
-            workspaceExternalId: workspace.ExternalId,
-            fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
-
-        //then
-        zipDetails.Items.Should().HaveCount(1);
-        var entry = zipDetails.Items[0];
-        entry.FilePath.Should().Be("only-file.txt");
-        entry.SizeInBytes.Should().Be(content.Length);
-        entry.IndexInArchive.Should().Be(0);
-    }
-
-    [Fact]
-    public async Task zip_with_comment_with_encryption_is_parsed_correctly()
-    {
-        //given
-        var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
-        var workspace = await CreateWorkspace(storage, user);
-        var folder = await CreateFolder(parent: null, workspace, user);
-
-        var zipContent = CreateZipArchiveWithComment(
-            files: new Dictionary<string, byte[]>
-            {
-                ["file-in-commented-zip.txt"] = "content here"u8.ToArray()
-            },
-            comment: "This is a ZIP archive comment that makes the EOCD not at the last 22 bytes");
-
-        var uploadedFile = await UploadFile(
-            content: zipContent,
-            fileName: "commented-enc.zip",
-            contentType: "application/zip",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        //when
-        var zipDetails = await Api.Files.GetZipDetails(
-            workspaceExternalId: workspace.ExternalId,
-            fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
-
-        //then
-        zipDetails.Items.Should().HaveCount(1);
-        zipDetails.Items[0].FilePath.Should().Be("file-in-commented-zip.txt");
-        zipDetails.Items[0].SizeInBytes.Should().Be(12);
-    }
-
-    [Fact]
-    public async Task zip_with_long_file_names_with_encryption_returns_correct_paths()
-    {
-        //given
-        var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
-        var workspace = await CreateWorkspace(storage, user);
-        var folder = await CreateFolder(parent: null, workspace, user);
-
-        var longPath = string.Join("/",
-            Enumerable.Range(0, 20).Select(i => $"directory-level-{i:D2}"))
-            + "/final-file.txt";
-
-        var fileContents = new Dictionary<string, byte[]>
-        {
-            [longPath] = "deep content"u8.ToArray()
-        };
-
-        var zipContent = CreateZipArchive(fileContents);
-
-        var uploadedFile = await UploadFile(
-            content: zipContent,
-            fileName: "long-names-enc.zip",
-            contentType: "application/zip",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        //when
-        var zipDetails = await Api.Files.GetZipDetails(
-            workspaceExternalId: workspace.ExternalId,
-            fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
-
-        //then
-        zipDetails.Items.Should().HaveCount(1);
-        zipDetails.Items[0].FilePath.Should().Be(longPath);
-        zipDetails.Items[0].FileNameLength.Should().Be((ushort)longPath.Length);
-    }
-
-    [Fact]
-    public async Task zip_with_mix_of_empty_and_nonempty_files_with_encryption_returns_only_nonempty()
-    {
-        //given
-        var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
-        var workspace = await CreateWorkspace(storage, user);
-        var folder = await CreateFolder(parent: null, workspace, user);
-
-        var fileContents = new Dictionary<string, byte[]>
-        {
-            ["empty1.txt"] = [],
-            ["has-content.txt"] = "I have content"u8.ToArray(),
-            ["empty2.dat"] = [],
-            ["also-content.bin"] = new byte[] { 1, 2, 3 },
-            ["empty3.log"] = []
-        };
-
-        var zipContent = CreateZipArchive(fileContents);
-
-        var uploadedFile = await UploadFile(
-            content: zipContent,
-            fileName: "mixed-empty-enc.zip",
-            contentType: "application/zip",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        //when
-        var zipDetails = await Api.Files.GetZipDetails(
-            workspaceExternalId: workspace.ExternalId,
-            fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
-
-        //then
-        zipDetails.Items.Should().HaveCount(2);
-        zipDetails.Items.Select(i => i.FilePath).Should().BeEquivalentTo(
-            ["has-content.txt", "also-content.bin"]);
-    }
-
-    [Fact]
-    public async Task non_zip_file_with_zip_extension_with_encryption_returns_error()
-    {
-        //given
-        var user = await SignIn(Users.AppOwner);
-        var storage = await CreateHardDriveStorage(user, StorageEncryptionType.Managed);
-        var workspace = await CreateWorkspace(storage, user);
-        var folder = await CreateFolder(parent: null, workspace, user);
-
-        var notAZip = "this is definitely not a zip file, just random text"u8.ToArray();
-
-        var uploadedFile = await UploadFile(
-            content: notAZip,
-            fileName: "fake-archive.zip",
-            contentType: "application/zip",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        //when
-        var act = () => Api.Files.GetZipDetails(
-            workspaceExternalId: workspace.ExternalId,
-            fileExternalId: uploadedFile.ExternalId,
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         var exception = await act.Should().ThrowAsync<TestApiCallException>();

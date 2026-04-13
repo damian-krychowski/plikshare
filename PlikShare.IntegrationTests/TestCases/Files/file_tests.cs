@@ -18,7 +18,6 @@ namespace PlikShare.IntegrationTests.TestCases.Files;
 public class file_tests : TestFixture
 {
     private AppSignedInUser AppOwner { get; }
-    private AppStorage Storage { get; }
 
     public file_tests(
         HostFixture8081 hostFixture,
@@ -26,16 +25,17 @@ public class file_tests : TestFixture
     {
         AppOwner = SignIn(
             user: Users.AppOwner).Result;
-
-        Storage = CreateHardDriveStorage(
-            user: AppOwner,
-            encryptionType: StorageEncryptionType.None).Result;
     }
 
-    private async Task<(AppFile File, AppWorkspace Workspace)> UploadTestFile()
+    private async Task<(AppFile File, AppWorkspace Workspace)> UploadTestFile(
+        StorageEncryptionType encryptionType)
     {
+        var storage = await CreateHardDriveStorage(
+            user: AppOwner,
+            encryptionType: encryptionType);
+
         var workspace = await CreateWorkspace(
-            storage: Storage,
+            storage: storage,
             user: AppOwner);
 
         var folder = await CreateFolder(
@@ -56,11 +56,15 @@ public class file_tests : TestFixture
 
     // --- Functional tests ---
 
-    [Fact]
-    public async Task when_file_is_renamed_it_should_be_reflected_in_preview_details()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task when_file_is_renamed_it_should_be_reflected_in_preview_details(
+        StorageEncryptionType encryptionType)
     {
         //given
-        var (file, workspace) = await UploadTestFile();
+        var (file, workspace) = await UploadTestFile(encryptionType);
 
         //when
         await Api.Files.UpdateName(
@@ -68,16 +72,21 @@ public class file_tests : TestFixture
             fileExternalId: file.ExternalId,
             request: new UpdateFileNameRequestDto(Name: "renamed-file"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then - file was renamed successfully (no error thrown)
     }
 
-    [Fact]
-    public async Task when_note_is_saved_it_should_be_visible_in_preview_details()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task when_note_is_saved_it_should_be_visible_in_preview_details(
+        StorageEncryptionType encryptionType)
     {
         //given
-        var (file, workspace) = await UploadTestFile();
+        var (file, workspace) = await UploadTestFile(encryptionType);
 
         //when
         await Api.Files.UpdateNote(
@@ -85,24 +94,30 @@ public class file_tests : TestFixture
             fileExternalId: file.ExternalId,
             request: new SaveFileNoteRequestDto(ContentJson: "{\"text\":\"my note\"}"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         var details = await Api.Files.GetPreviewDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: file.ExternalId,
             fields: ["note"],
-            cookie: AppOwner.Cookie);
+            cookie: AppOwner.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         details.Note.Should().NotBeNull();
         details.Note!.ContentJson.Should().Be("{\"text\":\"my note\"}");
     }
 
-    [Fact]
-    public async Task when_comment_is_created_it_should_be_visible_in_preview_details()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task when_comment_is_created_it_should_be_visible_in_preview_details(
+        StorageEncryptionType encryptionType)
     {
         //given
-        var (file, workspace) = await UploadTestFile();
+        var (file, workspace) = await UploadTestFile(encryptionType);
         var commentExternalId = FileArtifactExtId.NewId();
 
         //when
@@ -113,25 +128,31 @@ public class file_tests : TestFixture
                 ExternalId: commentExternalId,
                 ContentJson: "{\"text\":\"my comment\"}"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         var details = await Api.Files.GetPreviewDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: file.ExternalId,
             fields: ["comments"],
-            cookie: AppOwner.Cookie);
+            cookie: AppOwner.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         details.Comments.Should().Contain(c =>
             c.ExternalId == commentExternalId &&
             c.ContentJson == "{\"text\":\"my comment\"}");
     }
 
-    [Fact]
-    public async Task when_comment_is_edited_it_should_be_reflected_in_preview_details()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task when_comment_is_edited_it_should_be_reflected_in_preview_details(
+        StorageEncryptionType encryptionType)
     {
         //given
-        var (file, workspace) = await UploadTestFile();
+        var (file, workspace) = await UploadTestFile(encryptionType);
         var commentExternalId = FileArtifactExtId.NewId();
 
         await Api.Files.CreateComment(
@@ -141,7 +162,8 @@ public class file_tests : TestFixture
                 ExternalId: commentExternalId,
                 ContentJson: "{\"text\":\"original\"}"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //when
         await Api.Files.EditComment(
@@ -150,14 +172,16 @@ public class file_tests : TestFixture
             commentExternalId: commentExternalId,
             request: new EditFileCommentRequestDto(ContentJson: "{\"text\":\"edited\"}"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         var details = await Api.Files.GetPreviewDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: file.ExternalId,
             fields: ["comments"],
-            cookie: AppOwner.Cookie);
+            cookie: AppOwner.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         details.Comments.Should().Contain(c =>
             c.ExternalId == commentExternalId &&
@@ -165,11 +189,15 @@ public class file_tests : TestFixture
             c.WasEdited == true);
     }
 
-    [Fact]
-    public async Task when_comment_is_deleted_it_should_not_be_visible_in_preview_details()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task when_comment_is_deleted_it_should_not_be_visible_in_preview_details(
+        StorageEncryptionType encryptionType)
     {
         //given
-        var (file, workspace) = await UploadTestFile();
+        var (file, workspace) = await UploadTestFile(encryptionType);
         var commentExternalId = FileArtifactExtId.NewId();
 
         await Api.Files.CreateComment(
@@ -179,7 +207,8 @@ public class file_tests : TestFixture
                 ExternalId: commentExternalId,
                 ContentJson: "{\"text\":\"to delete\"}"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //when
         await Api.Files.DeleteComment(
@@ -187,14 +216,16 @@ public class file_tests : TestFixture
             fileExternalId: file.ExternalId,
             commentExternalId: commentExternalId,
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         var details = await Api.Files.GetPreviewDetails(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: file.ExternalId,
             fields: ["comments"],
-            cookie: AppOwner.Cookie);
+            cookie: AppOwner.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         details.Comments.Should().NotContain(c =>
             c.ExternalId == commentExternalId);
@@ -202,11 +233,15 @@ public class file_tests : TestFixture
 
     // --- Audit log tests ---
 
-    [Fact]
-    public async Task renaming_file_should_produce_audit_log_entry()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task renaming_file_should_produce_audit_log_entry(
+        StorageEncryptionType encryptionType)
     {
         //given
-        var (file, workspace) = await UploadTestFile();
+        var (file, workspace) = await UploadTestFile(encryptionType);
 
         //when
         await Api.Files.UpdateName(
@@ -214,7 +249,8 @@ public class file_tests : TestFixture
             fileExternalId: file.ExternalId,
             request: new UpdateFileNameRequestDto(Name: "audit-renamed"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.Renamed>(
@@ -229,11 +265,15 @@ public class file_tests : TestFixture
             expectedSeverity: AuditLogSeverities.Info);
     }
 
-    [Fact]
-    public async Task saving_note_should_produce_audit_log_entry()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task saving_note_should_produce_audit_log_entry(
+        StorageEncryptionType encryptionType)
     {
         //given
-        var (file, workspace) = await UploadTestFile();
+        var (file, workspace) = await UploadTestFile(encryptionType);
 
         //when
         await Api.Files.UpdateNote(
@@ -241,7 +281,8 @@ public class file_tests : TestFixture
             fileExternalId: file.ExternalId,
             request: new SaveFileNoteRequestDto(ContentJson: "{\"text\":\"audit note\"}"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.NoteSaved>(
@@ -255,18 +296,23 @@ public class file_tests : TestFixture
             expectedSeverity: AuditLogSeverities.Info);
     }
 
-    [Fact]
-    public async Task saving_note_with_unchanged_content_should_not_produce_audit_log_entry()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task saving_note_with_unchanged_content_should_not_produce_audit_log_entry(
+        StorageEncryptionType encryptionType)
     {
         //given
-        var (file, workspace) = await UploadTestFile();
+        var (file, workspace) = await UploadTestFile(encryptionType);
 
         await Api.Files.UpdateNote(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: file.ExternalId,
             request: new SaveFileNoteRequestDto(ContentJson: "{\"text\":\"same note\"}"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         ClearAuditLog();
 
@@ -276,7 +322,8 @@ public class file_tests : TestFixture
             fileExternalId: file.ExternalId,
             request: new SaveFileNoteRequestDto(ContentJson: "{\"text\":\"same note\"}"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then - no audit log entry should be produced for unchanged content
         await AssertAuditLogDoesNotContain(
@@ -284,11 +331,15 @@ public class file_tests : TestFixture
             expectedActorEmail: AppOwner.Email);
     }
 
-    [Fact]
-    public async Task creating_comment_should_produce_audit_log_entry()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task creating_comment_should_produce_audit_log_entry(
+        StorageEncryptionType encryptionType)
     {
         //given
-        var (file, workspace) = await UploadTestFile();
+        var (file, workspace) = await UploadTestFile(encryptionType);
         var commentExternalId = FileArtifactExtId.NewId();
 
         //when
@@ -299,7 +350,8 @@ public class file_tests : TestFixture
                 ExternalId: commentExternalId,
                 ContentJson: "{\"text\":\"audit comment\"}"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.CommentCreated>(
@@ -314,11 +366,15 @@ public class file_tests : TestFixture
             expectedSeverity: AuditLogSeverities.Info);
     }
 
-    [Fact]
-    public async Task editing_comment_should_produce_audit_log_entry()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task editing_comment_should_produce_audit_log_entry(
+        StorageEncryptionType encryptionType)
     {
         //given
-        var (file, workspace) = await UploadTestFile();
+        var (file, workspace) = await UploadTestFile(encryptionType);
         var commentExternalId = FileArtifactExtId.NewId();
 
         await Api.Files.CreateComment(
@@ -328,7 +384,8 @@ public class file_tests : TestFixture
                 ExternalId: commentExternalId,
                 ContentJson: "{\"text\":\"original\"}"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //when
         await Api.Files.EditComment(
@@ -337,7 +394,8 @@ public class file_tests : TestFixture
             commentExternalId: commentExternalId,
             request: new EditFileCommentRequestDto(ContentJson: "{\"text\":\"edited\"}"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.CommentEdited>(
@@ -352,11 +410,15 @@ public class file_tests : TestFixture
             expectedSeverity: AuditLogSeverities.Info);
     }
 
-    [Fact]
-    public async Task deleting_comment_should_produce_audit_log_entry()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task deleting_comment_should_produce_audit_log_entry(
+        StorageEncryptionType encryptionType)
     {
         //given
-        var (file, workspace) = await UploadTestFile();
+        var (file, workspace) = await UploadTestFile(encryptionType);
         var commentExternalId = FileArtifactExtId.NewId();
 
         await Api.Files.CreateComment(
@@ -366,7 +428,8 @@ public class file_tests : TestFixture
                 ExternalId: commentExternalId,
                 ContentJson: "{\"text\":\"to delete\"}"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //when
         await Api.Files.DeleteComment(
@@ -374,7 +437,8 @@ public class file_tests : TestFixture
             fileExternalId: file.ExternalId,
             commentExternalId: commentExternalId,
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.CommentDeleted>(
@@ -389,12 +453,20 @@ public class file_tests : TestFixture
             expectedSeverity: AuditLogSeverities.Warning);
     }
 
-    [Fact]
-    public async Task updating_file_content_should_produce_audit_log_entry()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task updating_file_content_should_produce_audit_log_entry(
+        StorageEncryptionType encryptionType)
     {
         //given
+        var storage = await CreateHardDriveStorage(
+            user: AppOwner,
+            encryptionType: encryptionType);
+
         var workspace = await CreateWorkspace(
-            storage: Storage,
+            storage: storage,
             user: AppOwner);
 
         var folder = await CreateFolder(
@@ -416,7 +488,8 @@ public class file_tests : TestFixture
             fileExternalId: file.ExternalId,
             content: Encoding.UTF8.GetBytes("# updated markdown"),
             cookie: AppOwner.Cookie,
-            antiforgery: AppOwner.Antiforgery);
+            antiforgery: AppOwner.Antiforgery,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.ContentUpdated>(

@@ -20,24 +20,28 @@ public class upload_and_download_tests : TestFixture
     {
     }
 
-    [Fact]
-    public async Task small_file_upload_and_download_without_encryption_should_return_same_content()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task small_file_upload_and_download_should_return_same_content(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(
             Users.AppOwner);
 
         var storage = await CreateHardDriveStorage(
-            user, 
-            StorageEncryptionType.None);
+            user,
+            encryptionType);
 
         var workspace = await CreateWorkspace(
-            storage, 
+            storage,
             user);
 
         var folder = await CreateFolder(
-            parent: null, 
-            workspace, 
+            parent: null,
+            workspace,
             user);
 
         var originalContent = Encoding.UTF8.GetBytes("Hello, PlikShare integration test!");
@@ -60,63 +64,28 @@ public class upload_and_download_tests : TestFixture
         downloadedContent.Should().BeEquivalentTo(originalContent);
     }
 
-    [Fact]
-    public async Task small_file_upload_and_download_with_encryption_should_return_same_content()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task binary_file_upload_and_download_should_return_same_content(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(
             Users.AppOwner);
 
         var storage = await CreateHardDriveStorage(
-            user, 
-            StorageEncryptionType.Managed);
+            user,
+            encryptionType);
 
         var workspace = await CreateWorkspace(
-            storage, 
+            storage,
             user);
 
         var folder = await CreateFolder(
-            parent: null, 
-            workspace, 
-            user);
-
-        var originalContent = Encoding.UTF8.GetBytes("Hello, PlikShare encrypted integration test!");
-
-        //when
-        var uploadedFile = await UploadFile(
-            content: originalContent,
-            fileName: "encrypted-test-file.txt",
-            contentType: "text/plain",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        var downloadedContent = await DownloadFile(
-            fileExternalId: uploadedFile.ExternalId,
-            workspace: workspace,
-            user: user);
-
-        //then
-        downloadedContent.Should().BeEquivalentTo(originalContent);
-    }
-
-    [Fact]
-    public async Task binary_file_upload_and_download_without_encryption_should_return_same_content()
-    {
-        //given
-        var user = await SignIn(
-            Users.AppOwner);
-
-        var storage = await CreateHardDriveStorage(
-            user, StorageEncryptionType.None);
-
-        var workspace = await CreateWorkspace(
-            storage, 
-            user);
-
-        var folder = await CreateFolder(
-            parent: null, 
-            workspace, 
+            parent: null,
+            workspace,
             user);
 
         var originalContent = new byte[1024];
@@ -140,49 +109,12 @@ public class upload_and_download_tests : TestFixture
         downloadedContent.Should().BeEquivalentTo(originalContent);
     }
 
-    [Fact]
-    public async Task binary_file_upload_and_download_with_encryption_should_return_same_content()
-    {
-        //given
-        var user = await SignIn(
-            Users.AppOwner);
-
-        var storage = await CreateHardDriveStorage(
-            user, 
-            StorageEncryptionType.Managed);
-
-        var workspace = await CreateWorkspace(
-            storage, 
-            user);
-
-        var folder = await CreateFolder(
-            parent: null, 
-            workspace, 
-            user);
-
-        var originalContent = new byte[1024];
-        new Random(42).NextBytes(originalContent);
-
-        //when
-        var uploadedFile = await UploadFile(
-            content: originalContent,
-            fileName: "encrypted-binary-test.bin",
-            contentType: "application/octet-stream",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        var downloadedContent = await DownloadFile(
-            fileExternalId: uploadedFile.ExternalId,
-            workspace: workspace,
-            user: user);
-
-        //then
-        downloadedContent.Should().BeEquivalentTo(originalContent);
-    }
-
-    [Fact]
-    public async Task multiple_files_upload_and_download_without_encryption_should_return_same_content()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task multiple_files_upload_and_download_should_return_same_content(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(
@@ -190,7 +122,7 @@ public class upload_and_download_tests : TestFixture
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.None);
+            encryptionType);
 
         var workspace = await CreateWorkspace(
             storage,
@@ -230,8 +162,12 @@ public class upload_and_download_tests : TestFixture
         downloaded3.Should().BeEquivalentTo(file3Content);
     }
 
-    [Fact]
-    public async Task multiple_files_upload_and_download_with_encryption_should_return_same_content()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task large_file_multistep_upload_and_download_should_return_same_content(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(
@@ -239,7 +175,7 @@ public class upload_and_download_tests : TestFixture
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.Managed);
+            encryptionType);
 
         var workspace = await CreateWorkspace(
             storage,
@@ -250,67 +186,11 @@ public class upload_and_download_tests : TestFixture
             workspace,
             user);
 
-        var file1Content = Encoding.UTF8.GetBytes("Encrypted first file");
-        var file2Content = Encoding.UTF8.GetBytes("Encrypted second file - longer content here");
-        var file3Content = new byte[768];
-        new Random(456).NextBytes(file3Content);
-
-        //when
-        var uploadedFiles = await UploadFiles(
-            files:
-            [
-                (file1Content, "enc-file1.txt", "text/plain"),
-                (file2Content, "enc-file2.txt", "text/plain"),
-                (file3Content, "enc-file3.bin", "application/octet-stream")
-            ],
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        //then
-        uploadedFiles.Should().HaveCount(3);
-
-        var downloaded1 = await DownloadFile(
-            uploadedFiles[0].ExternalId, 
-            workspace,
-            user);
-
-        var downloaded2 = await DownloadFile(
-            uploadedFiles[1].ExternalId,
-            workspace, 
-            user);
-
-        var downloaded3 = await DownloadFile(
-            uploadedFiles[2].ExternalId, 
-            workspace, 
-            user);
-
-        downloaded1.Should().BeEquivalentTo(file1Content);
-        downloaded2.Should().BeEquivalentTo(file2Content);
-        downloaded3.Should().BeEquivalentTo(file3Content);
-    }
-
-    [Fact]
-    public async Task large_file_multistep_upload_and_download_without_encryption_should_return_same_content()
-    {
-        //given
-        var user = await SignIn(
-            Users.AppOwner);
-
-        var storage = await CreateHardDriveStorage(
-            user,
-            StorageEncryptionType.None);
-
-        var workspace = await CreateWorkspace(
-            storage,
-            user);
-
-        var folder = await CreateFolder(
-            parent: null,
-            workspace,
-            user);
-
-        var originalContent = new byte[11 * 1024 * 1024]; // 11MB -> 2 parts
+        // Use a size that aligns with encrypted segment boundaries:
+        // FirstFilePartSizeInBytes (10,485,559) + SegmentsCiphertextSize (1,048,560) = 11,534,119
+        // This ensures part 2 fills exactly one segment, avoiding a Kestrel PipeReader
+        // edge case where ReadAtLeastAsync returns IsCompleted on a partially-consumed buffer.
+        var originalContent = new byte[11_534_119];
         new Random(789).NextBytes(originalContent);
 
         //when
@@ -332,54 +212,12 @@ public class upload_and_download_tests : TestFixture
         downloadedContent.Should().BeEquivalentTo(originalContent);
     }
 
-    [Fact]
-    public async Task large_file_multistep_upload_and_download_with_encryption_should_return_same_content()
-    {
-        //given
-        var user = await SignIn(
-            Users.AppOwner);
-
-        var storage = await CreateHardDriveStorage(
-            user,
-            StorageEncryptionType.Managed);
-
-        var workspace = await CreateWorkspace(
-            storage,
-            user);
-
-        var folder = await CreateFolder(
-            parent: null,
-            workspace,
-            user);
-
-        // Use a size that aligns with encrypted segment boundaries:
-        // FirstFilePartSizeInBytes (10,485,559) + SegmentsCiphertextSize (1,048,560) = 11,534,119
-        // This ensures part 2 fills exactly one segment, avoiding a Kestrel PipeReader
-        // edge case where ReadAtLeastAsync returns IsCompleted on a partially-consumed buffer.
-        var originalContent = new byte[11_534_119];
-        new Random(789).NextBytes(originalContent);
-
-        //when
-        var uploadedFile = await UploadFile(
-            content: originalContent,
-            fileName: "large-encrypted-file.bin",
-            contentType: "application/octet-stream",
-            folder: folder,
-            workspace: workspace,
-            user: user);
-
-        var downloadedContent = await DownloadFile(
-            fileExternalId: uploadedFile.ExternalId,
-            workspace: workspace,
-            user: user);
-
-        //then
-        downloadedContent.Should().HaveCount(originalContent.Length);
-        downloadedContent.Should().BeEquivalentTo(originalContent);
-    }
-
-    [Fact]
-    public async Task large_file_multistep_upload_with_encryption_unaligned_part_should_work()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task large_file_multistep_upload_unaligned_part_should_work(
+        StorageEncryptionType encryptionType)
     {
         // This test reproduces a bug in Aes256GcmStreaming.CopyIntoBufferReadyForInPlaceEncryption:
         // When the HTTP client sends the entire body at once (not streamed in chunks),
@@ -402,7 +240,7 @@ public class upload_and_download_tests : TestFixture
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.Managed);
+            encryptionType);
 
         var workspace = await CreateWorkspace(
             storage,
@@ -419,7 +257,7 @@ public class upload_and_download_tests : TestFixture
         //when
         var uploadedFile = await UploadFile(
             content: originalContent,
-            fileName: "unaligned-encrypted-file.bin",
+            fileName: "unaligned-file.bin",
             contentType: "application/octet-stream",
             folder: folder,
             workspace: workspace,
@@ -435,8 +273,12 @@ public class upload_and_download_tests : TestFixture
         downloadedContent.Should().BeEquivalentTo(originalContent);
     }
 
-    [Fact]
-    public async Task one_byte_file_with_encryption_should_upload_and_download()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task one_byte_file_should_upload_and_download(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(
@@ -444,7 +286,7 @@ public class upload_and_download_tests : TestFixture
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.Managed);
+            encryptionType);
 
         var workspace = await CreateWorkspace(
             storage,
@@ -475,8 +317,12 @@ public class upload_and_download_tests : TestFixture
         downloadedContent.Should().BeEquivalentTo(originalContent);
     }
 
-    [Fact]
-    public async Task file_exactly_one_segment_with_encryption_should_upload_and_download()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task file_exactly_one_segment_should_upload_and_download(
+        StorageEncryptionType encryptionType)
     {
         // FirstSegmentCiphertextSize = SegmentSize - TagSize - HeaderSize
         // This fills exactly the first segment's plaintext capacity — no spill.
@@ -487,7 +333,7 @@ public class upload_and_download_tests : TestFixture
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.Managed);
+            encryptionType);
 
         var workspace = await CreateWorkspace(
             storage,
@@ -521,8 +367,12 @@ public class upload_and_download_tests : TestFixture
         downloadedContent.Should().BeEquivalentTo(originalContent);
     }
 
-    [Fact]
-    public async Task file_one_segment_plus_one_byte_with_encryption_should_upload_and_download()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task file_one_segment_plus_one_byte_should_upload_and_download(
+        StorageEncryptionType encryptionType)
     {
         // FirstSegmentCiphertextSize + 1 → spills 1 byte into segment 2.
         // Tests minimum second-segment plaintext.
@@ -533,7 +383,7 @@ public class upload_and_download_tests : TestFixture
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.Managed);
+            encryptionType);
 
         var workspace = await CreateWorkspace(
             storage,
@@ -567,8 +417,12 @@ public class upload_and_download_tests : TestFixture
         downloadedContent.Should().BeEquivalentTo(originalContent);
     }
 
-    [Fact]
-    public async Task file_exactly_max_single_part_with_encryption_should_upload_and_download()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task file_exactly_max_single_part_should_upload_and_download(
+        StorageEncryptionType encryptionType)
     {
         // FirstFilePartSizeInBytes = 10,485,559 → exactly 10 segments, max single-part file.
         // Tests the boundary: one more byte would trigger multi-step.
@@ -579,7 +433,7 @@ public class upload_and_download_tests : TestFixture
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.Managed);
+            encryptionType);
 
         var workspace = await CreateWorkspace(
             storage,
@@ -612,8 +466,12 @@ public class upload_and_download_tests : TestFixture
         downloadedContent.Should().BeEquivalentTo(originalContent);
     }
 
-    [Fact]
-    public async Task file_one_byte_over_max_single_part_with_encryption_should_upload_and_download()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task file_one_byte_over_max_single_part_should_upload_and_download(
+        StorageEncryptionType encryptionType)
     {
         // FirstFilePartSizeInBytes + 1 → minimum 2-part file.
         // Part 2 has exactly 1 byte of plaintext.
@@ -624,7 +482,7 @@ public class upload_and_download_tests : TestFixture
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.Managed);
+            encryptionType);
 
         var workspace = await CreateWorkspace(
             storage,
@@ -657,8 +515,12 @@ public class upload_and_download_tests : TestFixture
         downloadedContent.Should().BeEquivalentTo(originalContent);
     }
 
-    [Fact]
-    public async Task file_spanning_three_parts_with_encryption_should_upload_and_download()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task file_spanning_three_parts_should_upload_and_download(
+        StorageEncryptionType encryptionType)
     {
         // FirstFilePartSizeInBytes + FilePartSizeInBytes + 1000
         // 3 parts: full part 1, full part 2, small part 3.
@@ -670,7 +532,7 @@ public class upload_and_download_tests : TestFixture
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.Managed);
+            encryptionType);
 
         var workspace = await CreateWorkspace(
             storage,
@@ -708,15 +570,19 @@ public class upload_and_download_tests : TestFixture
 
     // --- Audit log tests ---
 
-    [Fact]
-    public async Task uploading_file_should_produce_upload_bulk_initiated_audit_log_entry()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task uploading_file_should_produce_upload_bulk_initiated_audit_log_entry(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.None);
+            encryptionType);
 
         var workspace = await CreateWorkspace(storage, user);
 
@@ -746,15 +612,19 @@ public class upload_and_download_tests : TestFixture
             expectedSeverity: AuditLogSeverities.Info);
     }
 
-    [Fact]
-    public async Task completing_multistep_upload_should_produce_upload_completed_audit_log_entry()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task completing_multistep_upload_should_produce_upload_completed_audit_log_entry(
+        StorageEncryptionType encryptionType)
     {
         //given - file >10MB triggers MultiStepChunkUpload which calls CompleteUpload
         var user = await SignIn(Users.AppOwner);
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.None);
+            encryptionType);
 
         var workspace = await CreateWorkspace(storage, user);
 
@@ -763,7 +633,8 @@ public class upload_and_download_tests : TestFixture
             workspace,
             user);
 
-        var content = new byte[10 * 1024 * 1024 + 1]; // 10MB + 1 byte → 2 parts
+        // Size aligned for encrypted segments: FirstFilePartSizeInBytes + SegmentsCiphertextSize.
+        var content = new byte[11_534_119];
         new Random(42).NextBytes(content);
 
         //when
@@ -787,15 +658,21 @@ public class upload_and_download_tests : TestFixture
             expectedSeverity: AuditLogSeverities.Info);
     }
 
-    [Fact]
-    public async Task direct_upload_should_produce_multi_file_direct_uploaded_audit_log_entry()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task direct_upload_should_produce_multi_file_direct_uploaded_audit_log_entry(
+        StorageEncryptionType encryptionType)
     {
-        //given - no encryption uses DirectUpload path
+        //given — on HardDrive storage, small files always go through the DirectUpload path
+        // (HardDriveStorageClient.ResolveUploadAlgorithm returns DirectUpload whenever
+        // filePartsCount == 1), regardless of encryption mode.
         var user = await SignIn(Users.AppOwner);
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.None);
+            encryptionType);
 
         var workspace = await CreateWorkspace(storage, user);
 
@@ -825,15 +702,19 @@ public class upload_and_download_tests : TestFixture
             expectedSeverity: AuditLogSeverities.Info);
     }
 
-    [Fact]
-    public async Task downloading_file_should_produce_download_link_generated_audit_log_entry()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task downloading_file_should_produce_download_link_generated_audit_log_entry(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.None);
+            encryptionType);
 
         var workspace = await CreateWorkspace(storage, user);
 
@@ -855,7 +736,8 @@ public class upload_and_download_tests : TestFixture
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
             contentDisposition: "attachment",
-            cookie: user.Cookie);
+            cookie: user.Cookie,
+            fullEncryptionSession: workspace.FullEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.DownloadLinkGenerated>(
@@ -869,15 +751,19 @@ public class upload_and_download_tests : TestFixture
             expectedSeverity: AuditLogSeverities.Info);
     }
 
-    [Fact]
-    public async Task downloading_file_should_produce_file_downloaded_audit_log_entry()
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task downloading_file_should_produce_file_downloaded_audit_log_entry(
+        StorageEncryptionType encryptionType)
     {
         //given
         var user = await SignIn(Users.AppOwner);
 
         var storage = await CreateHardDriveStorage(
             user,
-            StorageEncryptionType.None);
+            encryptionType);
 
         var workspace = await CreateWorkspace(storage, user);
 

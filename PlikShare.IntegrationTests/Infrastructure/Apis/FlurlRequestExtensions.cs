@@ -21,6 +21,18 @@ public static class FlurlRequestExtensions
         return request;
     }
 
+    public static IFlurlRequest WithCookies(
+        this IFlurlRequest request,
+        params Cookie?[] cookies)
+    {
+        foreach (var cookie in cookies)
+        {
+            request = request.WithCookie(cookie);
+        }
+
+        return request;
+    }
+
     public static IFlurlRequest WithHeader(
         this IFlurlRequest request,
         string name,
@@ -73,12 +85,13 @@ public static class FlurlRequestExtensions
         string apiPath,
         Cookie? cookie,
         bool isResponseInProtobuf = false,
-        List<Header>? headers = null)
+        List<Header>? headers = null,
+        Cookie? extraCookie = null)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
-            .WithCookie(cookie)
+            .WithCookies(cookie, extraCookie)
             .WithHeaders(headers)
             .GetAsync();
 
@@ -123,14 +136,15 @@ public static class FlurlRequestExtensions
         AntiforgeryCookies antiforgery,
         bool isRequestInProtobuf = false,
         bool isResponseInProtobuf = false,
-        List<Header>? headers = null)
+        List<Header>? headers = null,
+        Cookie? extraCookie = null)
     {
         var flurlRequest = client
             .Request(appUrl, apiPath)
             .WithAntiforgery(antiforgery)
             .AllowAnyHttpStatus()
             .WithHeaders(headers)
-            .WithCookie(cookie);
+            .WithCookies(cookie, extraCookie);
         
         IFlurlResponse? response;
 
@@ -186,12 +200,13 @@ public static class FlurlRequestExtensions
         TRequest request,
         Cookie? cookie,
         AntiforgeryCookies antiforgery,
-        List<Header>? headers = null)
+        List<Header>? headers = null,
+        Cookie? extraCookie = null)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
-            .WithCookie(cookie)
+            .WithCookies(cookie, extraCookie)
             .WithAntiforgery(antiforgery)
             .WithHeaders(headers)
             .PostJsonAsync(request);
@@ -213,12 +228,13 @@ public static class FlurlRequestExtensions
         TRequest request,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery,
-        List<Header>? headers = null)
+        List<Header>? headers = null,
+        Cookie? extraCookie = null)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
-            .WithCookie(cookie)
+            .WithCookies(cookie, extraCookie)
             .WithAntiforgery(antiforgery)
             .WithHeaders(headers)
             .PatchJsonAsync(request);
@@ -250,12 +266,13 @@ public static class FlurlRequestExtensions
         TRequest request,
         Cookie? cookie,
         AntiforgeryCookies? antiforgery,
-        List<Header>? headers = null)
+        List<Header>? headers = null,
+        Cookie? extraCookie = null)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
-            .WithCookie(cookie)
+            .WithCookies(cookie, extraCookie)
             .WithAntiforgery(antiforgery)
             .WithHeaders(headers)
             .PatchJsonAsync(request);
@@ -303,12 +320,13 @@ public static class FlurlRequestExtensions
         string apiPath,
         Cookie? cookie,
         AntiforgeryCookies? antiforgery,
-        List<Header>? headers = null)
+        List<Header>? headers = null,
+        Cookie? extraCookie = null)
     {
         var response = await client
             .Request(appUrl, apiPath)
             .AllowAnyHttpStatus()
-            .WithCookie(cookie)
+            .WithCookies(cookie, extraCookie)
             .WithAntiforgery(antiforgery)
             .WithHeaders(headers)
             .DeleteAsync();

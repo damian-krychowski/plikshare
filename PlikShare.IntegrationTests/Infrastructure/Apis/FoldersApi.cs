@@ -14,21 +14,24 @@ public class FoldersApi(IFlurlClient flurlClient, string appUrl)
         CreateFolderRequestDto request,
         WorkspaceExtId workspaceExternalId,
         SessionAuthCookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies antiforgery,
+        Cookie? fullEncryptionSession = null)
     {
         return await flurlClient.ExecutePost<CreateFolderResponseDto, CreateFolderRequestDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/folders",
             request: request,
             cookie: cookie,
-            antiforgery: antiforgery);
+            antiforgery: antiforgery,
+            extraCookie: fullEncryptionSession);
     }
 
     public async Task<BulkCreateFolderResponseDto> BulkCreate(
         BulkCreateFolderRequestDto request,
         WorkspaceExtId workspaceExternalId,
         SessionAuthCookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies antiforgery,
+        Cookie? fullEncryptionSession = null)
     {
         return await flurlClient.ExecutePost<BulkCreateFolderResponseDto, BulkCreateFolderRequestDto>(
             appUrl: appUrl,
@@ -37,30 +40,35 @@ public class FoldersApi(IFlurlClient flurlClient, string appUrl)
             cookie: cookie,
             antiforgery: antiforgery,
             isRequestInProtobuf: true,
-            isResponseInProtobuf: true);
+            isResponseInProtobuf: true,
+            extraCookie: fullEncryptionSession);
     }
 
     public async Task<GetTopFolderContentResponseDto> GetTop(
         WorkspaceExtId workspaceExternalId,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        Cookie? fullEncryptionSession = null)
     {
         return await flurlClient.ExecuteGet<GetTopFolderContentResponseDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/folders",
             cookie: cookie,
-            isResponseInProtobuf: true);
+            isResponseInProtobuf: true,
+            extraCookie: fullEncryptionSession);
     }
-    
+
     public async Task<GetFolderContentResponseDto> Get(
         WorkspaceExtId workspaceExternalId,
         FolderExtId folderExternalId,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        Cookie? fullEncryptionSession = null)
     {
         return await flurlClient.ExecuteGet<GetFolderContentResponseDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/folders/{folderExternalId}",
             cookie: cookie,
-            isResponseInProtobuf: true);
+            isResponseInProtobuf: true,
+            extraCookie: fullEncryptionSession);
     }
 
     public async Task UpdateName(
@@ -68,27 +76,31 @@ public class FoldersApi(IFlurlClient flurlClient, string appUrl)
         FolderExtId folderExternalId,
         UpdateFolderNameRequestDto request,
         SessionAuthCookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies antiforgery,
+        Cookie? fullEncryptionSession = null)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/folders/{folderExternalId}/name",
             request: request,
             cookie: cookie,
-            antiforgery: antiforgery);
+            antiforgery: antiforgery,
+            extraCookie: fullEncryptionSession);
     }
 
     public async Task MoveItems(
         WorkspaceExtId workspaceExternalId,
         MoveItemsToFolderRequestDto request,
         SessionAuthCookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies antiforgery,
+        Cookie? fullEncryptionSession = null)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/folders/move-items",
             request: request,
             cookie: cookie,
-            antiforgery: antiforgery);
+            antiforgery: antiforgery,
+            extraCookie: fullEncryptionSession);
     }
 }

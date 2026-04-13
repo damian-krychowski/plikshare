@@ -61,6 +61,169 @@ public class storages_tests : TestFixture
     }
 
     [Fact]
+    public async Task when_storage_is_created_without_encryption_recovery_code_is_not_returned()
+    {
+        //given
+        var storageName = Random.Name("hard-drive");
+
+        //when
+        var hardDrive = await Api.Storages.CreateHardDriveStorage(
+            request: new CreateHardDriveStorageRequestDto(
+                Name: storageName,
+                VolumePath: MainVolume.Path,
+                FolderPath: $"/{storageName}",
+                EncryptionType: StorageEncryptionType.None),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then
+        hardDrive.RecoveryCode.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task when_storage_is_created_with_managed_encryption_recovery_code_is_returned()
+    {
+        //given
+        var storageName = Random.Name("hard-drive");
+
+        //when
+        var hardDrive = await Api.Storages.CreateHardDriveStorage(
+            request: new CreateHardDriveStorageRequestDto(
+                Name: storageName,
+                VolumePath: MainVolume.Path,
+                FolderPath: $"/{storageName}",
+                EncryptionType: StorageEncryptionType.Managed),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then
+        hardDrive.RecoveryCode.Should().NotBeNullOrWhiteSpace();
+
+        var words = hardDrive.RecoveryCode!.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        words.Should().HaveCount(24);
+
+        var allStorages = await Api.Storages.Get(
+            cookie: AppOwner.Cookie);
+
+        allStorages.Items.Should().Contain(s =>
+            s.ExternalId == hardDrive.ExternalId &&
+            s.EncryptionType == StorageEncryptionType.Managed);
+    }
+
+    [Fact]
+    public async Task when_storage_is_created_with_full_encryption_recovery_code_is_returned()
+    {
+        //given
+        var storageName = Random.Name("hard-drive");
+
+        //when
+        var hardDrive = await Api.Storages.CreateHardDriveStorage(
+            request: new CreateHardDriveStorageRequestDto(
+                Name: storageName,
+                VolumePath: MainVolume.Path,
+                FolderPath: $"/{storageName}",
+                EncryptionType: StorageEncryptionType.Full,
+                MasterPassword: "Initial-Password-1!"),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then
+        hardDrive.RecoveryCode.Should().NotBeNullOrWhiteSpace();
+
+        var words = hardDrive.RecoveryCode!.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        words.Should().HaveCount(24);
+
+        var allStorages = await Api.Storages.Get(
+            cookie: AppOwner.Cookie);
+
+        allStorages.Items.Should().Contain(s =>
+            s.ExternalId == hardDrive.ExternalId &&
+            s.EncryptionType == StorageEncryptionType.Full);
+    }
+
+    [Fact]
+    public async Task when_storage_is_created_with_full_encryption_and_no_master_password_it_fails()
+    {
+        //given
+        var storageName = Random.Name("hard-drive");
+
+        //when
+        var apiError = await Assert.ThrowsAsync<TestApiCallException>(
+            async () => await Api.Storages.CreateHardDriveStorage(
+                request: new CreateHardDriveStorageRequestDto(
+                    Name: storageName,
+                    VolumePath: MainVolume.Path,
+                    FolderPath: $"/{storageName}",
+                    EncryptionType: StorageEncryptionType.Full,
+                    MasterPassword: null),
+                cookie: AppOwner.Cookie,
+                antiforgery: AppOwner.Antiforgery));
+
+        //then
+        apiError.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        apiError.HttpError.Should().NotBeNull();
+        apiError.HttpError!.Code.Should().Be("master-password-required");
+    }
+
+    [Fact]
+    public async Task when_storage_is_created_with_full_encryption_and_empty_master_password_it_fails()
+    {
+        //given
+        var storageName = Random.Name("hard-drive");
+
+        //when
+        var apiError = await Assert.ThrowsAsync<TestApiCallException>(
+            async () => await Api.Storages.CreateHardDriveStorage(
+                request: new CreateHardDriveStorageRequestDto(
+                    Name: storageName,
+                    VolumePath: MainVolume.Path,
+                    FolderPath: $"/{storageName}",
+                    EncryptionType: StorageEncryptionType.Full,
+                    MasterPassword: ""),
+                cookie: AppOwner.Cookie,
+                antiforgery: AppOwner.Antiforgery));
+
+        //then
+        apiError.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        apiError.HttpError.Should().NotBeNull();
+        apiError.HttpError!.Code.Should().Be("master-password-required");
+    }
+
+    [Fact]
+    public async Task when_two_full_encryption_storages_are_created_their_recovery_codes_are_different()
+    {
+        //given
+        var storageName1 = Random.Name("hard-drive");
+        var storageName2 = Random.Name("hard-drive");
+
+        //when
+        var hardDrive1 = await Api.Storages.CreateHardDriveStorage(
+            request: new CreateHardDriveStorageRequestDto(
+                Name: storageName1,
+                VolumePath: MainVolume.Path,
+                FolderPath: $"/{storageName1}",
+                EncryptionType: StorageEncryptionType.Full,
+                MasterPassword: "Password-A-1!"),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        var hardDrive2 = await Api.Storages.CreateHardDriveStorage(
+            request: new CreateHardDriveStorageRequestDto(
+                Name: storageName2,
+                VolumePath: MainVolume.Path,
+                FolderPath: $"/{storageName2}",
+                EncryptionType: StorageEncryptionType.Full,
+                MasterPassword: "Password-A-1!"),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then
+        hardDrive1.RecoveryCode.Should().NotBeNullOrWhiteSpace();
+        hardDrive2.RecoveryCode.Should().NotBeNullOrWhiteSpace();
+        hardDrive1.RecoveryCode.Should().NotBe(hardDrive2.RecoveryCode);
+    }
+
+    [Fact]
     public async Task when_workspace_is_created_storage_workspace_count_should_be_increased()
     {
         //given
