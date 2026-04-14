@@ -222,10 +222,7 @@ public class TestTextractConfigurationOperation(
             file: new FileToUploadDetails
             {
                 SizeInBytes = imageBytes.Length,
-                Encryption = new FileEncryption 
-                { 
-                    EncryptionType = StorageEncryptionType.None 
-                },
+                EncryptionMetadata = null,
                 S3FileKey = imageFileKey,
                 S3UploadId = String.Empty
             },

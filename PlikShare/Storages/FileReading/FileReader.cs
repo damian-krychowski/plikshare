@@ -66,7 +66,7 @@ public static class FileReader
 
     public static async ValueTask<IFile> GetFileRange(
         S3FileKey s3FileKey,
-        FileEncryption fileEncryption,
+        FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
         BytesRange range,
         WorkspaceContext workspace,
@@ -78,7 +78,7 @@ public static class FileReader
         {
             HardDriveStorageClient hardDriveStorageClient => HardDriveDownloadOperation.GetFileRange(
                 s3FileKey: s3FileKey,
-                fileEncryption: fileEncryption,
+                fileEncryptionMetadata: fileEncryptionMetadata,
                 fileSizeInBytes: fileSizeInBytes,
                 range: range,
                 bucketName: workspace.BucketName,
@@ -87,7 +87,7 @@ public static class FileReader
 
             S3StorageClient s3StorageClient => await S3DownloadOperation.GetFileRange(
                 s3FileKey: s3FileKey,
-                fileEncryption: fileEncryption,
+                fileEncryption: fileEncryptionMetadata,
                 fileSizeInBytes: fileSizeInBytes,
                 range: range,
                 workspace.BucketName,
@@ -103,7 +103,7 @@ public static class FileReader
     /// <exception cref="OperationCanceledException"></exception>
     public static async Task ReadRange(
         S3FileKey s3FileKey,
-        FileEncryption fileEncryption,
+        FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
         BytesRange range,
         WorkspaceContext workspace,
@@ -113,7 +113,7 @@ public static class FileReader
     {
         await using var file = await GetFileRange(
             s3FileKey,
-            fileEncryption,
+            fileEncryptionMetadata,
             fileSizeInBytes,
             range,
             workspace,

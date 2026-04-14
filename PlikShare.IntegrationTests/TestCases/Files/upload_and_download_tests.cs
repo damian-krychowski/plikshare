@@ -344,7 +344,7 @@ public class upload_and_download_tests : TestFixture
             workspace,
             user);
 
-        var firstSegmentCiphertextSize = Aes256GcmStreaming.SegmentSize - 16 - 41; // 1,048,519
+        var firstSegmentCiphertextSize = Aes256GcmStreamingV1.SegmentSize - 16 - 41; // 1,048,519
         var originalContent = new byte[firstSegmentCiphertextSize];
         new Random(200).NextBytes(originalContent);
 
@@ -394,7 +394,7 @@ public class upload_and_download_tests : TestFixture
             workspace,
             user);
 
-        var firstSegmentCiphertextSize = Aes256GcmStreaming.SegmentSize - 16 - 41;
+        var firstSegmentCiphertextSize = Aes256GcmStreamingV1.SegmentSize - 16 - 41;
         var originalContent = new byte[firstSegmentCiphertextSize + 1];
         new Random(201).NextBytes(originalContent);
 
@@ -444,7 +444,7 @@ public class upload_and_download_tests : TestFixture
             workspace,
             user);
 
-        var originalContent = new byte[Aes256GcmStreaming.FirstFilePartSizeInBytes];
+        var originalContent = new byte[Aes256GcmStreamingV1.FirstFilePartSizeInBytes];
         new Random(202).NextBytes(originalContent);
 
         //when
@@ -493,7 +493,7 @@ public class upload_and_download_tests : TestFixture
             workspace,
             user);
 
-        var originalContent = new byte[Aes256GcmStreaming.FirstFilePartSizeInBytes + 1];
+        var originalContent = new byte[Aes256GcmStreamingV1.FirstFilePartSizeInBytes + 1];
         new Random(203).NextBytes(originalContent);
 
         //when
@@ -544,8 +544,8 @@ public class upload_and_download_tests : TestFixture
             user);
 
         var originalContent = new byte[
-            Aes256GcmStreaming.FirstFilePartSizeInBytes +
-            Aes256GcmStreaming.FilePartSizeInBytes +
+            Aes256GcmStreamingV1.FirstFilePartSizeInBytes +
+            Aes256GcmStreamingV1.FilePartSizeInBytes +
             1000];
         new Random(204).NextBytes(originalContent);
 

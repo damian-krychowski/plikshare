@@ -134,7 +134,7 @@ public class HardDriveBulkDownloadOperation(IClock clock)
                             "Starting encrypted file transfer for {FileName} using AES-256-GCM",
                             file.FullName);
 
-                        await Aes256GcmStreaming.Decrypt(
+                        await Aes256GcmStreamingV1.Decrypt(
                             getEncryptionKeyFunc: hardDriveStorage.GetEncryptionKeyFunc(
                                 fullEncryptionSession),
                             fileSizeInBytes: file.SizeInBytes,

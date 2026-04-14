@@ -124,7 +124,7 @@ public static class ZipEntryReader
         var readTask = readTaskContinuationState.Execute(
             @try: () => FileReader.ReadRange(
                 s3FileKey: s3FileKey,
-                fileEncryption: file.Encryption,
+                fileEncryptionMetadata: file.EncryptionMetadata,
                 fileSizeInBytes: file.SizeInBytes,
                 range: reasonableFileRange,
                 workspace: workspace,
@@ -164,7 +164,7 @@ public static class ZipEntryReader
                 readTask = readTaskContinuationState.ContinueWith(
                     continuationFunction: () => FileReader.ReadRange(
                         s3FileKey: s3FileKey,
-                        fileEncryption: file.Encryption,
+                        fileEncryptionMetadata: file.EncryptionMetadata,
                         fileSizeInBytes: file.SizeInBytes,
                         range: missingBytesRange,
                         workspace: workspace,

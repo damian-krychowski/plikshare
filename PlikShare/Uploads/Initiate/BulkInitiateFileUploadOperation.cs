@@ -329,7 +329,7 @@ public class BulkInitiateFileUploadOperation(
                     {
                         Algorithm = algorithm,
                         FilePartsCount = filePartsCount,
-                        FileEncryption = s3StorageClient.GenerateFileEncryptionDetails(),
+                        FileEncryptionMetadata = s3StorageClient.GenerateFileEncryptionMetadata(),
 
                         PreSignedUploadLink = null,
                         S3UploadId = string.Empty,
@@ -403,7 +403,7 @@ public class BulkInitiateFileUploadOperation(
                         {
                             Algorithm = algorithm,
                             FilePartsCount = filePartsCount,
-                            FileEncryption = s3StorageClient.GenerateFileEncryptionDetails(),
+                            FileEncryptionMetadata = s3StorageClient.GenerateFileEncryptionMetadata(),
 
                             PreSignedUploadLink = preSignedUploadLink,
                             S3UploadId = s3UploadId,
@@ -444,9 +444,9 @@ public class BulkInitiateFileUploadOperation(
                 S3KeySecretPart = bu.S3Key.S3KeySecretPart,
 
                 S3UploadId = bu.StorageUploadDetails.S3UploadId,
-                EncryptionKeyVersion = bu.StorageUploadDetails.FileEncryption.Metadata?.KeyVersion,
-                EncryptionSalt = bu.StorageUploadDetails.FileEncryption.Metadata?.Salt,
-                EncryptionNoncePrefix = bu.StorageUploadDetails.FileEncryption.Metadata?.NoncePrefix,
+                EncryptionKeyVersion = bu.StorageUploadDetails.FileEncryptionMetadata.Metadata?.KeyVersion,
+                EncryptionSalt = bu.StorageUploadDetails.FileEncryptionMetadata.Metadata?.Salt,
+                EncryptionNoncePrefix = bu.StorageUploadDetails.FileEncryptionMetadata.Metadata?.NoncePrefix,
 
                 FileMetadataBlob = null,
                 ParentFileId = null
@@ -513,7 +513,7 @@ public class BulkInitiateFileUploadOperation(
                     FileToUpload = new FileToUploadDetails
                     {
                         SizeInBytes = upload.SizeInBytes,
-                        Encryption = upload.StorageUploadDetails.FileEncryption,
+                        EncryptionMetadata = upload.StorageUploadDetails.FileEncryptionMetadata,
                         S3FileKey = upload.S3Key,
                         S3UploadId = upload.StorageUploadDetails.S3UploadId,
                     },

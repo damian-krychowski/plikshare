@@ -3,8 +3,6 @@ using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
 using PlikShare.Files.Records;
-using PlikShare.Storages;
-using PlikShare.Storages.Encryption;
 
 namespace PlikShare.Files.PreSignedLinks.Validation;
 
@@ -34,6 +32,8 @@ public class GetFilePreSignedDownloadLinkDetailsQuery(PlikShareDb plikShareDb)
                         fi.fi_encryption_key_version,
                         fi.fi_encryption_salt,
                         fi.fi_encryption_nonce_prefix,
+                        fi.fi_encryption_chain_salts,
+                        fi.fi_encryption_format_version,
                         (
                             SELECT json_group_array(json_object(
                                 'name', sub.fo_name,
@@ -65,22 +65,18 @@ public class GetFilePreSignedDownloadLinkDetailsQuery(PlikShareDb plikShareDb)
                         S3KeySecretPart = reader.GetString(3),
                         SizeInBytes = reader.GetInt64(4),
                         WorkspaceId = reader.GetInt32(5),
-                        Encryption = encryptionKeyVersion is null
-                            ? new FileEncryption
+                        EncryptionMetadata = encryptionKeyVersion is null
+                            ? null
+                            : new FileEncryptionMetadata
                             {
-                                EncryptionType = StorageEncryptionType.None
-                            }
-                            : new FileEncryption
-                            {
-                                EncryptionType = StorageEncryptionType.Managed,
-                                Metadata = new FileEncryptionMetadata
-                                {
-                                    KeyVersion = encryptionKeyVersion.Value,
-                                    Salt = reader.GetFieldValue<byte[]>(7),
-                                    NoncePrefix = reader.GetFieldValue<byte[]>(8)
-                                }
+                                KeyVersion = encryptionKeyVersion.Value,
+                                Salt = reader.GetFieldValue<byte[]>(7),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(8),
+                                ChainStepSalts = KeyDerivationChain.Deserialize(
+                                    reader.GetFieldValueOrNull<byte[]>(9)),
+                                FormatVersion = reader.GetByteOrNull(10) ?? 1
                             },
-                        FolderAncestors = reader.GetFromJsonOrNull<FileRecordFolderAncestor[]>(9) ?? []
+                        FolderAncestors = reader.GetFromJsonOrNull<FileRecordFolderAncestor[]>(11) ?? []
                     };
                 })
             .WithParameter("$externalId", fileExternalId.Value)

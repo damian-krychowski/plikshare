@@ -18,17 +18,15 @@ public static class FileWriter
 {
     public static async Task<FilePartUploadResult> Write(
         FileToUploadDetails file,
-        FilePartDetails part,
+        FilePartUpload part,
         WorkspaceContext workspace,
         FullEncryptionSession? fullEncryptionSession,
         PipeReader input,
         CancellationToken cancellationToken)
     {
-        var heapBufferSize = file.Encryption.EncryptionType == StorageEncryptionType.None
-            ? part.SizeInBytes
-            : Aes256GcmStreaming.CalculateEncryptedPartSize(
-                part.SizeInBytes, 
-                part.Number);
+        var heapBufferSize = file
+            .EncryptionMetadata
+            .CalculateBufferSize(part.Part);
 
         var heapBuffer = ArrayPool<byte>.Shared.Rent(
             minimumLength: heapBufferSize);
@@ -39,19 +37,31 @@ public static class FileWriter
 
         try
         {
-            if (file.Encryption.EncryptionType == StorageEncryptionType.None)
+            if (file.EncryptionMetadata is null)
             {
                 await input.CopyTo(
                     output: heapBufferMemory, 
-                    sizeInBytes: part.SizeInBytes, 
+                    sizeInBytes: part.Part.SizeInBytes, 
                     cancellationToken: cancellationToken);
             }
-            else
+            else if (file.EncryptionMetadata.FormatVersion == 1)
             {
                 await input.CopyIntoBufferReadyForInPlaceEncryption(
                     output: heapBufferMemory,
-                    partSizeInBytes: part.SizeInBytes,
-                    partNumber: part.Number);
+                    filePart: part.Part);
+            }
+            else if (file.EncryptionMetadata.FormatVersion == 2)
+            {
+                await input.CopyIntoBufferReadyForInPlaceEncryption(
+                    output: heapBufferMemory,
+                    filePart: part.Part,
+                    chainStepsCount: file.EncryptionMetadata.ChainStepSalts.Count);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported file encryption format version '{file.EncryptionMetadata.FormatVersion}' " +
+                    $"for file '{file.S3FileKey.FileExternalId}'.");
             }
 
             return await Upload(
@@ -67,16 +77,16 @@ public static class FileWriter
             ArrayPool<byte>.Shared.Return(heapBuffer);
         }
     }
-
+    
     public static async Task<FilePartUploadResult> Write(
         FileToUploadDetails file,
-        FilePartDetails part,
+        FilePartUpload part,
         WorkspaceContext workspace,        
         FullEncryptionSession? fullEncryptionSession,
         byte[] input,
         CancellationToken cancellationToken)
     {
-        if (file.Encryption.EncryptionType == StorageEncryptionType.None)
+        if (file.EncryptionMetadata is null)
         {
             return await Upload(
                 fileBytes: input,
@@ -87,22 +97,40 @@ public static class FileWriter
                 cancellationToken: cancellationToken);
         }
 
-        var heapBufferSize = Aes256GcmStreaming.CalculateEncryptedPartSize(
-            part.SizeInBytes,
-            part.Number);
+        var heapBufferSize = file
+            .EncryptionMetadata
+            .CalculateBufferSize(part.Part);
 
         var heapBuffer = ArrayPool<byte>.Shared.Rent(
             minimumLength: heapBufferSize);
 
-        var heapBufferMemory = heapBuffer.AsMemory().Slice(0, heapBufferSize);
+        var heapBufferMemory = heapBuffer
+            .AsMemory()
+            .Slice(0, heapBufferSize);
 
         try
         {
-            Aes256GcmStreaming.CopyIntoBufferReadyForInPlaceEncryption(
-                input: input,
-                output: heapBufferMemory,
-                partSizeInBytes: part.SizeInBytes,
-                partNumber: part.Number);
+            if (file.EncryptionMetadata.FormatVersion == 1)
+            {
+                Aes256GcmStreamingV1.CopyIntoBufferReadyForInPlaceEncryption(
+                    input: input,
+                    output: heapBufferMemory,
+                    filePart: part.Part);
+            }
+            else if (file.EncryptionMetadata.FormatVersion == 2)
+            {
+                Aes256GcmStreamingV2.CopyIntoBufferReadyForInPlaceEncryption(
+                    input: input,
+                    output: heapBufferMemory,
+                    filePart: part.Part,
+                    chainStepsCount: file.EncryptionMetadata.ChainStepSalts.Count);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported file encryption format version '{file.EncryptionMetadata.FormatVersion}' " +
+                    $"for file '{file.S3FileKey.FileExternalId}'.");
+            }
 
             return await Upload(
                 fileBytes: heapBufferMemory,
@@ -121,7 +149,7 @@ public static class FileWriter
     private static async Task<FilePartUploadResult> Upload(
         Memory<byte> fileBytes,
         FileToUploadDetails file,
-        FilePartDetails part,
+        FilePartUpload part,
         WorkspaceContext workspace,
         FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken)

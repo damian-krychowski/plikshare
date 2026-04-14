@@ -213,7 +213,9 @@ public class CopyFileQueueJobExecutor(
                         fu_s3_upload_id,
                         fu_encryption_key_version,
                         fu_encryption_salt,
-                        fu_encryption_nonce_prefix
+                        fu_encryption_nonce_prefix,
+                        fu_encryption_chain_salts,
+                        fu_encryption_format_version
                     FROM cfq_copy_file_queue
                     INNER JOIN fu_file_uploads
                         ON fu_id = cfq_file_upload_id
@@ -247,20 +249,16 @@ public class CopyFileQueueJobExecutor(
                             S3KeySecretPart = reader.GetString(9),
                         },
                         S3UploadId = reader.GetString(10),
-                        NewFileEncryption = encryptionKey is null
-                            ? new FileEncryption
+                        NewFileEncryptionMetadata = encryptionKey is null
+                            ? null
+                            : new FileEncryptionMetadata
                             {
-                                EncryptionType = StorageEncryptionType.None
-                            }
-                            : new FileEncryption
-                            {
-                                EncryptionType = StorageEncryptionType.Managed,
-                                Metadata = new FileEncryptionMetadata
-                                {
-                                    KeyVersion = encryptionKey.Value,
-                                    Salt = reader.GetFieldValue<byte[]>(12),
-                                    NoncePrefix = reader.GetFieldValue<byte[]>(13)
-                                }
+                                KeyVersion = encryptionKey.Value,
+                                Salt = reader.GetFieldValue<byte[]>(12),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(13),
+                                ChainStepSalts = KeyDerivationChain.Deserialize(
+                                    reader.GetFieldValueOrNull<byte[]>(14)),
+                                FormatVersion = reader.GetByteOrNull(15) ?? 1
                             },
                     };
                 })
@@ -337,12 +335,12 @@ public class CopyFileQueueJobExecutor(
                 {
                     S3FileKey = job.NewS3FileKey,
                     SizeInBytes = job.FileSizeInBytes,
-                    Encryption = job.NewFileEncryption,
+                    EncryptionMetadata = job.NewFileEncryptionMetadata,
                     S3UploadId = job.S3UploadId
                 },
-                part: FilePartDetails.First(
+                part: FilePartUpload.First(
                     sizeInBytes: (int)job.FileSizeInBytes,
-                    uploadAlgorithm: UploadAlgorithm.DirectUpload),
+                    algorithm: UploadAlgorithm.DirectUpload),
                 workspace: destinationWorkspace,
                 fullEncryptionSession: null, //todo KEK not available in queue jobs yet
                 input: input,
@@ -383,12 +381,11 @@ public class CopyFileQueueJobExecutor(
                     {
                         S3FileKey = job.NewS3FileKey,
                         SizeInBytes = job.FileSizeInBytes,
-                        Encryption = job.NewFileEncryption,
+                        EncryptionMetadata = job.NewFileEncryptionMetadata,
                         S3UploadId = job.S3UploadId
                     },
-                    part: new FilePartDetails(
-                        Number: partNumber,
-                        SizeInBytes: partSizeInBytes,
+                    part: new FilePartUpload(
+                        Part: new FilePart(partNumber, partSizeInBytes),
                         UploadAlgorithm: UploadAlgorithm.MultiStepChunkUpload),
                     workspace: destinationWorkspace,
                     fullEncryptionSession: null, //todo full encryption session not available (KEK not available in queue jobs yet)

@@ -113,7 +113,7 @@ public class S3BulkDownloadOperation
                             "Starting encrypted file transfer for {FileName} using AES-256-GCM",
                             file.FullName);
 
-                        await Aes256GcmStreaming.Decrypt(
+                        await Aes256GcmStreamingV1.Decrypt(
                             getEncryptionKeyFunc: s3StorageClient.GetEncryptionKeyFunc(
                                 fullEncryptionSession),
                             fileSizeInBytes: file.SizeInBytes,

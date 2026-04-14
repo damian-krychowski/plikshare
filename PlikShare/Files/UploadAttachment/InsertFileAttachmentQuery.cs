@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Files.Id;
@@ -113,9 +114,9 @@ public class InsertFileAttachmentQuery(
                 .WithParameter("$uploaderIdentityType", uploader.IdentityType)
                 .WithParameter("$uploaderIdentity", uploader.Identity)
                 .WithParameter("$createdAt", clock.UtcNow)
-                .WithParameter("$encryptionKeyVersion", attachment.Encryption.Metadata?.KeyVersion)
-                .WithParameter("$encryptionSalt", attachment.Encryption.Metadata?.Salt)
-                .WithParameter("$encryptionNoncePrefix", attachment.Encryption.Metadata?.NoncePrefix)
+                .WithParameter("$encryptionKeyVersion", attachment.EncryptionMetadata?.KeyVersion)
+                .WithParameter("$encryptionSalt", attachment.EncryptionMetadata?.Salt)
+                .WithParameter("$encryptionNoncePrefix", attachment.EncryptionMetadata?.NoncePrefix)
                 .ExecuteOrThrow();
 
             if (result.ParentId is null)
@@ -182,6 +183,6 @@ public class InsertFileAttachmentQuery(
         public required string ContentType { get; init; }
         public required string S3KeySecretPart { get; init; }
         public required long SizeInBytes { get; init; }
-        public required FileEncryption Encryption { get; init; }
+        public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
     }
 }

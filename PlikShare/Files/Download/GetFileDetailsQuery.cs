@@ -29,6 +29,8 @@ public class GetFileDetailsQuery(PlikShareDb plikShareDb)
                         fi.fi_encryption_key_version,
                         fi.fi_encryption_salt,
                         fi.fi_encryption_nonce_prefix,
+                        fi.fi_encryption_chain_salts,
+                        fi.fi_encryption_format_version,
                         (
                             SELECT json_group_array(json_object(
                                 'name', sub.fo_name,
@@ -78,22 +80,18 @@ public class GetFileDetailsQuery(PlikShareDb plikShareDb)
                         S3KeySecretPart = reader.GetString(3),
                         SizeInBytes = reader.GetInt64(4),
                         WorkspaceId = workspaceId,
-                        Encryption = encryptionKeyVersion is null
-                            ? new FileEncryption
+                        EncryptionMetadata = encryptionKeyVersion is null
+                            ? null
+                            : new FileEncryptionMetadata
                             {
-                                EncryptionType = StorageEncryptionType.None
-                            }
-                            : new FileEncryption
-                            {
-                                EncryptionType = StorageEncryptionType.Managed,
-                                Metadata = new FileEncryptionMetadata
-                                {
-                                    KeyVersion = encryptionKeyVersion.Value,
-                                    Salt = reader.GetFieldValue<byte[]>(6),
-                                    NoncePrefix = reader.GetFieldValue<byte[]>(7)
-                                }
+                                KeyVersion = encryptionKeyVersion.Value,
+                                Salt = reader.GetFieldValue<byte[]>(6),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(7),
+                                ChainStepSalts = KeyDerivationChain.Deserialize(
+                                    reader.GetFieldValueOrNull<byte[]>(8)),
+                                FormatVersion = reader.GetByteOrNull(9) ?? 1
                             },
-                        FolderAncestors = reader.GetFromJsonOrNull<FileRecordFolderAncestor[]>(8) ?? []
+                        FolderAncestors = reader.GetFromJsonOrNull<FileRecordFolderAncestor[]>(10) ?? []
                     };
                 })
             .WithParameter("$workspaceId", workspaceId)

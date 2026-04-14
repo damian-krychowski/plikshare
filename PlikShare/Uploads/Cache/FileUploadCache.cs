@@ -113,6 +113,8 @@ public class FileUploadCache(
                          fu.fu_encryption_key_version,
                          fu.fu_encryption_salt,
                          fu.fu_encryption_nonce_prefix,
+                         fu.fu_encryption_chain_salts,
+                         fu.fu_encryption_format_version,
                          fu.fu_workspace_id,
                          fu.fu_owner_identity,
                          fu.fu_owner_identity_type,
@@ -151,31 +153,27 @@ public class FileUploadCache(
                                 FileExternalId = reader.GetExtId<FileExtId>(1),
                                 S3KeySecretPart = reader.GetString(4),
                             },
-                            Encryption = encryptionKeyVersion is null
-                                ? new FileEncryption
+                            EncryptionMetadata = encryptionKeyVersion is null
+                                ? null
+                                : new FileEncryptionMetadata
                                 {
-                                    EncryptionType = StorageEncryptionType.None
-                                }
-                                : new FileEncryption
-                                {
-                                    EncryptionType = StorageEncryptionType.Managed,
-                                    Metadata = new FileEncryptionMetadata
-                                    {
-                                        KeyVersion = encryptionKeyVersion.Value,
-                                        Salt = reader.GetFieldValue<byte[]>(7),
-                                        NoncePrefix = reader.GetFieldValue<byte[]>(8)
-                                    }
+                                    KeyVersion = encryptionKeyVersion.Value,
+                                    Salt = reader.GetFieldValue<byte[]>(7),
+                                    NoncePrefix = reader.GetFieldValue<byte[]>(8),
+                                    ChainStepSalts = KeyDerivationChain.Deserialize(
+                                        reader.GetFieldValueOrNull<byte[]>(9)),
+                                    FormatVersion = reader.GetByteOrNull(10) ?? 1
                                 },
                             SizeInBytes = reader.GetInt64(3),
                             S3UploadId = reader.GetString(5),
                         },
                         ContentType = reader.GetString(2),
-                        WorkspaceId = reader.GetInt32(9),
-                        OwnerIdentity = reader.GetString(10),
-                        OwnerIdentityType = reader.GetString(11),
-                        FileName = reader.GetString(12),
-                        FileExtension = reader.GetString(13),
-                        FolderAncestors = reader.GetFromJsonOrNull<CachedFolderAncestor[]>(14) ?? []
+                        WorkspaceId = reader.GetInt32(11),
+                        OwnerIdentity = reader.GetString(12),
+                        OwnerIdentityType = reader.GetString(13),
+                        FileName = reader.GetString(14),
+                        FileExtension = reader.GetString(15),
+                        FolderAncestors = reader.GetFromJsonOrNull<CachedFolderAncestor[]>(16) ?? []
                     };
                 })
             .WithParameter("$fileUploadExternalId", externalId.Value)
@@ -247,7 +245,7 @@ public sealed class FileUploadContext
 public sealed class FileToUploadDetails
 {
     public required S3FileKey S3FileKey { get; init; }
-    public required FileEncryption Encryption { get; init; }
+    public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
     public required string S3UploadId { get; init; }
     public required long SizeInBytes { get; init; }
 }

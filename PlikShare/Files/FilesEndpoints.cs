@@ -92,7 +92,7 @@ public static class FilesEndpoints
     }
 
 
-    private const int MaximumFileUploadPayloadSizeInBytes = Aes256GcmStreaming.MaximumPayloadSize;
+    private const int MaximumFileUploadPayloadSizeInBytes = Aes256GcmStreamingV1.MaximumPayloadSize;
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UploadFileAttachment(
     [FromRoute] FileExtId fileExternalId,
@@ -141,7 +141,7 @@ public static class FilesEndpoints
             Extension = fileName.Extension,
             SizeInBytes = file.Length,
             S3KeySecretPart = workspace.Storage.GenerateFileS3KeySecretPart(),
-            Encryption = workspace.Storage.GenerateFileEncryptionDetails()
+            EncryptionMetadata = workspace.Storage.GenerateFileEncryptionMetadata()
         };
 
         var attachmentInsertionResult = await insertFileAttachmentQuery.Execute(
@@ -160,7 +160,7 @@ public static class FilesEndpoints
             file: new FileToUploadDetails
             {
                 SizeInBytes = attachment.SizeInBytes,
-                Encryption = attachment.Encryption,
+                EncryptionMetadata = attachment.EncryptionMetadata,
                 S3FileKey = new S3FileKey
                 {
                     S3KeySecretPart = attachment.S3KeySecretPart,
@@ -168,9 +168,9 @@ public static class FilesEndpoints
                 },
                 S3UploadId = string.Empty,
             },
-            part: FilePartDetails.First(
+            part: FilePartUpload.First(
                 sizeInBytes: (int) attachment.SizeInBytes, //the cast is ok because attachment imported here has a size limit
-                uploadAlgorithm: UploadAlgorithm.DirectUpload),
+                algorithm: UploadAlgorithm.DirectUpload),
             workspace: workspaceMembership.Workspace,
             fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
             input: PipeReader.Create(
@@ -232,7 +232,7 @@ public static class FilesEndpoints
             file: new FileToUploadDetails
             {
                 SizeInBytes = newSizeInBytes,
-                Encryption = file.Details.Encryption,
+                EncryptionMetadata = file.Details.EncryptionMetadata,
                 S3FileKey = new S3FileKey
                 {
                     S3KeySecretPart = file.Details.S3KeySecretPart,
@@ -240,9 +240,9 @@ public static class FilesEndpoints
                 },
                 S3UploadId = string.Empty,
             },
-            part: FilePartDetails.First(
+            part: FilePartUpload.First(
                 sizeInBytes: newSizeInBytes,
-                uploadAlgorithm: UploadAlgorithm.DirectUpload),
+                algorithm: UploadAlgorithm.DirectUpload),
             workspace: workspaceMembership.Workspace,
             fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
             input: httpContext.Request.BodyReader,

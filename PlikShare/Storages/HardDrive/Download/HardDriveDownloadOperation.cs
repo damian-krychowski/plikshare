@@ -14,6 +14,7 @@ public class HardDriveDownloadOperation
 {
     private class HdFile(
         S3FileKey s3FileKey,
+        FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
         string filePath,
         FullEncryptionSession? fullEncryptionSession,
@@ -28,7 +29,7 @@ public class HardDriveDownloadOperation
             
             try
             {
-                if (hardDriveStorageClient.EncryptionType == StorageEncryptionType.None)
+                if (fileEncryptionMetadata is null)
                 {
                     Logger.Debug(
                         "Starting unencrypted file transfer for {FileExternalId}",
@@ -47,15 +48,22 @@ public class HardDriveDownloadOperation
                         streamDuration.TotalMilliseconds,
                         streamSpeed / 1024.0 / 1024.0);
                 }
-                else
+                else if (fileEncryptionMetadata.FormatVersion == 1)
                 {
                     Logger.Debug(
                         "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
                         s3FileKey.FileExternalId);
                     
-                    await Aes256GcmStreaming.Decrypt(
-                        getEncryptionKeyFunc: hardDriveStorageClient.GetEncryptionKeyFunc(
-                            fullEncryptionSession),
+                    var ikm = hardDriveStorageClient.GetEncryptionKey(
+                        version: fileEncryptionMetadata.KeyVersion,
+                        fullEncryptionSession: fullEncryptionSession);
+
+                    await Aes256GcmStreamingV1.Decrypt(
+                        fileAesInputs: new FileAesInputsV1(
+                            Ikm: ikm,
+                            KeyVersion: fileEncryptionMetadata.KeyVersion,
+                            Salt: fileEncryptionMetadata.Salt,
+                            NoncePrefix: fileEncryptionMetadata.NoncePrefix),
                         fileSizeInBytes: fileSizeInBytes,
                         input: PipeReader.Create(
                             stream,
@@ -73,6 +81,49 @@ public class HardDriveDownloadOperation
                         fileSizeInBytes,
                         decryptDuration.TotalMilliseconds,
                         decryptSpeed / 1024.0 / 1024.0);
+                }
+                else if (fileEncryptionMetadata.FormatVersion == 2)
+                {
+                    Logger.Debug(
+                        "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
+                        s3FileKey.FileExternalId);
+
+                    var ikm = KeyDerivationChain.Derive(
+                        startingDek: hardDriveStorageClient.GetEncryptionKey(
+                            version: fileEncryptionMetadata.KeyVersion,
+                            fullEncryptionSession: fullEncryptionSession),
+                        stepSalts: fileEncryptionMetadata.ChainStepSalts);
+
+                    await Aes256GcmStreamingV2.Decrypt(
+                        fileAesInputs: new FileAesInputsV2(
+                            Ikm: ikm,
+                            KeyVersion: fileEncryptionMetadata.KeyVersion,
+                            ChainStepSalts: fileEncryptionMetadata.ChainStepSalts,
+                            Salt: fileEncryptionMetadata.Salt,
+                            NoncePrefix: fileEncryptionMetadata.NoncePrefix),
+                        fileSizeInBytes: fileSizeInBytes,
+                        input: PipeReader.Create(
+                            stream,
+                            new StreamPipeReaderOptions(
+                                bufferSize: PlikShareStreams.DefaultBufferSize,
+                                leaveOpen: false)),
+                        output: output,
+                        cancellationToken);
+
+                    var decryptDuration = DateTime.UtcNow - startTime;
+                    var decryptSpeed = fileSizeInBytes / Math.Max(1, decryptDuration.TotalSeconds);
+
+                    Logger.Debug(
+                        "Completed encrypted file transfer: {FileSize:N0} bytes in {DurationMs}ms. Speed: {Speed:N2} MB/s",
+                        fileSizeInBytes,
+                        decryptDuration.TotalMilliseconds,
+                        decryptSpeed / 1024.0 / 1024.0);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"Unsupported file encryption format version '{fileEncryptionMetadata.FormatVersion}' " +
+                        $"for file '{s3FileKey.FileExternalId}'.");
                 }
 
                 var totalDuration = DateTime.UtcNow - startTime;
@@ -141,7 +192,7 @@ public class HardDriveDownloadOperation
     private class HdFileRange(
         S3FileKey s3FileKey,
         long fileSizeInBytes,
-        FileEncryption fileEncryption,
+        FileEncryptionMetadata? fileEncryptionMetadata,
         BytesRange range,
         string filePath,
         FullEncryptionSession? fullEncryptionSession,
@@ -161,7 +212,7 @@ public class HardDriveDownloadOperation
                     s3FileKey.FileExternalId,
                     fileSizeInBytes);
 
-                if (hardDriveStorageClient.EncryptionType == StorageEncryptionType.None)
+                if (fileEncryptionMetadata is null)
                 {
                     Logger.Debug(
                         "Starting unencrypted file transfer for {FileExternalId}",
@@ -189,22 +240,28 @@ public class HardDriveDownloadOperation
                         streamDuration.TotalMilliseconds,
                         streamSpeed / 1024.0 / 1024.0);
                 }
-                else 
+                else if (fileEncryptionMetadata.FormatVersion == 1)
                 {
                     Logger.Debug(
                         "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
                         s3FileKey.FileExternalId);
                     
-                    var encryptedRange = Aes256GcmStreaming.EncryptedBytesRangeCalculator.FromUnencryptedRange(
+                    var encryptedRange = Aes256GcmStreamingV1.EncryptedBytesRangeCalculator.FromUnencryptedRange(
                         unencryptedRange: range,
                         unencryptedFileSize: fileSizeInBytes);
                     
                     stream.Seek(encryptedRange.FirstSegment.Start, SeekOrigin.Begin);
 
-                    await Aes256GcmStreaming.DecryptRange(
-                        getEncryptionKeyFunc: hardDriveStorageClient.GetEncryptionKeyFunc(
-                            fullEncryptionSession),
-                        encryptionMetadata: fileEncryption.Metadata!,
+                    var ikm = hardDriveStorageClient.GetEncryptionKey(
+                        version: fileEncryptionMetadata.KeyVersion,
+                        fullEncryptionSession: fullEncryptionSession);
+
+                    await Aes256GcmStreamingV1.DecryptRange(
+                        fileAesInputs: new FileAesInputsV1(
+                            Ikm: ikm,
+                            KeyVersion: fileEncryptionMetadata.KeyVersion,
+                            Salt: fileEncryptionMetadata.Salt,
+                            NoncePrefix: fileEncryptionMetadata.NoncePrefix),
                         range: encryptedRange,
                         fileSizeInBytes: fileSizeInBytes,
                         input: PipeReader.Create(
@@ -215,6 +272,50 @@ public class HardDriveDownloadOperation
                         output: output,
                         cancellationToken);
 
+                    var decryptDuration = DateTime.UtcNow - startTime;
+                    var decryptSpeed = fileSizeInBytes / Math.Max(1, decryptDuration.TotalSeconds);
+
+                    Logger.Debug(
+                        "Completed encrypted file transfer: {FileSize:N0} bytes in {DurationMs}ms. Speed: {Speed:N2} MB/s",
+                        fileSizeInBytes,
+                        decryptDuration.TotalMilliseconds,
+                        decryptSpeed / 1024.0 / 1024.0);
+                }
+                else if (fileEncryptionMetadata.FormatVersion == 2)
+                {
+                    Logger.Debug(
+                        "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
+                        s3FileKey.FileExternalId);
+
+                    var encryptedRange = Aes256GcmStreamingV2.EncryptedBytesRangeCalculator.FromUnencryptedRange(
+                        unencryptedRange: range,
+                        unencryptedFileSize: fileSizeInBytes,
+                        chainStepsCount: fileEncryptionMetadata.ChainStepSalts.Count);
+
+                    stream.Seek(encryptedRange.FirstSegment.Start, SeekOrigin.Begin);
+
+                    var ikm = KeyDerivationChain.Derive(
+                        startingDek: hardDriveStorageClient.GetEncryptionKey(
+                            version: fileEncryptionMetadata.KeyVersion,
+                            fullEncryptionSession: fullEncryptionSession),
+                        stepSalts: fileEncryptionMetadata.ChainStepSalts);
+
+                    await Aes256GcmStreamingV2.DecryptRange(
+                        fileAesInputs: new FileAesInputsV2(
+                            Ikm: ikm,
+                            KeyVersion: fileEncryptionMetadata.KeyVersion,
+                            ChainStepSalts: fileEncryptionMetadata.ChainStepSalts,
+                            Salt: fileEncryptionMetadata.Salt,
+                            NoncePrefix: fileEncryptionMetadata.NoncePrefix),
+                        range: encryptedRange,
+                        fileSizeInBytes: fileSizeInBytes,
+                        input: PipeReader.Create(
+                            stream,
+                            new StreamPipeReaderOptions(
+                                bufferSize: PlikShareStreams.DefaultBufferSize,
+                                leaveOpen: false)),
+                        output: output,
+                        cancellationToken);
 
                     var decryptDuration = DateTime.UtcNow - startTime;
                     var decryptSpeed = fileSizeInBytes / Math.Max(1, decryptDuration.TotalSeconds);
@@ -225,6 +326,13 @@ public class HardDriveDownloadOperation
                         decryptDuration.TotalMilliseconds,
                         decryptSpeed / 1024.0 / 1024.0);
                 }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"Unsupported file encryption format version '{fileEncryptionMetadata.FormatVersion}' " +
+                        $"for file '{s3FileKey.FileExternalId}'.");
+                }
+
 
                 var totalDuration = DateTime.UtcNow - startTime;
                 var averageSpeed = fileSizeInBytes / Math.Max(1, totalDuration.TotalSeconds);
@@ -296,6 +404,7 @@ public class HardDriveDownloadOperation
 
     public static IFile GetFile(
        S3FileKey s3FileKey,
+       FileEncryptionMetadata? fileEncryptionMetadata,
        long fileSizeInBytes,
        string bucketName,
        FullEncryptionSession? fullEncryptionSession,
@@ -332,6 +441,7 @@ public class HardDriveDownloadOperation
 
         return new HdFile(
             s3FileKey, 
+            fileEncryptionMetadata,
             fileSizeInBytes, 
             filePath,
             fullEncryptionSession,
@@ -342,7 +452,7 @@ public class HardDriveDownloadOperation
     public static IFile GetFileRange(
         S3FileKey s3FileKey,
         long fileSizeInBytes,
-        FileEncryption fileEncryption,
+        FileEncryptionMetadata fileEncryptionMetadata,
         BytesRange range,
         string bucketName,
         FullEncryptionSession? fullEncryptionSession,
@@ -380,7 +490,7 @@ public class HardDriveDownloadOperation
         return new HdFileRange(
             s3FileKey: s3FileKey, 
             fileSizeInBytes: fileSizeInBytes, 
-            fileEncryption: fileEncryption, 
+            fileEncryptionMetadata: fileEncryptionMetadata, 
             range: range, 
             filePath: filePath, 
             fullEncryptionSession: fullEncryptionSession,

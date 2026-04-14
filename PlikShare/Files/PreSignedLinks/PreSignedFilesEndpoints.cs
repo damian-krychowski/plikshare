@@ -25,7 +25,6 @@ using PlikShare.Storages.S3;
 using PlikShare.Storages.S3.Upload;
 using PlikShare.Storages.Zip;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.CompleteFileUpload;
@@ -41,7 +40,7 @@ namespace PlikShare.Files.PreSignedLinks;
 
 public static class PreSignedFilesEndpoints
 {
-    private const int MaximumFileUploadPayloadSizeInBytes = Aes256GcmStreaming.MaximumPayloadSize;
+    private const int MaximumFileUploadPayloadSizeInBytes = Aes256GcmStreamingV1.MaximumPayloadSize;
 
     private const string TotalSizeInBytesHeader = "x-total-size-in-bytes";
     private const string NumberOfFilesHeader = "x-number-of-files";
@@ -117,7 +116,10 @@ public static class PreSignedFilesEndpoints
 
         var heapBufferSize = workspace.Storage.EncryptionType == StorageEncryptionType.None
             ? totalSizeInBytes
-            : Aes256GcmStreaming.CalculateSafeBufferSizeForMultiFileUploads(totalSizeInBytes, numberOfFiles);
+            //we use v2 because it uses more memory than v1 - so just a little more space to be sure
+            : Aes256GcmStreamingV2.CalculateSafeBufferSizeForMultiFileUploads(
+                totalSizeInBytes, 
+                numberOfFiles);
 
         var heapBuffer = ArrayPool<byte>.Shared.Rent(
             minimumLength: heapBufferSize);
@@ -132,7 +134,6 @@ public static class PreSignedFilesEndpoints
                 fileUploadCache,
                 new MultipartReader(boundary, httpContext.Request.Body),
                 heapBufferMemory,
-                workspace.Storage.EncryptionType,
                 cancellationToken);
 
             if (badRequest is not null)
@@ -147,9 +148,13 @@ public static class PreSignedFilesEndpoints
 
             foreach (var fileUpload in fileUploads)
             {
+                var filePart = new FilePart(
+                    Number: 1,
+                    SizeInBytes: (int)fileUpload.FileToUpload.SizeInBytes);
+
                 var fileBufferSize = workspace.Storage.EncryptionType == StorageEncryptionType.None
                     ? (int) fileUpload.FileToUpload.SizeInBytes
-                    : Aes256GcmStreaming.CalculateEncryptedPartSize((int) fileUpload.FileToUpload.SizeInBytes, 1);
+                    : Aes256GcmStreamingV1.CalculateEncryptedPartSize(filePart);
                 
                 var uploadTask = ProcessDirectFileUploadAsync(
                     heapBufferMemory.Slice(fileOffset, fileBufferSize),
@@ -221,7 +226,6 @@ public static class PreSignedFilesEndpoints
         FileUploadCache fileUploadCache, 
         MultipartReader reader,
         Memory<byte> heapBufferMemory, 
-        StorageEncryptionType encryptionType,
         CancellationToken cancellationToken)
     {
         var fileUploads = new List<FileUploadContext>();
@@ -252,27 +256,44 @@ public static class PreSignedFilesEndpoints
 
             fileUploads.Add(fileUpload);
 
-            if (encryptionType == StorageEncryptionType.None)
+            var filePart = new FilePart(
+                Number: 1,
+                SizeInBytes: (int)fileUpload.FileToUpload.SizeInBytes);
+
+            var metadata = fileUpload
+                .FileToUpload
+                .EncryptionMetadata;
+
+            var bufferSize = metadata.CalculateBufferSize(
+                filePart);
+
+            if (metadata is null)
             {
                 await section.Body.ReadExactlyAsync(
-                    heapBufferMemory.Slice(offset, (int) fileUpload.FileToUpload.SizeInBytes),
+                    heapBufferMemory.Slice(offset, bufferSize),
                     cancellationToken);
-
-                offset += (int) fileUpload.FileToUpload.SizeInBytes;
+            }
+            else if (metadata.FormatVersion == 1)
+            {
+                await section.Body.CopyIntoBufferReadyForInPlaceEncryption(
+                    output: heapBufferMemory.Slice(offset, bufferSize),
+                    filePart: filePart);
+            }
+            else if (metadata.FormatVersion == 2)
+            {
+                await section.Body.CopyIntoBufferReadyForInPlaceEncryption(
+                    output: heapBufferMemory.Slice(offset, bufferSize),
+                    filePart: filePart,
+                    chainStepsCount: metadata.ChainStepSalts.Count);
             }
             else
             {
-                var encryptedPartSize = Aes256GcmStreaming.CalculateEncryptedPartSize(
-                    partSizeInBytes: (int) fileUpload.FileToUpload.SizeInBytes,
-                    partNumber: 1);
-
-                await section.Body.CopyIntoBufferReadyForInPlaceEncryption(
-                    output: heapBufferMemory.Slice(offset, encryptedPartSize),
-                    partSizeInBytes: (int) fileUpload.FileToUpload.SizeInBytes,
-                    partNumber: 1);
-
-                offset += encryptedPartSize;
+                throw new InvalidOperationException(
+                    $"Unsupported file encryption format version '{metadata.FormatVersion}' " +
+                    $"for file '{fileUpload.FileToUpload.S3FileKey.FileExternalId}'.");
             }
+
+            offset += bufferSize;
         }
 
         return (fileUploads, null);
@@ -287,9 +308,9 @@ public static class PreSignedFilesEndpoints
     {
         try
         {
-            var filePart = FilePartDetails.First(
+            var filePart = FilePartUpload.First(
                 sizeInBytes: (int)fileUpload.FileToUpload.SizeInBytes,
-                uploadAlgorithm: UploadAlgorithm.DirectUpload);
+                algorithm: UploadAlgorithm.DirectUpload);
 
             if (storageClient is HardDriveStorageClient hardDriveStorageClient)
             {
@@ -351,9 +372,8 @@ public static class PreSignedFilesEndpoints
         {
             var result = await FileWriter.Write(
                 file: fileUpload.FileToUpload,
-                part: new FilePartDetails(
-                    Number: payload.PartNumber,
-                    SizeInBytes: partSizeInBytes,
+                part: new FilePartUpload(
+                    Part: new FilePart(payload.PartNumber, partSizeInBytes),
                     UploadAlgorithm: fileUpload.UploadAlgorithm),
                 workspace: fileUpload.Workspace,
                 fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
@@ -472,7 +492,7 @@ public static class PreSignedFilesEndpoints
                     S3KeySecretPart = file.S3KeySecretPart,
                     FileExternalId = file.ExternalId,
                 },
-                fileEncryption: file.Encryption,
+                fileEncryptionMetadata: file.EncryptionMetadata,
                 fileSizeInBytes: file.SizeInBytes,
                 range: rangeRequest.Range,
                 workspace: workspace,

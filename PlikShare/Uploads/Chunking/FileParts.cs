@@ -14,9 +14,9 @@ public static class FileParts
         {
             StorageEncryptionType.None => (int)Math.Ceiling((double)fileSizeInBytes / UnencryptedFilePartSize),
 
-            StorageEncryptionType.Managed => Aes256GcmStreaming.GetExpectedPartsCount(fileSizeInBytes),
+            StorageEncryptionType.Managed => Aes256GcmStreamingV1.GetExpectedPartsCount(fileSizeInBytes),
 
-            StorageEncryptionType.Full => Aes256GcmStreaming.GetExpectedPartsCount(fileSizeInBytes),
+            StorageEncryptionType.Full => Aes256GcmStreamingV1.GetExpectedPartsCount(fileSizeInBytes),
 
             _ => throw new ArgumentOutOfRangeException(nameof(storageEncryptionType), storageEncryptionType, null)
         };
@@ -86,14 +86,14 @@ public static class FileParts
     {
         if (partNumber == 1)
         {
-            return (0, Math.Min(Aes256GcmStreaming.FirstFilePartSizeInBytes - 1, fileSizeInBytes - 1));
+            return (0, Math.Min(Aes256GcmStreamingV1.FirstFilePartSizeInBytes - 1, fileSizeInBytes - 1));
         }
 
-        var startByte = Aes256GcmStreaming.FirstFilePartSizeInBytes +
-                        (partNumber - 2) * (long)Aes256GcmStreaming.FilePartSizeInBytes;
+        var startByte = Aes256GcmStreamingV1.FirstFilePartSizeInBytes +
+                        (partNumber - 2) * (long)Aes256GcmStreamingV1.FilePartSizeInBytes;
 
         var endByte = Math.Min(
-            startByte + Aes256GcmStreaming.FilePartSizeInBytes - 1,
+            startByte + Aes256GcmStreamingV1.FilePartSizeInBytes - 1,
             fileSizeInBytes - 1);
 
         return (startByte, endByte);

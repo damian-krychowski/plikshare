@@ -32,7 +32,7 @@ public class EncryptedBytesRangeCalculatorTests
 
     // Production calculator with real AES-256-GCM values
     private static EncryptedBytesRangeCalculator ProductionCalculator() =>
-        Aes256GcmStreaming.EncryptedBytesRangeCalculator;
+        Aes256GcmStreamingV1.EncryptedBytesRangeCalculator;
 
     #region FindSegment — small calculator
 

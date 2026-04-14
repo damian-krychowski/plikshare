@@ -24,50 +24,11 @@ public static class StorageClientExtensions
 {
     extension(IStorageClient storageClient)
     {
-        public Aes256GcmStreaming.GetEncryptionKey GetEncryptionKeyFunc(
-            FullEncryptionSession? fullEncryptionSession)
-        {
-            if (storageClient.EncryptionType == StorageEncryptionType.None)
-            {
-                throw new InvalidOperationException(
-                    $"Cannot get encryption key function for storage '{storageClient.ExternalId}' " +
-                    $"because encryption type is '{StorageEncryptionType.None}'.");
-            }
-
-            if (storageClient.EncryptionType == StorageEncryptionType.Managed)
-            {
-                var keyProvider = storageClient.GetManagedEncryptionKeyProviderOrThrow();
-
-                return keyProvider.GetEncryptionKey;
-            }
-
-            if (storageClient.EncryptionType == StorageEncryptionType.Full)
-            {
-                if (fullEncryptionSession is null)
-                {
-                    throw new ArgumentNullException(
-                        nameof(fullEncryptionSession),
-                        $"Full encryption access is required for storage '{storageClient.ExternalId}' " +
-                        $"with encryption type '{StorageEncryptionType.Full}'.");
-                }
-
-                var keyProvider = storageClient.GetFullEncryptionKeyProviderOrThrow();
-
-                return version => keyProvider.GetEncryptionKey(
-                    version,
-                    fullEncryptionSession.Kek);
-            }
-
-            throw new InvalidOperationException(
-                $"Unsupported encryption type '{storageClient.EncryptionType}' " +
-                $"for storage '{storageClient.ExternalId}'.");
-        }
-
-        public StorageEncryptionKey GetEncryptionKey(
+        public byte[] GetEncryptionKey(
             byte version,
             FullEncryptionSession? fullEncryptionSession)
         {
-             if (storageClient.EncryptionType == StorageEncryptionType.None)
+            if (storageClient.EncryptionType == StorageEncryptionType.None)
             {
                 throw new InvalidOperationException(
                     $"Cannot get encryption key with version '{version}' for storage '{storageClient.ExternalId}' " +

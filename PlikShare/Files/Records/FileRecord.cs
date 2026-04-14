@@ -1,6 +1,6 @@
-﻿using PlikShare.Files.Id;
+﻿using PlikShare.Core.Encryption;
+using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
-using PlikShare.Storages;
 
 namespace PlikShare.Files.Records;
 
@@ -13,7 +13,7 @@ public class FileRecord
     public required string S3KeySecretPart { get; init; }
     public required long SizeInBytes { get; init; }
     public required int WorkspaceId { get; init; }
-    public required FileEncryption Encryption { get; init; }
+    public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
     public required FileRecordFolderAncestor[] FolderAncestors { get; init; }
 }
 

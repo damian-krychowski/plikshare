@@ -507,7 +507,7 @@ public static class HttpErrors
             {
                 Code = "payload-too-big",
                 Message =
-                    $"File upload payload cannot be greater than {Aes256GcmStreaming.MaximumPayloadSize} bytes, but found {payloadSize} bytes"
+                    $"File upload payload cannot be greater than {Aes256GcmStreamingV1.MaximumPayloadSize} bytes, but found {payloadSize} bytes"
             });
 
         public static BadRequest<HttpError> MissingAttachmentFileExternalId() =>

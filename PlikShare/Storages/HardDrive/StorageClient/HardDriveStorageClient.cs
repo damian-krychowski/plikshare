@@ -456,7 +456,7 @@ public class HardDriveStorageClient(
             Algorithm = algorithm,
             FilePartsCount = filePartsCount,
 
-            FileEncryption = this.GenerateFileEncryptionDetails(),
+            FileEncryptionMetadata = this.GenerateFileEncryptionMetadata(),
 
             PreSignedUploadLink = null,
             S3UploadId = string.Empty,

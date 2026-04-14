@@ -21,10 +21,10 @@ public class ManagedEncryptionKeyProvider
         _latestVersion = (byte)(ikms.Count - 1);
     }
 
-    public StorageEncryptionKey GetEncryptionKey(byte version)
+    public byte[] GetEncryptionKey(byte version)
     {
         if(_keys.TryGetValue(version, out var key))
-            return key;
+            return key.Ikm;
 
         throw new EncryptionKeyNotFoundException(
             $"Could not find storage encryption key with version '{version}'");

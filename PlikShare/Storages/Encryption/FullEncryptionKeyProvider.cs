@@ -22,7 +22,7 @@ public class FullEncryptionKeyProvider
         _latestVersion = (byte)(encryptionDetails.EncryptedDeks.Count - 1);
     }
 
-    public StorageEncryptionKey GetEncryptionKey(
+    public byte[] GetEncryptionKey(
         byte version,
         ReadOnlySpan<byte> kek)
     {
@@ -30,13 +30,9 @@ public class FullEncryptionKeyProvider
             throw new EncryptionKeyNotFoundException(
                 $"Could not find encryption key with version '{version}'");
 
-        var dek = StorageFullEncryptionService.Decrypt(
+        return StorageFullEncryptionService.Decrypt(
             kek: kek,
             encryptedData: encryptedDek.Ikm);
-
-        return new StorageEncryptionKey(
-            Version: version, 
-            Ikm: dek);
     }
 
     public byte GetLatestKeyVersion() => _latestVersion;

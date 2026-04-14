@@ -222,20 +222,15 @@ public class DownloadTextractAnalysisQueueJobExecutor(
             file: new FileToUploadDetails
             {
                 SizeInBytes = contentBytes.Length,
-                Encryption = fileInsertEntity.EncryptionKeyVersion is null
-                    ? new FileEncryption
+                EncryptionMetadata = fileInsertEntity.EncryptionKeyVersion is null
+                    ? null
+                    : new FileEncryptionMetadata
                     {
-                        EncryptionType = StorageEncryptionType.None
-                    }
-                    : new FileEncryption
-                    {
-                        EncryptionType = StorageEncryptionType.Managed,
-                        Metadata = new FileEncryptionMetadata
-                        {
-                            KeyVersion = fileInsertEntity.EncryptionKeyVersion.Value,
-                            NoncePrefix = fileInsertEntity.EncryptionNoncePrefix!,
-                            Salt = fileInsertEntity.EncryptionSalt!
-                        }
+                        FormatVersion = 1,
+                        KeyVersion = fileInsertEntity.EncryptionKeyVersion.Value,
+                        NoncePrefix = fileInsertEntity.EncryptionNoncePrefix!,
+                        Salt = fileInsertEntity.EncryptionSalt!,
+                        ChainStepSalts = []
                     },
                 S3FileKey = new S3FileKey
                 {
@@ -381,7 +376,9 @@ public class DownloadTextractAnalysisQueueJobExecutor(
         TextractJob textractJob, 
         IStorageClient storage)
     {
-        var encryption = storage.GenerateFileEncryptionDetails();
+        var encryptionMetadata = storage.GenerateFileEncryptionMetadata();
+
+        //TODO: THAT IS NOT FINISED (METADATA)
 
         return new BulkInsertFileUploadQuery.InsertEntity
         {
@@ -396,9 +393,9 @@ public class DownloadTextractAnalysisQueueJobExecutor(
 
             S3UploadId = string.Empty,
 
-            EncryptionKeyVersion = encryption.Metadata?.KeyVersion,
-            EncryptionSalt = encryption.Metadata?.Salt,
-            EncryptionNoncePrefix = encryption.Metadata?.NoncePrefix,
+            EncryptionKeyVersion = encryptionMetadata?.KeyVersion,
+            EncryptionSalt = encryptionMetadata?.Salt,
+            EncryptionNoncePrefix = encryptionMetadata?.NoncePrefix,
 
             ParentFileId = textractJob.OriginalFileId,
             FileMetadataBlob = Json.SerializeToBlob<FileMetadata>(new TextractResultFileMetadata

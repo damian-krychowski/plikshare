@@ -114,7 +114,7 @@ public class BulkInitiateCopyFileUploadOperation(
                     var (algorithm, filePartsCount) = storageClient.ResolveCopyUploadAlgorithm(
                         fileSizeInBytes: fileSizeInBytes);
 
-                    var encryptionDetails = storageClient.GenerateFileEncryptionDetails();
+                    var encryptionDetails = storageClient.GenerateFileEncryptionMetadata();
 
                     return new FileToCopy
                     {

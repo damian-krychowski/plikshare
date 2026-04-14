@@ -1,8 +1,10 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
+using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
 using PlikShare.Users.Cache;
 using PlikShare.Workspaces.CreateBucket;
@@ -126,17 +128,22 @@ public class CreateWorkspaceQuery(
     }
 
     public Result ExecuteTransaction(
-        SqliteWriteContext dbWriteContext, 
-        StorageExtId storageExternalId, 
-        int ownerId, 
+        SqliteWriteContext dbWriteContext,
+        StorageExtId storageExternalId,
+        int ownerId,
         string name,
         long? maxSizeInBytes,
         int? maxTeamMembers,
-        Guid correlationId, 
+        Guid correlationId,
         SqliteTransaction transaction)
     {
         var (workspaceExternalId, workspaceGuid) = WorkspaceExtId.NewIdWithSourceGuid();
         var finalBucketName = $"workspace-{workspaceGuid}";
+
+        var encryptionSalt = ResolveEncryptionSalt(
+            dbWriteContext: dbWriteContext,
+            storageExternalId: storageExternalId,
+            transaction: transaction);
 
         var insertWorkspaceResult = dbWriteContext
             .OneRowCmd(
@@ -151,7 +158,8 @@ public class CreateWorkspaceQuery(
                          w_bucket_name,
                          w_is_being_deleted,
                          w_max_size_in_bytes,
-                         w_max_team_members
+                         w_max_team_members,
+                         w_encryption_salt
                      ) VALUES (
                          $externalId,
                          $userId,
@@ -162,9 +170,10 @@ public class CreateWorkspaceQuery(
                          $bucketName,
                          FALSE,
                          $maxSizeInBytes,
-                         $maxTeamMembers
-                     )   
-                     RETURNING 
+                         $maxTeamMembers,
+                         $encryptionSalt
+                     )
+                     RETURNING
                          w_id,
                          w_storage_id
                      """,
@@ -181,6 +190,7 @@ public class CreateWorkspaceQuery(
             .WithParameter("$bucketName", finalBucketName)
             .WithParameter("$maxSizeInBytes", maxSizeInBytes)
             .WithParameter("$maxTeamMembers", maxTeamMembers)
+            .WithParameter("$encryptionSalt", (object?) encryptionSalt ?? DBNull.Value)
             .Execute();
 
         if (insertWorkspaceResult.IsEmpty)
@@ -215,6 +225,33 @@ public class CreateWorkspaceQuery(
                 ExternalId: workspaceExternalId,
                 BucketName: finalBucketName,
                 MaxSizeInBytes: maxSizeInBytes));
+    }
+
+    private static byte[]? ResolveEncryptionSalt(
+        SqliteWriteContext dbWriteContext,
+        StorageExtId storageExternalId,
+        SqliteTransaction transaction)
+    {
+        var (isEmpty, encryptionType) = dbWriteContext
+            .OneRowCmd(
+                sql: """
+                     SELECT s_encryption_type
+                     FROM s_storages
+                     WHERE s_external_id = $storageExternalId
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => StorageEncryptionExtensions.FromDbValue(
+                    reader.GetStringOrNull(0)),
+                transaction: transaction)
+            .WithParameter("$storageExternalId", storageExternalId.Value)
+            .Execute();
+
+        if (isEmpty)
+            return null;
+
+        return encryptionType == StorageEncryptionType.Full
+            ? Aes256GcmStreamingV1.GenerateSalt()
+            : null;
     }
 
     public enum ResultCode

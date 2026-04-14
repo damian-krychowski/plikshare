@@ -1,4 +1,5 @@
-﻿using PlikShare.Uploads.Algorithm;
+﻿using PlikShare.Core.Encryption;
+using PlikShare.Uploads.Algorithm;
 
 namespace PlikShare.Storages.FileCopying;
 
@@ -16,6 +17,6 @@ public class CopyFileQueueJob
     //new file
     public required int TargetWorkspaceId { get; init; }
     public required S3FileKey NewS3FileKey { get; init; }
-    public required FileEncryption NewFileEncryption { get; init; }
+    public required FileEncryptionMetadata? NewFileEncryptionMetadata { get; init; }
     public required string S3UploadId { get; init; }
 }

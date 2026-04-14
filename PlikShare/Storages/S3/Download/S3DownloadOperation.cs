@@ -53,7 +53,7 @@ public class S3DownloadOperation
                         "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
                         s3FileKey.FileExternalId);
 
-                    await Aes256GcmStreaming.Decrypt(
+                    await Aes256GcmStreamingV1.Decrypt(
                         getEncryptionKeyFunc: s3StorageClient.GetEncryptionKeyFunc(
                             fullEncryptionSession),
                         fileSizeInBytes: fileSizeInBytes,
@@ -149,7 +149,7 @@ public class S3DownloadOperation
                 }
                 else
                 {
-                    var encryptedRange = Aes256GcmStreaming.EncryptedBytesRangeCalculator.FromUnencryptedRange(
+                    var encryptedRange = Aes256GcmStreamingV1.EncryptedBytesRangeCalculator.FromUnencryptedRange(
                         unencryptedRange: range,
                         unencryptedFileSize: fileSizeInBytes);
                     
@@ -158,7 +158,7 @@ public class S3DownloadOperation
                     s3FileKey.FileExternalId);
                     
 
-                    await Aes256GcmStreaming.DecryptRange(
+                    await Aes256GcmStreamingV1.DecryptRange(
                         getEncryptionKeyFunc: s3StorageClient.GetEncryptionKeyFunc(
                             fullEncryptionSession),
                         encryptionMetadata: fileEncryption.Metadata!,
@@ -281,7 +281,7 @@ public class S3DownloadOperation
 
         if (s3StorageClient.EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full)
         {
-            var encryptedRange = Aes256GcmStreaming.EncryptedBytesRangeCalculator.FromUnencryptedRange(
+            var encryptedRange = Aes256GcmStreamingV1.EncryptedBytesRangeCalculator.FromUnencryptedRange(
                 unencryptedRange: range,
                 unencryptedFileSize: fileSizeInBytes);
 

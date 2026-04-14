@@ -1,38 +1,40 @@
 using PlikShare.Core.Encryption;
 using PlikShare.Storages.Encryption;
+using System.Security.Cryptography;
 
 namespace PlikShare.Storages;
 
 public static class IStorageClientExtensions
 {
-    public static FileEncryption GenerateFileEncryptionDetails(
+    public static FileEncryptionMetadata? GenerateFileEncryptionMetadata(
         this IStorageClient client)
-    {
-        return new FileEncryption
-        {
-            EncryptionType = client.EncryptionType,
-            Metadata = GetFileEncryptionMetadata(client)
-        };
-    }
-    private static FileEncryptionMetadata? GetFileEncryptionMetadata(IStorageClient client)
     {
         if (client.EncryptionType == StorageEncryptionType.None)
             return null;
 
-        if (client.EncryptionType != StorageEncryptionType.Managed &&
-            client.EncryptionType != StorageEncryptionType.Full)
-            throw new InvalidOperationException(
-                $"Unsupported encryption type '{client.EncryptionType}' " +
-                $"for storage '{client.ExternalId}'.");
-
-        return new FileEncryptionMetadata
+        if (client.EncryptionType == StorageEncryptionType.Managed)
         {
-            KeyVersion = client
-                .EncryptionKeyProvider
-                !.GetLatestKeyVersion(),
+            return new FileEncryptionMetadata
+            {
+                FormatVersion = 1,
+                KeyVersion = client
+                    .EncryptionKeyProvider
+                    !.GetLatestKeyVersion(),
+                Salt = Aes256GcmStreamingV1.GenerateSalt(),
+                NoncePrefix = Aes256GcmStreamingV1.GenerateNoncePrefix(),
+                ChainStepSalts = []
+            };
+        }
 
-            Salt = Aes256GcmStreaming.GenerateSalt(),
-            NoncePrefix = Aes256GcmStreaming.GenerateNoncePrefix()
-        };
+        if (client.EncryptionType == StorageEncryptionType.Full)
+        {
+            throw new NotImplementedException(
+                $"Full encryption write path is not yet wired for storage '{client.ExternalId}'. " +
+                $"Workspace salt threading into the key derivation chain is pending.");
+        }
+
+        throw new InvalidOperationException(
+            $"Unsupported encryption type '{client.EncryptionType}' " +
+            $"for storage '{client.ExternalId}'.");
     }
 }

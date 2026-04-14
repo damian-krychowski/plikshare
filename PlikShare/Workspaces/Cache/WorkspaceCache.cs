@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Integrations.Aws.Textract;
 using PlikShare.Integrations.OpenAi.ChatGpt;
@@ -70,6 +71,7 @@ public class WorkspaceCache(
             IsBeingDeleted = workspaceCached.IsBeingDeleted,
             Owner = owner,
             Storage = storageClient,
+            Encryption = workspaceCached.Encryption,
 
             Integrations = new WorkspaceIntegrations
             {
@@ -89,7 +91,7 @@ public class WorkspaceCache(
                 sql: """
                      SELECT
                      	w_id,
-                     	w_external_id,		                
+                     	w_external_id,
                      	w_owner_id,
                      	w_name,
                      	w_current_size_in_bytes,
@@ -98,7 +100,8 @@ public class WorkspaceCache(
                      	w_bucket_name,
                      	w_is_bucket_created,
                      	w_is_being_deleted,
-                     	w_storage_id
+                     	w_storage_id,
+                        w_encryption_salt
                      FROM w_workspaces
                      WHERE w_external_id = $workspaceExternalId
                      LIMIT 1
@@ -115,7 +118,8 @@ public class WorkspaceCache(
                     BucketName = reader.GetString(7),
                     IsBucketCreated = reader.GetBoolean(8),
                     IsBeingDeleted = reader.GetBoolean(9),
-                    StorageId = reader.GetInt32(10)
+                    StorageId = reader.GetInt32(10),
+                    Encryption = ReadEncryption(reader, ordinal: 11)
                 })
             .WithParameter("$workspaceExternalId", workspaceExternalId.Value)
             .Execute();
@@ -144,7 +148,7 @@ public class WorkspaceCache(
                 sql: """
                      SELECT
                      	w_id,
-                     	w_external_id,		                
+                     	w_external_id,
                      	w_owner_id,
                      	w_name,
                      	w_current_size_in_bytes,
@@ -153,7 +157,8 @@ public class WorkspaceCache(
                      	w_bucket_name,
                      	w_is_bucket_created,
                      	w_is_being_deleted,
-                      	w_storage_id
+                      	w_storage_id,
+                        w_encryption_salt
                      FROM w_workspaces
                      WHERE w_id = $workspaceId
                      LIMIT 1
@@ -168,9 +173,10 @@ public class WorkspaceCache(
                     MaxSizeInBytes = reader.GetInt64OrNull(5),
                     MaxTeamMembers = reader.GetInt32OrNull(6),
                     BucketName = reader.GetString(7),
-                    IsBucketCreated = reader.GetBoolean(8), 
+                    IsBucketCreated = reader.GetBoolean(8),
                     IsBeingDeleted = reader.GetBoolean(9),
-                    StorageId = reader.GetInt32(10)
+                    StorageId = reader.GetInt32(10),
+                    Encryption = ReadEncryption(reader, ordinal: 11)
                 })
             .WithParameter("$workspaceId", workspaceId)
             .Execute();
@@ -222,6 +228,7 @@ public class WorkspaceCache(
             IsBeingDeleted = workspace.IsBeingDeleted,
             Owner = owner,
             Storage = storageClient,
+            Encryption = workspace.Encryption,
 
             Integrations = new WorkspaceIntegrations
             {
@@ -262,6 +269,17 @@ public class WorkspaceCache(
             updateValueFactory: (_, _) => workspaceExternalId);
     }
 
+    private static WorkspaceEncryptionMetadata? ReadEncryption(
+        System.Data.Common.DbDataReader reader,
+        int ordinal)
+    {
+        var salt = reader.GetFieldValueOrNull<byte[]>(ordinal);
+
+        return salt is null
+            ? null
+            : new WorkspaceEncryptionMetadata { Salt = salt };
+    }
+
     [ImmutableObject(true)]
     public sealed class WorkspaceCached
     {
@@ -276,5 +294,6 @@ public class WorkspaceCache(
         public required bool IsBucketCreated { get; init; }
         public required bool IsBeingDeleted { get; init; }
         public required int StorageId { get; init; }
+        public required WorkspaceEncryptionMetadata? Encryption { get; init; }
     }
 }

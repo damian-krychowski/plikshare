@@ -1,12 +1,11 @@
+using PlikShare.Core.Utils;
+using PlikShare.Files.Records;
+using PlikShare.Storages.Encryption;
+using Serilog;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.IO.Pipelines;
 using System.Security.Cryptography;
-using PlikShare.Core.Utils;
-using PlikShare.Files.PreSignedLinks.RangeRequests;
-using PlikShare.Storages.Encryption;
-using Serilog;
-using static PlikShare.Core.Encryption.EncryptedBytesRange;
 
 namespace PlikShare.Core.Encryption;
 
@@ -27,10 +26,8 @@ namespace PlikShare.Core.Encryption;
 /// CIPHERTEXT | TAG
 ///  
 /// </summary>
-public static class Aes256GcmStreaming
+public static class Aes256GcmStreamingV1
 {
-    public delegate StorageEncryptionKey GetEncryptionKey(byte version);
-
     /// <summary>
     /// Size of a segment = ciphertext + tag
     /// </summary>
@@ -53,7 +50,7 @@ public static class Aes256GcmStreaming
 
     /// <summary>
     /// Header is included only to the first segment of the file
-    /// Header = HeaderSize | KeyVersion | Salt | NoncePrefix 
+    /// Header = HeaderSize | KeyVersion | Salt | NoncePrefix
     /// </summary>
     private const int HeaderSize = KeyVersionSize + SaltSize + NoncePrefixSize + 1;
 
@@ -97,13 +94,6 @@ public static class Aes256GcmStreaming
         nextSegmentsCiphertextSize: SegmentsCiphertextSize,
         tagSize: TagSize);
 
-    public static byte[] GenerateIkm()
-    {
-        var randomBytes = new byte[DerivedKeySize];
-        using var rng = RandomNumberGenerator.Create();
-        rng.GetBytes(randomBytes);
-        return randomBytes;
-    }
     public static byte[] GenerateSalt() => RandomNumberGenerator.GetBytes(SaltSize);
     public static byte[] GenerateNoncePrefix() => RandomNumberGenerator.GetBytes(NoncePrefixSize);
 
@@ -115,19 +105,18 @@ public static class Aes256GcmStreaming
     /// </summary>
     public static async ValueTask CopyIntoBufferReadyForInPlaceEncryption(
         this PipeReader reader,
-        Memory<byte> output, 
-        int partSizeInBytes, 
-        int partNumber)
+        Memory<byte> output,
+        FilePart filePart)
     {
-        VerifyBufferSize(output, partNumber, partSizeInBytes);
+        VerifyBufferSize(output, filePart);
 
-        var offset = partNumber == 1
+        var offset = filePart.Number == 1
             ? HeaderSize
             : 0;
 
-        var bytesToCopyLeft = partSizeInBytes;
+        var bytesToCopyLeft = filePart.SizeInBytes;
 
-        var nextSegmentBytesLeft = partNumber == 1
+        var nextSegmentBytesLeft = filePart.Number == 1
             ? FirstSegmentCiphertextSize
             : SegmentsCiphertextSize;
 
@@ -143,7 +132,7 @@ public static class Aes256GcmStreaming
             if (readResult.Buffer.Length == 0 && readResult.IsCompleted)
                 throw new InvalidOperationException(
                     $"Unexpected end of input stream while copying plaintext data. " +
-                    $"BytesToCopyLeft: {bytesToCopyLeft}, PartNumber: {partNumber}, PartSizeInBytes: {partSizeInBytes}");
+                    $"BytesToCopyLeft: {bytesToCopyLeft}, PartNumber: {filePart.Number}, PartSizeInBytes: {filePart.SizeInBytes}");
 
             var actualBytesToCopy = (int)Math.Min(
                 readResult.Buffer.Length,
@@ -167,20 +156,19 @@ public static class Aes256GcmStreaming
     public static void CopyIntoBufferReadyForInPlaceEncryption(
         ReadOnlySpan<byte> input,
         Memory<byte> output,
-        int partSizeInBytes,
-        int partNumber)
+        FilePart filePart)
     {
-        VerifyBufferSize(output, partNumber, partSizeInBytes);
+        VerifyBufferSize(output, filePart);
 
-        var offset = partNumber == 1 
+        var offset = filePart.Number == 1 
             ? HeaderSize :
             0;
 
         var sourceOffset = 0;
 
-        var bytesToCopyLeft = partSizeInBytes;
+        var bytesToCopyLeft = filePart.SizeInBytes;
 
-        var nextSegmentBytesLeft = partNumber == 1
+        var nextSegmentBytesLeft = filePart.Number == 1
             ? FirstSegmentCiphertextSize
             : SegmentsCiphertextSize;
 
@@ -203,14 +191,12 @@ public static class Aes256GcmStreaming
     public static ValueTask CopyIntoBufferReadyForInPlaceEncryption(
         this Stream stream,
         Memory<byte> output,
-        int partSizeInBytes,
-        int partNumber)
+        FilePart filePart)
     {
         return CopyIntoBufferReadyForInPlaceEncryption(
             reader: PipeReader.Create(stream),
             output, 
-            partSizeInBytes, 
-            partNumber);
+            filePart);
     }
 
     public static int CalculateSafeBufferSizeForMultiFileUploads(int totalSizeInBytes, int numberOfFiles)
@@ -222,14 +208,15 @@ public static class Aes256GcmStreaming
         return totalSizeInBytes + numberOfFiles * (HeaderSize + TagSize) + 9 * TagSize;
     }
 
-    public static int CalculateEncryptedPartSize(int partSizeInBytes, int partNumber)
+    public static int CalculateEncryptedPartSize(
+        FilePart filePart)
     {
-        if (partNumber == 1)
+        if (filePart.Number == 1)
         {
             var sum = HeaderSize;
-            var firstSegment = Math.Min(partSizeInBytes, FirstSegmentCiphertextSize);
+            var firstSegment = Math.Min(filePart.SizeInBytes, FirstSegmentCiphertextSize);
             sum += firstSegment + TagSize;
-            var rest = partSizeInBytes - firstSegment;
+            var rest = filePart.SizeInBytes - firstSegment;
 
             if (rest > 0)
             {
@@ -239,7 +226,7 @@ public static class Aes256GcmStreaming
             return sum;
         }
 
-        return CalculateNextSegmentsSize(partSizeInBytes);
+        return CalculateNextSegmentsSize(filePart.SizeInBytes);
     }
 
     private static int CalculateNextSegmentsSize(int totalBytes)
@@ -267,22 +254,21 @@ public static class Aes256GcmStreaming
         bool IsStreamComplete);
 
     public static void EncryptFilePartInPlace(
-        StorageEncryptionKey key,
-        ReadOnlyMemory<byte> salt,
-        ReadOnlyMemory<byte> noncePrefix,
-        int partNumber, //part numbers indexing start from 1 (same as in S3 specification)
-        int partSizeInBytes,
+        FileAesInputsV1 fileAesInputs,
+        FilePart filePart,
         long fullFileSizeInBytes,
         Memory<byte> inputOutputBuffer,
         CancellationToken cancellationToken = default)
     {
-        VerifyInputKeyMaterialSize(key.Ikm.Length);
-        VerifyPartNumberSize(partNumber, partSizeInBytes, fullFileSizeInBytes);
-        VerifyBufferSize(inputOutputBuffer, partNumber, partSizeInBytes);
+        var (ikm, keyVersion, salt, noncePrefix) = fileAesInputs;
+
+        VerifyInputKeyMaterialSize(ikm.Length);
+        VerifyPartNumberSize(filePart, fullFileSizeInBytes);
+        VerifyBufferSize(inputOutputBuffer, filePart);
 
         var plaintextSegmentBufferSize = Math.Min(
             SegmentsCiphertextSize,
-            partSizeInBytes);
+            filePart.SizeInBytes);
 
         var encryptionHeapBufferSize = DerivedKeySize + IvSize + plaintextSegmentBufferSize;
 
@@ -306,28 +292,28 @@ public static class Aes256GcmStreaming
 
         try
         {
-            if (partNumber == 1)
+            if (filePart.Number == 1)
             {
                 WriteHeader(
-                    keyVersion: key.Version,
-                    salt: salt.Span,
-                    noncePrefix: noncePrefix.Span,
+                    keyVersion: keyVersion,
+                    salt: salt.AsSpan(),
+                    noncePrefix: noncePrefix.AsSpan(),
                     output: inputOutputBuffer);
             }
 
             using var aesGcm = PrepareAesGcm(
-                ikm: key.Ikm,
-                salt: salt.Span,
+                ikm: ikm,
+                salt: salt.AsSpan(),
                 deriveKeyBuffer: derivedKeyBuffer.Span);
 
             var expectedLastSegmentNumber = GetExpectedLastSegmentNumber(
                 fullFileSizeInBytes);
 
-            var segmentNumber = (partNumber - 1) * SegmentsPerFilePart;
+            var segmentNumber = (filePart.Number - 1) * SegmentsPerFilePart;
 
-            var plaintextBytesLeft = partSizeInBytes;
+            var plaintextBytesLeft = filePart.SizeInBytes;
 
-            var offset = partNumber == 1
+            var offset = filePart.Number == 1
                 ? HeaderSize
                 : 0;
 
@@ -336,7 +322,7 @@ public static class Aes256GcmStreaming
                 cancellationToken.ThrowIfCancellationRequested();
 
                 ComputeIvForSegment(
-                    noncePrefix: noncePrefix.Span,
+                    noncePrefix: noncePrefix.AsSpan(),
                     segmentNumberInFile: segmentNumber,
                     isLastSegmentInFile: segmentNumber == expectedLastSegmentNumber,
                     iv: ivBuffer.Span);
@@ -462,14 +448,15 @@ public static class Aes256GcmStreaming
 
     //assumption: pipe reader need to already start from the first segment beginning
     public static async ValueTask DecryptRange(
-       GetEncryptionKey getEncryptionKeyFunc,
-       FileEncryptionMetadata encryptionMetadata,
+       FileAesInputsV1 fileAesInputs,
        EncryptedBytesRange range,
        long fileSizeInBytes,
        PipeReader input,
        PipeWriter output,
        CancellationToken cancellationToken = default)
     {
+        var (ikm, _, salt, noncePrefix) = fileAesInputs;
+
         //in case of small files, if they will all fit into one segment, 
         //there is no need to declare whole 1MB of memory
         var inputBufferSize = (int) Math.Min(
@@ -496,18 +483,11 @@ public static class Aes256GcmStreaming
             start: DerivedKeySize + IvSize,
             length: inputBufferSize);
         
-        var noncePrefix = encryptionMetadata
-            .NoncePrefix
-            .AsMemory();
-
         try
         {
-            var key = getEncryptionKeyFunc(
-                version: encryptionMetadata.KeyVersion);
-
             using var aesGcm = PrepareAesGcm(
-                ikm: key.Ikm,
-                salt: encryptionMetadata.Salt.AsSpan(),
+                ikm: ikm,
+                salt: salt.AsSpan(),
                 deriveKeyBuffer: derivedKeyBuffer.Span);
 
             var segmentNumber = range.FirstSegment.Number;
@@ -532,7 +512,7 @@ public static class Aes256GcmStreaming
                     break;
 
                 ComputeIvForSegment(
-                    noncePrefix: noncePrefix.Span,
+                    noncePrefix: noncePrefix.AsSpan(),
                     segmentNumberInFile: segmentNumber,
                     isLastSegmentInFile: segmentNumber == expectedLastSegmentNumber,
                     iv: ivBuffer.Span);
@@ -623,12 +603,14 @@ public static class Aes256GcmStreaming
     }
 
     public static async ValueTask Decrypt(
-        GetEncryptionKey getEncryptionKeyFunc,
+        FileAesInputsV1 fileAesInputs,
         long fileSizeInBytes,
         PipeReader input,
         PipeWriter output,
         CancellationToken cancellationToken = default)
     {
+        var (ikm, _, salt, noncePrefix) = fileAesInputs;
+
         //in case of small files, if they will all fit into one segment, 
         //there is no need to declare whole 1MB of memory
         var inputBufferSize = (int) Math.Min(
@@ -661,17 +643,15 @@ public static class Aes256GcmStreaming
         
         try
         {
-            var header = await ReadHeader(
+            //todo do we read it now?
+            _ = await ReadHeader(
                 input, 
                 headerBuffer,
                 cancellationToken);
-
-            var key = getEncryptionKeyFunc(
-                version: header.KeyVersion);
-
+            
             using var aesGcm = PrepareAesGcm(
-                ikm: key.Ikm,
-                salt: header.Salt.Span,
+                ikm: ikm,
+                salt: salt.AsSpan(),
                 deriveKeyBuffer: derivedKeyBuffer.Span);
 
             var expectedLastSegmentNumber = GetExpectedLastSegmentNumber(
@@ -694,7 +674,7 @@ public static class Aes256GcmStreaming
                     break;
 
                 ComputeIvForSegment(
-                    noncePrefix: header.NoncePrefix.Span,
+                    noncePrefix: noncePrefix.AsSpan(),
                     segmentNumberInFile: segmentNumber,
                     isLastSegmentInFile: segmentNumber == expectedLastSegmentNumber,
                     iv: ivBuffer.Span);
@@ -795,10 +775,12 @@ public static class Aes256GcmStreaming
         }
     }
 
-    public static void VerifyBufferSize(ReadOnlyMemory<byte> buffer, int partNumber, int partSizeInBytes)
+    public static void VerifyBufferSize(
+        ReadOnlyMemory<byte> buffer,
+        FilePart filePart)
     {
         var expectedLength = CalculateEncryptedPartSize(
-            partSizeInBytes, partNumber);
+            filePart);
 
         if (buffer.Length != expectedLength)
             throw new ArgumentException(
@@ -809,8 +791,12 @@ public static class Aes256GcmStreaming
     /// PartNumber size should be a multiplication of single segment size. it should also include
     /// that first part (1-based indexed)
     /// </summary>
-    public static void VerifyPartNumberSize(int partNumber, long partSizeInBytes, long fullFileSizeInBytes)
+    public static void VerifyPartNumberSize(
+        FilePart filePart, 
+        long fullFileSizeInBytes)
     {
+        var (partNumber, partSizeInBytes) = filePart;
+
         if (partNumber <= 0)
         {
             throw new ArgumentException("Invalid partNumber = 0. Parts should be 1-based indexed.");
@@ -823,7 +809,8 @@ public static class Aes256GcmStreaming
                 if (partSizeInBytes != FirstFilePartSizeInBytes)
                 {
                     throw new ArgumentException(
-                        $"Invalid {partNumber} size in bytes. Expected value: {FirstFilePartSizeInBytes} but found {partSizeInBytes}");
+                        $"Invalid {partNumber} size in bytes. " +
+                        $"Expected value: {FirstFilePartSizeInBytes} but found {partSizeInBytes}");
                 }
 
                 return;
@@ -832,7 +819,8 @@ public static class Aes256GcmStreaming
             if (partSizeInBytes != fullFileSizeInBytes)
             {
                 throw new ArgumentException(
-                    $"Invalid {partNumber} size in bytes. Expected value: {fullFileSizeInBytes} but found {partSizeInBytes}");
+                    $"Invalid {partNumber} size in bytes. " +
+                    $"Expected value: {fullFileSizeInBytes} but found {partSizeInBytes}");
             }
 
             return;
@@ -849,7 +837,8 @@ public static class Aes256GcmStreaming
             if (partSizeInBytes != remainingSize)
             {
                 throw new ArgumentException(
-                    $"Invalid {partNumber} size in bytes. Expected value: {remainingSize} but found {partSizeInBytes}");
+                    $"Invalid {partNumber} size in bytes. " +
+                    $"Expected value: {remainingSize} but found {partSizeInBytes}");
             }
 
             return;
@@ -858,7 +847,8 @@ public static class Aes256GcmStreaming
         if (partSizeInBytes != FilePartSizeInBytes)
         {
             throw new ArgumentException(
-                $"Invalid {partNumber} size in bytes. Expected value: {FilePartSizeInBytes} but found {partSizeInBytes}");
+                $"Invalid {partNumber} size in bytes. " +
+                $"Expected value: {FilePartSizeInBytes} but found {partSizeInBytes}");
         }
     }
 
@@ -899,137 +889,4 @@ public static class Aes256GcmStreaming
         BinaryPrimitives.WriteInt32BigEndian(segmentNumberSpan, segmentNumberInFile);
         isLastSegmentSpan[0] = isLastSegmentInFile ? IvByteForLastSegment : IvByteForIntermediateSegments;
     }
-}
-
-public class EncryptedBytesRangeCalculator(
-    long headerSize,
-    long firstSegmentCiphertextSize,
-    long nextSegmentsCiphertextSize,
-    long tagSize)
-{
-    private readonly long _firstSegmentFullSize = headerSize + firstSegmentCiphertextSize + tagSize;
-    private readonly long _nextSegmentFullSize = nextSegmentsCiphertextSize + tagSize;
-
-    private long FirstSegmentTagStartIndex => headerSize + firstSegmentCiphertextSize;
-
-    public EncryptedBytesRange FromUnencryptedRange(
-        BytesRange unencryptedRange, 
-        long unencryptedFileSize)
-    {
-        var startIndex = FindEncryptedIndex(unencryptedRange.Start);
-        var endIndex = FindEncryptedIndex(unencryptedRange.End);
-        var encryptedFileLastByteIndex = FindEncryptedIndex(unencryptedFileSize - 1) + tagSize;
-
-        var firstSegment = FindSegment(startIndex, encryptedFileLastByteIndex);
-        var lastSegment = FindSegment(endIndex, encryptedFileLastByteIndex);
-
-        return new EncryptedBytesRange(
-            FirstSegment: firstSegment,
-            LastSegment: lastSegment,
-            FirstSegmentReadOffset: (int)(startIndex - firstSegment.Start),
-            LastSegmentReadOffset: (int)(endIndex - lastSegment.Start));
-    }
-
-    public Segment FindSegment(long encryptedIndex, long encryptedFileLastByteIndex)
-    {
-        if (encryptedIndex < 0)
-            throw new ArgumentOutOfRangeException(
-                nameof(encryptedIndex),
-                encryptedIndex,
-                "Encrypted index cannot be negative.");
-
-        if (encryptedIndex < headerSize)
-            throw new ArgumentOutOfRangeException(
-                nameof(encryptedIndex),
-                encryptedIndex,
-                $"Encrypted index {encryptedIndex} falls within the header region [0..{headerSize - 1}]. " +
-                $"It must point to a ciphertext byte.");
-
-        if (encryptedIndex > encryptedFileLastByteIndex)
-            throw new ArgumentOutOfRangeException(
-                nameof(encryptedIndex),
-                encryptedIndex,
-                $"Encrypted index {encryptedIndex} exceeds the last byte of the encrypted file ({encryptedFileLastByteIndex}).");
-
-        if (encryptedIndex < FirstSegmentTagStartIndex)
-        {
-            return new Segment(
-                Number: 0,
-                Start: headerSize,
-                End: Math.Min(
-                    _firstSegmentFullSize - 1,
-                    encryptedFileLastByteIndex));
-        }
-
-        if (encryptedIndex < _firstSegmentFullSize)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(encryptedIndex),
-                encryptedIndex,
-                $"Encrypted index {encryptedIndex} falls within the tag region of segment 0 " +
-                $"[{FirstSegmentTagStartIndex}..{_firstSegmentFullSize - 1}].");
-        }
-
-        var remainingBytes = encryptedIndex - _firstSegmentFullSize;
-        var fullSegments = remainingBytes / _nextSegmentFullSize;
-        var segmentNumber = (int) fullSegments + 1;
-        var segmentStart = _firstSegmentFullSize + (segmentNumber - 1) * _nextSegmentFullSize;
-
-        var indexInSegment = encryptedIndex - segmentStart;
-
-        if (indexInSegment >= nextSegmentsCiphertextSize)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(encryptedIndex),
-                encryptedIndex,
-                $"Encrypted index {encryptedIndex} falls within the tag region of segment {segmentNumber} " +
-                $"[{segmentStart + nextSegmentsCiphertextSize}..{segmentStart + _nextSegmentFullSize - 1}].");
-        }
-
-        return new Segment(
-            Number: segmentNumber,
-            Start: segmentStart,
-            End: Math.Min(
-                segmentStart + _nextSegmentFullSize - 1,
-                encryptedFileLastByteIndex));
-    }
-
-    public long FindEncryptedIndex(long unencryptedIndex)
-    {
-        var offset = CalculateOffset(unencryptedIndex);
-
-        return offset + unencryptedIndex;
-    }
-
-    private long CalculateOffset(long unencryptedIndex)
-    {
-        var offset = headerSize;
-
-        if (unencryptedIndex < firstSegmentCiphertextSize)
-        {
-            return offset;
-        }
-
-        offset += tagSize;
-
-        var remainingLength = unencryptedIndex - firstSegmentCiphertextSize;
-
-        var fullNextSegments = remainingLength / nextSegmentsCiphertextSize;
-
-        offset += fullNextSegments * tagSize;
-
-        return offset;
-    }
-}
-
-public record EncryptedBytesRange(
-    Segment FirstSegment,
-    Segment LastSegment,
-    int FirstSegmentReadOffset,
-    int LastSegmentReadOffset)
-{
-    public readonly record struct Segment(
-        int Number,
-        long Start,
-        long End);
 }

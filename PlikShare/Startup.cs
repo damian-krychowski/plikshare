@@ -301,6 +301,8 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_19_MaxWorkspaceTeamMembersColumnsIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_20_WidgetOriginsColumnAddedToBoxLinksTable>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_21_AuthProvidersTableIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_22_WorkspaceEncryptionSaltIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_23_FilesEncryptionChainSaltsIntroduced>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 

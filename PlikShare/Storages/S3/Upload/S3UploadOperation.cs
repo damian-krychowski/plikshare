@@ -15,7 +15,7 @@ public class S3UploadOperation
     public static async ValueTask<FilePartUploadResult> Execute(
         Memory<byte> fileBytes,
         FileToUploadDetails file,
-        FilePartDetails part,
+        FilePartUpload part,
         string bucketName,
         FullEncryptionSession? fullEncryptionSession,
         S3StorageClient s3StorageClient,
@@ -28,20 +28,20 @@ public class S3UploadOperation
             file.S3FileKey.FileExternalId,
             part.Number,
             bucketName,
-            file.Encryption.EncryptionType);
+            file.EncryptionMetadata.EncryptionType);
 
         try
         {
-            if (file.Encryption.EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full)
+            if (file.EncryptionMetadata.EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full)
             {
                 var encryptionKey = s3StorageClient.GetEncryptionKey(
-                    version: file.Encryption.Metadata!.KeyVersion,
+                    version: file.EncryptionMetadata.Metadata!.KeyVersion,
                     fullEncryptionSession: fullEncryptionSession);
 
-                Aes256GcmStreaming.EncryptFilePartInPlace(
+                Aes256GcmStreamingV1.EncryptFilePartInPlace(
                     key: encryptionKey,
-                    salt: file.Encryption.Metadata!.Salt,
-                    noncePrefix: file.Encryption.Metadata.NoncePrefix,
+                    salt: file.EncryptionMetadata.Metadata!.Salt,
+                    noncePrefix: file.EncryptionMetadata.Metadata.NoncePrefix,
                     partNumber: part.Number,
                     partSizeInBytes: part.SizeInBytes,
                     fullFileSizeInBytes: file.SizeInBytes,

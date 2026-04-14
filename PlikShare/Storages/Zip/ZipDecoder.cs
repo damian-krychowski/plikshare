@@ -220,7 +220,7 @@ public static class ZipDecoder
                     S3KeySecretPart = file.S3KeySecretPart,
                     FileExternalId = file.ExternalId,
                 },
-                fileEncryption: file.Encryption,
+                fileEncryptionMetadata: file.EncryptionMetadata,
                 fileSizeInBytes: file.SizeInBytes,
                 range: zipFinalEocd.CentralDirectoryBytesRange,
                 workspace: workspace,
@@ -260,7 +260,7 @@ public static class ZipDecoder
                     S3KeySecretPart = file.S3KeySecretPart,
                     FileExternalId = file.ExternalId,
                 },
-                fileEncryption: file.Encryption,
+                fileEncryptionMetadata: file.EncryptionMetadata,
                 fileSizeInBytes: file.SizeInBytes,
                 range: new BytesRange(
                     zip64Locator.Zip64EocdOffset,
@@ -301,7 +301,7 @@ public static class ZipDecoder
                     S3KeySecretPart = file.S3KeySecretPart,
                     FileExternalId = file.ExternalId,
                 },
-                fileEncryption: file.Encryption,
+                fileEncryptionMetadata: file.EncryptionMetadata,
                 fileSizeInBytes: file.SizeInBytes,
                 range: new BytesRange(
                     //we assume that someone could have used zip64 so we are getting ready to read its locator
@@ -349,7 +349,7 @@ public static class ZipDecoder
                     S3KeySecretPart = file.S3KeySecretPart,
                     FileExternalId = file.ExternalId,
                 },
-                fileEncryption: file.Encryption,
+                fileEncryptionMetadata: file.EncryptionMetadata,
                 fileSizeInBytes: file.SizeInBytes,
                 range: new BytesRange(
                     eocdPossibleStartPosition,
