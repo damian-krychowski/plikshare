@@ -97,11 +97,14 @@ public class WorkspaceCreationPreparation(
             if (ownerEncryption is null)
                 return new Result(Code: ResultCode.CreatorEncryptionNotSetUp);
 
-            var wrappedStorageDek = storageEncryptionKeyReader.TryLoadWrappedDek(
+            // New workspaces are always derived from the storage's latest DEK version — the
+            // one the creator gets wrapped for here. Older versions exist only to keep files
+            // written before a past rotation decryptable.
+            var latestStorageKey = storageEncryptionKeyReader.TryLoadLatestWrappedDek(
                 storageId: storageId,
                 userId: ownerId);
 
-            if (wrappedStorageDek is null)
+            if (latestStorageKey is null)
                 return new Result(Code: ResultCode.NotAStorageAdmin);
 
             byte[] storageDek;
@@ -109,7 +112,7 @@ public class WorkspaceCreationPreparation(
             {
                 storageDek = UserKeyPair.OpenSealed(
                     recipientPrivateKey: userPrivateKey,
-                    sealed_: wrappedStorageDek);
+                    sealed_: latestStorageKey.Value.WrappedDek);
             }
             catch (Exception e)
             {
@@ -140,6 +143,7 @@ public class WorkspaceCreationPreparation(
                     return new Result(
                         Code: ResultCode.Ok,
                         Artifacts: new WorkspaceFullEncryptionArtifacts(
+                            StorageDekVersion: latestStorageKey.Value.StorageDekVersion,
                             EncryptionSalt: salt,
                             OwnerWrappedWorkspaceDek: wrapped));
                 }
@@ -181,10 +185,15 @@ public class WorkspaceCreationPreparation(
 
 /// <summary>
 /// Pre-computed crypto artifacts that must be inserted alongside a full-encrypted workspace
-/// row. Both fields are mandatory and always co-present — either the caller has them (Full
-/// storage) or they have none (None/Managed). Passed as a single nullable value through the
-/// workspace creation pipeline so the two pieces can never drift out of sync.
+/// row. All three fields are mandatory and always co-present — either the caller has them
+/// (Full storage) or they have none (None/Managed). Passed as a single nullable value
+/// through the workspace creation pipeline so the pieces can never drift out of sync.
+///
+/// <see cref="StorageDekVersion"/> records which parent Storage DEK version the Workspace
+/// DEK was derived from — persisted on the <c>wek_workspace_encryption_keys</c> row so the
+/// read-side can line the wrap up with files written under that version.
 /// </summary>
 public sealed record WorkspaceFullEncryptionArtifacts(
+    int StorageDekVersion,
     byte[] EncryptionSalt,
     byte[] OwnerWrappedWorkspaceDek);

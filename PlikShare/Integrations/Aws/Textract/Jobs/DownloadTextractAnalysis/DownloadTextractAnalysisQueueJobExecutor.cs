@@ -376,6 +376,10 @@ public class DownloadTextractAnalysisQueueJobExecutor(
         TextractJob textractJob, 
         IStorageClient storage)
     {
+        // Metadata generation itself is pure storage state and works fine for Full
+        // destinations. What will fail is the later encryption step, which needs a
+        // Workspace DEK that this background job has no way to obtain without a
+        // service-account key mechanism (pending task).
         var encryptionMetadata = storage.GenerateFileEncryptionMetadata();
 
         //TODO: THAT IS NOT FINISED (METADATA)

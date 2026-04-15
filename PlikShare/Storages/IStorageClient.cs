@@ -15,6 +15,7 @@ public interface IStorageClient
     StorageExtId ExternalId { get; }
     string Name { get; }
     public StorageEncryptionType EncryptionType { get; }
+    public StorageEncryptionDetails? EncryptionDetails { get; }
     public ManagedEncryptionKeyProvider? ManagedEncryptionKeyProvider { get; }
     
     ValueTask DeleteFile(

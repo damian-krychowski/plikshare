@@ -222,7 +222,7 @@ public class BulkInitiateFileUploadOperation(
                             },
                             ExpirationDate = clock.UtcNow.AddMinutes(15),
                             BoxLinkId = boxLinkId,
-                            WorkspaceDek = workspaceEncryptionSession?.WorkspaceDek
+                            WorkspaceDeks = workspaceEncryptionSession?.Entries ?? []
                         })
                 }
                 : null,
@@ -268,7 +268,7 @@ public class BulkInitiateFileUploadOperation(
             {
                 var (name, extension) = FileNames.ToNameAndExtension(
                     fileDetails.FileNameWithExtension);
-                
+
                 return new UploadDetails
                 {
                     FileUploadExternalId = fileDetails.FileUploadExternalId,

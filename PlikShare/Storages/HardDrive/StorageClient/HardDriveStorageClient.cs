@@ -27,6 +27,7 @@ public class HardDriveStorageClient(
     public HardDriveDetailsEntity Details { get; } = details;
     public string Name { get; } = name;
     public StorageEncryptionType EncryptionType { get; } = encryptionType;
+    public StorageEncryptionDetails? EncryptionDetails { get; } = encryptionDetails;
     public ManagedEncryptionKeyProvider? ManagedEncryptionKeyProvider { get; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
         encryptionDetails: encryptionDetails);
 
@@ -273,7 +274,7 @@ public class HardDriveStorageClient(
                 },
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
                 BoxLinkId = boxLinkId,
-                WorkspaceDek = workspaceEncryptionSession?.WorkspaceDek
+                WorkspaceDeks = workspaceEncryptionSession?.Entries ?? []
             });
 
         var result = new PreSignedUploadLinkResult
@@ -309,7 +310,7 @@ public class HardDriveStorageClient(
                 ContentDisposition = contentDisposition,
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
                 BoxLinkId = boxLinkId,
-                WorkspaceDek = workspaceEncryptionSession?.WorkspaceDek
+                WorkspaceDeks = workspaceEncryptionSession?.Entries ?? []
             });
 
         return ValueTask.FromResult(result);

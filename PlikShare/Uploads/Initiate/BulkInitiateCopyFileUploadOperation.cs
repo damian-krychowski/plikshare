@@ -34,6 +34,9 @@ public class BulkInitiateCopyFileUploadOperation(
         Guid correlationId,
         CancellationToken cancellationToken = default)
     {
+        // Metadata generation works offline. What will fail for Full destinations is the
+        // later encryption step, which needs a Workspace DEK — handled by the service-key
+        // mechanism pending in the invitation/rotation work.
         var filesToCopy = GetFilesToCopy(
             fileIds: definition.Files.Select(file => file.Id).ToArray(),
             storageClient: destinationWorkspace.Storage);

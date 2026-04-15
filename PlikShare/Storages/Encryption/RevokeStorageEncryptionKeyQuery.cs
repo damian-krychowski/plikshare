@@ -5,10 +5,11 @@ using Serilog;
 namespace PlikShare.Storages.Encryption;
 
 /// <summary>
-/// Removes a user's wrap of a Storage DEK, revoking their storage-admin access.
-/// The DEK itself is unchanged — other admins keep their wraps. For forward secrecy
-/// (preventing the revoked user from using a leaked copy of the DEK) a separate
-/// key-rotation flow would be needed; this query only revokes current access.
+/// Removes ALL wraps of Storage DEKs owned by this user for this storage, across every
+/// Storage DEK version they held. The DEKs themselves are unchanged — other admins keep
+/// their wraps. Forward secrecy (preventing a revoked user from using a previously-leaked
+/// plaintext copy of a DEK) still needs a separate key-rotation flow; this query only
+/// revokes current access.
 /// </summary>
 public class RevokeStorageEncryptionKeyQuery(DbWriteQueue dbWriteQueue)
 {
@@ -30,20 +31,20 @@ public class RevokeStorageEncryptionKeyQuery(DbWriteQueue dbWriteQueue)
         int storageId,
         int userId)
     {
-        var result = dbWriteContext
-            .OneRowCmd(
+        var removedVersions = dbWriteContext
+            .Cmd(
                 sql: """
                      DELETE FROM sek_storage_encryption_keys
                      WHERE sek_storage_id = $storageId
                        AND sek_user_id = $userId
-                     RETURNING sek_user_id
+                     RETURNING sek_storage_dek_version
                      """,
                 readRowFunc: reader => reader.GetInt32(0))
             .WithParameter("$storageId", storageId)
             .WithParameter("$userId", userId)
             .Execute();
 
-        if (result.IsEmpty)
+        if (removedVersions.Count == 0)
         {
             Log.Warning(
                 "Revoke storage encryption key skipped — User#{UserId} has no wrap on Storage#{StorageId}.",
@@ -52,8 +53,8 @@ public class RevokeStorageEncryptionKeyQuery(DbWriteQueue dbWriteQueue)
         }
 
         Log.Information(
-            "Storage#{StorageId} encryption key revoked from User#{UserId}.",
-            storageId, userId);
+            "Storage#{StorageId} encryption key versions [{Versions}] revoked from User#{UserId}.",
+            storageId, removedVersions, userId);
         return ResultCode.Ok;
     }
 

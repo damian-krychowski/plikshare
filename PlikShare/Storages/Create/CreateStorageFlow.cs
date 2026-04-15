@@ -100,6 +100,10 @@ public class CreateStorageFlow(
                 await upsertStorageEncryptionKeyQuery.Execute(
                     storageId: queryResult.StorageId,
                     userId: creator.Id,
+                    // v0 is the initial Storage DEK — HkdfDekDerivation.DeriveDek(recoverySeed, 0)
+                    // gave us the DEK we are wrapping here. A future rotation will insert v1+ rows
+                    // for every existing admin alongside this one.
+                    storageDekVersion: 0,
                     wrappedStorageDek: wrappedDek,
                     wrappedByUserId: creator.Id,
                     cancellationToken: cancellationToken);

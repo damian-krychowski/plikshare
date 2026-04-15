@@ -33,6 +33,7 @@ public class S3StorageClient(
     public StorageExtId ExternalId { get; } = externalId;
     public string Name { get; } = name;
     public StorageEncryptionType EncryptionType { get; } = encryptionType;
+    public StorageEncryptionDetails? EncryptionDetails { get; } = encryptionDetails;
 
     private readonly RateLimiter _rateLimiter = new(100, 80);
 
@@ -168,7 +169,7 @@ public class S3StorageClient(
                     },
                     ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
                     BoxLinkId = boxLinkId,
-                    WorkspaceDek = workspaceEncryptionSession?.WorkspaceDek
+                    WorkspaceDeks = workspaceEncryptionSession?.Entries ?? []
                 });
 
             return new PreSignedUploadLinkResult
@@ -288,7 +289,7 @@ public class S3StorageClient(
                     ContentDisposition = contentDisposition,
                     ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
                     BoxLinkId = boxLinkId,
-                    WorkspaceDek = workspaceEncryptionSession?.WorkspaceDek
+                    WorkspaceDeks = workspaceEncryptionSession?.Entries ?? []
                 });
         }
 

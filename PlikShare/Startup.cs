@@ -168,6 +168,7 @@ using PlikShare.Search.Get;
 using PlikShare.Storages;
 using PlikShare.Storages.Create;
 using PlikShare.Storages.Encryption;
+using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Users.UserEncryptionPassword;
 using PlikShare.Users.UserEncryptionSessions;
 using PlikShare.Storages.Delete;
@@ -426,9 +427,11 @@ public class Startup
 
         builder.Services.AddSingleton<IQueueNormalJobExecutor, CreateWorkspaceBucketJobExecutor>();
         builder.Services.AddSingleton<CreateWorkspaceQuery>();
-        builder.Services.AddSingleton<WorkspaceEncryptionKeyReader>();
+        builder.Services.AddSingleton<GetUserWrappedWorkspaceDeksQuery>();
         builder.Services.AddSingleton<UpsertWorkspaceEncryptionKeyQuery>();
+        builder.Services.AddSingleton<UserWorkspaceDekUnsealer>();
         builder.Services.AddSingleton<WorkspaceCreationPreparation>();
+        builder.Services.AddExceptionHandler<WorkspaceDekUnavailableExceptionHandler>();
         builder.Services.AddSingleton<RevokeWorkspaceEncryptionKeyQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceNameQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceMaxSizeQuery>();
@@ -695,6 +698,10 @@ public class Startup
         {
             ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
         });
+
+        // Routes typed exceptions (e.g. WorkspaceDekForVersionNotAvailableException) through
+        // IExceptionHandler implementations before the framework's default 500 takes over.
+        app.UseExceptionHandler(_ => { });
 
         app.UseOperationCanceledHandler();
         app.UseResponseCompression();

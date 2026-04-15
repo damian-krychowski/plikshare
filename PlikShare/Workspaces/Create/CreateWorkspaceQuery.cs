@@ -223,10 +223,14 @@ public class CreateWorkspaceQuery(
         {
             // The owner is implicitly the first workspace member; without this wrap
             // they would be unable to read their own newly-created workspace's files.
+            // The wrap is tied to the Storage DEK version that the Workspace DEK was
+            // derived from, so files written under this version can later be lined up
+            // with the correct wrap at read time.
             upsertWorkspaceEncryptionKeyQuery.ExecuteTransaction(
                 dbWriteContext: dbWriteContext,
                 workspaceId: insertWorkspaceResult.Value.WorkspaceId,
                 userId: ownerId,
+                storageDekVersion: artifacts.StorageDekVersion,
                 wrappedWorkspaceDek: artifacts.OwnerWrappedWorkspaceDek,
                 wrappedByUserId: ownerId,
                 transaction: transaction);

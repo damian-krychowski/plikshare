@@ -170,9 +170,11 @@ public class S3DownloadOperation
                         unencryptedFileSize: fileSizeInBytes,
                         chainStepsCount: fileEncryptionMetadata.ChainStepSalts.Count);
 
+                    var ikm = workspaceEncryptionSession!.GetDekForVersion(
+                        fileEncryptionMetadata.KeyVersion);
+
                     await Aes256GcmStreamingV2.DecryptRange(
-                        fileAesInputs: fileEncryptionMetadata.ToAesInputsV2(
-                            ikm: workspaceEncryptionSession!.WorkspaceDek),
+                        fileAesInputs: fileEncryptionMetadata.ToAesInputsV2(ikm),
                         range: encryptedRange,
                         fileSizeInBytes: fileSizeInBytes,
                         input: PipeReader.Create(

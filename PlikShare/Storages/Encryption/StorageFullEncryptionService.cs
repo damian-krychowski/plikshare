@@ -37,7 +37,8 @@ public static class StorageFullEncryptionService
                 recoveryBytes);
 
             var details = new StorageFullEncryptionDetails(
-                RecoveryVerifyHash: recoveryVerifyHash);
+                RecoveryVerifyHash: recoveryVerifyHash,
+                LatestStorageDekVersion: 0);
 
             return new GenerateDetailsResult(
                 Details: details,

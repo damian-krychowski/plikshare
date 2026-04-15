@@ -206,9 +206,11 @@ public class HardDriveDownloadOperation
 
                     stream.Seek(encryptedRange.FirstSegment.Start, SeekOrigin.Begin);
                     
+                    var ikm = workspaceEncryptionSession!.GetDekForVersion(
+                        fileEncryptionMetadata.KeyVersion);
+
                     await Aes256GcmStreamingV2.DecryptRange(
-                        fileAesInputs: fileEncryptionMetadata.ToAesInputsV2(
-                            ikm: workspaceEncryptionSession!.WorkspaceDek),
+                        fileAesInputs: fileEncryptionMetadata.ToAesInputsV2(ikm),
                         range: encryptedRange,
                         fileSizeInBytes: fileSizeInBytes,
                         input: PipeReader.Create(

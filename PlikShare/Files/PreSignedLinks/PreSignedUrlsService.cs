@@ -3,6 +3,7 @@ using System.Web;
 using Microsoft.AspNetCore.DataProtection;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Configuration;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
@@ -283,13 +284,13 @@ public class PreSignedUrlsService(
         public required int? BoxLinkId { get; init; }
 
         /// <summary>
-        /// Unwrapped Workspace DEK for workspaces whose storage uses full encryption, or null
-        /// for None/Managed. The DEK travels inside the DataProtection-sealed URL payload so
-        /// unauthenticated direct upload/download requests can decrypt file bytes without an
-        /// ambient user session — in the pre-Task-#18 master-password model this field held
-        /// the KEK and the DEK was derived later from the storage's wrap list.
+        /// Unwrapped Workspace DEKs together with the Storage DEK version each was derived
+        /// from, or null for None/Managed storages. The list travels inside the
+        /// DataProtection-sealed URL payload so unauthenticated direct upload/download
+        /// requests can decrypt file bytes of any version without an ambient user session.
+        /// Typically one entry; rotated storages produce more.
         /// </summary>
-        public required byte[]? WorkspaceDek { get; init; }
+        public required WorkspaceDekEntry[] WorkspaceDeks { get; init; }
     }
 
     [ImmutableObject(true)]

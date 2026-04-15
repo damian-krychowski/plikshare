@@ -30,10 +30,19 @@ public static class IStorageClientExtensions
 
             if (client.EncryptionType == StorageEncryptionType.Full)
             {
+                // Metadata generation is pure storage state — it stamps the file header with
+                // the currently-authoritative Storage DEK version. It deliberately does NOT
+                // touch the caller's session: whether the caller can actually produce bytes
+                // for this metadata is decided later in the encryption-time path, where the
+                // session is consulted via GetDekForVersion.
+                var fullDetails = client.EncryptionDetails?.Full
+                    ?? throw new InvalidOperationException(
+                        $"Storage '{client.ExternalId}' has EncryptionType=Full but no Full encryption details.");
+
                 return new FileEncryptionMetadata
                 {
                     FormatVersion = 2,
-                    KeyVersion = client.ManagedEncryptionKeyProvider!.GetLatestKeyVersion(),
+                    KeyVersion = checked((byte)fullDetails.LatestStorageDekVersion),
                     Salt = Aes256GcmStreamingV2.GenerateSalt(),
                     NoncePrefix = Aes256GcmStreamingV2.GenerateNoncePrefix(),
                     ChainStepSalts = []
@@ -73,7 +82,7 @@ public static class IStorageClientExtensions
             {
                 Aes256GcmStreamingV2.EncryptFilePartInPlace(
                     fileAesInputs: encryptionMetadata.ToAesInputsV2(
-                        ikm: workspaceEncryptionSession!.WorkspaceDek),
+                        ikm: workspaceEncryptionSession!.GetDekForVersion(encryptionMetadata.KeyVersion)),
                     filePart: filePart,
                     fullFileSizeInBytes: fileSizeInBytes,
                     inputOutputBuffer: buffer,
@@ -145,9 +154,11 @@ public static class IStorageClientExtensions
             {
                 Log.Debug("Starting encrypted file transfer using AES-256-GCM");
 
+                var ikm = workspaceEncryptionSession!.GetDekForVersion(
+                    encryptionMetadata.KeyVersion);
+
                 await Aes256GcmStreamingV2.Decrypt(
-                    fileAesInputs: encryptionMetadata.ToAesInputsV2(
-                        workspaceEncryptionSession!.WorkspaceDek),
+                    fileAesInputs: encryptionMetadata.ToAesInputsV2(ikm),
                     fileSizeInBytes: fileSizeInBytes,
                     input: PipeReader.Create(
                         stream,
