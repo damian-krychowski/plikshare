@@ -36,10 +36,13 @@ public class InitiateFilePartUploadOperation(
             return new Result(Code: ResultCode.FileUploadNotFound);
         }
 
+        var ikmChainStepsCount = fileUpload.FileToUpload.EncryptionMetadata?.ChainStepSalts.Count ?? 0;
+
         var isPartNumberAllowed = FileParts.IsPartNumberAllowed(
             fileSizeInBytes: fileUpload.FileToUpload.SizeInBytes,
             partNumber: partNumber,
-            storageEncryptionType: workspace.Storage.EncryptionType);
+            storageEncryptionType: workspace.Storage.EncryptionType,
+            ikmChainStepsCount: ikmChainStepsCount);
 
         if (!isPartNumberAllowed)
         {
@@ -68,7 +71,8 @@ public class InitiateFilePartUploadOperation(
         var (startsAtByte, endsAtByte) = FileParts.GetPartByteRange(
             fileSizeInBytes: fileUpload.FileToUpload.SizeInBytes,
             partNumber: partNumber,
-            storageEncryptionType: workspace.Storage.EncryptionType);
+            storageEncryptionType: workspace.Storage.EncryptionType,
+            ikmChainStepsCount: ikmChainStepsCount);
 
         Log.Debug("FileUpload '{FileUploadExternalId}' part '{FileUploadPartNumber}' " +
                   "(Bytes: {StartsAtByte}-{EndsAtByte}) was initiated.",

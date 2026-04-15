@@ -396,6 +396,10 @@ public class DownloadTextractAnalysisQueueJobExecutor(
             EncryptionKeyVersion = encryptionMetadata?.KeyVersion,
             EncryptionSalt = encryptionMetadata?.Salt,
             EncryptionNoncePrefix = encryptionMetadata?.NoncePrefix,
+            EncryptionChainSalts = encryptionMetadata is null
+                ? null
+                : KeyDerivationChain.Serialize(encryptionMetadata.ChainStepSalts),
+            EncryptionFormatVersion = encryptionMetadata?.FormatVersion,
 
             ParentFileId = textractJob.OriginalFileId,
             FileMetadataBlob = Json.SerializeToBlob<FileMetadata>(new TextractResultFileMetadata

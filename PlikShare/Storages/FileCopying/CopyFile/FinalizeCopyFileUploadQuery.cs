@@ -55,6 +55,8 @@ public class FinalizeCopyFileUploadQuery(
                             fi_encryption_key_version,
                             fi_encryption_salt,
                             fi_encryption_nonce_prefix,
+                            fi_encryption_chain_salts,
+                            fi_encryption_format_version,
                             fi_parent_file_id,
                             fi_metadata
                         )
@@ -74,6 +76,8 @@ public class FinalizeCopyFileUploadQuery(
                             fu_encryption_key_version,
                             fu_encryption_salt,
                             fu_encryption_nonce_prefix,
+                            fu_encryption_chain_salts,
+                            fu_encryption_format_version,
                             fu_parent_file_id,
                             fu_file_metadata
                         FROM fu_file_uploads

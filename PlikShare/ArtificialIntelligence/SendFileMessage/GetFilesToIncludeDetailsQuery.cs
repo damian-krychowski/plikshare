@@ -25,9 +25,9 @@ public class GetFilesToIncludeDetailsQuery(PlikShareDb plikShareDb)
                         fi_encryption_salt,
                         fi_encryption_nonce_prefix,
                         fi_encryption_chain_salts,
-                        fi_encryption_format_version
+                        fi_encryption_format_version,
                         w_storage_id,
-                        w_bucket_name,
+                        w_bucket_name
                      FROM fi_files
                      INNER JOIN w_workspaces
                         ON w_id = fi_workspace_id

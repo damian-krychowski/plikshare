@@ -199,15 +199,6 @@ public static class Aes256GcmStreamingV1
             filePart);
     }
 
-    public static int CalculateSafeBufferSizeForMultiFileUploads(int totalSizeInBytes, int numberOfFiles)
-    {
-        //each file for sure have at least header + 1 tag
-        //additionally MultiFile uploads is only one part max at once, which means 10 segments which means 10 tags
-        //so if there is 1 file only that will be 9 additional tags.
-
-        return totalSizeInBytes + numberOfFiles * (HeaderSize + TagSize) + 9 * TagSize;
-    }
-
     public static int CalculateEncryptedPartSize(
         FilePart filePart)
     {

@@ -52,7 +52,8 @@ public class FileUploadCache(
         var (uploadAlgorithm, partsCount) = workspace
             .Storage
             .ResolveUploadAlgorithm(
-                fileSizeInBytes: cached.FileToUpload.SizeInBytes);
+                fileSizeInBytes: cached.FileToUpload.SizeInBytes,
+                ikmChainStepsCount: cached.FileToUpload.EncryptionMetadata?.ChainStepSalts.Count ?? 0);
 
         return new FileUploadContext
         {

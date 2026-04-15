@@ -37,7 +37,8 @@ public class AbortS3UploadQueueJobExecutor(
         }
 
         var uploadAlgorithm = storage.ResolveUploadAlgorithm(
-            fileSizeInBytes: definition.FileSizeInBytes);
+            fileSizeInBytes: definition.FileSizeInBytes,
+            ikmChainStepsCount: definition.FileEncryptionMetadata?.ChainStepSalts.Count ?? 0);
 
         //only in multi step chunk upload we need to cancel startet operation on s3 side
         if (uploadAlgorithm.Algorithm != UploadAlgorithm.MultiStepChunkUpload)

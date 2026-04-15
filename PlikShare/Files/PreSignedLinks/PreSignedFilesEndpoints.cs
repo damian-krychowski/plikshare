@@ -150,11 +150,12 @@ public static class PreSignedFilesEndpoints
             {
                 var filePart = new FilePart(
                     Number: 1,
-                    SizeInBytes: (int)fileUpload.FileToUpload.SizeInBytes);
+                    SizeInBytes: (int) fileUpload.FileToUpload.SizeInBytes);
 
-                var fileBufferSize = workspace.Storage.EncryptionType == StorageEncryptionType.None
-                    ? (int) fileUpload.FileToUpload.SizeInBytes
-                    : Aes256GcmStreamingV1.CalculateEncryptedPartSize(filePart);
+                var fileBufferSize = fileUpload
+                    .FileToUpload
+                    .EncryptionMetadata.CalculateBufferSize(
+                        part: filePart);
                 
                 var uploadTask = ProcessDirectFileUploadAsync(
                     heapBufferMemory.Slice(fileOffset, fileBufferSize),

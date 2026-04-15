@@ -76,9 +76,11 @@ public interface IStorageClient
         CancellationToken cancellationToken = default);
     
     (UploadAlgorithm Algorithm, int FilePartsCount) ResolveUploadAlgorithm(
-        long fileSizeInBytes);
+        long fileSizeInBytes,
+        int ikmChainStepsCount);
     (UploadAlgorithm Algorithm, int FilePartsCount) ResolveCopyUploadAlgorithm(
-        long fileSizeInBytes);
+        long fileSizeInBytes,
+        int ikmChainStepsCount);
 
     string GenerateFileS3KeySecretPart();
 

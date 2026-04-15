@@ -20,7 +20,7 @@ public static class IStorageClientExtensions
             {
                 return new FileEncryptionMetadata
                 {
-                    FormatVersion = 2,
+                    FormatVersion = 1,
                     KeyVersion = client.EncryptionKeyProvider!.GetLatestKeyVersion(),
                     Salt = Aes256GcmStreamingV1.GenerateSalt(),
                     NoncePrefix = Aes256GcmStreamingV1.GenerateNoncePrefix(),

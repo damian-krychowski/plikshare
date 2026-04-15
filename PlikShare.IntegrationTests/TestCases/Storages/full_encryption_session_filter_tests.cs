@@ -180,7 +180,7 @@ public class full_encryption_session_filter_tests : TestFixture
         await WaitForBucketReady(workspace, AppOwner);
 
         // FirstFilePartSizeInBytes + 1 forces a 2-part multistep upload.
-        var content = new byte[Aes256GcmStreamingV1.FirstFilePartSizeInBytes + 1];
+        var content = new byte[Aes256GcmStreamingV2.GetFirstFilePartSizeInBytes(chainStepsCount: 0) + 1];
         new Random(42).NextBytes(content);
 
         var fileUploadExternalId = FileUploadExtId.NewId();

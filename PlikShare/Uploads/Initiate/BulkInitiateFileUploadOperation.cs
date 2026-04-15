@@ -305,8 +305,11 @@ public class BulkInitiateFileUploadOperation(
         {
             var fileDetails = fileDetailsList[i];
 
+            var fileEncryptionMetadata = s3StorageClient.GenerateFileEncryptionMetadata();
+
             var (algorithm, filePartsCount) = s3StorageClient.ResolveUploadAlgorithm(
-                fileSizeInBytes: fileDetails.FileSizeInBytes);
+                fileSizeInBytes: fileDetails.FileSizeInBytes,
+                ikmChainStepsCount: fileEncryptionMetadata?.ChainStepSalts.Count ?? 0);
 
             if (algorithm == UploadAlgorithm.DirectUpload)
             {
@@ -329,7 +332,7 @@ public class BulkInitiateFileUploadOperation(
                     {
                         Algorithm = algorithm,
                         FilePartsCount = filePartsCount,
-                        FileEncryptionMetadata = s3StorageClient.GenerateFileEncryptionMetadata(),
+                        FileEncryptionMetadata = fileEncryptionMetadata,
 
                         PreSignedUploadLink = null,
                         S3UploadId = string.Empty,
@@ -352,8 +355,11 @@ public class BulkInitiateFileUploadOperation(
                 var tasks = batch.Select(async fileDetails =>
                 {
                     var s3Key = S3FileKey.NewKey();
+                    var fileEncryptionMetadata = s3StorageClient.GenerateFileEncryptionMetadata();
+
                     var (algorithm, filePartsCount) = s3StorageClient.ResolveUploadAlgorithm(
-                        fileSizeInBytes: fileDetails.FileSizeInBytes);
+                        fileSizeInBytes: fileDetails.FileSizeInBytes,
+                        ikmChainStepsCount: fileEncryptionMetadata?.ChainStepSalts.Count ?? 0);
 
                     string? preSignedUploadLink = null;
                     var s3UploadId = string.Empty;
@@ -403,7 +409,7 @@ public class BulkInitiateFileUploadOperation(
                         {
                             Algorithm = algorithm,
                             FilePartsCount = filePartsCount,
-                            FileEncryptionMetadata = s3StorageClient.GenerateFileEncryptionMetadata(),
+                            FileEncryptionMetadata = fileEncryptionMetadata,
 
                             PreSignedUploadLink = preSignedUploadLink,
                             S3UploadId = s3UploadId,
@@ -447,6 +453,10 @@ public class BulkInitiateFileUploadOperation(
                 EncryptionKeyVersion = bu.StorageUploadDetails.FileEncryptionMetadata?.KeyVersion,
                 EncryptionSalt = bu.StorageUploadDetails.FileEncryptionMetadata?.Salt,
                 EncryptionNoncePrefix = bu.StorageUploadDetails.FileEncryptionMetadata?.NoncePrefix,
+                EncryptionChainSalts = bu.StorageUploadDetails.FileEncryptionMetadata is null
+                    ? null
+                    : KeyDerivationChain.Serialize(bu.StorageUploadDetails.FileEncryptionMetadata.ChainStepSalts),
+                EncryptionFormatVersion = bu.StorageUploadDetails.FileEncryptionMetadata?.FormatVersion,
 
                 FileMetadataBlob = null,
                 ParentFileId = null

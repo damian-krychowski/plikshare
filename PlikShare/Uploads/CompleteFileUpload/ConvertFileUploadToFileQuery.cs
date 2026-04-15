@@ -1,6 +1,7 @@
 ﻿using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Uploads.Algorithm;
@@ -124,6 +125,8 @@ public class ConvertFileUploadToFileQuery(
                         fi_encryption_key_version,
                         fi_encryption_salt,
                         fi_encryption_nonce_prefix,
+                        fi_encryption_chain_salts,
+                        fi_encryption_format_version,
                         fi_parent_file_id,
                         fi_metadata
                     )
@@ -143,6 +146,8 @@ public class ConvertFileUploadToFileQuery(
                         fu_encryption_key_version,
                         fu_encryption_salt,
                         fu_encryption_nonce_prefix,
+                        fu_encryption_chain_salts,
+                        fu_encryption_format_version,
                         fu_parent_file_id,
                         fu_file_metadata
                     FROM fu_file_uploads
@@ -212,7 +217,8 @@ public class ConvertFileUploadToFileQuery(
     {
         var allFileUploadPartsCount = FileParts.GetTotalNumberOfParts(
             fileSizeInBytes: fileUpload.FileSizeInBytes,
-            storageEncryptionType: workspace.Storage.EncryptionType);
+            storageEncryptionType: workspace.Storage.EncryptionType,
+            ikmChainStepsCount: fileUpload.FileEncryptionMetadata?.ChainStepSalts.Count ?? 0);
 
         var filePartsCount = dbWriteContext
             .OneRowCmd(
@@ -260,6 +266,8 @@ public class ConvertFileUploadToFileQuery(
                         fi_encryption_key_version,
                         fi_encryption_salt,
                         fi_encryption_nonce_prefix,
+                        fi_encryption_chain_salts,
+                        fi_encryption_format_version,
                         fi_parent_file_id,
                         fi_metadata
                     )
@@ -279,6 +287,8 @@ public class ConvertFileUploadToFileQuery(
                         fu_encryption_key_version,
                         fu_encryption_salt,
                         fu_encryption_nonce_prefix,
+                        fu_encryption_chain_salts,
+                        fu_encryption_format_version,
                         fu_parent_file_id,
                         fu_file_metadata
                     FROM fu_file_uploads
@@ -375,5 +385,6 @@ public class ConvertFileUploadToFileQuery(
     public readonly record struct FileUpload(
         int Id,
         UploadAlgorithm UploadAlgorithm,
-        long FileSizeInBytes);
+        long FileSizeInBytes,
+        FileEncryptionMetadata? FileEncryptionMetadata);
 }

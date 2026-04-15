@@ -1,4 +1,5 @@
 ﻿using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Uploads.Algorithm;
@@ -41,10 +42,15 @@ public class GetFileUploadDetailsQuery(
                 readRowFunc: reader =>
                 {
                     var fileSizeInBytes = reader.GetInt64(2);
+                    var ikmChainStepsCount = KeyDerivationChain
+                        .Deserialize(reader.GetFieldValueOrNull<byte[]>(3))
+                        .Count;
 
                     var (algorithm, partsCount) = workspace
                         .Storage
-                        .ResolveUploadAlgorithm(fileSizeInBytes);
+                        .ResolveUploadAlgorithm(
+                            fileSizeInBytes: fileSizeInBytes,
+                            ikmChainStepsCount: ikmChainStepsCount);
 
                     return new UploadDetails
                     {

@@ -419,22 +419,25 @@ public class HardDriveStorageClient(
     }
     
     public (UploadAlgorithm Algorithm, int FilePartsCount) ResolveUploadAlgorithm(
-        long fileSizeInBytes)
+        long fileSizeInBytes,
+        int ikmChainStepsCount)
     {
         var filePartsCount = FileParts.GetTotalNumberOfParts(
             fileSizeInBytes: fileSizeInBytes,
-            storageEncryptionType: EncryptionType);
+            storageEncryptionType: EncryptionType,
+            ikmChainStepsCount: ikmChainStepsCount);
 
-        return filePartsCount == 1 ? 
-            (UploadAlgorithm.DirectUpload, filePartsCount) : 
+        return filePartsCount == 1 ?
+            (UploadAlgorithm.DirectUpload, filePartsCount) :
             (UploadAlgorithm.MultiStepChunkUpload, filePartsCount);
     }
 
     public (UploadAlgorithm Algorithm, int FilePartsCount) ResolveCopyUploadAlgorithm(
-        long fileSizeInBytes)
+        long fileSizeInBytes,
+        int ikmChainStepsCount)
     {
         //for hard drive, copy upload is the same as normal upload
-        return ResolveUploadAlgorithm(fileSizeInBytes);
+        return ResolveUploadAlgorithm(fileSizeInBytes, ikmChainStepsCount);
     }
 
     public string GenerateFileS3KeySecretPart()
@@ -448,15 +451,18 @@ public class HardDriveStorageClient(
         string contentType,
         IUserIdentity userIdentity)
     {
+        var fileEncryptionMetadata = this.GenerateFileEncryptionMetadata();
+
         var (algorithm, filePartsCount) = ResolveUploadAlgorithm(
-            fileSizeInBytes: fileSizeInBytes);
+            fileSizeInBytes: fileSizeInBytes,
+            ikmChainStepsCount: fileEncryptionMetadata?.ChainStepSalts.Count ?? 0);
 
         return new StorageUploadDetails
         {
             Algorithm = algorithm,
             FilePartsCount = filePartsCount,
 
-            FileEncryptionMetadata = this.GenerateFileEncryptionMetadata(),
+            FileEncryptionMetadata = fileEncryptionMetadata,
 
             PreSignedUploadLink = null,
             S3UploadId = string.Empty,

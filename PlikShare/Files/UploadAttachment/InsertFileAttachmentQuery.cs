@@ -71,6 +71,8 @@ public class InsertFileAttachmentQuery(
                             fi_encryption_key_version,
                             fi_encryption_salt,
                             fi_encryption_nonce_prefix,
+                            fi_encryption_chain_salts,
+                            fi_encryption_format_version,
                             fi_parent_file_id,
                             fi_metadata
                          )
@@ -90,6 +92,8 @@ public class InsertFileAttachmentQuery(
                             $encryptionKeyVersion,
                             $encryptionSalt,
                             $encryptionNoncePrefix,
+                            $encryptionChainSalts,
+                            $encryptionFormatVersion,
                             (SELECT fi_id FROM parent),
                             NULL
                          )
@@ -117,6 +121,10 @@ public class InsertFileAttachmentQuery(
                 .WithParameter("$encryptionKeyVersion", attachment.EncryptionMetadata?.KeyVersion)
                 .WithParameter("$encryptionSalt", attachment.EncryptionMetadata?.Salt)
                 .WithParameter("$encryptionNoncePrefix", attachment.EncryptionMetadata?.NoncePrefix)
+                .WithParameter("$encryptionChainSalts", attachment.EncryptionMetadata is null
+                    ? null
+                    : KeyDerivationChain.Serialize(attachment.EncryptionMetadata.ChainStepSalts))
+                .WithParameter("$encryptionFormatVersion", attachment.EncryptionMetadata?.FormatVersion)
                 .ExecuteOrThrow();
 
             if (result.ParentId is null)

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
@@ -59,6 +60,7 @@ public class DeleteFileUploadsSubQuery(IQueue queue)
                     FileSizeInBytes = deletedFileUpload.FileSizeInBytes,
                     S3KeySecretPart = deletedFileUpload.FileS3KeySecretPart,
                     S3UploadId = deletedFileUpload.S3UploadId,
+                    FileEncryptionMetadata = deletedFileUpload.FileEncryptionMetadata,
 
                     BucketName = workspace.BucketName,
                     StorageId = workspace.StorageId,
@@ -123,21 +125,43 @@ public class DeleteFileUploadsSubQuery(IQueue queue)
                         fu_id IN (
                             SELECT value FROM json_each($fileUploadIds)
                         )
-                    RETURNING 
+                    RETURNING
                         fu_id,
                         fu_file_external_id,
                         fu_file_s3_key_secret_part,
                         fu_s3_upload_id,
                         fu_file_size_in_bytes,
-                        fu_workspace_id
+                        fu_workspace_id,
+                        fu_encryption_key_version,
+                        fu_encryption_salt,
+                        fu_encryption_nonce_prefix,
+                        fu_encryption_chain_salts,
+                        fu_encryption_format_version
                 ",
-                readRowFunc: reader => new DeletedFileUpload{
-                    Id = reader.GetInt32(0),
-                    FileExternalId = reader.GetExtId<FileExtId>(1),
-                    FileS3KeySecretPart = reader.GetString(2),
-                    S3UploadId = reader.GetString(3),
-                    FileSizeInBytes = reader.GetInt64(4),
-                    WorkspaceId = reader.GetInt32(5)
+                readRowFunc: reader =>
+                {
+                    var encryptionKeyVersion = reader.GetByteOrNull(6);
+
+                    return new DeletedFileUpload
+                    {
+                        Id = reader.GetInt32(0),
+                        FileExternalId = reader.GetExtId<FileExtId>(1),
+                        FileS3KeySecretPart = reader.GetString(2),
+                        S3UploadId = reader.GetString(3),
+                        FileSizeInBytes = reader.GetInt64(4),
+                        WorkspaceId = reader.GetInt32(5),
+                        FileEncryptionMetadata = encryptionKeyVersion is null
+                            ? null
+                            : new FileEncryptionMetadata
+                            {
+                                KeyVersion = encryptionKeyVersion.Value,
+                                Salt = reader.GetFieldValue<byte[]>(7),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(8),
+                                ChainStepSalts = KeyDerivationChain.Deserialize(
+                                    reader.GetFieldValueOrNull<byte[]>(9)),
+                                FormatVersion = reader.GetByteOrNull(10) ?? 1
+                            }
+                    };
                 },
                 transaction: transaction)
             .WithJsonParameter("$fileUploadIds", fileUploadIds)
@@ -186,6 +210,7 @@ public class DeleteFileUploadsSubQuery(IQueue queue)
         public required string S3UploadId { get; init; }
         public required long FileSizeInBytes { get; init; }
         public required int WorkspaceId { get; init; }
+        public required FileEncryptionMetadata? FileEncryptionMetadata { get; init; }
     }
 
     public class DeletedFileUploadPart

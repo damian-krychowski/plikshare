@@ -520,11 +520,14 @@ public class S3StorageClient(
         };
     }
 
-    public (UploadAlgorithm Algorithm, int FilePartsCount) ResolveCopyUploadAlgorithm(long fileSizeInBytes)
+    public (UploadAlgorithm Algorithm, int FilePartsCount) ResolveCopyUploadAlgorithm(
+        long fileSizeInBytes,
+        int ikmChainStepsCount)
     {
         var filePartsCount = FileParts.GetTotalNumberOfParts(
             fileSizeInBytes: fileSizeInBytes,
-            storageEncryptionType: EncryptionType);
+            storageEncryptionType: EncryptionType,
+            ikmChainStepsCount: ikmChainStepsCount);
 
         return filePartsCount == 1
             ? (UploadAlgorithm.DirectUpload, filePartsCount)
@@ -536,11 +539,14 @@ public class S3StorageClient(
         return Guid.NewGuid().ToBase62();
     }
 
-    public (UploadAlgorithm Algorithm, int FilePartsCount) ResolveUploadAlgorithm(long fileSizeInBytes)
+    public (UploadAlgorithm Algorithm, int FilePartsCount) ResolveUploadAlgorithm(
+        long fileSizeInBytes,
+        int ikmChainStepsCount)
     {
         var filePartsCount = FileParts.GetTotalNumberOfParts(
             fileSizeInBytes: fileSizeInBytes,
-            storageEncryptionType: EncryptionType);
+            storageEncryptionType: EncryptionType,
+            ikmChainStepsCount: ikmChainStepsCount);
 
         if (EncryptionType == StorageEncryptionType.Managed)
         {

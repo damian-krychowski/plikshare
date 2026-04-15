@@ -380,9 +380,12 @@ public class CopyFileQueueJobExecutor(
         PipeReader input,
         CancellationToken cancellationToken)
     {
+        var ikmChainStepsCount = job.NewFileEncryptionMetadata?.ChainStepSalts.Count ?? 0;
+
         var totalNumberOfParts = FileParts.GetTotalNumberOfParts(
             fileSizeInBytes: job.FileSizeInBytes,
-            storageEncryptionType: destinationWorkspace.Storage.EncryptionType);
+            storageEncryptionType: destinationWorkspace.Storage.EncryptionType,
+            ikmChainStepsCount: ikmChainStepsCount);
 
         var partNumber = 1;
 
@@ -395,7 +398,8 @@ public class CopyFileQueueJobExecutor(
                 var partSizeInBytes = FileParts.GetPartSizeInBytes(
                     fileSizeInBytes: job.FileSizeInBytes,
                     partNumber: partNumber,
-                    storageEncryptionType: destinationWorkspace.Storage.EncryptionType);
+                    storageEncryptionType: destinationWorkspace.Storage.EncryptionType,
+                    ikmChainStepsCount: ikmChainStepsCount);
 
                 var result = await FileWriter.Write(
                     file: new FileToUploadDetails

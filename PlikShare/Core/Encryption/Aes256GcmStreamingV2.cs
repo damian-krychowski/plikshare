@@ -202,7 +202,7 @@ public static class Aes256GcmStreamingV2
 
     public static int CalculateSafeBufferSizeForMultiFileUploads(int totalSizeInBytes, int numberOfFiles)
     {
-        var worstHeaderSize = Aes256GcmStreamingV2.GetHeaderSize(SafeUpperBoundChainSteps);
+        var worstHeaderSize = GetHeaderSize(SafeUpperBoundChainSteps);
         var worstPerFileOverhead = worstHeaderSize + TagSize;
 
         return totalSizeInBytes + numberOfFiles * worstPerFileOverhead + 9 * TagSize;

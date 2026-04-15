@@ -1,5 +1,6 @@
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
@@ -111,10 +112,11 @@ public class BulkInitiateCopyFileUploadOperation(
                     var fileId = reader.GetInt32(0);
                     var fileSizeInBytes = reader.GetInt64(1);
 
-                    var (algorithm, filePartsCount) = storageClient.ResolveCopyUploadAlgorithm(
-                        fileSizeInBytes: fileSizeInBytes);
-
                     var encryptionDetails = storageClient.GenerateFileEncryptionMetadata();
+
+                    var (algorithm, filePartsCount) = storageClient.ResolveCopyUploadAlgorithm(
+                        fileSizeInBytes: fileSizeInBytes,
+                        ikmChainStepsCount: encryptionDetails?.ChainStepSalts.Count ?? 0);
 
                     return new FileToCopy
                     {
@@ -134,7 +136,11 @@ public class BulkInitiateCopyFileUploadOperation(
 
                         NewFileEncryptionKeyVersion = encryptionDetails?.KeyVersion,
                         NewFileEncryptionSalt = encryptionDetails?.Salt,
-                        NewFileEncryptionNoncePrefix = encryptionDetails?.NoncePrefix
+                        NewFileEncryptionNoncePrefix = encryptionDetails?.NoncePrefix,
+                        NewFileEncryptionChainSalts = encryptionDetails is null
+                            ? null
+                            : KeyDerivationChain.Serialize(encryptionDetails.ChainStepSalts),
+                        NewFileEncryptionFormatVersion = encryptionDetails?.FormatVersion
                     };
                 })
             .WithJsonParameter("$fileIds", fileIds)
@@ -186,6 +192,8 @@ public class BulkInitiateCopyFileUploadOperation(
                             fu_encryption_key_version,
                             fu_encryption_salt,
                             fu_encryption_nonce_prefix,
+                            fu_encryption_chain_salts,
+                            fu_encryption_format_version,
                             fu_is_completed,
                             fu_parent_file_id,
                             fu_file_metadata
@@ -206,6 +214,8 @@ public class BulkInitiateCopyFileUploadOperation(
                             json_extract(value, '$.newFileEncryptionKeyVersion'),
                             app_json_array_to_blob(json_extract(value, '$.newFileEncryptionSalt')),
                             app_json_array_to_blob(json_extract(value, '$.newFileEncryptionNoncePrefix')),
+                            app_json_array_to_blob(json_extract(value, '$.newFileEncryptionChainSalts')),
+                            json_extract(value, '$.newFileEncryptionFormatVersion'),
                             FALSE,
                             NULL,
                             NULL
@@ -340,6 +350,8 @@ public class BulkInitiateCopyFileUploadOperation(
         public byte? NewFileEncryptionKeyVersion { get; init; }
         public byte[]? NewFileEncryptionSalt { get; init; }
         public byte[]? NewFileEncryptionNoncePrefix { get; init; }
+        public byte[]? NewFileEncryptionChainSalts { get; init; }
+        public byte? NewFileEncryptionFormatVersion { get; init; }
     }
 
     private class FileUpload

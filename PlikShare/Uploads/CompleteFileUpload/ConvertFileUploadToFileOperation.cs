@@ -36,7 +36,8 @@ public class ConvertFileUploadToFileOperation(
             fileUpload: new ConvertFileUploadToFileQuery.FileUpload(
                 Id: fileUpload.Id,
                 UploadAlgorithm: fileUpload.UploadAlgorithm,
-                FileSizeInBytes: fileUpload.FileToUpload.SizeInBytes),
+                FileSizeInBytes: fileUpload.FileToUpload.SizeInBytes,
+                FileEncryptionMetadata: fileUpload.FileToUpload.EncryptionMetadata),
             workspace: fileUpload.Workspace,
             correlationId: correlationId,
             cancellationToken: cancellationToken);

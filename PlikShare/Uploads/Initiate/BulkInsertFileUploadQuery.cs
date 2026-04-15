@@ -112,6 +112,8 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
                         fu_encryption_key_version,
                         fu_encryption_salt,
                         fu_encryption_nonce_prefix,
+                        fu_encryption_chain_salts,
+                        fu_encryption_format_version,
                         fu_is_completed,
                         fu_parent_file_id,
                         fu_file_metadata
@@ -132,12 +134,14 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
                         json_extract(value, '$.encryptionKeyVersion'),
                         app_json_array_to_blob(json_extract(value, '$.encryptionSalt')),
                         app_json_array_to_blob(json_extract(value, '$.encryptionNoncePrefix')),
+                        app_json_array_to_blob(json_extract(value, '$.encryptionChainSalts')),
+                        json_extract(value, '$.encryptionFormatVersion'),
                         FALSE,
                         json_extract(value, '$.parentFileId'),
                         app_json_array_to_blob(json_extract(value, '$.fileMetadataBlob'))
                     FROM
                         json_each($fileUploads)
-                    RETURNING 
+                    RETURNING
                         fu_id,
                         fu_external_id
                     """,
@@ -194,6 +198,8 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
         public required byte? EncryptionKeyVersion { get; init; }
         public required byte[]? EncryptionSalt { get; init; }
         public required byte[]? EncryptionNoncePrefix { get; init; }
+        public required byte[]? EncryptionChainSalts { get; init; }
+        public required byte? EncryptionFormatVersion { get; init; }
         public required int? ParentFileId { get; init; }
         public required byte[]? FileMetadataBlob { get; init; }
     }
