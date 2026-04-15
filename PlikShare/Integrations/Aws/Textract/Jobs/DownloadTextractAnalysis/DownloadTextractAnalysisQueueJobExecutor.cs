@@ -329,14 +329,16 @@ public class DownloadTextractAnalysisQueueJobExecutor(
         CancellationToken cancellationToken)
     {
         var markdownFileUploadToInsert = MapToBulkInsertEntity(
-            markdownFile, 
+            markdownFile,
             textractJob,
-            originalFileWorkspace.Storage);
+            originalFileWorkspace.Storage,
+            originalFileWorkspace.Encryption);
 
         var fullJsonFileUploadToInsert = MapToBulkInsertEntity(
             fullJsonFile,
             textractJob,
-            originalFileWorkspace.Storage);
+            originalFileWorkspace.Storage,
+            originalFileWorkspace.Encryption);
 
         var workspaceSize = getWorkspaceSizeQuery.Execute(
             workspace: originalFileWorkspace);
@@ -372,15 +374,16 @@ public class DownloadTextractAnalysisQueueJobExecutor(
     }
 
     private static BulkInsertFileUploadQuery.InsertEntity MapToBulkInsertEntity(
-        ResultFile file, 
-        TextractJob textractJob, 
-        IStorageClient storage)
+        ResultFile file,
+        TextractJob textractJob,
+        IStorageClient storage,
+        WorkspaceEncryptionMetadata? workspaceEncryption)
     {
-        // Metadata generation itself is pure storage state and works fine for Full
-        // destinations. What will fail is the later encryption step, which needs a
-        // Workspace DEK that this background job has no way to obtain without a
-        // service-account key mechanism (pending task).
-        var encryptionMetadata = storage.GenerateFileEncryptionMetadata();
+        // Metadata generation works fine for Full destinations as long as we have the
+        // workspace salt (needed for the file-header chain). What will still fail is the
+        // later encryption step, which needs a Workspace DEK that this background job has
+        // no way to obtain without a service-account key mechanism (pending task).
+        var encryptionMetadata = storage.GenerateFileEncryptionMetadata(workspaceEncryption);
 
         //TODO: THAT IS NOT FINISED (METADATA)
 

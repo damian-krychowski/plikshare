@@ -435,9 +435,11 @@ public class HardDriveStorageClient(
         FileUploadExtId fileUploadExternalId,
         long fileSizeInBytes,
         string contentType,
-        IUserIdentity userIdentity)
+        IUserIdentity userIdentity,
+        WorkspaceEncryptionMetadata? workspaceEncryption)
     {
-        var fileEncryptionMetadata = this.GenerateFileEncryptionMetadata();
+        var fileEncryptionMetadata = this.GenerateFileEncryptionMetadata(
+            workspaceEncryption);
 
         var (algorithm, filePartsCount) = ResolveUploadAlgorithm(
             fileSizeInBytes: fileSizeInBytes,

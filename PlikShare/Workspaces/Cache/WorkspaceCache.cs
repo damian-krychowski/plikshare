@@ -71,7 +71,7 @@ public class WorkspaceCache(
             IsBeingDeleted = workspaceCached.IsBeingDeleted,
             Owner = owner,
             Storage = storageClient,
-            Encryption = workspaceCached.Encryption,
+            EncryptionMetadata = workspaceCached.EncryptionMetadata,
 
             Integrations = new WorkspaceIntegrations
             {
@@ -119,7 +119,7 @@ public class WorkspaceCache(
                     IsBucketCreated = reader.GetBoolean(8),
                     IsBeingDeleted = reader.GetBoolean(9),
                     StorageId = reader.GetInt32(10),
-                    Encryption = ReadEncryption(reader, ordinal: 11)
+                    EncryptionMetadata = ReadEncryptionMetadata(reader, ordinal: 11)
                 })
             .WithParameter("$workspaceExternalId", workspaceExternalId.Value)
             .Execute();
@@ -176,7 +176,7 @@ public class WorkspaceCache(
                     IsBucketCreated = reader.GetBoolean(8),
                     IsBeingDeleted = reader.GetBoolean(9),
                     StorageId = reader.GetInt32(10),
-                    Encryption = ReadEncryption(reader, ordinal: 11)
+                    EncryptionMetadata = ReadEncryptionMetadata(reader, ordinal: 11)
                 })
             .WithParameter("$workspaceId", workspaceId)
             .Execute();
@@ -228,7 +228,7 @@ public class WorkspaceCache(
             IsBeingDeleted = workspace.IsBeingDeleted,
             Owner = owner,
             Storage = storageClient,
-            Encryption = workspace.Encryption,
+            EncryptionMetadata = workspace.EncryptionMetadata,
 
             Integrations = new WorkspaceIntegrations
             {
@@ -269,7 +269,7 @@ public class WorkspaceCache(
             updateValueFactory: (_, _) => workspaceExternalId);
     }
 
-    private static WorkspaceEncryptionMetadata? ReadEncryption(
+    private static WorkspaceEncryptionMetadata? ReadEncryptionMetadata(
         System.Data.Common.DbDataReader reader,
         int ordinal)
     {
@@ -294,6 +294,6 @@ public class WorkspaceCache(
         public required bool IsBucketCreated { get; init; }
         public required bool IsBeingDeleted { get; init; }
         public required int StorageId { get; init; }
-        public required WorkspaceEncryptionMetadata? Encryption { get; init; }
+        public required WorkspaceEncryptionMetadata? EncryptionMetadata { get; init; }
     }
 }

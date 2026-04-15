@@ -20,7 +20,7 @@ public sealed class WorkspaceContext
     public required bool IsBeingDeleted { get; init; }
     public required UserContext Owner { get; init; }
     public required IStorageClient Storage { get; init; }
-    public required WorkspaceEncryptionMetadata? Encryption { get; init; }
+    public required WorkspaceEncryptionMetadata? EncryptionMetadata { get; init; }
     public required WorkspaceIntegrations Integrations { get; init; }
 }
 

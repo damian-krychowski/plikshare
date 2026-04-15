@@ -141,7 +141,8 @@ public static class FilesEndpoints
             Extension = fileName.Extension,
             SizeInBytes = file.Length,
             S3KeySecretPart = workspace.Storage.GenerateFileS3KeySecretPart(),
-            EncryptionMetadata = workspace.Storage.GenerateFileEncryptionMetadata()
+            EncryptionMetadata = workspace.Storage.GenerateFileEncryptionMetadata(
+                workspace.EncryptionMetadata)
         };
 
         var attachmentInsertionResult = await insertFileAttachmentQuery.Execute(

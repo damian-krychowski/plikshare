@@ -246,7 +246,8 @@ public class BulkInitiateFileUploadOperation(
             HardDriveStorageClient hardDriveStorageClient => HandleMultipleHardDriveUploads(
                 hardDriveStorage: hardDriveStorageClient,
                 fileDetailsList: fileDetailsList,
-                userIdentity: userIdentity),
+                userIdentity: userIdentity,
+                workspaceEncryption: workspace.Encryption),
 
             S3StorageClient s3StorageClient => await HandleMultipleS3Uploads(
                 s3StorageClient: s3StorageClient,
@@ -261,7 +262,8 @@ public class BulkInitiateFileUploadOperation(
     private List<UploadDetails> HandleMultipleHardDriveUploads(
         HardDriveStorageClient hardDriveStorage,
         BulkInitiateFileUploadItemDto[] fileDetailsList,
-        IUserIdentity userIdentity)
+        IUserIdentity userIdentity,
+        WorkspaceEncryptionMetadata? workspaceEncryption)
     {
         return fileDetailsList
             .Select(fileDetails =>
@@ -283,7 +285,8 @@ public class BulkInitiateFileUploadOperation(
                         fileUploadExternalId: FileUploadExtId.Parse(fileDetails.FileUploadExternalId),
                         fileSizeInBytes: fileDetails.FileSizeInBytes,
                         contentType: fileDetails.FileContentType,
-                        userIdentity: userIdentity),
+                        userIdentity: userIdentity,
+                        workspaceEncryption: workspaceEncryption),
 
                     S3Key = S3FileKey.NewKey(
                         secretPart: string.Empty),
@@ -305,7 +308,7 @@ public class BulkInitiateFileUploadOperation(
         {
             var fileDetails = fileDetailsList[i];
 
-            var fileEncryptionMetadata = s3StorageClient.GenerateFileEncryptionMetadata();
+            var fileEncryptionMetadata = s3StorageClient.GenerateFileEncryptionMetadata(workspace.Encryption);
 
             var (algorithm, filePartsCount) = s3StorageClient.ResolveUploadAlgorithm(
                 fileSizeInBytes: fileDetails.FileSizeInBytes,
@@ -355,7 +358,7 @@ public class BulkInitiateFileUploadOperation(
                 var tasks = batch.Select(async fileDetails =>
                 {
                     var s3Key = S3FileKey.NewKey();
-                    var fileEncryptionMetadata = s3StorageClient.GenerateFileEncryptionMetadata();
+                    var fileEncryptionMetadata = s3StorageClient.GenerateFileEncryptionMetadata(workspace.Encryption);
 
                     var (algorithm, filePartsCount) = s3StorageClient.ResolveUploadAlgorithm(
                         fileSizeInBytes: fileDetails.FileSizeInBytes,

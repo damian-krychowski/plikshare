@@ -39,7 +39,8 @@ public class BulkInitiateCopyFileUploadOperation(
         // mechanism pending in the invitation/rotation work.
         var filesToCopy = GetFilesToCopy(
             fileIds: definition.Files.Select(file => file.Id).ToArray(),
-            storageClient: destinationWorkspace.Storage);
+            storageClient: destinationWorkspace.Storage,
+            workspaceEncryption: destinationWorkspace.EncryptionMetadata);
 
         if (destinationWorkspace.Storage is S3StorageClient s3StorageClient)
         {
@@ -92,7 +93,8 @@ public class BulkInitiateCopyFileUploadOperation(
     
     private List<FileToCopy> GetFilesToCopy(
         int[] fileIds,
-        IStorageClient storageClient)
+        IStorageClient storageClient,
+        WorkspaceEncryptionMetadata? workspaceEncryption)
     {
         using var connection = plikShareDb.OpenConnection();
 
@@ -115,7 +117,8 @@ public class BulkInitiateCopyFileUploadOperation(
                     var fileId = reader.GetInt32(0);
                     var fileSizeInBytes = reader.GetInt64(1);
 
-                    var encryptionDetails = storageClient.GenerateFileEncryptionMetadata();
+                    var encryptionDetails = storageClient.GenerateFileEncryptionMetadata(
+                        workspaceEncryption);
 
                     var (algorithm, filePartsCount) = storageClient.ResolveCopyUploadAlgorithm(
                         fileSizeInBytes: fileSizeInBytes,

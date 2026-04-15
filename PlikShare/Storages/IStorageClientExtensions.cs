@@ -11,7 +11,8 @@ public static class IStorageClientExtensions
 {
     extension(IStorageClient client)
     {
-        public FileEncryptionMetadata? GenerateFileEncryptionMetadata()
+        public FileEncryptionMetadata? GenerateFileEncryptionMetadata(
+            WorkspaceEncryptionMetadata? workspaceEncryption)
         {
             if (client.EncryptionType == StorageEncryptionType.None)
                 return null;
@@ -30,14 +31,22 @@ public static class IStorageClientExtensions
 
             if (client.EncryptionType == StorageEncryptionType.Full)
             {
-                // Metadata generation is pure storage state — it stamps the file header with
-                // the currently-authoritative Storage DEK version. It deliberately does NOT
-                // touch the caller's session: whether the caller can actually produce bytes
-                // for this metadata is decided later in the encryption-time path, where the
-                // session is consulted via GetDekForVersion.
                 var fullDetails = client.EncryptionDetails?.Full
                     ?? throw new InvalidOperationException(
                         $"Storage '{client.ExternalId}' has EncryptionType=Full but no Full encryption details.");
+
+                // Chain salts record the derivation path a recovery tool must walk from the
+                // recovery seed to the IKM that V2 actually uses (the Workspace DEK). For a
+                // full-encrypted workspace that path is one HKDF step:
+                //   Storage DEK v N  --HKDF(workspace_salt)-->  Workspace DEK
+                // The runtime encryption path ignores these salts (V2 takes IKM = Workspace
+                // DEK directly); they only matter when offline recovery reconstructs the
+                // Workspace DEK from the seed + file header alone, with no DB lookup.
+                if (workspaceEncryption is null)
+                    throw new InvalidOperationException(
+                        $"WorkspaceEncryptionMetadata is required to generate file metadata for " +
+                        $"full-encrypted storage '{client.ExternalId}' — the workspace salt " +
+                        $"must be recorded in the file header's chain-step salts.");
 
                 return new FileEncryptionMetadata
                 {
@@ -45,7 +54,7 @@ public static class IStorageClientExtensions
                     KeyVersion = checked((byte)fullDetails.LatestStorageDekVersion),
                     Salt = Aes256GcmStreamingV2.GenerateSalt(),
                     NoncePrefix = Aes256GcmStreamingV2.GenerateNoncePrefix(),
-                    ChainStepSalts = []
+                    ChainStepSalts = [workspaceEncryption.Salt]
                 };
             }
 
