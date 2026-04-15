@@ -18,14 +18,16 @@ public class WorkspacesApi(IFlurlClient flurlClient, string appUrl)
     public async Task<CreateWorkspaceResponseDto> Create(
         CreateWorkspaceRequestDto request,
         SessionAuthCookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies antiforgery,
+        Cookie? userEncryptionSession = null)
     {
         return await flurlClient.ExecutePost<CreateWorkspaceResponseDto, CreateWorkspaceRequestDto>(
             appUrl: appUrl,
             apiPath: "api/workspaces",
             request: request,
             cookie: cookie,
-            antiforgery: antiforgery);
+            antiforgery: antiforgery,
+            extraCookie: userEncryptionSession);
     }
 
     public async Task<CheckWorkspaceBucketStatusResponseDto> CheckBucketStatus(

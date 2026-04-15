@@ -332,13 +332,13 @@ public class DownloadTextractAnalysisQueueJobExecutor(
             markdownFile,
             textractJob,
             originalFileWorkspace.Storage,
-            originalFileWorkspace.Encryption);
+            originalFileWorkspace.EncryptionMetadata);
 
         var fullJsonFileUploadToInsert = MapToBulkInsertEntity(
             fullJsonFile,
             textractJob,
             originalFileWorkspace.Storage,
-            originalFileWorkspace.Encryption);
+            originalFileWorkspace.EncryptionMetadata);
 
         var workspaceSize = getWorkspaceSizeQuery.Execute(
             workspace: originalFileWorkspace);

@@ -13,6 +13,7 @@ public class Api(IFlurlClient flurlClient, string appUrl)
     public StoragesApi Storages { get; } = new(flurlClient, appUrl);
     public EmailProvidersApi EmailProviders { get; } = new(flurlClient, appUrl);
     public UsersApi Users { get; } = new(flurlClient, appUrl);
+    public UserEncryptionPasswordApi UserEncryptionPassword { get; } = new(flurlClient, appUrl);
     public WorkspacesApi Workspaces { get; } = new(flurlClient, appUrl);
     public WorkspacesAdminApi WorkspacesAdmin { get; } = new(flurlClient, appUrl);
     public FoldersApi Folders { get; } = new(flurlClient, appUrl);

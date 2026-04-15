@@ -309,6 +309,30 @@ public class TestFixture: IAsyncLifetime
             Antiforgery: loggedInAntiforgeryCookies);
     }
 
+    protected const string DefaultTestEncryptionPassword = "Test-Encryption-Password-1!";
+
+    /// <summary>
+    /// Runs the <c>/api/user-encryption-password/setup</c> flow for the given signed-in user
+    /// and returns an updated <see cref="AppSignedInUser"/> carrying the resulting encryption
+    /// session cookie, alongside the recovery code. Subsequent full-encryption calls (Full
+    /// storage creation, workspace creation on a Full storage, file upload/download on a
+    /// full-encrypted workspace) should use the returned user.
+    /// </summary>
+    protected async Task<(AppSignedInUser Updated, string RecoveryCode)> SetupUserEncryptionPassword(
+        AppSignedInUser user,
+        string encryptionPassword = DefaultTestEncryptionPassword)
+    {
+        HostFixture.ResetUserEncryption();
+
+        var result = await Api.UserEncryptionPassword.Setup(
+            userExternalId: user.ExternalId,
+            encryptionPassword: encryptionPassword,
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        return (user with { EncryptionCookie = result.EncryptionCookie }, result.RecoveryCode);
+    }
+
     protected async Task<AppStorage> CreateHardDriveStorage(
         AppSignedInUser user)
     {
@@ -334,17 +358,12 @@ public class TestFixture: IAsyncLifetime
         AppSignedInUser user,
         StorageEncryptionType encryptionType)
     {
-        if (encryptionType == StorageEncryptionType.Full)
+        Cookie? encryptionCookie = user.EncryptionCookie;
+
+        if (encryptionType == StorageEncryptionType.Full && encryptionCookie is null)
         {
-            // Full-encrypted storage creation now requires the caller's X25519 public key
-            // (loaded from u_users) so the Storage DEK can be sealed to them at creation
-            // time — the master-password flow is gone. This helper is not yet wired to
-            // set up the user's encryption password before creating the storage, so the
-            // Full path is intentionally unavailable here until Task #18 reconnects the
-            // session flow end-to-end.
-            throw new NotSupportedException(
-                "Full-encrypted hard-drive storage cannot be created via this test helper until "
-                + "Task #18 rewires the storage creation flow to use UserEncryptionSession.");
+            var (updated, _) = await SetupUserEncryptionPassword(user);
+            encryptionCookie = updated.EncryptionCookie;
         }
 
         var hardDriveName = $"hard-drive-{Guid.NewGuid().ToBase62()}";
@@ -363,7 +382,9 @@ public class TestFixture: IAsyncLifetime
             Name: hardDriveName,
             Type: StorageType.HardDrive,
             Details: $"{MainVolume.Path}/{hardDriveName}",
-            WorkspaceEncryptionSession: null);
+            WorkspaceEncryptionSession: encryptionType == StorageEncryptionType.Full
+                ? encryptionCookie
+                : null);
     }
 
     protected async Task WaitForBucketReady(
@@ -661,7 +682,8 @@ public class TestFixture: IAsyncLifetime
                 StorageExternalId: storage.ExternalId,
                 Name: workspaceName),
             cookie: user.Cookie,
-            antiforgery: user.Antiforgery);
+            antiforgery: user.Antiforgery,
+            userEncryptionSession: storage.WorkspaceEncryptionSession);
 
         return new AppWorkspace(
             ExternalId: result.ExternalId,
@@ -1012,7 +1034,8 @@ public class TestFixture: IAsyncLifetime
         string Email,
         string Password,
         SessionAuthCookie Cookie,
-        AntiforgeryCookies Antiforgery);
+        AntiforgeryCookies Antiforgery,
+        Cookie? EncryptionCookie = null);
 
     public record AppVolume(string Path);
 

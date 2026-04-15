@@ -427,6 +427,9 @@ public class Startup
 
         builder.Services.AddSingleton<IQueueNormalJobExecutor, CreateWorkspaceBucketJobExecutor>();
         builder.Services.AddSingleton<CreateWorkspaceQuery>();
+        builder.Services.AddSingleton<StorageEncryptionKeyReader>();
+        builder.Services.AddSingleton<UpsertStorageEncryptionKeyQuery>();
+        builder.Services.AddSingleton<RevokeStorageEncryptionKeyQuery>();
         builder.Services.AddSingleton<GetUserWrappedWorkspaceDeksQuery>();
         builder.Services.AddSingleton<UpsertWorkspaceEncryptionKeyQuery>();
         builder.Services.AddSingleton<UserWorkspaceDekUnsealer>();

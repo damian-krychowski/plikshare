@@ -47,4 +47,11 @@ public class RandomGenerator
     {
         return $"secret_{Guid.NewGuid().ToBase62()}";
     }
+
+    public byte[] Bytes(int length)
+    {
+        var buffer = new byte[length];
+        System.Security.Cryptography.RandomNumberGenerator.Fill(buffer);
+        return buffer;
+    }
 }

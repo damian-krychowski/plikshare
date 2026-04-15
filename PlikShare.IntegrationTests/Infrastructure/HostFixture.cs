@@ -203,6 +203,25 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
         connection.NonQueryCmd(sql: "DELETE FROM suc_sign_up_checkboxes").Execute();
     }
 
+    public void ResetUserEncryption()
+    {
+        using var connection = Db.OpenConnection();
+
+        connection.NonQueryCmd(sql: """
+            UPDATE u_users
+            SET u_encryption_public_key = NULL,
+                u_encryption_encrypted_private_key = NULL,
+                u_encryption_kdf_salt = NULL,
+                u_encryption_kdf_params = NULL,
+                u_encryption_verify_hash = NULL,
+                u_encryption_recovery_wrapped_private_key = NULL,
+                u_encryption_recovery_verify_hash = NULL
+            """).Execute();
+
+        connection.NonQueryCmd(sql: "DELETE FROM sek_storage_encryption_keys").Execute();
+        connection.NonQueryCmd(sql: "DELETE FROM wek_workspace_encryption_keys").Execute();
+    }
+
     public void RemoveAllEmailProviders()
     {
         using var connection = Db.OpenConnection();

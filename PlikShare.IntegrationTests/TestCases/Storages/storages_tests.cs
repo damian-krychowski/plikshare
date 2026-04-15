@@ -110,9 +110,157 @@ public class storages_tests : TestFixture
             s.EncryptionType == StorageEncryptionType.Managed);
     }
 
-    // Full-encryption creation tests moved to Task #18 — creation now requires the
-    // caller's X25519 public key (set up via the user encryption password flow) and
-    // no longer accepts a master password on the request.
+    [Fact]
+    public async Task when_full_encryption_storage_is_created_without_encryption_password_setup_it_fails()
+    {
+        //given
+        HostFixture.ResetUserEncryption();
+        var storageName = Random.Name("hard-drive");
+
+        //when
+        var apiError = await Assert.ThrowsAsync<TestApiCallException>(
+            async () => await Api.Storages.CreateHardDriveStorage(
+                request: new CreateHardDriveStorageRequestDto(
+                    Name: storageName,
+                    VolumePath: MainVolume.Path,
+                    FolderPath: $"/{storageName}",
+                    EncryptionType: StorageEncryptionType.Full),
+                cookie: AppOwner.Cookie,
+                antiforgery: AppOwner.Antiforgery));
+
+        //then
+        apiError.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        apiError.HttpError.Should().NotBeNull();
+        apiError.HttpError!.Code.Should().Be("creator-encryption-not-set-up");
+    }
+
+    [Fact]
+    public async Task when_full_encryption_storage_is_created_after_setup_recovery_code_is_returned()
+    {
+        //given
+        var (owner, _) = await SetupUserEncryptionPassword(AppOwner);
+        var storageName = Random.Name("hard-drive");
+
+        //when
+        var hardDrive = await Api.Storages.CreateHardDriveStorage(
+            request: new CreateHardDriveStorageRequestDto(
+                Name: storageName,
+                VolumePath: MainVolume.Path,
+                FolderPath: $"/{storageName}",
+                EncryptionType: StorageEncryptionType.Full),
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        //then
+        hardDrive.RecoveryCode.Should().NotBeNullOrWhiteSpace();
+
+        var words = hardDrive.RecoveryCode!.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        words.Should().HaveCount(24);
+
+        var allStorages = await Api.Storages.Get(
+            cookie: owner.Cookie);
+
+        allStorages.Items.Should().Contain(s =>
+            s.ExternalId == hardDrive.ExternalId &&
+            s.EncryptionType == StorageEncryptionType.Full);
+    }
+
+    [Fact]
+    public async Task when_two_full_encryption_storages_are_created_their_recovery_codes_differ()
+    {
+        //given
+        var (owner, _) = await SetupUserEncryptionPassword(AppOwner);
+
+        //when
+        var first = await Api.Storages.CreateHardDriveStorage(
+            request: new CreateHardDriveStorageRequestDto(
+                Name: Random.Name("hard-drive"),
+                VolumePath: MainVolume.Path,
+                FolderPath: $"/{Random.Name("hard-drive")}",
+                EncryptionType: StorageEncryptionType.Full),
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        var second = await Api.Storages.CreateHardDriveStorage(
+            request: new CreateHardDriveStorageRequestDto(
+                Name: Random.Name("hard-drive"),
+                VolumePath: MainVolume.Path,
+                FolderPath: $"/{Random.Name("hard-drive")}",
+                EncryptionType: StorageEncryptionType.Full),
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        //then
+        first.RecoveryCode.Should().NotBeNullOrWhiteSpace();
+        second.RecoveryCode.Should().NotBeNullOrWhiteSpace();
+        first.RecoveryCode.Should().NotBe(second.RecoveryCode);
+    }
+
+    [Fact]
+    public async Task when_workspace_is_created_on_full_encryption_storage_without_encryption_cookie_it_fails()
+    {
+        //given
+        var (owner, _) = await SetupUserEncryptionPassword(AppOwner);
+
+        var storage = await CreateHardDriveStorage(
+            user: owner,
+            encryptionType: StorageEncryptionType.Full);
+
+        //when
+        var apiError = await Assert.ThrowsAsync<TestApiCallException>(
+            async () => await Api.Workspaces.Create(
+                request: new CreateWorkspaceRequestDto(
+                    StorageExternalId: storage.ExternalId,
+                    Name: "full workspace no cookie"),
+                cookie: owner.Cookie,
+                antiforgery: owner.Antiforgery,
+                userEncryptionSession: null));
+
+        //then
+        apiError.StatusCode.Should().Be(StatusCodes.Status423Locked);
+        apiError.HttpError.Should().NotBeNull();
+        apiError.HttpError!.Code.Should().Be("user-encryption-session-required");
+    }
+
+    [Fact]
+    public async Task workspace_on_full_encryption_storage_cannot_be_accessed_without_user_encryption_cookie()
+    {
+        //given
+        var (owner, _) = await SetupUserEncryptionPassword(AppOwner);
+
+        var storage = await CreateHardDriveStorage(
+            user: owner,
+            encryptionType: StorageEncryptionType.Full);
+
+        var workspace = await CreateWorkspace(
+            storage: storage,
+            user: owner);
+
+        var folder = await CreateFolder(
+            workspace: workspace,
+            user: owner);
+
+        var content = Random.Bytes(512);
+        var uploadedFile = await UploadFile(
+            content: content,
+            fileName: $"{Random.Name("full")}.bin",
+            contentType: "application/octet-stream",
+            folder: folder,
+            workspace: workspace,
+            user: owner);
+
+        //when
+        var apiError = await Assert.ThrowsAsync<TestApiCallException>(
+            async () => await Api.Files.GetDownloadLink(
+                workspaceExternalId: workspace.ExternalId,
+                fileExternalId: uploadedFile.ExternalId,
+                contentDisposition: "attachment",
+                cookie: owner.Cookie,
+                workspaceEncryptionSession: null));
+
+        //then
+        apiError.StatusCode.Should().Be(StatusCodes.Status423Locked);
+    }
 
     [Fact]
     public async Task when_workspace_is_created_storage_workspace_count_should_be_increased()
