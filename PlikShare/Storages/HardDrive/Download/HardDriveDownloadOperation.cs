@@ -7,6 +7,7 @@ using PlikShare.Storages.FileReading;
 using PlikShare.Storages.HardDrive.StorageClient;
 using Serilog;
 using System.IO.Pipelines;
+using Serilog.Context;
 
 namespace PlikShare.Storages.HardDrive.Download;
 
@@ -21,161 +22,76 @@ public class HardDriveDownloadOperation
         HardDriveStorageClient hardDriveStorageClient,
         FileStream stream) : IFile
     {
-        public async Task WriteTo(
+        public async ValueTask WriteTo(
             PipeWriter output, 
             CancellationToken cancellationToken)
         {
             var startTime = DateTime.UtcNow;
-            
-            try
-            {
-                if (fileEncryptionMetadata is null)
-                {
-                    Logger.Debug(
-                        "Starting unencrypted file transfer for {FileExternalId}",
-                        s3FileKey.FileExternalId);
 
-                    await stream.CopyToAsync(
-                        destination: output,
+            using (LogContext.PushProperty("SourceContext", typeof(HardDriveDownloadOperation).FullName))
+            using (LogContext.PushProperty("FileExternalId", s3FileKey.FileExternalId))
+            {
+                try
+                {
+                    await hardDriveStorageClient.WriteFileTo(
+                        stream: stream,
+                        output: output,
+                        fileSizeInBytes: fileSizeInBytes,
+                        encryptionMetadata: fileEncryptionMetadata,
+                        fullEncryptionSession: fullEncryptionSession,
                         cancellationToken: cancellationToken);
 
-                    var streamDuration = DateTime.UtcNow - startTime;
-                    var streamSpeed = fileSizeInBytes / Math.Max(1, streamDuration.TotalSeconds);
+                    var totalDuration = DateTime.UtcNow - startTime;
+                    var averageSpeed = fileSizeInBytes / Math.Max(1, totalDuration.TotalSeconds);
 
-                    Logger.Debug(
-                        "Completed unencrypted file transfer: {FileSize:N0} bytes in {DurationMs}ms. Speed: {Speed:N2} MB/s",
-                        fileSizeInBytes,
-                        streamDuration.TotalMilliseconds,
-                        streamSpeed / 1024.0 / 1024.0);
+                    Logger.Information(
+                        "Successfully completed download operation for {FileExternalId}. Size: {FileSize:N2} MB, " +
+                        "Duration: {DurationSec:N1}s, Average speed: {Speed:N2} MB/s",
+                        s3FileKey.FileExternalId,
+                        fileSizeInBytes / 1024.0 / 1024.0,
+                        totalDuration.TotalSeconds,
+                        averageSpeed / 1024.0 / 1024.0);
                 }
-                else if (fileEncryptionMetadata.FormatVersion == 1)
+                catch (UnauthorizedAccessException e)
                 {
-                    Logger.Debug(
-                        "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
-                        s3FileKey.FileExternalId);
-                    
-                    var ikm = hardDriveStorageClient.GetEncryptionKey(
-                        version: fileEncryptionMetadata.KeyVersion,
-                        fullEncryptionSession: fullEncryptionSession);
+                    Logger.Error(
+                        e,
+                        "Access denied while downloading file {FileExternalId} from {FilePath}",
+                        s3FileKey.FileExternalId,
+                        filePath);
 
-                    await Aes256GcmStreamingV1.Decrypt(
-                        fileAesInputs: new FileAesInputsV1(
-                            Ikm: ikm,
-                            KeyVersion: fileEncryptionMetadata.KeyVersion,
-                            Salt: fileEncryptionMetadata.Salt,
-                            NoncePrefix: fileEncryptionMetadata.NoncePrefix),
-                        fileSizeInBytes: fileSizeInBytes,
-                        input: PipeReader.Create(
-                            stream,
-                            new StreamPipeReaderOptions(
-                                bufferSize: PlikShareStreams.DefaultBufferSize,
-                                leaveOpen: false)),
-                        output: output,
-                        cancellationToken);
-
-                    var decryptDuration = DateTime.UtcNow - startTime;
-                    var decryptSpeed = fileSizeInBytes / Math.Max(1, decryptDuration.TotalSeconds);
-
-                    Logger.Debug(
-                        "Completed encrypted file transfer: {FileSize:N0} bytes in {DurationMs}ms. Speed: {Speed:N2} MB/s",
-                        fileSizeInBytes,
-                        decryptDuration.TotalMilliseconds,
-                        decryptSpeed / 1024.0 / 1024.0);
+                    throw;
                 }
-                else if (fileEncryptionMetadata.FormatVersion == 2)
+                catch (IOException e)
                 {
-                    Logger.Debug(
-                        "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
+                    Logger.Error(
+                        e,
+                        "IO error while downloading file {FileExternalId} from {FilePath}",
+                        s3FileKey.FileExternalId,
+                        filePath);
+
+                    throw;
+                }
+                catch (OperationCanceledException)
+                {
+                    Logger.Warning(
+                        "Download operation cancelled for file {FileExternalId}",
                         s3FileKey.FileExternalId);
 
-                    var ikm = KeyDerivationChain.Derive(
-                        startingDek: hardDriveStorageClient.GetEncryptionKey(
-                            version: fileEncryptionMetadata.KeyVersion,
-                            fullEncryptionSession: fullEncryptionSession),
-                        stepSalts: fileEncryptionMetadata.ChainStepSalts);
-
-                    await Aes256GcmStreamingV2.Decrypt(
-                        fileAesInputs: new FileAesInputsV2(
-                            Ikm: ikm,
-                            KeyVersion: fileEncryptionMetadata.KeyVersion,
-                            ChainStepSalts: fileEncryptionMetadata.ChainStepSalts,
-                            Salt: fileEncryptionMetadata.Salt,
-                            NoncePrefix: fileEncryptionMetadata.NoncePrefix),
-                        fileSizeInBytes: fileSizeInBytes,
-                        input: PipeReader.Create(
-                            stream,
-                            new StreamPipeReaderOptions(
-                                bufferSize: PlikShareStreams.DefaultBufferSize,
-                                leaveOpen: false)),
-                        output: output,
-                        cancellationToken);
-
-                    var decryptDuration = DateTime.UtcNow - startTime;
-                    var decryptSpeed = fileSizeInBytes / Math.Max(1, decryptDuration.TotalSeconds);
-
-                    Logger.Debug(
-                        "Completed encrypted file transfer: {FileSize:N0} bytes in {DurationMs}ms. Speed: {Speed:N2} MB/s",
-                        fileSizeInBytes,
-                        decryptDuration.TotalMilliseconds,
-                        decryptSpeed / 1024.0 / 1024.0);
+                    throw;
                 }
-                else
+                catch (Exception e)
                 {
-                    throw new InvalidOperationException(
-                        $"Unsupported file encryption format version '{fileEncryptionMetadata.FormatVersion}' " +
-                        $"for file '{s3FileKey.FileExternalId}'.");
+                    Logger.Error(
+                        e,
+                        "Failed to download file {FileExternalId} from {FilePath}. Error: {ErrorMessage}",
+                        s3FileKey.FileExternalId,
+                        filePath,
+                        e.Message);
+
+                    throw;
                 }
-
-                var totalDuration = DateTime.UtcNow - startTime;
-                var averageSpeed = fileSizeInBytes / Math.Max(1, totalDuration.TotalSeconds);
-
-                Logger.Information(
-                    "Successfully completed download operation for {FileExternalId}. Size: {FileSize:N2} MB, " +
-                    "Duration: {DurationSec:N1}s, Average speed: {Speed:N2} MB/s",
-                    s3FileKey.FileExternalId,
-                    fileSizeInBytes / 1024.0 / 1024.0,
-                    totalDuration.TotalSeconds,
-                    averageSpeed / 1024.0 / 1024.0);
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                Logger.Error(
-                    e,
-                    "Access denied while downloading file {FileExternalId} from {FilePath}",
-                    s3FileKey.FileExternalId,
-                    filePath);
-
-                throw;
-            }
-            catch (IOException e)
-            {
-                Logger.Error(
-                    e,
-                    "IO error while downloading file {FileExternalId} from {FilePath}",
-                    s3FileKey.FileExternalId,
-                    filePath);
-
-                throw;
-            }
-            catch (OperationCanceledException)
-            {
-                Logger.Warning(
-                    "Download operation cancelled for file {FileExternalId}",
-                    s3FileKey.FileExternalId);
-
-                throw;
-            }
-            catch (Exception e)
-            {
-                Logger.Error(
-                    e,
-                    "Failed to download file {FileExternalId} from {FilePath}. Error: {ErrorMessage}",
-                    s3FileKey.FileExternalId,
-                    filePath,
-                    e.Message);
-
-                throw;
-            }
+            } 
         }
 
         public void Dispose()
@@ -199,7 +115,7 @@ public class HardDriveDownloadOperation
         HardDriveStorageClient hardDriveStorageClient,
         Stream stream) : IFile
     {
-        public async Task WriteTo(
+        public async ValueTask WriteTo(
             PipeWriter output, 
             CancellationToken cancellationToken)
         {
@@ -257,11 +173,7 @@ public class HardDriveDownloadOperation
                         fullEncryptionSession: fullEncryptionSession);
 
                     await Aes256GcmStreamingV1.DecryptRange(
-                        fileAesInputs: new FileAesInputsV1(
-                            Ikm: ikm,
-                            KeyVersion: fileEncryptionMetadata.KeyVersion,
-                            Salt: fileEncryptionMetadata.Salt,
-                            NoncePrefix: fileEncryptionMetadata.NoncePrefix),
+                        fileAesInputs:  fileEncryptionMetadata.ToAesInputsV1(ikm),
                         range: encryptedRange,
                         fileSizeInBytes: fileSizeInBytes,
                         input: PipeReader.Create(
@@ -301,12 +213,7 @@ public class HardDriveDownloadOperation
                         stepSalts: fileEncryptionMetadata.ChainStepSalts);
 
                     await Aes256GcmStreamingV2.DecryptRange(
-                        fileAesInputs: new FileAesInputsV2(
-                            Ikm: ikm,
-                            KeyVersion: fileEncryptionMetadata.KeyVersion,
-                            ChainStepSalts: fileEncryptionMetadata.ChainStepSalts,
-                            Salt: fileEncryptionMetadata.Salt,
-                            NoncePrefix: fileEncryptionMetadata.NoncePrefix),
+                        fileAesInputs: fileEncryptionMetadata.ToAesInputsV2(ikm),
                         range: encryptedRange,
                         fileSizeInBytes: fileSizeInBytes,
                         input: PipeReader.Create(
@@ -406,8 +313,8 @@ public class HardDriveDownloadOperation
        S3FileKey s3FileKey,
        FileEncryptionMetadata? fileEncryptionMetadata,
        long fileSizeInBytes,
-       string bucketName,
        FullEncryptionSession? fullEncryptionSession,
+       string bucketName,
        HardDriveStorageClient hardDriveStorageClient)
     {
         var filePath = Path.Combine(
@@ -451,11 +358,11 @@ public class HardDriveDownloadOperation
 
     public static IFile GetFileRange(
         S3FileKey s3FileKey,
-        long fileSizeInBytes,
         FileEncryptionMetadata fileEncryptionMetadata,
+        long fileSizeInBytes,
         BytesRange range,
-        string bucketName,
         FullEncryptionSession? fullEncryptionSession,
+        string bucketName,
         HardDriveStorageClient hardDriveStorageClient)
     {
         var filePath = Path.Combine(

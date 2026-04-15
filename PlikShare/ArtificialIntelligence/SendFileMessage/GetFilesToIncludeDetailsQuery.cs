@@ -1,4 +1,5 @@
 ﻿using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
 
@@ -20,8 +21,13 @@ public class GetFilesToIncludeDetailsQuery(PlikShareDb plikShareDb)
                         fi_extension,
                         fi_size_in_bytes,
                         fi_s3_key_secret_part,
+                        fi_encryption_key_version,
+                        fi_encryption_salt,
+                        fi_encryption_nonce_prefix,
+                        fi_encryption_chain_salts,
+                        fi_encryption_format_version
                         w_storage_id,
-                        w_bucket_name
+                        w_bucket_name,
                      FROM fi_files
                      INNER JOIN w_workspaces
                         ON w_id = fi_workspace_id
@@ -29,15 +35,32 @@ public class GetFilesToIncludeDetailsQuery(PlikShareDb plikShareDb)
                             SELECT value FROM json_each($externalIds)
                         )
                      """,
-                readRowFunc: reader => new FileToInclude
+                readRowFunc: reader =>
                 {
-                    ExternalId = reader.GetExtId<FileExtId>(0),
-                    Name = reader.GetString(1),
-                    Extension = reader.GetString(2),
-                    SizeInBytes = reader.GetInt64(3),
-                    S3KeySecretPart = reader.GetString(4),
-                    StorageId = reader.GetInt32(5),
-                    BucketName = reader.GetString(6)
+                    var encryptionKeyVersion = reader.GetByteOrNull(5);
+
+                    return new FileToInclude
+                    {
+                        ExternalId = reader.GetExtId<FileExtId>(0),
+                        Name = reader.GetString(1),
+                        Extension = reader.GetString(2),
+                        SizeInBytes = reader.GetInt64(3),
+                        S3KeySecretPart = reader.GetString(4),
+                        EncryptionMetadata = encryptionKeyVersion is null
+                            ? null
+                            : new FileEncryptionMetadata
+                            {
+                                KeyVersion = encryptionKeyVersion.Value,
+                                Salt = reader.GetFieldValue<byte[]>(6),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(7),
+                                ChainStepSalts = KeyDerivationChain.Deserialize(
+                                    reader.GetFieldValueOrNull<byte[]>(8)),
+                                FormatVersion = reader.GetByteOrNull(9) ?? 1
+                            },
+
+                        StorageId = reader.GetInt32(10),
+                        BucketName = reader.GetString(11)
+                    };
                 })
             .WithJsonParameter("$externalIds", externalIds)
             .Execute();
@@ -53,4 +76,5 @@ public class FileToInclude
     public required string S3KeySecretPart { get; init; }
     public required int StorageId { get; init; }
     public required string BucketName { get; init; }
+    public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
 }

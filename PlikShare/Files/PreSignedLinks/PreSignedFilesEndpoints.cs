@@ -566,6 +566,7 @@ public static class PreSignedFilesEndpoints
                     S3KeySecretPart = file.S3KeySecretPart,
                     FileExternalId = file.ExternalId,
                 },
+                fileEncryptionMetadata: file.EncryptionMetadata,
                 fileSizeInBytes: file.SizeInBytes,
                 workspace: workspace,
                 fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),

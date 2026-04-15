@@ -2,9 +2,7 @@ using PlikShare.BulkDownload;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
-using PlikShare.Storages.Encryption;
 using PlikShare.Storages.HardDrive.StorageClient;
-using PlikShare.Storages.S3;
 using Serilog;
 using Serilog.Events;
 using System.IO.Compression;
@@ -45,7 +43,7 @@ public class HardDriveBulkDownloadOperation(IClock clock)
 
         try
         {
-            using var archive = new ZipArchive(
+            await using var archive = new ZipArchive(
                 stream: responsePipeWriter.AsStream(),
                 mode: ZipArchiveMode.Create,
                 leaveOpen: true);
@@ -108,7 +106,9 @@ public class HardDriveBulkDownloadOperation(IClock clock)
                         fileInfo.Length,
                         fileInfo.LastWriteTimeUtc);
 
-                    await using var entryStream = entry.Open();
+                    await using var entryStream = await entry.OpenAsync(
+                        cancellationToken);
+
                     await using var fileStream = new FileStream(
                         filePath,
                         FileMode.Open,
@@ -117,38 +117,16 @@ public class HardDriveBulkDownloadOperation(IClock clock)
                         bufferSize: PlikShareStreams.DefaultBufferSize,
                         useAsync: true);
 
-                    if (hardDriveStorage.EncryptionType == StorageEncryptionType.None)
-                    {
-                        _logger.Debug(
-                            "Starting unencrypted file transfer for {FileName}",
-                            file.FullName);
-
-                        await fileStream.CopyToAsync(
-                            entryStream,
-                            PlikShareStreams.DefaultBufferSize,
-                            cancellationToken);
-                    }
-                    else
-                    {
-                        _logger.Debug(
-                            "Starting encrypted file transfer for {FileName} using AES-256-GCM",
-                            file.FullName);
-
-                        await Aes256GcmStreamingV1.Decrypt(
-                            getEncryptionKeyFunc: hardDriveStorage.GetEncryptionKeyFunc(
-                                fullEncryptionSession),
-                            fileSizeInBytes: file.SizeInBytes,
-                            input: PipeReader.Create(
-                                stream: fileStream,
-                                readerOptions: new StreamPipeReaderOptions(
-                                    bufferSize: PlikShareStreams.DefaultBufferSize,
-                                    leaveOpen: false)),
-                            output: PipeWriter.Create(
-                                stream: entryStream,
-                                writerOptions: new StreamPipeWriterOptions(
-                                    leaveOpen: false)),
-                            cancellationToken);
-                    }
+                    await hardDriveStorage.WriteFileTo(
+                        stream: fileStream,
+                        output: PipeWriter.Create(
+                            stream: entryStream,
+                            writerOptions: new StreamPipeWriterOptions(
+                                leaveOpen: false)),
+                        fileSizeInBytes: file.SizeInBytes,
+                        encryptionMetadata: file.EncryptionMetadata,
+                        fullEncryptionSession: fullEncryptionSession,
+                        cancellationToken: cancellationToken);
 
                     processedFiles++;
                     totalBytes += file.SizeInBytes;

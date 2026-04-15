@@ -3,7 +3,6 @@ using System.IO.Pipelines;
 using PlikShare.BulkDownload;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
-using PlikShare.Storages.Encryption;
 using Serilog;
 using Serilog.Events;
 
@@ -39,7 +38,7 @@ public class S3BulkDownloadOperation
 
         try
         {
-            using var archive = new ZipArchive(
+            await using var archive = new ZipArchive(
                 stream: responsePipeWriter.AsStream(),
                 mode: ZipArchiveMode.Create,
                 leaveOpen: true);
@@ -49,12 +48,12 @@ public class S3BulkDownloadOperation
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var fileStartTime = DateTime.UtcNow;
+                
                 var s3FileKey = new S3FileKey
                 {
                     FileExternalId = file.ExternalId,
                     S3KeySecretPart = file.S3KeySecretPart
                 };
-
 
                 var folderPath = folderSubtree.GetPath(
                     folderId: file.FolderId);
@@ -94,41 +93,20 @@ public class S3BulkDownloadOperation
                         key: s3FileKey,
                         cancellationToken: cancellationToken);
 
-                    await using var entryStream = entry.Open();
+                    await using var entryStream = await entry.OpenAsync(
+                        cancellationToken);
 
-                    if (s3StorageClient.EncryptionType == StorageEncryptionType.None)
-                    {
-                        _logger.Debug(
-                            "Starting unencrypted file transfer for {FileName}",
-                            file.FullName);
-
-                        await s3FileStream.CopyToAsync(
-                            entryStream,
-                            PlikShareStreams.DefaultBufferSize,
-                            cancellationToken);
-                    }
-                    else
-                    {
-                        _logger.Debug(
-                            "Starting encrypted file transfer for {FileName} using AES-256-GCM",
-                            file.FullName);
-
-                        await Aes256GcmStreamingV1.Decrypt(
-                            getEncryptionKeyFunc: s3StorageClient.GetEncryptionKeyFunc(
-                                fullEncryptionSession),
-                            fileSizeInBytes: file.SizeInBytes,
-                            input: PipeReader.Create(
-                                stream: s3FileStream,
-                                readerOptions: new StreamPipeReaderOptions(
-                                    bufferSize: PlikShareStreams.DefaultBufferSize,
-                                    leaveOpen: false)),
-                            output: PipeWriter.Create(
-                                stream: entryStream,
-                                writerOptions: new StreamPipeWriterOptions(
-                                    leaveOpen: false)),
-                            cancellationToken);
-                    }
-
+                    await s3StorageClient.WriteFileTo(
+                        stream: s3FileStream,
+                        output: PipeWriter.Create(
+                            stream: entryStream,
+                            writerOptions: new StreamPipeWriterOptions(
+                                leaveOpen: false)),
+                        fileSizeInBytes: file.SizeInBytes,
+                        encryptionMetadata: file.EncryptionMetadata,
+                        fullEncryptionSession: fullEncryptionSession,
+                        cancellationToken: cancellationToken);
+                    
                     processedFiles++;
                     totalBytes += file.SizeInBytes;
 

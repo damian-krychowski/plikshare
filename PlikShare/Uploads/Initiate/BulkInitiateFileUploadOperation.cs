@@ -444,9 +444,9 @@ public class BulkInitiateFileUploadOperation(
                 S3KeySecretPart = bu.S3Key.S3KeySecretPart,
 
                 S3UploadId = bu.StorageUploadDetails.S3UploadId,
-                EncryptionKeyVersion = bu.StorageUploadDetails.FileEncryptionMetadata.Metadata?.KeyVersion,
-                EncryptionSalt = bu.StorageUploadDetails.FileEncryptionMetadata.Metadata?.Salt,
-                EncryptionNoncePrefix = bu.StorageUploadDetails.FileEncryptionMetadata.Metadata?.NoncePrefix,
+                EncryptionKeyVersion = bu.StorageUploadDetails.FileEncryptionMetadata?.KeyVersion,
+                EncryptionSalt = bu.StorageUploadDetails.FileEncryptionMetadata?.Salt,
+                EncryptionNoncePrefix = bu.StorageUploadDetails.FileEncryptionMetadata?.NoncePrefix,
 
                 FileMetadataBlob = null,
                 ParentFileId = null

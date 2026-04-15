@@ -263,7 +263,7 @@ public static class Aes256GcmStreamingV2
         FilePart filePart,
         long fullFileSizeInBytes,
         Memory<byte> inputOutputBuffer,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         var (ikm, storageDekVersion, chainStepSalts, salt, noncePrefix) = fileAesInputs;
 
@@ -710,7 +710,7 @@ public static class Aes256GcmStreamingV2
                     break;
 
                 ComputeIvForSegment(
-                    noncePrefix: noncePrefix.Span,
+                    noncePrefix: noncePrefix.AsSpan(),
                     segmentNumberInFile: segmentNumber,
                     isLastSegmentInFile: segmentNumber == expectedLastSegmentNumber,
                     iv: ivBuffer.Span);

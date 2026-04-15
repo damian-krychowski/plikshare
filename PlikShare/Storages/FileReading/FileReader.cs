@@ -12,7 +12,7 @@ namespace PlikShare.Storages.FileReading;
 
 public interface IFile: IDisposable, IAsyncDisposable
 {
-    Task WriteTo(
+    ValueTask WriteTo(
         PipeWriter output,
         CancellationToken cancellationToken);
 }
@@ -21,42 +21,47 @@ public static class FileReader
 {
     public static ValueTask<IFile> GetFile(
         S3FileKey s3FileKey,
+        FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
-        WorkspaceContext workspace,
         FullEncryptionSession? fullEncryptionSession,
+        WorkspaceContext workspace,
         CancellationToken cancellationToken)
     {
         return GetFile(
             s3FileKey,
+            fileEncryptionMetadata,
             fileSizeInBytes,
+            fullEncryptionSession,
             workspace.BucketName,
             workspace.Storage,
-            fullEncryptionSession,
             cancellationToken);
     }
 
     public static async ValueTask<IFile> GetFile(
         S3FileKey s3FileKey,
+        FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
+        FullEncryptionSession? fullEncryptionSession,
         string bucketName,
         IStorageClient storage,
-        FullEncryptionSession? fullEncryptionSession,
         CancellationToken cancellationToken = default)
     {
         return storage switch
         {
             HardDriveStorageClient hardDriveStorageClient => HardDriveDownloadOperation.GetFile(
                 s3FileKey: s3FileKey,
+                fileEncryptionMetadata: fileEncryptionMetadata,
                 fileSizeInBytes: fileSizeInBytes,
-                bucketName: bucketName,
                 fullEncryptionSession: fullEncryptionSession,
+                bucketName: bucketName,
                 hardDriveStorageClient: hardDriveStorageClient),
 
             S3StorageClient s3StorageClient => await S3DownloadOperation.GetFile(
                 s3FileKey: s3FileKey,
+                fileEncryptionMetadata: fileEncryptionMetadata,
                 fileSizeInBytes: fileSizeInBytes, 
-                bucketName: bucketName,
                 fullEncryptionSession: fullEncryptionSession,
+                bucketName: bucketName,
                 s3StorageClient: s3StorageClient, 
                 cancellationToken: cancellationToken),
 
@@ -81,17 +86,17 @@ public static class FileReader
                 fileEncryptionMetadata: fileEncryptionMetadata,
                 fileSizeInBytes: fileSizeInBytes,
                 range: range,
-                bucketName: workspace.BucketName,
                 fullEncryptionSession: fullEncryptionSession,
+                bucketName: workspace.BucketName,
                 hardDriveStorageClient: hardDriveStorageClient),
 
             S3StorageClient s3StorageClient => await S3DownloadOperation.GetFileRange(
                 s3FileKey: s3FileKey,
-                fileEncryption: fileEncryptionMetadata,
+                fileEncryptionMetadata: fileEncryptionMetadata,
                 fileSizeInBytes: fileSizeInBytes,
                 range: range,
-                workspace.BucketName,
                 fullEncryptionSession: fullEncryptionSession,
+                bucketName: workspace.BucketName,
                 s3StorageClient: s3StorageClient,
                 cancellationToken: cancellationToken),
 

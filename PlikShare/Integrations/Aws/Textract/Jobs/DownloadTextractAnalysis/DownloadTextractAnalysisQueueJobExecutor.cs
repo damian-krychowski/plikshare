@@ -239,9 +239,9 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 },
                 S3UploadId = fileInsertEntity.S3UploadId
             },
-            part: FilePartDetails.First(
+            part: FilePartUpload.First(
                 sizeInBytes: contentBytes.Length,
-                uploadAlgorithm: UploadAlgorithm.DirectUpload),
+                algorithm: UploadAlgorithm.DirectUpload),
             workspace: originalFileWorkspace,
             fullEncryptionSession: null, //todo not yet implemented (KEK not available in queue jobs)
             input: contentBytes,

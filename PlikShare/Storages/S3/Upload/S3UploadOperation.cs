@@ -1,7 +1,6 @@
 using PlikShare.Core.Encryption;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.Records;
-using PlikShare.Storages.Encryption;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Cache;
 using Serilog;
@@ -16,41 +15,32 @@ public class S3UploadOperation
         Memory<byte> fileBytes,
         FileToUploadDetails file,
         FilePartUpload part,
-        string bucketName,
         FullEncryptionSession? fullEncryptionSession,
+        string bucketName,
         S3StorageClient s3StorageClient,
         CancellationToken cancellationToken)
     {
         var startTime = DateTime.UtcNow;
 
         Logger.Debug(
-            "Starting upload operation for file {FileExternalId} part {PartNumber} to bucket {BucketName} with encryption {EncryptionType}",
+            "Starting upload operation for file {FileExternalId} part {PartNumber} to bucket {BucketName} with format version {FormatVersion}",
             file.S3FileKey.FileExternalId,
-            part.Number,
+            part.Part.Number, 
             bucketName,
-            file.EncryptionMetadata.EncryptionType);
+            file.EncryptionMetadata?.FormatVersion ?? 0);
 
         try
         {
-            if (file.EncryptionMetadata.EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full)
-            {
-                var encryptionKey = s3StorageClient.GetEncryptionKey(
-                    version: file.EncryptionMetadata.Metadata!.KeyVersion,
-                    fullEncryptionSession: fullEncryptionSession);
+            s3StorageClient.PrepareFilePartUploadBuffer(
+                buffer: fileBytes,
+                fileSizeInBytes: file.SizeInBytes,
+                filePart: part.Part,
+                encryptionMetadata: file.EncryptionMetadata,
+                fullEncryptionSession: fullEncryptionSession,
+                cancellationToken: cancellationToken);
 
-                Aes256GcmStreamingV1.EncryptFilePartInPlace(
-                    key: encryptionKey,
-                    salt: file.EncryptionMetadata.Metadata!.Salt,
-                    noncePrefix: file.EncryptionMetadata.Metadata.NoncePrefix,
-                    partNumber: part.Number,
-                    partSizeInBytes: part.SizeInBytes,
-                    fullFileSizeInBytes: file.SizeInBytes,
-                    inputOutputBuffer: fileBytes,
-                    cancellationToken: cancellationToken);
-            }
-            
             var etag = await UploadToS3(
-                partNumber: part.Number,
+                partNumber: part.Part.Number,
                 s3StorageClient: s3StorageClient,
                 s3FileKey: file.S3FileKey,
                 s3UploadId: file.S3UploadId,
@@ -63,7 +53,7 @@ public class S3UploadOperation
 
             Logger.Debug(
                 "Successfully uploaded part {PartNumber} of file {FileExternalId} in {DurationMs}ms (ETag: {ETag})",
-                part.Number,
+                part.Part.Number,
                 file.S3FileKey.FileExternalId,
                 duration.TotalMilliseconds,
                 etag);
@@ -75,7 +65,7 @@ public class S3UploadOperation
             Logger.Warning(
                 "Upload operation cancelled for file {FileExternalId} part {PartNumber}",
                 file.S3FileKey.FileExternalId,
-                part.Number);
+                part.Part.Number);
 
             throw;
         }
@@ -84,7 +74,7 @@ public class S3UploadOperation
             Logger.Error(
                 e,
                 "Failed to upload part {PartNumber} of file {FileExternalId}. Error: {ErrorMessage}",
-                part.Number,
+                part.Part.Number,
                 file.S3FileKey.FileExternalId,
                 e.Message);
 

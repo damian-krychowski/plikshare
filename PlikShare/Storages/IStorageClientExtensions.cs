@@ -1,40 +1,186 @@
 using PlikShare.Core.Encryption;
+using PlikShare.Core.Utils;
+using PlikShare.Files.Records;
 using PlikShare.Storages.Encryption;
-using System.Security.Cryptography;
+using System.IO.Pipelines;
+using Serilog;
 
 namespace PlikShare.Storages;
 
 public static class IStorageClientExtensions
 {
-    public static FileEncryptionMetadata? GenerateFileEncryptionMetadata(
-        this IStorageClient client)
+    extension(IStorageClient client)
     {
-        if (client.EncryptionType == StorageEncryptionType.None)
-            return null;
-
-        if (client.EncryptionType == StorageEncryptionType.Managed)
+        public FileEncryptionMetadata? GenerateFileEncryptionMetadata()
         {
-            return new FileEncryptionMetadata
+            if (client.EncryptionType == StorageEncryptionType.None)
+                return null;
+
+            if (client.EncryptionType == StorageEncryptionType.Managed)
             {
-                FormatVersion = 1,
-                KeyVersion = client
-                    .EncryptionKeyProvider
-                    !.GetLatestKeyVersion(),
-                Salt = Aes256GcmStreamingV1.GenerateSalt(),
-                NoncePrefix = Aes256GcmStreamingV1.GenerateNoncePrefix(),
-                ChainStepSalts = []
-            };
+                return new FileEncryptionMetadata
+                {
+                    FormatVersion = 2,
+                    KeyVersion = client.EncryptionKeyProvider!.GetLatestKeyVersion(),
+                    Salt = Aes256GcmStreamingV1.GenerateSalt(),
+                    NoncePrefix = Aes256GcmStreamingV1.GenerateNoncePrefix(),
+                    ChainStepSalts = []
+                };
+            }
+
+            if (client.EncryptionType == StorageEncryptionType.Full)
+            {
+                return new FileEncryptionMetadata
+                {
+                    FormatVersion = 2,
+                    KeyVersion = client.EncryptionKeyProvider!.GetLatestKeyVersion(),
+                    Salt = Aes256GcmStreamingV2.GenerateSalt(),
+                    NoncePrefix = Aes256GcmStreamingV2.GenerateNoncePrefix(),
+                    ChainStepSalts = []
+                };
+            }
+
+            throw new InvalidOperationException(
+                $"Unsupported encryption type '{client.EncryptionType}' " +
+                $"for storage '{client.ExternalId}'.");
         }
 
-        if (client.EncryptionType == StorageEncryptionType.Full)
+        public void PrepareFilePartUploadBuffer(
+            Memory<byte> buffer,
+            long fileSizeInBytes, 
+            FilePart filePart,
+            FileEncryptionMetadata? encryptionMetadata,
+            FullEncryptionSession? fullEncryptionSession,
+            CancellationToken cancellationToken)
         {
-            throw new NotImplementedException(
-                $"Full encryption write path is not yet wired for storage '{client.ExternalId}'. " +
-                $"Workspace salt threading into the key derivation chain is pending.");
+            if (encryptionMetadata is null)
+                return;
+
+            if (encryptionMetadata.FormatVersion == 1)
+            {
+                var ikm = client.GetEncryptionKey(
+                    version: encryptionMetadata.KeyVersion,
+                    fullEncryptionSession: fullEncryptionSession);
+
+                Aes256GcmStreamingV1.EncryptFilePartInPlace(
+                    fileAesInputs: encryptionMetadata.ToAesInputsV1(ikm),
+                    filePart: filePart,
+                    fullFileSizeInBytes: fileSizeInBytes,
+                    inputOutputBuffer: buffer,
+                    cancellationToken: cancellationToken);
+            }
+            else if (encryptionMetadata.FormatVersion == 2)
+            {
+                var ikm = KeyDerivationChain.Derive(
+                    startingDek: client.GetEncryptionKey(
+                        version: encryptionMetadata.KeyVersion,
+                        fullEncryptionSession: fullEncryptionSession),
+                    stepSalts: encryptionMetadata.ChainStepSalts);
+
+                Aes256GcmStreamingV2.EncryptFilePartInPlace(
+                    fileAesInputs: encryptionMetadata.ToAesInputsV2(ikm),
+                    filePart: filePart,
+                    fullFileSizeInBytes: fileSizeInBytes,
+                    inputOutputBuffer: buffer,
+                    cancellationToken: cancellationToken);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported file encryption format version '{encryptionMetadata.FormatVersion}'.");
+            }
         }
 
-        throw new InvalidOperationException(
-            $"Unsupported encryption type '{client.EncryptionType}' " +
-            $"for storage '{client.ExternalId}'.");
+        public async ValueTask WriteFileTo(
+            Stream stream,
+            PipeWriter output,
+            long fileSizeInBytes,
+            FileEncryptionMetadata? encryptionMetadata,
+            FullEncryptionSession? fullEncryptionSession,
+            CancellationToken cancellationToken)
+        {
+            var startTime = DateTime.UtcNow;
+
+            if (encryptionMetadata is null)
+            {
+                Log.Debug("Starting unencrypted file transfer");
+
+                await stream.CopyToAsync(
+                    destination: output,
+                    cancellationToken: cancellationToken);
+
+                var streamDuration = DateTime.UtcNow - startTime;
+                var streamSpeed = fileSizeInBytes / Math.Max(1, streamDuration.TotalSeconds);
+
+                Log.Debug(
+                    "Completed unencrypted file transfer: {FileSize:N0} bytes in {DurationMs}ms. Speed: {Speed:N2} MB/s",
+                    fileSizeInBytes,
+                    streamDuration.TotalMilliseconds,
+                    streamSpeed / 1024.0 / 1024.0);
+            }
+            else if (encryptionMetadata.FormatVersion == 1)
+            {
+                Log.Debug("Starting encrypted file transfer using AES-256-GCM");
+
+                var ikm = client.GetEncryptionKey(
+                    version: encryptionMetadata.KeyVersion,
+                    fullEncryptionSession: fullEncryptionSession);
+
+                await Aes256GcmStreamingV1.Decrypt(
+                    fileAesInputs: encryptionMetadata.ToAesInputsV1(ikm),
+                    fileSizeInBytes: fileSizeInBytes,
+                    input: PipeReader.Create(
+                        stream,
+                        new StreamPipeReaderOptions(
+                            bufferSize: PlikShareStreams.DefaultBufferSize,
+                            leaveOpen: false)),
+                    output: output,
+                    cancellationToken);
+
+                var decryptDuration = DateTime.UtcNow - startTime;
+                var decryptSpeed = fileSizeInBytes / Math.Max(1, decryptDuration.TotalSeconds);
+
+                Log.Debug(
+                    "Completed encrypted file transfer: {FileSize:N0} bytes in {DurationMs}ms. Speed: {Speed:N2} MB/s",
+                    fileSizeInBytes,
+                    decryptDuration.TotalMilliseconds,
+                    decryptSpeed / 1024.0 / 1024.0);
+            }
+            else if (encryptionMetadata.FormatVersion == 2)
+            {
+                Log.Debug("Starting encrypted file transfer using AES-256-GCM");
+
+                var ikm = KeyDerivationChain.Derive(
+                    startingDek: client.GetEncryptionKey(
+                        version: encryptionMetadata.KeyVersion,
+                        fullEncryptionSession: fullEncryptionSession),
+                    stepSalts: encryptionMetadata.ChainStepSalts);
+
+                await Aes256GcmStreamingV2.Decrypt(
+                    fileAesInputs: encryptionMetadata.ToAesInputsV2(ikm),
+                    fileSizeInBytes: fileSizeInBytes,
+                    input: PipeReader.Create(
+                        stream,
+                        new StreamPipeReaderOptions(
+                            bufferSize: PlikShareStreams.DefaultBufferSize,
+                            leaveOpen: false)),
+                    output: output,
+                    cancellationToken);
+
+                var decryptDuration = DateTime.UtcNow - startTime;
+                var decryptSpeed = fileSizeInBytes / Math.Max(1, decryptDuration.TotalSeconds);
+
+                Log.Debug(
+                    "Completed encrypted file transfer: {FileSize:N0} bytes in {DurationMs}ms. Speed: {Speed:N2} MB/s",
+                    fileSizeInBytes,
+                    decryptDuration.TotalMilliseconds,
+                    decryptSpeed / 1024.0 / 1024.0);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported file encryption format version '{encryptionMetadata.FormatVersion}'");
+            }
+        }
     }
 }

@@ -226,10 +226,9 @@ public class TestTextractConfigurationOperation(
                 S3FileKey = imageFileKey,
                 S3UploadId = String.Empty
             },
-            part: new FilePartDetails
+            part: new FilePartUpload
             {
-                SizeInBytes = imageBytes.Length,
-                Number = 1,
+                Part = new FilePart(1, imageBytes.Length),
                 UploadAlgorithm = UploadAlgorithm.DirectUpload
             },            
             bucketName: bucketName,

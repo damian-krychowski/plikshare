@@ -327,6 +327,7 @@ public class SendAiMessageQueueJobExecutor(
                     S3KeySecretPart = file.S3KeySecretPart,
                     FileExternalId = file.ExternalId
                 },
+                fileEncryptionMetadata: file.EncryptionMetadata,
                 fileSizeInBytes: file.SizeInBytes,
                 bucketName: file.BucketName,
                 storage: storage,
@@ -357,6 +358,9 @@ public class SendAiMessageQueueJobExecutor(
             fileContentBuilder.AppendLine($"```{languageIdentifier}:{fileName}");
             fileContentBuilder.AppendLine(fileBody);
             fileContentBuilder.AppendLine("```");
+
+            //todo test and implement
+            throw new NotImplementedException();
 
             return new AiIncludeContent
             {

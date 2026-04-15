@@ -1,3 +1,4 @@
+using PlikShare.Core.Encryption;
 using PlikShare.Uploads.Algorithm;
 
 namespace PlikShare.Storages;
@@ -9,5 +10,5 @@ public class StorageUploadDetails
     public required string S3UploadId { get; init; }
     public required string? PreSignedUploadLink { get; init; }
     public required bool WasMultiPartUploadInitiated { get; init; }
-    public required FileEncryption FileEncryption { get; init; }
+    public required FileEncryptionMetadata? FileEncryptionMetadata { get; init; }
 }

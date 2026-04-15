@@ -13,6 +13,7 @@ public class CopyFileQueueJob
     public required long FileSizeInBytes { get; init; }
     public required int SourceWorkspaceId { get; init; }
     public required S3FileKey SourceS3FileKey { get; init; }
+    public required FileEncryptionMetadata? SourceFileEncryptionMetadata { get; init; }
 
     //new file
     public required int TargetWorkspaceId { get; init; }

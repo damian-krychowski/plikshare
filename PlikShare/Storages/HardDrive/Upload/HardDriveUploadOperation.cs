@@ -3,7 +3,6 @@ using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.Records;
-using PlikShare.Storages.Encryption;
 using PlikShare.Storages.HardDrive.StorageClient;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Cache;
@@ -16,9 +15,9 @@ public static class HardDriveUploadOperation
     public static async ValueTask<FilePartUploadResult> Execute(
         Memory<byte> fileBytes,
         FileToUploadDetails file,
-        FilePartUploadDetails part,
+        FilePartUpload part,
+        FullEncryptionSession? fullEncryptionSession, 
         string bucketName,
-        FullEncryptionSession? fullEncryptionSession,
         HardDriveStorageClient hardDriveStorage,
         CancellationToken cancellationToken)
     {
@@ -33,23 +32,14 @@ public static class HardDriveUploadOperation
 
         try
         {
-            if (file.EncryptionMetadata.EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full)
-            {
-                var encryptionKey = hardDriveStorage.GetEncryptionKey(
-                    version: file.EncryptionMetadata.Metadata!.KeyVersion,
-                    fullEncryptionSession: fullEncryptionSession);
-
-                Aes256GcmStreamingV1.EncryptFilePartInPlace(
-                    key: encryptionKey,
-                    salt: file.EncryptionMetadata.Metadata!.Salt,
-                    noncePrefix: file.EncryptionMetadata.Metadata.NoncePrefix,
-                    partNumber: part.Number,
-                    partSizeInBytes: part.SizeInBytes,
-                    fullFileSizeInBytes: file.SizeInBytes,
-                    inputOutputBuffer: fileBytes,
-                    cancellationToken: cancellationToken);
-            }
-
+            hardDriveStorage.PrepareFilePartUploadBuffer(
+                buffer: fileBytes,
+                fileSizeInBytes: file.SizeInBytes,
+                filePart: part.Part,
+                encryptionMetadata: file.EncryptionMetadata,
+                fullEncryptionSession: fullEncryptionSession, 
+                cancellationToken: cancellationToken);
+            
             await using var fileStream = new FileStream(
                 filePath,
                 FileMode.Create,
@@ -62,7 +52,7 @@ public static class HardDriveUploadOperation
 
             Log.Debug("FilePart '{FileExternalId} - {PartNumber} was saved to HardDrive to location {FilePath}'",
                 file.S3FileKey.FileExternalId,
-                part.Number,
+                part.Part.Number,
                 filePath);
 
             return new FilePartUploadResult(
@@ -73,7 +63,7 @@ public static class HardDriveUploadOperation
             Log.Error(e,
                 "Something went wrong while saving file '{FileExternalId} - {PartNumber} to location {FilePath}'",
                 file.S3FileKey.FileExternalId,
-                part.Number,
+                part.Part.Number,
                 filePath);
 
             throw;

@@ -1,10 +1,12 @@
-using System.IO.Pipelines;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.FileReading;
 using Serilog;
+using System.IO.Pipelines;
+using PlikShare.Storages.HardDrive.Download;
+using Serilog.Context;
 
 namespace PlikShare.Storages.S3.Download;
 
@@ -12,88 +14,72 @@ public class S3DownloadOperation
 {
     private class S3File(
         S3FileKey s3FileKey,
+        FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
-        string bucketName,
         FullEncryptionSession? fullEncryptionSession,
+        string bucketName,
         S3StorageClient s3StorageClient,
         Stream s3FileStream) : IFile
     {
-        public async Task WriteTo(
-            PipeWriter output, 
+        public async ValueTask WriteTo(
+            PipeWriter output,
             CancellationToken cancellationToken)
         {
-            Logger.Debug(
-                "Starting download operation for file {FileExternalId} from bucket {BucketName} with encryption {EncryptionType}",
-                s3FileKey.FileExternalId,
-                bucketName,
-                s3StorageClient.EncryptionType);
+            var startTime = DateTime.UtcNow;
 
-            try
+            using (LogContext.PushProperty("SourceContext", typeof(HardDriveDownloadOperation).FullName))
+            using (LogContext.PushProperty("FileExternalId", s3FileKey.FileExternalId))
             {
                 Logger.Debug(
-                    "Requesting file stream from S3 for {FileExternalId} at {S3Key}",
+                    "Starting download operation for file {FileExternalId} from bucket {BucketName} with encryption {EncryptionType}",
                     s3FileKey.FileExternalId,
-                    s3FileKey.Value);
-                
-                var startTime = DateTime.UtcNow;
+                    bucketName,
+                    s3StorageClient.EncryptionType);
 
-                if (s3StorageClient.EncryptionType == StorageEncryptionType.None)
+                try
                 {
                     Logger.Debug(
-                        "Starting unencrypted file transfer for {FileExternalId}",
-                        s3FileKey.FileExternalId);
+                        "Requesting file stream from S3 for {FileExternalId} at {S3Key}",
+                        s3FileKey.FileExternalId,
+                        s3FileKey.Value);
 
-                    await s3FileStream.CopyToAsync(
-                        destination: output,
-                        cancellationToken: cancellationToken);
-                }
-                else
-                {
-                    Logger.Debug(
-                        "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
-                        s3FileKey.FileExternalId);
-
-                    await Aes256GcmStreamingV1.Decrypt(
-                        getEncryptionKeyFunc: s3StorageClient.GetEncryptionKeyFunc(
-                            fullEncryptionSession),
-                        fileSizeInBytes: fileSizeInBytes,
-                        input: PipeReader.Create(
-                            s3FileStream,
-                            new StreamPipeReaderOptions(
-                                bufferSize: PlikShareStreams.DefaultBufferSize,
-                                leaveOpen: false)),
+                    await s3StorageClient.WriteFileTo(
+                        stream: s3FileStream,
                         output: output,
-                        cancellationToken);
+                        fileSizeInBytes: fileSizeInBytes,
+                        encryptionMetadata: fileEncryptionMetadata,
+                        fullEncryptionSession: fullEncryptionSession,
+                        cancellationToken: cancellationToken);
+
+                    var duration = DateTime.UtcNow - startTime;
+
+                    Logger.Debug(
+                        "Successfully completed download operation for {FileExternalId} in {DurationMs}ms",
+                        s3FileKey.FileExternalId,
+                        duration.TotalMilliseconds);
                 }
+                catch (OperationCanceledException)
+                {
+                    Logger.Warning(
+                        "Download operation cancelled for file {FileExternalId} from {BucketName}/{S3Key}",
+                        s3FileKey.FileExternalId,
+                        bucketName,
+                        s3FileKey.Value);
 
-                var duration = DateTime.UtcNow - startTime;
+                    throw;
+                }
+                catch (Exception e)
+                {
+                    Logger.Error(
+                        e,
+                        "Failed to download file {FileExternalId} from {BucketName}/{S3Key}. Error: {ErrorMessage}",
+                        s3FileKey.FileExternalId,
+                        bucketName,
+                        s3FileKey.Value,
+                        e.Message);
 
-                Logger.Debug(
-                    "Successfully completed download operation for {FileExternalId} in {DurationMs}ms",
-                    s3FileKey.FileExternalId,
-                    duration.TotalMilliseconds);
-            }
-            catch (OperationCanceledException)
-            {
-                Logger.Warning(
-                    "Download operation cancelled for file {FileExternalId} from {BucketName}/{S3Key}",
-                    s3FileKey.FileExternalId,
-                    bucketName,
-                    s3FileKey.Value);
-
-                throw;
-            }
-            catch (Exception e)
-            {
-                Logger.Error(
-                    e,
-                    "Failed to download file {FileExternalId} from {BucketName}/{S3Key}. Error: {ErrorMessage}",
-                    s3FileKey.FileExternalId,
-                    bucketName,
-                    s3FileKey.Value,
-                    e.Message);
-
-                throw;
+                    throw;
+                }
             }
         }
 
@@ -110,23 +96,23 @@ public class S3DownloadOperation
 
     private class S3FileRange(
         S3FileKey s3FileKey,
+        FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
-        FileEncryption fileEncryption,
         BytesRange range,
-        string bucketName,
         FullEncryptionSession? fullEncryptionSession,
+        string bucketName,
         S3StorageClient s3StorageClient,
         Stream s3FileStream) : IFile
     {
-        public async Task WriteTo(
+        public async ValueTask WriteTo(
             PipeWriter output,
             CancellationToken cancellationToken)
         {
             Logger.Debug(
-           "Starting download operation for file {FileExternalId} from bucket {BucketName} with encryption {EncryptionType}",
-           s3FileKey.FileExternalId,
-           bucketName,
-           s3StorageClient.EncryptionType);
+                "Starting download operation for file {FileExternalId} from bucket {BucketName} with encryption {EncryptionType}",
+                s3FileKey.FileExternalId,
+                bucketName,
+                s3StorageClient.EncryptionType);
 
             try
             {
@@ -137,7 +123,7 @@ public class S3DownloadOperation
 
                 var startTime = DateTime.UtcNow;
 
-                if (s3StorageClient.EncryptionType == StorageEncryptionType.None)
+                if (fileEncryptionMetadata is null)
                 {
                     Logger.Debug(
                         "Starting unencrypted file transfer for {FileExternalId}",
@@ -147,21 +133,22 @@ public class S3DownloadOperation
                         destination: output,
                         cancellationToken: cancellationToken);
                 }
-                else
+                else if (fileEncryptionMetadata.FormatVersion == 1)
                 {
+                    Logger.Debug(
+                        "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
+                        s3FileKey.FileExternalId);
+
                     var encryptedRange = Aes256GcmStreamingV1.EncryptedBytesRangeCalculator.FromUnencryptedRange(
                         unencryptedRange: range,
                         unencryptedFileSize: fileSizeInBytes);
-                    
-                    Logger.Debug(
-                        "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
-                    s3FileKey.FileExternalId);
-                    
+
+                    var ikm = s3StorageClient.GetEncryptionKey(
+                        version: fileEncryptionMetadata.KeyVersion,
+                        fullEncryptionSession: fullEncryptionSession);
 
                     await Aes256GcmStreamingV1.DecryptRange(
-                        getEncryptionKeyFunc: s3StorageClient.GetEncryptionKeyFunc(
-                            fullEncryptionSession),
-                        encryptionMetadata: fileEncryption.Metadata!,
+                        fileAesInputs: fileEncryptionMetadata.ToAesInputsV1(ikm),
                         range: encryptedRange,
                         fileSizeInBytes: fileSizeInBytes,
                         input: PipeReader.Create(
@@ -171,6 +158,41 @@ public class S3DownloadOperation
                                 leaveOpen: false)),
                         output: output,
                         cancellationToken);
+                }
+                else if (fileEncryptionMetadata.FormatVersion == 2)
+                {
+                    Logger.Debug(
+                        "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
+                        s3FileKey.FileExternalId);
+
+                    var encryptedRange = Aes256GcmStreamingV2.EncryptedBytesRangeCalculator.FromUnencryptedRange(
+                        unencryptedRange: range,
+                        unencryptedFileSize: fileSizeInBytes,
+                        chainStepsCount: fileEncryptionMetadata.ChainStepSalts.Count);
+
+                    var ikm = KeyDerivationChain.Derive(
+                        startingDek: s3StorageClient.GetEncryptionKey(
+                            version: fileEncryptionMetadata.KeyVersion,
+                            fullEncryptionSession: fullEncryptionSession),
+                        stepSalts: fileEncryptionMetadata.ChainStepSalts);
+
+                    await Aes256GcmStreamingV2.DecryptRange(
+                        fileAesInputs: fileEncryptionMetadata.ToAesInputsV2(ikm),
+                        range: encryptedRange,
+                        fileSizeInBytes: fileSizeInBytes,
+                        input: PipeReader.Create(
+                            s3FileStream,
+                            new StreamPipeReaderOptions(
+                                bufferSize: PlikShareStreams.DefaultBufferSize,
+                                leaveOpen: false)),
+                        output: output,
+                        cancellationToken);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"Unsupported file encryption format version '{fileEncryptionMetadata.FormatVersion}' " +
+                        $"for file '{s3FileKey.FileExternalId}'.");
                 }
 
                 var duration = DateTime.UtcNow - startTime;
@@ -219,9 +241,10 @@ public class S3DownloadOperation
 
     public static async Task<IFile> GetFile(
         S3FileKey s3FileKey,
+        FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
-        string bucketName,
         FullEncryptionSession? fullEncryptionSession,
+        string bucketName,
         S3StorageClient s3StorageClient,
         CancellationToken cancellationToken)
     {
@@ -237,20 +260,21 @@ public class S3DownloadOperation
 
         return new S3File(
             s3FileKey,
-            fileSizeInBytes, 
-            bucketName, 
+            fileEncryptionMetadata,
+            fileSizeInBytes,
             fullEncryptionSession,
-            s3StorageClient, 
+            bucketName,
+            s3StorageClient,
             stream);
     }
 
     public static async Task<IFile> GetFileRange(
         S3FileKey s3FileKey,
-        FileEncryption fileEncryption,
+        FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
         BytesRange range,
-        string bucketName,
         FullEncryptionSession? fullEncryptionSession,
+        string bucketName,
         S3StorageClient s3StorageClient,
         CancellationToken cancellationToken)
     {
@@ -260,51 +284,24 @@ public class S3DownloadOperation
             s3FileKey.FileExternalId,
             s3FileKey.Value);
 
-        if (s3StorageClient.EncryptionType == StorageEncryptionType.None)
-        {
-            var stream = await s3StorageClient.GetFileRange(
-                bucketName: bucketName,
-                key: s3FileKey,
-                range: range,
-                cancellationToken: cancellationToken);
+        var fileBytesRange = fileEncryptionMetadata.CalculateFileRange(
+            fileSizeInBytes: fileSizeInBytes,
+            range: range);
 
-            return new S3FileRange(
-                s3FileKey,
-                fileSizeInBytes,
-                fileEncryption,
-                range,
-                bucketName,
-                fullEncryptionSession,
-                s3StorageClient,
-                stream);
-        }
-
-        if (s3StorageClient.EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full)
-        {
-            var encryptedRange = Aes256GcmStreamingV1.EncryptedBytesRangeCalculator.FromUnencryptedRange(
-                unencryptedRange: range,
-                unencryptedFileSize: fileSizeInBytes);
-
-            var stream = await s3StorageClient.GetFileRange(
-                bucketName: bucketName,
-                key: s3FileKey,
-                range: new BytesRange(
-                    Start: encryptedRange.FirstSegment.Start,
-                    End: encryptedRange.LastSegment.End),
-                cancellationToken: cancellationToken);
-
-            return new S3FileRange(
-                s3FileKey,
-                fileSizeInBytes,
-                fileEncryption,
-                range,
-                bucketName,
-                fullEncryptionSession,
-                s3StorageClient,
-                stream);
-        }
-
-        throw new NotImplementedException(
-            $"Encryption type '{s3StorageClient.EncryptionType}' is not implemented for Storage#{s3StorageClient.StorageId}");
+        var stream = await s3StorageClient.GetFileRange(
+            bucketName: bucketName,
+            key: s3FileKey,
+            range: fileBytesRange,
+            cancellationToken: cancellationToken);
+        
+        return new S3FileRange(
+            s3FileKey,
+            fileEncryptionMetadata,
+            fileSizeInBytes,
+            range,
+            fullEncryptionSession,
+            bucketName,
+            s3StorageClient,
+            stream);
     }
 }

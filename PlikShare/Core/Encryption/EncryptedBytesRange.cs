@@ -1,3 +1,5 @@
+using PlikShare.Files.PreSignedLinks.RangeRequests;
+
 namespace PlikShare.Core.Encryption;
 
 public record EncryptedBytesRange(
@@ -10,4 +12,12 @@ public record EncryptedBytesRange(
         int Number,
         long Start,
         long End);
+
+    public BytesRange ToBytesRange()
+    {
+        return new BytesRange(
+            Start: FirstSegment.Start,
+            End: LastSegment.End);
+    }
 }
+

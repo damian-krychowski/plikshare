@@ -207,6 +207,11 @@ public class CopyFileQueueJobExecutor(
                         fi_size_in_bytes,
                         fi_external_id,
                         fi_s3_key_secret_part,
+                        fi_encryption_key_version,
+                        fi_encryption_salt,
+                        fi_encryption_nonce_prefix,
+                        fi_encryption_chain_salts,
+                        fi_encryption_format_version,
 
                         fu_file_external_id,
                         fu_file_s3_key_secret_part,
@@ -226,7 +231,8 @@ public class CopyFileQueueJobExecutor(
                 ",
                 readRowFunc: reader =>
                 {
-                    var encryptionKey = reader.GetByteOrNull(11);
+                    var sourceEncryptionKeyVersion = reader.GetByteOrNull(8);
+                    var newEncryptionKeyVersion = reader.GetByteOrNull(16);
 
                     return new CopyFileQueueJob
                     {
@@ -243,22 +249,36 @@ public class CopyFileQueueJobExecutor(
                             S3KeySecretPart = reader.GetString(7),
                         },
 
-                        NewS3FileKey = new S3FileKey
-                        {
-                            FileExternalId = reader.GetExtId<FileExtId>(8),
-                            S3KeySecretPart = reader.GetString(9),
-                        },
-                        S3UploadId = reader.GetString(10),
-                        NewFileEncryptionMetadata = encryptionKey is null
+                        SourceFileEncryptionMetadata = sourceEncryptionKeyVersion is null
                             ? null
                             : new FileEncryptionMetadata
                             {
-                                KeyVersion = encryptionKey.Value,
-                                Salt = reader.GetFieldValue<byte[]>(12),
-                                NoncePrefix = reader.GetFieldValue<byte[]>(13),
+                                KeyVersion = sourceEncryptionKeyVersion.Value,
+                                Salt = reader.GetFieldValue<byte[]>(9),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(10),
                                 ChainStepSalts = KeyDerivationChain.Deserialize(
-                                    reader.GetFieldValueOrNull<byte[]>(14)),
-                                FormatVersion = reader.GetByteOrNull(15) ?? 1
+                                    reader.GetFieldValueOrNull<byte[]>(11)),
+                                FormatVersion = reader.GetByteOrNull(12) ?? 1
+                            },
+
+                        NewS3FileKey = new S3FileKey
+                        {
+                            FileExternalId = reader.GetExtId<FileExtId>(13),
+                            S3KeySecretPart = reader.GetString(14),
+                        },
+
+                        S3UploadId = reader.GetString(15),
+
+                        NewFileEncryptionMetadata = newEncryptionKeyVersion is null
+                            ? null
+                            : new FileEncryptionMetadata
+                            {
+                                KeyVersion = newEncryptionKeyVersion.Value,
+                                Salt = reader.GetFieldValue<byte[]>(17),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(18),
+                                ChainStepSalts = KeyDerivationChain.Deserialize(
+                                    reader.GetFieldValueOrNull<byte[]>(19)),
+                                FormatVersion = reader.GetByteOrNull(20) ?? 1
                             },
                     };
                 })
@@ -308,6 +328,7 @@ public class CopyFileQueueJobExecutor(
             await using var fileStream = await FileReader.GetFile(
                 s3FileKey: job.SourceS3FileKey,
                 fileSizeInBytes: job.FileSizeInBytes,
+                fileEncryptionMetadata: job.SourceFileEncryptionMetadata,
                 workspace: sourceWorkspace,
                 fullEncryptionSession: null, //todo: background jobs cannot access full-encryption sessions yet
                 cancellationToken: stoppingToken);

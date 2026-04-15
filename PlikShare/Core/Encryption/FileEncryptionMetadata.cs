@@ -1,6 +1,7 @@
 ﻿using PlikShare.Files.Records;
 using PlikShare.Uploads.Cache;
 using System.ComponentModel;
+using PlikShare.Files.PreSignedLinks.RangeRequests;
 
 namespace PlikShare.Core.Encryption;
 
@@ -26,7 +27,8 @@ public static class FileEncryptionMetadataExtensions
 {
     extension(FileEncryptionMetadata? metadata)
     {
-        public int CalculateBufferSize(FilePart part)
+        public int CalculateBufferSize(
+            FilePart part)
         {
             if (metadata is null)
                 return part.SizeInBytes;
@@ -42,6 +44,58 @@ public static class FileEncryptionMetadataExtensions
 
             throw new InvalidOperationException(
                 $"Unsupported file encryption format version '{metadata.FormatVersion}'.");
+        }
+
+        public BytesRange CalculateFileRange(
+            long fileSizeInBytes,
+            BytesRange range)
+        {
+            if (metadata is null)
+                return range;
+
+            if (metadata.FormatVersion == 1)
+            {
+                var encryptedRange = Aes256GcmStreamingV1.EncryptedBytesRangeCalculator.FromUnencryptedRange(
+                    unencryptedRange: range,
+                    unencryptedFileSize: fileSizeInBytes);
+
+                return encryptedRange.ToBytesRange();
+            }
+
+            if (metadata.FormatVersion == 2)
+            {
+                var encryptedRange = Aes256GcmStreamingV2.EncryptedBytesRangeCalculator.FromUnencryptedRange(
+                    unencryptedRange: range,
+                    unencryptedFileSize: fileSizeInBytes,
+                    chainStepsCount: metadata.ChainStepSalts.Count);
+
+                return encryptedRange.ToBytesRange();
+            }
+
+            throw new InvalidOperationException(
+                $"Unsupported file encryption format version '{metadata.FormatVersion}'.");
+        }
+    }
+
+    extension(FileEncryptionMetadata metadata)
+    {
+        public FileAesInputsV1 ToAesInputsV1(byte[] ikm)
+        {
+            return new FileAesInputsV1(
+                Ikm: ikm,
+                KeyVersion: metadata.KeyVersion,
+                Salt: metadata.Salt,
+                NoncePrefix: metadata.NoncePrefix);
+        }
+
+        public FileAesInputsV2 ToAesInputsV2(byte[] ikm)
+        {
+            return new FileAesInputsV2(
+                Ikm: ikm,
+                KeyVersion: metadata.KeyVersion,
+                ChainStepSalts: metadata.ChainStepSalts,
+                Salt: metadata.Salt,
+                NoncePrefix: metadata.NoncePrefix);
         }
     }
 }

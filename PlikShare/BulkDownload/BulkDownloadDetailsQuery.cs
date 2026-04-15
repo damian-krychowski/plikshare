@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
 
@@ -61,27 +62,48 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
 
         return connection
             .Cmd(
-                sql: @"
-                    SELECT
-                        fi_external_id,
-                        fi_name || fi_extension,
-                        fi_s3_key_secret_part,
-                        fi_size_in_bytes,
-                        fi_folder_id
-                    FROM fi_files
-                    WHERE
-                        fi_workspace_id = $workspaceId
-                        AND fi_id IN (
-                            SELECT value FROM json_each($fileIds)
-                        )
-                ",
-                readRowFunc: reader => new BulkDownloadFile
+                sql: """
+                     SELECT
+                         fi_external_id,
+                         fi_name || fi_extension,
+                         fi_s3_key_secret_part,
+                         fi_size_in_bytes,
+                         fi_folder_id,
+                         fi_encryption_key_version,
+                         fi_encryption_salt,
+                         fi_encryption_nonce_prefix,
+                         fi_encryption_chain_salts,
+                         fi_encryption_format_version
+                     FROM fi_files
+                     WHERE
+                         fi_workspace_id = $workspaceId
+                         AND fi_id IN (
+                             SELECT value FROM json_each($fileIds)
+                         )
+                     """,
+                readRowFunc: reader =>
                 {
-                    ExternalId = reader.GetExtId<FileExtId>(0),
-                    FullName = reader.GetString(1),
-                    S3KeySecretPart = reader.GetString(2),
-                    SizeInBytes = reader.GetInt64(3),
-                    FolderId = reader.GetInt32OrNull(4)
+                    var encryptionKeyVersion = reader.GetByteOrNull(5);
+
+                    return new BulkDownloadFile
+                    {
+                        ExternalId = reader.GetExtId<FileExtId>(0),
+                        FullName = reader.GetString(1),
+                        S3KeySecretPart = reader.GetString(2),
+                        SizeInBytes = reader.GetInt64(3),
+                        FolderId = reader.GetInt32OrNull(4),
+                        EncryptionMetadata = encryptionKeyVersion is null
+                            ? null
+                            : new FileEncryptionMetadata
+                            {
+                                KeyVersion = encryptionKeyVersion.Value,
+                                Salt = reader.GetFieldValue<byte[]>(6),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(7),
+                                ChainStepSalts = KeyDerivationChain.Deserialize(
+                                    reader.GetFieldValueOrNull<byte[]>(8)),
+                                FormatVersion = reader.GetByteOrNull(9) ?? 1
+                            },
+                    };
                 })
             .WithParameter("$workspaceId", workspaceId)
             .WithJsonParameter("$fileIds", fileIds)
@@ -99,30 +121,50 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
 
         return connection
             .Cmd(
-                sql: @"
-                    SELECT
-                        fi_external_id,
-                        fi_name || fi_extension,
-                        fi_s3_key_secret_part,
-                        fi_folder_id,
-                        fi_size_in_bytes
-                    FROM fi_files
-                    WHERE 
-                        fi_workspace_id = $workspaceId
-                        AND fi_folder_id IN (
-                            SELECT value FROM json_each($folderIds)
-                        )
-                        AND fi_id NOT IN (
-                            SELECT value FROM json_each($excludedFileIds)
-                        )
-                ",
-                readRowFunc: reader => new BulkDownloadFile
+                sql: """
+                     SELECT
+                         fi_external_id,
+                         fi_name || fi_extension,
+                         fi_s3_key_secret_part,
+                         fi_folder_id,
+                         fi_size_in_bytes,
+                         fi_encryption_salt,
+                         fi_encryption_nonce_prefix,
+                         fi_encryption_chain_salts,
+                         fi_encryption_format_version
+                     FROM fi_files
+                     WHERE 
+                         fi_workspace_id = $workspaceId
+                         AND fi_folder_id IN (
+                             SELECT value FROM json_each($folderIds)
+                         )
+                         AND fi_id NOT IN (
+                             SELECT value FROM json_each($excludedFileIds)
+                         )
+                     """,
+                readRowFunc: reader =>
                 {
-                    ExternalId = reader.GetExtId<FileExtId>(0),
-                    FullName = reader.GetString(1),
-                    S3KeySecretPart = reader.GetString(2),
-                    FolderId = reader.GetInt32(3),
-                    SizeInBytes = reader.GetInt64(4)
+                    var encryptionKeyVersion = reader.GetByteOrNull(5);
+
+                    return new BulkDownloadFile
+                    {
+                        ExternalId = reader.GetExtId<FileExtId>(0),
+                        FullName = reader.GetString(1),
+                        S3KeySecretPart = reader.GetString(2),
+                        FolderId = reader.GetInt32(3),
+                        SizeInBytes = reader.GetInt64(4),
+                        EncryptionMetadata = encryptionKeyVersion is null
+                            ? null
+                            : new FileEncryptionMetadata
+                            {
+                                KeyVersion = encryptionKeyVersion.Value,
+                                Salt = reader.GetFieldValue<byte[]>(6),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(7),
+                                ChainStepSalts = KeyDerivationChain.Deserialize(
+                                    reader.GetFieldValueOrNull<byte[]>(8)),
+                                FormatVersion = reader.GetByteOrNull(9) ?? 1
+                            },
+                    };
                 })
             .WithParameter("$workspaceId", workspaceId)
             .WithJsonParameter("$folderIds", allFolderIds)
@@ -261,9 +303,10 @@ public class BulkDownloadFile
 {
     public required FileExtId ExternalId {get;init;}
     public required string FullName { get; init; }
-    public required string S3KeySecretPart {get;init;}
-    public required long SizeInBytes {get;init;}
+    public required string S3KeySecretPart {get; init;}
+    public required long SizeInBytes {get; init;}
     public required int? FolderId { get; init; }
+    public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
 }
 
 // FolderSubtree holds the full folder context for a bulk download operation.

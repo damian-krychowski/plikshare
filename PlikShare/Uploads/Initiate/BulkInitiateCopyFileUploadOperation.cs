@@ -132,9 +132,9 @@ public class BulkInitiateCopyFileUploadOperation(
                         NewFileExternalId = FileExtId.NewId(),
                         NewFileS3KeySecretPart = storageClient.GenerateFileS3KeySecretPart(),
 
-                        NewFileEncryptionKeyVersion = encryptionDetails.Metadata?.KeyVersion,
-                        NewFileEncryptionSalt = encryptionDetails.Metadata?.Salt,
-                        NewFileEncryptionNoncePrefix = encryptionDetails.Metadata?.NoncePrefix
+                        NewFileEncryptionKeyVersion = encryptionDetails?.KeyVersion,
+                        NewFileEncryptionSalt = encryptionDetails?.Salt,
+                        NewFileEncryptionNoncePrefix = encryptionDetails?.NoncePrefix
                     };
                 })
             .WithJsonParameter("$fileIds", fileIds)
