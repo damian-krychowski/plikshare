@@ -12,7 +12,9 @@ import { pushItems, removeItems } from "../../shared/signal-utils";
 import { ItemButtonComponent } from "../../shared/buttons/item-btn/item-btn.component";
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
 import { EditDigitalOceanStorageComponent } from "./digitalocean/edit-digitalocean-storage/edit-digitalocean-storage.component";
-import { GetStorageItem } from "../../services/storages.api";
+import { EditBackblazeStorageComponent } from "./backblaze/edit-backblaze-storage/edit-backblaze-storage.component";
+import { EditAzureBlobStorageComponent } from "./azure/edit-azure-blob-storage/edit-azure-blob-storage.component";
+import { GetAzureBlobStorageItem, GetStorageItem } from "../../services/storages.api";
 
 @Component({
     selector: 'app-storage-settings',
@@ -30,6 +32,20 @@ export class StorageSettingsComponent implements OnInit {
     isLoading = signal(false);
 
     storages: WritableSignal<AppStorage[]> = signal([]);
+    private _storageItemsById = new Map<string, GetStorageItem>();
+
+    private async refreshStoragesAfterEdit() {
+        this.isLoading.set(true);
+
+        try {
+            await this.loadStorages();
+            this._dataStore.clearDashboardData();
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.isLoading.set(false);
+        }
+    }
 
     constructor(
         public auth: AuthService,
@@ -52,6 +68,9 @@ export class StorageSettingsComponent implements OnInit {
 
     private async loadStorages() {
         const result = await this._dataStore.getStorages();
+
+        this._storageItemsById = new Map(
+            result.items.map(item => [item.externalId, item]));
 
         this.storages.set(result.items.map(s => {
             const details = this.getStorageDetails(s);
@@ -87,6 +106,9 @@ export class StorageSettingsComponent implements OnInit {
         if(item.$type == 'backblaze-b2')            
             return `KeyId: ${item.keyId} <br> Url: ${item.url}`;
 
+        if(item.$type == 'azure-blob')
+            return `AccountName: ${item.accountName} <br> Url: ${item.serviceUrl}`;
+
         throw new Error("Uknown storage type " + (item as any).$type);
     }
 
@@ -111,6 +133,10 @@ export class StorageSettingsComponent implements OnInit {
         this._router.navigate(['settings/storage/add/backblaze-b2']);   
     }
 
+    onAddAzureBlobStorage() {
+        this._router.navigate(['settings/storage/add/azure-blob']);
+    }
+
     onStorageEdit(storage: AppStorage) {     
         if(storage.type == 'cloudflare-r2'){               
             this._dialog.open(EditCloudflareStorageComponent, {
@@ -122,6 +148,9 @@ export class StorageSettingsComponent implements OnInit {
                     top: '100px'
                 },
                 disableClose: true
+            }).afterClosed().subscribe(async isEdited => {
+                if (isEdited)
+                    await this.refreshStoragesAfterEdit();
             });
         } else if(storage.type == 'aws-s3') {            
             this._dialog.open(EditAwsStorageComponent, {
@@ -133,6 +162,9 @@ export class StorageSettingsComponent implements OnInit {
                     top: '100px'
                 },
                 disableClose: true
+            }).afterClosed().subscribe(async isEdited => {
+                if (isEdited)
+                    await this.refreshStoragesAfterEdit();
             });
         } else if(storage.type == 'digitalocean-spaces') {            
             this._dialog.open(EditDigitalOceanStorageComponent, {
@@ -144,6 +176,45 @@ export class StorageSettingsComponent implements OnInit {
                     top: '100px'
                 },
                 disableClose: true
+            }).afterClosed().subscribe(async isEdited => {
+                if (isEdited)
+                    await this.refreshStoragesAfterEdit();
+            });
+        } else if(storage.type == 'backblaze-b2') {
+            this._dialog.open(EditBackblazeStorageComponent, {
+                width: '500px',
+                data: {
+                    storageExternalId: storage.externalId
+                },
+                position: {
+                    top: '100px'
+                },
+                disableClose: true
+            }).afterClosed().subscribe(async isEdited => {
+                if (isEdited)
+                    await this.refreshStoragesAfterEdit();
+            });
+        } else if(storage.type == 'azure-blob') {
+            const azureDetails = this._storageItemsById.get(storage.externalId) as GetAzureBlobStorageItem | undefined;
+
+            this._dialog.open(EditAzureBlobStorageComponent, {
+                width: '500px',
+                data: {
+                    storageExternalId: storage.externalId,
+                    authType: azureDetails?.authType ?? 'shared-key',
+                    accountName: azureDetails?.accountName ?? '',
+                    serviceUrl: azureDetails?.serviceUrl ?? '',
+                    sasToken: azureDetails?.sasToken ?? '',
+                    managedIdentityClientId: azureDetails?.managedIdentityClientId ?? '',
+                    encryptionType: azureDetails?.encryptionType ?? 'none'
+                },
+                position: {
+                    top: '100px'
+                },
+                disableClose: true
+            }).afterClosed().subscribe(async isEdited => {
+                if (isEdited)
+                    await this.refreshStoragesAfterEdit();
             });
         }
     }

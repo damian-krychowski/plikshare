@@ -1,5 +1,7 @@
 ﻿using System.IO.Pipelines;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
+using PlikShare.Storages.AzureBlob;
+using PlikShare.Storages.AzureBlob.Download;
 using PlikShare.Storages.Exceptions;
 using PlikShare.Storages.HardDrive.Download;
 using PlikShare.Storages.HardDrive.StorageClient;
@@ -56,6 +58,13 @@ public static class FileReader
                 s3StorageClient, 
                 cancellationToken),
 
+            AzureBlobStorageClient azureBlobStorageClient => await AzureBlobDownloadOperation.GetFile(
+                objectKey: s3FileKey,
+                fileSizeInBytes: fileSizeInBytes,
+                bucketName: bucketName,
+                azureBlobStorageClient: azureBlobStorageClient,
+                cancellationToken: cancellationToken),
+
             _ => throw new ArgumentOutOfRangeException(nameof(storage))
         };
     }
@@ -87,6 +96,15 @@ public static class FileReader
                 range: range,
                 workspace.BucketName,
                 s3StorageClient: s3StorageClient,
+                cancellationToken: cancellationToken),
+
+            AzureBlobStorageClient azureBlobStorageClient => await AzureBlobDownloadOperation.GetFileRange(
+                objectKey: s3FileKey,
+                fileEncryption: fileEncryption,
+                fileSizeInBytes: fileSizeInBytes,
+                range: range,
+                bucketName: workspace.BucketName,
+                azureBlobStorageClient: azureBlobStorageClient,
                 cancellationToken: cancellationToken),
 
             _ => throw new ArgumentOutOfRangeException(nameof(workspace.Storage))

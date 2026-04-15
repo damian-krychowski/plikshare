@@ -1,4 +1,4 @@
-﻿using PlikShare.Core.UserIdentity;
+using PlikShare.Core.UserIdentity;
 using PlikShare.Files.Id;
 using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.Id;
@@ -51,7 +51,7 @@ public class ConvertFileUploadToFileOperation(
 
         return new Result(
             Code: ResultCode.Ok,
-            FileExternalId: fileUpload.FileToUpload.S3FileKey.FileExternalId);
+            FileExternalId: fileUpload.FileToUpload.ObjectKey.FileExternalId);
     }
 
     public readonly record struct Result(

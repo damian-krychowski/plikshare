@@ -6,6 +6,7 @@ using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Storages;
+using PlikShare.Storages.AzureBlob;
 using PlikShare.Storages.HardDrive.StorageClient;
 using PlikShare.Storages.S3;
 using PlikShare.Uploads.Algorithm;
@@ -235,6 +236,12 @@ public class BulkInitiateFileUploadOperation(
                 fileDetailsList: fileDetailsList,
                 cancellationToken: cancellationToken),
 
+            AzureBlobStorageClient azureBlobStorageClient => await HandleMultipleAzureBlobUploads(
+                azureBlobStorageClient: azureBlobStorageClient,
+                workspace: workspace,
+                fileDetailsList: fileDetailsList,
+                cancellationToken: cancellationToken),
+
             _ => throw new ArgumentOutOfRangeException(nameof(workspace.Storage))
         };
     }
@@ -266,7 +273,7 @@ public class BulkInitiateFileUploadOperation(
                         contentType: fileDetails.FileContentType,
                         userIdentity: userIdentity),
 
-                    S3Key = S3FileKey.NewKey(
+                    ObjectKey = S3FileKey.NewKey(
                         secretPart: string.Empty),
                 };
             })
@@ -304,7 +311,7 @@ public class BulkInitiateFileUploadOperation(
                     ContentType = fileDetails.FileContentType,
                     SizeInBytes = fileDetails.FileSizeInBytes,
                     FolderExternalId = fileDetails.FolderExternalId,
-                    S3Key = S3FileKey.NewKey(),
+                    ObjectKey = S3FileKey.NewKey(),
 
                     StorageUploadDetails = new StorageUploadDetails
                     {
@@ -378,13 +385,142 @@ public class BulkInitiateFileUploadOperation(
                         ContentType = fileDetails.FileContentType,
                         SizeInBytes = fileDetails.FileSizeInBytes,
                         FolderExternalId = fileDetails.FolderExternalId,
-                        S3Key = s3Key,
+                    ObjectKey = s3Key,
 
                         StorageUploadDetails = new StorageUploadDetails
                         {
                             Algorithm = algorithm,
                             FilePartsCount = filePartsCount,
                             FileEncryption = s3StorageClient.GenerateFileEncryptionDetails(),
+
+                            PreSignedUploadLink = preSignedUploadLink,
+                            S3UploadId = s3UploadId,
+                            WasMultiPartUploadInitiated = wasMultiPartUploadInitiated
+                        }
+                    };
+                });
+
+                var batchResults = await Task.WhenAll(tasks);
+
+                results.AddRange(batchResults);
+            }
+        }
+
+        return results;
+    }
+
+    private async ValueTask<List<UploadDetails>> HandleMultipleAzureBlobUploads(
+        AzureBlobStorageClient azureBlobStorageClient,
+        WorkspaceContext workspace,
+        BulkInitiateFileUploadItemDto[] fileDetailsList,
+        CancellationToken cancellationToken)
+    {
+        var results = new List<UploadDetails>();
+        var forAsyncProcessing = new List<BulkInitiateFileUploadItemDto>();
+
+        for (var i = 0; i < fileDetailsList.Length; i++)
+        {
+            var fileDetails = fileDetailsList[i];
+
+            var (algorithm, filePartsCount) = azureBlobStorageClient.ResolveUploadAlgorithm(
+                fileSizeInBytes: fileDetails.FileSizeInBytes);
+
+            if (algorithm == UploadAlgorithm.DirectUpload)
+            {
+                var (name, extension) = FileNames.ToNameAndExtension(
+                    fileDetails.FileNameWithExtension);
+
+                results.Add(new UploadDetails
+                {
+                    FileUploadExternalId = fileDetails.FileUploadExternalId,
+
+                    Name = name,
+                    Extension = extension,
+
+                    ContentType = fileDetails.FileContentType,
+                    SizeInBytes = fileDetails.FileSizeInBytes,
+                    FolderExternalId = fileDetails.FolderExternalId,
+                    ObjectKey = S3FileKey.NewKey(),
+
+                    StorageUploadDetails = new StorageUploadDetails
+                    {
+                        Algorithm = algorithm,
+                        FilePartsCount = filePartsCount,
+                        FileEncryption = azureBlobStorageClient.GenerateFileEncryptionDetails(),
+
+                        PreSignedUploadLink = null,
+                        S3UploadId = string.Empty,
+                        WasMultiPartUploadInitiated = false
+                    }
+                });
+            }
+            else
+            {
+                forAsyncProcessing.Add(fileDetails);
+            }
+        }
+
+        if (forAsyncProcessing.Any())
+        {
+            const int batchSize = 10;
+
+            foreach (var batch in forAsyncProcessing.Chunk(batchSize))
+            {
+                var tasks = batch.Select(async fileDetails =>
+                {
+                    var s3Key = S3FileKey.NewKey();
+                    var (algorithm, filePartsCount) = azureBlobStorageClient.ResolveUploadAlgorithm(
+                        fileSizeInBytes: fileDetails.FileSizeInBytes);
+
+                    string? preSignedUploadLink = null;
+                    var s3UploadId = string.Empty;
+                    var wasMultiPartUploadInitiated = false;
+
+                    if (algorithm == UploadAlgorithm.SingleChunkUpload)
+                    {
+                        preSignedUploadLink = await azureBlobStorageClient.GetPreSignedUploadFullFileLink(
+                            bucketName: workspace.BucketName,
+                            key: s3Key,
+                            contentType: fileDetails.FileContentType,
+                            cancellationToken: cancellationToken);
+                    }
+                    else if (algorithm == UploadAlgorithm.MultiStepChunkUpload)
+                    {
+                        var initiatedUpload = await azureBlobStorageClient.InitiateMultiPartUpload(
+                            bucketName: workspace.BucketName,
+                            key: s3Key,
+                            cancellationToken: cancellationToken);
+
+                        s3UploadId = initiatedUpload.UploadId;
+                        wasMultiPartUploadInitiated = true;
+                    }
+                    else
+                    {
+                        throw new ArgumentOutOfRangeException(
+                            nameof(UploadAlgorithm),
+                            $"Unknown {typeof(UploadAlgorithm)} value: '{algorithm}'");
+                    }
+
+                    var (name, extension) = FileNames.ToNameAndExtension(
+                        fileDetails.FileNameWithExtension);
+
+                    return new UploadDetails
+                    {
+                        FileUploadExternalId = fileDetails.FileUploadExternalId,
+
+                        Name = name,
+                        Extension = extension,
+
+                        ContentType = fileDetails.FileContentType,
+                        SizeInBytes = fileDetails.FileSizeInBytes,
+                        FolderExternalId = fileDetails.FolderExternalId,
+                    ObjectKey = s3Key,
+
+                        StorageUploadDetails = new StorageUploadDetails
+                        {
+                            Algorithm = algorithm,
+                            FilePartsCount = filePartsCount,
+                            FileEncryption = azureBlobStorageClient.GenerateFileEncryptionDetails(),
 
                             PreSignedUploadLink = preSignedUploadLink,
                             S3UploadId = s3UploadId,
@@ -414,7 +550,7 @@ public class BulkInitiateFileUploadOperation(
             .Select(bu => new BulkInsertFileUploadQuery.InsertEntity
             {
                 FileUploadExternalId = bu.FileUploadExternalId,
-                FileExternalId = bu.S3Key.FileExternalId.Value,
+                FileExternalId = bu.ObjectKey.FileExternalId.Value,
                 FolderId = bu.FolderExternalId is null
                     ? null
                     : folderValidationResults[bu.FolderExternalId].FolderId,
@@ -422,7 +558,7 @@ public class BulkInitiateFileUploadOperation(
                 FileContentType = bu.ContentType,
                 FileExtension = bu.Extension,
                 FileSizeInBytes = bu.SizeInBytes,
-                S3KeySecretPart = bu.S3Key.S3KeySecretPart,
+                S3KeySecretPart = bu.ObjectKey.S3KeySecretPart,
 
                 S3UploadId = bu.StorageUploadDetails.S3UploadId,
                 EncryptionKeyVersion = bu.StorageUploadDetails.FileEncryption.Metadata?.KeyVersion,
@@ -457,9 +593,9 @@ public class BulkInitiateFileUploadOperation(
         {
             var abortMultiPartUploadTasks = multiPartUploads.Select(mpu => workspace.Storage.AbortMultiPartUpload(
                 bucketName: workspace.BucketName,
-                key: mpu.S3Key,
+                key: mpu.ObjectKey,
                 uploadId: mpu.StorageUploadDetails.S3UploadId,
-                partETags: [],
+                parts: [],
                 cancellationToken: cancellationToken));
 
             await Task.WhenAll(abortMultiPartUploadTasks);
@@ -489,7 +625,7 @@ public class BulkInitiateFileUploadOperation(
                     {
                         SizeInBytes = upload.SizeInBytes,
                         Encryption = upload.StorageUploadDetails.FileEncryption,
-                        S3FileKey = upload.S3Key,
+                            ObjectKey = upload.ObjectKey,
                         S3UploadId = upload.StorageUploadDetails.S3UploadId,
                     },
                     ContentType = upload.ContentType,
@@ -691,7 +827,7 @@ public class BulkInitiateFileUploadOperation(
         public required long SizeInBytes { get; init; }
         public required string ContentType { get; init; }
         public required string? FolderExternalId { get; init; }
-        public required S3FileKey S3Key { get; init; }
+        public required StorageObjectKey ObjectKey { get; init; }
         public required StorageUploadDetails StorageUploadDetails { get; init; }
     }
 

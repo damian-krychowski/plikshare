@@ -53,7 +53,7 @@ public class AbortS3UploadQueueJobExecutor(
                     S3KeySecretPart = definition.S3KeySecretPart
                 },
                 uploadId: definition.S3UploadId,
-                partETags: definition.PartETags,
+                parts: definition.Parts,
                 cancellationToken: cancellationToken);
         }
         catch (AmazonS3Exception amazonS3Exception)

@@ -48,7 +48,7 @@ public class HardDriveStorageClient: IStorageClient
     
     public ValueTask DeleteFile(
         string bucketName, 
-        S3FileKey key, 
+        StorageObjectKey key, 
         CancellationToken cancellationToken = default)
     {
         var bucketPath = Path.Combine(
@@ -93,7 +93,7 @@ public class HardDriveStorageClient: IStorageClient
 
     public ValueTask DeleteFiles(
         string bucketName,
-        S3FileKey[] keys,
+        StorageObjectKey[] keys,
         CancellationToken cancellationToken = default)
     {
         var bucketPath = Path.Combine(
@@ -143,9 +143,9 @@ public class HardDriveStorageClient: IStorageClient
 
     public async Task CompleteMultiPartUpload(
         string bucketName, 
-        S3FileKey key,
+        StorageObjectKey key,
         string uploadId, 
-        List<PartETag> partETags,
+        List<UploadPartRef> parts,
         CancellationToken cancellationToken = default)
     {
         var bucketPath = Path.Combine(
@@ -166,7 +166,7 @@ public class HardDriveStorageClient: IStorageClient
 
         try
         {
-            var sorterPartETags = partETags
+            var sortedParts = parts
                 .OrderBy(part => part.PartNumber)
                 .ToList();
 
@@ -174,7 +174,7 @@ public class HardDriveStorageClient: IStorageClient
                 bucketPath,
                 key.FileExternalId,
                 finalFilePath,
-                sorterPartETags,
+                sortedParts,
                 cancellationToken);
         }
         catch (Exception ex)
@@ -203,7 +203,7 @@ public class HardDriveStorageClient: IStorageClient
         string bucketPath,
         FileExtId fileExternalId,
         string finalFilePath,
-        List<PartETag> sorterPartETags,
+        List<UploadPartRef> sortedParts,
         CancellationToken cancellationToken)
     {
         await using var outputStream = new FileStream(
@@ -213,14 +213,14 @@ public class HardDriveStorageClient: IStorageClient
             share: FileShare.None,
             bufferSize: PlikShareStreams.DefaultBufferSize);
 
-        foreach (var partETag in sorterPartETags)
+        foreach (var part in sortedParts)
         {
             if (cancellationToken.IsCancellationRequested)
                 return;
 
             var partName = GetFileName(
                 fileExternalId, 
-                partETag.ETag);
+                part.PartToken);
 
             var partFilePath = Path.Combine(
                 bucketPath, 
@@ -263,7 +263,7 @@ public class HardDriveStorageClient: IStorageClient
     public ValueTask<PreSignedUploadLinkResult> GetPreSignedUploadFilePartLink(
         string bucketName, 
         FileUploadExtId fileUploadExternalId,
-        S3FileKey key, 
+        StorageObjectKey key, 
         string uploadId, 
         int partNumber,
         string contentType,
@@ -298,7 +298,7 @@ public class HardDriveStorageClient: IStorageClient
 
     public ValueTask<string> GetPreSignedDownloadFileLink(
         string bucketName, 
-        S3FileKey key, 
+        StorageObjectKey key, 
         string contentType, 
         string fileName,
         ContentDispositionType contentDisposition,
@@ -326,13 +326,13 @@ public class HardDriveStorageClient: IStorageClient
 
     public Task AbortMultiPartUpload(
         string bucketName, 
-        S3FileKey key, 
+        StorageObjectKey key, 
         string uploadId,
-        List<string> partETags,
+        List<UploadPartRef> parts,
         CancellationToken cancellationToken = default)
     {
         //no parts were created, there is nothing to delete
-        if (partETags.Count == 0)
+        if (parts.Count == 0)
         {
             Log.Information("Successfully aborted MultiPartUpload for '{FileExternalId}' in '{BucketName}' of Storage '{StorageId}'",
                 key.FileExternalId,
@@ -353,15 +353,15 @@ public class HardDriveStorageClient: IStorageClient
 
             return Task.CompletedTask;
         }
-        
-        foreach (var partETag in partETags)
+
+        foreach (var part in parts)
         {
             if (cancellationToken.IsCancellationRequested)
                 return Task.CompletedTask;
 
             var file = Path.Combine(
                 bucketPath,
-                GetFileName(key.FileExternalId, partETag));
+                GetFileName(key.FileExternalId, part.PartToken));
 
             try
             {
@@ -381,7 +381,7 @@ public class HardDriveStorageClient: IStorageClient
             key.FileExternalId,
             bucketName,
             StorageId,
-            partETags.Count);
+            parts.Count);
 
         return Task.CompletedTask;
     }

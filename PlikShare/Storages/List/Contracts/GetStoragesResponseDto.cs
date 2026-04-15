@@ -14,6 +14,7 @@ public class GetStoragesResponseDto
 [JsonDerivedType(derivedType: typeof(GetBackblazeB2StorageItemResponseDto), typeDiscriminator: "backblaze-b2")]
 [JsonDerivedType(derivedType: typeof(GetDigitalOceanSpacesItemResponseDto), typeDiscriminator: "digitalocean-spaces")]
 [JsonDerivedType(derivedType: typeof(GetAwsS3StorageItemResponseDto), typeDiscriminator: "aws-s3")]
+[JsonDerivedType(derivedType: typeof(GetAzureBlobStorageItemResponseDto), typeDiscriminator: "azure-blob")]
 public abstract class GetStorageItemResponseDto
 {
     public required string Name { get; init; }
@@ -51,4 +52,13 @@ public class GetBackblazeB2StorageItemResponseDto : GetStorageItemResponseDto
 {
     public required string KeyId { get; init; }
     public required string Url { get; init; }
+}
+
+public class GetAzureBlobStorageItemResponseDto : GetStorageItemResponseDto
+{
+    public required string AuthType { get; init; }
+    public required string AccountName { get; init; }
+    public required string ServiceUrl { get; init; }
+    public string? SasToken { get; init; }
+    public string? ManagedIdentityClientId { get; init; }
 }

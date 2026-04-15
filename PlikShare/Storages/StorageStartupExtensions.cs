@@ -8,6 +8,7 @@ using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Entities;
+using PlikShare.Storages.AzureBlob;
 using PlikShare.Storages.HardDrive;
 using PlikShare.Storages.HardDrive.StorageClient;
 using PlikShare.Storages.Id;
@@ -205,6 +206,26 @@ public static class StorageStartupExtensions
                     storageId: storage.StorageId,
                     externalId: storage.ExternalId,
                     clock: clock,
+                    encryptionType: storage.EncryptionType,
+                    encryptionDetails: storage.EncryptionDetails));
+            }
+
+            if (storage.Type == StorageType.AzureBlob)
+            {
+                var details = Json.Deserialize<AzureBlobDetailsEntity>(
+                    storage.DetailsJson);
+
+                var client = AzureBlobStorageClient.BuildClientOrThrow(
+                    details: details!);
+
+                clientStore.RegisterClient(new AzureBlobStorageClient(
+                    appUrl: config.AppUrl,
+                    clock: clock,
+                    blobServiceClient: client,
+                    storageId: storage.StorageId,
+                    externalId: storage.ExternalId,
+                    storageType: storage.Type,
+                    preSignedUrlsService: preSignedUrlsService,
                     encryptionType: storage.EncryptionType,
                     encryptionDetails: storage.EncryptionDetails));
             }

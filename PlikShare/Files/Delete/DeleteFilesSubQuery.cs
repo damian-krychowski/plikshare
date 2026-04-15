@@ -38,11 +38,11 @@ namespace PlikShare.Files.Delete
                     {
                         BucketName = workspace.BucketName,
                         StorageId = workspace.StorageId,
-                        S3FileKeys = deletedFilesChunk
-                            .Select(df => new S3FileKey
+                        ObjectKeys = deletedFilesChunk
+                            .Select(df => new StorageObjectKey
                             {
                                 FileExternalId = df.ExternalId,
-                                S3KeySecretPart = df.S3KeySecretPart
+                                SecretPart = df.S3KeySecretPart
                             })
                             .ToArray()
                     },

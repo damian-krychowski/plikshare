@@ -1,4 +1,4 @@
-﻿using System.IO.Pipelines;
+using System.IO.Pipelines;
 using System.Text;
 using Amazon.Textract;
 using Amazon.Textract.Model;
@@ -239,7 +239,7 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                             Salt = fileInsertEntity.EncryptionSalt!
                         }
                     },
-                S3FileKey = new S3FileKey
+                ObjectKey = new S3FileKey
                 {
                     FileExternalId = FileExtId.Parse(fileInsertEntity.FileExternalId),
                     S3KeySecretPart = fileInsertEntity.S3KeySecretPart

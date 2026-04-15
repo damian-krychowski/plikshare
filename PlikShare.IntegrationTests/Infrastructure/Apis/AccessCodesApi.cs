@@ -61,7 +61,7 @@ public class AccessCodesApi(IFlurlClient flurlClient, string appUrl)
             apiPath: $"api/access-codes/{accessCode}/folders",
             request: request,
             cookie: null,
-            antiforgery: antiforgery,
+            antiforgery: antiforgery!,
             headers: boxLinkToken is null
                 ? null
                 : [boxLinkToken]);

@@ -13,6 +13,7 @@ public class SmtpEmailSender : IEmailSender
     private readonly string _hostname;
     private readonly int _port;
     private readonly SecureSocketOptions _secureSocketOptions;
+    private readonly bool _requiresAuthentication;
     private readonly string _username;
     private readonly string _password;
 
@@ -21,6 +22,7 @@ public class SmtpEmailSender : IEmailSender
         string hostname,
         int port,
         SslMode sslMode,
+        bool requiresAuthentication,
         string username,
         string password)
     {
@@ -28,6 +30,7 @@ public class SmtpEmailSender : IEmailSender
         _hostname = hostname;
         _port = port;
         _secureSocketOptions = GetSecureSocketOptions(sslMode);
+        _requiresAuthentication = requiresAuthentication;
         _username = username;
         _password = password;
     }
@@ -57,10 +60,13 @@ public class SmtpEmailSender : IEmailSender
                 options: _secureSocketOptions, 
                 cancellationToken: cancellationToken);
     
-            await client.AuthenticateAsync(
-                _username,
-                _password,
-                cancellationToken);
+            if (_requiresAuthentication)
+            {
+                await client.AuthenticateAsync(
+                    _username,
+                    _password,
+                    cancellationToken);
+            }
     
             await client.SendAsync(
                 message,

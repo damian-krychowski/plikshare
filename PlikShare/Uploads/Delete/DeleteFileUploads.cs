@@ -3,6 +3,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
+using PlikShare.Storages;
 using PlikShare.Uploads.Abort.QueueJob;
 
 namespace PlikShare.Uploads.Delete;
@@ -46,9 +47,11 @@ public class DeleteFileUploadsSubQuery(IQueue queue)
             var workspace = workspaces
                 .First(w => w.Id == deletedFileUpload.WorkspaceId);
 
-            var partETags = deletedFileUploadParts
+            var parts = deletedFileUploadParts
                 .Where(p => p.FileUploadId == deletedFileUpload.Id)
-                .Select(p => p.ETag)
+                .Select(p => new UploadPartRef(
+                    PartNumber: p.PartNumber,
+                    PartToken: p.ETag))
                 .ToList();
 
             var job = queue.CreateBulkEntity(
@@ -62,7 +65,7 @@ public class DeleteFileUploadsSubQuery(IQueue queue)
 
                     BucketName = workspace.BucketName,
                     StorageId = workspace.StorageId,
-                    PartETags = partETags
+                    Parts = parts
                 },
                 sagaId: sagaId);
 

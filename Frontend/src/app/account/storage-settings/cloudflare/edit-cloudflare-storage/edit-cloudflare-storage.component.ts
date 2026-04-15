@@ -55,13 +55,13 @@ export class EditCloudflareStorageComponent{
         try {
             this.isLoading.set(true);
 
-            const result = await this._storagesApi.updateCloudflareR2StorageDetails(this.data.storageExternalId, {
+            await this._storagesApi.updateCloudflareR2StorageDetails(this.data.storageExternalId, {
                 accessKeyId: this.accessKeyId.value!,
                 secretAccessKey: this.secretAccessKey.value!,
                 url: this.url.value!
             });
 
-            this.dialogRef.close();
+            this.dialogRef.close(true);
         } catch (err: any) {
             if(err.error.code === 'storage-url-invalid'){
                 this.url.setErrors({

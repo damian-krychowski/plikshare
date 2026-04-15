@@ -1,4 +1,4 @@
-﻿using Amazon.Textract;
+using Amazon.Textract;
 using Amazon.Textract.Model;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
@@ -223,7 +223,7 @@ public class TestTextractConfigurationOperation(
             {
                 SizeInBytes = imageBytes.Length,
                 Encryption = new FileEncryption { EncryptionType = StorageEncryptionType.None },
-                S3FileKey = imageFileKey,
+                ObjectKey = imageFileKey,
                 S3UploadId = String.Empty
             },
             part: new FilePartDetails

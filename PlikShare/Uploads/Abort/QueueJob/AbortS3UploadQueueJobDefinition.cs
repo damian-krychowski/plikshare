@@ -1,4 +1,5 @@
 using PlikShare.Files.Id;
+using PlikShare.Storages;
 
 namespace PlikShare.Uploads.Abort.QueueJob;
 
@@ -10,5 +11,5 @@ public class AbortS3UploadQueueJobDefinition
     public required string S3KeySecretPart{get; init;}
     public required string S3UploadId{get; init;}
     public required long FileSizeInBytes { get; init; }
-    public required List<string> PartETags { get; init; }
+    public required List<UploadPartRef> Parts { get; init; }
 };

@@ -156,7 +156,7 @@ public static class FilesEndpoints
             {
                 SizeInBytes = attachment.SizeInBytes,
                 Encryption = attachment.Encryption,
-                S3FileKey = new S3FileKey
+                ObjectKey = new S3FileKey
                 {
                     S3KeySecretPart = attachment.S3KeySecretPart,
                     FileExternalId = attachment.ExternalId
@@ -212,7 +212,7 @@ public static class FilesEndpoints
             {
                 SizeInBytes = newSizeInBytes,
                 Encryption = file.Details.Encryption,
-                S3FileKey = new S3FileKey
+                ObjectKey = new S3FileKey
                 {
                     S3KeySecretPart = file.Details.S3KeySecretPart,
                     FileExternalId = file.Details.ExternalId

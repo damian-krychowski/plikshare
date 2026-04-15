@@ -11,11 +11,11 @@ public class CopyFileQueueJob
     //sourceFile
     public required long FileSizeInBytes { get; init; }
     public required int SourceWorkspaceId { get; init; }
-    public required S3FileKey SourceS3FileKey { get; init; }
+    public required StorageObjectKey SourceObjectKey { get; init; }
 
     //new file
     public required int TargetWorkspaceId { get; init; }
-    public required S3FileKey NewS3FileKey { get; init; }
+    public required StorageObjectKey NewObjectKey { get; init; }
     public required FileEncryption NewFileEncryption { get; init; }
     public required string S3UploadId { get; init; }
 }

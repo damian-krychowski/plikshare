@@ -5,6 +5,8 @@ using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.Records;
 using PlikShare.Storages.Encryption;
+using PlikShare.Storages.AzureBlob;
+using PlikShare.Storages.AzureBlob.Upload;
 using PlikShare.Storages.HardDrive.StorageClient;
 using PlikShare.Storages.HardDrive.Upload;
 using PlikShare.Storages.S3;
@@ -67,6 +69,14 @@ public static class FileWriter
                     part: part,
                     bucketName: workspace.BucketName,
                     s3StorageClient: s3StorageClient,
+                    cancellationToken: cancellationToken),
+
+                AzureBlobStorageClient azureBlobStorageClient => await AzureBlobUploadOperation.Execute(
+                    fileBytes: heapBufferMemory,
+                    file: file,
+                    part: part,
+                    bucketName: workspace.BucketName,
+                    azureBlobStorageClient: azureBlobStorageClient,
                     cancellationToken: cancellationToken),
 
                 _ => throw new ArgumentOutOfRangeException(nameof(workspace.Storage))

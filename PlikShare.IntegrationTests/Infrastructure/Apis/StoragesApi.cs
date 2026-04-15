@@ -1,4 +1,6 @@
 using Flurl.Http;
+using PlikShare.Storages.AzureBlob.Create.Contracts;
+using PlikShare.Storages.AzureBlob.UpdateDetails.Contracts;
 using PlikShare.Storages.HardDrive.Create.Contracts;
 using PlikShare.Storages.HardDrive.GetVolumes.Contracts;
 using PlikShare.Storages.Id;
@@ -32,6 +34,33 @@ public class StoragesApi(IFlurlClient flurlClient, string appUrl)
         return await flurlClient.ExecutePost<CreateHardDriveStorageResponseDto,CreateHardDriveStorageRequestDto>(
             appUrl: appUrl,
             apiPath: "api/storages/hard-drive",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task<CreateAzureBlobStorageResponseDto> CreateAzureBlobStorage(
+        CreateAzureBlobStorageRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        return await flurlClient.ExecutePost<CreateAzureBlobStorageResponseDto, CreateAzureBlobStorageRequestDto>(
+            appUrl: appUrl,
+            apiPath: "api/storages/azure-blob",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task UpdateAzureBlobStorageDetails(
+        StorageExtId externalId,
+        UpdateAzureBlobStorageDetailsRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/storages/azure-blob/{externalId}/details",
             request: request,
             cookie: cookie,
             antiforgery: antiforgery);

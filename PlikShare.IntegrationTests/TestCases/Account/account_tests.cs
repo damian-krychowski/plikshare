@@ -690,6 +690,7 @@ public class account_tests : TestFixture
         {
             ExternalId = user.ExternalId,
             Email = user.Email,
+            HasPassword = true,
             Roles = new UserRoles
             {
                 IsAdmin = false,

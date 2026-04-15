@@ -11,6 +11,11 @@ using PlikShare.Storages.HardDrive.GetVolumes.Contracts;
 using PlikShare.Storages.Id;
 using PlikShare.Storages.List;
 using PlikShare.Storages.List.Contracts;
+using PlikShare.Storages.AzureBlob;
+using PlikShare.Storages.AzureBlob.Create;
+using PlikShare.Storages.AzureBlob.Create.Contracts;
+using PlikShare.Storages.AzureBlob.UpdateDetails;
+using PlikShare.Storages.AzureBlob.UpdateDetails.Contracts;
 using PlikShare.Storages.S3.AwsS3;
 using PlikShare.Storages.S3.AwsS3.Create;
 using PlikShare.Storages.S3.AwsS3.Create.Contracts;
@@ -93,6 +98,13 @@ public static class StoragesEndpoints
 
         group.MapPatch("/backblaze-b2/{storageExternalId}/details", UpdateBackblazeB2StorageDetails)
             .WithName("UpdateBackblazeB2StorageDetails");
+
+        // Azure Blob
+        group.MapPost("/azure-blob", CreateAzureBlobStorage)
+            .WithName("CreateAzureBlobStorage");
+
+        group.MapPatch("/azure-blob/{storageExternalId}/details", UpdateAzureBlobStorageDetails)
+            .WithName("UpdateAzureBlobStorageDetails");
     }
 
     // Basic Storage Operations
@@ -487,6 +499,81 @@ public static class StoragesEndpoints
 
             _ => throw new UnexpectedOperationResultException(
                 operationName: nameof(CreateBackblazeB2StorageOperation),
+                resultValueStr: result.ToString())
+        };
+    }
+
+    private static async Task<Results<Ok<CreateAzureBlobStorageResponseDto>, BadRequest<HttpError>>> CreateAzureBlobStorage(
+        [FromBody] CreateAzureBlobStorageRequestDto request,
+        CreateAzureBlobStorageOperation createAzureBlobStorageOperation,
+        CancellationToken cancellationToken)
+    {
+        var result = await createAzureBlobStorageOperation.Execute(
+            name: request.Name,
+            details: new AzureBlobDetailsEntity(
+                AccountName: request.AccountName,
+                AccountKey: request.AccountKey,
+                ServiceUrl: request.ServiceUrl,
+                AuthType: request.AuthType,
+                SasToken: request.SasToken,
+                ManagedIdentityClientId: request.ManagedIdentityClientId),
+            encryptionType: request.EncryptionType,
+            cancellationToken: cancellationToken);
+
+        return result.Code switch
+        {
+            CreateAzureBlobStorageOperation.ResultCode.Ok => TypedResults.Ok(
+                new CreateAzureBlobStorageResponseDto(ExternalId: result.StorageExternalId!.Value)),
+
+            CreateAzureBlobStorageOperation.ResultCode.CouldNotConnect =>
+                HttpErrors.Storage.ConnectionFailed(),
+
+            CreateAzureBlobStorageOperation.ResultCode.NameNotUnique =>
+                HttpErrors.Storage.NameNotUnique(request.Name),
+
+            CreateAzureBlobStorageOperation.ResultCode.InvalidUrl =>
+                HttpErrors.Storage.InvalidUrl(request.ServiceUrl),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(CreateAzureBlobStorageOperation),
+                resultValueStr: result.ToString())
+        };
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateAzureBlobStorageDetails(
+        [FromRoute] StorageExtId storageExternalId,
+        [FromBody] UpdateAzureBlobStorageDetailsRequestDto request,
+        UpdateAzureBlobStorageDetailsOperation updateAzureBlobStorageDetailsOperation,
+        CancellationToken cancellationToken)
+    {
+        var result = await updateAzureBlobStorageDetailsOperation.Execute(
+            externalId: storageExternalId,
+            newDetails: new AzureBlobDetailsEntity(
+                AccountName: request.AccountName,
+                AccountKey: request.AccountKey,
+                ServiceUrl: request.ServiceUrl,
+                AuthType: request.AuthType,
+                SasToken: request.SasToken,
+                ManagedIdentityClientId: request.ManagedIdentityClientId),
+            encryptionType: request.EncryptionType,
+            cancellationToken: cancellationToken);
+
+        return result switch
+        {
+            UpdateAzureBlobStorageDetailsOperation.ResultCode.Ok =>
+                TypedResults.Ok(),
+
+            UpdateAzureBlobStorageDetailsOperation.ResultCode.CouldNotConnect =>
+                HttpErrors.Storage.ConnectionFailed(),
+
+            UpdateAzureBlobStorageDetailsOperation.ResultCode.NotFound =>
+                HttpErrors.Storage.NotFound(storageExternalId),
+
+            UpdateAzureBlobStorageDetailsOperation.ResultCode.InvalidUrl =>
+                HttpErrors.Storage.InvalidUrl(request.ServiceUrl),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(UpdateAzureBlobStorageDetailsOperation),
                 resultValueStr: result.ToString())
         };
     }

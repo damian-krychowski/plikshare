@@ -225,6 +225,7 @@ public class user_invitation_tests : TestFixture
         {
             ExternalId = invitedUser.ExternalId,
             Email = invitedUser.Email,
+            HasPassword = true,
             Roles = new UserRoles
             {
                 IsAdmin = false,

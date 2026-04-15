@@ -36,6 +36,8 @@ public class UpdateAwsS3StorageDetailsOperation(
             externalId: externalId,
             storageType: StorageType.AwsS3,
             detailsJson: Json.Serialize(item: newDetails),
+            encryptionType: null,
+            encryptionDetailsJson: null,
             cancellationToken: cancellationToken);
 
         switch (result.Code)

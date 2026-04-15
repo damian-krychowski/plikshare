@@ -125,7 +125,7 @@ public class FileUploadCache(
                         ExternalId = externalId,
                         FileToUpload = new FileToUploadDetails
                         {
-                            S3FileKey = new S3FileKey
+                            ObjectKey = new S3FileKey
                             {
                                 FileExternalId = reader.GetExtId<FileExtId>(1),
                                 S3KeySecretPart = reader.GetString(4),
@@ -200,7 +200,7 @@ public sealed class FileUploadContext
 [ImmutableObject(true)]
 public sealed class FileToUploadDetails
 {
-    public required S3FileKey S3FileKey { get; init; }
+    public required StorageObjectKey ObjectKey { get; init; }
     public required FileEncryption Encryption { get; init; }
     public required string S3UploadId { get; init; }
     public required long SizeInBytes { get; init; }

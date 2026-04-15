@@ -39,6 +39,8 @@ public class UpdateCloudflareR2StorageDetailsOperation(
             externalId: externalId,
             storageType: StorageType.CloudflareR2,
             detailsJson: Json.Serialize(item: newDetails),
+            encryptionType: null,
+            encryptionDetailsJson: null,
             cancellationToken: cancellationToken);
 
         switch (result.Code)

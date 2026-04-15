@@ -39,6 +39,8 @@ public class UpdateBackblazeB2StorageDetailsOperation(
             externalId: externalId,
             storageType: StorageType.BackblazeB2,
             detailsJson: Json.Serialize(item: newDetails),
+            encryptionType: null,
+            encryptionDetailsJson: null,
             cancellationToken: cancellationToken);
 
         switch (result.Code)

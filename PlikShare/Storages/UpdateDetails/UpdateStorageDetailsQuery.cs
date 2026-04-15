@@ -15,6 +15,8 @@ public class UpdateStorageDetailsQuery(
         StorageExtId externalId,
         string storageType,
         string detailsJson,
+        StorageEncryptionType? encryptionType,
+        string? encryptionDetailsJson,
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
@@ -23,6 +25,8 @@ public class UpdateStorageDetailsQuery(
                 externalId: externalId,
                 storageType: storageType,
                 detailsJson: detailsJson,
+                encryptionType: encryptionType,
+                encryptionDetailsJson: encryptionDetailsJson,
                 cancellationToken: ct),
             cancellationToken: cancellationToken);
     }
@@ -32,6 +36,8 @@ public class UpdateStorageDetailsQuery(
         StorageExtId externalId,
         string storageType,
         string detailsJson,
+        StorageEncryptionType? encryptionType,
+        string? encryptionDetailsJson,
         CancellationToken cancellationToken)
     {
         var derivedEncryption = await masterDataEncryptionBufferedFactory.Take(
@@ -42,7 +48,16 @@ public class UpdateStorageDetailsQuery(
                 sql: """
                      UPDATE s_storages
                      SET 
-                         s_details_encrypted = $details
+                         s_details_encrypted = $details,
+                         s_encryption_type = CASE
+                             WHEN $encryptionType IS NULL THEN s_encryption_type
+                             ELSE $encryptionType
+                         END,
+                         s_encryption_details_encrypted = CASE
+                             WHEN $encryptionType IS NULL THEN s_encryption_details_encrypted
+                             WHEN $encryptionType = 'none' THEN NULL
+                             ELSE $encryptionDetails
+                         END
                      WHERE 
                          s_external_id = $externalId
                          AND s_type = $type
@@ -68,6 +83,10 @@ public class UpdateStorageDetailsQuery(
             .WithParameter("$externalId", externalId.Value)
             .WithParameter("$type", storageType)
             .WithParameter("$details", derivedEncryption.Encrypt(detailsJson))
+            .WithParameter("$encryptionType", encryptionType?.ToDbValue())
+            .WithParameter("$encryptionDetails", encryptionDetailsJson is null
+                ? null
+                : derivedEncryption.Encrypt(encryptionDetailsJson))
             .Execute();
 
         Log.Information("Storage '{StorageExternalId}' details were updated",

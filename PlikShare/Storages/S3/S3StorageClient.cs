@@ -39,7 +39,7 @@ public class S3StorageClient(
 
     public async ValueTask DeleteFile(
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         CancellationToken cancellationToken = default)
     {
         try
@@ -66,7 +66,7 @@ public class S3StorageClient(
 
     public async ValueTask DeleteFiles(
         string bucketName,
-        S3FileKey[] keys,
+        StorageObjectKey[] keys,
         CancellationToken cancellationToken = default)
     {
         if (keys.Length > 1000)
@@ -104,13 +104,17 @@ public class S3StorageClient(
 
     public async Task CompleteMultiPartUpload(
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         string uploadId,
-        List<PartETag> partETags,
+        List<UploadPartRef> parts,
         CancellationToken cancellationToken = default)
     {
         try
         {
+            var partETags = parts
+                .Select(p => new PartETag(partNumber: p.PartNumber, eTag: p.PartToken))
+                .ToList();
+
             var request = new CompleteMultipartUploadRequest
             {
                 BucketName = bucketName,
@@ -141,7 +145,7 @@ public class S3StorageClient(
     public async ValueTask<PreSignedUploadLinkResult> GetPreSignedUploadFilePartLink(
         string bucketName,
         FileUploadExtId fileUploadExternalId,
-        S3FileKey key,
+        StorageObjectKey key,
         string uploadId,
         int partNumber,
         string contentType,
@@ -195,7 +199,7 @@ public class S3StorageClient(
 
     public async Task<string> GetDirectS3PreSignedUploadFilePartLink(
         string bucketName, 
-        S3FileKey key, 
+        StorageObjectKey key, 
         string uploadId,
         int partNumber, 
         string contentType)
@@ -229,7 +233,7 @@ public class S3StorageClient(
     
     public async Task<string> GetPreSignedUploadFullFileLink(
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         string contentType,
         CancellationToken cancellationToken)
     {
@@ -260,7 +264,7 @@ public class S3StorageClient(
 
     public async ValueTask<string> GetPreSignedDownloadFileLink(
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         string contentType,
         string fileName,
         ContentDispositionType contentDisposition,
@@ -301,7 +305,7 @@ public class S3StorageClient(
 
     private async Task<string> GetDirectS3PreSignedDownloadLink(
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         string contentType,
         ContentDispositionType contentDisposition,
         string fileName)
@@ -338,9 +342,9 @@ public class S3StorageClient(
 
     public async Task AbortMultiPartUpload(
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         string uploadId,
-        List<string> partETags,
+        List<UploadPartRef> parts,
         CancellationToken cancellationToken = default)
     {
         try
@@ -366,7 +370,7 @@ public class S3StorageClient(
 
     public async ValueTask<InitiatedUpload> InitiateMultiPartUpload(
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         CancellationToken cancellationToken = default)
     {
         try
@@ -540,7 +544,7 @@ public class S3StorageClient(
 
     public async Task<Stream> GetFile(
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         CancellationToken cancellationToken = default)
     {
         try
@@ -569,7 +573,7 @@ public class S3StorageClient(
 
     public async Task<Stream> GetFileRange(
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         BytesRange range,
         CancellationToken cancellationToken = default)
     {
@@ -604,7 +608,7 @@ public class S3StorageClient(
     public async Task<string> UploadPart(
         ReadOnlyMemory<byte> fileBytes,
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         string uploadId,
         int partNumber,
         CancellationToken cancellationToken = default)
@@ -647,7 +651,7 @@ public class S3StorageClient(
     public async Task<string> UploadFile(
         ReadOnlyMemory<byte> fileBytes,
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         CancellationToken cancellationToken = default)
     {
         try

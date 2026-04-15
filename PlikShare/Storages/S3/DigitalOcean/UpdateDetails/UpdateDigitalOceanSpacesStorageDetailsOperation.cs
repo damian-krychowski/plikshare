@@ -36,6 +36,8 @@ public class UpdateDigitalOceanSpacesStorageDetailsOperation(
             externalId: externalId,
             storageType: StorageType.DigitalOceanSpaces,
             detailsJson: Json.Serialize(item: newDetails),
+            encryptionType: null,
+            encryptionDetailsJson: null,
             cancellationToken: cancellationToken);
 
         switch (result.Code)

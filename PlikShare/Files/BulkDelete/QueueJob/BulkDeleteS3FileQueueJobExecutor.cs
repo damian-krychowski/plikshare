@@ -27,7 +27,7 @@ public class BulkDeleteS3FileQueueJobExecutor(StorageClientStore storageClientSt
         if (!storageClientStore.TryGetClient(definition.StorageId, out var storage))
         {
             Log.Warning("Could not delete files (count: {FilesToDeleteCount}) because Storage#{StorageId} was not found. Marking the queue job as completed.",
-                definition.S3FileKeys.Length,
+                definition.ObjectKeys.Length,
                 definition.StorageId);
 
             return QueueJobResult.Success;
@@ -35,9 +35,10 @@ public class BulkDeleteS3FileQueueJobExecutor(StorageClientStore storageClientSt
 
         await storage.DeleteFiles(
             bucketName: definition.BucketName,
-            keys: definition.S3FileKeys,
+            keys: definition.ObjectKeys,
             cancellationToken: cancellationToken);
 
         return QueueJobResult.Success;
     }
 }
+

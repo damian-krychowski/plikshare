@@ -1,4 +1,3 @@
-using Amazon.S3.Model;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Storages.Encryption;
@@ -17,25 +16,25 @@ public interface IStorageClient
 
     ValueTask DeleteFile(
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         CancellationToken cancellationToken = default);
 
     ValueTask DeleteFiles(
         string bucketName,
-        S3FileKey[] keys,
+        StorageObjectKey[] keys,
         CancellationToken cancellationToken = default);
 
     Task CompleteMultiPartUpload(
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         string uploadId,
-        List<PartETag> partETags,
+        List<UploadPartRef> parts,
         CancellationToken cancellationToken = default);
-    
+
     ValueTask<PreSignedUploadLinkResult> GetPreSignedUploadFilePartLink(
         string bucketName,
         FileUploadExtId fileUploadExternalId,
-        S3FileKey key,
+        StorageObjectKey key,
         string uploadId,
         int partNumber,
         string contentType,
@@ -46,7 +45,7 @@ public interface IStorageClient
 
     ValueTask<string> GetPreSignedDownloadFileLink(
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         string contentType,
         string fileName,
         ContentDispositionType contentDisposition,
@@ -57,9 +56,9 @@ public interface IStorageClient
 
     Task AbortMultiPartUpload(
         string bucketName,
-        S3FileKey key,
+        StorageObjectKey key,
         string uploadId,
-        List<string> partETags,
+        List<UploadPartRef> parts,
         CancellationToken cancellationToken = default);
     
     Task CreateBucketIfDoesntExist(

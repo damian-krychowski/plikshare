@@ -6,6 +6,7 @@ using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Storages;
+using PlikShare.Storages.AzureBlob;
 using PlikShare.Storages.FileCopying;
 using PlikShare.Storages.FileCopying.BulkInitiateCopyFiles;
 using PlikShare.Storages.FileCopying.CopyFile;
@@ -46,6 +47,15 @@ public class BulkInitiateCopyFileUploadOperation(
                 cancellationToken: cancellationToken);
         }
 
+        if (destinationWorkspace.Storage is AzureBlobStorageClient azureBlobStorageClient)
+        {
+            await InitiateAzureBlobMultiPartFileUploadWhereNeeded(
+                azureBlobStorageClient: azureBlobStorageClient,
+                bucketName: destinationWorkspace.BucketName,
+                filesToCopy: filesToCopy,
+                cancellationToken: cancellationToken);
+        }
+
         await InsertFileUploadsAndUpdateCopyFileQueueJobs(
             definition: definition,
             filesToCopy: filesToCopy, 
@@ -80,6 +90,37 @@ public class BulkInitiateCopyFileUploadOperation(
                     cancellationToken: cancellationToken);
 
                 fileToCopy.S3UploadId = initiatedUpload.S3UploadId;
+            });
+
+            await Task.WhenAll(tasks);
+        }
+    }
+
+    private async Task InitiateAzureBlobMultiPartFileUploadWhereNeeded(
+        AzureBlobStorageClient azureBlobStorageClient,
+        string bucketName,
+        List<FileToCopy> filesToCopy,
+        CancellationToken cancellationToken)
+    {
+        const int batchSize = 10;
+
+        var forAsyncProcessing = filesToCopy
+            .Where(ftc => ftc.UploadAlgorithm == UploadAlgorithm.MultiStepChunkUpload);
+
+        foreach (var batch in forAsyncProcessing.Chunk(batchSize))
+        {
+            var tasks = batch.Select(async fileToCopy =>
+            {
+                var initiatedUpload = await azureBlobStorageClient.InitiateMultiPartUpload(
+                    bucketName: bucketName,
+                    key: new S3FileKey
+                    {
+                        FileExternalId = fileToCopy.NewFileExternalId,
+                        S3KeySecretPart = fileToCopy.NewFileS3KeySecretPart
+                    },
+                    cancellationToken: cancellationToken);
+
+                fileToCopy.S3UploadId = initiatedUpload.UploadId;
             });
 
             await Task.WhenAll(tasks);

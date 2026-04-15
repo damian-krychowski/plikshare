@@ -50,6 +50,33 @@ export interface CreateDigitalOceanSpacesStorageResponse {
     externalId: string;
 }
 
+export interface CreateAzureBlobStorageRequest {
+    name: string;
+    accountName: string;
+    accountKey: string;
+    serviceUrl: string;
+    encryptionType: AppStorageEncryptionType;
+    authType: AzureBlobAuthType;
+    sasToken?: string;
+    managedIdentityClientId?: string;
+}
+
+export interface CreateAzureBlobStorageResponse {
+    externalId: string;
+}
+
+export type AzureBlobAuthType = 'shared-key' | 'sas' | 'entra-id';
+
+export interface UpdateAzureBlobStorageDetailsRequest {
+    accountName: string;
+    accountKey: string;
+    serviceUrl: string;
+    encryptionType: AppStorageEncryptionType;
+    authType: AzureBlobAuthType;
+    sasToken?: string;
+    managedIdentityClientId?: string;
+}
+
 export interface CreateHardDriveStorageRequest {
     name: string;
     volumePath: string;
@@ -75,7 +102,7 @@ export interface GetStoragesResponse {
     items: GetStorageItem[];
 }
 
-export type AppStorageType = 'hard-drive' | 'cloudflare-r2' | 'aws-s3' | 'digitalocean-spaces' | 'backblaze-b2';
+export type AppStorageType = 'hard-drive' | 'cloudflare-r2' | 'aws-s3' | 'digitalocean-spaces' | 'backblaze-b2' | 'azure-blob';
 
 export type AppStorageEncryptionType = 'none' | 'managed';
 
@@ -84,7 +111,8 @@ export type GetStorageItem =
     | GetCloudflareR2StorageItem 
     | GetAwsS3StorageItem 
     | GetDigitalOceanSpacesStorageItem
-    | GetBackblazeB2StorageItem;
+    | GetBackblazeB2StorageItem
+    | GetAzureBlobStorageItem;
 
 export type GetHardDriveStorageItem = {
     $type: "hard-drive",
@@ -142,6 +170,20 @@ export type GetBackblazeB2StorageItem = {
     url: string;
 }
 
+export type GetAzureBlobStorageItem = {
+    $type: "azure-blob",
+    externalId: string;
+    name: string;
+    workspacesCount: number;
+    encryptionType: AppStorageEncryptionType;
+
+    authType: AzureBlobAuthType;
+    accountName: string;
+    serviceUrl: string;
+    sasToken?: string;
+    managedIdentityClientId?: string;
+}
+
 export interface GetHardDriveVolumesRespone {
     items: HardDriveVolumeItem[];
 }
@@ -182,6 +224,32 @@ export class StoragesApi {
             ._http
             .get<GetHardDriveVolumesRespone>(
                 `/api/storages/hard-drive/volumes`, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        return await firstValueFrom(call);
+    }
+
+    public async updateAzureBlobStorageDetails(externalId: string, request: UpdateAzureBlobStorageDetailsRequest): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/storages/azure-blob/${externalId}/details`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async createAzureBlobStorage(request: CreateAzureBlobStorageRequest): Promise<CreateAzureBlobStorageResponse> {
+        const call = this
+            ._http
+            .post<CreateAzureBlobStorageResponse>(
+                `/api/storages/azure-blob`, request, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
                 })

@@ -22,7 +22,8 @@ public class entry_page_tests: TestFixture
             ApplicationSignUp = AppSettings.SignUpSetting.OnlyInvitedUsers.Value,
             PrivacyPolicyFilePath = null,
             TermsOfServiceFilePath = null,
-            SignUpCheckboxes = []
+            SignUpCheckboxes = [],
+            SsoProviders = []
         });
     }
     

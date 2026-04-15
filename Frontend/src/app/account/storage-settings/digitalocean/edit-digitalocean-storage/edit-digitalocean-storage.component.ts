@@ -61,13 +61,13 @@ export class EditDigitalOceanStorageComponent{
         try {
             this.isLoading.set(true);
 
-            const result = await this._storagesApi.updateDigitalOceanSpacesStorageDetails(this.data.storageExternalId, {
+            await this._storagesApi.updateDigitalOceanSpacesStorageDetails(this.data.storageExternalId, {
                 accessKey: this.accessKey.value!,
                 secretKey: this.secretKey.value!,
                 region: this.region.value!
             });
 
-            this.dialogRef.close();
+            this.dialogRef.close(true);
         } catch (err: any) {
             if (err.error.code === 'storage-connection-failed') {
                 this.couldNotConnect.set(true);            

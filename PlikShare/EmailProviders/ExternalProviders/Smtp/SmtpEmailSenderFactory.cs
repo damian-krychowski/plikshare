@@ -9,6 +9,7 @@ public class SmtpEmailSenderFactory
             hostname: details.Hostname,
             port: details.Port,
             sslMode: details.SslMode,
+            requiresAuthentication: details.RequiresAuthentication,
             username: details.Username,
             password: details.Password);
     }

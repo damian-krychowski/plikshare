@@ -1,0 +1,153 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        Edit Azure Blob Storage Details
+    </div>
+
+    <form class="questionaire__form" (submit)="onSave()" [formGroup]="formGroup">
+        <div class="questionaire__section-title">
+            Storage encryption:
+        </div>
+
+        <div class="questionaire__encryption">
+            <mat-radio-group
+                formControlName="encryptionType"
+                class="questionaire__radio-group">
+
+                <div class="questionaire__radio-option">
+                    <mat-radio-button value="none">No encryption</mat-radio-button>
+                </div>
+
+                <div class="questionaire__radio-option">
+                    <mat-radio-button value="managed">Managed encryption</mat-radio-button>
+                </div>
+            </mat-radio-group>
+        </div>
+
+        <div class="questionaire__section-title">
+            Authentication:
+        </div>
+
+        <div class="questionaire__encryption">
+            <mat-radio-group
+                formControlName="authType"
+                class="questionaire__radio-group">
+
+                <div class="questionaire__radio-option">
+                    <mat-radio-button value="shared-key">Shared Key</mat-radio-button>
+                </div>
+
+                <div class="questionaire__radio-option">
+                    <mat-radio-button value="sas">SAS Token</mat-radio-button>
+                </div>
+
+                <div class="questionaire__radio-option">
+                    <mat-radio-button value="entra-id">Microsoft Entra ID</mat-radio-button>
+                </div>
+            </mat-radio-group>
+        </div>
+
+        @if(authType.value === 'shared-key') {
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>Account Name</mat-label>
+
+                <input
+                    id="accountName"
+                    type="text"
+                    matInput
+                    appSecureInput
+                    formControlName="accountName">
+
+                @if ((accountName.touched || wasSubmitted()) && accountName.hasError('required')) {
+                    <mat-error>Account Name is <strong>required</strong></mat-error>
+                }
+            </mat-form-field>
+
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>Account Key</mat-label>
+
+                <input
+                    id="accountKey"
+                    type="text"
+                    matInput
+                    appSecureInput
+                    formControlName="accountKey">
+
+                @if ((accountKey.touched || wasSubmitted()) && accountKey.hasError('required')) {
+                    <mat-error>Account Key is <strong>required</strong></mat-error>
+                }
+            </mat-form-field>
+        }
+
+        @if(authType.value === 'sas') {
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>SAS Token</mat-label>
+
+                <input
+                    id="sasToken"
+                    type="text"
+                    matInput
+                    appSecureInput
+                    formControlName="sasToken">
+
+                @if ((sasToken.touched || wasSubmitted()) && sasToken.hasError('required')) {
+                    <mat-error>SAS token is <strong>required</strong></mat-error>
+                }
+            </mat-form-field>
+        }
+
+        @if(authType.value === 'entra-id') {
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>Managed Identity Client Id (optional)</mat-label>
+
+                <input
+                    id="managedIdentityClientId"
+                    type="text"
+                    matInput
+                    formControlName="managedIdentityClientId">
+            </mat-form-field>
+        }
+
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Service Url</mat-label>
+
+            <input
+                id="serviceUrl"
+                type="text"
+                matInput
+                formControlName="serviceUrl">
+
+            @if ((serviceUrl.touched || wasSubmitted()) && serviceUrl.hasError('required')) {
+                <mat-error>Service Url is <strong>required</strong></mat-error>
+            }
+
+            @if ((serviceUrl.touched || wasSubmitted()) && serviceUrl.hasError('invalidUrl')){
+                <mat-error>Service Url is <strong>not valid</strong></mat-error>
+            }
+        </mat-form-field>
+
+        @if(couldNotConnect()){
+            <mat-error>
+                Storage credentials are incorrect - test connection has failed
+            </mat-error>
+        }
+
+        <div class="mt-3 d-none-on-mobile"></div>
+
+        <div class="questionaire__actions">
+            <button type="button" class="questionaire__btn mr-1" mat-flat-button
+                aria-label="Cancel"
+                (click)="cancel()"
+                [disabled]="isLoading()">
+                Cancel
+            </button>
+
+            <button type="submit" class="questionaire__btn" mat-flat-button
+                aria-label="Save changes"
+                [class.questionaire__btn--disabled]="formGroup.invalid"
+                [class.questionaire__btn--loading]="isLoading()"
+                [disabled]="isLoading()">
+                Save changes
+            </button>
+        </div>
+    </form>
+</div>

@@ -77,7 +77,7 @@ public class CompleteS3UploadQueueJobExecutor(
                     S3KeySecretPart = fileUpload.S3KeySecretPart
                 },
                 uploadId: fileUpload.S3UploadId,
-                partETags: parts,
+                parts: parts,
                 cancellationToken: cancellationToken);
 
             _logger.Information(
@@ -108,7 +108,7 @@ public class CompleteS3UploadQueueJobExecutor(
         }
     }
 
-    private (FileUploadDetails? Details, List<PartETag> Parts) TryGetFileUploadDetails(
+    private (FileUploadDetails? Details, List<UploadPartRef> Parts) TryGetFileUploadDetails(
         int fileUploadId)
     {
         _logger.Debug("Retrieving file upload details. FileUploadId: {FileUploadId}", fileUploadId);
@@ -155,9 +155,9 @@ public class CompleteS3UploadQueueJobExecutor(
                      FROM fup_file_upload_parts
                      WHERE fup_file_upload_id = $fileUploadId
                      """,
-                readRowFunc: reader => new PartETag(
-                    partNumber: reader.GetInt32(0),
-                    eTag: reader.GetString(1)))
+                readRowFunc: reader => new UploadPartRef(
+                    PartNumber: reader.GetInt32(0),
+                    PartToken: reader.GetString(1)))
             .WithParameter("$fileUploadId", fileUploadId)
             .Execute();
 

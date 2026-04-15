@@ -172,6 +172,8 @@ using PlikShare.Storages.FileCopying.OnCompletedActionHandler;
 using PlikShare.Storages.HardDrive.BulkDownload;
 using PlikShare.Storages.HardDrive.Create;
 using PlikShare.Storages.HardDrive.GetVolumes;
+using PlikShare.Storages.AzureBlob.Create;
+using PlikShare.Storages.AzureBlob.UpdateDetails;
 using PlikShare.Storages.List;
 using PlikShare.Storages.S3.AwsS3.Create;
 using PlikShare.Storages.S3.AwsS3.UpdateDetails;
@@ -522,6 +524,7 @@ public class Startup
         builder.Services.AddSingleton<CreateCloudflareR2StorageOperation>();
         builder.Services.AddSingleton<CreateBackblazeB2StorageOperation>();
         builder.Services.AddSingleton<CreateAwsS3StorageOperation>();
+        builder.Services.AddSingleton<CreateAzureBlobStorageOperation>();
         builder.Services.AddSingleton<GetStoragesQuery>();
         builder.Services.AddSingleton<DeleteStorageQuery>();
         builder.Services.AddSingleton<UpdateCloudflareR2StorageDetailsOperation>();
@@ -529,6 +532,7 @@ public class Startup
         builder.Services.AddSingleton<UpdateStorageNameQuery>();
         builder.Services.AddSingleton<UpdateStorageDetailsQuery>();
         builder.Services.AddSingleton<UpdateAwsS3StorageDetailsOperation>();
+        builder.Services.AddSingleton<UpdateAzureBlobStorageDetailsOperation>();
         builder.Services.AddSingleton<CreateStorageQuery>();
         builder.Services.AddSingleton<CreateDigitalOceanStorageOperation>();
         builder.Services.AddSingleton<UpdateDigitalOceanSpacesStorageDetailsOperation>();

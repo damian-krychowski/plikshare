@@ -4,6 +4,7 @@ using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Entities;
+using PlikShare.Storages.AzureBlob;
 using PlikShare.Storages.HardDrive;
 using PlikShare.Storages.Id;
 using PlikShare.Storages.List.Contracts;
@@ -128,6 +129,26 @@ public class GetStoragesQuery(
 
                             Url = details!.Url,
                             KeyId = Obfuscate(details.KeyId)
+                        };
+                    }
+
+                    if (type == StorageType.AzureBlob)
+                    {
+                        var details = GetStorageDetails<AzureBlobDetailsEntity>(
+                            encryptedDetails);
+
+                        return new GetAzureBlobStorageItemResponseDto
+                        {
+                            ExternalId = externalId,
+                            EncryptionType = encryptionType,
+                            Name = name,
+                            WorkspacesCount = workspacesCount,
+
+                            AuthType = details!.AuthType,
+                            AccountName = details!.AccountName,
+                            ServiceUrl = details.ServiceUrl,
+                            SasToken = details.SasToken,
+                            ManagedIdentityClientId = details.ManagedIdentityClientId
                         };
                     }
 

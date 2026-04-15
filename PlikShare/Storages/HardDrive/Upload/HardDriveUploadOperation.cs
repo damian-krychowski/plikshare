@@ -24,7 +24,7 @@ public static class HardDriveUploadOperation
         var etag = Guid.NewGuid().ToBase62();
                     
         var filePath = GetFilePath(
-            fileExternalId: file.S3FileKey.FileExternalId,
+            fileExternalId: file.ObjectKey.FileExternalId,
             uploadAlgorithm: part.UploadAlgorithm,
             bucketName: bucketName,
             hardDriveStorage: hardDriveStorage, 
@@ -61,7 +61,7 @@ public static class HardDriveUploadOperation
                 cancellationToken);
 
             Log.Debug("FilePart '{FileExternalId} - {PartNumber} was saved to HardDrive to location {FilePath}'",
-                file.S3FileKey.FileExternalId,
+                file.ObjectKey.FileExternalId,
                 part.Number,
                 filePath);
 
@@ -72,7 +72,7 @@ public static class HardDriveUploadOperation
         {
             Log.Error(e,
                 "Something went wrong while saving file '{FileExternalId} - {PartNumber} to location {FilePath}'",
-                file.S3FileKey.FileExternalId,
+                file.ObjectKey.FileExternalId,
                 part.Number,
                 filePath);
 

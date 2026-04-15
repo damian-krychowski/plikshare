@@ -390,6 +390,7 @@ public static class EmailProvidersEndpoints
                     Hostname: request.Hostname,
                     Port: request.Port,
                     SslMode: request.SslMode,
+                    RequiresAuthentication: request.RequiresAuthentication,
                     Username: request.Username,
                     Password: request.Password)),
             user: httpContext.GetUserContext(),

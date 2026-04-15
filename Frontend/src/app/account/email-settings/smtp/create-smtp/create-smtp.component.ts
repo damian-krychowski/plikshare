@@ -14,6 +14,7 @@ import { ConfirmEmailProviderComponent } from '../../confirm-email-provider/conf
 import { SecureInputDirective } from '../../../../shared/secure-input.directive';
 import { TrimDirective } from '../../../../shared/trim.directive';
 import { MatSelectModule } from '@angular/material/select';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 type SslModeOption = {
     value: SmtpSslMode,
@@ -32,7 +33,8 @@ type SslModeOption = {
         MatAutocompleteModule,
         SecureInputDirective,
         TrimDirective,
-        MatSelectModule
+        MatSelectModule,
+        MatCheckboxModule
     ],
     templateUrl: './create-smtp.component.html',
     styleUrl: './create-smtp.component.scss',
@@ -53,6 +55,7 @@ export class CreateSmtpComponent {
     smtpHostname = new FormControl('', [Validators.required]);
     smtpPort = new FormControl('', [Validators.required, Validators.min(0), Validators.max(65535)]);
     sslMode = new FormControl(this._defaultSslMode, [Validators.required])
+    anonymousAuthentication = new FormControl(false, [Validators.required]);
     username = new FormControl('', [Validators.required]);
     password = new FormControl('', [Validators.required]);
 
@@ -77,9 +80,13 @@ export class CreateSmtpComponent {
             smtpHostname: this.smtpHostname,
             smtpPort: this.smtpPort,
             sslMode: this.sslMode,
+            anonymousAuthentication: this.anonymousAuthentication,
             username: this.username,
             password: this.password
         });
+
+        this.anonymousAuthentication.valueChanges.subscribe(() => this.applyAuthenticationValidators());
+        this.applyAuthenticationValidators();
     }
 
     cancel() {
@@ -101,8 +108,9 @@ export class CreateSmtpComponent {
                 hostname: this.smtpHostname.value!,
                 port: Number.parseInt(this.smtpPort.value!),
                 sslMode: this.getSslMode(this.sslMode.value!),
-                username: this.username.value!,
-                password: this.password.value!
+                requiresAuthentication: !this.anonymousAuthentication.value!,
+                username: this.username.value ?? '',
+                password: this.password.value ?? ''
             });
            
             const emailProvider: AppEmailProvider = {
@@ -145,5 +153,20 @@ export class CreateSmtpComponent {
 
     private getSslMode(value: string): SmtpSslMode {
         return value as SmtpSslMode;
+    }
+
+    private applyAuthenticationValidators() {
+        const isAnonymousAuthentication = this.anonymousAuthentication.value;
+
+        this.username.clearValidators();
+        this.password.clearValidators();
+
+        if (!isAnonymousAuthentication) {
+            this.username.setValidators([Validators.required]);
+            this.password.setValidators([Validators.required]);
+        }
+
+        this.username.updateValueAndValidity({ emitEvent: false });
+        this.password.updateValueAndValidity({ emitEvent: false });
     }
 }

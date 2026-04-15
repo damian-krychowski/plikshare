@@ -25,7 +25,7 @@ public class S3UploadOperation
 
         Logger.Debug(
             "Starting upload operation for file {FileExternalId} part {PartNumber} to bucket {BucketName} with encryption {EncryptionType}",
-            file.S3FileKey.FileExternalId,
+            file.ObjectKey.FileExternalId,
             part.Number,
             bucketName,
             file.Encryption.EncryptionType);
@@ -52,7 +52,7 @@ public class S3UploadOperation
             var etag = await UploadToS3(
                 partNumber: part.Number,
                 s3StorageClient: s3StorageClient,
-                s3FileKey: file.S3FileKey,
+                s3FileKey: file.ObjectKey,
                 s3UploadId: file.S3UploadId,
                 bucketName: bucketName,
                 fileBytes: fileBytes,
@@ -64,7 +64,7 @@ public class S3UploadOperation
             Logger.Debug(
                 "Successfully uploaded part {PartNumber} of file {FileExternalId} in {DurationMs}ms (ETag: {ETag})",
                 part.Number,
-                file.S3FileKey.FileExternalId,
+                file.ObjectKey.FileExternalId,
                 duration.TotalMilliseconds,
                 etag);
 
@@ -74,7 +74,7 @@ public class S3UploadOperation
         {
             Logger.Warning(
                 "Upload operation cancelled for file {FileExternalId} part {PartNumber}",
-                file.S3FileKey.FileExternalId,
+                file.ObjectKey.FileExternalId,
                 part.Number);
 
             throw;
@@ -85,7 +85,7 @@ public class S3UploadOperation
                 e,
                 "Failed to upload part {PartNumber} of file {FileExternalId}. Error: {ErrorMessage}",
                 part.Number,
-                file.S3FileKey.FileExternalId,
+                file.ObjectKey.FileExternalId,
                 e.Message);
 
             throw;

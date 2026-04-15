@@ -82,6 +82,8 @@ public class user_permissions_tests : TestFixture
         bool canManageAuth,
         bool canManageIntegrations)
     {
+        _ = permissionName;
+
         //when
         await Api.Users.UpdatePermissionsAndRoles(
             userExternalId: User.ExternalId,
@@ -142,6 +144,8 @@ public class user_permissions_tests : TestFixture
         bool canManageAuth,
         bool canManageIntegrations)
     {
+        _ = permissionName;
+
         //given
         await Api.Users.UpdatePermissionsAndRoles(
             userExternalId: User.ExternalId,
@@ -168,6 +172,7 @@ public class user_permissions_tests : TestFixture
         {
             Email = User.Email,
             ExternalId = User.ExternalId,
+            HasPassword = true,
             Permissions = new UserPermissions
             {
                 CanAddWorkspace = true, //admin can always add workspaces, now matter the permission

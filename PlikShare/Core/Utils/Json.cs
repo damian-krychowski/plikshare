@@ -113,6 +113,7 @@ public static class JsonConverters
         options.Converters.Add(new JsonStringEnumConverter<FileType>(JsonNamingPolicy.KebabCaseLower));
 
         options.Converters.Add(new NullableByteArrayJsonConverter());
+        options.Converters.Add(new StorageObjectKeyJsonConverter());
         options.Converters.Add(new S3FileKeyJsonConverter());
     }
 }

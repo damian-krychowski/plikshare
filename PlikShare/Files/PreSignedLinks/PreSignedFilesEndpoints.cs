@@ -15,6 +15,8 @@ using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Files.Records;
 using PlikShare.Storages;
+using PlikShare.Storages.AzureBlob;
+using PlikShare.Storages.AzureBlob.Upload;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Exceptions;
 using PlikShare.Storages.FileReading;
@@ -179,7 +181,7 @@ public static class PreSignedFilesEndpoints
             var results = processedFileUploads
                 .Select(upload => new MultiFileDirectUploadItemResponseDto
                 {
-                    FileExternalId = upload!.FileToUpload.S3FileKey.FileExternalId,
+                    FileExternalId = upload!.FileToUpload.ObjectKey.FileExternalId,
                     UploadExternalId = upload.ExternalId
                 })
                 .ToList();
@@ -284,6 +286,16 @@ public static class PreSignedFilesEndpoints
                     part: filePart,
                     bucketName: fileUpload.Workspace.BucketName,
                     s3StorageClient: s3StorageClient,
+                    cancellationToken: cancellationToken);
+            }
+            else if (storageClient is AzureBlobStorageClient azureBlobStorageClient)
+            {
+                var result = await AzureBlobUploadOperation.Execute(
+                    fileBytes: fileBytes,
+                    file: fileUpload.FileToUpload,
+                    part: filePart,
+                    bucketName: fileUpload.Workspace.BucketName,
+                    azureBlobStorageClient: azureBlobStorageClient,
                     cancellationToken: cancellationToken);
             }
             else
@@ -625,4 +637,5 @@ public static class PreSignedFilesEndpoints
 
 public readonly record struct FilePartUploadResult(
     string ETag);
+
 

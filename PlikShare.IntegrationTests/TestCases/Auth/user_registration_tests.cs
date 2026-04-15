@@ -57,7 +57,7 @@ public class user_registration_tests : TestFixture
 
         var (expectedEmailTitle, _) = Emails.ConfirmationEmail(
             applicationName: AppSettings.ApplicationName.Name,
-            link: null);
+            link: string.Empty);
 
         await WaitFor(() =>
         {
@@ -144,6 +144,7 @@ public class user_registration_tests : TestFixture
         {
             Email = userEmail,
             ExternalId = userExternalId,
+            HasPassword = true,
             MaxWorkspaceNumber = AppSettings.NewUserDefaultMaxWorkspaceNumber.Value,
             Permissions = new UserPermissions
             {
@@ -233,7 +234,7 @@ public class user_registration_tests : TestFixture
     {
         var (expectedEmailTitle, _) = Emails.ConfirmationEmail(
             applicationName: AppSettings.ApplicationName.Name,
-            link: null);
+            link: string.Empty);
 
         string? userId = null;
         string? code = null;

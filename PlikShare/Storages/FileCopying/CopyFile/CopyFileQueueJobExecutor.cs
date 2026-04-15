@@ -1,4 +1,4 @@
-﻿using System.IO.Pipelines;
+using System.IO.Pipelines;
 using Amazon.S3.Model;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
@@ -182,9 +182,9 @@ public class CopyFileQueueJobExecutor(
 
         await destinationWorkspace.Storage.CompleteMultiPartUpload(
             bucketName: destinationWorkspace.BucketName,
-            key: copyFileQueueJob.NewS3FileKey,
+            key: copyFileQueueJob.NewObjectKey,
             uploadId: copyFileQueueJob.S3UploadId,
-            partETags: writeFileTask.Result,
+            parts: writeFileTask.Result,
             cancellationToken: cancellationToken);
     }
 
@@ -235,13 +235,13 @@ public class CopyFileQueueJobExecutor(
                         UploadAlgorithm = reader.GetEnum<UploadAlgorithm>(4),
                         FileSizeInBytes = reader.GetInt64(5),
 
-                        SourceS3FileKey = new S3FileKey
+                        SourceObjectKey = new S3FileKey
                         {
                             FileExternalId = reader.GetExtId<FileExtId>(6),
                             S3KeySecretPart = reader.GetString(7),
                         },
 
-                        NewS3FileKey = new S3FileKey
+                        NewObjectKey = new S3FileKey
                         {
                             FileExternalId = reader.GetExtId<FileExtId>(8),
                             S3KeySecretPart = reader.GetString(9),
@@ -308,7 +308,7 @@ public class CopyFileQueueJobExecutor(
         try
         {
             await using var fileStream = await FileReader.GetFile(
-                s3FileKey: job.SourceS3FileKey,
+                s3FileKey: job.SourceObjectKey,
                 fileSizeInBytes: job.FileSizeInBytes,
                 workspace: sourceWorkspace,
                 cancellationToken: stoppingToken);
@@ -334,7 +334,7 @@ public class CopyFileQueueJobExecutor(
             await FileWriter.Write(
                 file: new FileToUploadDetails
                 {
-                    S3FileKey = job.NewS3FileKey,
+                    ObjectKey = job.NewObjectKey,
                     SizeInBytes = job.FileSizeInBytes,
                     Encryption = job.NewFileEncryption,
                     S3UploadId = job.S3UploadId
@@ -353,7 +353,7 @@ public class CopyFileQueueJobExecutor(
         }
     }
 
-    private async Task<List<PartETag>> WriteFileInParts(
+    private async Task<List<UploadPartRef>> WriteFileInParts(
         CopyFileQueueJob job,
         WorkspaceContext destinationWorkspace,
         PipeReader input,
@@ -367,7 +367,7 @@ public class CopyFileQueueJobExecutor(
 
         try
         {
-            var eTags = new List<PartETag>();
+            var parts = new List<UploadPartRef>();
 
             for (partNumber = 1; partNumber <= totalNumberOfParts; partNumber++)
             {
@@ -379,7 +379,7 @@ public class CopyFileQueueJobExecutor(
                 var result = await FileWriter.Write(
                     file: new FileToUploadDetails
                     {
-                        S3FileKey = job.NewS3FileKey,
+                        ObjectKey = job.NewObjectKey,
                         SizeInBytes = job.FileSizeInBytes,
                         Encryption = job.NewFileEncryption,
                         S3UploadId = job.S3UploadId
@@ -404,12 +404,12 @@ public class CopyFileQueueJobExecutor(
                         $"FileUploadId#{job.FileUploadId} was not found in DB during upload of Part#{partNumber}");
                 }
 
-                eTags.Add(new PartETag(
-                    partNumber: partNumber,
-                    eTag: result.ETag));
+                parts.Add(new UploadPartRef(
+                    PartNumber: partNumber,
+                    PartToken: result.ETag));
             }
 
-            return eTags;
+            return parts;
         }
         catch (Exception e)
         {

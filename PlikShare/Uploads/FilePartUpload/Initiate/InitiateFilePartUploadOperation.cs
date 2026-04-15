@@ -53,7 +53,7 @@ public class InitiateFilePartUploadOperation(
             .GetPreSignedUploadFilePartLink(
                 bucketName: workspace.BucketName,
                 fileUploadExternalId: fileUploadExternalId,
-                key: fileUpload.FileToUpload.S3FileKey,
+                key: fileUpload.FileToUpload.ObjectKey,
                 uploadId: fileUpload.FileToUpload.S3UploadId,
                 partNumber: partNumber,
                 contentType: fileUpload.ContentType,

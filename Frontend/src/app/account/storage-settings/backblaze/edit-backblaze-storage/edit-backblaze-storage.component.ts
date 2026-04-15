@@ -60,7 +60,7 @@ export class EditBackblazeStorageComponent {
                 url: this.endpointUrl.value!
             });
 
-            this.dialogRef.close();
+            this.dialogRef.close(true);
         } catch (err: any) {
             if(err.error.code === 'storage-url-invalid'){
                 this.endpointUrl.setErrors({
