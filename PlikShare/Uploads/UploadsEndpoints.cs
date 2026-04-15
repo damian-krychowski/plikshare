@@ -38,7 +38,7 @@ public static class UploadsEndpoints
             .WithTags("Uploads")
             .RequireAuthorization(policyNames: AuthPolicy.Internal)
             .AddEndpointFilter<ValidateWorkspaceFilter>()
-            .AddEndpointFilter<ValidateFullEncryptionSessionFilter>();
+            .AddEndpointFilter<ValidateWorkspaceEncryptionSessionFilter>();
 
         // Base upload operations
         group.MapGet("/", ListUploads)
@@ -88,7 +88,7 @@ public static class UploadsEndpoints
                 UserExternalId: workspaceMembership.User.ExternalId),
             boxFolderId: null,
             boxLinkId: null,
-            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
             cancellationToken: cancellationToken);
 
         await workspaceCache.InvalidateEntry(
@@ -177,7 +177,7 @@ public static class UploadsEndpoints
             boxLinkId: null,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             enforceInternalPassThrough: false,
-            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
             cancellationToken: cancellationToken);
 
         return result.Code switch

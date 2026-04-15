@@ -20,7 +20,7 @@ public static class FileWriter
         FileToUploadDetails file,
         FilePartUpload part,
         WorkspaceContext workspace,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         PipeReader input,
         CancellationToken cancellationToken)
     {
@@ -69,7 +69,7 @@ public static class FileWriter
                 file: file, 
                 part: part, 
                 workspace: workspace, 
-                fullEncryptionSession: fullEncryptionSession,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 cancellationToken: cancellationToken);
         }
         finally
@@ -82,7 +82,7 @@ public static class FileWriter
         FileToUploadDetails file,
         FilePartUpload part,
         WorkspaceContext workspace,        
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         byte[] input,
         CancellationToken cancellationToken)
     {
@@ -93,7 +93,7 @@ public static class FileWriter
                 file: file,
                 part: part,
                 workspace: workspace,
-                fullEncryptionSession: fullEncryptionSession,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 cancellationToken: cancellationToken);
         }
 
@@ -137,7 +137,7 @@ public static class FileWriter
                 file: file,
                 part: part,
                 workspace: workspace,
-                fullEncryptionSession: fullEncryptionSession,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 cancellationToken: cancellationToken);
         }
         finally
@@ -151,7 +151,7 @@ public static class FileWriter
         FileToUploadDetails file,
         FilePartUpload part,
         WorkspaceContext workspace,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken)
     {
         return workspace.Storage switch
@@ -161,7 +161,7 @@ public static class FileWriter
                 file: file,
                 part: part,
                 bucketName: workspace.BucketName,
-                fullEncryptionSession: fullEncryptionSession,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 hardDriveStorage: hardDriveStorageClient!,
                 cancellationToken: cancellationToken),
 
@@ -170,7 +170,7 @@ public static class FileWriter
                 file: file,
                 part: part,
                 bucketName: workspace.BucketName,
-                fullEncryptionSession: fullEncryptionSession,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 s3StorageClient: s3StorageClient,
                 cancellationToken: cancellationToken),
 

@@ -27,27 +27,12 @@ public class HardDriveStorageClient(
     public HardDriveDetailsEntity Details { get; } = details;
     public string Name { get; } = name;
     public StorageEncryptionType EncryptionType { get; } = encryptionType;
-    public StorageEncryptionDetails? EncryptionDetails { get; private set; } = encryptionDetails;
-    public EncryptionKeyProvider? EncryptionKeyProvider { get; private set; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
+    public ManagedEncryptionKeyProvider? ManagedEncryptionKeyProvider { get; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
         encryptionDetails: encryptionDetails);
 
     public int StorageId { get; } = storageId;
     public StorageExtId ExternalId { get; } = externalId;
-
-    public void SetEncryptionDetails(StorageEncryptionDetails? newEncryptionDetails)
-    {
-        // Build the derived provider first, then swap both fields. Reads happen
-        // on many threads; reference-writes are atomic in .NET so a concurrent
-        // read sees either the old pair or the new one consistently enough —
-        // and a mid-swap cross-read would only cause an AES-GCM tag mismatch,
-        // which downstream already handles as an invalid-session error.
-        var newProvider = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
-            encryptionDetails: newEncryptionDetails);
-
-        EncryptionKeyProvider = newProvider;
-        EncryptionDetails = newEncryptionDetails;
-    }
-
+    
     public ValueTask DeleteFile(
         string bucketName, 
         S3FileKey key, 
@@ -272,7 +257,7 @@ public class HardDriveStorageClient(
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken)
     {
         var url = preSignedUrlsService.GeneratePreSignedUploadUrl(
@@ -288,7 +273,7 @@ public class HardDriveStorageClient(
                 },
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
                 BoxLinkId = boxLinkId,
-                Kek = fullEncryptionSession?.Kek
+                WorkspaceDek = workspaceEncryptionSession?.WorkspaceDek
             });
 
         var result = new PreSignedUploadLinkResult
@@ -309,7 +294,7 @@ public class HardDriveStorageClient(
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken)
     {
         var result = preSignedUrlsService.GeneratePreSignedDownloadUrl(
@@ -324,7 +309,7 @@ public class HardDriveStorageClient(
                 ContentDisposition = contentDisposition,
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
                 BoxLinkId = boxLinkId,
-                Kek = fullEncryptionSession?.Kek
+                WorkspaceDek = workspaceEncryptionSession?.WorkspaceDek
             });
 
         return ValueTask.FromResult(result);

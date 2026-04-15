@@ -737,7 +737,7 @@ public class upload_and_download_tests : TestFixture
             fileExternalId: uploadedFile.ExternalId,
             contentDisposition: "attachment",
             cookie: user.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.DownloadLinkGenerated>(

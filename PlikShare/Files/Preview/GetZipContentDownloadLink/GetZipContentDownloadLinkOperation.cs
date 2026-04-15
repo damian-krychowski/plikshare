@@ -23,7 +23,7 @@ public class GetZipContentDownloadLinkOperation(
         int? boxFolderId,
         int? boxLinkId,
         IUserIdentity userIdentity,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken)
     {
         var (isEmpty, file) = getFileDetailsQuery.Execute(
@@ -59,7 +59,7 @@ public class GetZipContentDownloadLinkOperation(
                 ExpirationDate = clock.UtcNow.AddMinutes(10),
                 ContentDisposition = contentDisposition,
                 BoxLinkId = boxLinkId,
-                Kek = fullEncryptionSession?.Kek
+                WorkspaceDek = workspaceEncryptionSession?.WorkspaceDek
             });
 
         return new Result(

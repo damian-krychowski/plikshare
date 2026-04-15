@@ -21,7 +21,7 @@ public static class IStorageClientExtensions
                 return new FileEncryptionMetadata
                 {
                     FormatVersion = 1,
-                    KeyVersion = client.EncryptionKeyProvider!.GetLatestKeyVersion(),
+                    KeyVersion = client.ManagedEncryptionKeyProvider!.GetLatestKeyVersion(),
                     Salt = Aes256GcmStreamingV1.GenerateSalt(),
                     NoncePrefix = Aes256GcmStreamingV1.GenerateNoncePrefix(),
                     ChainStepSalts = []
@@ -33,7 +33,7 @@ public static class IStorageClientExtensions
                 return new FileEncryptionMetadata
                 {
                     FormatVersion = 2,
-                    KeyVersion = client.EncryptionKeyProvider!.GetLatestKeyVersion(),
+                    KeyVersion = client.ManagedEncryptionKeyProvider!.GetLatestKeyVersion(),
                     Salt = Aes256GcmStreamingV2.GenerateSalt(),
                     NoncePrefix = Aes256GcmStreamingV2.GenerateNoncePrefix(),
                     ChainStepSalts = []
@@ -50,7 +50,7 @@ public static class IStorageClientExtensions
             long fileSizeInBytes, 
             FilePart filePart,
             FileEncryptionMetadata? encryptionMetadata,
-            FullEncryptionSession? fullEncryptionSession,
+            WorkspaceEncryptionSession? workspaceEncryptionSession,
             CancellationToken cancellationToken)
         {
             if (encryptionMetadata is null)
@@ -58,9 +58,9 @@ public static class IStorageClientExtensions
 
             if (encryptionMetadata.FormatVersion == 1)
             {
-                var ikm = client.GetEncryptionKey(
-                    version: encryptionMetadata.KeyVersion,
-                    fullEncryptionSession: fullEncryptionSession);
+                var ikm = client
+                    .ManagedEncryptionKeyProvider
+                    !.GetEncryptionKey(encryptionMetadata.KeyVersion);
 
                 Aes256GcmStreamingV1.EncryptFilePartInPlace(
                     fileAesInputs: encryptionMetadata.ToAesInputsV1(ikm),
@@ -71,14 +71,9 @@ public static class IStorageClientExtensions
             }
             else if (encryptionMetadata.FormatVersion == 2)
             {
-                var ikm = KeyDerivationChain.Derive(
-                    startingDek: client.GetEncryptionKey(
-                        version: encryptionMetadata.KeyVersion,
-                        fullEncryptionSession: fullEncryptionSession),
-                    stepSalts: encryptionMetadata.ChainStepSalts);
-
                 Aes256GcmStreamingV2.EncryptFilePartInPlace(
-                    fileAesInputs: encryptionMetadata.ToAesInputsV2(ikm),
+                    fileAesInputs: encryptionMetadata.ToAesInputsV2(
+                        ikm: workspaceEncryptionSession!.WorkspaceDek),
                     filePart: filePart,
                     fullFileSizeInBytes: fileSizeInBytes,
                     inputOutputBuffer: buffer,
@@ -96,7 +91,7 @@ public static class IStorageClientExtensions
             PipeWriter output,
             long fileSizeInBytes,
             FileEncryptionMetadata? encryptionMetadata,
-            FullEncryptionSession? fullEncryptionSession,
+            WorkspaceEncryptionSession? workspaceEncryptionSession,
             CancellationToken cancellationToken)
         {
             var startTime = DateTime.UtcNow;
@@ -122,9 +117,9 @@ public static class IStorageClientExtensions
             {
                 Log.Debug("Starting encrypted file transfer using AES-256-GCM");
 
-                var ikm = client.GetEncryptionKey(
-                    version: encryptionMetadata.KeyVersion,
-                    fullEncryptionSession: fullEncryptionSession);
+                var ikm = client
+                    .ManagedEncryptionKeyProvider
+                    !.GetEncryptionKey(encryptionMetadata.KeyVersion);
 
                 await Aes256GcmStreamingV1.Decrypt(
                     fileAesInputs: encryptionMetadata.ToAesInputsV1(ikm),
@@ -150,14 +145,9 @@ public static class IStorageClientExtensions
             {
                 Log.Debug("Starting encrypted file transfer using AES-256-GCM");
 
-                var ikm = KeyDerivationChain.Derive(
-                    startingDek: client.GetEncryptionKey(
-                        version: encryptionMetadata.KeyVersion,
-                        fullEncryptionSession: fullEncryptionSession),
-                    stepSalts: encryptionMetadata.ChainStepSalts);
-
                 await Aes256GcmStreamingV2.Decrypt(
-                    fileAesInputs: encryptionMetadata.ToAesInputsV2(ikm),
+                    fileAesInputs: encryptionMetadata.ToAesInputsV2(
+                        workspaceEncryptionSession!.WorkspaceDek),
                     fileSizeInBytes: fileSizeInBytes,
                     input: PipeReader.Create(
                         stream,

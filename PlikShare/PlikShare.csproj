@@ -13,6 +13,7 @@
       <Compile Remove="Integrations\Aws\Textract\Jobs\StartJob\NewFolder\**" />
       <Compile Remove="Storages\FileCopying\FinalizeCopyFileUpload\**" />
       <Compile Remove="Storages\FileCopying\Processing\**" />
+      <Compile Remove="Storages\HardDrive\RangeFileReader\**" />
       <Compile Remove="Uploads\CompleteFileUpload\DbWriteQueue\**" />
       <Compile Remove="Uploads\DbProcessingQueue\**" />
       <Compile Remove="Uploads\Initiate\Bulk\**" />
@@ -22,6 +23,7 @@
       <Content Remove="Integrations\Aws\Textract\Jobs\StartJob\NewFolder\**" />
       <Content Remove="Storages\FileCopying\FinalizeCopyFileUpload\**" />
       <Content Remove="Storages\FileCopying\Processing\**" />
+      <Content Remove="Storages\HardDrive\RangeFileReader\**" />
       <Content Remove="Uploads\CompleteFileUpload\DbWriteQueue\**" />
       <Content Remove="Uploads\DbProcessingQueue\**" />
       <Content Remove="Uploads\Initiate\Bulk\**" />
@@ -31,6 +33,7 @@
       <EmbeddedResource Remove="Integrations\Aws\Textract\Jobs\StartJob\NewFolder\**" />
       <EmbeddedResource Remove="Storages\FileCopying\FinalizeCopyFileUpload\**" />
       <EmbeddedResource Remove="Storages\FileCopying\Processing\**" />
+      <EmbeddedResource Remove="Storages\HardDrive\RangeFileReader\**" />
       <EmbeddedResource Remove="Uploads\CompleteFileUpload\DbWriteQueue\**" />
       <EmbeddedResource Remove="Uploads\DbProcessingQueue\**" />
       <EmbeddedResource Remove="Uploads\Initiate\Bulk\**" />
@@ -40,6 +43,7 @@
       <None Remove="Integrations\Aws\Textract\Jobs\StartJob\NewFolder\**" />
       <None Remove="Storages\FileCopying\FinalizeCopyFileUpload\**" />
       <None Remove="Storages\FileCopying\Processing\**" />
+      <None Remove="Storages\HardDrive\RangeFileReader\**" />
       <None Remove="Uploads\CompleteFileUpload\DbWriteQueue\**" />
       <None Remove="Uploads\DbProcessingQueue\**" />
       <None Remove="Uploads\Initiate\Bulk\**" />
@@ -55,11 +59,13 @@
         <PackageReference Include="CommunityToolkit.HighPerformance" Version="8.4.2" />
         <PackageReference Include="FluentValidation" Version="12.1.1" />
         <PackageReference Include="Flurl" Version="4.0.0" />
+        <PackageReference Include="Konscious.Security.Cryptography.Argon2" Version="1.3.1" />
         <PackageReference Include="MailKit" Version="4.15.1" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.5" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
         <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.5" />
         <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="10.4.0" />
+        <PackageReference Include="NSec.Cryptography" Version="25.4.0" />
         <PackageReference Include="OpenAI" Version="2.9.1" />
         <PackageReference Include="protobuf-net" Version="3.2.56" />
         <PackageReference Include="Serilog" Version="4.3.1" />
@@ -75,6 +81,15 @@
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>
       <EmbeddedResource Include="Core\Database\AiDatabase\Migrations\01_initial_ai_db_structure_migration.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\26_workspace_encryption_keys_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\25_storage_encryption_keys_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\24_user_encryption_keypair_introduced.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\23_files_encryption_chain_salts_introduced.sql">
@@ -159,7 +174,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Storages\HardDrive\RangeFileReader\" />
       <Folder Include="wwwroot\" />
     </ItemGroup>
 

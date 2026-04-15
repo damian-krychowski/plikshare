@@ -18,7 +18,7 @@ public class InitiateFilePartUploadOperation(
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken)
     {
         var fileUpload = await GetFileUploadFromCache(
@@ -65,7 +65,7 @@ public class InitiateFilePartUploadOperation(
                 boxLinkId: boxLinkId,
                 userIdentity: userIdentity,
                 enforceInternalPassThrough: enforceInternalPassThrough,
-                fullEncryptionSession: fullEncryptionSession,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 cancellationToken: cancellationToken);
 
         var (startsAtByte, endsAtByte) = FileParts.GetPartByteRange(

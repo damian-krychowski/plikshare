@@ -31,7 +31,7 @@ public static class ZipEntryReader
         FileRecord file,
         ZipEntryPayload entry,
         WorkspaceContext workspace,        
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         PipeWriter output,
         CancellationToken cancellationToken = default)
     {
@@ -41,7 +41,7 @@ public static class ZipEntryReader
             file, 
             entry, 
             workspace,
-            fullEncryptionSession,
+            workspaceEncryptionSession,
             pipe,
             cancellationToken);
 
@@ -105,7 +105,7 @@ public static class ZipEntryReader
         FileRecord file, 
         ZipEntryPayload entry, 
         WorkspaceContext workspace,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Pipe pipe,
         CancellationToken cancellationToken)
     {
@@ -128,7 +128,7 @@ public static class ZipEntryReader
                 fileSizeInBytes: file.SizeInBytes,
                 range: reasonableFileRange,
                 workspace: workspace,
-                fullEncryptionSession: fullEncryptionSession,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -168,7 +168,7 @@ public static class ZipEntryReader
                         fileSizeInBytes: file.SizeInBytes,
                         range: missingBytesRange,
                         workspace: workspace,
-                        fullEncryptionSession: fullEncryptionSession,
+                        workspaceEncryptionSession: workspaceEncryptionSession,
                         output: pipe.Writer,
                         cancellationToken: cancellationToken),
                     cancellationToken: cancellationToken);

@@ -283,11 +283,13 @@ public class PreSignedUrlsService(
         public required int? BoxLinkId { get; init; }
 
         /// <summary>
-        /// KEK required to decrypt DEK for storages using full encryption.
-        /// Null for storages using None or Managed encryption.
-        /// Protected alongside the rest of the payload by DataProtection.
+        /// Unwrapped Workspace DEK for workspaces whose storage uses full encryption, or null
+        /// for None/Managed. The DEK travels inside the DataProtection-sealed URL payload so
+        /// unauthenticated direct upload/download requests can decrypt file bytes without an
+        /// ambient user session — in the pre-Task-#18 master-password model this field held
+        /// the KEK and the DEK was derived later from the storage's wrap list.
         /// </summary>
-        public required byte[]? Kek { get; init; }
+        public required byte[]? WorkspaceDek { get; init; }
     }
 
     [ImmutableObject(true)]

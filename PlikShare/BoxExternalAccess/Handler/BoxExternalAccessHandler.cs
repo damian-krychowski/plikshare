@@ -137,7 +137,7 @@ public class BoxExternalAccessHandler(
             boxLinkId: boxAccess.BoxLink?.Id,
             userIdentity: boxAccess.UserIdentity,
             enforceInternalPassThrough: enforceInternalPassThrough,
-            fullEncryptionSession: null, //todo: box external access to full-encryption storage not supported yet
+            workspaceEncryptionSession: null, //todo: box external access to full-encryption storage not supported yet
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -181,7 +181,7 @@ public class BoxExternalAccessHandler(
             userIdentity: boxAccess.UserIdentity,
             boxFolderId: boxAccess.Box.Folder.Id,
             boxLinkId: boxAccess.BoxLink?.Id,
-            fullEncryptionSession: null); //todo: box external access to full-encryption storage not supported yet
+            workspaceEncryptionSession: null); //todo: box external access to full-encryption storage not supported yet
 
         switch (result.Code)
         {
@@ -261,7 +261,7 @@ public class BoxExternalAccessHandler(
             workspace: boxAccess.Box.Workspace,
             fileExternalId: fileExternalId,
             boxFolderId: boxAccess.Box.Folder.Id,
-            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
             cancellationToken: cancellationToken);
 
         return result.Code switch
@@ -316,7 +316,7 @@ public class BoxExternalAccessHandler(
             boxFolderId: boxAccess.Box.Folder.Id,
             boxLinkId: boxAccess.BoxLink?.Id,
             userIdentity: boxAccess.UserIdentity,
-            fullEncryptionSession: null, //todo: box external access to full-encryption storage not supported yet
+            workspaceEncryptionSession: null, //todo: box external access to full-encryption storage not supported yet
             cancellationToken: cancellationToken);
 
         return result.Code switch
@@ -629,7 +629,7 @@ public class BoxExternalAccessHandler(
             userIdentity: boxAccess.UserIdentity,
             boxFolderId: boxAccess.Box.Folder.Id,
             boxLinkId: boxAccess.BoxLink?.Id,
-            fullEncryptionSession: null, //todo: box external access to full-encryption storage not supported yet
+            workspaceEncryptionSession: null, //todo: box external access to full-encryption storage not supported yet
             cancellationToken: cancellationToken);
 
         await workspaceCache.InvalidateEntry(
@@ -714,7 +714,7 @@ public class BoxExternalAccessHandler(
             boxLinkId: boxAccess.BoxLink?.Id,
             userIdentity: boxAccess.UserIdentity,
             enforceInternalPassThrough: enforceInternalPassThrough,
-            fullEncryptionSession: null, //todo: box external access to full-encryption storage not supported yet
+            workspaceEncryptionSession: null, //todo: box external access to full-encryption storage not supported yet
             cancellationToken: cancellationToken);
         
         return result.Code switch

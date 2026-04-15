@@ -15,8 +15,7 @@ public interface IStorageClient
     StorageExtId ExternalId { get; }
     string Name { get; }
     public StorageEncryptionType EncryptionType { get; }
-    public StorageEncryptionDetails? EncryptionDetails { get; }
-    public EncryptionKeyProvider? EncryptionKeyProvider { get; }
+    public ManagedEncryptionKeyProvider? ManagedEncryptionKeyProvider { get; }
     
     ValueTask DeleteFile(
         string bucketName,
@@ -45,7 +44,7 @@ public interface IStorageClient
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken = default);
 
     ValueTask<string> GetPreSignedDownloadFileLink(
@@ -57,7 +56,7 @@ public interface IStorageClient
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken = default);
 
     Task AbortMultiPartUpload(
@@ -83,14 +82,6 @@ public interface IStorageClient
         int ikmChainStepsCount);
 
     string GenerateFileS3KeySecretPart();
-
-    /// <summary>
-    /// Atomically swaps encryption details (and the derived key provider) on the
-    /// existing instance. Used after operations that rewrap the DEK in place —
-    /// reset or change of the master password — so the cached client stays in
-    /// sync with the DB without re-registering a new instance in the store.
-    /// </summary>
-    void SetEncryptionDetails(StorageEncryptionDetails? encryptionDetails);
 }
 
 public class PreSignedUploadLinkResult

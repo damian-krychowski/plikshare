@@ -18,7 +18,7 @@ public class GetFileDownloadLinkOperation(
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken)
     {
         var fileQueryResult = getFileDetailsQuery.Execute(
@@ -44,7 +44,7 @@ public class GetFileDownloadLinkOperation(
                 boxLinkId: boxLinkId,
                 userIdentity: userIdentity,
                 enforceInternalPassThrough: enforceInternalPassThrough,
-                fullEncryptionSession: fullEncryptionSession,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 cancellationToken: cancellationToken);
 
         return new Result(

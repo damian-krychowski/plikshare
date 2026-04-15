@@ -27,9 +27,18 @@ public class HttpErrorWithDetails : HttpError
     public required string InnerError { get; set; }
 }
 
-public class FullEncryptionSessionRequiredHttpError : HttpError
+public class UserEncryptionSessionRequiredHttpError : HttpError
+{
+}
+
+public class NotAStorageAdminHttpError : HttpError
 {
     public required StorageExtId StorageExternalId { get; set; }
+}
+
+public class WorkspaceEncryptionAccessDeniedHttpError : HttpError
+{
+    public required WorkspaceExtId WorkspaceExternalId { get; set; }
 }
 
 public static class HttpErrors
@@ -45,6 +54,16 @@ public static class HttpErrors
 
     public static class Workspace
     {
+        public static IResult EncryptionAccessDenied(WorkspaceExtId workspaceExternalId) =>
+            TypedResults.Json(
+                new WorkspaceEncryptionAccessDeniedHttpError
+                {
+                    Code = "workspace-encryption-access-denied",
+                    Message = "You do not have an encryption key wrap for this workspace and cannot access its encrypted content.",
+                    WorkspaceExternalId = workspaceExternalId
+                },
+                statusCode: StatusCodes.Status403Forbidden);
+
         public static BadRequest<HttpError> NotEnoughSpace(WorkspaceExtId externalId) =>
             TypedResults.BadRequest(new HttpError
             {
@@ -187,43 +206,27 @@ public static class HttpErrors
             Message = $"Volume '{volumePath}' was not found"
         });
 
-        public static BadRequest<HttpError> MasterPasswordRequired() => TypedResults.BadRequest(new HttpError
-        {
-            Code = "master-password-required",
-            Message = "Master password is required for full encryption storage"
-        });
-
-        public static BadRequest<HttpError> EncryptionModeMismatch() => TypedResults.BadRequest(new HttpError
-        {
-            Code = "storage-encryption-mode-mismatch",
-            Message = "Storage has a different encryption mode."
-        });
-
-        public static IResult FullEncryptionSessionRequired(StorageExtId storageExternalId) => TypedResults.Json(
-            new FullEncryptionSessionRequiredHttpError
+        public static IResult UserEncryptionSessionRequired() => TypedResults.Json(
+            new UserEncryptionSessionRequiredHttpError
             {
-                Code = "full-encryption-session-required",
-                Message = "Full encryption session is required. Unlock the storage with your master password.",
-                StorageExternalId = storageExternalId
+                Code = "user-encryption-session-required",
+                Message = "User encryption session is required. Unlock your encryption password to continue."
             },
             statusCode: StatusCodes.Status423Locked);
 
-        public static BadRequest<HttpError> InvalidMasterPassword() => TypedResults.BadRequest(new HttpError
-        {
-            Code = "invalid-master-password",
-            Message = "Master password is incorrect."
-        });
+        public static IResult NotAStorageAdmin(StorageExtId storageExternalId) => TypedResults.Json(
+            new NotAStorageAdminHttpError
+            {
+                Code = "not-a-storage-admin",
+                Message = "You are not a storage admin for this storage and cannot access its encrypted content.",
+                StorageExternalId = storageExternalId
+            },
+            statusCode: StatusCodes.Status403Forbidden);
 
-        public static BadRequest<HttpError> MalformedRecoveryCode() => TypedResults.BadRequest(new HttpError
+        public static BadRequest<HttpError> CreatorEncryptionNotSetUp() => TypedResults.BadRequest(new HttpError
         {
-            Code = "malformed-recovery-code",
-            Message = "Recovery code could not be parsed. Check for typos, missing words, or extra words."
-        });
-
-        public static BadRequest<HttpError> InvalidRecoveryCode() => TypedResults.BadRequest(new HttpError
-        {
-            Code = "invalid-recovery-code",
-            Message = "Recovery code is valid BIP-39 but does not match this storage."
+            Code = "creator-encryption-not-set-up",
+            Message = "Creating a full-encrypted storage requires the creator to have an encryption password set up. Configure your encryption password first."
         });
     }
 

@@ -15,7 +15,7 @@ public class S3BulkDownloadOperation
     public async Task Execute(
         BulkDownloadDetails bulkDownloadDetails,
         string bucketName,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         S3StorageClient s3StorageClient,
         PipeWriter responsePipeWriter,
         CancellationToken cancellationToken)
@@ -104,7 +104,7 @@ public class S3BulkDownloadOperation
                                 leaveOpen: false)),
                         fileSizeInBytes: file.SizeInBytes,
                         encryptionMetadata: file.EncryptionMetadata,
-                        fullEncryptionSession: fullEncryptionSession,
+                        workspaceEncryptionSession: workspaceEncryptionSession,
                         cancellationToken: cancellationToken);
                     
                     processedFiles++;

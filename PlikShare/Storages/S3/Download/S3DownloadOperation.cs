@@ -16,7 +16,7 @@ public class S3DownloadOperation
         S3FileKey s3FileKey,
         FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         string bucketName,
         S3StorageClient s3StorageClient,
         Stream s3FileStream) : IFile
@@ -48,7 +48,7 @@ public class S3DownloadOperation
                         output: output,
                         fileSizeInBytes: fileSizeInBytes,
                         encryptionMetadata: fileEncryptionMetadata,
-                        fullEncryptionSession: fullEncryptionSession,
+                        workspaceEncryptionSession: workspaceEncryptionSession,
                         cancellationToken: cancellationToken);
 
                     var duration = DateTime.UtcNow - startTime;
@@ -99,7 +99,7 @@ public class S3DownloadOperation
         FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
         BytesRange range,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         string bucketName,
         S3StorageClient s3StorageClient,
         Stream s3FileStream) : IFile
@@ -143,9 +143,9 @@ public class S3DownloadOperation
                         unencryptedRange: range,
                         unencryptedFileSize: fileSizeInBytes);
 
-                    var ikm = s3StorageClient.GetEncryptionKey(
-                        version: fileEncryptionMetadata.KeyVersion,
-                        fullEncryptionSession: fullEncryptionSession);
+                    var ikm = s3StorageClient
+                        .ManagedEncryptionKeyProvider
+                        !.GetEncryptionKey(fileEncryptionMetadata.KeyVersion);
 
                     await Aes256GcmStreamingV1.DecryptRange(
                         fileAesInputs: fileEncryptionMetadata.ToAesInputsV1(ikm),
@@ -170,14 +170,9 @@ public class S3DownloadOperation
                         unencryptedFileSize: fileSizeInBytes,
                         chainStepsCount: fileEncryptionMetadata.ChainStepSalts.Count);
 
-                    var ikm = KeyDerivationChain.Derive(
-                        startingDek: s3StorageClient.GetEncryptionKey(
-                            version: fileEncryptionMetadata.KeyVersion,
-                            fullEncryptionSession: fullEncryptionSession),
-                        stepSalts: fileEncryptionMetadata.ChainStepSalts);
-
                     await Aes256GcmStreamingV2.DecryptRange(
-                        fileAesInputs: fileEncryptionMetadata.ToAesInputsV2(ikm),
+                        fileAesInputs: fileEncryptionMetadata.ToAesInputsV2(
+                            ikm: workspaceEncryptionSession!.WorkspaceDek),
                         range: encryptedRange,
                         fileSizeInBytes: fileSizeInBytes,
                         input: PipeReader.Create(
@@ -243,7 +238,7 @@ public class S3DownloadOperation
         S3FileKey s3FileKey,
         FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         string bucketName,
         S3StorageClient s3StorageClient,
         CancellationToken cancellationToken)
@@ -262,7 +257,7 @@ public class S3DownloadOperation
             s3FileKey,
             fileEncryptionMetadata,
             fileSizeInBytes,
-            fullEncryptionSession,
+            workspaceEncryptionSession,
             bucketName,
             s3StorageClient,
             stream);
@@ -273,7 +268,7 @@ public class S3DownloadOperation
         FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
         BytesRange range,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         string bucketName,
         S3StorageClient s3StorageClient,
         CancellationToken cancellationToken)
@@ -299,7 +294,7 @@ public class S3DownloadOperation
             fileEncryptionMetadata,
             fileSizeInBytes,
             range,
-            fullEncryptionSession,
+            workspaceEncryptionSession,
             bucketName,
             s3StorageClient,
             stream);

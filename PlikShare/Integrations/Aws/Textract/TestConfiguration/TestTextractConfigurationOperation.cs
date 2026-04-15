@@ -232,7 +232,7 @@ public class TestTextractConfigurationOperation(
                 UploadAlgorithm = UploadAlgorithm.DirectUpload
             },            
             bucketName: bucketName,
-            fullEncryptionSession: null,
+            workspaceEncryptionSession: null,
             s3StorageClient: s3StorageClient,
             cancellationToken: cancellationToken);
     }

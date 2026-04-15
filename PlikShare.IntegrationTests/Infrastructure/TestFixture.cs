@@ -334,40 +334,36 @@ public class TestFixture: IAsyncLifetime
         AppSignedInUser user,
         StorageEncryptionType encryptionType)
     {
-        var hardDriveName = $"hard-drive-{Guid.NewGuid().ToBase62()}";
+        if (encryptionType == StorageEncryptionType.Full)
+        {
+            // Full-encrypted storage creation now requires the caller's X25519 public key
+            // (loaded from u_users) so the Storage DEK can be sealed to them at creation
+            // time — the master-password flow is gone. This helper is not yet wired to
+            // set up the user's encryption password before creating the storage, so the
+            // Full path is intentionally unavailable here until Task #18 reconnects the
+            // session flow end-to-end.
+            throw new NotSupportedException(
+                "Full-encrypted hard-drive storage cannot be created via this test helper until "
+                + "Task #18 rewires the storage creation flow to use UserEncryptionSession.");
+        }
 
-        var masterPassword = encryptionType == StorageEncryptionType.Full
-            ? "Test-Master-Password-1!"
-            : null;
+        var hardDriveName = $"hard-drive-{Guid.NewGuid().ToBase62()}";
 
         var hardDriveStorageResponse = await Api.Storages.CreateHardDriveStorage(
             request: new CreateHardDriveStorageRequestDto(
                 Name: hardDriveName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{hardDriveName}",
-                EncryptionType: encryptionType,
-                MasterPassword: masterPassword),
+                EncryptionType: encryptionType),
             cookie: user.Cookie,
             antiforgery: user.Antiforgery);
-
-        Cookie? fullEncryptionSession = null;
-
-        if (encryptionType == StorageEncryptionType.Full)
-        {
-            fullEncryptionSession = await Api.Storages.UnlockFullEncryption(
-                externalId: hardDriveStorageResponse.ExternalId,
-                request: new UnlockFullEncryptionRequestDto(
-                    MasterPassword: masterPassword!),
-                cookie: user.Cookie,
-                antiforgery: user.Antiforgery);
-        }
 
         return new AppStorage(
             ExternalId: hardDriveStorageResponse.ExternalId,
             Name: hardDriveName,
             Type: StorageType.HardDrive,
             Details: $"{MainVolume.Path}/{hardDriveName}",
-            FullEncryptionSession: fullEncryptionSession);
+            WorkspaceEncryptionSession: null);
     }
 
     protected async Task WaitForBucketReady(
@@ -420,7 +416,7 @@ public class TestFixture: IAsyncLifetime
             },
             cookie: user.Cookie,
             antiforgery: user.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         if (initiateResponse.DirectUploads is not null)
         {
@@ -457,14 +453,14 @@ public class TestFixture: IAsyncLifetime
                     ETag: eTag),
                 cookie: user.Cookie,
                 antiforgery: user.Antiforgery,
-                fullEncryptionSession: workspace.FullEncryptionSession);
+                workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
             var completeResult = await Api.Uploads.CompleteUpload(
                 workspaceExternalId: workspace.ExternalId,
                 fileUploadExternalId: uploadExtId,
                 cookie: user.Cookie,
                 antiforgery: user.Antiforgery,
-                fullEncryptionSession: workspace.FullEncryptionSession);
+                workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
             return new AppFile(
                 ExternalId: completeResult.FileExternalId,
@@ -485,7 +481,7 @@ public class TestFixture: IAsyncLifetime
                     partNumber: partNumber,
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery,
-                    fullEncryptionSession: workspace.FullEncryptionSession);
+                    workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
                 var partContent = content
                     .AsSpan()
@@ -510,7 +506,7 @@ public class TestFixture: IAsyncLifetime
                             ETag: eTag),
                         cookie: user.Cookie,
                         antiforgery: user.Antiforgery,
-                        fullEncryptionSession: workspace.FullEncryptionSession);
+                        workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
                 }
             }
 
@@ -519,7 +515,7 @@ public class TestFixture: IAsyncLifetime
                 fileUploadExternalId: uploadExtId,
                 cookie: user.Cookie,
                 antiforgery: user.Antiforgery,
-                fullEncryptionSession: workspace.FullEncryptionSession);
+                workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
             return new AppFile(
                 ExternalId: completeResult.FileExternalId,
@@ -562,7 +558,7 @@ public class TestFixture: IAsyncLifetime
             },
             cookie: user.Cookie,
             antiforgery: user.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         if (initiateResponse.DirectUploads is null)
             throw new InvalidOperationException(
@@ -600,7 +596,7 @@ public class TestFixture: IAsyncLifetime
                     fileExternalId: fileExternalId,
                     contentDisposition: "attachment",
                     cookie: user.Cookie,
-                    fullEncryptionSession: workspace.FullEncryptionSession);
+                    workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
                 return await Api.PreSignedFiles.DownloadFile(
                     preSignedUrl: downloadLinkResponse.DownloadPreSignedUrl,
@@ -634,7 +630,7 @@ public class TestFixture: IAsyncLifetime
                     fileExternalId: fileExternalId,
                     contentDisposition: "inline",
                     cookie: user.Cookie,
-                    fullEncryptionSession: workspace.FullEncryptionSession);
+                    workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
                 return await Api.PreSignedFiles.DownloadFileRange(
                     preSignedUrl: downloadLinkResponse.DownloadPreSignedUrl,
@@ -670,7 +666,7 @@ public class TestFixture: IAsyncLifetime
         return new AppWorkspace(
             ExternalId: result.ExternalId,
             Name: workspaceName,
-            FullEncryptionSession: storage.FullEncryptionSession);
+            WorkspaceEncryptionSession: storage.WorkspaceEncryptionSession);
     }
     
     protected async Task<AppWorkspace> CreateWorkspace(
@@ -735,7 +731,7 @@ public class TestFixture: IAsyncLifetime
             workspaceExternalId: workspace.ExternalId,
             cookie: user.Cookie,
             antiforgery: user.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         return new AppFolder(
             ExternalId: folderResponse.ExternalId,
@@ -1006,7 +1002,7 @@ public class TestFixture: IAsyncLifetime
     protected record AppWorkspace(
         WorkspaceExtId ExternalId,
         string Name,
-        Cookie? FullEncryptionSession = null);
+        Cookie? WorkspaceEncryptionSession = null);
     
     public record AppUsers(
         User AppOwner);
@@ -1025,7 +1021,7 @@ public class TestFixture: IAsyncLifetime
         string Name,
         string Type,
         string? Details,
-        Cookie? FullEncryptionSession = null);
+        Cookie? WorkspaceEncryptionSession = null);
 
     public record AppEmailProvider(
         EmailProviderExtId ExternalId,

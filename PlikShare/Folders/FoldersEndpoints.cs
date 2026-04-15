@@ -28,7 +28,7 @@ public static class FoldersEndpoints
             .WithTags("Folders")
             .RequireAuthorization(policyNames: AuthPolicy.Internal)
             .AddEndpointFilter<ValidateWorkspaceFilter>()
-            .AddEndpointFilter<ValidateFullEncryptionSessionFilter>();
+            .AddEndpointFilter<ValidateWorkspaceEncryptionSessionFilter>();
 
         group.MapPost("/", CreateFolder)
             .WithName("CreateFolder");

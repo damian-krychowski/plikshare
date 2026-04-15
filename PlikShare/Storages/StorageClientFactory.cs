@@ -17,7 +17,7 @@ public enum StorageOperationResultCode
     VolumeNotFound,
     NameNotUnique,
     NotFound,
-    MasterPasswordRequired
+    CreatorEncryptionNotSetUp
 }
 
 public record StorageClientFactoryResult(

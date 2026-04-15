@@ -18,7 +18,7 @@ public class HardDriveDownloadOperation
         FileEncryptionMetadata? fileEncryptionMetadata,
         long fileSizeInBytes,
         string filePath,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         HardDriveStorageClient hardDriveStorageClient,
         FileStream stream) : IFile
     {
@@ -38,7 +38,7 @@ public class HardDriveDownloadOperation
                         output: output,
                         fileSizeInBytes: fileSizeInBytes,
                         encryptionMetadata: fileEncryptionMetadata,
-                        fullEncryptionSession: fullEncryptionSession,
+                        workspaceEncryptionSession: workspaceEncryptionSession,
                         cancellationToken: cancellationToken);
 
                     var totalDuration = DateTime.UtcNow - startTime;
@@ -111,7 +111,7 @@ public class HardDriveDownloadOperation
         FileEncryptionMetadata? fileEncryptionMetadata,
         BytesRange range,
         string filePath,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         HardDriveStorageClient hardDriveStorageClient,
         Stream stream) : IFile
     {
@@ -168,9 +168,9 @@ public class HardDriveDownloadOperation
                     
                     stream.Seek(encryptedRange.FirstSegment.Start, SeekOrigin.Begin);
 
-                    var ikm = hardDriveStorageClient.GetEncryptionKey(
-                        version: fileEncryptionMetadata.KeyVersion,
-                        fullEncryptionSession: fullEncryptionSession);
+                    var ikm = hardDriveStorageClient
+                        .ManagedEncryptionKeyProvider
+                        !.GetEncryptionKey(fileEncryptionMetadata.KeyVersion);
 
                     await Aes256GcmStreamingV1.DecryptRange(
                         fileAesInputs:  fileEncryptionMetadata.ToAesInputsV1(ikm),
@@ -205,15 +205,10 @@ public class HardDriveDownloadOperation
                         chainStepsCount: fileEncryptionMetadata.ChainStepSalts.Count);
 
                     stream.Seek(encryptedRange.FirstSegment.Start, SeekOrigin.Begin);
-
-                    var ikm = KeyDerivationChain.Derive(
-                        startingDek: hardDriveStorageClient.GetEncryptionKey(
-                            version: fileEncryptionMetadata.KeyVersion,
-                            fullEncryptionSession: fullEncryptionSession),
-                        stepSalts: fileEncryptionMetadata.ChainStepSalts);
-
+                    
                     await Aes256GcmStreamingV2.DecryptRange(
-                        fileAesInputs: fileEncryptionMetadata.ToAesInputsV2(ikm),
+                        fileAesInputs: fileEncryptionMetadata.ToAesInputsV2(
+                            ikm: workspaceEncryptionSession!.WorkspaceDek),
                         range: encryptedRange,
                         fileSizeInBytes: fileSizeInBytes,
                         input: PipeReader.Create(
@@ -313,7 +308,7 @@ public class HardDriveDownloadOperation
        S3FileKey s3FileKey,
        FileEncryptionMetadata? fileEncryptionMetadata,
        long fileSizeInBytes,
-       FullEncryptionSession? fullEncryptionSession,
+       WorkspaceEncryptionSession? workspaceEncryptionSession,
        string bucketName,
        HardDriveStorageClient hardDriveStorageClient)
     {
@@ -351,7 +346,7 @@ public class HardDriveDownloadOperation
             fileEncryptionMetadata,
             fileSizeInBytes, 
             filePath,
-            fullEncryptionSession,
+            workspaceEncryptionSession,
             hardDriveStorageClient, 
             fileStream);
     }
@@ -361,7 +356,7 @@ public class HardDriveDownloadOperation
         FileEncryptionMetadata fileEncryptionMetadata,
         long fileSizeInBytes,
         BytesRange range,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         string bucketName,
         HardDriveStorageClient hardDriveStorageClient)
     {
@@ -400,7 +395,7 @@ public class HardDriveDownloadOperation
             fileEncryptionMetadata: fileEncryptionMetadata, 
             range: range, 
             filePath: filePath, 
-            fullEncryptionSession: fullEncryptionSession,
+            workspaceEncryptionSession: workspaceEncryptionSession,
             hardDriveStorageClient: hardDriveStorageClient, 
             stream: fileStream);
     }

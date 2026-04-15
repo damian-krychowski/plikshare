@@ -8,8 +8,7 @@ public record CreateAwsS3StorageRequestDto(
     string AccessKey,
     string SecretAccessKey,
     string Region,
-    StorageEncryptionType EncryptionType,
-    string? MasterPassword = null);
+    StorageEncryptionType EncryptionType);
 
 public record CreateAwsS3StorageResponseDto(
     StorageExtId ExternalId,

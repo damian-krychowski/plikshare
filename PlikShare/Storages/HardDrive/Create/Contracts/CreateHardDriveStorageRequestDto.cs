@@ -7,8 +7,7 @@ public record CreateHardDriveStorageRequestDto(
     string Name,
     string VolumePath,
     string FolderPath,
-    StorageEncryptionType EncryptionType,
-    string? MasterPassword = null);
+    StorageEncryptionType EncryptionType);
 
 public record CreateHardDriveStorageResponseDto(
     StorageExtId ExternalId,

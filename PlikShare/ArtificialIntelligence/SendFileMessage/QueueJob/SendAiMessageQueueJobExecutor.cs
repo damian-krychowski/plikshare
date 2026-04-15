@@ -331,7 +331,7 @@ public class SendAiMessageQueueJobExecutor(
                 fileSizeInBytes: file.SizeInBytes,
                 bucketName: file.BucketName,
                 storage: storage,
-                fullEncryptionSession: null, //todo: background jobs cannot access full-encryption sessions yet
+                workspaceEncryptionSession: null, //todo: background jobs cannot access full-encryption sessions yet
                 cancellationToken: cancellationToken);
 
             using var outputStream = new MemoryStream(

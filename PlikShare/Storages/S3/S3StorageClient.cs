@@ -33,27 +33,12 @@ public class S3StorageClient(
     public StorageExtId ExternalId { get; } = externalId;
     public string Name { get; } = name;
     public StorageEncryptionType EncryptionType { get; } = encryptionType;
-    public StorageEncryptionDetails? EncryptionDetails { get; private set; } = encryptionDetails;
 
     private readonly RateLimiter _rateLimiter = new(100, 80);
 
-    public EncryptionKeyProvider? EncryptionKeyProvider { get; private set; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
+    public ManagedEncryptionKeyProvider? ManagedEncryptionKeyProvider { get; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
         encryptionDetails: encryptionDetails);
-
-    public void SetEncryptionDetails(StorageEncryptionDetails? newEncryptionDetails)
-    {
-        // Build the derived provider first, then swap both fields. Reads happen
-        // on many threads; reference-writes are atomic in .NET so a concurrent
-        // read sees either the old pair or the new one consistently enough —
-        // and a mid-swap cross-read would only cause an AES-GCM tag mismatch,
-        // which downstream already handles as an invalid-session error.
-        var newProvider = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
-            encryptionDetails: newEncryptionDetails);
-
-        EncryptionKeyProvider = newProvider;
-        EncryptionDetails = newEncryptionDetails;
-    }
-
+    
     public async ValueTask DeleteFile(
         string bucketName,
         S3FileKey key,
@@ -165,7 +150,7 @@ public class S3StorageClient(
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken = default)
     {
         if (EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full || enforceInternalPassThrough)
@@ -183,7 +168,7 @@ public class S3StorageClient(
                     },
                     ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
                     BoxLinkId = boxLinkId,
-                    Kek = fullEncryptionSession?.Kek
+                    WorkspaceDek = workspaceEncryptionSession?.WorkspaceDek
                 });
 
             return new PreSignedUploadLinkResult
@@ -286,7 +271,7 @@ public class S3StorageClient(
         int? boxLinkId,
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken = default)
     {
         if (EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full || enforceInternalPassThrough)
@@ -303,7 +288,7 @@ public class S3StorageClient(
                     ContentDisposition = contentDisposition,
                     ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
                     BoxLinkId = boxLinkId,
-                    Kek = fullEncryptionSession?.Kek
+                    WorkspaceDek = workspaceEncryptionSession?.WorkspaceDek
                 });
         }
 

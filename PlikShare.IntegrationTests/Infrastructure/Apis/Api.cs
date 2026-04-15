@@ -11,7 +11,6 @@ public class Api(IFlurlClient flurlClient, string appUrl)
     public AccountApi Account { get; } = new(flurlClient, appUrl);
     public GeneralSettingsApi GeneralSettings { get; } = new(flurlClient, appUrl);
     public StoragesApi Storages { get; } = new(flurlClient, appUrl);
-    public FullEncryptionSessionsApi FullEncryptionSessions { get; } = new(flurlClient, appUrl);
     public EmailProvidersApi EmailProviders { get; } = new(flurlClient, appUrl);
     public UsersApi Users { get; } = new(flurlClient, appUrl);
     public WorkspacesApi Workspaces { get; } = new(flurlClient, appUrl);

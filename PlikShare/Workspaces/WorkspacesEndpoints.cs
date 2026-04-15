@@ -5,6 +5,7 @@ using PlikShare.BulkDelete;
 using PlikShare.BulkDelete.Contracts;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.Queue;
 using PlikShare.Core.UserIdentity;
@@ -19,6 +20,7 @@ using PlikShare.Workspaces.CountSelectedItems;
 using PlikShare.Workspaces.CountSelectedItems.Contracts;
 using PlikShare.Workspaces.Create;
 using PlikShare.Workspaces.Create.Contracts;
+using PlikShare.Workspaces.Encryption;
 using PlikShare.Workspaces.Delete;
 using PlikShare.Workspaces.Get.Contracts;
 using PlikShare.Workspaces.Id;
@@ -150,9 +152,10 @@ public static class WorkspacesEndpoints
         return response;
     }
 
-    private static async Task<Results<Ok<CreateWorkspaceResponseDto>, NotFound<HttpError>, BadRequest<HttpError>>> CreateWorkspace(
+    private static async Task<IResult> CreateWorkspace(
         [FromBody] CreateWorkspaceRequestDto request,
         HttpContext httpContext,
+        WorkspaceCreationPreparation workspaceCreationPreparation,
         CreateWorkspaceQuery createWorkspaceQuery,
         AuditLogService auditLogService,
         IQueue queue,
@@ -160,9 +163,38 @@ public static class WorkspacesEndpoints
     {
         var user = httpContext.GetUserContext();
 
+        // Pre-flight: resolve the storage and, for full-encrypted storages, precompute the
+        // owner's Workspace DEK wrap off the write queue. The factory only reads (and
+        // DPAPI-unprotects) the private key when the storage actually needs it — for
+        // None/Managed storages the cookie is never touched.
+        var prep = workspaceCreationPreparation.Prepare(
+            storageExternalId: request.StorageExternalId,
+            ownerId: user.Id,
+            loadUserPrivateKey: () => UserEncryptionSessionCookie.TryReadPrivateKey(
+                httpContext, user.ExternalId));
+
+        switch (prep.Code)
+        {
+            case WorkspaceCreationPreparation.ResultCode.StorageNotFound:
+                return HttpErrors.Storage.NotFound(request.StorageExternalId);
+            case WorkspaceCreationPreparation.ResultCode.UserEncryptionSessionRequired:
+                return HttpErrors.Storage.UserEncryptionSessionRequired();
+            case WorkspaceCreationPreparation.ResultCode.CreatorEncryptionNotSetUp:
+                return HttpErrors.Storage.CreatorEncryptionNotSetUp();
+            case WorkspaceCreationPreparation.ResultCode.NotAStorageAdmin:
+                return HttpErrors.Storage.NotAStorageAdmin(request.StorageExternalId);
+            case WorkspaceCreationPreparation.ResultCode.Ok:
+                break;
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(WorkspaceCreationPreparation),
+                    resultValueStr: prep.Code.ToString());
+        }
+
         var result = await createWorkspaceQuery.Execute(
             storageExternalId: request.StorageExternalId,
             user: user,
+            artifacts: prep.Artifacts,
             name: request.Name,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);

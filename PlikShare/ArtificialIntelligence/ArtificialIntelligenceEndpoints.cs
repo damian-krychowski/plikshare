@@ -33,7 +33,7 @@ public static class ArtificialIntelligenceEndpoints
         var workspaceGroup = group.MapGroup("/workspaces/{workspaceExternalId}")
             .WithTags("ArtificialIntelligence_Workspace")
             .AddEndpointFilter<ValidateWorkspaceFilter>()
-            .AddEndpointFilter<ValidateFullEncryptionSessionFilter>();
+            .AddEndpointFilter<ValidateWorkspaceEncryptionSessionFilter>();
 
         workspaceGroup.MapPost("/files/{fileExternalId}/messages", SendFileAiMessage)
             .WithName("SendFileAiMessage");

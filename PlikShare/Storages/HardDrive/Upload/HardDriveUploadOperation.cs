@@ -16,7 +16,7 @@ public static class HardDriveUploadOperation
         Memory<byte> fileBytes,
         FileToUploadDetails file,
         FilePartUpload part,
-        FullEncryptionSession? fullEncryptionSession, 
+        WorkspaceEncryptionSession? workspaceEncryptionSession, 
         string bucketName,
         HardDriveStorageClient hardDriveStorage,
         CancellationToken cancellationToken)
@@ -37,7 +37,7 @@ public static class HardDriveUploadOperation
                 fileSizeInBytes: file.SizeInBytes,
                 filePart: part.Part,
                 encryptionMetadata: file.EncryptionMetadata,
-                fullEncryptionSession: fullEncryptionSession, 
+                workspaceEncryptionSession: workspaceEncryptionSession, 
                 cancellationToken: cancellationToken);
             
             await using var fileStream = new FileStream(

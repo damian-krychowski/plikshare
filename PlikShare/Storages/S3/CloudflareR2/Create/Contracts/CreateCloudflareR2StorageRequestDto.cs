@@ -8,8 +8,7 @@ public record CreateCloudflareR2StorageRequestDto(
     string AccessKeyId,
     string SecretAccessKey,
     string Url,
-    StorageEncryptionType EncryptionType,
-    string? MasterPassword = null);
+    StorageEncryptionType EncryptionType);
 
 public record CreateCloudflareR2StorageResponseDto(
     StorageExtId ExternalId,

@@ -73,7 +73,7 @@ public class file_tests : TestFixture
             request: new UpdateFileNameRequestDto(Name: "renamed-file"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then - file was renamed successfully (no error thrown)
     }
@@ -95,7 +95,7 @@ public class file_tests : TestFixture
             request: new SaveFileNoteRequestDto(ContentJson: "{\"text\":\"my note\"}"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         var details = await Api.Files.GetPreviewDetails(
@@ -103,7 +103,7 @@ public class file_tests : TestFixture
             fileExternalId: file.ExternalId,
             fields: ["note"],
             cookie: AppOwner.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         details.Note.Should().NotBeNull();
         details.Note!.ContentJson.Should().Be("{\"text\":\"my note\"}");
@@ -129,7 +129,7 @@ public class file_tests : TestFixture
                 ContentJson: "{\"text\":\"my comment\"}"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         var details = await Api.Files.GetPreviewDetails(
@@ -137,7 +137,7 @@ public class file_tests : TestFixture
             fileExternalId: file.ExternalId,
             fields: ["comments"],
             cookie: AppOwner.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         details.Comments.Should().Contain(c =>
             c.ExternalId == commentExternalId &&
@@ -163,7 +163,7 @@ public class file_tests : TestFixture
                 ContentJson: "{\"text\":\"original\"}"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //when
         await Api.Files.EditComment(
@@ -173,7 +173,7 @@ public class file_tests : TestFixture
             request: new EditFileCommentRequestDto(ContentJson: "{\"text\":\"edited\"}"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         var details = await Api.Files.GetPreviewDetails(
@@ -181,7 +181,7 @@ public class file_tests : TestFixture
             fileExternalId: file.ExternalId,
             fields: ["comments"],
             cookie: AppOwner.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         details.Comments.Should().Contain(c =>
             c.ExternalId == commentExternalId &&
@@ -208,7 +208,7 @@ public class file_tests : TestFixture
                 ContentJson: "{\"text\":\"to delete\"}"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //when
         await Api.Files.DeleteComment(
@@ -217,7 +217,7 @@ public class file_tests : TestFixture
             commentExternalId: commentExternalId,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         var details = await Api.Files.GetPreviewDetails(
@@ -225,7 +225,7 @@ public class file_tests : TestFixture
             fileExternalId: file.ExternalId,
             fields: ["comments"],
             cookie: AppOwner.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         details.Comments.Should().NotContain(c =>
             c.ExternalId == commentExternalId);
@@ -250,7 +250,7 @@ public class file_tests : TestFixture
             request: new UpdateFileNameRequestDto(Name: "audit-renamed"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.Renamed>(
@@ -282,7 +282,7 @@ public class file_tests : TestFixture
             request: new SaveFileNoteRequestDto(ContentJson: "{\"text\":\"audit note\"}"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.NoteSaved>(
@@ -312,7 +312,7 @@ public class file_tests : TestFixture
             request: new SaveFileNoteRequestDto(ContentJson: "{\"text\":\"same note\"}"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         ClearAuditLog();
 
@@ -323,7 +323,7 @@ public class file_tests : TestFixture
             request: new SaveFileNoteRequestDto(ContentJson: "{\"text\":\"same note\"}"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then - no audit log entry should be produced for unchanged content
         await AssertAuditLogDoesNotContain(
@@ -351,7 +351,7 @@ public class file_tests : TestFixture
                 ContentJson: "{\"text\":\"audit comment\"}"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.CommentCreated>(
@@ -385,7 +385,7 @@ public class file_tests : TestFixture
                 ContentJson: "{\"text\":\"original\"}"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //when
         await Api.Files.EditComment(
@@ -395,7 +395,7 @@ public class file_tests : TestFixture
             request: new EditFileCommentRequestDto(ContentJson: "{\"text\":\"edited\"}"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.CommentEdited>(
@@ -429,7 +429,7 @@ public class file_tests : TestFixture
                 ContentJson: "{\"text\":\"to delete\"}"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //when
         await Api.Files.DeleteComment(
@@ -438,7 +438,7 @@ public class file_tests : TestFixture
             commentExternalId: commentExternalId,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.CommentDeleted>(
@@ -489,7 +489,7 @@ public class file_tests : TestFixture
             content: Encoding.UTF8.GetBytes("# updated markdown"),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         await AssertAuditLogContains<Audit.File.ContentUpdated>(

@@ -20,7 +20,7 @@ public class GetBulkDownloadLinkOperation(
         IUserIdentity userIdentity,
         int? boxFolderId,
         int? boxLinkId,
-        FullEncryptionSession? fullEncryptionSession)
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         var downloadDetails = getBulkDownloadDetailsQuery.Execute(
             workspace: workspace,
@@ -77,7 +77,7 @@ public class GetBulkDownloadLinkOperation(
                 },
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
                 BoxLinkId = boxLinkId,
-                Kek = fullEncryptionSession?.Kek
+                WorkspaceDek = workspaceEncryptionSession?.WorkspaceDek
             });
 
         return new Result(

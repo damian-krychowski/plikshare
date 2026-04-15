@@ -15,7 +15,7 @@ public class GetZipFileDetailsOperation(
         WorkspaceContext workspace,
         FileExtId fileExternalId,
         int? boxFolderId,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken)
     {
         var (isEmpty, file) = getFileDetailsQuery.Execute(
@@ -34,7 +34,7 @@ public class GetZipFileDetailsOperation(
             var result = await ZipDecoder.ReadZipEntries(
                 file: file,
                 workspace: workspace,
-                fullEncryptionSession: fullEncryptionSession,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 cancellationToken: cancellationToken);
 
             return result.Code switch

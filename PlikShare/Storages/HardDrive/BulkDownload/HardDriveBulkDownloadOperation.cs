@@ -17,7 +17,7 @@ public class HardDriveBulkDownloadOperation(IClock clock)
     public async Task Execute(
         BulkDownloadDetails bulkDownloadDetails,
         string bucketName,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         HardDriveStorageClient hardDriveStorage,
         PipeWriter responsePipeWriter,
         CancellationToken cancellationToken)
@@ -125,7 +125,7 @@ public class HardDriveBulkDownloadOperation(IClock clock)
                                 leaveOpen: false)),
                         fileSizeInBytes: file.SizeInBytes,
                         encryptionMetadata: file.EncryptionMetadata,
-                        fullEncryptionSession: fullEncryptionSession,
+                        workspaceEncryptionSession: workspaceEncryptionSession,
                         cancellationToken: cancellationToken);
 
                     processedFiles++;

@@ -1,10 +1,16 @@
+using System.Security.Cryptography;
+using PlikShare.Core.Encryption;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
+using PlikShare.Users.Cache;
+using PlikShare.Users.UserEncryptionPassword;
 
 namespace PlikShare.Storages.Create;
 
 public class CreateStorageFlow(
     CreateStorageQuery createStorageQuery,
+    UpsertStorageEncryptionKeyQuery upsertStorageEncryptionKeyQuery,
+    UserEncryptionDataReader userEncryptionDataReader,
     StorageClientStore storageClientStore)
 {
     public async Task<Result> Execute<TInput>(
@@ -12,11 +18,21 @@ public class CreateStorageFlow(
         TInput input,
         string name,
         StorageEncryptionType encryptionType,
-        string? masterPassword,
+        UserContext creator,
         CancellationToken cancellationToken)
     {
-        if (encryptionType == StorageEncryptionType.Full && string.IsNullOrEmpty(masterPassword))
-            return new Result(Code: StorageOperationResultCode.MasterPasswordRequired);
+        // For Full encryption we need the creator's public key up-front so we can wrap
+        // the freshly generated Storage DEK to them. A creator who has not yet set up
+        // an encryption password has no keypair and cannot own a full-encrypted storage.
+        UserEncryptionData? creatorEncryption = null;
+        if (encryptionType == StorageEncryptionType.Full)
+        {
+            creatorEncryption = userEncryptionDataReader.LoadForUser(
+                creator.Id);
+
+            if (creatorEncryption is null)
+                return new Result(Code: StorageOperationResultCode.CreatorEncryptionNotSetUp);
+        }
 
         var preparation = await factory.Prepare(
             input: input,
@@ -33,6 +49,7 @@ public class CreateStorageFlow(
 
         StorageEncryptionDetails? encryptionDetails;
         string? recoveryCode = null;
+        byte[]? fullDekToWrap = null;
 
         switch (encryptionType)
         {
@@ -47,44 +64,71 @@ public class CreateStorageFlow(
                 break;
 
             case StorageEncryptionType.Full:
-                var fullResult = StorageFullEncryptionService.GenerateDetails(masterPassword!);
+                var fullResult = StorageFullEncryptionService.GenerateDetails();
                 encryptionDetails = fullResult.Details;
                 recoveryCode = fullResult.RecoveryCode;
+                fullDekToWrap = fullResult.Dek;
                 break;
 
             default:
                 throw new ArgumentOutOfRangeException(nameof(encryptionType), encryptionType, null);
         }
 
-        var queryResult = await createStorageQuery.Execute(
-            name: name,
-            storageType: preparation.Details.StorageType,
-            detailsJson: preparation.Details.DetailsJson,
-            encryptionType: encryptionType,
-            encryptionDetails: encryptionDetails,
-            cancellationToken: cancellationToken);
-
-        if (queryResult.Code == CreateStorageQuery.ResultCode.NameNotUnique)
-            return new Result(Code: StorageOperationResultCode.NameNotUnique);
-
-        var storageClientDetails = new StorageClientDetails
+        try
         {
-            StorageId = queryResult.StorageId,
-            ExternalId = queryResult.StorageExternalId,
-            Name = name,
-            EncryptionType = encryptionType,
-            EncryptionDetails = encryptionDetails
-        };
+            var queryResult = await createStorageQuery.Execute(
+                name: name,
+                storageType: preparation.Details.StorageType,
+                detailsJson: preparation.Details.DetailsJson,
+                encryptionType: encryptionType,
+                encryptionDetails: encryptionDetails,
+                cancellationToken: cancellationToken);
 
-        var client = preparation.Details.StorageClientFactory(
-            storageClientDetails);
+            if (queryResult.Code == CreateStorageQuery.ResultCode.NameNotUnique)
+                return new Result(Code: StorageOperationResultCode.NameNotUnique);
 
-        storageClientStore.RegisterClient(client);
+            if (encryptionType == StorageEncryptionType.Full)
+            {
+                // Seal the Storage DEK to the creator's X25519 public key and record the
+                // wrap in sek_storage_encryption_keys. Until this row exists the storage is
+                // unusable (no one holds the DEK), so the creator is implicitly the first
+                // storage admin once this write commits.
+                var wrappedDek = UserKeyPair.SealTo(
+                    recipientPublicKey: creatorEncryption!.PublicKey,
+                    plaintext: fullDekToWrap!);
 
-        return new Result(
-            Code: StorageOperationResultCode.Ok,
-            StorageExternalId: queryResult.StorageExternalId,
-            RecoveryCode: recoveryCode);
+                await upsertStorageEncryptionKeyQuery.Execute(
+                    storageId: queryResult.StorageId,
+                    userId: creator.Id,
+                    wrappedStorageDek: wrappedDek,
+                    wrappedByUserId: creator.Id,
+                    cancellationToken: cancellationToken);
+            }
+
+            var storageClientDetails = new StorageClientDetails
+            {
+                StorageId = queryResult.StorageId,
+                ExternalId = queryResult.StorageExternalId,
+                Name = name,
+                EncryptionType = encryptionType,
+                EncryptionDetails = encryptionDetails
+            };
+
+            var client = preparation.Details.StorageClientFactory(
+                storageClientDetails);
+
+            storageClientStore.RegisterClient(client);
+
+            return new Result(
+                Code: StorageOperationResultCode.Ok,
+                StorageExternalId: queryResult.StorageExternalId,
+                RecoveryCode: recoveryCode);
+        }
+        finally
+        {
+            if (fullDekToWrap is not null)
+                CryptographicOperations.ZeroMemory(fullDekToWrap);
+        }
     }
 
     public record Result(

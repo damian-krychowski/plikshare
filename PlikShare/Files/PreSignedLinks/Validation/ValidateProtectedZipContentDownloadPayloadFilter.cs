@@ -99,10 +99,10 @@ public class ValidateProtectedZipContentDownloadPayloadFilter : IEndpointFilter
             File : file.Details!,
             Workspace: workspace);
 
-        if (payload.Kek is not null)
+        if (payload.WorkspaceDek is not null)
         {
-            context.HttpContext.Items[FullEncryptionSession.HttpContextName] =
-                new FullEncryptionSession { Kek = payload.Kek };
+            context.HttpContext.Items[WorkspaceEncryptionSession.HttpContextName] =
+                new WorkspaceEncryptionSession { WorkspaceDek = payload.WorkspaceDek };
         }
 
         return await next(context);

@@ -160,7 +160,7 @@ public static class PreSignedFilesEndpoints
                 var uploadTask = ProcessDirectFileUploadAsync(
                     heapBufferMemory.Slice(fileOffset, fileBufferSize),
                     fileUpload,
-                    httpContext.TryGetFullEncryptionSession(),
+                    httpContext.TryGetWorkspaceEncryptionSession(),
                     workspace.Storage,
                     cancellationToken);
 
@@ -303,7 +303,7 @@ public static class PreSignedFilesEndpoints
     private static async Task<FileUploadContext?> ProcessDirectFileUploadAsync(
         Memory<byte> fileBytes,
         FileUploadContext fileUpload,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         IStorageClient storageClient,
         CancellationToken cancellationToken)
     {
@@ -320,7 +320,7 @@ public static class PreSignedFilesEndpoints
                     file: fileUpload.FileToUpload,
                     part: filePart,
                     bucketName: fileUpload.Workspace.BucketName,
-                    fullEncryptionSession: fullEncryptionSession,
+                    workspaceEncryptionSession: workspaceEncryptionSession,
                     hardDriveStorage: hardDriveStorageClient!,
                     cancellationToken: cancellationToken);
             }
@@ -331,7 +331,7 @@ public static class PreSignedFilesEndpoints
                     file: fileUpload.FileToUpload,
                     part: filePart,
                     bucketName: fileUpload.Workspace.BucketName,
-                    fullEncryptionSession: fullEncryptionSession,
+                    workspaceEncryptionSession: workspaceEncryptionSession,
                     s3StorageClient: s3StorageClient,
                     cancellationToken: cancellationToken);
             }
@@ -377,7 +377,7 @@ public static class PreSignedFilesEndpoints
                     Part: new FilePart(payload.PartNumber, partSizeInBytes),
                     UploadAlgorithm: fileUpload.UploadAlgorithm),
                 workspace: fileUpload.Workspace,
-                fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
                 input: httpContext.Request.BodyReader,
                 cancellationToken: cancellationToken);
 
@@ -497,7 +497,7 @@ public static class PreSignedFilesEndpoints
                 fileSizeInBytes: file.SizeInBytes,
                 range: rangeRequest.Range,
                 workspace: workspace,
-                fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
                 output: httpContext.Response.BodyWriter,
                 cancellationToken: cancellationToken);
 
@@ -570,7 +570,7 @@ public static class PreSignedFilesEndpoints
                 fileEncryptionMetadata: file.EncryptionMetadata,
                 fileSizeInBytes: file.SizeInBytes,
                 workspace: workspace,
-                fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
                 cancellationToken: cancellationToken);
             
             httpContext.Response.Headers.AcceptRanges = "bytes";
@@ -648,7 +648,7 @@ public static class PreSignedFilesEndpoints
                 file: file,
                 entry: payload.ZipEntry,
                 workspace: workspace,
-                fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
                 output: httpContext.Response.BodyWriter,
                 cancellationToken: cancellationToken);
 

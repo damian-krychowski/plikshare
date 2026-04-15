@@ -93,7 +93,7 @@ public static class ZipDecoder
     public static async Task<ZipEntriesLookupResult> ReadZipEntries(
         FileRecord file,
         WorkspaceContext workspace,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken)
     {
         if (file.SizeInBytes < ZipEocdRecord.MinimumSize)
@@ -113,7 +113,7 @@ public static class ZipDecoder
         var zipEocdLookupResult = await TryReadZipEocdAssumingNoComment(
             file,
             workspace,
-            fullEncryptionSession,
+            workspaceEncryptionSession,
             pipe, 
             cancellationToken);
 
@@ -130,7 +130,7 @@ public static class ZipDecoder
             zipEocdLookupResult = await TryReadZipEocdAssumingLongestComment(
                 file,
                 workspace,
-                fullEncryptionSession,
+                workspaceEncryptionSession,
                 pipe,
                 cancellationToken);
         }
@@ -167,7 +167,7 @@ public static class ZipDecoder
                 file, 
                 workspace,
                 zip64Locator, 
-                fullEncryptionSession,
+                workspaceEncryptionSession,
                 pipe, 
                 cancellationToken);
 
@@ -194,7 +194,7 @@ public static class ZipDecoder
             file, 
             workspace,
             zipFinalEocd, 
-            fullEncryptionSession,
+            workspaceEncryptionSession,
             pipe, 
             cancellationToken);
 
@@ -209,7 +209,7 @@ public static class ZipDecoder
         FileRecord file,
         WorkspaceContext workspace,
         ZipFinalEocdRecord zipFinalEocd, 
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Pipe pipe, 
         CancellationToken cancellationToken)
     {
@@ -224,7 +224,7 @@ public static class ZipDecoder
                 fileSizeInBytes: file.SizeInBytes,
                 range: zipFinalEocd.CentralDirectoryBytesRange,
                 workspace: workspace,
-                fullEncryptionSession: fullEncryptionSession,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -249,7 +249,7 @@ public static class ZipDecoder
         FileRecord file,
         WorkspaceContext workspace,
         Zip64LocatorRecord zip64Locator,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Pipe pipe, 
         CancellationToken cancellationToken)
     {
@@ -266,7 +266,7 @@ public static class ZipDecoder
                     zip64Locator.Zip64EocdOffset,
                     zip64Locator.Zip64EocdOffset + Zip64EocdRecord.MinimumSize - 1),
                 workspace: workspace,
-                fullEncryptionSession: fullEncryptionSession, 
+                workspaceEncryptionSession: workspaceEncryptionSession, 
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -290,7 +290,7 @@ public static class ZipDecoder
     private static async Task<ZipEocdLookupResult> TryReadZipEocdAssumingNoComment(
         FileRecord file,
         WorkspaceContext workspace,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Pipe pipe, 
         CancellationToken cancellationToken)
     {
@@ -310,7 +310,7 @@ public static class ZipDecoder
                     Math.Max(0, file.SizeInBytes - EocdMinimumSize),
                     file.SizeInBytes - 1),
                 workspace: workspace,
-                fullEncryptionSession: fullEncryptionSession, 
+                workspaceEncryptionSession: workspaceEncryptionSession, 
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -333,7 +333,7 @@ public static class ZipDecoder
     private static async Task<ZipEocdLookupResult> TryReadZipEocdAssumingLongestComment(
         FileRecord file,
         WorkspaceContext workspace,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Pipe pipe,
         CancellationToken cancellationToken)
     {
@@ -355,7 +355,7 @@ public static class ZipDecoder
                     eocdPossibleStartPosition,
                     file.SizeInBytes - 1),
                 workspace: workspace,
-                fullEncryptionSession: fullEncryptionSession,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());

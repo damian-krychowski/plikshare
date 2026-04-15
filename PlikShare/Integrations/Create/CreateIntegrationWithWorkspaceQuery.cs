@@ -3,8 +3,10 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Integrations.Id;
+using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
 using PlikShare.Workspaces.Create;
+using PlikShare.Workspaces.Encryption;
 using PlikShare.Workspaces.Id;
 using Serilog;
 
@@ -13,6 +15,7 @@ namespace PlikShare.Integrations.Create;
 public class CreateIntegrationWithWorkspaceQuery(
     DbWriteQueue dbWriteQueue,
     CreateWorkspaceQuery createWorkspaceQuery,
+    WorkspaceCreationPreparation workspaceCreationPreparation,
     MasterDataEncryptionBufferedFactory masterDataEncryptionBufferedFactory)
 {
     public async Task<Result> Execute<TDetails>(
@@ -23,6 +26,20 @@ public class CreateIntegrationWithWorkspaceQuery(
         Guid correlationId,
         CancellationToken cancellationToken) where TDetails: IIntegrationWithWorkspace
     {
+        // Integrations do not carry a user encryption session, so we cannot build the per-user
+        // Workspace DEK wrap that a full-encrypted storage requires. Reject up-front instead of
+        // letting the write queue produce a half-formed workspace with no wrap row.
+        var storageContext = workspaceCreationPreparation.ResolveStorageContextForRead(
+            details.StorageExternalId);
+            
+        if (storageContext is null)
+            return new Result(
+                Code: ResultCode.StorageNotFound,
+                MissingStorageExternalId: details.StorageExternalId);
+
+        if (storageContext.Value.EncryptionType == StorageEncryptionType.Full)
+            return new Result(Code: ResultCode.EncryptedStorageNotSupported);
+
         var derivedEncryption = await masterDataEncryptionBufferedFactory.Take(
             cancellationToken: cancellationToken);
 
@@ -54,15 +71,27 @@ public class CreateIntegrationWithWorkspaceQuery(
             var externalId = IntegrationExtId.NewId();
             var workspaceName = $"{type.GetWorkspaceNamePrefix()} ({externalId})";
 
+            // Full-encrypted storages are rejected in Execute before we reach this point, so
+            // passing null artifacts here is the correct shape for None/Managed.
             var workspaceResult = createWorkspaceQuery.ExecuteTransaction(
                 dbWriteContext: dbWriteContext,
                 storageExternalId: details.StorageExternalId,
                 ownerId: ownerId,
+                artifacts: null,
                 name: workspaceName,
                 maxSizeInBytes: null,
                 maxTeamMembers: null,
                 correlationId: correlationId,
                 transaction: transaction);
+
+            if (workspaceResult.Code != CreateWorkspaceQuery.ResultCode.Ok)
+            {
+                transaction.Rollback();
+
+                return workspaceResult.Code == CreateWorkspaceQuery.ResultCode.StorageNotFound
+                    ? new Result(Code: ResultCode.StorageNotFound, MissingStorageExternalId: details.StorageExternalId)
+                    : new Result(Code: ResultCode.WorkspaceCreationFailed);
+            }
 
             var integrationId = dbWriteContext
                 .OneRowCmd(
@@ -153,7 +182,9 @@ public class CreateIntegrationWithWorkspaceQuery(
     {
         Ok,
         NameNotUnique,
-        StorageNotFound
+        StorageNotFound,
+        WorkspaceCreationFailed,
+        EncryptedStorageNotSupported
     }
 
     public readonly record struct Result(

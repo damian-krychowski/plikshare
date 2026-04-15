@@ -51,7 +51,7 @@ public static class FilesEndpoints
             .WithTags("Files")
             .RequireAuthorization(policyNames: AuthPolicy.Internal)
             .AddEndpointFilter<ValidateWorkspaceFilter>()
-            .AddEndpointFilter<ValidateFullEncryptionSessionFilter>();
+            .AddEndpointFilter<ValidateWorkspaceEncryptionSessionFilter>();
         
         group.MapPost("/bulk-download-link", GetBulkDownloadLink)
             .WithName("GetBulkDownloadLink");
@@ -172,7 +172,7 @@ public static class FilesEndpoints
                 sizeInBytes: (int) attachment.SizeInBytes, //the cast is ok because attachment imported here has a size limit
                 algorithm: UploadAlgorithm.DirectUpload),
             workspace: workspaceMembership.Workspace,
-            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
             input: PipeReader.Create(
                 stream: file.OpenReadStream()), 
             cancellationToken: cancellationToken);
@@ -244,7 +244,7 @@ public static class FilesEndpoints
                 sizeInBytes: newSizeInBytes,
                 algorithm: UploadAlgorithm.DirectUpload),
             workspace: workspaceMembership.Workspace,
-            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
             input: httpContext.Request.BodyReader,
             cancellationToken: cancellationToken);
 
@@ -283,7 +283,7 @@ public static class FilesEndpoints
             boxLinkId: null,
             userIdentity: new UserIdentity(
                 UserExternalId: workspaceMembership.User.ExternalId),
-            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
             cancellationToken: cancellationToken);
 
         return result.Code switch
@@ -318,7 +318,7 @@ public static class FilesEndpoints
             workspace: workspaceMembership.Workspace,
             fileExternalId: fileExternalId,
             boxFolderId: null,
-            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
             cancellationToken: cancellationToken);
 
         return result.Code switch
@@ -578,7 +578,7 @@ public static class FilesEndpoints
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             boxFolderId: null,
             boxLinkId: null,
-            fullEncryptionSession: httpContext.TryGetFullEncryptionSession());
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
         switch (result.Code)
         {
@@ -632,7 +632,7 @@ public static class FilesEndpoints
             contentDisposition: contentDispositionType,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             enforceInternalPassThrough: false,
-            fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
             cancellationToken: cancellationToken);
 
         switch (result.Code)

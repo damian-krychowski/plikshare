@@ -168,10 +168,8 @@ using PlikShare.Search.Get;
 using PlikShare.Storages;
 using PlikShare.Storages.Create;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.FullEncryptionSessions;
-using PlikShare.Storages.UnlockFullEncryption;
-using PlikShare.Storages.ResetMasterPassword;
-using PlikShare.Storages.ChangeMasterPassword;
+using PlikShare.Users.UserEncryptionPassword;
+using PlikShare.Users.UserEncryptionSessions;
 using PlikShare.Storages.Delete;
 using PlikShare.Storages.FileCopying;
 using PlikShare.Storages.FileCopying.BulkInitiateCopyFiles;
@@ -225,6 +223,7 @@ using PlikShare.Workspaces.CreateBucket;
 using PlikShare.Workspaces.Delete;
 using PlikShare.Workspaces.Delete.QueueJob;
 using PlikShare.Workspaces.DeleteBucket;
+using PlikShare.Workspaces.Encryption;
 using PlikShare.Workspaces.GetSize;
 using PlikShare.Workspaces.Members.AcceptInvitation;
 using PlikShare.Workspaces.Members.CountAll;
@@ -303,6 +302,9 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_21_AuthProvidersTableIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_22_WorkspaceEncryptionSaltIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_23_FilesEncryptionChainSaltsIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_24_UserEncryptionKeypairIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_25_StorageEncryptionKeysIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_26_WorkspaceEncryptionKeysIntroduced>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 
@@ -424,6 +426,10 @@ public class Startup
 
         builder.Services.AddSingleton<IQueueNormalJobExecutor, CreateWorkspaceBucketJobExecutor>();
         builder.Services.AddSingleton<CreateWorkspaceQuery>();
+        builder.Services.AddSingleton<WorkspaceEncryptionKeyReader>();
+        builder.Services.AddSingleton<UpsertWorkspaceEncryptionKeyQuery>();
+        builder.Services.AddSingleton<WorkspaceCreationPreparation>();
+        builder.Services.AddSingleton<RevokeWorkspaceEncryptionKeyQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceNameQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceMaxSizeQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceMaxTeamMembersQuery>();
@@ -456,6 +462,13 @@ public class Startup
         builder.Services.AddSingleton<GetUserDetailsQuery>();
         builder.Services.AddSingleton<UpdateUserPermissionsAndRoleQuery>();
         builder.Services.AddSingleton<UpdateUserMaxWorkspaceNumberQuery>();
+
+        builder.Services.AddSingleton<UserEncryptionDataReader>();
+        builder.Services.AddSingleton<UpsertUserEncryptionDataQuery>();
+        builder.Services.AddSingleton<SetupUserEncryptionPasswordOperation>();
+        builder.Services.AddSingleton<UnlockUserEncryptionPasswordOperation>();
+        builder.Services.AddSingleton<ChangeUserEncryptionPasswordOperation>();
+        builder.Services.AddSingleton<ResetUserEncryptionPasswordOperation>();
         builder.Services.AddSingleton<UpdateUserDefaultMaxWorkspaceSizeInBytesQuery>();
         builder.Services.AddSingleton<UpdateUserDefaultMaxWorkspaceTeamMembersQuery>();
 
@@ -549,10 +562,6 @@ public class Startup
         builder.Services.AddSingleton<DigitalOceanStorageClientFactory>();
         builder.Services.AddSingleton<CreateStorageFlow>();
         builder.Services.AddSingleton<UpdateStorageFlow>();
-        builder.Services.AddSingleton<UnlockFullEncryptionOperation>();
-        builder.Services.AddSingleton<ResetMasterPasswordOperation>();
-        builder.Services.AddSingleton<ChangeMasterPasswordOperation>();
-        builder.Services.AddSingleton<UpdateStorageEncryptionDetailsQuery>();
         builder.Services.AddSingleton<GetStoragesQuery>();
         builder.Services.AddSingleton<DeleteStorageQuery>();
         builder.Services.AddSingleton<UpdateStorageNameQuery>();
@@ -718,7 +727,8 @@ public class Startup
         app.MapLegalFilesEndpoints();
         app.MapHealthCheckEndpoints();
         app.MapStoragesEndpoints();
-        app.MapFullEncryptionSessionsEndpoints();
+        app.MapUserEncryptionSessionsEndpoints();
+        app.MapUserEncryptionPasswordEndpoints();
         app.MapDashboardEndpoints();
         app.MapEmailProvidersEndpoints();
         app.MapAuthProvidersEndpoints();

@@ -52,29 +52,20 @@ public static class StorageEncryptionExtensions
         };
     }
 
-    public static EncryptionKeyProvider? PrepareEncryptionKeyProvider(
+    public static ManagedEncryptionKeyProvider? PrepareEncryptionKeyProvider(
         StorageEncryptionDetails? encryptionDetails)
     {
         if (encryptionDetails is null)
             return null;
 
-        if (encryptionDetails.Full is not null)
-        {
-            return new EncryptionKeyProvider
-            {
-                Full = new FullEncryptionKeyProvider(
-                    encryptionDetails.Full)
-            };
-        }
-
         if (encryptionDetails.Managed is not null)
         {
-            return new EncryptionKeyProvider
-            {
-                Managed = new ManagedEncryptionKeyProvider(
-                    encryptionDetails.Managed.Ikms)
-            };
+            return new ManagedEncryptionKeyProvider(
+                encryptionDetails.Managed.Ikms);
         }
+
+        if (encryptionDetails.Full is not null)
+            return null;
 
         throw new InvalidOperationException(
             "StorageEncryptionDetails must have either Managed or Full set.");

@@ -8,8 +8,7 @@ public record CreateDigitalOceanSpacesStorageRequestDto(
     string AccessKey,
     string SecretKey,
     string Region,
-    StorageEncryptionType EncryptionType,
-    string? MasterPassword = null);
+    StorageEncryptionType EncryptionType);
 
 public record CreateDigitalOceanSpacesStorageResponseDto(
     StorageExtId ExternalId,

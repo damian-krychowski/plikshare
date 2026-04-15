@@ -18,7 +18,7 @@ public class UploadsApi(IFlurlClient flurlClient, string appUrl)
         BulkInitiateFileUploadRequestDto request,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         return await flurlClient.ExecutePost<BulkInitiateFileUploadResponseDto, BulkInitiateFileUploadRequestDto>(
             appUrl: appUrl,
@@ -28,20 +28,20 @@ public class UploadsApi(IFlurlClient flurlClient, string appUrl)
             antiforgery: antiforgery,
             isRequestInProtobuf: true,
             isResponseInProtobuf: true,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task<GetFileUploadDetailsResponseDto> GetDetails(
         WorkspaceExtId workspaceExternalId,
         FileUploadExtId fileUploadExternalId,
         SessionAuthCookie? cookie,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         return await flurlClient.ExecuteGet<GetFileUploadDetailsResponseDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/uploads/{fileUploadExternalId}",
             cookie: cookie,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task<InitiateFilePartUploadResponseDto> InitiatePartUpload(
@@ -50,7 +50,7 @@ public class UploadsApi(IFlurlClient flurlClient, string appUrl)
         int partNumber,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         return await flurlClient.ExecutePost<InitiateFilePartUploadResponseDto, object>(
             appUrl: appUrl,
@@ -58,7 +58,7 @@ public class UploadsApi(IFlurlClient flurlClient, string appUrl)
             request: new { },
             cookie: cookie,
             antiforgery: antiforgery,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task CompletePartUpload(
@@ -68,7 +68,7 @@ public class UploadsApi(IFlurlClient flurlClient, string appUrl)
         CompleteFilePartUploadRequestDto request,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         await flurlClient.ExecutePost(
             appUrl: appUrl,
@@ -76,7 +76,7 @@ public class UploadsApi(IFlurlClient flurlClient, string appUrl)
             request: request,
             cookie: cookie,
             antiforgery: antiforgery,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task<CompleteFileUploadResponseDto> CompleteUpload(
@@ -84,7 +84,7 @@ public class UploadsApi(IFlurlClient flurlClient, string appUrl)
         FileUploadExtId fileUploadExternalId,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         return await flurlClient.ExecutePost<CompleteFileUploadResponseDto, object>(
             appUrl: appUrl,
@@ -92,30 +92,30 @@ public class UploadsApi(IFlurlClient flurlClient, string appUrl)
             request: new { },
             cookie: cookie,
             antiforgery: antiforgery,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task<GetUploadsListResponseDto> GetList(
         WorkspaceExtId workspaceExternalId,
         SessionAuthCookie? cookie,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         return await flurlClient.ExecuteGet<GetUploadsListResponseDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/uploads",
             cookie: cookie,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task<GetUploadsCountResponse> GetCount(
         WorkspaceExtId workspaceExternalId,
         SessionAuthCookie? cookie,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         return await flurlClient.ExecuteGet<GetUploadsCountResponse>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/uploads/count",
             cookie: cookie,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 }

@@ -330,7 +330,7 @@ public class CopyFileQueueJobExecutor(
                 fileSizeInBytes: job.FileSizeInBytes,
                 fileEncryptionMetadata: job.SourceFileEncryptionMetadata,
                 workspace: sourceWorkspace,
-                fullEncryptionSession: null, //todo: background jobs cannot access full-encryption sessions yet
+                workspaceEncryptionSession: null, //todo: background jobs cannot access full-encryption sessions yet
                 cancellationToken: stoppingToken);
 
             await fileStream.WriteTo(
@@ -363,7 +363,7 @@ public class CopyFileQueueJobExecutor(
                     sizeInBytes: (int)job.FileSizeInBytes,
                     algorithm: UploadAlgorithm.DirectUpload),
                 workspace: destinationWorkspace,
-                fullEncryptionSession: null, //todo KEK not available in queue jobs yet
+                workspaceEncryptionSession: null, //todo KEK not available in queue jobs yet
                 input: input,
                 cancellationToken: stoppingToken);
 
@@ -413,7 +413,7 @@ public class CopyFileQueueJobExecutor(
                         Part: new FilePart(partNumber, partSizeInBytes),
                         UploadAlgorithm: UploadAlgorithm.MultiStepChunkUpload),
                     workspace: destinationWorkspace,
-                    fullEncryptionSession: null, //todo full encryption session not available (KEK not available in queue jobs yet)
+                    workspaceEncryptionSession: null, //todo full encryption session not available (KEK not available in queue jobs yet)
                     input: input,
                     cancellationToken: cancellationToken);
 

@@ -37,7 +37,7 @@ public class BulkInitiateFileUploadOperation(
         IUserIdentity userIdentity,
         int? boxFolderId,
         int? boxLinkId,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken = default)
     {
         var workspaceSpace = CheckWorkspaceSpace(
@@ -123,7 +123,7 @@ public class BulkInitiateFileUploadOperation(
             newWorkspaceSizeInBytes: boxFolderId is not null
                 ? null  //not to reveal size of the workspace to unauthorized users of a box
                 : workspaceSpace.NewWorkspaceSizeInBytes,
-            fullEncryptionSession: fullEncryptionSession);
+            workspaceEncryptionSession: workspaceEncryptionSession);
 
         var initiatedFiles = batchUploadResults
             .Select(bu => new InitiatedFile(
@@ -168,7 +168,7 @@ public class BulkInitiateFileUploadOperation(
         IUserIdentity userIdentity,
         List<UploadDetails> batchUploadResults,
         long? newWorkspaceSizeInBytes,
-        FullEncryptionSession? fullEncryptionSession)
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         var directUploadsCount = 0;
         var singleChunkUploads = new List<BulkInitiateSingleChunkUploadResponseDto>();
@@ -222,7 +222,7 @@ public class BulkInitiateFileUploadOperation(
                             },
                             ExpirationDate = clock.UtcNow.AddMinutes(15),
                             BoxLinkId = boxLinkId,
-                            Kek = fullEncryptionSession?.Kek
+                            WorkspaceDek = workspaceEncryptionSession?.WorkspaceDek
                         })
                 }
                 : null,

@@ -15,7 +15,7 @@ public class S3UploadOperation
         Memory<byte> fileBytes,
         FileToUploadDetails file,
         FilePartUpload part,
-        FullEncryptionSession? fullEncryptionSession,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         string bucketName,
         S3StorageClient s3StorageClient,
         CancellationToken cancellationToken)
@@ -36,7 +36,7 @@ public class S3UploadOperation
                 fileSizeInBytes: file.SizeInBytes,
                 filePart: part.Part,
                 encryptionMetadata: file.EncryptionMetadata,
-                fullEncryptionSession: fullEncryptionSession,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 cancellationToken: cancellationToken);
 
             var etag = await UploadToS3(

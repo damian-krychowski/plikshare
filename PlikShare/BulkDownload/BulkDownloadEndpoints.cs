@@ -102,7 +102,7 @@ public static class BulkDownloadEndpoints
                     await s3BulkDownloadOperation.Execute(
                         bulkDownloadDetails: bulkDownloadDetails,
                         bucketName: workspaceContext.BucketName,
-                        fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+                        workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
                         s3StorageClient: s3StorageClient,
                         responsePipeWriter: httpContext.Response.BodyWriter,
                         cancellationToken: cancellationToken);
@@ -112,7 +112,7 @@ public static class BulkDownloadEndpoints
                     await hardDriveBulkDownloadOperation.Execute(
                         bulkDownloadDetails: bulkDownloadDetails,
                         bucketName: workspaceContext.BucketName,
-                        fullEncryptionSession: httpContext.TryGetFullEncryptionSession(),
+                        workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
                         hardDriveStorage: hardDriveStorageClient,
                         responsePipeWriter: httpContext.Response.BodyWriter,
                         cancellationToken: cancellationToken);

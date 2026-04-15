@@ -24,7 +24,7 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
         UpdateFileNameRequestDto request,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
@@ -32,7 +32,7 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
             request: request,
             cookie: cookie,
             antiforgery: antiforgery,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task UpdateNote(
@@ -41,7 +41,7 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
         SaveFileNoteRequestDto request,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
@@ -49,7 +49,7 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
             request: request,
             cookie: cookie,
             antiforgery: antiforgery,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task CreateComment(
@@ -58,7 +58,7 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
         CreateFileCommentRequestDto request,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         await flurlClient.ExecutePost(
             appUrl: appUrl,
@@ -66,7 +66,7 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
             request: request,
             cookie: cookie,
             antiforgery: antiforgery,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task DeleteComment(
@@ -75,14 +75,14 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
         FileArtifactExtId commentExternalId,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         await flurlClient.ExecuteDelete(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/files/{fileExternalId}/comments/{commentExternalId}",
             cookie: cookie,
             antiforgery: antiforgery,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task EditComment(
@@ -92,7 +92,7 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
         EditFileCommentRequestDto request,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
@@ -100,7 +100,7 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
             request: request,
             cookie: cookie,
             antiforgery: antiforgery,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task UpdateContent(
@@ -109,12 +109,12 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
         byte[] content,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         var response = await flurlClient
             .Request(appUrl, $"api/workspaces/{workspaceExternalId}/files/{fileExternalId}/content")
             .AllowAnyHttpStatus()
-            .WithCookies(cookie, fullEncryptionSession)
+            .WithCookies(cookie, workspaceEncryptionSession)
             .WithAntiforgery(antiforgery)
             .PutAsync(new ByteArrayContent(content));
 
@@ -131,7 +131,7 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
         FileExtId fileExternalId,
         string[] fields,
         SessionAuthCookie? cookie,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         var fieldsQuery = string.Join("&", fields.Select(f => $"fields[]={f}"));
 
@@ -139,7 +139,7 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/files/{fileExternalId}/preview/details?{fieldsQuery}",
             cookie: cookie,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task<GetFileDownloadLinkResponseDto> GetDownloadLink(
@@ -147,27 +147,27 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
         FileExtId fileExternalId,
         string contentDisposition,
         SessionAuthCookie? cookie,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         return await flurlClient.ExecuteGet<GetFileDownloadLinkResponseDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/files/{fileExternalId}/download-link?contentDisposition={contentDisposition}",
             cookie: cookie,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task<GetZipFileDetailsResponseDto> GetZipDetails(
         WorkspaceExtId workspaceExternalId,
         FileExtId fileExternalId,
         SessionAuthCookie? cookie,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         return await flurlClient.ExecuteGet<GetZipFileDetailsResponseDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/files/{fileExternalId}/preview/zip",
             cookie: cookie,
             isResponseInProtobuf: true,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task<GetBulkDownloadLinkResponseDto> GetBulkDownloadLink(
@@ -178,7 +178,7 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
         AntiforgeryCookies antiforgery,
         List<FileExtId>? excludedFiles = null,
         List<FolderExtId>? excludedFolders = null,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         return await flurlClient.ExecutePost<GetBulkDownloadLinkResponseDto, GetBulkDownloadLinkRequestDto>(
             appUrl: appUrl,
@@ -192,7 +192,7 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
             },
             cookie: cookie,
             antiforgery: antiforgery,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task<GetZipContentDownloadLinkResponseDto> GetZipContentDownloadLink(
@@ -202,7 +202,7 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
         ContentDispositionType contentDisposition,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery,
-        Cookie? fullEncryptionSession = null)
+        Cookie? workspaceEncryptionSession = null)
     {
         return await flurlClient.ExecutePost<GetZipContentDownloadLinkResponseDto, GetZipContentDownloadLinkRequestDto>(
             appUrl: appUrl,
@@ -212,6 +212,6 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
                 ContentDisposition: contentDisposition),
             cookie: cookie,
             antiforgery: antiforgery,
-            extraCookie: fullEncryptionSession);
+            extraCookie: workspaceEncryptionSession);
     }
 }

@@ -72,7 +72,7 @@ public class zip_file_tests : TestFixture
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
             cookie: user.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then — verify against System.IO.Compression.ZipArchive as ground truth
         using var zipStream = new MemoryStream(zipContent);
@@ -149,7 +149,7 @@ public class zip_file_tests : TestFixture
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
             cookie: user.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //when — download each entry
         var textEntry = zipDetails.Items.Single(i => i.FilePath == "entry.txt");
@@ -167,7 +167,7 @@ public class zip_file_tests : TestFixture
             contentDisposition: ContentDispositionType.Attachment,
             cookie: user.Cookie,
             antiforgery: user.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         var textDownloaded = await Api.PreSignedFiles.DownloadFile(
             preSignedUrl: textDownloadLink.DownloadPreSignedUrl,
@@ -188,7 +188,7 @@ public class zip_file_tests : TestFixture
             contentDisposition: ContentDispositionType.Attachment,
             cookie: user.Cookie,
             antiforgery: user.Antiforgery,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         var binaryDownloaded = await Api.PreSignedFiles.DownloadFile(
             preSignedUrl: binaryDownloadLink.DownloadPreSignedUrl,
@@ -227,7 +227,7 @@ public class zip_file_tests : TestFixture
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
             cookie: user.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         (zipDetails.Items ?? []).Should().BeEmpty();
@@ -271,7 +271,7 @@ public class zip_file_tests : TestFixture
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
             cookie: user.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         zipDetails.Items.Should().HaveCount(50);
@@ -329,7 +329,7 @@ public class zip_file_tests : TestFixture
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
             cookie: user.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         zipDetails.Items.Should().HaveCount(6);
@@ -385,7 +385,7 @@ public class zip_file_tests : TestFixture
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
             cookie: user.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         zipDetails.Items.Should().HaveCount(1);
@@ -428,7 +428,7 @@ public class zip_file_tests : TestFixture
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
             cookie: user.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         zipDetails.Items.Should().HaveCount(1);
@@ -473,7 +473,7 @@ public class zip_file_tests : TestFixture
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
             cookie: user.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         zipDetails.Items.Should().HaveCount(1);
@@ -518,7 +518,7 @@ public class zip_file_tests : TestFixture
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
             cookie: user.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then — only non-empty files should be returned
         zipDetails.Items.Should().HaveCount(2);
@@ -554,7 +554,7 @@ public class zip_file_tests : TestFixture
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
             cookie: user.Cookie,
-            fullEncryptionSession: workspace.FullEncryptionSession);
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //then
         var exception = await act.Should().ThrowAsync<TestApiCallException>();
