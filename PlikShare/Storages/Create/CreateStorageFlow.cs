@@ -9,7 +9,6 @@ namespace PlikShare.Storages.Create;
 
 public class CreateStorageFlow(
     CreateStorageQuery createStorageQuery,
-    UpsertStorageEncryptionKeyQuery upsertStorageEncryptionKeyQuery,
     UserEncryptionDataReader userEncryptionDataReader,
     StorageClientStore storageClientStore)
 {
@@ -76,38 +75,30 @@ public class CreateStorageFlow(
 
         try
         {
+            CreatorEncryptionKeyData? creatorKeyData = null;
+
+            if (encryptionType == StorageEncryptionType.Full)
+            {
+                var wrappedDek = UserKeyPair.SealTo(
+                    recipientPublicKey: creatorEncryption!.PublicKey,
+                    plaintext: fullDekToWrap!);
+
+                creatorKeyData = new CreatorEncryptionKeyData(
+                    UserId: creator.Id,
+                    WrappedStorageDek: wrappedDek);
+            }
+
             var queryResult = await createStorageQuery.Execute(
                 name: name,
                 storageType: preparation.Details.StorageType,
                 detailsJson: preparation.Details.DetailsJson,
                 encryptionType: encryptionType,
                 encryptionDetails: encryptionDetails,
+                creatorKeyData: creatorKeyData,
                 cancellationToken: cancellationToken);
 
             if (queryResult.Code == CreateStorageQuery.ResultCode.NameNotUnique)
                 return new Result(Code: StorageOperationResultCode.NameNotUnique);
-
-            if (encryptionType == StorageEncryptionType.Full)
-            {
-                // Seal the Storage DEK to the creator's X25519 public key and record the
-                // wrap in sek_storage_encryption_keys. Until this row exists the storage is
-                // unusable (no one holds the DEK), so the creator is implicitly the first
-                // storage admin once this write commits.
-                var wrappedDek = UserKeyPair.SealTo(
-                    recipientPublicKey: creatorEncryption!.PublicKey,
-                    plaintext: fullDekToWrap!);
-
-                await upsertStorageEncryptionKeyQuery.Execute(
-                    storageId: queryResult.StorageId,
-                    userId: creator.Id,
-                    // v0 is the initial Storage DEK — HkdfDekDerivation.DeriveDek(recoverySeed, 0)
-                    // gave us the DEK we are wrapping here. A future rotation will insert v1+ rows
-                    // for every existing admin alongside this one.
-                    storageDekVersion: 0,
-                    wrappedStorageDek: wrappedDek,
-                    wrappedByUserId: creator.Id,
-                    cancellationToken: cancellationToken);
-            }
 
             var storageClientDetails = new StorageClientDetails
             {

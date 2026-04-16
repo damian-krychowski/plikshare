@@ -536,4 +536,97 @@ public class user_encryption_password_tests : TestFixture
         //then
         downloaded.Should().Equal(content);
     }
+
+    [Fact]
+    public async Task after_lock_full_workspace_access_fails_with_423()
+    {
+        //given
+        var storage = await CreateHardDriveStorage(
+            user: AppOwner,
+            encryptionType: StorageEncryptionType.Full);
+
+        var workspace = await CreateWorkspace(
+            storage: storage,
+            user: AppOwner);
+
+        var folder = await CreateFolder(
+            workspace: workspace,
+            user: AppOwner);
+
+        var content = Random.Bytes(256);
+
+        var uploadedFile = await UploadFile(
+            content: content,
+            fileName: $"{Random.Name("file")}.bin",
+            contentType: "application/octet-stream",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        //when
+        await Api.UserEncryptionPassword.Lock(
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then
+        var apiError = await Assert.ThrowsAsync<TestApiCallException>(
+            async () => await Api.Files.GetDownloadLink(
+                workspaceExternalId: workspace.ExternalId,
+                fileExternalId: uploadedFile.ExternalId,
+                contentDisposition: "attachment",
+                cookie: AppOwner.Cookie,
+                workspaceEncryptionSession: null));
+
+        apiError.StatusCode.Should().Be(StatusCodes.Status423Locked);
+        apiError.HttpError.Should().NotBeNull();
+        apiError.HttpError!.Code.Should().Be("user-encryption-session-required");
+    }
+
+    [Fact]
+    public async Task after_lock_and_unlock_full_workspace_access_is_restored()
+    {
+        //given
+        var storage = await CreateHardDriveStorage(
+            user: AppOwner,
+            encryptionType: StorageEncryptionType.Full);
+
+        var workspace = await CreateWorkspace(
+            storage: storage,
+            user: AppOwner);
+
+        var folder = await CreateFolder(
+            workspace: workspace,
+            user: AppOwner);
+
+        var content = Random.Bytes(256);
+
+        var uploadedFile = await UploadFile(
+            content: content,
+            fileName: $"{Random.Name("file")}.bin",
+            contentType: "application/octet-stream",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        await Api.UserEncryptionPassword.Lock(
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //when
+        var encryptionCookie = await Api.UserEncryptionPassword.Unlock(
+            userExternalId: AppOwner.ExternalId,
+            encryptionPassword: DefaultTestEncryptionPassword,
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        var workspaceAfterUnlock = workspace with { WorkspaceEncryptionSession = encryptionCookie };
+
+        var downloaded = await DownloadFile(
+            fileExternalId: uploadedFile.ExternalId,
+            workspace: workspaceAfterUnlock,
+            user: AppOwner);
+
+        //then
+        downloaded.Should().Equal(content);
+    }
 }

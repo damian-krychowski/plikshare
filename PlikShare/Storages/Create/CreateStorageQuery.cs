@@ -10,6 +10,7 @@ namespace PlikShare.Storages.Create;
 
 public class CreateStorageQuery(
     MasterDataEncryptionBufferedFactory masterDataEncryptionBufferedFactory,
+    UpsertStorageEncryptionKeyQuery upsertStorageEncryptionKeyQuery,
     DbWriteQueue dbWriteQueue)
 {
     public async Task<Result> Execute(
@@ -18,6 +19,7 @@ public class CreateStorageQuery(
         string detailsJson,
         StorageEncryptionType encryptionType,
         StorageEncryptionDetails? encryptionDetails,
+        CreatorEncryptionKeyData? creatorKeyData,
         CancellationToken cancellationToken)
     {
         var derivedEncryption = await masterDataEncryptionBufferedFactory.Take(
@@ -31,6 +33,7 @@ public class CreateStorageQuery(
                 detailsJson,
                 encryptionType,
                 encryptionDetails,
+                creatorKeyData,
                 derivedEncryption),
             cancellationToken: cancellationToken);
     }
@@ -42,8 +45,11 @@ public class CreateStorageQuery(
         string detailsJson,
         StorageEncryptionType encryptionType,
         StorageEncryptionDetails? encryptionDetails,
+        CreatorEncryptionKeyData? creatorKeyData,
         IDerivedMasterDataEncryption derivedEncryption)
     {
+        using var transaction = dbWriteContext.Connection.BeginTransaction();
+
         try
         {
             var storageExternalId = StorageExtId.NewId();
@@ -65,10 +71,11 @@ public class CreateStorageQuery(
                              $details,
                              $encryptionType,
                              $encryptionDetails
-                         ) 
+                         )
                          RETURNING s_id
                          """,
-                    readRowFunc: reader => reader.GetInt32(0))
+                    readRowFunc: reader => reader.GetInt32(0),
+                    transaction: transaction)
                 .WithParameter("$externalId", storageExternalId.Value)
                 .WithParameter("$type", storageType)
                 .WithParameter("$name", name)
@@ -77,6 +84,19 @@ public class CreateStorageQuery(
                 .WithParameter("$encryptionDetails", encryptionDetails.EncryptJson(derivedEncryption))
                 .ExecuteOrThrow();
 
+            if (creatorKeyData is not null)
+            {
+                upsertStorageEncryptionKeyQuery.ExecuteTransaction(
+                    dbWriteContext: dbWriteContext,
+                    storageId: storageId,
+                    userId: creatorKeyData.UserId,
+                    storageDekVersion: 0,
+                    wrappedStorageDek: creatorKeyData.WrappedStorageDek,
+                    wrappedByUserId: creatorKeyData.UserId,
+                    transaction: transaction);
+            }
+
+            transaction.Commit();
 
             Log.Information("Storage#{StorageId} '{StorageName}' of type {StorageType} with ExternalId '{StorageExternalId}' was created.",
                 storageId,
@@ -91,6 +111,8 @@ public class CreateStorageQuery(
         }
         catch (SqliteException e)
         {
+            transaction.Rollback();
+
             if (e.HasUniqueConstraintFailed(tableName: "s_storages", columnName: "s_name"))
             {
                 return new Result(Code: ResultCode.NameNotUnique);
@@ -104,6 +126,8 @@ public class CreateStorageQuery(
         }
         catch (Exception e)
         {
+            transaction.Rollback();
+
             Log.Error(e, "Something went wrong while creating {StorageType} storage '{StorageName}'",
                 storageType,
                 name);
@@ -123,3 +147,7 @@ public class CreateStorageQuery(
         int StorageId = 0,
         StorageExtId StorageExternalId = default);
 }
+
+public record CreatorEncryptionKeyData(
+    int UserId,
+    byte[] WrappedStorageDek);

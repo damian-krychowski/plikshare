@@ -74,6 +74,18 @@ public class UserEncryptionPasswordApi(IFlurlClient flurlClient, string appUrl)
         return new GenericCookie(cookieName, encryptionCookie!.Value);
     }
 
+    public async Task Lock(
+        SessionAuthCookie cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePost(
+            appUrl: appUrl,
+            apiPath: "api/user-encryption-password/lock",
+            request: new { },
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
     public async Task<GenericCookie> Change(
         UserExtId userExternalId,
         string oldPassword,
