@@ -1,0 +1,166 @@
+﻿using System.IO.Pipelines;
+using PlikShare.Core.Encryption;
+using PlikShare.Core.Utils;
+using PlikShare.Files.PreSignedLinks.RangeRequests;
+using PlikShare.Storages.Encryption;
+using PlikShare.Storages.FileReading;
+
+namespace PlikShare.Storages.AzureBlob.Download;
+
+public class AzureBlobDownloadOperation
+{
+    private class AzureBlobFile(
+        long fileSizeInBytes,
+        AzureBlobStorageClient azureBlobStorageClient,
+        Stream blobStream) : IFile
+    {
+        public async Task WriteTo(PipeWriter output, CancellationToken cancellationToken)
+        {
+            if (azureBlobStorageClient.EncryptionType == StorageEncryptionType.None)
+            {
+                await blobStream.CopyToAsync(
+                    destination: output,
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            if (azureBlobStorageClient.EncryptionType == StorageEncryptionType.Managed)
+            {
+                await Aes256GcmStreaming.Decrypt(
+                    keyProvider: azureBlobStorageClient.EncryptionKeyProvider!,
+                    fileSizeInBytes: fileSizeInBytes,
+                    input: PipeReader.Create(
+                        blobStream,
+                        new StreamPipeReaderOptions(
+                            bufferSize: PlikShareStreams.DefaultBufferSize,
+                            leaveOpen: false)),
+                    output: output,
+                    cancellationToken);
+
+                return;
+            }
+
+            throw new NotImplementedException(
+                $"Encryption type '{azureBlobStorageClient.EncryptionType}' is not implemented for Storage#{azureBlobStorageClient.StorageId}");
+        }
+
+        public void Dispose() => blobStream.Dispose();
+        public ValueTask DisposeAsync() => blobStream.DisposeAsync();
+    }
+
+    private class AzureBlobRangeFile(
+        long fileSizeInBytes,
+        FileEncryption fileEncryption,
+        BytesRange range,
+        AzureBlobStorageClient azureBlobStorageClient,
+        Stream blobStream) : IFile
+    {
+        public async Task WriteTo(PipeWriter output, CancellationToken cancellationToken)
+        {
+            if (azureBlobStorageClient.EncryptionType == StorageEncryptionType.None)
+            {
+                await blobStream.CopyToAsync(
+                    destination: output,
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            if (azureBlobStorageClient.EncryptionType == StorageEncryptionType.Managed)
+            {
+                var encryptedRange = Aes256GcmStreaming.EncryptedBytesRangeCalculator.FromUnencryptedRange(
+                    unencryptedRange: range,
+                    unencryptedFileSize: fileSizeInBytes);
+
+                await Aes256GcmStreaming.DecryptRange(
+                    keyProvider: azureBlobStorageClient.EncryptionKeyProvider!,
+                    encryptionMetadata: fileEncryption.Metadata!,
+                    range: encryptedRange,
+                    fileSizeInBytes: fileSizeInBytes,
+                    input: PipeReader.Create(
+                        blobStream,
+                        new StreamPipeReaderOptions(
+                            bufferSize: PlikShareStreams.DefaultBufferSize,
+                            leaveOpen: false)),
+                    output: output,
+                    cancellationToken);
+
+                return;
+            }
+
+            throw new NotImplementedException(
+                $"Encryption type '{azureBlobStorageClient.EncryptionType}' is not implemented for Storage#{azureBlobStorageClient.StorageId}");
+        }
+
+        public void Dispose() => blobStream.Dispose();
+        public ValueTask DisposeAsync() => blobStream.DisposeAsync();
+    }
+
+    public static async Task<IFile> GetFile(
+        S3FileKey s3FileKey,
+        long fileSizeInBytes,
+        string bucketName,
+        AzureBlobStorageClient azureBlobStorageClient,
+        CancellationToken cancellationToken)
+    {
+        var stream = await azureBlobStorageClient.GetFile(
+            bucketName: bucketName,
+            key: s3FileKey,
+            cancellationToken: cancellationToken);
+
+        return new AzureBlobFile(
+            fileSizeInBytes,
+            azureBlobStorageClient,
+            stream);
+    }
+
+    public static async Task<IFile> GetFileRange(
+        S3FileKey s3FileKey,
+        FileEncryption fileEncryption,
+        long fileSizeInBytes,
+        BytesRange range,
+        string bucketName,
+        AzureBlobStorageClient azureBlobStorageClient,
+        CancellationToken cancellationToken)
+    {
+        if (azureBlobStorageClient.EncryptionType == StorageEncryptionType.None)
+        {
+            var stream = await azureBlobStorageClient.GetFileRange(
+                bucketName: bucketName,
+                key: s3FileKey,
+                range: range,
+                cancellationToken: cancellationToken);
+
+            return new AzureBlobRangeFile(
+                fileSizeInBytes,
+                fileEncryption,
+                range,
+                azureBlobStorageClient,
+                stream);
+        }
+
+        if (azureBlobStorageClient.EncryptionType == StorageEncryptionType.Managed)
+        {
+            var encryptedRange = Aes256GcmStreaming.EncryptedBytesRangeCalculator.FromUnencryptedRange(
+                unencryptedRange: range,
+                unencryptedFileSize: fileSizeInBytes);
+
+            var stream = await azureBlobStorageClient.GetFileRange(
+                bucketName: bucketName,
+                key: s3FileKey,
+                range: new BytesRange(
+                    Start: encryptedRange.FirstSegment.Start,
+                    End: encryptedRange.LastSegment.End),
+                cancellationToken: cancellationToken);
+
+            return new AzureBlobRangeFile(
+                fileSizeInBytes,
+                fileEncryption,
+                range,
+                azureBlobStorageClient,
+                stream);
+        }
+
+        throw new NotImplementedException(
+            $"Encryption type '{azureBlobStorageClient.EncryptionType}' is not implemented for Storage#{azureBlobStorageClient.StorageId}");
+    }
+}

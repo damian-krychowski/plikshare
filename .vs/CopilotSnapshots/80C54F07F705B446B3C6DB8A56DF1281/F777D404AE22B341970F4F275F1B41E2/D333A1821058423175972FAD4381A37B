@@ -1,0 +1,99 @@
+﻿using PlikShare.Core.Encryption;
+using PlikShare.Files.PreSignedLinks;
+using PlikShare.Files.Records;
+using PlikShare.Storages.Encryption;
+using PlikShare.Uploads.Algorithm;
+using PlikShare.Uploads.Cache;
+using Serilog;
+
+namespace PlikShare.Storages.AzureBlob.Upload;
+
+public class AzureBlobUploadOperation
+{
+    private static readonly Serilog.ILogger Logger = Log.ForContext<AzureBlobUploadOperation>();
+
+    public static async ValueTask<FilePartUploadResult> Execute(
+        Memory<byte> fileBytes,
+        FileToUploadDetails file,
+        FilePartDetails part,
+        string bucketName,
+        AzureBlobStorageClient azureBlobStorageClient,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (file.Encryption.EncryptionType == StorageEncryptionType.Managed)
+            {
+                var encryptionKey = azureBlobStorageClient
+                    .EncryptionKeyProvider!
+                    .GetEncryptionKey(version: file.Encryption.Metadata!.KeyVersion);
+
+                Aes256GcmStreaming.EncryptFilePartInPlace(
+                    key: encryptionKey,
+                    salt: file.Encryption.Metadata!.Salt,
+                    noncePrefix: file.Encryption.Metadata.NoncePrefix,
+                    partNumber: part.Number,
+                    partSizeInBytes: part.SizeInBytes,
+                    fullFileSizeInBytes: file.SizeInBytes,
+                    inputOutputBuffer: fileBytes,
+                    cancellationToken: cancellationToken);
+            }
+
+            var etag = await Upload(
+                partNumber: part.Number,
+                azureBlobStorageClient: azureBlobStorageClient,
+                s3FileKey: file.S3FileKey,
+                uploadId: file.S3UploadId,
+                bucketName: bucketName,
+                fileBytes: fileBytes,
+                uploadAlgorithm: part.UploadAlgorithm,
+                cancellationToken: cancellationToken);
+
+            return new FilePartUploadResult(ETag: etag);
+        }
+        catch (Exception e)
+        {
+            Logger.Error(e,
+                "Failed to upload part {PartNumber} of file {FileExternalId} to Azure Blob",
+                part.Number,
+                file.S3FileKey.FileExternalId);
+
+            throw;
+        }
+    }
+
+    private static Task<string> Upload(
+        int partNumber,
+        AzureBlobStorageClient azureBlobStorageClient,
+        S3FileKey s3FileKey,
+        string uploadId,
+        string bucketName,
+        ReadOnlyMemory<byte> fileBytes,
+        UploadAlgorithm uploadAlgorithm,
+        CancellationToken cancellationToken)
+    {
+        return uploadAlgorithm switch
+        {
+            UploadAlgorithm.DirectUpload => azureBlobStorageClient.UploadFile(
+                fileBytes: fileBytes,
+                bucketName: bucketName,
+                key: s3FileKey,
+                cancellationToken: cancellationToken),
+
+            UploadAlgorithm.MultiStepChunkUpload => azureBlobStorageClient.UploadPart(
+                fileBytes: fileBytes,
+                bucketName: bucketName,
+                key: s3FileKey,
+                uploadId: uploadId,
+                partNumber: partNumber,
+                cancellationToken: cancellationToken),
+
+            UploadAlgorithm.SingleChunkUpload => throw new NotSupportedException(
+                message: $"Upload algorithm '{uploadAlgorithm}' is not supported for {nameof(AzureBlobUploadOperation)}"),
+
+            _ => throw new ArgumentOutOfRangeException(
+                paramName: nameof(uploadAlgorithm),
+                message: $"Upload algorithm '{uploadAlgorithm}' is not recognized")
+        };
+    }
+}

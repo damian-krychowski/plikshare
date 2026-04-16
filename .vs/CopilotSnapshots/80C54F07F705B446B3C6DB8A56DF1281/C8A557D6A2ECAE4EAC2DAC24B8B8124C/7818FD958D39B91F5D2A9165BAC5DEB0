@@ -1,0 +1,134 @@
+﻿import { Component, Inject, ViewEncapsulation, signal } from '@angular/core';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
+import { AppStorageEncryptionType, AzureBlobAuthType, StoragesApi } from '../../../../services/storages.api';
+import { SecureInputDirective } from '../../../../shared/secure-input.directive';
+import { MatRadioModule } from '@angular/material/radio';
+
+@Component({
+    selector: 'app-edit-azure-blob-storage',
+    imports: [
+        FormsModule,
+        MatFormFieldModule,
+        MatInputModule,
+        ReactiveFormsModule,
+        MatButtonModule,
+        SecureInputDirective,
+        MatRadioModule
+    ],
+    templateUrl: './edit-azure-blob-storage.component.html',
+    styleUrl: './edit-azure-blob-storage.component.scss',
+    encapsulation: ViewEncapsulation.None
+})
+export class EditAzureBlobStorageComponent {
+    isLoading = signal(false);
+    couldNotConnect = signal(false);
+
+    authType = new FormControl<AzureBlobAuthType>('shared-key', Validators.required);
+    encryptionType = new FormControl<AppStorageEncryptionType>('none', Validators.required);
+    accountName = new FormControl('');
+    accountKey = new FormControl('');
+    serviceUrl = new FormControl('', [Validators.required]);
+    sasToken = new FormControl('');
+    managedIdentityClientId = new FormControl('');
+
+    formGroup: FormGroup;
+    wasSubmitted = signal(false);
+
+    constructor(
+        private _storagesApi: StoragesApi,
+        public dialogRef: MatDialogRef<EditAzureBlobStorageComponent>,
+        @Inject(MAT_DIALOG_DATA) public data: {
+            storageExternalId: string,
+            authType?: AzureBlobAuthType,
+            accountName?: string,
+            serviceUrl?: string,
+            sasToken?: string,
+            managedIdentityClientId?: string,
+            encryptionType?: AppStorageEncryptionType
+        }) {
+
+        this.formGroup = new FormGroup({
+            authType: this.authType,
+            encryptionType: this.encryptionType,
+            accountName: this.accountName,
+            accountKey: this.accountKey,
+            serviceUrl: this.serviceUrl,
+            sasToken: this.sasToken,
+            managedIdentityClientId: this.managedIdentityClientId
+        });
+
+        this.authType.setValue(data.authType ?? 'shared-key');
+        this.encryptionType.setValue(data.encryptionType ?? 'none');
+        this.accountName.setValue(data.accountName ?? '');
+        this.serviceUrl.setValue(data.serviceUrl ?? '');
+        this.sasToken.setValue(data.sasToken ?? '');
+        this.managedIdentityClientId.setValue(data.managedIdentityClientId ?? '');
+
+        this.authType.valueChanges.subscribe(() => this.applyAuthTypeValidators());
+        this.applyAuthTypeValidators();
+    }
+
+    private applyAuthTypeValidators() {
+        const authType = this.authType.value;
+
+        this.accountName.clearValidators();
+        this.accountKey.clearValidators();
+        this.sasToken.clearValidators();
+
+        if (authType === 'shared-key') {
+            this.accountName.setValidators([Validators.required]);
+            this.accountKey.setValidators([Validators.required]);
+        }
+
+        if (authType === 'sas') {
+            this.sasToken.setValidators([Validators.required]);
+        }
+
+        this.accountName.updateValueAndValidity({ emitEvent: false });
+        this.accountKey.updateValueAndValidity({ emitEvent: false });
+        this.sasToken.updateValueAndValidity({ emitEvent: false });
+    }
+
+    async onSave() {
+        this.wasSubmitted.set(true);
+
+        if (!this.formGroup.valid)
+            return;
+
+        try {
+            this.isLoading.set(true);
+
+            await this._storagesApi.updateAzureBlobStorageDetails(this.data.storageExternalId, {
+                authType: this.authType.value!,
+                encryptionType: this.encryptionType.value!,
+                accountName: this.accountName.value ?? '',
+                accountKey: this.accountKey.value ?? '',
+                serviceUrl: this.serviceUrl.value!,
+                sasToken: this.sasToken.value ?? undefined,
+                managedIdentityClientId: this.managedIdentityClientId.value ?? undefined
+            });
+
+            this.dialogRef.close();
+        } catch (err: any) {
+            if (err.error.code === 'storage-url-invalid' || err.error.code === 'storage-invalid-url') {
+                this.serviceUrl.setErrors({
+                    invalidUrl: true
+                });
+            } else if (err.error.code === 'storage-connection-failed') {
+                this.couldNotConnect.set(true);
+            } else {
+                console.error(err);
+            }
+        } finally {
+            this.isLoading.set(false);
+        }
+    }
+
+    cancel() {
+        this.dialogRef.close();
+    }
+}

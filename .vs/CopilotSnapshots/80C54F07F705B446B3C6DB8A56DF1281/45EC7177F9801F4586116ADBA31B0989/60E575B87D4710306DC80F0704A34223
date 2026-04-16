@@ -1,0 +1,14 @@
+﻿using PlikShare.Storages.Encryption;
+using PlikShare.Storages.Id;
+
+namespace PlikShare.Storages.AzureBlob.Create.Contracts;
+
+public record CreateAzureBlobStorageRequestDto(
+    string Name,
+    string AccountName,
+    string AccountKey,
+    string ServiceUrl,
+    StorageEncryptionType EncryptionType);
+
+public record CreateAzureBlobStorageResponseDto(
+    StorageExtId ExternalId);

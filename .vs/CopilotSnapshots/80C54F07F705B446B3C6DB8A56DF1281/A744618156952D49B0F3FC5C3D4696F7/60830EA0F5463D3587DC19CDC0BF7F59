@@ -1,0 +1,6 @@
+﻿namespace PlikShare.Storages.AzureBlob;
+
+public record AzureBlobDetailsEntity(
+    string AccountName,
+    string AccountKey,
+    string ServiceUrl);
