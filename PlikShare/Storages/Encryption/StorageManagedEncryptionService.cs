@@ -19,9 +19,12 @@ public static class StorageManagedEncryptionService
             // IKM_v0 is deterministically derived from the recovery seed, so the
             // recovery code alone (used by an offline tool) is sufficient to
             // reconstruct the IKM if the database is ever lost.
-            ikmV0 = HkdfDekDerivation.DeriveDek(recoveryBytes, version: 0);
+            ikmV0 = HkdfDekDerivation.DeriveDek(
+                recoveryBytes,
+                 version: 0);
 
-            var recoveryCode = RecoveryCodeCodec.Encode(recoveryBytes);
+            var recoveryCode = RecoveryCodeCodec.Encode(
+                recoveryBytes);
 
             var details = new StorageManagedEncryptionDetails(
                 Ikms: [Convert.ToBase64String(ikmV0)]);

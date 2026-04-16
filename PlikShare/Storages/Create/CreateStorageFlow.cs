@@ -1,15 +1,16 @@
 using System.Security.Cryptography;
+using PlikShare.Core.Authorization;
 using PlikShare.Core.Encryption;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
 using PlikShare.Users.Cache;
-using PlikShare.Users.UserEncryptionPassword;
 
 namespace PlikShare.Storages.Create;
 
 public class CreateStorageFlow(
     CreateStorageQuery createStorageQuery,
-    UserEncryptionDataReader userEncryptionDataReader,
+    AppOwners appOwners,
+    UserCache userCache,
     StorageClientStore storageClientStore)
 {
     public async Task<Result> Execute<TInput>(
@@ -23,17 +24,10 @@ public class CreateStorageFlow(
         // For Full encryption we need the creator's public key up-front so we can wrap
         // the freshly generated Storage DEK to them. A creator who has not yet set up
         // an encryption password has no keypair and cannot own a full-encrypted storage.
-        UserEncryptionData? creatorEncryption = null;
-        if (encryptionType == StorageEncryptionType.Full)
-        {
-            creatorEncryption = userEncryptionDataReader.LoadForUser(
-                creator.Id);
+       if (encryptionType == StorageEncryptionType.Full && creator.EncryptionMetadata is null)
+           return new Result(Code: StorageOperationResultCode.CreatorEncryptionNotSetUp);
 
-            if (creatorEncryption is null)
-                return new Result(Code: StorageOperationResultCode.CreatorEncryptionNotSetUp);
-        }
-
-        var preparation = await factory.Prepare(
+       var preparation = await factory.Prepare(
             input: input,
             cancellationToken: cancellationToken);
 
@@ -75,18 +69,12 @@ public class CreateStorageFlow(
 
         try
         {
-            CreatorEncryptionKeyData? creatorKeyData = null;
-
-            if (encryptionType == StorageEncryptionType.Full)
-            {
-                var wrappedDek = UserKeyPair.SealTo(
-                    recipientPublicKey: creatorEncryption!.PublicKey,
-                    plaintext: fullDekToWrap!);
-
-                creatorKeyData = new CreatorEncryptionKeyData(
-                    UserId: creator.Id,
-                    WrappedStorageDek: wrappedDek);
-            }
+            var ownerKeyDataList = encryptionType == StorageEncryptionType.Full
+                ? await GetOwnerEncryptionKeyDataList(
+                    creator,
+                    fullDekToWrap,
+                    cancellationToken)
+                : [];
 
             var queryResult = await createStorageQuery.Execute(
                 name: name,
@@ -94,7 +82,7 @@ public class CreateStorageFlow(
                 detailsJson: preparation.Details.DetailsJson,
                 encryptionType: encryptionType,
                 encryptionDetails: encryptionDetails,
-                creatorKeyData: creatorKeyData,
+                ownerKeyDataList: ownerKeyDataList,
                 cancellationToken: cancellationToken);
 
             if (queryResult.Code == CreateStorageQuery.ResultCode.NameNotUnique)
@@ -124,6 +112,32 @@ public class CreateStorageFlow(
             if (fullDekToWrap is not null)
                 CryptographicOperations.ZeroMemory(fullDekToWrap);
         }
+    }
+
+    private async Task<OwnerEncryptionKeyData[]> GetOwnerEncryptionKeyDataList(
+        UserContext creator,
+        byte[]? fullDekToWrap, 
+        CancellationToken cancellationToken)
+    {
+        var owners = await appOwners.OwnerContexts(
+            cache: userCache,
+            cancellationToken: cancellationToken);
+
+        return owners
+            .Append(creator)
+            .Where(user => user.EncryptionMetadata is not null)
+            .DistinctBy(user => user.Id)
+            .Select(user =>
+            {
+                var wrappedDek = UserKeyPair.SealTo(
+                    recipientPublicKey: user.EncryptionMetadata!.PublicKey,
+                    plaintext: fullDekToWrap!);
+
+                return new OwnerEncryptionKeyData(
+                    UserId: user.Id,
+                    WrappedStorageDek: wrappedDek);
+            })
+            .ToArray();
     }
 
     public record Result(

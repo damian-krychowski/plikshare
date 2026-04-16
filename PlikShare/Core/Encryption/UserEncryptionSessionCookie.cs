@@ -14,15 +14,11 @@ namespace PlikShare.Core.Encryption;
 /// </summary>
 public static class UserEncryptionSessionCookie
 {
-    public const string NamePrefix = "UserEncryptionSession_";
+    public const string CookieName = "UserEncryptionSession";
     public const string Purpose = "UserEncryptionSession";
-
-    public static string GetCookieName(UserExtId userExternalId) =>
-        NamePrefix + userExternalId.Value;
-
+    
     public static void Set(
         HttpContext httpContext,
-        UserExtId userExternalId,
         ReadOnlySpan<byte> privateKey)
     {
         var protector = httpContext.RequestServices
@@ -33,7 +29,7 @@ public static class UserEncryptionSessionCookie
         var encoded = Convert.ToBase64String(protectedBytes);
 
         httpContext.Response.Cookies.Append(
-            key: GetCookieName(userExternalId),
+            key: CookieName,
             value: encoded,
             options: new CookieOptions
             {
@@ -44,13 +40,6 @@ public static class UserEncryptionSessionCookie
             });
     }
 
-    public static void Clear(
-        HttpContext httpContext,
-        UserExtId userExternalId)
-    {
-        httpContext.Response.Cookies.Delete(GetCookieName(userExternalId));
-    }
-
     /// <summary>
     /// Reads and unprotects the user encryption cookie for the currently authenticated user.
     /// Returns null when the cookie is absent or fails to decrypt — callers that need to reject
@@ -58,15 +47,14 @@ public static class UserEncryptionSessionCookie
     /// </summary>
     public static byte[]? TryReadPrivateKey(HttpContext httpContext, UserExtId userExternalId)
     {
-        var cookieName = GetCookieName(userExternalId);
-
-        if (!httpContext.Request.Cookies.TryGetValue(cookieName, out var cookieValue)
+        if (!httpContext.Request.Cookies.TryGetValue(CookieName, out var cookieValue)
             || string.IsNullOrEmpty(cookieValue))
         {
             return null;
         }
 
-        var protector = httpContext.RequestServices
+        var protector = httpContext
+            .RequestServices
             .GetRequiredService<IDataProtectionProvider>()
             .CreateProtector(Purpose);
 

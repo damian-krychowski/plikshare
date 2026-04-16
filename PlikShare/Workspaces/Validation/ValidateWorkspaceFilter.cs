@@ -1,3 +1,4 @@
+using PlikShare.Core.Authorization;
 using PlikShare.Core.Utils;
 using PlikShare.Users.Middleware;
 using PlikShare.Workspaces.Cache;
@@ -14,20 +15,26 @@ public class ValidateWorkspaceFilter : IEndpointFilter
         EndpointFilterInvocationContext context,
         EndpointFilterDelegate next)
     {
-        var workspaceExternalIdStr = context.HttpContext.Request.RouteValues["workspaceExternalId"]?.ToString();
+        var workspaceExternalIdStr = context
+            .HttpContext
+            .Request
+            .RouteValues["workspaceExternalId"]
+            ?.ToString();
 
         if (string.IsNullOrWhiteSpace(workspaceExternalIdStr))
             return HttpErrors.Workspace.MissingExternalId();
 
         if (!WorkspaceExtId.TryParse(workspaceExternalIdStr, null, out var workspaceExternalId))
             return HttpErrors.Workspace.BrokenExternalId(workspaceExternalIdStr);
-
-        var user = context.HttpContext.GetUserContext();
-        var workspaceMembershipCache = context.HttpContext.RequestServices.GetRequiredService<WorkspaceMembershipCache>();
+        
+        var workspaceMembershipCache = context
+            .HttpContext
+            .RequestServices
+            .GetRequiredService<WorkspaceMembershipCache>();
 
         var workspaceMembershipContext = await workspaceMembershipCache.TryGetWorkspaceMembership(
             workspaceExternalId: workspaceExternalId,
-            memberId: user.Id,
+            memberExternalId: context.HttpContext.User.GetExternalId(),
             cancellationToken: context.HttpContext.RequestAborted);
 
         if (workspaceMembershipContext is null || !workspaceMembershipContext.IsAvailableForUser)

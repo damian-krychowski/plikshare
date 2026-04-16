@@ -20,14 +20,14 @@ public static class SearchEndpoints
             .WithProtobufResponse();
     }
 
-    private static SearchResponseDto Search(
+    private static async ValueTask<SearchResponseDto> Search(
         [FromBody] SearchRequestDto request,
         HttpContext httpContext,
         GetSearchQuery getSearchQuery,
         CancellationToken cancellationToken)
     {
         var response = getSearchQuery.Execute(
-            user: httpContext.GetUserContext(),
+            user: await httpContext.GetUserContext(),
             workspaceExternalIds: request.WorkspaceExternalIds,
             boxExternalIds: request.BoxExternalIds,
             phrase: request.Phrase);

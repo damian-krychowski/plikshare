@@ -44,14 +44,19 @@ public class ValidateWorkspaceEncryptionSessionFilter : IEndpointFilter
             return await next(context);
         }
 
-        var userExternalId = context.HttpContext.User.GetExternalId();
+        var userExternalId = context
+            .HttpContext
+            .User
+            .GetExternalId();
+
         var privateKey = UserEncryptionSessionCookie.TryReadPrivateKey(
-            context.HttpContext, userExternalId);
+            context.HttpContext, 
+            userExternalId);
 
         if (privateKey is null)
             return HttpErrors.Storage.UserEncryptionSessionRequired();
 
-        var user = context.HttpContext.GetUserContext();
+        var user = await context.HttpContext.GetUserContext();
 
         WorkspaceDekEntry[] entries;
         try
@@ -70,6 +75,7 @@ public class ValidateWorkspaceEncryptionSessionFilter : IEndpointFilter
                     Log.Warning(
                         "User#{UserId} attempted to access full-encrypted Workspace#{WorkspaceId} but has no wraps in wek_workspace_encryption_keys.",
                         user.Id, workspace.Id);
+
                     return HttpErrors.Workspace.EncryptionAccessDenied(workspace.ExternalId);
 
                 case UserWorkspaceDekUnsealer.ResultCode.UnsealFailed:

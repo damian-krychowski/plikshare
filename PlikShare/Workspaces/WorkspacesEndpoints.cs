@@ -161,7 +161,7 @@ public static class WorkspacesEndpoints
         IQueue queue,
         CancellationToken cancellationToken)
     {
-        var user = httpContext.GetUserContext();
+        var user = await httpContext.GetUserContext();
 
         // Pre-flight: resolve the storage and, for full-encrypted storages, precompute the
         // owner's Workspace DEK wrap off the write queue. The factory only reads (and
@@ -169,7 +169,7 @@ public static class WorkspacesEndpoints
         // None/Managed storages the cookie is never touched.
         var prep = workspaceCreationPreparation.Prepare(
             storageExternalId: request.StorageExternalId,
-            ownerId: user.Id,
+            owner: user,
             loadUserPrivateKey: () => UserEncryptionSessionCookie.TryReadPrivateKey(
                 httpContext, user.ExternalId));
 
@@ -288,7 +288,7 @@ public static class WorkspacesEndpoints
     {
         var workspaceMembership = await workspaceMembershipCache.TryGetWorkspaceMembership(
             workspaceExternalId: workspaceExternalId,
-            memberId: httpContext.GetUserContext().Id,
+            memberExternalId: httpContext.User.GetExternalId(),
             cancellationToken: cancellationToken);
 
         if (workspaceMembership is null || workspaceMembership.Workspace.IsBeingDeleted)
@@ -341,11 +341,9 @@ public static class WorkspacesEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var user = httpContext.GetUserContext();
-
         var workspaceMembership = await workspaceMembershipCache.TryGetWorkspaceMembership(
             workspaceExternalId: workspaceExternalId,
-            memberId: user.Id,
+            memberExternalId: httpContext.User.GetExternalId(),
             cancellationToken: cancellationToken);
 
         if (workspaceMembership is null || workspaceMembership.Workspace.IsBeingDeleted)
@@ -374,7 +372,7 @@ public static class WorkspacesEndpoints
 
             case RejectWorkspaceInvitationQuery.ResultCode.MembershipNotFound:
                 return HttpErrors.Workspace.MemberNotFound(
-                    userId: httpContext.GetUserContext().ExternalId,
+                    userId: httpContext.User.GetExternalId(),
                     workspaceExternalId: workspaceExternalId);
 
             default:
@@ -545,7 +543,7 @@ public static class WorkspacesEndpoints
             }
         }
 
-        var user = httpContext.GetUserContext();
+        var user = await httpContext.GetUserContext();
 
         var result = await createWorkspaceMemberInvitationOperation.Execute(
             workspace: workspaceMembership.Workspace,
@@ -715,7 +713,7 @@ public static class WorkspacesEndpoints
         if (!workspaceMembership.WasUserInvited)
             return HttpErrors.Workspace.MemberNotInvited(workspaceMembership.Workspace.ExternalId);
 
-        var user = httpContext.GetUserContext();
+        var user = await httpContext.GetUserContext();
 
         var resultCode = await leaveSharedWorkspaceQuery.Execute(
             workspace: workspaceMembership.Workspace,

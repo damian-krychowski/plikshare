@@ -83,6 +83,9 @@ public class TestFixture: IAsyncLifetime
         Users = new AppUsers(
             AppOwner: new User(
                 Email: "damian@integrationtests.com",
+                Password: "PlikshareIntegrationTestsPassword123!@#"),
+            SecondAppOwner: new User(
+                Email: "second-owner@integrationtests.com",
                 Password: "PlikshareIntegrationTestsPassword123!@#")); //same values in appsettings.integrationtests.json
 
         MainVolume = new AppVolume($"integration_tests_volumes_{hostFixture.MainVolumePathSuffix}/main");
@@ -322,7 +325,7 @@ public class TestFixture: IAsyncLifetime
         AppSignedInUser user,
         string encryptionPassword = DefaultTestEncryptionPassword)
     {
-        HostFixture.ResetUserEncryption();
+        await HostFixture.ResetUserEncryption();
 
         var result = await Api.UserEncryptionPassword.Setup(
             userExternalId: user.ExternalId,
@@ -987,6 +990,24 @@ public class TestFixture: IAsyncLifetime
             Token: boxLinkToken);
     }
 
+    protected List<string> GetStorageEncryptionKeyOwnerEmails(StorageExtId storageExternalId)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        return connection
+            .Cmd(
+                sql: """
+                     SELECT u.u_email
+                     FROM sek_storage_encryption_keys sek
+                     JOIN s_storages s ON s.s_id = sek.sek_storage_id
+                     JOIN u_users u ON u.u_id = sek.sek_user_id
+                     WHERE s.s_external_id = $storageExternalId
+                     """,
+                readRowFunc: reader => reader.GetString(0))
+            .WithParameter("$storageExternalId", storageExternalId.Value)
+            .Execute();
+    }
+
     protected record AppBoxLinkPermissions(
         bool AllowDownload = false,
         bool AllowUpload = false,
@@ -1027,7 +1048,8 @@ public class TestFixture: IAsyncLifetime
         Cookie? WorkspaceEncryptionSession = null);
     
     public record AppUsers(
-        User AppOwner);
+        User AppOwner,
+        User SecondAppOwner);
 
     public record AppSignedInUser(
         UserExtId ExternalId,

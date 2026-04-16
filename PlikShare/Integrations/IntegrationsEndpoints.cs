@@ -70,7 +70,7 @@ public static class IntegrationsEndpoints
     {
         var result = await createIntegrationOperation.Execute(
             request: request,
-            owner: httpContext.GetUserContext(),
+            owner: await httpContext.GetUserContext(),
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 

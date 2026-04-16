@@ -1,3 +1,4 @@
+using PlikShare.Users.Cache;
 using PlikShare.Users.Entities;
 
 namespace PlikShare.Core.Authorization;
@@ -12,6 +13,24 @@ public class AppOwners(List<Email> owners, string initialPassword)
         {
             yield return owner;
         }
+    }
+
+    public async ValueTask<List<UserContext>> OwnerContexts(
+        UserCache cache,
+        CancellationToken cancellationToken)
+    {
+        var result = new List<UserContext>();
+
+        foreach (var owner in owners)
+        {
+            var context = await cache.GetOrThrow(
+                email: owner,
+                cancellationToken: cancellationToken);
+
+            result.Add(context);
+        }
+
+        return result;
     }
 
     public bool IsAppOwner(string email) 

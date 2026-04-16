@@ -40,7 +40,7 @@ public class BoxLinkTokenAuthenticationHandler(
         var principal = new ClaimsPrincipal(
             identity: new ClaimsIdentity(
                 [
-                    new Claim(Claims.BoxLinkSessionId, token!.SessionId.ToString())
+                    new Claim(Claims.BoxLinkSessionIdClaim, token!.SessionId.ToString())
                 ],
                 AuthScheme.BoxLinkSessionScheme));
 

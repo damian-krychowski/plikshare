@@ -53,11 +53,11 @@ public static class AccountEndpoints
             .WithName("GetKnownUsers");
     }
 
-    private static GetKnownUsersResponseDto GetKnownUsers(
+    private static async ValueTask<GetKnownUsersResponseDto> GetKnownUsers(
         HttpContext httpContext,
         GetKnownUsersQuery getKnownUsersQuery)
     {
-        var user = httpContext.GetUserContext();
+        var user = await httpContext.GetUserContext();
 
         var result = getKnownUsersQuery.Execute(
             user: user);
@@ -86,15 +86,19 @@ public static class AccountEndpoints
     }
 
 
-    private static GetAccountDetailsResponseDto GetAccountDetails(HttpContext httpContext)
+    private static async ValueTask<GetAccountDetailsResponseDto> GetAccountDetails(HttpContext httpContext)
     {
-        var user = httpContext.GetUserContext();
+        var user = await httpContext.GetUserContext();
 
         return new GetAccountDetailsResponseDto
         {
-            ExternalId = httpContext.User.GetExternalId(),
-            Email = httpContext.User.GetEmail(),
-            Roles = user.Roles,
+            ExternalId = user.ExternalId,
+            Email = user.Email.Value,
+            Roles = new UserRoles
+            {
+                IsAppOwner = user.Roles.IsAppOwner,
+                IsAdmin = user.Roles.IsAppOwner || user.Roles.IsAdmin,
+            },
             Permissions = new UserPermissions
             {
                 CanAddWorkspace = user.Roles.IsAppOwner || user.Roles.IsAdmin || user.Permissions.CanAddWorkspace,
@@ -122,7 +126,7 @@ public static class AccountEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var userContext = httpContext.GetUserContext();
+        var userContext = await httpContext.GetUserContext();
 
         if (!userContext.HasPassword)
         {
@@ -220,7 +224,7 @@ public static class AccountEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var userContext = httpContext.GetUserContext();
+        var userContext = await httpContext.GetUserContext();
 
         if (!userContext.HasPassword)
         {
@@ -296,7 +300,7 @@ public static class AccountEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var userContext = httpContext.GetUserContext();
+        var userContext = await httpContext.GetUserContext();
 
         if (!userContext.HasPassword)
         {
@@ -342,7 +346,7 @@ public static class AccountEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var userContext = httpContext.GetUserContext();
+        var userContext = await httpContext.GetUserContext();
 
         if (!userContext.HasPassword)
         {

@@ -25,6 +25,7 @@ public class storages_tests : TestFixture
         HostFixture8081 hostFixture,
         ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
+        HostFixture.ResetUserEncryption().AsTask().Wait();
         AppOwner = SignIn(user: Users.AppOwner).Result;
     }
 
@@ -114,7 +115,6 @@ public class storages_tests : TestFixture
     public async Task when_full_encryption_storage_is_created_without_encryption_password_setup_it_fails()
     {
         //given
-        HostFixture.ResetUserEncryption();
         var storageName = Random.Name("hard-drive");
 
         //when
@@ -489,5 +489,72 @@ public class storages_tests : TestFixture
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task full_encryption_storage_should_have_encryption_keys_for_all_app_owners_with_encryption_configured()
+    {
+        //given
+        var ownerSetupResult = await Api.UserEncryptionPassword.Setup(
+            userExternalId: AppOwner.ExternalId,
+            encryptionPassword: DefaultTestEncryptionPassword,
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        var owner = AppOwner with { EncryptionCookie = ownerSetupResult.EncryptionCookie };
+
+        var secondOwner = await SignIn(user: Users.SecondAppOwner);
+
+        await Api.UserEncryptionPassword.Setup(
+            userExternalId: secondOwner.ExternalId,
+            encryptionPassword: DefaultTestEncryptionPassword,
+            cookie: secondOwner.Cookie,
+            antiforgery: secondOwner.Antiforgery);
+
+        var storageName = Random.Name("hard-drive");
+
+        //when
+        var hardDrive = await Api.Storages.CreateHardDriveStorage(
+            request: new CreateHardDriveStorageRequestDto(
+                Name: storageName,
+                VolumePath: MainVolume.Path,
+                FolderPath: $"/{storageName}",
+                EncryptionType: StorageEncryptionType.Full),
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        //then
+        var keyOwnerEmails = GetStorageEncryptionKeyOwnerEmails(hardDrive.ExternalId);
+
+        keyOwnerEmails.Should().HaveCount(2);
+        keyOwnerEmails.Should().Contain(Users.AppOwner.Email);
+        keyOwnerEmails.Should().Contain(Users.SecondAppOwner.Email);
+    }
+
+    [Fact]
+    public async Task full_encryption_storage_should_skip_app_owners_without_encryption_configured()
+    {
+        //given
+        var (owner, _) = await SetupUserEncryptionPassword(AppOwner);
+
+        // second app owner exists but has NOT set up encryption password
+        var storageName = Random.Name("hard-drive");
+
+        //when
+        var hardDrive = await Api.Storages.CreateHardDriveStorage(
+            request: new CreateHardDriveStorageRequestDto(
+                Name: storageName,
+                VolumePath: MainVolume.Path,
+                FolderPath: $"/{storageName}",
+                EncryptionType: StorageEncryptionType.Full),
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        //then
+        var keyOwnerEmails = GetStorageEncryptionKeyOwnerEmails(hardDrive.ExternalId);
+
+        keyOwnerEmails.Should().HaveCount(1);
+        keyOwnerEmails.Should().Contain(Users.AppOwner.Email);
+        keyOwnerEmails.Should().NotContain(Users.SecondAppOwner.Email);
     }
 }

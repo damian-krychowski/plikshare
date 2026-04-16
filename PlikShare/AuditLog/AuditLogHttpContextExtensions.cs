@@ -9,13 +9,13 @@ public static class AuditLogHttpContextExtensions
     public static AuditLogActorContext GetAuditLogActorContext(this HttpContext httpContext)
     {
         var userIdentity = TryGetUserIdentity(httpContext);
-        var email = httpContext.User.FindFirst(Claims.Email)?.Value;
+        var email = httpContext.User.TryGetEmail();
         var ip = httpContext.Connection.RemoteIpAddress?.ToString();
         var correlationId = httpContext.GetCorrelationId();
 
         return new AuditLogActorContext(
             Identity: userIdentity ?? AnonymousIdentity.Instance,
-            Email: email,
+            Email: email?.Value,
             Ip: ip,
             CorrelationId: correlationId);
     }

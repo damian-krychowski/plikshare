@@ -4,7 +4,7 @@ using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
-using PlikShare.Users.UserEncryptionPassword;
+using PlikShare.Users.Cache;
 using Serilog;
 
 namespace PlikShare.Workspaces.Encryption;
@@ -29,15 +29,15 @@ namespace PlikShare.Workspaces.Encryption;
 /// </summary>
 public class WorkspaceCreationPreparation(
     PlikShareDb plikShareDb,
-    UserEncryptionDataReader userEncryptionDataReader,
     StorageEncryptionKeyReader storageEncryptionKeyReader)
 {
     public Result Prepare(
         StorageExtId storageExternalId,
-        int ownerId,
+        UserContext owner,
         Func<byte[]?> loadUserPrivateKey)
     {
         var storageContext = ResolveStorageContextForRead(storageExternalId);
+
         if (storageContext is null)
             return new Result(Code: ResultCode.StorageNotFound);
 
@@ -47,7 +47,7 @@ public class WorkspaceCreationPreparation(
             return new Result(Code: ResultCode.Ok);
 
         return PrepareFullEncryptionArtifacts(
-            ownerId: ownerId,
+            owner: owner,
             storageId: storageContext.Value.Id,
             loadUserPrivateKey: loadUserPrivateKey);
     }
@@ -81,7 +81,7 @@ public class WorkspaceCreationPreparation(
     }
 
     private Result PrepareFullEncryptionArtifacts(
-        int ownerId,
+        UserContext owner,
         int storageId,
         Func<byte[]?> loadUserPrivateKey)
     {
@@ -91,10 +91,7 @@ public class WorkspaceCreationPreparation(
 
         try
         {
-            var ownerEncryption = userEncryptionDataReader.LoadForUser(
-                userId: ownerId);
-
-            if (ownerEncryption is null)
+            if (owner.EncryptionMetadata is null)
                 return new Result(Code: ResultCode.CreatorEncryptionNotSetUp);
 
             // New workspaces are always derived from the storage's latest DEK version — the
@@ -102,7 +99,7 @@ public class WorkspaceCreationPreparation(
             // written before a past rotation decryptable.
             var latestStorageKey = storageEncryptionKeyReader.TryLoadLatestWrappedDek(
                 storageId: storageId,
-                userId: ownerId);
+                userId: owner.Id);
 
             if (latestStorageKey is null)
                 return new Result(Code: ResultCode.NotAStorageAdmin);
@@ -120,7 +117,7 @@ public class WorkspaceCreationPreparation(
                 // code as a missing wrap so the caller's UX stays consistent.
                 Log.Error(e,
                     "Unsealing wrapped Storage DEK failed for User#{UserId} while preparing a workspace on Storage#{StorageId}.",
-                    ownerId, storageId);
+                    owner, storageId);
 
                 return new Result(Code: ResultCode.NotAStorageAdmin);
             }
@@ -137,7 +134,7 @@ public class WorkspaceCreationPreparation(
                 try
                 {
                     var wrapped = UserKeyPair.SealTo(
-                        recipientPublicKey: ownerEncryption.PublicKey,
+                        recipientPublicKey: owner.EncryptionMetadata.PublicKey,
                         plaintext: workspaceDek);
 
                     return new Result(

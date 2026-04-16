@@ -127,7 +127,8 @@ public class PlikShareSecurityStampValidator : SecurityStampValidator<Applicatio
         ApplicationUser user, 
         CookieValidatePrincipalContext context)
     {
-        var newPrincipal = await SignInManager.CreateUserPrincipalAsync(user);
+        var newPrincipal = await SignInManager.CreateUserPrincipalAsync(
+            user);
         
         var newIdentity = newPrincipal.Identities.FirstOrDefault(
             identity => identity.AuthenticationType == IdentityConstants.ApplicationScheme);
@@ -141,7 +142,7 @@ public class PlikShareSecurityStampValidator : SecurityStampValidator<Applicatio
 
         if (currentIdentity is not null)
         {
-            newIdentity.CopyClaimIfExists(currentIdentity, Claims.RememberMe);
+            newIdentity.CopyClaimIfExists(currentIdentity, Claims.RememberMeClaim);
         }
 
         var userContext = await _userCache.TryGetUser(

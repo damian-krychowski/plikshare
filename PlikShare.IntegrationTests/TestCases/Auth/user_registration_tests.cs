@@ -165,7 +165,9 @@ public class user_registration_tests : TestFixture
                 IsAdmin = false,
                 IsAppOwner = false
             },
-            HasPassword = true
+            HasPassword = true,
+            IsEncryptionConfigured = false,
+            IsEncryptionUnlocked = false
         });
     }
 

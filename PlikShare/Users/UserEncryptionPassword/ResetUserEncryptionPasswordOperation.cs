@@ -12,7 +12,6 @@ namespace PlikShare.Users.UserEncryptionPassword;
 /// continues to work. Public key unchanged.
 /// </summary>
 public class ResetUserEncryptionPasswordOperation(
-    UserEncryptionDataReader userEncryptionDataReader,
     UpsertUserEncryptionDataQuery upsertUserEncryptionDataQuery)
 {
     public async Task<Result> Execute(
@@ -21,11 +20,10 @@ public class ResetUserEncryptionPasswordOperation(
         string newPassword,
         CancellationToken cancellationToken)
     {
-        var data = userEncryptionDataReader.LoadForUser(user.Id);
-
-        if (data is null)
+        if (user.EncryptionMetadata is null)
         {
             Log.Warning("User '{UserId}' password reset rejected — encryption not configured.", user.Id);
+
             return new Result(ResultCode.NotConfigured);
         }
 
@@ -43,9 +41,14 @@ public class ResetUserEncryptionPasswordOperation(
             return new Result(ResultCode.InvalidRecoveryCode);
         }
 
-        if (!UserEncryptionRecovery.Verify(recoverySeed, data.RecoveryVerifyHash))
+        var isRecoverySeedMatching = UserEncryptionRecovery.Verify(
+            recoverySeed,
+            user.EncryptionMetadata.RecoveryVerifyHash);
+
+        if (!isRecoverySeedMatching)
         {
             Log.Warning("User '{UserId}' password reset rejected — recovery code does not match.", user.Id);
+
             return new Result(ResultCode.InvalidRecoveryCode);
         }
 
@@ -53,8 +56,8 @@ public class ResetUserEncryptionPasswordOperation(
             recoverySeed);
 
         var privateKey = WrappedPrivateKey.Unwrap(
-            recoveryKek, 
-            data.RecoveryWrappedPrivateKey);
+            recoveryKek,
+            user.EncryptionMetadata.RecoveryWrappedPrivateKey);
 
         var newSalt = EncryptionPasswordKdf.GenerateSalt();
 
@@ -76,13 +79,13 @@ public class ResetUserEncryptionPasswordOperation(
 
         var writeCode = await upsertUserEncryptionDataQuery.Execute(
             userId: user.Id,
-            publicKey: data.PublicKey,
+            publicKey: user.EncryptionMetadata.PublicKey,
             encryptedPrivateKey: newEncryptedPrivateKey,
             kdfSalt: newSalt,
             kdfParams: newParams,
             verifyHash: newVerifyHash,
-            recoveryWrappedPrivateKey: data.RecoveryWrappedPrivateKey,
-            recoveryVerifyHash: data.RecoveryVerifyHash,
+            recoveryWrappedPrivateKey: user.EncryptionMetadata.RecoveryWrappedPrivateKey,
+            recoveryVerifyHash: user.EncryptionMetadata.RecoveryVerifyHash,
             cancellationToken: cancellationToken);
 
         if (writeCode == UpsertUserEncryptionDataQuery.ResultCode.UserNotFound)

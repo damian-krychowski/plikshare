@@ -7,21 +7,20 @@ namespace PlikShare.Core.Authorization;
 
 public static class Claims
 {
-    public const string Email = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress";
-    public const string Role = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
-    public const string BoxLinkSessionId = "http://plikshare.com/claims/boxlinksessionid";
-    public const string UserExternalId = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
-    public const string UserDatabaseId = "user_database_id";
-    public const string RememberMe = "remember_me";
-    public const string IsAppOwner = "is_app_owner";
+    public const string EmailClaim = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress";
+
+    //role claims are controlled internally by microsoft.identity and are stored inside ur_user_roles
+    public const string RoleClaim = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
+
+    public const string BoxLinkSessionIdClaim = "http://plikshare.com/claims/boxlinksessionid";
+    public const string UserExternalIdClaim = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
+    public const string RememberMeClaim = "remember_me";
+    public const string IsAppOwnerClaim = "is_app_owner";
+    public const string SecurityStampClaim = "AspNet.Identity.SecurityStamp";
+    public const string ConcurrencyStampClaim = "concurrency_stamp";
+
+    //permission claims are controlled internally by microsoft.identity and are stored inside uc_user_claims table
     public const string Permission = "permission";
-    public const string SecurityStamp = "AspNet.Identity.SecurityStamp";
-    public const string ConcurrencyStamp = "concurrency_stamp";
-    public const string MaxWorkspaceNumber = "max_workspace_number";
-    public const string DefaultMaxWorkspaceSizeInBytes = "default_max_workspace_size_in_bytes";
-    public const string DefaultMaxWorkspaceTeamMembers = "default_max_workspace_team_members";
-    public const string HasPassword = "has_password";
-    public const string IsEncryptionConfigured = "is_encryption_configured";
 
     public static void CopyClaimIfExists(
         this ClaimsIdentity newIdentity, 
@@ -36,7 +35,7 @@ public static class Claims
             newIdentity.AddClaim(new Claim(claim.Type, claim.Value));
         }
     }
-
+    
     public static bool HasPermission(this ClaimsPrincipal claimsPrincipal, string permission)
     {
         var claims = claimsPrincipal
@@ -48,12 +47,12 @@ public static class Claims
                && claims.Any(c => string.Equals(c.Value, permission, StringComparison.InvariantCultureIgnoreCase));
     }
     
-    public static bool GetIsAppOwner(this ClaimsPrincipal claimsPrincipal)
+    public static bool IsAppOwner(this ClaimsPrincipal claimsPrincipal)
     {
         var claim = claimsPrincipal
             .Claims
             .FirstOrDefault(c =>
-                string.Equals(c.Type, IsAppOwner, StringComparison.InvariantCultureIgnoreCase));
+                string.Equals(c.Type, IsAppOwnerClaim, StringComparison.InvariantCultureIgnoreCase));
 
         if (claim is null)
             return false;
@@ -66,13 +65,13 @@ public static class Claims
 
         return isAppOwner;
     }
-    
+
     public static bool GetRememberMeOrDefault(this ClaimsPrincipal claimsPrincipal)
     {
         var claim = claimsPrincipal
             .Claims
             .FirstOrDefault(c =>
-                string.Equals(c.Type, RememberMe, StringComparison.InvariantCultureIgnoreCase));
+                string.Equals(c.Type, RememberMeClaim, StringComparison.InvariantCultureIgnoreCase));
 
         if (claim is null)
             return false;
@@ -86,68 +85,23 @@ public static class Claims
         return rememberMe;
     }
     
-    public static int GetDatabaseId(this ClaimsPrincipal claimsPrincipal)
-    {
-        var claim = claimsPrincipal
-            .Claims
-            .FirstOrDefault(c =>
-                string.Equals(c.Type, UserDatabaseId, StringComparison.InvariantCultureIgnoreCase));
-
-        if (claim is null)
-        {
-            throw new InvalidOperationException(
-                $"'UserDatabaseId' claim was not found.");
-        }
-
-        if (!int.TryParse(claim.Value, out var databaseId))
-        {
-            throw new InvalidOperationException(
-                $"'UserDatabaseId' value '{claim.Value}' is in wrong format.");
-        }
-
-        return databaseId;
-    }
-    
-    public static string GetExternalIdValue(this ClaimsIdentity claimsIdentity)
+    public static UserExtId GetExternalId(this ClaimsIdentity claimsIdentity)
     {
         var claim = claimsIdentity
             .Claims
             .FirstOrDefault(c =>
-                string.Equals(c.Type, UserExternalId, StringComparison.InvariantCultureIgnoreCase));
+                string.Equals(c.Type, UserExternalIdClaim, StringComparison.InvariantCultureIgnoreCase));
 
         if (claim is null)
         {
             throw new InvalidOperationException(
-                $"'UserExternalId' claim was not found.");
+                "'UserExternalId' claim was not found.");
         }
 
-        return claim.Value;
-    }
-    
-    public static string GetExternalIdValue(this ClaimsPrincipal claimsPrincipal)
-    {
-        var claim = claimsPrincipal
-            .Claims
-            .FirstOrDefault(c =>
-                string.Equals(c.Type, UserExternalId, StringComparison.InvariantCultureIgnoreCase));
-
-        if (claim is null)
+        if (!UserExtId.TryParse(claim.Value, out var externalId))
         {
             throw new InvalidOperationException(
-                $"'UserExternalId' claim was not found.");
-        }
-
-        return claim.Value;
-    }
-    
-    public static UserExtId GetExternalId(this ClaimsIdentity claimsIdentity)
-    {
-        var claimValue = claimsIdentity.GetExternalIdValue();
-        
-        if (!UserExtId.TryParse(claimValue, out var externalId))
-        {
-            throw new InvalidOperationException(
-                $"'UserExternalId' value '{claimValue}' is in wrong format.");
+                $"'UserExternalId' value '{claim.Value}' is in wrong format.");
         }
 
         return externalId;
@@ -155,39 +109,32 @@ public static class Claims
     
     public static UserExtId GetExternalId(this ClaimsPrincipal claimsPrincipal)
     {
-        var claimValue = claimsPrincipal.GetExternalIdValue();
-        
-        if (!UserExtId.TryParse(claimValue, out var externalId))
+        var claim = claimsPrincipal
+            .Claims
+            .FirstOrDefault(c =>
+                string.Equals(c.Type, UserExternalIdClaim, StringComparison.InvariantCultureIgnoreCase));
+
+        if (claim is null)
         {
             throw new InvalidOperationException(
-                $"'UserExternalId' value '{claimValue}' is in wrong format.");
+                $"'UserExternalId' claim was not found.");
+        }
+        
+        if (!UserExtId.TryParse(claim.Value, out var externalId))
+        {
+            throw new InvalidOperationException(
+                $"'UserExternalId' value '{claim.Value}' is in wrong format.");
         }
 
         return externalId;
     }
     
-    public static string GetEmail(this ClaimsIdentity claimsIdentity)
-    {
-        var claim = claimsIdentity
-            .Claims
-            .FirstOrDefault(c =>
-                string.Equals(c.Type, Email, StringComparison.InvariantCultureIgnoreCase));
-
-        if (claim is null)
-        {
-            throw new InvalidOperationException(
-                $"'Email' claim was not found.");
-        }
-
-        return claim.Value;
-    }
-
     public static string GetSecurityStamp(this ClaimsPrincipal claimsPrincipal)
     {
         var claim = claimsPrincipal
             .Claims
             .FirstOrDefault(c =>
-                string.Equals(c.Type, SecurityStamp, StringComparison.InvariantCultureIgnoreCase));
+                string.Equals(c.Type, SecurityStampClaim, StringComparison.InvariantCultureIgnoreCase));
 
         if (claim is null)
         {
@@ -203,7 +150,7 @@ public static class Claims
         var claim = claimsPrincipal
             .Claims
             .FirstOrDefault(c =>
-                string.Equals(c.Type, ConcurrencyStamp, StringComparison.InvariantCultureIgnoreCase));
+                string.Equals(c.Type, ConcurrencyStampClaim, StringComparison.InvariantCultureIgnoreCase));
 
         if (claim is null)
         {
@@ -213,101 +160,31 @@ public static class Claims
 
         return claim.Value;
     }
-
-    public static int? GetMaxWorkspaceNumber(this ClaimsPrincipal claimsPrincipal)
+    
+    public static Email GetEmail(this ClaimsPrincipal claimsPrincipal)
     {
-        var claim = claimsPrincipal
-            .Claims
-            .FirstOrDefault(c =>
-                string.Equals(c.Type, MaxWorkspaceNumber, StringComparison.InvariantCultureIgnoreCase));
-
-        if (claim is null)
-            return null;
-
-        if (int.TryParse(claim.Value, out var value))
-            return value;
-
-        return null;
-    }
-
-    public static long? GetDefaultMaxWorkspaceSizeInBytes(this ClaimsPrincipal claimsPrincipal)
-    {
-        var claim = claimsPrincipal
-            .Claims
-            .FirstOrDefault(c =>
-                string.Equals(c.Type, DefaultMaxWorkspaceSizeInBytes, StringComparison.InvariantCultureIgnoreCase));
-
-        if (claim is null)
-            return null;
-
-        if (long.TryParse(claim.Value, out var value))
-            return value;
-
-        return null;
-    }
-
-    public static int? GetDefaultMaxWorkspaceTeamMembers(this ClaimsPrincipal claimsPrincipal)
-    {
-        var claim = claimsPrincipal
-            .Claims
-            .FirstOrDefault(c =>
-                string.Equals(c.Type, DefaultMaxWorkspaceTeamMembers, StringComparison.InvariantCultureIgnoreCase));
-
-        if (claim is null)
-            return null;
-
-        if (int.TryParse(claim.Value, out var value))
-            return value;
-
-        return null;
-    }
-
-    public static bool GetHasPassword(this ClaimsPrincipal claimsPrincipal)
-    {
-        var claim = claimsPrincipal
-            .Claims
-            .FirstOrDefault(c =>
-                string.Equals(c.Type, HasPassword, StringComparison.InvariantCultureIgnoreCase));
-
-        return claim is not null;
-    }
-
-    public static bool GetIsEncryptionConfigured(this ClaimsPrincipal claimsPrincipal)
-    {
-        var claim = claimsPrincipal
-            .Claims
-            .FirstOrDefault(c =>
-                string.Equals(c.Type, IsEncryptionConfigured, StringComparison.InvariantCultureIgnoreCase));
-
-        return claim is not null;
-    }
-
-    public static string GetEmail(this ClaimsPrincipal claimsPrincipal)
-    {
-        var claim = claimsPrincipal
-            .Claims
-            .FirstOrDefault(c =>
-                string.Equals(c.Type, Email, StringComparison.InvariantCultureIgnoreCase));
-
-        if (claim is null)
+        var email = claimsPrincipal.TryGetEmail();
+        
+        if (email is null)
         {
             throw new InvalidOperationException(
-                $"'Email' claim was not found.");
+                "'Email' claim was not found.");
         }
 
-        return claim.Value;
+        return email;
     }
-    
+
     public static Email? TryGetEmail(this ClaimsPrincipal claimsPrincipal)
     {
         var claim = claimsPrincipal
             .Claims
             .FirstOrDefault(c =>
-                string.Equals(c.Type, Email, StringComparison.InvariantCultureIgnoreCase));
+                string.Equals(c.Type, EmailClaim, StringComparison.InvariantCultureIgnoreCase));
 
-        return claim is null 
-            ? null 
-            : new Email(claim.Value);
+        if (claim is null)
+            return null;
+
+        return new Email(claim.Value);
     }
 
     public static Guid GetBoxLinkSessionIdOrThrow(this ClaimsPrincipal claimsPrincipal)
@@ -315,7 +192,7 @@ public static class Claims
         var claim = claimsPrincipal
             .Claims
             .FirstOrDefault(c =>
-                string.Equals(c.Type, BoxLinkSessionId, StringComparison.InvariantCultureIgnoreCase));
+                string.Equals(c.Type, BoxLinkSessionIdClaim, StringComparison.InvariantCultureIgnoreCase));
 
         if (claim is null)
         {
@@ -339,7 +216,7 @@ public static class Claims
         var boxLinkSessionClaim = claimsPrincipal
             .Claims
             .FirstOrDefault(c =>
-                string.Equals(c.Type, BoxLinkSessionId, StringComparison.InvariantCultureIgnoreCase));
+                string.Equals(c.Type, BoxLinkSessionIdClaim, StringComparison.InvariantCultureIgnoreCase));
         
         if (boxLinkSessionClaim is not null)
         {
@@ -356,7 +233,7 @@ public static class Claims
         var userExternalIdClaim = claimsPrincipal
             .Claims
             .FirstOrDefault(c =>
-                string.Equals(c.Type, UserExternalId, StringComparison.InvariantCultureIgnoreCase));
+                string.Equals(c.Type, UserExternalIdClaim, StringComparison.InvariantCultureIgnoreCase));
 
         if (userExternalIdClaim is  not null)
         {

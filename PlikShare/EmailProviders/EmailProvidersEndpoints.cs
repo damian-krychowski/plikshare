@@ -288,11 +288,14 @@ public static class EmailProvidersEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var userEmail = httpContext.User.GetEmail();
+
         var result = await resendConfirmationEmailOperation.Execute(
             externalId: emailProviderExternalId,
             emailTo: request.EmailTo is not null
                 ? new Email(request.EmailTo)
-                : httpContext.GetUserContext().Email);
+                : userEmail, 
+            cancellationToken: cancellationToken);
 
         switch (result.Code)
         {
@@ -387,7 +390,7 @@ public static class EmailProvidersEndpoints
                     AccessKey: request.AccessKey,
                     SecretAccessKey: request.SecretAccessKey,
                     Region: request.Region)),
-            user: httpContext.GetUserContext(),
+            userEmail: httpContext.User.GetEmail(),
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -437,7 +440,7 @@ public static class EmailProvidersEndpoints
             detailsJson: Json.Serialize(
                 item: new ResendDetailsEntity(
                     ApiKey: request.ApiKey)),
-            user: httpContext.GetUserContext(),
+            userEmail: httpContext.User.GetEmail(),
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -491,7 +494,7 @@ public static class EmailProvidersEndpoints
                     SslMode: request.SslMode,
                     Username: request.Username,
                     Password: request.Password)),
-            user: httpContext.GetUserContext(),
+            userEmail: httpContext.User.GetEmail(),
             cancellationToken: cancellationToken);
 
         switch (result.Code)

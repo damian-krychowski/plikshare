@@ -586,7 +586,7 @@ public static class BoxesEndpoints
         }
 
         var result = await createBoxMemberInvitationOperation.Execute(
-            inviter: httpContext.GetUserContext(),
+            inviter: await httpContext.GetUserContext(),
             memberEmails: request
                 .MemberEmails
                 .Select(email => new Email(email)),

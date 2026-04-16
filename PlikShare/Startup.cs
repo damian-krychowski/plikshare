@@ -457,7 +457,6 @@ public class Startup
         builder.Services.AddSingleton<ChangeWorkspaceOwnerQuery>();
         builder.Services.AddSingleton<GetWorkspaceSizeQuery>();
 
-        builder.Services.AddSingleton<UserService>();
         builder.Services.AddSingleton<UserCache>();
         builder.Services.AddSingleton<GetOrCreateUserInvitationQuery>();
         builder.Services.AddSingleton<IOneTimeInvitationCode, OneTimeInvitationCode>();
@@ -468,7 +467,6 @@ public class Startup
         builder.Services.AddSingleton<UpdateUserPermissionsAndRoleQuery>();
         builder.Services.AddSingleton<UpdateUserMaxWorkspaceNumberQuery>();
 
-        builder.Services.AddSingleton<UserEncryptionDataReader>();
         builder.Services.AddSingleton<UpsertUserEncryptionDataQuery>();
         builder.Services.AddSingleton<SetupUserEncryptionPasswordOperation>();
         builder.Services.AddSingleton<UnlockUserEncryptionPasswordOperation>();

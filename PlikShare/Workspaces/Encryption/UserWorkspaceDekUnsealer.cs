@@ -15,7 +15,10 @@ namespace PlikShare.Workspaces.Encryption;
 /// </summary>
 public class UserWorkspaceDekUnsealer(GetUserWrappedWorkspaceDeksQuery getUserWrappedWorkspaceDeksQuery)
 {
-    public Result UnsealForUser(int workspaceId, int userId, byte[] privateKey)
+    public Result UnsealForUser(
+        int workspaceId, 
+        int userId, 
+        byte[] privateKey)
     {
         var wrappedDeks = getUserWrappedWorkspaceDeksQuery.GetWrappedDeksForUser(
             workspaceId: workspaceId,

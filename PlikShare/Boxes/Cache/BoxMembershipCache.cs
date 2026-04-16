@@ -10,60 +10,26 @@ using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.Boxes.Cache;
 
-public class BoxMembershipCache
+public class BoxMembershipCache(
+    PlikShareDb plikShareDb,
+    HybridCache cache,
+    BoxCache boxCache,
+    WorkspaceMembershipCache workspaceMembershipCache,
+    UserCache userCache)
 {
-    private readonly PlikShareDb _plikShareDb;
-    private readonly HybridCache _cache;
-    private readonly BoxCache _boxCache;
-    private readonly WorkspaceMembershipCache _workspaceMembershipCache;
-    private readonly UserCache _userCache;
-
-    public BoxMembershipCache(
-        PlikShareDb plikShareDb,
-        HybridCache cache,
-        BoxCache boxCache,
-        WorkspaceMembershipCache workspaceMembershipCache,
-        UserCache userCache)
-    {
-        _plikShareDb = plikShareDb;
-        _cache = cache;
-        _boxCache = boxCache;
-        _workspaceMembershipCache = workspaceMembershipCache;
-        _userCache = userCache;
-    }
-    
     private static string BoxMembershipKey(BoxExtId externalId, int memberId) 
         => $"box-membership:box-external-id:{externalId}:member-id:{memberId}";
-
-    public async ValueTask<BoxMembershipContext?> TryGetBoxMembership(
-        BoxExtId boxExternalId,
-        int memberId,
-        CancellationToken cancellationToken)
-    {
-        var box = await _boxCache.TryGetBox(
-            boxExternalId,
-            cancellationToken);
-
-        var user = await _userCache.TryGetUser(
-            memberId,
-            cancellationToken);
-
-        return await TryGetBoxMembership(
-            box: box,
-            member: user,
-            cancellationToken: cancellationToken);
-    }
-
+    
     public async ValueTask<BoxMembershipContext?> TryGetBoxMembership(
         BoxExtId boxExternalId,
         UserExtId memberExternalId,
         CancellationToken cancellationToken)
     {
-        var box = await _boxCache.TryGetBox(
+        var box = await boxCache.TryGetBox(
             boxExternalId,
             cancellationToken);
 
-        var user = await _userCache.TryGetUser(
+        var user = await userCache.TryGetUser(
             memberExternalId,
             cancellationToken);
 
@@ -81,9 +47,9 @@ public class BoxMembershipCache
         if (box is null || member is null)
             return null;
             
-        var workspaceMembershipContext = await _workspaceMembershipCache.TryGetWorkspaceMembership(
+        var workspaceMembershipContext = await workspaceMembershipCache.TryGetWorkspaceMembership(
             workspaceExternalId: box.Workspace.ExternalId,
-            memberId: member.Id,
+            memberExternalId: member.ExternalId,
             cancellationToken: cancellationToken);
 
         if (workspaceMembershipContext is { IsAvailableForUser: true })
@@ -96,7 +62,7 @@ public class BoxMembershipCache
                 Permissions: BoxPermissions.Full());
         }
 
-        var cachedMembership = await _cache.GetOrCreateAsync(
+        var cachedMembership = await cache.GetOrCreateAsync(
             key: BoxMembershipKey(box.ExternalId, member.Id),
             factory: _ => ValueTask.FromResult(LoadMembership(box.Id, member.Id)),
             cancellationToken: cancellationToken);
@@ -104,7 +70,7 @@ public class BoxMembershipCache
         if (cachedMembership is null)
             return null;
 
-        var inviter = await _userCache.TryGetUser(
+        var inviter = await userCache.TryGetUser(
             userId: cachedMembership.InviterId,
             cancellationToken: cancellationToken);
 
@@ -121,7 +87,7 @@ public class BoxMembershipCache
         int memberId,
         CancellationToken cancellationToken)
     {
-        var box = await _boxCache.TryGetBox(
+        var box = await boxCache.TryGetBox(
             boxId,
             cancellationToken);
         
@@ -132,7 +98,7 @@ public class BoxMembershipCache
             box.ExternalId,
             memberId);
         
-        await _cache.RemoveAsync(
+        await cache.RemoveAsync(
             key, 
             cancellationToken);
     }
@@ -146,7 +112,7 @@ public class BoxMembershipCache
             boxExternalId,
             memberId);
         
-        return _cache.RemoveAsync(
+        return cache.RemoveAsync(
             key, 
             cancellationToken);
     }
@@ -159,7 +125,7 @@ public class BoxMembershipCache
             boxMembership.Box.ExternalId,
             boxMembership.Member.Id);
         
-        return _cache.RemoveAsync(
+        return cache.RemoveAsync(
             key, 
             cancellationToken);
     }
@@ -168,7 +134,7 @@ public class BoxMembershipCache
         int boxId,
         int memberId)
     {
-        using var connection = _plikShareDb.OpenConnection();
+        using var connection = plikShareDb.OpenConnection();
 
         var (isEmpty, membership) = connection
             .OneRowCmd(

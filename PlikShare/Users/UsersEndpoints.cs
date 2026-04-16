@@ -93,7 +93,7 @@ public static class UsersEndpoints
     {
         var response = await inviteUsersQuery.Execute(
             emails: request.Emails.Select(x => new Email(x)).ToList(),
-            inviter: httpContext.GetUserContext(),
+            inviter: await httpContext.GetUserContext(),
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
@@ -234,9 +234,7 @@ public static class UsersEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var currentUser = httpContext.GetUserContext();
-
-        if (request.IsAdmin && !currentUser.Roles.IsAppOwner)
+        if (request.IsAdmin && !httpContext.User.IsAppOwner())
             return HttpErrors.User.OnlyAppOwnerCanAssignAdminRole();
 
         if (!request.IsAdmin && request.GetPermissionsList().Any(Permissions.IsForAdminOnly))

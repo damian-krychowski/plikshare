@@ -16,7 +16,7 @@ public class user_encryption_password_tests : TestFixture
         HostFixture8081 hostFixture,
         ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
     {
-        hostFixture.ResetUserEncryption();
+        hostFixture.ResetUserEncryption().AsTask().Wait();
         AppOwner = SignIn(user: Users.AppOwner).Result;
     }
 
@@ -37,7 +37,7 @@ public class user_encryption_password_tests : TestFixture
         words.Should().HaveCount(24);
 
         result.EncryptionCookie.Should().NotBeNull();
-        result.EncryptionCookie.Name.Should().Be($"UserEncryptionSession_{AppOwner.ExternalId.Value}");
+        result.EncryptionCookie.Name.Should().Be($"UserEncryptionSession");
         result.EncryptionCookie.Value.Should().NotBeNullOrWhiteSpace();
     }
 
@@ -84,7 +84,7 @@ public class user_encryption_password_tests : TestFixture
 
         //then
         cookie.Should().NotBeNull();
-        cookie.Name.Should().Be($"UserEncryptionSession_{AppOwner.ExternalId.Value}");
+        cookie.Name.Should().Be($"UserEncryptionSession");
         cookie.Value.Should().NotBeNullOrWhiteSpace();
     }
 
@@ -161,7 +161,7 @@ public class user_encryption_password_tests : TestFixture
 
         //then
         cookie.Should().NotBeNull();
-        cookie.Name.Should().Be($"UserEncryptionSession_{AppOwner.ExternalId.Value}");
+        cookie.Name.Should().Be($"UserEncryptionSession");
         cookie.Value.Should().NotBeNullOrWhiteSpace();
     }
 
@@ -312,7 +312,7 @@ public class user_encryption_password_tests : TestFixture
 
         //then
         cookie.Should().NotBeNull();
-        cookie.Name.Should().Be($"UserEncryptionSession_{AppOwner.ExternalId.Value}");
+        cookie.Name.Should().Be($"UserEncryptionSession");
         cookie.Value.Should().NotBeNullOrWhiteSpace();
     }
 

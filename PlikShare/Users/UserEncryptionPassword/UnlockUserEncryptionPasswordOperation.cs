@@ -9,15 +9,13 @@ namespace PlikShare.Users.UserEncryptionPassword;
 /// can establish a <see cref="UserEncryptionSessionCookie"/>. Does not write to the DB —
 /// this is a pure verify + unwrap operation.
 /// </summary>
-public class UnlockUserEncryptionPasswordOperation(
-    UserEncryptionDataReader userEncryptionDataReader)
+public class UnlockUserEncryptionPasswordOperation
 {
-    public Result Execute(UserContext user, string encryptionPassword)
+    public Result Execute(
+        UserContext user, 
+        string encryptionPassword)
     {
-        var data = userEncryptionDataReader.LoadForUser(
-            user.Id);
-
-        if (data is null)
+        if (user.EncryptionMetadata is null)
         {
             Log.Debug("User '{UserId}' unlock rejected — encryption not configured.", user.Id);
 
@@ -25,11 +23,15 @@ public class UnlockUserEncryptionPasswordOperation(
         }
 
         var kek = EncryptionPasswordKdf.DeriveKek(
-            encryptionPassword, 
-            data.KdfSalt, 
-            data.KdfParams);
+            encryptionPassword,
+            user.EncryptionMetadata.KdfSalt,
+            user.EncryptionMetadata.KdfParams);
 
-        if (!EncryptionPasswordKdf.Verify(kek, data.VerifyHash))
+        var isPasswordVerified = EncryptionPasswordKdf.Verify(
+            kek,
+            user.EncryptionMetadata.VerifyHash);
+
+        if (!isPasswordVerified)
         {
             Log.Debug("User '{UserId}' unlock rejected — invalid encryption password.", user.Id);
 
@@ -37,8 +39,8 @@ public class UnlockUserEncryptionPasswordOperation(
         }
 
         var privateKey = WrappedPrivateKey.Unwrap(
-            kek, 
-            data.EncryptedPrivateKey);
+            kek,
+            user.EncryptionMetadata.EncryptedPrivateKey);
 
         return new Result(
             Code: ResultCode.Ok,

@@ -22,11 +22,11 @@ public static class ApplicationSettingsEndpoints
             .WithName("GetApplicationSettingsStatus");
     }
 
-    private static IResult GetStatus(
+    private static async ValueTask<IResult> GetStatus(
         HttpContext httpContext,
         GetApplicationSettingsStatusQuery getApplicationSettingsStatusQuery)
     {
-        var user = httpContext.GetUserContext();
+        var user = await httpContext.GetUserContext();
 
         if (!user.Roles.IsAppOwner && user.Permissions is
             {

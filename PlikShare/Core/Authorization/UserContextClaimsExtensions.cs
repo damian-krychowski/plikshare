@@ -7,28 +7,15 @@ public static class UserContextClaimsExtensions
 {
     public static IEnumerable<Claim> GetClaims(this UserContext user)
     {
-        yield return new Claim(Claims.UserDatabaseId, user.Id.ToString());
-        yield return new Claim(Claims.ConcurrencyStamp, user.Stamps.Concurrency);
+        yield return new Claim(Claims.ConcurrencyStampClaim, user.Stamps.Concurrency);
                
         if (user.Roles.IsAppOwner)
         {
-            yield return new Claim(Claims.IsAppOwner, true.ToString());
-            yield return new Claim(Claims.Role, Roles.Admin);
+            yield return new Claim(Claims.IsAppOwnerClaim, "true");
+
+            //we need to return this claim only for app owner role, because admin role is stored in ur_user_roles table
+            //and claim is added automatically
+            yield return new Claim(Claims.RoleClaim, Roles.Admin);
         }
-
-        if (user.MaxWorkspaceNumber.HasValue)
-            yield return new Claim(Claims.MaxWorkspaceNumber, user.MaxWorkspaceNumber.Value.ToString());
-
-        if (user.DefaultMaxWorkspaceSizeInBytes.HasValue)
-            yield return new Claim(Claims.DefaultMaxWorkspaceSizeInBytes, user.DefaultMaxWorkspaceSizeInBytes.Value.ToString());
-
-        if (user.DefaultMaxWorkspaceTeamMembers.HasValue)
-            yield return new Claim(Claims.DefaultMaxWorkspaceTeamMembers, user.DefaultMaxWorkspaceTeamMembers.Value.ToString());
-
-        if (user.HasPassword)
-            yield return new Claim(Claims.HasPassword, true.ToString());
-
-        if (user.IsEncryptionConfigured)
-            yield return new Claim(Claims.IsEncryptionConfigured, true.ToString());
     }
 }

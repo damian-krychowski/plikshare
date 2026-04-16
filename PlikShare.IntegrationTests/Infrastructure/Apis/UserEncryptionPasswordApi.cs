@@ -30,17 +30,18 @@ public class UserEncryptionPasswordApi(IFlurlClient flurlClient, string appUrl)
 
         var body = await response.GetJsonAsync<SetupResponseDto>();
 
-        var cookieName = UserEncryptionSessionCookie.GetCookieName(userExternalId);
         var encryptionCookie = response
             .Cookies
-            .FirstOrDefault(c => c.Name == cookieName);
+            .FirstOrDefault(c => c.Name == UserEncryptionSessionCookie.CookieName);
 
         Debug.Assert(encryptionCookie != null,
-            $"Set-Cookie '{cookieName}' was not present in setup response.");
+            $"Set-Cookie '{UserEncryptionSessionCookie.CookieName}' was not present in setup response.");
 
         return new SetupResult(
             RecoveryCode: body.RecoveryCode,
-            EncryptionCookie: new GenericCookie(cookieName, encryptionCookie!.Value));
+            EncryptionCookie: new GenericCookie(
+                UserEncryptionSessionCookie.CookieName, 
+                encryptionCookie!.Value));
     }
 
     public async Task<GenericCookie> Unlock(
@@ -63,15 +64,16 @@ public class UserEncryptionPasswordApi(IFlurlClient flurlClient, string appUrl)
                 statusCode: response.StatusCode);
         }
 
-        var cookieName = UserEncryptionSessionCookie.GetCookieName(userExternalId);
         var encryptionCookie = response
             .Cookies
-            .FirstOrDefault(c => c.Name == cookieName);
+            .FirstOrDefault(c => c.Name == UserEncryptionSessionCookie.CookieName);
 
         Debug.Assert(encryptionCookie != null,
-            $"Set-Cookie '{cookieName}' was not present in unlock response.");
+            $"Set-Cookie '{UserEncryptionSessionCookie.CookieName}' was not present in unlock response.");
 
-        return new GenericCookie(cookieName, encryptionCookie!.Value);
+        return new GenericCookie(
+            UserEncryptionSessionCookie.CookieName, 
+            encryptionCookie!.Value);
     }
 
     public async Task Lock(
@@ -107,15 +109,16 @@ public class UserEncryptionPasswordApi(IFlurlClient flurlClient, string appUrl)
                 statusCode: response.StatusCode);
         }
 
-        var cookieName = UserEncryptionSessionCookie.GetCookieName(userExternalId);
         var encryptionCookie = response
             .Cookies
-            .FirstOrDefault(c => c.Name == cookieName);
+            .FirstOrDefault(c => c.Name == UserEncryptionSessionCookie.CookieName);
 
         Debug.Assert(encryptionCookie != null,
-            $"Set-Cookie '{cookieName}' was not present in change response.");
+            $"Set-Cookie '{UserEncryptionSessionCookie.CookieName}' was not present in change response.");
 
-        return new GenericCookie(cookieName, encryptionCookie!.Value);
+        return new GenericCookie(
+            UserEncryptionSessionCookie.CookieName, 
+            encryptionCookie!.Value);
     }
 
     public async Task<GenericCookie> Reset(
@@ -139,15 +142,16 @@ public class UserEncryptionPasswordApi(IFlurlClient flurlClient, string appUrl)
                 statusCode: response.StatusCode);
         }
 
-        var cookieName = UserEncryptionSessionCookie.GetCookieName(userExternalId);
         var encryptionCookie = response
             .Cookies
-            .FirstOrDefault(c => c.Name == cookieName);
+            .FirstOrDefault(c => c.Name == UserEncryptionSessionCookie.CookieName);
 
         Debug.Assert(encryptionCookie != null,
-            $"Set-Cookie '{cookieName}' was not present in reset response.");
+            $"Set-Cookie '{UserEncryptionSessionCookie.CookieName}' was not present in reset response.");
 
-        return new GenericCookie(cookieName, encryptionCookie!.Value);
+        return new GenericCookie(
+            UserEncryptionSessionCookie.CookieName, 
+            encryptionCookie!.Value);
     }
 
     public record SetupResult(string RecoveryCode, GenericCookie EncryptionCookie);

@@ -220,7 +220,7 @@ public static class StoragesEndpoints
                 Url: request.Url),
             name: request.Name,
             encryptionType: request.EncryptionType,
-            creator: httpContext.GetUserContext(),
+            creator: await httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -327,7 +327,7 @@ public static class StoragesEndpoints
                 Region: request.Region),
             name: request.Name,
             encryptionType: request.EncryptionType,
-            creator: httpContext.GetUserContext(),
+            creator: await httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -429,7 +429,7 @@ public static class StoragesEndpoints
                 Url: url),
             name: request.Name,
             encryptionType: request.EncryptionType,
-            creator: httpContext.GetUserContext(),
+            creator: await httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -536,7 +536,7 @@ public static class StoragesEndpoints
                 FolderPath: request.FolderPath),
             name: request.Name,
             encryptionType: request.EncryptionType,
-            creator: httpContext.GetUserContext(),
+            creator: await httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -604,7 +604,7 @@ public static class StoragesEndpoints
                 Url: request.Url),
             name: request.Name,
             encryptionType: request.EncryptionType,
-            creator: httpContext.GetUserContext(),
+            creator: await httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
         switch (result.Code)

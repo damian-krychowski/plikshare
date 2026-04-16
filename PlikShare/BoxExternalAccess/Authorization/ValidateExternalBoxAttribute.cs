@@ -1,9 +1,9 @@
 using PlikShare.Boxes.Cache;
 using PlikShare.Boxes.Id;
 using PlikShare.Boxes.Permissions;
+using PlikShare.Core.Authorization;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
-using PlikShare.Users.Middleware;
 
 namespace PlikShare.BoxExternalAccess.Authorization;
 
@@ -22,7 +22,7 @@ public class ValidateExternalBoxFilter(
         if (!BoxExtId.TryParse(boxExternalIdStr, null, out var boxExternalId))
             return HttpErrors.Box.InvalidExternalId(boxExternalIdStr);
 
-        var user = context.HttpContext.GetUserContext();
+        var userExternalId = context.HttpContext.User.GetExternalId();
 
         var boxMembershipContext = await context
             .HttpContext
@@ -30,7 +30,7 @@ public class ValidateExternalBoxFilter(
             .GetRequiredService<BoxMembershipCache>()
             .TryGetBoxMembership(
                 boxExternalId: boxExternalId,
-                memberId: user.Id,
+                memberExternalId: userExternalId,
                 cancellationToken: context.HttpContext.RequestAborted);
 
         if (boxMembershipContext is null
@@ -46,8 +46,8 @@ public class ValidateExternalBoxFilter(
             Box: boxMembershipContext.Box,
             BoxLink: null,
             Permissions: boxMembershipContext.Permissions,
-            UserIdentity: new UserIdentity(user.ExternalId),
-            UserEmail: user.Email.Value,
+            UserIdentity: new UserIdentity(userExternalId),
+            UserEmail: context.HttpContext.User.GetEmail().Value,
             UserIp: context.HttpContext.Connection.RemoteIpAddress?.ToString());
 
         context.HttpContext.Items[BoxAccess.HttpContextName] = boxAccess;

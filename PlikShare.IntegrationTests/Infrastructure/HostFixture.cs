@@ -13,6 +13,7 @@ using PlikShare.Core.Utils;
 using PlikShare.Core.Volumes;
 using PlikShare.GeneralSettings;
 using PlikShare.IntegrationTests.Infrastructure.Mocks;
+using PlikShare.Users.Cache;
 using PlikShare.Users.Invite;
 
 namespace PlikShare.IntegrationTests.Infrastructure;
@@ -50,6 +51,7 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
 
     public PlikShareDb Db { get; }
     public AppSettings AppSettings { get; }
+    public UserCache UserCache { get; }
 
     protected HostFixture()
     {
@@ -96,6 +98,7 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
 
         Db = App.Services.GetRequiredService<PlikShareDb>();
         AppSettings = App.Services.GetRequiredService<AppSettings>();
+        UserCache = App.Services.GetRequiredService<UserCache>();
     }
 
     private static IFlurlClient PrepareFlurlClient()
@@ -203,7 +206,7 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
         connection.NonQueryCmd(sql: "DELETE FROM suc_sign_up_checkboxes").Execute();
     }
 
-    public void ResetUserEncryption()
+    public async ValueTask ResetUserEncryption(CancellationToken cancellationToken = default)
     {
         using var connection = Db.OpenConnection();
 
@@ -220,6 +223,8 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
 
         connection.NonQueryCmd(sql: "DELETE FROM sek_storage_encryption_keys").Execute();
         connection.NonQueryCmd(sql: "DELETE FROM wek_workspace_encryption_keys").Execute();
+
+        await UserCache.InvalidateAllEntries(cancellationToken);
     }
 
     public void RemoveAllEmailProviders()

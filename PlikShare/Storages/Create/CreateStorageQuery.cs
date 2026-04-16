@@ -19,7 +19,7 @@ public class CreateStorageQuery(
         string detailsJson,
         StorageEncryptionType encryptionType,
         StorageEncryptionDetails? encryptionDetails,
-        CreatorEncryptionKeyData? creatorKeyData,
+        OwnerEncryptionKeyData[] ownerKeyDataList,
         CancellationToken cancellationToken)
     {
         var derivedEncryption = await masterDataEncryptionBufferedFactory.Take(
@@ -33,7 +33,7 @@ public class CreateStorageQuery(
                 detailsJson,
                 encryptionType,
                 encryptionDetails,
-                creatorKeyData,
+                ownerKeyDataList,
                 derivedEncryption),
             cancellationToken: cancellationToken);
     }
@@ -45,7 +45,7 @@ public class CreateStorageQuery(
         string detailsJson,
         StorageEncryptionType encryptionType,
         StorageEncryptionDetails? encryptionDetails,
-        CreatorEncryptionKeyData? creatorKeyData,
+        OwnerEncryptionKeyData[] ownerKeyDataList,
         IDerivedMasterDataEncryption derivedEncryption)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
@@ -84,15 +84,15 @@ public class CreateStorageQuery(
                 .WithParameter("$encryptionDetails", encryptionDetails.EncryptJson(derivedEncryption))
                 .ExecuteOrThrow();
 
-            if (creatorKeyData is not null)
+            foreach (var ownerKeyData in ownerKeyDataList)
             {
                 upsertStorageEncryptionKeyQuery.ExecuteTransaction(
                     dbWriteContext: dbWriteContext,
                     storageId: storageId,
-                    userId: creatorKeyData.UserId,
+                    userId: ownerKeyData.UserId,
                     storageDekVersion: 0,
-                    wrappedStorageDek: creatorKeyData.WrappedStorageDek,
-                    wrappedByUserId: creatorKeyData.UserId,
+                    wrappedStorageDek: ownerKeyData.WrappedStorageDek,
+                    wrappedByUserId: ownerKeyData.UserId,
                     transaction: transaction);
             }
 
@@ -148,6 +148,6 @@ public class CreateStorageQuery(
         StorageExtId StorageExternalId = default);
 }
 
-public record CreatorEncryptionKeyData(
+public record OwnerEncryptionKeyData(
     int UserId,
     byte[] WrappedStorageDek);

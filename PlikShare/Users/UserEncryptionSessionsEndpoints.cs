@@ -25,22 +25,22 @@ public static class UserEncryptionSessionsEndpoints
             .WithName("LockUserEncryptionSession");
     }
 
-    private static Ok<GetUserEncryptionSessionResponseDto> GetUnlockedSession(
+    private static GetUserEncryptionSessionResponseDto GetUnlockedSession(
         HttpContext httpContext)
     {
-        var userExternalId = httpContext.User.GetExternalId();
-        var cookieName = UserEncryptionSessionCookie.GetCookieName(userExternalId);
-
-        var isUnlocked = httpContext.Request.Cookies.TryGetValue(cookieName, out var cookieValue)
-                         && !string.IsNullOrEmpty(cookieValue);
-
-        return TypedResults.Ok(new GetUserEncryptionSessionResponseDto(IsUnlocked: isUnlocked));
+        var hasCookie = httpContext
+            .Request
+            .Cookies
+            .TryGetValue(UserEncryptionSessionCookie.CookieName, out var cookieValue);
+        
+        return new GetUserEncryptionSessionResponseDto(
+            IsUnlocked: hasCookie && !string.IsNullOrEmpty(cookieValue));
     }
 
     private static Ok LockSession(HttpContext httpContext)
     {
-        var userExternalId = httpContext.User.GetExternalId();
-        UserEncryptionSessionCookie.Clear(httpContext, userExternalId);
+        httpContext.Response.Cookies.Delete(
+                UserEncryptionSessionCookie.CookieName);
 
         return TypedResults.Ok();
     }

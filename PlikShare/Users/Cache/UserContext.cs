@@ -1,6 +1,7 @@
-using System.ComponentModel;
+using PlikShare.Core.Encryption;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
+using System.ComponentModel;
 
 namespace PlikShare.Users.Cache;
 
@@ -15,14 +16,16 @@ public sealed class UserContext
     public required UserSecurityStamps Stamps { get; init; }
     public required UserRoles Roles { get; init; }
     public required UserPermissions Permissions { get; init; }
-    public UserInvitation? Invitation { get; init; }
     public required bool HasPassword { get; init; }
-    public required bool IsEncryptionConfigured { get; init; }
-    public int? MaxWorkspaceNumber { get; init; }
-    public long? DefaultMaxWorkspaceSizeInBytes { get; init; }
-    public int? DefaultMaxWorkspaceTeamMembers { get; init; }
+    public required int? MaxWorkspaceNumber { get; init; }
+    public required long? DefaultMaxWorkspaceSizeInBytes { get; init; }
+    public required int? DefaultMaxWorkspaceTeamMembers { get; init; }
+    public required UserEncryptionMetadata? EncryptionMetadata { get; init; }
+    
+    public UserInvitation? Invitation { get; init; }
 
     public bool HasAdminRole => Roles.IsAppOwner || Roles.IsAdmin;
+    public bool IsEncryptionConfigured => EncryptionMetadata is not null;
 }
 
 public enum UserStatus
@@ -62,4 +65,16 @@ public sealed class UserSecurityStamps
 {
     public required string Security { get; init; }
     public required string Concurrency { get; init; }
+}
+
+[ImmutableObject(true)]
+public sealed class UserEncryptionMetadata
+{
+    public required byte[] PublicKey { get; init; }
+    public required byte[] EncryptedPrivateKey { get; init; }
+    public required byte[] KdfSalt { get; init; }
+    public required EncryptionPasswordKdf.Params KdfParams { get; init; }
+    public required byte[] VerifyHash { get; init; }
+    public required byte[] RecoveryWrappedPrivateKey { get; init; }
+    public required byte[] RecoveryVerifyHash { get; init; }
 }

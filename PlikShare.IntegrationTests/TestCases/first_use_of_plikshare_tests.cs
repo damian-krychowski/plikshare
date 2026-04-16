@@ -1,4 +1,5 @@
 using FluentAssertions;
+using PlikShare.Core.Authorization;
 using PlikShare.Core.ExternalIds;
 using PlikShare.Dashboard.Content.Contracts;
 using PlikShare.EmailProviders.List.Contracts;
@@ -114,6 +115,7 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
     {
         //given
         var user = await SignIn(Users.AppOwner);
+        var secondUser = await SignIn(Users.SecondAppOwner);
 
         // when
         var usersResponseDto = await Api.Users.Get(
@@ -124,32 +126,59 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
         {
             Items =
             [
-                 new GetUsersItemDto
-                 {
-                     ExternalId = user.ExternalId,
-                     Email = user.Email,
-                     IsEmailConfirmed = true,
-                     WorkspacesCount = 0,
-                     Roles = new UserRoles
-                     {
-                         IsAppOwner = true,
-                         IsAdmin = false
-                     },
-                     Permissions = new UserPermissions
-                     {                         
-                         CanAddWorkspace = false,
-                         CanManageGeneralSettings = false,
-                         CanManageUsers = false,
-                         CanManageStorages = false,
-                         CanManageEmailProviders = false,
-                         CanManageAuth = false,
-                         CanManageIntegrations = false,
-                         CanManageAuditLog = false
-                     },
-                     MaxWorkspaceNumber = null,
-                     DefaultMaxWorkspaceSizeInBytes = null,
-                     DefaultMaxWorkspaceTeamMembers = null
-                 }
+                new GetUsersItemDto
+                {
+                    ExternalId = user.ExternalId,
+                    Email = user.Email,
+                    IsEmailConfirmed = true,
+                    WorkspacesCount = 0,
+                    Roles = new UserRoles
+                    {
+                        IsAppOwner = true,
+                        IsAdmin = false
+                    },
+                    Permissions = new UserPermissions
+                    {
+                        CanAddWorkspace = false,
+                        CanManageGeneralSettings = false,
+                        CanManageUsers = false,
+                        CanManageStorages = false,
+                        CanManageEmailProviders = false,
+                        CanManageAuth = false,
+                        CanManageIntegrations = false,
+                        CanManageAuditLog = false
+                    },
+                    MaxWorkspaceNumber = null,
+                    DefaultMaxWorkspaceSizeInBytes = null,
+                    DefaultMaxWorkspaceTeamMembers = null
+                },
+
+                new GetUsersItemDto
+                {
+                    Email = secondUser.Email,
+                    ExternalId = secondUser.ExternalId,
+                    DefaultMaxWorkspaceSizeInBytes = null,
+                    DefaultMaxWorkspaceTeamMembers = null,
+                    IsEmailConfirmed = true,
+                    MaxWorkspaceNumber = null,
+                    Permissions = new UserPermissions
+                    {
+                        CanAddWorkspace = false,
+                        CanManageAuditLog = false,
+                        CanManageAuth = false,
+                        CanManageEmailProviders = false,
+                        CanManageGeneralSettings = false,
+                        CanManageIntegrations = false,
+                        CanManageStorages = false,
+                        CanManageUsers = false
+                    },
+                    Roles = new UserRoles
+                    {
+                        IsAdmin = false,
+                        IsAppOwner = true
+                    },
+                    WorkspacesCount = 0
+                }
             ]
         });
     }

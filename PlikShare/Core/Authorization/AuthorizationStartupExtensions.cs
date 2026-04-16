@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Entities;
@@ -61,7 +60,7 @@ public static class AuthorizationStartupExtensions
             options.AddPolicy(AuthPolicy.BoxLinkCookie, policy =>
             {
                 policy.AddAuthenticationSchemes(AuthScheme.BoxLinkSessionScheme);
-                policy.RequireClaim(Claims.BoxLinkSessionId);
+                policy.RequireClaim(Claims.BoxLinkSessionIdClaim);
             });
 
             //this policy is a mix of two polices above
@@ -82,7 +81,7 @@ public static class AuthorizationStartupExtensions
 
                     // Check for BoxLink policy conditions
                     var isBoxLinkAuth = context.User.Identity?.AuthenticationType == AuthScheme.BoxLinkSessionScheme
-                                        && context.User.HasClaim(c => c.Type == Claims.BoxLinkSessionId);
+                                        && context.User.HasClaim(c => c.Type == Claims.BoxLinkSessionIdClaim);
 
                     return isInternalAuth || isBoxLinkAuth;
                 });

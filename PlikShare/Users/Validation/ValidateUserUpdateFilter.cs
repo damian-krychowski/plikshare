@@ -23,7 +23,7 @@ public class ValidateUserUpdateFilter : IEndpointFilter
         if (!UserExtId.TryParse(userExternalIdStr, null, out var userExternalId))
             return HttpErrors.User.BrokenExternalId(userExternalIdStr);
 
-        var currentUserContext = context.HttpContext.GetUserContext();
+        var currentUserContext = await context.HttpContext.GetUserContext();
 
         if (currentUserContext.ExternalId == userExternalId)
             return HttpErrors.User.CannotModifyOwnUser(userExternalId);

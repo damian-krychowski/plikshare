@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
+using PlikShare.Users.Cache;
 using PlikShare.Users.Middleware;
 using PlikShare.Users.UserEncryptionPassword;
 
@@ -27,9 +28,10 @@ public static class UserEncryptionPasswordEndpoints
         [FromBody] SetupRequestDto request,
         HttpContext httpContext,
         SetupUserEncryptionPasswordOperation operation,
+        UserCache userCache,
         CancellationToken cancellationToken)
     {
-        var user = httpContext.GetUserContext();
+        var user = await httpContext.GetUserContext();
 
         var result = await operation.Execute(
             user: user,
@@ -53,22 +55,33 @@ public static class UserEncryptionPasswordEndpoints
                 });
 
             case SetupUserEncryptionPasswordOperation.ResultCode.Ok:
-                UserEncryptionSessionCookie.Set(httpContext, user.ExternalId, result.PrivateKey!);
+            {
+                UserEncryptionSessionCookie.Set(
+                    httpContext, 
+                    result.PrivateKey!);
+
+                await userCache.InvalidateEntry(
+                    userId: user.Id,
+                    cancellationToken: cancellationToken);
+
                 return TypedResults.Ok(new SetupResponseDto(RecoveryCode: result.RecoveryCode!));
+            }
 
             default:
                 throw new InvalidOperationException($"Unexpected result code: {result.Code}");
         }
     }
 
-    private static Results<Ok, BadRequest<HttpError>> Unlock(
+    private static async ValueTask<Results<Ok, BadRequest<HttpError>>> Unlock(
         [FromBody] UnlockRequestDto request,
         HttpContext httpContext,
         UnlockUserEncryptionPasswordOperation operation)
     {
-        var user = httpContext.GetUserContext();
+        var user = await httpContext.GetUserContext();
 
-        var result = operation.Execute(user, request.EncryptionPassword);
+        var result = operation.Execute(
+            user, 
+            request.EncryptionPassword);
 
         switch (result.Code)
         {
@@ -87,7 +100,7 @@ public static class UserEncryptionPasswordEndpoints
                 });
 
             case UnlockUserEncryptionPasswordOperation.ResultCode.Ok:
-                UserEncryptionSessionCookie.Set(httpContext, user.ExternalId, result.PrivateKey!);
+                UserEncryptionSessionCookie.Set(httpContext, result.PrivateKey!);
                 return TypedResults.Ok();
 
             default:
@@ -97,8 +110,9 @@ public static class UserEncryptionPasswordEndpoints
 
     private static Ok Lock(HttpContext httpContext)
     {
-        var user = httpContext.GetUserContext();
-        UserEncryptionSessionCookie.Clear(httpContext, user.ExternalId);
+        httpContext.Response.Cookies.Delete(
+            UserEncryptionSessionCookie.CookieName);
+
         return TypedResults.Ok();
     }
 
@@ -106,9 +120,10 @@ public static class UserEncryptionPasswordEndpoints
         [FromBody] ChangeRequestDto request,
         HttpContext httpContext,
         ChangeUserEncryptionPasswordOperation operation,
+        UserCache userCache,
         CancellationToken cancellationToken)
     {
-        var user = httpContext.GetUserContext();
+        var user = await httpContext.GetUserContext();
 
         var result = await operation.Execute(
             user: user,
@@ -140,8 +155,17 @@ public static class UserEncryptionPasswordEndpoints
                 });
 
             case ChangeUserEncryptionPasswordOperation.ResultCode.Ok:
-                UserEncryptionSessionCookie.Set(httpContext, user.ExternalId, result.PrivateKey!);
+            {
+                UserEncryptionSessionCookie.Set(
+                    httpContext, 
+                    result.PrivateKey!);
+                    
+                await userCache.InvalidateEntry(
+                    userId: user.Id,
+                    cancellationToken: cancellationToken);
+
                 return TypedResults.Ok();
+            }
 
             default:
                 throw new InvalidOperationException($"Unexpected result code: {result.Code}");
@@ -152,9 +176,10 @@ public static class UserEncryptionPasswordEndpoints
         [FromBody] ResetRequestDto request,
         HttpContext httpContext,
         ResetUserEncryptionPasswordOperation operation,
+        UserCache userCache,
         CancellationToken cancellationToken)
     {
-        var user = httpContext.GetUserContext();
+        var user = await httpContext.GetUserContext();
 
         var result = await operation.Execute(
             user: user,
@@ -186,8 +211,17 @@ public static class UserEncryptionPasswordEndpoints
                 });
 
             case ResetUserEncryptionPasswordOperation.ResultCode.Ok:
-                UserEncryptionSessionCookie.Set(httpContext, user.ExternalId, result.PrivateKey!);
+            {
+                UserEncryptionSessionCookie.Set(
+                    httpContext, 
+                    result.PrivateKey!);
+                    
+                await userCache.InvalidateEntry(
+                    userId: user.Id,
+                    cancellationToken: cancellationToken);
+
                 return TypedResults.Ok();
+            }
 
             default:
                 throw new InvalidOperationException($"Unexpected result code: {result.Code}");

@@ -198,7 +198,9 @@ public class user_permissions_tests : TestFixture
                 IsAppOwner = false
             },
             MaxWorkspaceNumber = AppSettings.NewUserDefaultMaxWorkspaceNumber.Value,
-            HasPassword = true
+            HasPassword = true,
+            IsEncryptionConfigured = false,
+            IsEncryptionUnlocked = false
         });
     }
 

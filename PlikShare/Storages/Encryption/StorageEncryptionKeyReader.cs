@@ -12,7 +12,10 @@ namespace PlikShare.Storages.Encryption;
 /// </summary>
 public class StorageEncryptionKeyReader(PlikShareDb plikShareDb)
 {
-    public byte[]? TryLoadWrappedDek(int storageId, int userId, int storageDekVersion)
+    public byte[]? TryLoadWrappedDek(
+        int storageId, 
+        int userId, 
+        int storageDekVersion)
     {
         using var connection = plikShareDb.OpenConnection();
 

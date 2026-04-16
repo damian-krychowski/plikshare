@@ -1,9 +1,11 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.GeneralSettings;
+using PlikShare.Users.Cache;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
 using PlikShare.Users.Sql;
@@ -13,9 +15,10 @@ namespace PlikShare.Users.GetOrCreate;
 
 public class GetOrCreateUserInvitationQuery(
     DbWriteQueue dbWriteQueue,
+    AppOwners appOwners,
     AppSettings appSettings)
 {
-    public Task<User> Execute(
+    public Task<UserContext> Execute(
         Email email,
         CancellationToken cancellationToken)
     {
@@ -26,7 +29,7 @@ public class GetOrCreateUserInvitationQuery(
             cancellationToken: cancellationToken);
     }
 
-    private User ExecuteOperation(
+    private UserContext ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         Email email)
     {
@@ -34,20 +37,20 @@ public class GetOrCreateUserInvitationQuery(
 
         try
         {
-            var user = GetOrCreateUserInvitation(
+            var result = GetOrCreateUserInvitation(
                 email: email,
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);
 
             transaction.Commit();
 
-            if (user.WasJustCreated)
+            if (result.WasJustCreated)
             {
-                Log.Information("User '{User}' was created.",
-                    user);
+                Log.Information("User '{UserEmail}' was created.",
+                    email.Anonymize());
             }
 
-            return user;
+            return result.User;
         }
         catch (Exception e)
         {
@@ -60,7 +63,7 @@ public class GetOrCreateUserInvitationQuery(
         }
     }
 
-    private User GetOrCreateUserInvitation(
+    private (UserContext User, bool WasJustCreated) GetOrCreateUserInvitation(
         Email email,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
@@ -71,19 +74,16 @@ public class GetOrCreateUserInvitationQuery(
             transaction);
 
         if (!userResult.IsEmpty)
-            return userResult.Value;
+            return (userResult.Value, WasJustCreated: false);
 
         var newUserResult = TryInsertUserInvitation(
             email,
             dbWriteContext,
             transaction);
 
-        //user was just created, we can return it
         if (!newUserResult.IsEmpty)
-            return newUserResult.Value;
+            return (newUserResult.Value, WasJustCreated: true);
 
-        //user was not created - which means it was created concurrently in the meantime
-        //we try to select it again
         userResult = TrySelectUser(
             email,
             dbWriteContext,
@@ -91,14 +91,14 @@ public class GetOrCreateUserInvitationQuery(
 
         if (userResult.IsEmpty)
         {
-            //that is an impossible scenario
-            throw new InvalidOperationException($"Cannot create nor select user with email '{email}'");
+            throw new InvalidOperationException(
+                $"Cannot create nor select user with email '{email}'");
         }
 
-        return userResult.Value;
+        return (userResult.Value, WasJustCreated: false);
     }
 
-    private SQLiteOneRowCommandResult<User> TryInsertUserInvitation(
+    private SQLiteOneRowCommandResult<UserContext> TryInsertUserInvitation(
         Email email,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
@@ -163,30 +163,43 @@ public class GetOrCreateUserInvitationQuery(
                      RETURNING
                          u_id
                      """,
-                readRowFunc: reader => new User
+                readRowFunc: reader => new UserContext
                 {
+                    Status = UserStatus.Invitation,
                     Id = reader.GetInt32(0),
                     ExternalId = externalId,
+                    Email = email,
                     IsEmailConfirmed = false,
-                    IsInvitation = true,
-                    InvitationCode = invitationCode,
-                    SecurityStamp = securityStamp,
-                    ConcurrencyStamp = concurrencyStamp,
-                    IsAdmin = false,
-                    CanAddWorkspace = false,
-                    CanManageGeneralSettings = false,
-                    CanManageUsers = false,
-                    CanManageStorages = false,
-                    CanManageEmailProviders = false,
-                    CanManageAuth = false,
-                    CanManageIntegrations = false,
-                    CanManageAuditLog = false,
+                    Stamps = new UserSecurityStamps
+                    {
+                        Security = securityStamp,
+                        Concurrency = concurrencyStamp
+                    },
+                    Roles = new UserRoles
+                    {
+                        IsAppOwner = appOwners.IsAppOwner(email),
+                        IsAdmin = false
+                    },
+                    Permissions = new UserPermissions
+                    {
+                        CanAddWorkspace = false,
+                        CanManageGeneralSettings = false,
+                        CanManageUsers = false,
+                        CanManageStorages = false,
+                        CanManageEmailProviders = false,
+                        CanManageAuth = false,
+                        CanManageIntegrations = false,
+                        CanManageAuditLog = false
+                    },
+                    Invitation = new UserInvitation
+                    {
+                        Code = invitationCode
+                    },
                     MaxWorkspaceNumber = maxWorkspaceNumber,
                     DefaultMaxWorkspaceSizeInBytes = defaultMaxWorkspaceSizeInBytes,
                     DefaultMaxWorkspaceTeamMembers = defaultMaxWorkspaceTeamMembers,
                     HasPassword = false,
-                    IsEncryptionConfigured = false,
-                    WasJustCreated = true
+                    EncryptionMetadata = null
                 },
                 transaction: transaction)
             .WithParameter("$externalId", externalId.Value)
@@ -203,7 +216,7 @@ public class GetOrCreateUserInvitationQuery(
             .Execute();
     }
 
-    private static SQLiteOneRowCommandResult<User> TrySelectUser(
+    private SQLiteOneRowCommandResult<UserContext> TrySelectUser(
         Email email,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
@@ -232,64 +245,84 @@ public class GetOrCreateUserInvitationQuery(
                           u_default_max_workspace_size_in_bytes,
                           u_default_max_workspace_team_members,
                           (u_password_hash IS NOT NULL) AS u_has_password,
-                          (u_encryption_public_key IS NOT NULL) AS u_is_encryption_configured
+                          u_encryption_public_key,
+                          u_encryption_encrypted_private_key,
+                          u_encryption_kdf_salt,
+                          u_encryption_kdf_params,
+                          u_encryption_verify_hash,
+                          u_encryption_recovery_wrapped_private_key,
+                          u_encryption_recovery_verify_hash
                       FROM u_users
                       WHERE u_normalized_email = $userNormalizedEmail
                       LIMIT 1
                       """,
-                readRowFunc: reader => new User
+                readRowFunc: reader =>
                 {
-                    Id = reader.GetInt32(0),
-                    ExternalId = reader.GetExtId<UserExtId>(1),
-                    IsEmailConfirmed = reader.GetBoolean(2),
-                    IsInvitation = reader.GetBoolean(3),
-                    InvitationCode = reader.GetStringOrNull(4),
-                    SecurityStamp = reader.GetString(5),
-                    ConcurrencyStamp = reader.GetString(6),
-                    IsAdmin = reader.GetBoolean(7),
-                    CanAddWorkspace = reader.GetBoolean(8),
-                    CanManageGeneralSettings = reader.GetBoolean(9),
-                    CanManageUsers = reader.GetBoolean(10),
-                    CanManageStorages = reader.GetBoolean(11),
-                    CanManageEmailProviders = reader.GetBoolean(12),
-                    CanManageAuth = reader.GetBoolean(13),
-                    CanManageIntegrations = reader.GetBoolean(14),
-                    CanManageAuditLog = reader.GetBoolean(15),
-                    MaxWorkspaceNumber = reader.GetInt32OrNull(16),
-                    DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(17),
-                    DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(18),
-                    HasPassword = reader.GetBoolean(19),
-                    IsEncryptionConfigured = reader.GetBoolean(20),
-                    WasJustCreated = false
+                    var isInvitation = reader.GetBoolean(3);
+                    var encryptionPublicKey = reader.GetFieldValueOrNull<byte[]>(20);
+
+                    return new UserContext
+                    {
+                        Status = isInvitation
+                            ? UserStatus.Invitation
+                            : UserStatus.Registered,
+                        Id = reader.GetInt32(0),
+                        ExternalId = reader.GetExtId<UserExtId>(1),
+                        Email = email,
+                        IsEmailConfirmed = reader.GetBoolean(2),
+
+                        Stamps = new UserSecurityStamps
+                        {
+                            Security = reader.GetString(5),
+                            Concurrency = reader.GetString(6)
+                        },
+
+                        Roles = new UserRoles
+                        {
+                            IsAppOwner = appOwners.IsAppOwner(email),
+                            IsAdmin = reader.GetBoolean(7)
+                        },
+
+                        Permissions = new UserPermissions
+                        {
+                            CanAddWorkspace = reader.GetBoolean(8),
+                            CanManageGeneralSettings = reader.GetBoolean(9),
+                            CanManageUsers = reader.GetBoolean(10),
+                            CanManageStorages = reader.GetBoolean(11),
+                            CanManageEmailProviders = reader.GetBoolean(12),
+                            CanManageAuth = reader.GetBoolean(13),
+                            CanManageIntegrations = reader.GetBoolean(14),
+                            CanManageAuditLog = reader.GetBoolean(15)
+                        },
+
+                        Invitation = isInvitation
+                            ? new UserInvitation
+                            {
+                                Code = reader.GetString(4)
+                            }
+                            : null,
+
+                        MaxWorkspaceNumber = reader.GetInt32OrNull(16),
+                        DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(17),
+                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(18),
+                        HasPassword = reader.GetBoolean(19),
+
+                        EncryptionMetadata = encryptionPublicKey is null
+                            ? null
+                            : new UserEncryptionMetadata
+                            {
+                                PublicKey = encryptionPublicKey,
+                                EncryptedPrivateKey = reader.GetFieldValue<byte[]>(21),
+                                KdfSalt = reader.GetFieldValue<byte[]>(22),
+                                KdfParams = EncryptionPasswordKdf.DeserializeParams(reader.GetString(23)),
+                                VerifyHash = reader.GetFieldValue<byte[]>(24),
+                                RecoveryWrappedPrivateKey = reader.GetFieldValue<byte[]>(25),
+                                RecoveryVerifyHash = reader.GetFieldValue<byte[]>(26)
+                            }
+                    };
                 },
                 transaction: transaction)
             .WithParameter("$userNormalizedEmail", email.Normalized)
             .Execute();
-    }
-
-    public class User
-    {
-        public required int Id { get; init; }
-        public required UserExtId ExternalId { get; init; }
-        public required bool IsEmailConfirmed { get; init; }
-        public required bool IsInvitation { get; init; }
-        public required string? InvitationCode { get; init; }
-        public required string SecurityStamp { get; init; }
-        public required string ConcurrencyStamp { get; init; }
-        public required bool IsAdmin { get; init; }
-        public required bool CanAddWorkspace { get; init; }
-        public required bool CanManageGeneralSettings { get; init; }
-        public required bool CanManageUsers { get; init; }
-        public required bool CanManageStorages { get; init; }
-        public required bool CanManageEmailProviders { get; init; }
-        public required bool CanManageAuth { get; init; }
-        public required bool CanManageIntegrations { get; init; }
-        public required bool CanManageAuditLog { get; init; }
-        public required int? MaxWorkspaceNumber { get; init; }
-        public required long? DefaultMaxWorkspaceSizeInBytes { get; init; }
-        public required int? DefaultMaxWorkspaceTeamMembers { get; init; }
-        public required bool HasPassword { get; init; }
-        public required bool IsEncryptionConfigured { get; init; }
-        public required bool WasJustCreated { get; init; }
     }
 }

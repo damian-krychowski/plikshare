@@ -248,7 +248,9 @@ public class user_invitation_tests : TestFixture
                 CanManageAuditLog = false
             },
             MaxWorkspaceNumber = 0,
-            HasPassword = true
+            HasPassword = true,
+            IsEncryptionConfigured = false,
+            IsEncryptionUnlocked = false
         });
     }
 

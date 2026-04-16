@@ -19,11 +19,11 @@ public static class DashboardEndpoints
             .WithProtobufResponse();
     }
 
-    private static GetDashboardContentResponseDto GetData(
+    private static async ValueTask<GetDashboardContentResponseDto> GetData(
         HttpContext httpContext,
         GetDashboardContentQuery getDashboardContentQuery)
     {
-        var user = httpContext.GetUserContext();
+        var user = await httpContext.GetUserContext();
 
         var result = getDashboardContentQuery.Execute(
             user: user);

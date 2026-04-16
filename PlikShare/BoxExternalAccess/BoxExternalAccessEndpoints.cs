@@ -176,15 +176,15 @@ public static class BoxExternalAccessEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var user = httpContext.GetUserContext();
+        var userExternalId = httpContext.User.GetExternalId();
 
         var boxMembership = await boxMembershipCache.TryGetBoxMembership(
             boxExternalId,
-            user.Id,
+            userExternalId,
             cancellationToken);
 
         if (boxMembership is null)
-            return HttpErrors.Box.MemberNotFound(boxExternalId, user.ExternalId);
+            return HttpErrors.Box.MemberNotFound(boxExternalId, userExternalId);
 
         var result = await leaveBoxMembershipQuery.Execute(
             boxMembership: boxMembership,
@@ -212,7 +212,7 @@ public static class BoxExternalAccessEndpoints
         }
 
         if (result == LeaveBoxMembershipQuery.ResultCode.BoxMembershipNotFound)
-            return HttpErrors.Box.MemberNotFound(boxExternalId, user.ExternalId);
+            return HttpErrors.Box.MemberNotFound(boxExternalId, userExternalId);
 
         throw new UnexpectedOperationResultException(
             operationName: nameof(LeaveBoxMembershipQuery),
@@ -230,15 +230,15 @@ public static class BoxExternalAccessEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var user = httpContext.GetUserContext();
+        var userExternalId = httpContext.User.GetExternalId();
 
         var boxMembership = await boxMembershipCache.TryGetBoxMembership(
             boxExternalId,
-            user.Id,
+            userExternalId,
             cancellationToken);
 
         if (boxMembership is null)
-            return HttpErrors.Box.MemberNotFound(boxExternalId, user.ExternalId);
+            return HttpErrors.Box.MemberNotFound(boxExternalId, userExternalId);
 
         var result = await acceptBoxInvitationQuery.Execute(
             boxMembership: boxMembership,
@@ -281,15 +281,15 @@ public static class BoxExternalAccessEndpoints
             AuditLogService auditLogService,
             CancellationToken cancellationToken)
     {
-        var user = httpContext.GetUserContext();
+        var userExternalId = httpContext.User.GetExternalId();
 
         var boxMembership = await boxMembershipCache.TryGetBoxMembership(
             boxExternalId,
-            user.Id,
+            userExternalId,
             cancellationToken);
 
         if (boxMembership is null)
-            return HttpErrors.Box.MemberNotFound(boxExternalId, user.ExternalId);
+            return HttpErrors.Box.MemberNotFound(boxExternalId, userExternalId);
 
         var result = await rejectBoxInvitationQuery.Execute(
             boxMembership: boxMembership,

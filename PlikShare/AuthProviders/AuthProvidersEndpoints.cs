@@ -19,9 +19,7 @@ using PlikShare.AuthProviders.Update.Contracts;
 using PlikShare.AuthProviders.UpdateName;
 using PlikShare.AuthProviders.UpdateName.Contracts;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Core.Authorization;
-using PlikShare.Core.Configuration;
 using PlikShare.Core.Utils;
 using PlikShare.GeneralSettings;
 using Audit = PlikShare.AuditLog.Details.Audit;
@@ -76,7 +74,7 @@ public static class AuthProvidersEndpoints
         AppSettings appSettings)
     {
         var providers = getAuthProvidersQuery.Execute();
-        var userId = httpContext.User.GetDatabaseId();
+        var userId = httpContext.User.GetExternalId();
 
         return new GetAuthSettingsResponseDto
         {
@@ -96,7 +94,8 @@ public static class AuthProvidersEndpoints
                 .PasswordLogin
                 .IsEnabled,
 
-            CurrentUserHasSsoLinked = checkUserHasSsoLoginQuery.Execute(userId)
+            CurrentUserHasSsoLinked = checkUserHasSsoLoginQuery.Execute(
+                userId)
         };
     }
 
@@ -380,7 +379,7 @@ public static class AuthProvidersEndpoints
     {
         if (!request.IsEnabled)
         {
-            var userId = httpContext.User.GetDatabaseId();
+            var userId = httpContext.User.GetExternalId();
 
             if (!checkUserHasSsoLoginQuery.Execute(userId))
             {

@@ -98,7 +98,7 @@ public static class GeneralSettingsEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var currentUser = httpContext.GetUserContext();
+        var currentUser = await httpContext.GetUserContext();
 
         var permissionsAndRoles = request.GetPermissionsAndRolesList();
 

@@ -3,7 +3,7 @@ using PlikShare.EmailProviders.EmailSender;
 using PlikShare.EmailProviders.Entities;
 using PlikShare.EmailProviders.Id;
 using PlikShare.EmailProviders.SendConfirmationEmail;
-using PlikShare.Users.Cache;
+using PlikShare.Users.Entities;
 
 namespace PlikShare.EmailProviders.Create;
 
@@ -18,7 +18,7 @@ public class CreateEmailProviderOperation(
         EmailProviderType type,
         string emailFrom,
         string detailsJson,
-        UserContext user,
+        Email userEmail,
         CancellationToken cancellationToken)
     {
         var result = await createEmailProviderQuery.Execute(
@@ -41,7 +41,7 @@ public class CreateEmailProviderOperation(
             await emailProviderConfirmationEmail.Send(
                 emailProviderName: name,
                 confirmationCode: result.EmailProvider!.ConfirmationCode,
-                to: user.Email,
+                to: userEmail,
                 emailSender: emailSender,
                 cancellationToken: cancellationToken);
             

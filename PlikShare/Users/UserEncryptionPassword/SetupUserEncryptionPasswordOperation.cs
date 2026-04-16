@@ -13,7 +13,6 @@ namespace PlikShare.Users.UserEncryptionPassword;
 /// Rejects users who already have encryption configured — change/reset flows are separate.
 /// </summary>
 public class SetupUserEncryptionPasswordOperation(
-    UserEncryptionDataReader userEncryptionDataReader,
     UpsertUserEncryptionDataQuery upsertUserEncryptionDataQuery)
 {
     public async Task<Result> Execute(
@@ -21,7 +20,7 @@ public class SetupUserEncryptionPasswordOperation(
         string encryptionPassword,
         CancellationToken cancellationToken)
     {
-        if (userEncryptionDataReader.LoadForUser(user.Id) is not null)
+        if (user.EncryptionMetadata is not null)
         {
             Log.Warning("User '{UserId}' already has encryption configured — setup rejected.", user.Id);
 

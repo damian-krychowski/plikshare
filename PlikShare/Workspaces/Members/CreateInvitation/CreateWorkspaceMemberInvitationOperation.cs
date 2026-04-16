@@ -18,6 +18,7 @@ public class CreateWorkspaceMemberInvitationOperation(
         CancellationToken cancellationToken)
     {
         var list = new List<UserContext>();
+
         foreach (var email in memberEmails)
         {
             var user = await userCache.GetOrCreateUserInvitationByEmail(

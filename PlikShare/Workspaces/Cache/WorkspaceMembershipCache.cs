@@ -3,6 +3,7 @@ using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Users.Cache;
+using PlikShare.Users.Id;
 using PlikShare.Workspaces.Id;
 using PlikShare.Workspaces.Permissions;
 
@@ -19,7 +20,7 @@ public class WorkspaceMembershipCache(
     
     public async ValueTask<WorkspaceMembershipContext?> TryGetWorkspaceMembership(
         WorkspaceExtId workspaceExternalId,
-        int memberId,
+        UserExtId memberExternalId,
         CancellationToken cancellationToken)
     {
         var workspace = await workspaceCache.TryGetWorkspace(
@@ -27,7 +28,7 @@ public class WorkspaceMembershipCache(
             cancellationToken);
 
         var user = await userCache.TryGetUser(
-            memberId,
+            memberExternalId,
             cancellationToken);
 
         return await TryGetWorkspaceMembership(
@@ -57,7 +58,7 @@ public class WorkspaceMembershipCache(
         {
             return new WorkspaceMembershipContext(
                 Workspace: workspace,
-                User: workspace.Owner,
+                User: member,
                 Permissions: new WorkspacePermissions(AllowShare: true),
                 Invitation: null);
         }

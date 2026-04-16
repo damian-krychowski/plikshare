@@ -15,7 +15,7 @@ public class UserLoggingMiddleware(RequestDelegate next)
         {
             using (LogContext.PushProperty(LogContextProperty.AuthPolicy, AuthPolicy.Internal))
             using (LogContext.PushProperty(LogContextProperty.UserExternalId, context.User.GetExternalId()))
-            using (LogContext.PushProperty(LogContextProperty.UserEmail, EmailAnonymization.Anonymize(context.User.GetEmail())))
+            using (LogContext.PushProperty(LogContextProperty.UserEmail, context.User.GetEmail().Anonymize()))
             {
                 await _next(context);
             }
