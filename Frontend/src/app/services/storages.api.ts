@@ -8,7 +8,7 @@ export interface CreateCloudflareR2StorageRequest {
     secretAccessKey:string;
     url: string;
     encryptionType: AppStorageEncryptionType;
-    masterPassword?: string;
+
 }
 
 export interface CreateCloudflareR2StorageResponse {
@@ -28,7 +28,7 @@ export interface CreateAwsS3StorageRequest {
     secretAccessKey:string;
     region: string;
     encryptionType: AppStorageEncryptionType;
-    masterPassword?: string;
+
 }
 
 export interface CreateAwsS3StorageResponse {
@@ -42,7 +42,7 @@ export interface CreateDigitalOceanSpacesStorageRequest {
     secretKey:string;
     region: string;
     encryptionType: AppStorageEncryptionType;
-    masterPassword?: string;
+
 }
 
 export interface UpdateDigitalOceanSpacesStorageDetailsRequest {
@@ -61,7 +61,7 @@ export interface CreateHardDriveStorageRequest {
     volumePath: string;
     folderPath: string;
     encryptionType: AppStorageEncryptionType;
-    masterPassword?: string;
+
 }
 
 export interface CreateHardDriveStorageResponse {
@@ -159,19 +159,6 @@ export interface HardDriveVolumeItem {
     restrictedFolderPaths: string[];
 }
 
-export interface UnlockFullEncryptionRequest {
-    masterPassword: string;
-}
-
-export interface ResetMasterPasswordRequest {
-    recoveryCode: string;
-    newPassword: string;
-}
-
-export interface ChangeMasterPasswordRequest {
-    oldPassword: string;
-    newPassword: string;
-}
 
 export interface CreateBackblazeB2StorageRequest {
     name: string;
@@ -179,7 +166,7 @@ export interface CreateBackblazeB2StorageRequest {
     applicationKey: string;
     url: string;
     encryptionType: AppStorageEncryptionType;
-    masterPassword?: string;
+
 }
 
 export interface CreateBackblazeB2StorageResponse {
@@ -357,44 +344,6 @@ export class StoragesApi {
         return await firstValueFrom(call);
     }
 
-    public async unlockFullEncryption(externalId: string, request: UnlockFullEncryptionRequest): Promise<void> {
-        const call = this
-            ._http
-            .post(
-                `/api/storages/${externalId}/unlock-full-encryption`, request, {
-                headers: new HttpHeaders({
-                    'Content-Type': 'application/json'
-                })
-            });
-
-        await firstValueFrom(call);
-    }
-
-    public async resetMasterPassword(externalId: string, request: ResetMasterPasswordRequest): Promise<void> {
-        const call = this
-            ._http
-            .post(
-                `/api/storages/${externalId}/reset-master-password`, request, {
-                headers: new HttpHeaders({
-                    'Content-Type': 'application/json'
-                })
-            });
-
-        await firstValueFrom(call);
-    }
-
-    public async changeMasterPassword(externalId: string, request: ChangeMasterPasswordRequest): Promise<void> {
-        const call = this
-            ._http
-            .post(
-                `/api/storages/${externalId}/change-master-password`, request, {
-                headers: new HttpHeaders({
-                    'Content-Type': 'application/json'
-                })
-            });
-
-        await firstValueFrom(call);
-    }
 
     public async updateBackblazeB2StorageDetails(externalId: string, request: UpdateBackblazeB2StorageDetailsRequest): Promise<void> {
         const call = this

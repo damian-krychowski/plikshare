@@ -1,17 +1,11 @@
 <div class="recovery-code">
     <div class="recovery-code__title">
-        Save your recovery code
+        {{ data.title }}
     </div>
 
     <div class="recovery-code__warning">
         <strong>This is the only time you will see this code.</strong>
-        @if (data.encryptionType === 'full') {
-            It is the only way to regain access to <em>{{ data.storageName }}</em>
-            if you forget your password — or if the database ever gets lost or damaged.
-        } @else {
-            If the database for <em>{{ data.storageName }}</em> ever gets lost or damaged,
-            this code is the only way to decrypt your files directly.
-        }
+        {{ data.warning }}
     </div>
 
     <div class="recovery-code__grid">
@@ -38,15 +32,7 @@
     </div>
 
     <div class="recovery-code__danger-notice">
-        Anyone who obtains this code can decrypt your files.
-        Store it somewhere only you can reach — password manager, offline note, safe.
-        <br>
-        @if (data.encryptionType === 'full') {
-            <strong>If you lose it and forget your password, your files cannot be recovered.</strong>
-        } @else {
-            <strong>If the database is ever lost or damaged and you don't have this code,
-            your files cannot be recovered.</strong>
-        }
+        {{ data.dangerNotice }}
     </div>
 
     <mat-checkbox class="recovery-code__confirm"

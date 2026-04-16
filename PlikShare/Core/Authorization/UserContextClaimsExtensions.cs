@@ -27,5 +27,8 @@ public static class UserContextClaimsExtensions
 
         if (user.HasPassword)
             yield return new Claim(Claims.HasPassword, true.ToString());
+
+        if (user.IsEncryptionConfigured)
+            yield return new Claim(Claims.IsEncryptionConfigured, true.ToString());
     }
 }

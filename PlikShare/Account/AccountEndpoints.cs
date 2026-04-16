@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.Account.Contracts;
 using PlikShare.Account.GetKnownUsers;
+using PlikShare.Core.Encryption;
 using PlikShare.Account.GetKnownUsers.Contracts;
 using PlikShare.AuditLog;
 using PlikShare.AuditLog.Details;
@@ -106,6 +107,9 @@ public static class AccountEndpoints
                 CanManageAuditLog = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageAuditLog),
             },
             HasPassword = user.HasPassword,
+            IsEncryptionConfigured = user.IsEncryptionConfigured,
+            IsEncryptionUnlocked = user.IsEncryptionConfigured
+                && UserEncryptionSessionCookie.TryReadPrivateKey(httpContext, user.ExternalId) is not null,
             MaxWorkspaceNumber = user.MaxWorkspaceNumber
         };
     }

@@ -7,9 +7,10 @@ import { ToastrService } from 'ngx-toastr';
 import { AccessCodesApi } from "../external-access/external-link/access-codes.api";
 import { SignOutService } from "./sign-out.service";
 import { BOX_LINK_TOKEN_HEADER } from "./box-link-token.service";
-import { UnlockFullEncryptionComponent, UnlockFullEncryptionDialogData } from "../shared/unlock-full-encryption/unlock-full-encryption.component";
+import { UnlockFullEncryptionComponent } from "../shared/unlock-full-encryption/unlock-full-encryption.component";
 
-const FULL_ENCRYPTION_SESSION_REQUIRED = "full-encryption-session-required";
+const USER_ENCRYPTION_SESSION_REQUIRED = "user-encryption-session-required";
+const CREATOR_ENCRYPTION_NOT_SET_UP = "creator-encryption-not-set-up";
 
 @Injectable({
     providedIn: 'root'
@@ -83,14 +84,23 @@ export class AuthInterceptor implements HttpInterceptor {
         } else if (err.status === 423) {
             const body = this.parseErrorBody(err);
 
-            if (body?.code === FULL_ENCRYPTION_SESSION_REQUIRED && body?.storageExternalId) {
+            if (body?.code === USER_ENCRYPTION_SESSION_REQUIRED) {
                 return this
-                    .openUnlockDialog(body.storageExternalId)
+                    .openUnlockDialog()
                     .pipe(switchMap(unlocked => unlocked
                         ? next.handle(req)
                         : throwError(() => err)));
             }
-        } else if(err.status === 404 || err.status === 400) {
+        } else if (err.status === 400) {
+            const body = this.parseErrorBody(err);
+
+            if (body?.code === CREATOR_ENCRYPTION_NOT_SET_UP) {
+                this._toastr.error(
+                    "You need to set up your encryption password first. Go to Settings > Your account to configure it.");
+            }
+
+            // let 400 propagate to caller
+        } else if(err.status === 404) {
             //ignore
         }
         else {
@@ -124,15 +134,14 @@ export class AuthInterceptor implements HttpInterceptor {
         return body;
     }
 
-    private openUnlockDialog(storageExternalId: string): Observable<boolean> {
+    private openUnlockDialog(): Observable<boolean> {
         const dialogRef = this._dialog.open<
             UnlockFullEncryptionComponent,
-            UnlockFullEncryptionDialogData,
+            void,
             boolean>(UnlockFullEncryptionComponent, {
                 width: '500px',
                 position: { top: '100px' },
-                disableClose: true,
-                data: { storageExternalId }
+                disableClose: true
             });
 
         return dialogRef.afterClosed().pipe(map(result => result === true));

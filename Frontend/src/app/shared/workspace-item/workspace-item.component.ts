@@ -20,7 +20,6 @@ import { UserPickerComponent } from '../user-picker/user-picker.component';
 import { AppUserDetails } from '../user-item/app-user';
 import { observeIsHighlighted } from '../../services/is-highlighted-utils';
 import { AppStorageEncryptionType } from '../../services/storages.api';
-import { FullEncryptionSessionsStore } from '../../services/full-encryption-sessions.store';
 
 export type AppWorkspace = {
     type: 'app-workspace';
@@ -80,7 +79,7 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
     storageEncryptionType = computed(() => this.workspace().storageEncryptionType);
     isFullEncryption = computed(() => this.workspace().storageEncryptionType === 'full');
     isFullEncryptionUnlocked = computed(() => this.isFullEncryption()
-        && this._sessionsStore.items().some(i => i.storageExternalId === this.workspace().storageExternalId));
+        && this.auth.isEncryptionUnlocked());
     owner = computed(() => this.workspace().owner());
 
     isNameEditing = computed(() => this.workspace().isNameEditing());    
@@ -109,8 +108,7 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
         private _router: Router,
         private _inAppSharing: InAppSharing,
         private _dialog: MatDialog,
-        public dataStore: DataStore,
-        private _sessionsStore: FullEncryptionSessionsStore
+        public dataStore: DataStore
     ) {
 
     }

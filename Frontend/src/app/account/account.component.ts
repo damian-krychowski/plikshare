@@ -10,6 +10,9 @@ import { ChangePasswordComponent } from "./change-password/change-password.compo
 import {MatRadioModule} from '@angular/material/radio';
 import { SignOutService } from "../services/sign-out.service";
 import { ApplicationSettingsApi } from "../services/application-settings.api";
+import { SetupEncryptionPasswordComponent } from "../shared/setup-encryption-password/setup-encryption-password.component";
+import { ChangeEncryptionPasswordComponent } from "../shared/change-master-password/change-master-password.component";
+import { ResetEncryptionPasswordComponent } from "../shared/reset-master-password/reset-master-password.component";
 
 @Component({
     selector: 'app-account',
@@ -106,5 +109,26 @@ export class AccountComponent implements OnInit {
 
     goToAuditLog(){
         this._router.navigate(['settings/audit-log']);
+    }
+
+    setupEncryptionPassword() {
+        this._dialog.open(SetupEncryptionPasswordComponent, {
+            width: '500px',
+            position: { top: '100px' }
+        });
+    }
+
+    changeEncryptionPassword() {
+        this._dialog.open(ChangeEncryptionPasswordComponent, {
+            width: '500px',
+            position: { top: '100px' }
+        });
+    }
+
+    resetEncryptionPassword() {
+        this._dialog.open(ResetEncryptionPasswordComponent, {
+            width: '500px',
+            position: { top: '100px' }
+        });
     }
 }

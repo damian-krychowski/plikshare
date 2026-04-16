@@ -35,6 +35,8 @@ export interface GetAccountDetailsResponse {
     roles: AccountRoles,
     permissions: AccountPermissions;
     hasPassword: boolean;
+    isEncryptionConfigured: boolean;
+    isEncryptionUnlocked: boolean;
     maxWorkspaceNumber: number | null;
 }
 

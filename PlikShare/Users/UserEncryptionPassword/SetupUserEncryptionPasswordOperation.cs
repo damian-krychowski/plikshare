@@ -24,21 +24,41 @@ public class SetupUserEncryptionPasswordOperation(
         if (userEncryptionDataReader.LoadForUser(user.Id) is not null)
         {
             Log.Warning("User '{UserId}' already has encryption configured — setup rejected.", user.Id);
+
             return new Result(ResultCode.AlreadyConfigured);
         }
 
         var keypair = UserKeyPair.Generate();
 
         var kdfSalt = EncryptionPasswordKdf.GenerateSalt();
-        var kdfParams = EncryptionPasswordKdf.Params.Default;
-        var passwordKek = EncryptionPasswordKdf.DeriveKek(encryptionPassword, kdfSalt, kdfParams);
-        var verifyHash = EncryptionPasswordKdf.ComputeVerifyHash(passwordKek);
-        var encryptedPrivateKey = WrappedPrivateKey.Wrap(passwordKek, keypair.PrivateKey);
+
+        var kdfParams = EncryptionPasswordKdf
+            .Params
+            .Default;
+
+        var passwordKek = EncryptionPasswordKdf.DeriveKek(
+            encryptionPassword, 
+            kdfSalt, 
+            kdfParams);
+
+        var verifyHash = EncryptionPasswordKdf.ComputeVerifyHash(
+            passwordKek);
+
+        var encryptedPrivateKey = WrappedPrivateKey.Wrap(
+            passwordKek, 
+            keypair.PrivateKey);
 
         var recoverySeed = UserEncryptionRecovery.GenerateRecoverySeed();
-        var recoveryKek = UserEncryptionRecovery.DeriveRecoveryKek(recoverySeed);
-        var recoveryWrappedPrivateKey = WrappedPrivateKey.Wrap(recoveryKek, keypair.PrivateKey);
-        var recoveryVerifyHash = UserEncryptionRecovery.ComputeVerifyHash(recoverySeed);
+
+        var recoveryKek = UserEncryptionRecovery.DeriveRecoveryKek(
+            recoverySeed);
+
+        var recoveryWrappedPrivateKey = WrappedPrivateKey.Wrap(
+            recoveryKek, 
+            keypair.PrivateKey);
+
+        var recoveryVerifyHash = UserEncryptionRecovery.ComputeVerifyHash(
+            recoverySeed);
 
         var writeCode = await upsertUserEncryptionDataQuery.Execute(
             userId: user.Id,

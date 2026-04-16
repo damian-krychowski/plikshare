@@ -10,5 +10,7 @@ public class GetAccountDetailsResponseDto
     public required UserRoles Roles { get; init; }
     public required UserPermissions Permissions { get; init; }
     public required bool HasPassword { get; init; }
+    public required bool IsEncryptionConfigured { get; init; }
+    public required bool IsEncryptionUnlocked { get; init; }
     public int? MaxWorkspaceNumber { get; init; }
 }

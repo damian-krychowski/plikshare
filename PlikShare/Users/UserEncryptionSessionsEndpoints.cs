@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Encryption;
 
-namespace PlikShare.Users.UserEncryptionSessions;
+namespace PlikShare.Users;
 
 /// <summary>
 /// Endpoints for inspecting and locking the current user's encryption session.

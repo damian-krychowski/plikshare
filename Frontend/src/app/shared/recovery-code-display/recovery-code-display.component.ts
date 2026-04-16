@@ -3,12 +3,15 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { FormsModule } from '@angular/forms';
-import { AppStorageEncryptionType } from '../../services/storages.api';
 
 export interface RecoveryCodeDisplayDialogData {
     recoveryCode: string;
-    storageName: string;
-    encryptionType: AppStorageEncryptionType;
+    title: string;
+    warning: string;
+    dangerNotice: string;
+    fileHeader: string;
+    fileWarning: string;
+    fileName: string;
 }
 
 @Component({
@@ -40,34 +43,22 @@ export class RecoveryCodeDisplayComponent {
     }
 
     downloadAsFile() {
-        const safeName = this.data.storageName.replace(/[^a-zA-Z0-9-_]/g, '_');
-
-        const warning = this.data.encryptionType === 'full'
-            ? `This code is the ONLY way to regain access to this storage if you forget
-your password — or if the database is ever lost or damaged. It will not
-be shown again. Anyone who obtains this code can access your files —
-guard it like a password.`
-            : `If the database is ever lost or damaged, this code is the ONLY way to
-decrypt this storage's files. It will not be shown again. Anyone who
-obtains this code can decrypt your files — guard it like a password.`;
-
         const content =
-`PlikShare storage recovery code
-Storage: ${this.data.storageName}
+`${this.data.fileHeader}
 Generated: ${new Date().toISOString()}
 
 ${this.formatWordsForFile()}
 
 WARNING
 -------
-${warning}
+${this.data.fileWarning}
 `;
 
         const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `plikshare-recovery-${safeName}.txt`;
+        link.download = this.data.fileName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

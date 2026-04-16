@@ -5,7 +5,7 @@ import { AppStorageEncryptionType, AppStorageType, StoragesApi } from "../../ser
 import { EditableTxtComponent } from "../editable-txt/editable-txt.component";
 import { ActionButtonComponent } from "../buttons/action-btn/action-btn.component";
 import { observeIsHighlighted } from "../../services/is-highlighted-utils";
-import { ChangeMasterPasswordComponent, ChangeMasterPasswordDialogData } from "../change-master-password/change-master-password.component";
+import { ChangeEncryptionPasswordComponent } from "../change-master-password/change-master-password.component";
 
 export type AppStorage = {
     externalId: string;
@@ -47,24 +47,6 @@ export class StorageItemComponent {
         private _storagesApi: StoragesApi,
         private _dialog: MatDialog
     ) { }
-
-    openChangeMasterPasswordDialog() {
-        const storage = this.storage();
-
-        this._dialog.open<
-            ChangeMasterPasswordComponent,
-            ChangeMasterPasswordDialogData,
-            boolean
-        >(ChangeMasterPasswordComponent, {
-            width: '500px',
-            position: { top: '80px' },
-            disableClose: true,
-            data: {
-                storageExternalId: storage.externalId,
-                storageName: storage.name()
-            }
-        });
-    }
 
     async editStorage() {
         if(!this.storage)

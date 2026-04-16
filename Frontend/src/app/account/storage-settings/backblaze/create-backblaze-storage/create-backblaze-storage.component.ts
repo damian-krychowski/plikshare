@@ -1,4 +1,4 @@
-import { Component, ViewEncapsulation, signal } from '@angular/core';
+import { Component, ViewEncapsulation, signal, computed } from '@angular/core';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -9,6 +9,10 @@ import { MatRadioModule } from '@angular/material/radio';
 import { Router } from '@angular/router';
 import { DataStore } from '../../../../services/data-store.service';
 import { RecoveryCodeDialogService } from '../../../../shared/recovery-code-display/recovery-code-dialog.service';
+import { AuthService } from '../../../../services/auth.service';
+import { MatDialog } from '@angular/material/dialog';
+import { SetupEncryptionPasswordComponent } from '../../../../shared/setup-encryption-password/setup-encryption-password.component';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
     selector: 'app-create-backblaze-storage',
@@ -29,14 +33,15 @@ export class CreateBackblazeStorageComponent {
     isLoading = signal(false);
     couldNotConnect = signal(false);
 
+    selectedEncryption = signal<string>('none');
+    needsEncryptionSetup = computed(() =>
+        this.selectedEncryption() === 'full' && !this.auth.isEncryptionConfigured());
+
     encryption = new FormControl('none', Validators.required);
     name = new FormControl('', [Validators.required]);
     keyId = new FormControl('', [Validators.required]);
     applicationKey = new FormControl('', [Validators.required]);
     endpointUrl = new FormControl('', [Validators.required]);
-    masterPassword = new FormControl('');
-    confirmMasterPassword = new FormControl('');
-
     formGroup: FormGroup;
     wasSubmitted = signal(false);
 
@@ -44,19 +49,20 @@ export class CreateBackblazeStorageComponent {
         private _dataStore: DataStore,
         private _storagesApi: StoragesApi,
         private _router: Router,
-        private _recoveryCodeDialog: RecoveryCodeDialogService) {
+        private _recoveryCodeDialog: RecoveryCodeDialogService,
+        private _dialog: MatDialog,
+        public auth: AuthService) {
 
         this.formGroup = new FormGroup({
             name: this.name,
             keyId: this.keyId,
             applicationKey: this.applicationKey,
             endpointUrl: this.endpointUrl,
-            encryption: this.encryption,
-            masterPassword: this.masterPassword,
-            confirmMasterPassword: this.confirmMasterPassword
+            encryption: this.encryption
         });
 
-        this.encryption.valueChanges.subscribe(value => this.updateMasterPasswordValidators(value));
+        this.encryption.valueChanges.subscribe(value =>
+            this.selectedEncryption.set(value ?? 'none'));
     }
 
     async onCreateStorage() {
@@ -75,15 +81,22 @@ export class CreateBackblazeStorageComponent {
                 keyId: this.keyId.value!,
                 applicationKey: this.applicationKey.value!,
                 url: this.endpointUrl.value!,
-                encryptionType: encryptionType,
-                masterPassword: encryptionType === 'full' ? this.masterPassword.value! : undefined
+                encryptionType: encryptionType
             });
 
             this._dataStore.clearDashboardData();
 
             if (response.recoveryCode) {
-                await this._recoveryCodeDialog.showOnce(
-                    response.recoveryCode, this.name.value!, encryptionType);
+                const storageName = this.name.value!;
+                await this._recoveryCodeDialog.show({
+                    recoveryCode: response.recoveryCode,
+                    title: 'Save your storage recovery code',
+                    warning: `If the database for "${storageName}" is ever lost or damaged, this code is the only way to recover the storage encryption key and decrypt your files.`,
+                    dangerNotice: `Anyone who obtains this code can decrypt files on this storage. Store it somewhere only you can reach — password manager, offline note, safe. If you lose this code and the database is damaged, your files cannot be recovered.`,
+                    fileHeader: `PlikShare storage recovery code\nStorage: ${storageName}`,
+                    fileWarning: 'If the database is ever lost or damaged, this code is the ONLY way to recover the storage encryption key. It will not be shown again. Guard it like a password.',
+                    fileName: `plikshare-recovery-${storageName.replace(/[^a-zA-Z0-9-_]/g, '_')}.txt`
+                });
             }
 
             this.goToStorages();
@@ -106,38 +119,17 @@ export class CreateBackblazeStorageComponent {
         }
     }
 
+    async openSetupEncryptionPassword() {
+        const ref = this._dialog.open(SetupEncryptionPasswordComponent, {
+            width: '500px',
+            position: { top: '100px' },
+            disableClose: true
+        });
+        await firstValueFrom(ref.afterClosed());
+    }
+
     goToStorages() {
         this._router.navigate(['settings/storage']);
     }
 
-    private updateMasterPasswordValidators(encryptionValue: string | null) {
-        if (encryptionValue === 'full') {
-            this.masterPassword.setValidators([
-                Validators.required,
-                Validators.minLength(8),
-                Validators.pattern(/(?=.*[0-9])/),
-                Validators.pattern(/(?=.*[A-Z])/),
-                Validators.pattern(/(?=.*[a-z])/),
-                Validators.pattern(/(?=.*[!@#$%^&*])/)
-            ]);
-            this.confirmMasterPassword.setValidators([
-                Validators.required,
-                this.matchMasterPassword.bind(this)
-            ]);
-        } else {
-            this.masterPassword.clearValidators();
-            this.confirmMasterPassword.clearValidators();
-            this.masterPassword.setValue('');
-            this.confirmMasterPassword.setValue('');
-        }
-        this.masterPassword.updateValueAndValidity();
-        this.confirmMasterPassword.updateValueAndValidity();
-    }
-
-    private matchMasterPassword(control: FormControl): { [s: string]: boolean } | null {
-        if (this.masterPassword && control.value !== this.masterPassword.value) {
-            return { 'passwordMismatch': true };
-        }
-        return null;
-    }
 }

@@ -21,6 +21,7 @@ public static class Claims
     public const string DefaultMaxWorkspaceSizeInBytes = "default_max_workspace_size_in_bytes";
     public const string DefaultMaxWorkspaceTeamMembers = "default_max_workspace_team_members";
     public const string HasPassword = "has_password";
+    public const string IsEncryptionConfigured = "is_encryption_configured";
 
     public static void CopyClaimIfExists(
         this ClaimsIdentity newIdentity, 
@@ -267,6 +268,16 @@ public static class Claims
             .Claims
             .FirstOrDefault(c =>
                 string.Equals(c.Type, HasPassword, StringComparison.InvariantCultureIgnoreCase));
+
+        return claim is not null;
+    }
+
+    public static bool GetIsEncryptionConfigured(this ClaimsPrincipal claimsPrincipal)
+    {
+        var claim = claimsPrincipal
+            .Claims
+            .FirstOrDefault(c =>
+                string.Equals(c.Type, IsEncryptionConfigured, StringComparison.InvariantCultureIgnoreCase));
 
         return claim is not null;
     }

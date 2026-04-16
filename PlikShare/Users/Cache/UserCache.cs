@@ -96,7 +96,8 @@ public class UserCache(
                     u_max_workspace_number,
                     u_default_max_workspace_size_in_bytes,
                     u_default_max_workspace_team_members,
-                    (u_password_hash IS NOT NULL) AS u_has_password
+                    (u_password_hash IS NOT NULL) AS u_has_password,
+                    (u_encryption_public_key IS NOT NULL) AS u_is_encryption_configured
                 FROM u_users
                 WHERE u_id = $userId
                 LIMIT 1
@@ -145,7 +146,8 @@ public class UserCache(
                         MaxWorkspaceNumber = reader.GetInt32OrNull(16),
                         DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(17),
                         DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(18),
-                        HasPassword = reader.GetBoolean(19)
+                        HasPassword = reader.GetBoolean(19),
+                        IsEncryptionConfigured = reader.GetBoolean(20)
                     };
                 })
             .WithParameter("$userId", userId)
@@ -201,7 +203,8 @@ public class UserCache(
                     u_max_workspace_number,
                     u_default_max_workspace_size_in_bytes,
                     u_default_max_workspace_team_members,
-                    (u_password_hash IS NOT NULL) AS u_has_password
+                    (u_password_hash IS NOT NULL) AS u_has_password,
+                    (u_encryption_public_key IS NOT NULL) AS u_is_encryption_configured
                 FROM u_users
                 WHERE u_external_id = $userExternalId
                 LIMIT 1
@@ -248,7 +251,8 @@ public class UserCache(
                         MaxWorkspaceNumber = reader.GetInt32OrNull(16),
                         DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(17),
                         DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(18),
-                        HasPassword = reader.GetBoolean(19)
+                        HasPassword = reader.GetBoolean(19),
+                        IsEncryptionConfigured = reader.GetBoolean(20)
                     };
                 })
             .WithParameter("$userExternalId", externalId.Value)

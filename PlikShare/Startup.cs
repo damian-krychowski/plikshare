@@ -170,7 +170,6 @@ using PlikShare.Storages.Create;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Users.UserEncryptionPassword;
-using PlikShare.Users.UserEncryptionSessions;
 using PlikShare.Storages.Delete;
 using PlikShare.Storages.FileCopying;
 using PlikShare.Storages.FileCopying.BulkInitiateCopyFiles;

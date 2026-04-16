@@ -1,21 +1,17 @@
-import { Component, Inject, ViewEncapsulation, signal } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { Component, ViewEncapsulation, signal } from '@angular/core';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { firstValueFrom } from 'rxjs';
-import { StoragesApi } from '../../services/storages.api';
+import { UserEncryptionPasswordApi } from '../../services/user-encryption-password.api';
+import { AuthService } from '../../services/auth.service';
 import { SecureInputDirective } from '../secure-input.directive';
-import { ResetMasterPasswordComponent, ResetMasterPasswordDialogData } from '../reset-master-password/reset-master-password.component';
-
-export interface ChangeMasterPasswordDialogData {
-    storageExternalId: string;
-    storageName?: string;
-}
+import { ResetEncryptionPasswordComponent } from '../reset-master-password/reset-master-password.component';
 
 @Component({
-    selector: 'app-change-master-password',
+    selector: 'app-change-encryption-password',
     imports: [
         FormsModule,
         MatFormFieldModule,
@@ -28,7 +24,7 @@ export interface ChangeMasterPasswordDialogData {
     styleUrl: './change-master-password.component.scss',
     encapsulation: ViewEncapsulation.None
 })
-export class ChangeMasterPasswordComponent {
+export class ChangeEncryptionPasswordComponent {
     isLoading = signal(false);
     serverError = signal<'invalid-old-password' | 'other' | null>(null);
 
@@ -46,10 +42,10 @@ export class ChangeMasterPasswordComponent {
     formGroup: FormGroup;
 
     constructor(
-        @Inject(MAT_DIALOG_DATA) public data: ChangeMasterPasswordDialogData,
-        private _storagesApi: StoragesApi,
+        private _encryptionApi: UserEncryptionPasswordApi,
+        private _auth: AuthService,
         private _dialog: MatDialog,
-        public dialogRef: MatDialogRef<ChangeMasterPasswordComponent, boolean>) {
+        public dialogRef: MatDialogRef<ChangeEncryptionPasswordComponent, boolean>) {
 
         this.formGroup = new FormGroup({
             oldPassword: this.oldPassword,
@@ -62,17 +58,13 @@ export class ChangeMasterPasswordComponent {
 
     async onForgotPassword() {
         const ref = this._dialog.open<
-            ResetMasterPasswordComponent,
-            ResetMasterPasswordDialogData,
+            ResetEncryptionPasswordComponent,
+            void,
             boolean
-        >(ResetMasterPasswordComponent, {
+        >(ResetEncryptionPasswordComponent, {
             width: '500px',
             position: { top: '80px' },
-            disableClose: true,
-            data: {
-                storageExternalId: this.data.storageExternalId,
-                storageName: this.data.storageName
-            }
+            disableClose: true
         });
 
         const wasReset = await firstValueFrom(ref.afterClosed());
@@ -90,17 +82,16 @@ export class ChangeMasterPasswordComponent {
         this.isLoading.set(true);
 
         try {
-            await this._storagesApi.changeMasterPassword(
-                this.data.storageExternalId,
-                {
-                    oldPassword: this.oldPassword.value!,
-                    newPassword: this.newPassword.value!
-                });
+            await this._encryptionApi.change({
+                oldPassword: this.oldPassword.value!,
+                newPassword: this.newPassword.value!
+            });
 
+            this._auth.notifyEncryptionUnlocked();
             this.dialogRef.close(true);
         } catch (err: any) {
             const code = err?.error?.code;
-            if (code === 'invalid-master-password') {
+            if (code === 'invalid-old-encryption-password') {
                 this.serverError.set('invalid-old-password');
             } else {
                 this.serverError.set('other');

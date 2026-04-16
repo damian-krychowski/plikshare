@@ -1,19 +1,15 @@
-import { Component, Inject, ViewEncapsulation, computed, signal } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { Component, ViewEncapsulation, computed, signal } from '@angular/core';
+import { MatDialogRef } from '@angular/material/dialog';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
-import { StoragesApi } from '../../services/storages.api';
+import { UserEncryptionPasswordApi } from '../../services/user-encryption-password.api';
+import { AuthService } from '../../services/auth.service';
 import { SecureInputDirective } from '../secure-input.directive';
 
-export interface ResetMasterPasswordDialogData {
-    storageExternalId: string;
-    storageName?: string;
-}
-
 @Component({
-    selector: 'app-reset-master-password',
+    selector: 'app-reset-encryption-password',
     imports: [
         FormsModule,
         MatFormFieldModule,
@@ -26,7 +22,7 @@ export interface ResetMasterPasswordDialogData {
     styleUrl: './reset-master-password.component.scss',
     encapsulation: ViewEncapsulation.None
 })
-export class ResetMasterPasswordComponent {
+export class ResetEncryptionPasswordComponent {
     isLoading = signal(false);
     serverError = signal<'malformed' | 'invalid' | 'other' | null>(null);
 
@@ -49,9 +45,9 @@ export class ResetMasterPasswordComponent {
     });
 
     constructor(
-        @Inject(MAT_DIALOG_DATA) public data: ResetMasterPasswordDialogData,
-        private _storagesApi: StoragesApi,
-        public dialogRef: MatDialogRef<ResetMasterPasswordComponent, boolean>) {
+        private _encryptionApi: UserEncryptionPasswordApi,
+        private _auth: AuthService,
+        public dialogRef: MatDialogRef<ResetEncryptionPasswordComponent, boolean>) {
 
         this.formGroup = new FormGroup({
             recoveryCode: this.recoveryCode,
@@ -70,13 +66,12 @@ export class ResetMasterPasswordComponent {
         this.isLoading.set(true);
 
         try {
-            await this._storagesApi.resetMasterPassword(
-                this.data.storageExternalId,
-                {
-                    recoveryCode: this.recoveryCode.value!,
-                    newPassword: this.newPassword.value!
-                });
+            await this._encryptionApi.reset({
+                recoveryCode: this.recoveryCode.value!,
+                newPassword: this.newPassword.value!
+            });
 
+            this._auth.notifyEncryptionUnlocked();
             this.dialogRef.close(true);
         } catch (err: any) {
             const code = err?.error?.code;

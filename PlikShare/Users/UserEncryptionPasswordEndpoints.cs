@@ -4,8 +4,9 @@ using PlikShare.Core.Authorization;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Users.Middleware;
+using PlikShare.Users.UserEncryptionPassword;
 
-namespace PlikShare.Users.UserEncryptionPassword;
+namespace PlikShare.Users;
 
 public static class UserEncryptionPasswordEndpoints
 {
@@ -17,6 +18,7 @@ public static class UserEncryptionPasswordEndpoints
 
         group.MapPost("/setup", Setup).WithName("SetupUserEncryptionPassword");
         group.MapPost("/unlock", Unlock).WithName("UnlockUserEncryptionPassword");
+        group.MapPost("/lock", Lock).WithName("LockUserEncryptionPassword");
         group.MapPost("/change", Change).WithName("ChangeUserEncryptionPassword");
         group.MapPost("/reset", Reset).WithName("ResetUserEncryptionPassword");
     }
@@ -91,6 +93,13 @@ public static class UserEncryptionPasswordEndpoints
             default:
                 throw new InvalidOperationException($"Unexpected result code: {result.Code}");
         }
+    }
+
+    private static Ok Lock(HttpContext httpContext)
+    {
+        var user = httpContext.GetUserContext();
+        UserEncryptionSessionCookie.Clear(httpContext, user.ExternalId);
+        return TypedResults.Ok();
     }
 
     private static async Task<Results<Ok, BadRequest<HttpError>>> Change(
@@ -188,9 +197,6 @@ public static class UserEncryptionPasswordEndpoints
 
 public record SetupRequestDto(string EncryptionPassword);
 public record SetupResponseDto(string RecoveryCode);
-
 public record UnlockRequestDto(string EncryptionPassword);
-
 public record ChangeRequestDto(string OldPassword, string NewPassword);
-
 public record ResetRequestDto(string RecoveryCode, string NewPassword);

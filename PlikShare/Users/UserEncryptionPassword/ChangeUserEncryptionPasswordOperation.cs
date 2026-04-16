@@ -45,7 +45,10 @@ public class ChangeUserEncryptionPasswordOperation(
             data.EncryptedPrivateKey);
 
         var newSalt = EncryptionPasswordKdf.GenerateSalt();
-        var newParams = EncryptionPasswordKdf.Params.Default;
+
+        var newParams = EncryptionPasswordKdf
+            .Params
+            .Default;
 
         var newKek = EncryptionPasswordKdf.DeriveKek(
             newPassword, 

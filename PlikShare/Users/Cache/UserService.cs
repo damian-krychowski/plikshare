@@ -53,6 +53,7 @@ public class UserService(
                 }
                 : null,
             HasPassword = user.HasPassword,
+            IsEncryptionConfigured = user.IsEncryptionConfigured,
             MaxWorkspaceNumber = user.MaxWorkspaceNumber,
             DefaultMaxWorkspaceSizeInBytes = user.DefaultMaxWorkspaceSizeInBytes,
             DefaultMaxWorkspaceTeamMembers = user.DefaultMaxWorkspaceTeamMembers

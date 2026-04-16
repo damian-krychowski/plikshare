@@ -1,0 +1,12 @@
+@forward "./../../../styles/questionaire.scss";
+
+.questionaire > .questionaire__info {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    padding-bottom: 1rem;
+}
+
+.questionaire__btn--danger {
+    background-color: var(--company-danger, #d32f2f) !important;
+    color: white !important;
+}

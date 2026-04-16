@@ -14,23 +14,31 @@ public class UnlockUserEncryptionPasswordOperation(
 {
     public Result Execute(UserContext user, string encryptionPassword)
     {
-        var data = userEncryptionDataReader.LoadForUser(user.Id);
+        var data = userEncryptionDataReader.LoadForUser(
+            user.Id);
 
         if (data is null)
         {
             Log.Debug("User '{UserId}' unlock rejected — encryption not configured.", user.Id);
+
             return new Result(ResultCode.NotConfigured);
         }
 
-        var kek = EncryptionPasswordKdf.DeriveKek(encryptionPassword, data.KdfSalt, data.KdfParams);
+        var kek = EncryptionPasswordKdf.DeriveKek(
+            encryptionPassword, 
+            data.KdfSalt, 
+            data.KdfParams);
 
         if (!EncryptionPasswordKdf.Verify(kek, data.VerifyHash))
         {
             Log.Debug("User '{UserId}' unlock rejected — invalid encryption password.", user.Id);
+
             return new Result(ResultCode.InvalidPassword);
         }
 
-        var privateKey = WrappedPrivateKey.Unwrap(kek, data.EncryptedPrivateKey);
+        var privateKey = WrappedPrivateKey.Unwrap(
+            kek, 
+            data.EncryptedPrivateKey);
 
         return new Result(
             Code: ResultCode.Ok,

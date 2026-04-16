@@ -68,16 +68,51 @@
                 </button>
             }
 
+            @if(!auth.isEncryptionConfigured()) {
+                <button
+                    class="action-text-btn"
+                    aria-label="Set up encryption password"
+                    mat-flat-button
+                    (click)="setupEncryptionPassword()">
+                    <div class="action-text-btn__content">
+                        <i class="icon icon-lg icon-nucleo-lock"></i>
+                        <div>Set up encryption password</div>
+                    </div>
+                </button>
+            } @else {
+                <button
+                    class="action-text-btn"
+                    aria-label="Change encryption password"
+                    mat-flat-button
+                    (click)="changeEncryptionPassword()">
+                    <div class="action-text-btn__content">
+                        <i class="icon icon-lg icon-lucide-key"></i>
+                        <div>Change encryption password</div>
+                    </div>
+                </button>
+
+                <button
+                    class="action-text-btn"
+                    aria-label="Reset encryption password with recovery code"
+                    mat-flat-button
+                    (click)="resetEncryptionPassword()">
+                    <div class="action-text-btn__content">
+                        <i class="icon icon-lg icon-nucleo-lock-open"></i>
+                        <div>Recover encryption password</div>
+                    </div>
+                </button>
+            }
+
             <button
                 class="action-text-btn"
-                aria-label="Logout" 
-                mat-flat-button  
-                (click)="signOut()"> 
+                aria-label="Logout"
+                mat-flat-button
+                (click)="signOut()">
                 <div class="action-text-btn__content">
                     <i class="icon icon-lg icon-nucleo-leave"></i>
                     <div>Logout</div>
                 </div>
-            </button> 
+            </button>
         </div>
 
         @if(auth.canManageAnything()) {

@@ -48,6 +48,7 @@ public static class UserHttpContextExtensions
             },
             Invitation = null,
             HasPassword = httpContext.User.GetHasPassword(),
+            IsEncryptionConfigured = httpContext.User.GetIsEncryptionConfigured(),
             MaxWorkspaceNumber = httpContext.User.GetMaxWorkspaceNumber(),
             DefaultMaxWorkspaceSizeInBytes = httpContext.User.GetDefaultMaxWorkspaceSizeInBytes(),
             DefaultMaxWorkspaceTeamMembers = httpContext.User.GetDefaultMaxWorkspaceTeamMembers()

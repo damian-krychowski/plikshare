@@ -69,6 +69,9 @@ public static class UserEncryptionRecovery
     public static bool Verify(ReadOnlySpan<byte> recoverySeed, ReadOnlySpan<byte> expectedHash)
     {
         var actual = ComputeVerifyHash(recoverySeed);
-        return CryptographicOperations.FixedTimeEquals(actual, expectedHash);
+
+        return CryptographicOperations.FixedTimeEquals(
+            actual, 
+            expectedHash);
     }
 }

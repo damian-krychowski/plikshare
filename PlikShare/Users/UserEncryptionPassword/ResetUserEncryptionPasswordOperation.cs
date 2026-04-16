@@ -29,13 +29,17 @@ public class ResetUserEncryptionPasswordOperation(
             return new Result(ResultCode.NotConfigured);
         }
 
-        var decodeResult = RecoveryCodeCodec.TryDecode(recoveryCode, out var recoverySeed);
+        var decodeResult = RecoveryCodeCodec.TryDecode(
+            recoveryCode, 
+            out var recoverySeed);
+
         if (decodeResult != RecoveryCodeCodec.DecodeResult.Ok)
         {
             Log.Warning(
                 "User '{UserId}' password reset rejected — recovery code decode failed ({DecodeResult}).",
                 user.Id,
                 decodeResult);
+
             return new Result(ResultCode.InvalidRecoveryCode);
         }
 
@@ -45,14 +49,30 @@ public class ResetUserEncryptionPasswordOperation(
             return new Result(ResultCode.InvalidRecoveryCode);
         }
 
-        var recoveryKek = UserEncryptionRecovery.DeriveRecoveryKek(recoverySeed);
-        var privateKey = WrappedPrivateKey.Unwrap(recoveryKek, data.RecoveryWrappedPrivateKey);
+        var recoveryKek = UserEncryptionRecovery.DeriveRecoveryKek(
+            recoverySeed);
+
+        var privateKey = WrappedPrivateKey.Unwrap(
+            recoveryKek, 
+            data.RecoveryWrappedPrivateKey);
 
         var newSalt = EncryptionPasswordKdf.GenerateSalt();
-        var newParams = EncryptionPasswordKdf.Params.Default;
-        var newKek = EncryptionPasswordKdf.DeriveKek(newPassword, newSalt, newParams);
-        var newVerifyHash = EncryptionPasswordKdf.ComputeVerifyHash(newKek);
-        var newEncryptedPrivateKey = WrappedPrivateKey.Wrap(newKek, privateKey);
+
+        var newParams = EncryptionPasswordKdf
+            .Params
+            .Default;
+
+        var newKek = EncryptionPasswordKdf.DeriveKek(
+            newPassword, 
+            newSalt, 
+            newParams);
+
+        var newVerifyHash = EncryptionPasswordKdf.ComputeVerifyHash(
+            newKek);
+
+        var newEncryptedPrivateKey = WrappedPrivateKey.Wrap(
+            newKek, 
+            privateKey);
 
         var writeCode = await upsertUserEncryptionDataQuery.Execute(
             userId: user.Id,

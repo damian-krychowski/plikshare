@@ -1,11 +1,21 @@
-@if (store.count() > 0) {
-    <button class="top-nav-btn"
-        aria-label="Unlocked encrypted storages"
-        mat-flat-button
-        matTooltip="Unlocked encrypted storages"
-        matTooltipPosition="below"
-        [matBadge]="store.count()"
-        (click)="goToSessions()">
-        <i class="icon icon-xl icon-nucleo-lock-open"></i>
-    </button>
+@if (auth.isEncryptionConfigured()) {
+    @if (auth.isEncryptionUnlocked()) {
+        <button class="top-nav-btn"
+            aria-label="Encryption unlocked"
+            mat-flat-button
+            matTooltip="Encryption unlocked — click to lock"
+            matTooltipPosition="below"
+            (click)="openLockDialog()">
+            <i class="icon icon-xl icon-nucleo-lock-open"></i>
+        </button>
+    } @else {
+        <button class="top-nav-btn"
+            aria-label="Encryption locked"
+            mat-flat-button
+            matTooltip="Encryption locked — click to unlock"
+            matTooltipPosition="below"
+            (click)="openUnlockDialog()">
+            <i class="icon icon-xl icon-nucleo-lock"></i>
+        </button>
+    }
 }

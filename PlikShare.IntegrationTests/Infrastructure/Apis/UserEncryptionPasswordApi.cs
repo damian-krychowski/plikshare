@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using Flurl.Http;
 using PlikShare.Core.Encryption;
+using PlikShare.Users;
 using PlikShare.Users.Id;
-using PlikShare.Users.UserEncryptionPassword;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 

@@ -25,6 +25,22 @@ export class AuthService {
     public canManageAuditLog = computed(() => this.userDetails()?.permissions?.canManageAuditLog ?? false);
 
     public hasPassword = computed(() => this.userDetails()?.hasPassword ?? false);
+    public isEncryptionConfigured = computed(() => this.userDetails()?.isEncryptionConfigured ?? false);
+
+    private _encryptionUnlockedOverride = signal<boolean | null>(null);
+    public isEncryptionUnlocked = computed(() => {
+        const override = this._encryptionUnlockedOverride();
+        if (override !== null) return override;
+        return this.userDetails()?.isEncryptionUnlocked ?? false;
+    });
+
+    notifyEncryptionUnlocked(): void {
+        this._encryptionUnlockedOverride.set(true);
+    }
+
+    notifyEncryptionLocked(): void {
+        this._encryptionUnlockedOverride.set(false);
+    }
 
     public maxWorkspaceNumber = computed(() => this.userDetails()?.maxWorkspaceNumber ?? null);
 

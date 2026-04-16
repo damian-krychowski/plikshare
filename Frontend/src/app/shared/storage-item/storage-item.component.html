@@ -61,15 +61,6 @@
                         (clicked)="editStorageDetails()">
                     </app-action-btn>
                 }
-
-                @if(storageVal.encryptionType === 'full') {
-                    <app-action-btn
-                        tooltip="Change master password"
-                        icon="icon-nucleo-lock"
-                        [class.d-none-on-mobile]="!areActionsVisible()"
-                        (clicked)="openChangeMasterPasswordDialog()">
-                    </app-action-btn>
-                }
             
                 @let hasWorkspaceOrIntegration = storageVal.workspacesCount > 0;
 

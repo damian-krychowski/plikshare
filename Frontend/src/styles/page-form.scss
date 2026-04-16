@@ -127,4 +127,23 @@
         margin-left: 12px;
         margin-top: 4px;
     }
+
+    &__warning {
+        font-size: var(--company-medium-font);
+        color: var(--company-danger-font, #d32f2f);
+        background: var(--company-danger-bg, #fdecea);
+        border-radius: 4px;
+        padding: 12px 16px;
+        margin-top: 8px;
+    }
+
+    &__link-btn {
+        background: none;
+        border: none;
+        color: var(--company-primary-font, #1976d2);
+        cursor: pointer;
+        text-decoration: underline;
+        padding: 0;
+        font-size: inherit;
+    }
 }
