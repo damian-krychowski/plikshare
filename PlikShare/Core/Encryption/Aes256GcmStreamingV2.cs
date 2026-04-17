@@ -88,7 +88,7 @@ public static class Aes256GcmStreamingV2
         stepSaltSize: KeyDerivationChain.StepSaltSize);
 
     public static async ValueTask CopyIntoBufferReadyForInPlaceEncryption(
-        this PipeReader reader,
+        PipeReader reader,
         Memory<byte> output,
         FilePart filePart,
         int chainStepsCount)

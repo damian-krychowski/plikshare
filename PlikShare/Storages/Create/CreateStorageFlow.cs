@@ -40,6 +40,7 @@ public class CreateStorageFlow(
                 $"StorageClientFactoryResult.Details was null for successful preparation (Code: {preparation.Code}). This should never happen.");
         }
 
+        StorageEncryption encryption;
         StorageEncryptionDetails? encryptionDetails;
         string? recoveryCode = null;
         byte[]? fullDekToWrap = null;
@@ -48,12 +49,14 @@ public class CreateStorageFlow(
         {
             case StorageEncryptionType.None:
                 encryptionDetails = null;
+                encryption = NoStorageEncryption.Instance;
                 break;
 
             case StorageEncryptionType.Managed:
                 var managedResult = StorageManagedEncryptionService.GenerateDetails();
                 encryptionDetails = managedResult.Details;
                 recoveryCode = managedResult.RecoveryCode;
+                encryption = new ManagedStorageEncryption(managedResult.Details);
                 break;
 
             case StorageEncryptionType.Full:
@@ -61,6 +64,7 @@ public class CreateStorageFlow(
                 encryptionDetails = fullResult.Details;
                 recoveryCode = fullResult.RecoveryCode;
                 fullDekToWrap = fullResult.Dek;
+                encryption = new FullStorageEncryption(fullResult.Details);
                 break;
 
             default:
@@ -94,7 +98,8 @@ public class CreateStorageFlow(
                 ExternalId = queryResult.StorageExternalId,
                 Name = name,
                 EncryptionType = encryptionType,
-                EncryptionDetails = encryptionDetails
+                EncryptionDetails = encryptionDetails,
+                Encryption = encryption
             };
 
             var client = preparation.Details.StorageClientFactory(

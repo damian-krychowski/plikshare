@@ -1,4 +1,5 @@
 using Amazon;
+using Amazon.S3;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Configuration;
 using PlikShare.Core.Database.MainDatabase;
@@ -22,18 +23,25 @@ namespace PlikShare.Storages;
 
 public static class StorageStartupExtensions
 {
+    private sealed record StorageRow(
+        int StorageId,
+        StorageExtId ExternalId,
+        string Name,
+        string Type,
+        string DetailsJson,
+        StorageEncryptionType EncryptionType,
+        StorageEncryptionDetails? EncryptionDetails,
+        StorageEncryption Encryption);
+
     public static void UseStorage(this WebApplicationBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
         
-        //without that presigned urls does not work
-        //AWSConfigsS3.
-        
         app.Services.AddSingleton<StorageClientStore>();
-        
+
         Log.Information("[SETUP] S3 Storage setup finished.");
     }
-    
+
     public static void InitializeStorageClientStore(this WebApplication app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -89,131 +97,138 @@ public static class StorageStartupExtensions
                     var encryptionType = StorageEncryptionExtensions.FromDbValue(
                         dbValue: reader.GetStringOrNull(5));
 
-                    return new
-                    {
-                        StorageId = storageId,
-                        ExternalId = externalId,
-                        Name = name,
-                        Type = type,
-                        DetailsJson = detailsJson,
-                        EncryptionType = encryptionType,
-                        EncryptionDetails = encryptionType == StorageEncryptionType.None
-                            ? null
-                            : StorageEncryptionExtensions.GetEncryptionDetails(
-                                encryptionType: encryptionType,
-                                encryptionDetailsJson: masterDataEncryption.Decrypt(
-                                    reader.GetFieldValue<byte[]>(6)))
-                    };
+                    var encryptionDetailsJson = encryptionType == StorageEncryptionType.None
+                        ? null
+                        : masterDataEncryption.Decrypt(reader.GetFieldValue<byte[]>(6));
+
+                    return new StorageRow(
+                        StorageId: storageId,
+                        ExternalId: externalId,
+                        Name: name,
+                        Type: type,
+                        DetailsJson: detailsJson,
+
+                        EncryptionType: encryptionType,
+                        EncryptionDetails: StorageEncryptionExtensions.GetEncryptionDetails(
+                            encryptionType: encryptionType,
+                            encryptionDetailsJson: encryptionDetailsJson),
+
+                        Encryption: StorageEncryptionExtensions.BuildEncryption(
+                            encryptionType: encryptionType,
+                            encryptionDetailsJson: encryptionDetailsJson));
                 })
             .Execute();
-        
+
         foreach (var storage in storages)
         {
-            if (storage.Type == StorageType.BackblazeB2)
+            var client = storage.Type switch
             {
-                var details = Json.Deserialize<BackblazeB2DetailsEntity>(
-                    storage.DetailsJson);
+                StorageType.HardDrive => (IStorageClient)BuildHardDriveStorageClient(
+                    storage, clock, preSignedUrlsService),
 
-                var client = S3Client.BuildBackblazeClientOrThrow(
-                    keyId: details!.KeyId,
-                    applicationKey: details.ApplicationKey,
-                    url: details.Url);
+                StorageType.BackblazeB2 or
+                    StorageType.CloudflareR2 or
+                    StorageType.AwsS3 or
+                    StorageType.DigitalOceanSpaces => BuildS3StorageClient(
+                        storage, clock, preSignedUrlsService, config),
 
-                clientStore.RegisterClient(new S3StorageClient(
-                    appUrl: config.AppUrl,
-                    clock: clock,
-                    s3Client: client,
-                    storageId: storage.StorageId,
-                    externalId: storage.ExternalId,
-                    name: storage.Name,
-                    preSignedUrlsService: preSignedUrlsService,
-                    encryptionType: storage.EncryptionType,
-                    encryptionDetails: storage.EncryptionDetails));
-            }
+                _ => throw new InvalidOperationException(
+                    $"Unsupported storage type '{storage.Type}'.")
+            };
 
-            if (storage.Type == StorageType.CloudflareR2)
-            {
-                var details = Json.Deserialize<CloudflareR2DetailsEntity>(
-                    storage.DetailsJson);
+            clientStore.RegisterClient(client);
 
-                var client = S3Client.BuildCloudflareClientOrThrow(
-                    accessKeyId: details!.AccessKeyId,
-                    secretAccessKey: details.SecretAccessKey,
-                    url: details.Url);
-
-                clientStore.RegisterClient(new S3StorageClient(
-                    appUrl: config.AppUrl,
-                    clock: clock,
-                    s3Client: client,
-                    storageId: storage.StorageId,
-                    externalId: storage.ExternalId,
-                    name: storage.Name,
-                    preSignedUrlsService: preSignedUrlsService,
-                    encryptionType: storage.EncryptionType,
-                    encryptionDetails: storage.EncryptionDetails));
-            }
-
-            if (storage.Type == StorageType.AwsS3)
-            {
-                var details = Json.Deserialize<AwsS3DetailsEntity>(
-                    storage.DetailsJson);
-
-                var client = S3Client.BuildAwsClientOrThrow(
-                    accessKey: details!.AccessKey,
-                    secretAccessKey: details.SecretAccessKey,
-                    region: details.Region);
-
-                clientStore.RegisterClient(new S3StorageClient(
-                    appUrl: config.AppUrl,
-                    clock: clock,
-                    s3Client: client,
-                    storageId: storage.StorageId,
-                    externalId: storage.ExternalId,
-                    name: storage.Name,
-                    preSignedUrlsService: preSignedUrlsService,
-                    encryptionType: storage.EncryptionType,
-                    encryptionDetails: storage.EncryptionDetails));
-            }
-
-            if (storage.Type == StorageType.DigitalOceanSpaces)
-            {
-                var details = Json.Deserialize<DigitalOceanSpacesDetailsEntity>(
-                    storage.DetailsJson);
-
-                var client = S3Client.BuildDigitalOceanSpacesClientOrThrow(
-                    accessKey: details!.AccessKey,
-                    secretKey: details.SecretKey,
-                    url: details.Url);
-
-                clientStore.RegisterClient(new S3StorageClient(
-                    appUrl: config.AppUrl,
-                    clock: clock,
-                    s3Client: client,
-                    storageId: storage.StorageId,
-                    externalId: storage.ExternalId,
-                    name: storage.Name,
-                    preSignedUrlsService: preSignedUrlsService,
-                    encryptionType: storage.EncryptionType,
-                    encryptionDetails: storage.EncryptionDetails));
-            }
-
-            if (storage.Type == StorageType.HardDrive)
-            {
-                clientStore.RegisterClient(new HardDriveStorageClient(
-                    preSignedUrlsService: app
-                        .Services
-                        .GetRequiredService<PreSignedUrlsService>(),
-                    details: Json.Deserialize<HardDriveDetailsEntity>(
-                        storage.DetailsJson)!,
-                    storageId: storage.StorageId,
-                    externalId: storage.ExternalId,
-                    name: storage.Name,
-                    clock: clock,
-                    encryptionType: storage.EncryptionType,
-                    encryptionDetails: storage.EncryptionDetails));
-            }
         }
-        
+
         Log.Information("[INITIALIZATION] S3 Client Store initialization finished.");
+    }
+
+    private static HardDriveStorageClient BuildHardDriveStorageClient(
+        StorageRow storage,
+        IClock clock,
+        PreSignedUrlsService preSignedUrlsService)
+    {
+        var hdStorageClient = new HardDriveStorageClient(
+            preSignedUrlsService: preSignedUrlsService,
+            details: Json.Deserialize<HardDriveDetailsEntity>(
+                storage.DetailsJson)!,
+            storageId: storage.StorageId,
+            externalId: storage.ExternalId,
+            name: storage.Name,
+            clock: clock,
+            encryptionType: storage.EncryptionType,
+            encryptionDetails: storage.EncryptionDetails,
+            encryption: storage.Encryption);
+
+        return hdStorageClient;
+    }
+
+    private static S3StorageClient BuildS3StorageClient(
+        StorageRow storage, 
+        IClock clock,
+        PreSignedUrlsService preSignedUrlsService,
+        IConfig config)
+    {
+        var s3Client = BuildS3ClientForStorage(storage);
+
+        var s3StorageClient = new S3StorageClient(
+            appUrl: config.AppUrl,
+            clock: clock,
+            s3Client: s3Client,
+            storageId: storage.StorageId,
+            externalId: storage.ExternalId,
+            name: storage.Name,
+            preSignedUrlsService: preSignedUrlsService,
+            encryptionType: storage.EncryptionType,
+            encryptionDetails: storage.EncryptionDetails,
+            encryption: storage.Encryption);
+
+        return s3StorageClient;
+    }
+
+    private static IAmazonS3 BuildS3ClientForStorage(StorageRow storage)
+    {
+        if (storage.Type == StorageType.BackblazeB2)
+        {
+            var details = Json.Deserialize<BackblazeB2DetailsEntity>(storage.DetailsJson)!;
+
+            return S3Client.BuildBackblazeClientOrThrow(
+                keyId: details.KeyId,
+                applicationKey: details.ApplicationKey,
+                url: details.Url);
+        }
+
+        if (storage.Type == StorageType.CloudflareR2)
+        {
+            var details = Json.Deserialize<CloudflareR2DetailsEntity>(storage.DetailsJson)!;
+
+            return S3Client.BuildCloudflareClientOrThrow(
+                accessKeyId: details.AccessKeyId,
+                secretAccessKey: details.SecretAccessKey,
+                url: details.Url);
+        }
+
+        if (storage.Type == StorageType.AwsS3)
+        {
+            var details = Json.Deserialize<AwsS3DetailsEntity>(storage.DetailsJson)!;
+
+            return S3Client.BuildAwsClientOrThrow(
+                accessKey: details.AccessKey,
+                secretAccessKey: details.SecretAccessKey,
+                region: details.Region);
+        }
+
+        if (storage.Type == StorageType.DigitalOceanSpaces)
+        {
+            var details = Json.Deserialize<DigitalOceanSpacesDetailsEntity>(storage.DetailsJson)!;
+
+            return S3Client.BuildDigitalOceanSpacesClientOrThrow(
+                accessKey: details.AccessKey,
+                secretKey: details.SecretKey,
+                url: details.Url);
+        }
+
+        throw new InvalidOperationException(
+            $"Unsupported storage type '{storage.Type}'.");
     }
 }

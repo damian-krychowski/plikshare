@@ -186,7 +186,6 @@ using PlikShare.Storages.S3.BulkDownload;
 using PlikShare.Storages.S3.CloudflareR2;
 using PlikShare.Storages.S3.DigitalOcean;
 using PlikShare.Storages.S3.Download;
-using PlikShare.Storages.S3.Upload;
 using PlikShare.Storages.UpdateDetails;
 using PlikShare.Storages.UpdateName;
 using PlikShare.Uploads;
@@ -614,7 +613,6 @@ public class Startup
         builder.Services.AddSingleton<GetHardDriveVolumesOperation>();
         builder.Services.AddSingleton<S3BulkDownloadOperation>();
         builder.Services.AddSingleton<GetFilePreSignedDownloadLinkDetailsQuery>();
-        builder.Services.AddSingleton<S3UploadOperation>();
         builder.Services.AddSingleton<S3DownloadOperation>();
 
         builder.Services.AddSingleton<BulkDownloadDetailsQuery>();

@@ -1,14 +1,12 @@
-using System.Globalization;
-using System.IO.Pipelines;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using PlikShare.AuditLog;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
-using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Files.BulkDownload;
 using PlikShare.Files.BulkDownload.Contracts;
 using PlikShare.Files.Download;
@@ -34,11 +32,14 @@ using PlikShare.Files.Rename.Contracts;
 using PlikShare.Files.UpdateSize;
 using PlikShare.Files.UploadAttachment;
 using PlikShare.Storages;
+using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Storages.FileReading;
-using PlikShare.AuditLog;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Cache;
 using PlikShare.Workspaces.Validation;
+using System.Globalization;
+using System.IO.Pipelines;
+using static PlikShare.Storages.HardDrive.HardDriveStorageClientFactory;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Files;
@@ -155,27 +156,28 @@ public static class FilesEndpoints
 
         if (attachmentInsertionResult == InsertFileAttachmentQuery.ResultCode.ParentFileNotFound)
             return HttpErrors.File.NotFound(fileExternalId);
-        
-        //todo handle failures
-        await FileWriter.Write(
-            file: new FileToUploadDetails
-            {
-                SizeInBytes = attachment.SizeInBytes,
-                EncryptionMetadata = attachment.EncryptionMetadata,
-                S3FileKey = new S3FileKey
-                {
-                    S3KeySecretPart = attachment.S3KeySecretPart,
-                    FileExternalId = attachment.ExternalId
-                },
-                S3UploadId = string.Empty,
-            },
-            part: FilePartUpload.First(
-                sizeInBytes: (int) attachment.SizeInBytes, //the cast is ok because attachment imported here has a size limit
-                algorithm: UploadAlgorithm.DirectUpload),
-            workspace: workspaceMembership.Workspace,
+
+        var encryptionMode = attachment.EncryptionMetadata.ToEncryptionMode(
             workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
+            storageClient: workspace.Storage);
+
+        var uploadDetails = new UploadFilePartDetails(
+            S3FileKey: new S3FileKey
+            {
+                S3KeySecretPart = attachment.S3KeySecretPart,
+                FileExternalId = attachment.ExternalId
+            },
+            S3UploadId: null,
+            FileSizeInBytes: attachment.SizeInBytes,
+            Part: FilePart.First((int)attachment.SizeInBytes),
+            UploadAlgorithm: UploadAlgorithm.DirectUpload,
+            EncryptionMode: encryptionMode,
+            BucketName: workspace.BucketName);
+
+        await workspace.Storage.UploadFilePart(
             input: PipeReader.Create(
-                stream: file.OpenReadStream()), 
+                stream: file.OpenReadStream()),
+            uploadDetails: uploadDetails,
             cancellationToken: cancellationToken);
 
         await markFileAsUploadedQuery.Execute(
@@ -229,24 +231,26 @@ public static class FilesEndpoints
             return HttpErrors.File.PayloadTooBig(
                 newSizeInBytes);
 
-        await FileWriter.Write(
-            file: new FileToUploadDetails
-            {
-                SizeInBytes = newSizeInBytes,
-                EncryptionMetadata = file.Details.EncryptionMetadata,
-                S3FileKey = new S3FileKey
-                {
-                    S3KeySecretPart = file.Details.S3KeySecretPart,
-                    FileExternalId = file.Details.ExternalId
-                },
-                S3UploadId = string.Empty,
-            },
-            part: FilePartUpload.First(
-                sizeInBytes: newSizeInBytes,
-                algorithm: UploadAlgorithm.DirectUpload),
-            workspace: workspaceMembership.Workspace,
+        var encryptionMode = file.Details.EncryptionMetadata.ToEncryptionMode(
             workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
+            storageClient: workspaceMembership.Workspace.Storage);
+
+        var uploadDetails = new UploadFilePartDetails(
+            S3FileKey: new S3FileKey
+            {
+                S3KeySecretPart = file.Details.S3KeySecretPart,
+                FileExternalId = file.Details.ExternalId
+            },
+            S3UploadId: null,
+            FileSizeInBytes: newSizeInBytes,
+            Part: FilePart.First(newSizeInBytes),
+            UploadAlgorithm: UploadAlgorithm.DirectUpload,
+            EncryptionMode: encryptionMode,
+            BucketName: workspaceMembership.Workspace.BucketName);
+
+        await workspaceMembership.Workspace.Storage.UploadFilePart(
             input: httpContext.Request.BodyReader,
+            uploadDetails: uploadDetails,
             cancellationToken: cancellationToken);
 
         await updateFileSizeQuery.Execute(

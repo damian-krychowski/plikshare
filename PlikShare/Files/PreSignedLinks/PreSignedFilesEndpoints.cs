@@ -19,10 +19,6 @@ using PlikShare.Storages;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Exceptions;
 using PlikShare.Storages.FileReading;
-using PlikShare.Storages.HardDrive.StorageClient;
-using PlikShare.Storages.HardDrive.Upload;
-using PlikShare.Storages.S3;
-using PlikShare.Storages.S3.Upload;
 using PlikShare.Storages.Zip;
 using PlikShare.AuditLog;
 using PlikShare.Uploads.Algorithm;
@@ -309,40 +305,27 @@ public static class PreSignedFilesEndpoints
     {
         try
         {
-            var filePart = FilePartUpload.First(
-                sizeInBytes: (int)fileUpload.FileToUpload.SizeInBytes,
-                algorithm: UploadAlgorithm.DirectUpload);
+            var encryptionMode = fileUpload.FileToUpload.EncryptionMetadata.ToEncryptionMode(
+                workspaceEncryptionSession: workspaceEncryptionSession,
+                storageClient: storageClient);
 
-            if (storageClient is HardDriveStorageClient hardDriveStorageClient)
-            {
-                var result = await HardDriveUploadOperation.Execute(
-                    fileBytes: fileBytes,
-                    file: fileUpload.FileToUpload,
-                    part: filePart,
-                    bucketName: fileUpload.Workspace.BucketName,
-                    workspaceEncryptionSession: workspaceEncryptionSession,
-                    hardDriveStorage: hardDriveStorageClient!,
-                    cancellationToken: cancellationToken);
-            }
-            else if (storageClient is S3StorageClient s3StorageClient)
-            {
-                var result = await S3UploadOperation.Execute(
-                    fileBytes: fileBytes,
-                    file: fileUpload.FileToUpload,
-                    part: filePart,
-                    bucketName: fileUpload.Workspace.BucketName,
-                    workspaceEncryptionSession: workspaceEncryptionSession,
-                    s3StorageClient: s3StorageClient,
-                    cancellationToken: cancellationToken);
-            }
-            else
-            {
-                throw new ArgumentOutOfRangeException(nameof(storageClient));
-            }
+            var uploadDetails = new UploadFilePartDetails(
+                S3FileKey: fileUpload.FileToUpload.S3FileKey,
+                S3UploadId: fileUpload.FileToUpload.S3UploadId,
+                FileSizeInBytes: fileUpload.FileToUpload.SizeInBytes,
+                Part: FilePart.First((int) fileUpload.FileToUpload.SizeInBytes),
+                UploadAlgorithm: UploadAlgorithm.DirectUpload,
+                EncryptionMode: encryptionMode,
+                BucketName: fileUpload.Workspace.BucketName);
+
+            var result = await storageClient.UploadFilePart(
+                fileBytes: fileBytes,
+                uploadDetails: uploadDetails,
+                cancellationToken: cancellationToken);
 
             Log.Debug(
-                "Successfully uploaded file part. FileUploadId: {FileUploadId}, PartNumber: {PartNumber}, Algorithm: {Algorithm}",
-                fileUpload.Id, 1, fileUpload.UploadAlgorithm);
+                "Successfully uploaded file part. FileUploadId: {FileUploadId}, PartNumber: {PartNumber}, Algorithm: {Algorithm}, ETag: {ETag}",
+                fileUpload.Id, 1, fileUpload.UploadAlgorithm, result.ETag);
 
             return fileUpload;
         }
@@ -371,16 +354,24 @@ public static class PreSignedFilesEndpoints
 
         try
         {
-            var result = await FileWriter.Write(
-                file: fileUpload.FileToUpload,
-                part: new FilePartUpload(
-                    Part: new FilePart(payload.PartNumber, partSizeInBytes),
-                    UploadAlgorithm: fileUpload.UploadAlgorithm),
-                workspace: fileUpload.Workspace,
+            var encryptionMode = fileUpload.FileToUpload.EncryptionMetadata.ToEncryptionMode(
                 workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
-                input: httpContext.Request.BodyReader,
-                cancellationToken: cancellationToken);
+                storageClient: fileUpload.Workspace.Storage);
 
+            var uploadDetails = new UploadFilePartDetails(
+                S3FileKey: fileUpload.FileToUpload.S3FileKey,
+                S3UploadId: fileUpload.FileToUpload.S3UploadId,
+                FileSizeInBytes: fileUpload.FileToUpload.SizeInBytes,
+                Part: new FilePart(payload.PartNumber, partSizeInBytes),
+                UploadAlgorithm: fileUpload.UploadAlgorithm,
+                EncryptionMode: encryptionMode,
+                BucketName: fileUpload.Workspace.BucketName);
+
+            var result = await fileUpload.Workspace.Storage.UploadFilePart(
+                input: httpContext.Request.BodyReader,
+                uploadDetails: uploadDetails,
+                cancellationToken: cancellationToken);
+            
             Log.Debug(
                 "Successfully uploaded file part. FileUploadId: {FileUploadId}, PartNumber: {PartNumber}, Algorithm: {Algorithm}",
                 fileUpload.Id, payload.PartNumber, fileUpload.UploadAlgorithm);
@@ -691,6 +682,6 @@ public static class PreSignedFilesEndpoints
 
 
 
-public readonly record struct FilePartUploadResult(
+public record FilePartUploadResult(
     string ETag);
 

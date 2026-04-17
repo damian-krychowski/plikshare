@@ -1,7 +1,9 @@
-﻿using PlikShare.Files.Records;
+﻿using PlikShare.Files.PreSignedLinks.RangeRequests;
+using PlikShare.Files.Records;
+using PlikShare.Storages.Encryption;
 using PlikShare.Uploads.Cache;
 using System.ComponentModel;
-using PlikShare.Files.PreSignedLinks.RangeRequests;
+using PlikShare.Storages;
 
 namespace PlikShare.Core.Encryption;
 
@@ -71,6 +73,64 @@ public static class FileEncryptionMetadataExtensions
 
                 return encryptedRange.ToBytesRange();
             }
+
+            throw new InvalidOperationException(
+                $"Unsupported file encryption format version '{metadata.FormatVersion}'.");
+        }
+        
+        public byte[]? ToIkm(
+            WorkspaceEncryptionSession? workspaceEncryptionSession,
+            IStorageClient storageClient)
+        {
+            if (metadata == null)
+                return null;
+
+            if (metadata is { FormatVersion: 1 })
+            {
+                if (storageClient.Encryption is not ManagedStorageEncryption managed)
+                    throw new InvalidOperationException(
+                        $"Cannot resolve IKM for V1 file: storage encryption must be Managed, " +
+                        $"but was '{storageClient.Encryption.GetType().Name}'.");
+
+                return managed.GetEncryptionKey(metadata.KeyVersion);
+            }
+
+            if (metadata is { FormatVersion: 2 })
+            {
+                if (workspaceEncryptionSession is null)
+                    throw new InvalidOperationException(
+                        "Cannot resolve IKM for V2 file: workspace encryption session is null.");
+
+                return workspaceEncryptionSession.GetDekForVersion(metadata.KeyVersion);
+            }
+
+            throw new InvalidOperationException(
+                $"Unsupported file encryption format version '{metadata.FormatVersion}'.");
+        }
+
+        public FileEncryptionMode ToEncryptionMode(
+            WorkspaceEncryptionSession? workspaceEncryptionSession,
+            IStorageClient storageClient)
+        {
+            if (metadata is null)
+                return NoEncryption.Instance;
+            
+            var ikm = metadata.ToIkm(
+                workspaceEncryptionSession: workspaceEncryptionSession,
+                storageClient: storageClient);
+
+            if (ikm is null)
+                throw new InvalidOperationException(
+                    $"Cannot build encryption mode for file with format version '{metadata.FormatVersion}' " +
+                    $"because encryption IKM is null.");
+
+            if (metadata.FormatVersion == 1)
+                return new AesGcmV1Encryption(
+                    Input: metadata.ToAesInputsV1(ikm));
+
+            if (metadata.FormatVersion == 2)
+                return new AesGcmV2Encryption(
+                    Input: metadata.ToAesInputsV2(ikm));
 
             throw new InvalidOperationException(
                 $"Unsupported file encryption format version '{metadata.FormatVersion}'.");

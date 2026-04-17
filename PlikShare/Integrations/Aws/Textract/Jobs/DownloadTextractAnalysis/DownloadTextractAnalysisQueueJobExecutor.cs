@@ -12,6 +12,7 @@ using PlikShare.Core.Utils;
 using PlikShare.Files.Delete.QueueJob;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
+using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.Records;
 using PlikShare.Storages;
 using PlikShare.Storages.Encryption;
@@ -212,39 +213,45 @@ public class DownloadTextractAnalysisQueueJobExecutor(
         );
     }
 
-    private static async Task WriteFile(
+    private static async Task<FilePartUploadResult> WriteFile(
         WorkspaceContext originalFileWorkspace,
         BulkInsertFileUploadQuery.InsertEntity fileInsertEntity,
         byte[] contentBytes, 
         CancellationToken cancellationToken)
     {
-        await FileWriter.Write(
-            file: new FileToUploadDetails
+        var fileEncryptionMetadata = fileInsertEntity.EncryptionKeyVersion is null
+            ? null
+            : new FileEncryptionMetadata
             {
-                SizeInBytes = contentBytes.Length,
-                EncryptionMetadata = fileInsertEntity.EncryptionKeyVersion is null
-                    ? null
-                    : new FileEncryptionMetadata
-                    {
-                        FormatVersion = 1,
-                        KeyVersion = fileInsertEntity.EncryptionKeyVersion.Value,
-                        NoncePrefix = fileInsertEntity.EncryptionNoncePrefix!,
-                        Salt = fileInsertEntity.EncryptionSalt!,
-                        ChainStepSalts = []
-                    },
-                S3FileKey = new S3FileKey
-                {
-                    FileExternalId = FileExtId.Parse(fileInsertEntity.FileExternalId),
-                    S3KeySecretPart = fileInsertEntity.S3KeySecretPart
-                },
-                S3UploadId = fileInsertEntity.S3UploadId
-            },
-            part: FilePartUpload.First(
-                sizeInBytes: contentBytes.Length,
-                algorithm: UploadAlgorithm.DirectUpload),
-            workspace: originalFileWorkspace,
+                FormatVersion = 1,
+                KeyVersion = fileInsertEntity.EncryptionKeyVersion.Value,
+                NoncePrefix = fileInsertEntity.EncryptionNoncePrefix!,
+                Salt = fileInsertEntity.EncryptionSalt!,
+                ChainStepSalts = []
+            };
+
+        var encryptionMode = fileEncryptionMetadata.ToEncryptionMode(
             workspaceEncryptionSession: null, //todo not yet implemented (KEK not available in queue jobs)
+            storageClient: originalFileWorkspace.Storage);
+        
+        var uploadDetails = new UploadFilePartDetails(
+            S3FileKey: new S3FileKey
+            {
+                FileExternalId = FileExtId.Parse(fileInsertEntity.FileExternalId),
+                S3KeySecretPart = fileInsertEntity.S3KeySecretPart
+            },
+            S3UploadId: fileInsertEntity.S3UploadId,
+            FileSizeInBytes: contentBytes.Length,
+            Part: new FilePart(
+                Number: 1,
+                SizeInBytes: contentBytes.Length),
+            UploadAlgorithm: UploadAlgorithm.DirectUpload,
+            EncryptionMode: encryptionMode,
+            BucketName: originalFileWorkspace.BucketName);
+
+        return await originalFileWorkspace.Storage.UploadFilePart(
             input: contentBytes,
+            uploadDetails: uploadDetails,
             cancellationToken: cancellationToken);
     }
 

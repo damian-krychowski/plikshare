@@ -104,7 +104,7 @@ public static class Aes256GcmStreamingV1
     /// plaintext - which is much more memory efficient
     /// </summary>
     public static async ValueTask CopyIntoBufferReadyForInPlaceEncryption(
-        this PipeReader reader,
+        PipeReader reader,
         Memory<byte> output,
         FilePart filePart)
     {

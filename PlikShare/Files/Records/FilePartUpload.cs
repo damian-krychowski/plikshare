@@ -22,4 +22,6 @@ public readonly record struct FilePart(int Number, int SizeInBytes)
         ? Number
         : throw new ArgumentOutOfRangeException(nameof(Number), Number,
             "Part number must be 1-based (S3 convention).");
+
+    public static FilePart First(int sizeInBytes) => new(1, sizeInBytes);
 }

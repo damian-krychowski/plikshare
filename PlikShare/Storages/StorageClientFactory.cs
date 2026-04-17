@@ -38,6 +38,7 @@ public class StorageClientDetails
     public required string Name { get; init; }
     public required StorageEncryptionType EncryptionType { get; init; }
     public required StorageEncryptionDetails? EncryptionDetails { get; init; }
+    public required StorageEncryption Encryption { get; init; }
 }
 
 public interface IStorageClientFactory<TInput>
@@ -72,7 +73,8 @@ public static class StoragePreparationDetailsExtensions
                     name: clientDetails.Name,
                     preSignedUrlsService: preSignedUrlsService,
                     encryptionType: clientDetails.EncryptionType,
-                    encryptionDetails: clientDetails.EncryptionDetails)
+                    encryptionDetails: clientDetails.EncryptionDetails,
+                    encryption: clientDetails.Encryption)
             };
         }
     }

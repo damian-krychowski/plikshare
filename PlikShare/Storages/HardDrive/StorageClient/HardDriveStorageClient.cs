@@ -22,7 +22,8 @@ public class HardDriveStorageClient(
     StorageExtId externalId,
     string name,
     StorageEncryptionType encryptionType,
-    StorageEncryptionDetails? encryptionDetails) : IStorageClient
+    StorageEncryptionDetails? encryptionDetails,
+    StorageEncryption encryption) : IStorageClient
 {
     public HardDriveDetailsEntity Details { get; } = details;
     public string Name { get; } = name;
@@ -30,6 +31,7 @@ public class HardDriveStorageClient(
     public StorageEncryptionDetails? EncryptionDetails { get; } = encryptionDetails;
     public ManagedEncryptionKeyProvider? ManagedEncryptionKeyProvider { get; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
         encryptionDetails: encryptionDetails);
+    public StorageEncryption Encryption { get; } = encryption;
 
     public int StorageId { get; } = storageId;
     public StorageExtId ExternalId { get; } = externalId;
@@ -455,6 +457,86 @@ public class HardDriveStorageClient(
             PreSignedUploadLink = null,
             S3UploadId = string.Empty,
             WasMultiPartUploadInitiated = false,
+        };
+    }
+
+    public async ValueTask<FilePartUploadResult> UploadFilePart(
+        Memory<byte> fileBytes,
+        UploadFilePartDetails uploadDetails,
+        CancellationToken cancellationToken)
+    {
+        var etag = Guid.NewGuid().ToBase62();
+
+        var filePath = GetFilePath(
+            fileExternalId: uploadDetails.S3FileKey.FileExternalId,
+            uploadAlgorithm: uploadDetails.UploadAlgorithm,
+            bucketName: uploadDetails.BucketName,
+            etag: etag);
+
+        try
+        {
+            FileEncryption.PrepareFilePartUploadBuffer(
+                buffer: fileBytes,
+                fileSizeInBytes: uploadDetails.FileSizeInBytes,
+                filePart: uploadDetails.Part,
+                encryptionMode: uploadDetails.EncryptionMode,
+                cancellationToken: cancellationToken);
+            
+            await using var fileStream = new FileStream(
+                filePath,
+                FileMode.Create,
+                FileAccess.Write,
+                FileShare.None);
+
+            await fileStream.WriteAsync(
+                fileBytes,
+                cancellationToken);
+
+            Log.Debug("FilePart '{FileExternalId} - {PartNumber} was saved to HardDrive to location {FilePath}'",
+                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.Part.Number,
+                filePath);
+
+            return new FilePartUploadResult(
+                ETag: etag);
+        }
+        catch (Exception e)
+        {
+            Log.Error(e,
+                "Something went wrong while saving file '{FileExternalId} - {PartNumber} to location {FilePath}'",
+                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.Part.Number,
+                filePath);
+
+            throw;
+        }
+    }
+
+    private string GetFilePath(
+        FileExtId fileExternalId,
+        UploadAlgorithm uploadAlgorithm,
+        string bucketName,
+        string etag)
+    {
+        return uploadAlgorithm switch
+        {
+            UploadAlgorithm.DirectUpload => Path.Combine(
+                Details.FullPath,
+                bucketName,
+                $"{fileExternalId}"),
+
+            UploadAlgorithm.MultiStepChunkUpload => Path.Combine(
+                Details.FullPath,
+                bucketName,
+                $"{fileExternalId}.{etag}.part"),
+
+            UploadAlgorithm.SingleChunkUpload => throw new NotSupportedException(
+                message:
+                $"Upload algorithm '{uploadAlgorithm}' is not supported for {nameof(HardDriveStorageClient)}"),
+
+            _ => throw new ArgumentOutOfRangeException(
+                paramName: nameof(uploadAlgorithm),
+                message: $"Upload algorithm '{uploadAlgorithm}' is not recognized")
         };
     }
 }

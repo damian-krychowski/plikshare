@@ -1,11 +1,13 @@
+using System.Buffers;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
-using PlikShare.Files.Records;
 using PlikShare.Storages.Encryption;
 using System.IO.Pipelines;
+using PlikShare.Files.PreSignedLinks;
 using Serilog;
 
 namespace PlikShare.Storages;
+
 
 public static class IStorageClientExtensions
 {
@@ -63,44 +65,82 @@ public static class IStorageClientExtensions
                 $"for storage '{client.ExternalId}'.");
         }
 
-        public void PrepareFilePartUploadBuffer(
-            Memory<byte> buffer,
-            long fileSizeInBytes, 
-            FilePart filePart,
-            FileEncryptionMetadata? encryptionMetadata,
-            WorkspaceEncryptionSession? workspaceEncryptionSession,
+        public async ValueTask<FilePartUploadResult> UploadFilePart(
+            PipeReader input,
+            UploadFilePartDetails uploadDetails,
             CancellationToken cancellationToken)
         {
-            if (encryptionMetadata is null)
-                return;
+            var heapBufferSize = FileEncryption.CalculateBufferSize(
+                encryptionMode: uploadDetails.EncryptionMode,
+                filePart: uploadDetails.Part);
 
-            if (encryptionMetadata.FormatVersion == 1)
+            var heapBuffer = ArrayPool<byte>.Shared.Rent(
+                minimumLength: heapBufferSize);
+
+            var heapBufferMemory = heapBuffer
+                .AsMemory()
+                .Slice(0, heapBufferSize);
+
+            try
             {
-                var ikm = client
-                    .ManagedEncryptionKeyProvider
-                    !.GetEncryptionKey(encryptionMetadata.KeyVersion);
+                await FileEncryption.CopyPlaintextIntoBuffer(
+                    encryptionMode: uploadDetails.EncryptionMode,
+                    input: input,
+                    buffer: heapBufferMemory,
+                    filePart: uploadDetails.Part,
+                    cancellationToken: cancellationToken);
 
-                Aes256GcmStreamingV1.EncryptFilePartInPlace(
-                    fileAesInputs: encryptionMetadata.ToAesInputsV1(ikm),
-                    filePart: filePart,
-                    fullFileSizeInBytes: fileSizeInBytes,
-                    inputOutputBuffer: buffer,
+                return await client.UploadFilePart(
+                    fileBytes: heapBufferMemory,
+                    uploadDetails: uploadDetails,
                     cancellationToken: cancellationToken);
             }
-            else if (encryptionMetadata.FormatVersion == 2)
+            finally
             {
-                Aes256GcmStreamingV2.EncryptFilePartInPlace(
-                    fileAesInputs: encryptionMetadata.ToAesInputsV2(
-                        ikm: workspaceEncryptionSession!.GetDekForVersion(encryptionMetadata.KeyVersion)),
-                    filePart: filePart,
-                    fullFileSizeInBytes: fileSizeInBytes,
-                    inputOutputBuffer: buffer,
+                ArrayPool<byte>.Shared.Return(heapBuffer);
+            }
+        }
+
+        public async ValueTask<FilePartUploadResult> UploadFilePart(
+            byte[] input,
+            UploadFilePartDetails uploadDetails,
+            CancellationToken cancellationToken)
+        {
+            if (uploadDetails.EncryptionMode is NoEncryption)
+            {
+                return await client.UploadFilePart(
+                    fileBytes: input,
+                    uploadDetails: uploadDetails,
                     cancellationToken: cancellationToken);
             }
-            else
+
+            var heapBufferSize = FileEncryption.CalculateBufferSize(
+                encryptionMode: uploadDetails.EncryptionMode,
+                filePart: uploadDetails.Part);
+
+            var heapBuffer = ArrayPool<byte>.Shared.Rent(
+                minimumLength: heapBufferSize);
+
+            var heapBufferMemory = heapBuffer
+                .AsMemory()
+                .Slice(0, heapBufferSize);
+
+            try
             {
-                throw new InvalidOperationException(
-                    $"Unsupported file encryption format version '{encryptionMetadata.FormatVersion}'.");
+                FileEncryption.CopyPlaintextIntoBuffer(
+                    encryptionMode: uploadDetails.EncryptionMode,
+                    input: input,
+                    buffer: heapBufferMemory,
+                    filePart: uploadDetails.Part);
+
+                return await client.UploadFilePart(
+                    fileBytes: heapBufferMemory,
+                    uploadDetails: uploadDetails,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(heapBuffer);
             }
         }
 

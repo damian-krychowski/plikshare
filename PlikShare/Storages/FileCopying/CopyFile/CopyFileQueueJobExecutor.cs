@@ -1,11 +1,11 @@
-﻿using System.IO.Pipelines;
-using Amazon.S3.Model;
+﻿using Amazon.S3.Model;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
+using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.Records;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.FileReading;
@@ -15,6 +15,7 @@ using PlikShare.Uploads.Chunking;
 using PlikShare.Uploads.FilePartUpload.Complete;
 using PlikShare.Workspaces.Cache;
 using Serilog;
+using System.IO.Pipelines;
 
 namespace PlikShare.Storages.FileCopying.CopyFile;
 
@@ -351,22 +352,23 @@ public class CopyFileQueueJobExecutor(
     {
         try
         {
-            await FileWriter.Write(
-                file: new FileToUploadDetails
-                {
-                    S3FileKey = job.NewS3FileKey,
-                    SizeInBytes = job.FileSizeInBytes,
-                    EncryptionMetadata = job.NewFileEncryptionMetadata,
-                    S3UploadId = job.S3UploadId
-                },
-                part: FilePartUpload.First(
-                    sizeInBytes: (int)job.FileSizeInBytes,
-                    algorithm: UploadAlgorithm.DirectUpload),
-                workspace: destinationWorkspace,
+            var encryptionMode = job.NewFileEncryptionMetadata.ToEncryptionMode(
                 workspaceEncryptionSession: null, //todo KEK not available in queue jobs yet
-                input: input,
-                cancellationToken: stoppingToken);
+                storageClient: destinationWorkspace.Storage);
 
+            var uploadDetails = new UploadFilePartDetails(
+                S3FileKey: job.NewS3FileKey,
+                S3UploadId: job.S3UploadId,
+                FileSizeInBytes: job.FileSizeInBytes,
+                Part: FilePart.First((int) job.FileSizeInBytes),
+                UploadAlgorithm: UploadAlgorithm.DirectUpload,
+                EncryptionMode: encryptionMode,
+                BucketName: destinationWorkspace.BucketName);
+
+            await destinationWorkspace.Storage.UploadFilePart(
+                input: input,
+                uploadDetails: uploadDetails,
+                cancellationToken: stoppingToken);
         }
         finally
         {
@@ -401,20 +403,22 @@ public class CopyFileQueueJobExecutor(
                     storageEncryptionType: destinationWorkspace.Storage.EncryptionType,
                     ikmChainStepsCount: ikmChainStepsCount);
 
-                var result = await FileWriter.Write(
-                    file: new FileToUploadDetails
-                    {
-                        S3FileKey = job.NewS3FileKey,
-                        SizeInBytes = job.FileSizeInBytes,
-                        EncryptionMetadata = job.NewFileEncryptionMetadata,
-                        S3UploadId = job.S3UploadId
-                    },
-                    part: new FilePartUpload(
-                        Part: new FilePart(partNumber, partSizeInBytes),
-                        UploadAlgorithm: UploadAlgorithm.MultiStepChunkUpload),
-                    workspace: destinationWorkspace,
+                var encryptionMode = job.NewFileEncryptionMetadata.ToEncryptionMode(
                     workspaceEncryptionSession: null, //todo full encryption session not available (KEK not available in queue jobs yet)
+                    storageClient: destinationWorkspace.Storage);
+
+                var uploadDetails = new UploadFilePartDetails(
+                    S3FileKey: job.NewS3FileKey,
+                    S3UploadId: job.S3UploadId,
+                    FileSizeInBytes: job.FileSizeInBytes,
+                    Part: new FilePart(partNumber, partSizeInBytes),
+                    UploadAlgorithm: UploadAlgorithm.MultiStepChunkUpload,
+                    EncryptionMode: encryptionMode,
+                    BucketName: destinationWorkspace.BucketName);
+
+                var result = await destinationWorkspace.Storage.UploadFilePart(
                     input: input,
+                    uploadDetails: uploadDetails,
                     cancellationToken: cancellationToken);
 
                 var insertPartResult = await insertFileUploadPartQuery.Execute(

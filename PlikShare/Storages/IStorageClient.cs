@@ -2,6 +2,8 @@ using Amazon.S3.Model;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
+using PlikShare.Files.PreSignedLinks;
+using PlikShare.Files.Records;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
 using PlikShare.Uploads.Algorithm;
@@ -17,7 +19,14 @@ public interface IStorageClient
     public StorageEncryptionType EncryptionType { get; }
     public StorageEncryptionDetails? EncryptionDetails { get; }
     public ManagedEncryptionKeyProvider? ManagedEncryptionKeyProvider { get; }
-    
+
+    public StorageEncryption Encryption { get; }
+
+    ValueTask<FilePartUploadResult> UploadFilePart(
+        Memory<byte> fileBytes,
+        UploadFilePartDetails uploadDetails,
+        CancellationToken cancellationToken);
+
     ValueTask DeleteFile(
         string bucketName,
         S3FileKey key,
@@ -78,6 +87,7 @@ public interface IStorageClient
     (UploadAlgorithm Algorithm, int FilePartsCount) ResolveUploadAlgorithm(
         long fileSizeInBytes,
         int ikmChainStepsCount);
+
     (UploadAlgorithm Algorithm, int FilePartsCount) ResolveCopyUploadAlgorithm(
         long fileSizeInBytes,
         int ikmChainStepsCount);
@@ -90,3 +100,11 @@ public class PreSignedUploadLinkResult
     public required string Url { get; init; }
     public required bool IsCompleteFilePartUploadCallbackRequired { get; init; }
 }
+public record UploadFilePartDetails(
+    S3FileKey S3FileKey,
+    string? S3UploadId,
+    long FileSizeInBytes,
+    FilePart Part,
+    FileEncryptionMode EncryptionMode,
+    UploadAlgorithm UploadAlgorithm,
+    string BucketName);

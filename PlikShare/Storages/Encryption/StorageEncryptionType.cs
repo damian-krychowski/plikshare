@@ -36,7 +36,7 @@ public static class StorageEncryptionExtensions
 
     public static StorageEncryptionDetails? GetEncryptionDetails(
         StorageEncryptionType encryptionType,
-        string encryptionDetailsJson)
+        string? encryptionDetailsJson)
     {
         return encryptionType switch
         {
@@ -47,6 +47,27 @@ public static class StorageEncryptionExtensions
 
             StorageEncryptionType.Full => Json.Deserialize<StorageFullEncryptionDetails>(
                 encryptionDetailsJson),
+
+            _ => throw new ArgumentOutOfRangeException(nameof(encryptionType), encryptionType, null)
+        };
+    }
+
+    public static StorageEncryption BuildEncryption(
+        StorageEncryptionType encryptionType,
+        string? encryptionDetailsJson)
+    {
+        return encryptionType switch
+        {
+            StorageEncryptionType.None =>
+                NoStorageEncryption.Instance,
+
+            StorageEncryptionType.Managed => new ManagedStorageEncryption(
+                details: Json.Deserialize<StorageManagedEncryptionDetails>(encryptionDetailsJson!)
+                         ?? throw new InvalidOperationException("Managed encryption details cannot be null.")),
+
+            StorageEncryptionType.Full => new FullStorageEncryption(
+                Details: Json.Deserialize<StorageFullEncryptionDetails>(encryptionDetailsJson!)
+                         ?? throw new InvalidOperationException("Full encryption details cannot be null.")),
 
             _ => throw new ArgumentOutOfRangeException(nameof(encryptionType), encryptionType, null)
         };
