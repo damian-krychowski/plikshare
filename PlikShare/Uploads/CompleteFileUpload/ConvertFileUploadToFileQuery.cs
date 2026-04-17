@@ -4,6 +4,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
+using PlikShare.Storages;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Chunking;
 using PlikShare.Uploads.CompleteFileUpload.QueueJob;

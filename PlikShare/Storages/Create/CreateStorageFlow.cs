@@ -41,27 +41,23 @@ public class CreateStorageFlow(
         }
 
         StorageEncryption encryption;
-        StorageEncryptionDetails? encryptionDetails;
         string? recoveryCode = null;
         byte[]? fullDekToWrap = null;
 
         switch (encryptionType)
         {
             case StorageEncryptionType.None:
-                encryptionDetails = null;
                 encryption = NoStorageEncryption.Instance;
                 break;
 
             case StorageEncryptionType.Managed:
                 var managedResult = StorageManagedEncryptionService.GenerateDetails();
-                encryptionDetails = managedResult.Details;
                 recoveryCode = managedResult.RecoveryCode;
                 encryption = new ManagedStorageEncryption(managedResult.Details);
                 break;
 
             case StorageEncryptionType.Full:
                 var fullResult = StorageFullEncryptionService.GenerateDetails();
-                encryptionDetails = fullResult.Details;
                 recoveryCode = fullResult.RecoveryCode;
                 fullDekToWrap = fullResult.Dek;
                 encryption = new FullStorageEncryption(fullResult.Details);
@@ -84,8 +80,7 @@ public class CreateStorageFlow(
                 name: name,
                 storageType: preparation.Details.StorageType,
                 detailsJson: preparation.Details.DetailsJson,
-                encryptionType: encryptionType,
-                encryptionDetails: encryptionDetails,
+                encryption: encryption,
                 ownerKeyDataList: ownerKeyDataList,
                 cancellationToken: cancellationToken);
 
@@ -97,8 +92,6 @@ public class CreateStorageFlow(
                 StorageId = queryResult.StorageId,
                 ExternalId = queryResult.StorageExternalId,
                 Name = name,
-                EncryptionType = encryptionType,
-                EncryptionDetails = encryptionDetails,
                 Encryption = encryption
             };
 

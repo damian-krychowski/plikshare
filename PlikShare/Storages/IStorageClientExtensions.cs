@@ -13,30 +13,28 @@ public static class IStorageClientExtensions
 {
     extension(IStorageClient client)
     {
+        public StorageEncryptionType EncryptionType => client.Encryption.Type;
+
         public FileEncryptionMetadata? GenerateFileEncryptionMetadata(
             WorkspaceEncryptionMetadata? workspaceEncryption)
         {
-            if (client.EncryptionType == StorageEncryptionType.None)
+            if (client.Encryption is NoStorageEncryption)
                 return null;
 
-            if (client.EncryptionType == StorageEncryptionType.Managed)
+            if (client.Encryption is ManagedStorageEncryption managed)
             {
                 return new FileEncryptionMetadata
                 {
                     FormatVersion = 1,
-                    KeyVersion = client.ManagedEncryptionKeyProvider!.GetLatestKeyVersion(),
+                    KeyVersion = managed.LatestKeyVersion,
                     Salt = Aes256GcmStreamingV1.GenerateSalt(),
                     NoncePrefix = Aes256GcmStreamingV1.GenerateNoncePrefix(),
                     ChainStepSalts = []
                 };
             }
 
-            if (client.EncryptionType == StorageEncryptionType.Full)
+            if (client.Encryption is FullStorageEncryption full)
             {
-                var fullDetails = client.EncryptionDetails?.Full
-                    ?? throw new InvalidOperationException(
-                        $"Storage '{client.ExternalId}' has EncryptionType=Full but no Full encryption details.");
-
                 // Chain salts record the derivation path a recovery tool must walk from the
                 // recovery seed to the IKM that V2 actually uses (the Workspace DEK). For a
                 // full-encrypted workspace that path is one HKDF step:
@@ -53,7 +51,7 @@ public static class IStorageClientExtensions
                 return new FileEncryptionMetadata
                 {
                     FormatVersion = 2,
-                    KeyVersion = checked((byte)fullDetails.LatestStorageDekVersion),
+                    KeyVersion = checked((byte) full.Details.LatestStorageDekVersion),
                     Salt = Aes256GcmStreamingV2.GenerateSalt(),
                     NoncePrefix = Aes256GcmStreamingV2.GenerateNoncePrefix(),
                     ChainStepSalts = [workspaceEncryption.Salt]
@@ -61,7 +59,7 @@ public static class IStorageClientExtensions
             }
 
             throw new InvalidOperationException(
-                $"Unsupported encryption type '{client.EncryptionType}' " +
+                $"Unsupported encryption type '{client.Encryption.Type}' " +
                 $"for storage '{client.ExternalId}'.");
         }
 
@@ -175,10 +173,14 @@ public static class IStorageClientExtensions
             {
                 Log.Debug("Starting encrypted file transfer using AES-256-GCM");
 
-                var ikm = client
-                    .ManagedEncryptionKeyProvider
-                    !.GetEncryptionKey(encryptionMetadata.KeyVersion);
+                if (client.Encryption is not ManagedStorageEncryption managedStorageEncryption)
+                    throw new InvalidOperationException(
+                        $"Storage encryption is supposed to be {nameof(ManagedStorageEncryption)} " +
+                        $"but found {client.Encryption.GetType()}");
 
+                var ikm = managedStorageEncryption.GetEncryptionKey(
+                    encryptionMetadata.KeyVersion);
+                
                 await Aes256GcmStreamingV1.Decrypt(
                     fileAesInputs: encryptionMetadata.ToAesInputsV1(ikm),
                     fileSizeInBytes: fileSizeInBytes,
@@ -231,6 +233,27 @@ public static class IStorageClientExtensions
                 throw new InvalidOperationException(
                     $"Unsupported file encryption format version '{encryptionMetadata.FormatVersion}'");
             }
+        }
+
+        public int CalculateSafeBufferSizeForMultiFileUploads(
+            int totalSizeInBytes,
+            int numberOfFiles)
+        {
+            return client.Encryption switch
+            {
+                NoStorageEncryption => totalSizeInBytes,
+
+                ManagedStorageEncryption => Aes256GcmStreamingV1.CalculateSafeBufferSizeForMultiFileUploads(
+                    totalSizeInBytes,
+                    numberOfFiles),
+
+                FullStorageEncryption => Aes256GcmStreamingV2.CalculateSafeBufferSizeForMultiFileUploads(
+                    totalSizeInBytes,
+                    numberOfFiles),
+
+                _ => throw new InvalidOperationException(
+                    $"Unsupported storage encryption type '{client.Encryption.GetType().Name}'.")
+            };
         }
     }
 }

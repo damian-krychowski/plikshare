@@ -29,8 +29,6 @@ public static class StorageStartupExtensions
         string Name,
         string Type,
         string DetailsJson,
-        StorageEncryptionType EncryptionType,
-        StorageEncryptionDetails? EncryptionDetails,
         StorageEncryption Encryption);
 
     public static void UseStorage(this WebApplicationBuilder app)
@@ -108,12 +106,7 @@ public static class StorageStartupExtensions
                         Type: type,
                         DetailsJson: detailsJson,
 
-                        EncryptionType: encryptionType,
-                        EncryptionDetails: StorageEncryptionExtensions.GetEncryptionDetails(
-                            encryptionType: encryptionType,
-                            encryptionDetailsJson: encryptionDetailsJson),
-
-                        Encryption: StorageEncryptionExtensions.BuildEncryption(
+                        Encryption: StorageEncryptionExtensions.GetStorageEncryption(
                             encryptionType: encryptionType,
                             encryptionDetailsJson: encryptionDetailsJson));
                 })
@@ -156,8 +149,6 @@ public static class StorageStartupExtensions
             externalId: storage.ExternalId,
             name: storage.Name,
             clock: clock,
-            encryptionType: storage.EncryptionType,
-            encryptionDetails: storage.EncryptionDetails,
             encryption: storage.Encryption);
 
         return hdStorageClient;
@@ -179,8 +170,6 @@ public static class StorageStartupExtensions
             externalId: storage.ExternalId,
             name: storage.Name,
             preSignedUrlsService: preSignedUrlsService,
-            encryptionType: storage.EncryptionType,
-            encryptionDetails: storage.EncryptionDetails,
             encryption: storage.Encryption);
 
         return s3StorageClient;

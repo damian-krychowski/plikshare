@@ -386,7 +386,7 @@ public class CopyFileQueueJobExecutor(
 
         var totalNumberOfParts = FileParts.GetTotalNumberOfParts(
             fileSizeInBytes: job.FileSizeInBytes,
-            storageEncryptionType: destinationWorkspace.Storage.EncryptionType,
+            storageEncryptionType: destinationWorkspace.Storage.Encryption.Type,
             ikmChainStepsCount: ikmChainStepsCount);
 
         var partNumber = 1;
@@ -400,7 +400,7 @@ public class CopyFileQueueJobExecutor(
                 var partSizeInBytes = FileParts.GetPartSizeInBytes(
                     fileSizeInBytes: job.FileSizeInBytes,
                     partNumber: partNumber,
-                    storageEncryptionType: destinationWorkspace.Storage.EncryptionType,
+                    storageEncryptionType: destinationWorkspace.Storage.Encryption.Type,
                     ikmChainStepsCount: ikmChainStepsCount);
 
                 var encryptionMode = job.NewFileEncryptionMetadata.ToEncryptionMode(

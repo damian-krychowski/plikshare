@@ -21,16 +21,10 @@ public class HardDriveStorageClient(
     int storageId,
     StorageExtId externalId,
     string name,
-    StorageEncryptionType encryptionType,
-    StorageEncryptionDetails? encryptionDetails,
     StorageEncryption encryption) : IStorageClient
 {
     public HardDriveDetailsEntity Details { get; } = details;
     public string Name { get; } = name;
-    public StorageEncryptionType EncryptionType { get; } = encryptionType;
-    public StorageEncryptionDetails? EncryptionDetails { get; } = encryptionDetails;
-    public ManagedEncryptionKeyProvider? ManagedEncryptionKeyProvider { get; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
-        encryptionDetails: encryptionDetails);
     public StorageEncryption Encryption { get; } = encryption;
 
     public int StorageId { get; } = storageId;
@@ -412,7 +406,7 @@ public class HardDriveStorageClient(
     {
         var filePartsCount = FileParts.GetTotalNumberOfParts(
             fileSizeInBytes: fileSizeInBytes,
-            storageEncryptionType: EncryptionType,
+            storageEncryptionType: Encryption.Type,
             ikmChainStepsCount: ikmChainStepsCount);
 
         return filePartsCount == 1 ?

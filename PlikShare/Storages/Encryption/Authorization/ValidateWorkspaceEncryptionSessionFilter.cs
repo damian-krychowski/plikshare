@@ -39,7 +39,7 @@ public class ValidateWorkspaceEncryptionSessionFilter : IEndpointFilter
             .GetWorkspaceMembershipDetails()
             .Workspace;
 
-        if (workspace.Storage.EncryptionType != StorageEncryptionType.Full)
+        if (workspace.Storage.Encryption.Type != StorageEncryptionType.Full)
         {
             return await next(context);
         }

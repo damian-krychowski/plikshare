@@ -110,12 +110,9 @@ public static class PreSignedFilesEndpoints
         if (!int.TryParse(httpContext.Request.Headers[NumberOfFilesHeader], out var numberOfFiles))
             return HttpErrors.File.MissingRequestHeader(NumberOfFilesHeader);
 
-        var heapBufferSize = workspace.Storage.EncryptionType == StorageEncryptionType.None
-            ? totalSizeInBytes
-            //we use v2 because it uses more memory than v1 - so just a little more space to be sure
-            : Aes256GcmStreamingV2.CalculateSafeBufferSizeForMultiFileUploads(
-                totalSizeInBytes, 
-                numberOfFiles);
+        var heapBufferSize = workspace.Storage.CalculateSafeBufferSizeForMultiFileUploads(
+            totalSizeInBytes,
+            numberOfFiles);
 
         var heapBuffer = ArrayPool<byte>.Shared.Rent(
             minimumLength: heapBufferSize);

@@ -17,8 +17,7 @@ public class CreateStorageQuery(
         string name,
         string storageType,
         string detailsJson,
-        StorageEncryptionType encryptionType,
-        StorageEncryptionDetails? encryptionDetails,
+        StorageEncryption encryption,
         OwnerEncryptionKeyData[] ownerKeyDataList,
         CancellationToken cancellationToken)
     {
@@ -31,8 +30,7 @@ public class CreateStorageQuery(
                 name,
                 storageType,
                 detailsJson,
-                encryptionType,
-                encryptionDetails,
+                encryption,
                 ownerKeyDataList,
                 derivedEncryption),
             cancellationToken: cancellationToken);
@@ -43,8 +41,7 @@ public class CreateStorageQuery(
         string name,
         string storageType,
         string detailsJson,
-        StorageEncryptionType encryptionType,
-        StorageEncryptionDetails? encryptionDetails,
+        StorageEncryption encryption,
         OwnerEncryptionKeyData[] ownerKeyDataList,
         IDerivedMasterDataEncryption derivedEncryption)
     {
@@ -80,8 +77,8 @@ public class CreateStorageQuery(
                 .WithParameter("$type", storageType)
                 .WithParameter("$name", name)
                 .WithParameter("$details", derivedEncryption.Encrypt(detailsJson))
-                .WithParameter("$encryptionType", encryptionType.ToDbValue())
-                .WithParameter("$encryptionDetails", encryptionDetails.EncryptJson(derivedEncryption))
+                .WithParameter("$encryptionType", encryption.Type.ToDbValue())
+                .WithParameter("$encryptionDetails", encryption.EncryptJson(derivedEncryption))
                 .ExecuteOrThrow();
 
             foreach (var ownerKeyData in ownerKeyDataList)

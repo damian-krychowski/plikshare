@@ -40,8 +40,6 @@ public class HardDriveStorageClientFactory(
                     storageId: clientDetails.StorageId,
                     externalId: clientDetails.ExternalId,
                     name: clientDetails.Name,
-                    encryptionType: clientDetails.EncryptionType,
-                    encryptionDetails: clientDetails.EncryptionDetails,
                     encryption: clientDetails.Encryption)
             }));
     }

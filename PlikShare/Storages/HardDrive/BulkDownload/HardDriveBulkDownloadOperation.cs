@@ -7,6 +7,7 @@ using Serilog;
 using Serilog.Events;
 using System.IO.Compression;
 using System.IO.Pipelines;
+using PlikShare.Storages.Encryption;
 
 namespace PlikShare.Storages.HardDrive.BulkDownload;
 
@@ -34,7 +35,7 @@ public class HardDriveBulkDownloadOperation(IClock clock)
             totalFiles,
             hardDriveStorage.Details.FullPath,
             bucketName,
-            hardDriveStorage.EncryptionType);
+            hardDriveStorage.Encryption.Type);
 
         var (files, folderSubtree) = bulkDownloadDetails;
 

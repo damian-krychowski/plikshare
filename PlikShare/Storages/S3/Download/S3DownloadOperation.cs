@@ -34,7 +34,7 @@ public class S3DownloadOperation
                     "Starting download operation for file {FileExternalId} from bucket {BucketName} with encryption {EncryptionType}",
                     s3FileKey.FileExternalId,
                     bucketName,
-                    s3StorageClient.EncryptionType);
+                    s3StorageClient.Encryption.Type);
 
                 try
                 {
@@ -112,7 +112,7 @@ public class S3DownloadOperation
                 "Starting download operation for file {FileExternalId} from bucket {BucketName} with encryption {EncryptionType}",
                 s3FileKey.FileExternalId,
                 bucketName,
-                s3StorageClient.EncryptionType);
+                s3StorageClient.Encryption.Type);
 
             try
             {
@@ -139,14 +139,18 @@ public class S3DownloadOperation
                         "Starting encrypted file transfer for {FileExternalId} using AES-256-GCM",
                         s3FileKey.FileExternalId);
 
+                    if (s3StorageClient.Encryption is not ManagedStorageEncryption managedStorageEncryption)
+                        throw new InvalidOperationException(
+                            $"Storage encryption is supposed to be {nameof(ManagedStorageEncryption)} " +
+                            $"but found {s3StorageClient.Encryption.GetType()}");
+
+                    var ikm = managedStorageEncryption.GetEncryptionKey(
+                        fileEncryptionMetadata.KeyVersion);
+
                     var encryptedRange = Aes256GcmStreamingV1.EncryptedBytesRangeCalculator.FromUnencryptedRange(
                         unencryptedRange: range,
                         unencryptedFileSize: fileSizeInBytes);
-
-                    var ikm = s3StorageClient
-                        .ManagedEncryptionKeyProvider
-                        !.GetEncryptionKey(fileEncryptionMetadata.KeyVersion);
-
+                    
                     await Aes256GcmStreamingV1.DecryptRange(
                         fileAesInputs: fileEncryptionMetadata.ToAesInputsV1(ikm),
                         range: encryptedRange,

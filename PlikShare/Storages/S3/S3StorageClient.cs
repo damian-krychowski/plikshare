@@ -24,8 +24,6 @@ public class S3StorageClient(
     StorageExtId externalId,
     string name,
     PreSignedUrlsService preSignedUrlsService,
-    StorageEncryptionType encryptionType,
-    StorageEncryptionDetails? encryptionDetails,
     StorageEncryption encryption) : IStorageClient, IDisposable
 {
     public const int MicroFileThreshold = 1 * SizeInBytes.Mb; //1MB
@@ -33,14 +31,8 @@ public class S3StorageClient(
     public int StorageId { get; } = storageId;
     public StorageExtId ExternalId { get; } = externalId;
     public string Name { get; } = name;
-    public StorageEncryptionType EncryptionType { get; } = encryptionType;
-    public StorageEncryptionDetails? EncryptionDetails { get; } = encryptionDetails;
-
     private readonly RateLimiter _rateLimiter = new(100, 80);
-
-    public ManagedEncryptionKeyProvider? ManagedEncryptionKeyProvider { get; } = StorageEncryptionExtensions.PrepareEncryptionKeyProvider(
-        encryptionDetails: encryptionDetails);
-
+    
     public StorageEncryption Encryption { get; } = encryption;
 
     public async ValueTask DeleteFile(
@@ -157,7 +149,7 @@ public class S3StorageClient(
         WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken = default)
     {
-        if (EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full || enforceInternalPassThrough)
+        if (Encryption is ManagedStorageEncryption or FullStorageEncryption || enforceInternalPassThrough)
         {
             var url = preSignedUrlsService.GeneratePreSignedUploadUrl(
                 new PreSignedUrlsService.UploadPayload
@@ -182,7 +174,7 @@ public class S3StorageClient(
             };
         }
 
-        if (EncryptionType == StorageEncryptionType.None)
+        if (Encryption is NoStorageEncryption)
         {
             var url = await GetDirectS3PreSignedUploadFilePartLink(
                 bucketName,
@@ -198,7 +190,7 @@ public class S3StorageClient(
             };
         }
 
-        throw new NotImplementedException($"Unknown encryption type: '{EncryptionType}'");
+        throw new NotImplementedException($"Unknown encryption type: '{Encryption.GetType()}'");
     }
 
     public async Task<string> GetDirectS3PreSignedUploadFilePartLink(
@@ -278,7 +270,7 @@ public class S3StorageClient(
         WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken = default)
     {
-        if (EncryptionType is StorageEncryptionType.Managed or StorageEncryptionType.Full || enforceInternalPassThrough)
+        if (Encryption is ManagedStorageEncryption or FullStorageEncryption || enforceInternalPassThrough)
         {
             return preSignedUrlsService.GeneratePreSignedDownloadUrl(
                 new PreSignedUrlsService.DownloadPayload
@@ -296,7 +288,7 @@ public class S3StorageClient(
                 });
         }
 
-        if (EncryptionType == StorageEncryptionType.None)
+        if (Encryption is NoStorageEncryption)
         {
             return await GetDirectS3PreSignedDownloadLink(
                 bucketName: bucketName,
@@ -306,7 +298,7 @@ public class S3StorageClient(
                 fileName: fileName);
         }
         
-        throw new NotImplementedException($"Unknown encryption type: '{EncryptionType}'");
+        throw new NotImplementedException($"Unknown encryption type: '{Encryption.GetType()}'");
     }
 
     private async Task<string> GetDirectS3PreSignedDownloadLink(
@@ -505,7 +497,7 @@ public class S3StorageClient(
     {
         var filePartsCount = FileParts.GetTotalNumberOfParts(
             fileSizeInBytes: fileSizeInBytes,
-            storageEncryptionType: EncryptionType,
+            storageEncryptionType: Encryption.Type,
             ikmChainStepsCount: ikmChainStepsCount);
 
         return filePartsCount == 1
@@ -524,10 +516,10 @@ public class S3StorageClient(
     {
         var filePartsCount = FileParts.GetTotalNumberOfParts(
             fileSizeInBytes: fileSizeInBytes,
-            storageEncryptionType: EncryptionType,
+            storageEncryptionType: Encryption.Type,
             ikmChainStepsCount: ikmChainStepsCount);
 
-        if (EncryptionType == StorageEncryptionType.Managed)
+        if (Encryption is ManagedStorageEncryption or FullStorageEncryption)
         {
             return filePartsCount == 1
                 ? (UploadAlgorithm.DirectUpload, filePartsCount)

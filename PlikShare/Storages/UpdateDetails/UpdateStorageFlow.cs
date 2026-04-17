@@ -44,22 +44,15 @@ public class UpdateStorageFlow(
             : masterDataEncryption.Decrypt(
                 storageData.EncryptionDetailsEncrypted);
 
-        var encryptionDetails =  StorageEncryptionExtensions.GetEncryptionDetails(
-            encryptionType: storageData.EncryptionType,
-            encryptionDetailsJson: encryptionDetailsJson);
-
-        var encryption = StorageEncryptionExtensions.BuildEncryption(
-            encryptionType: storageData.EncryptionType,
-            encryptionDetailsJson: encryptionDetailsJson);
-
         var storageClientDetails = new StorageClientDetails
         {
             StorageId = storageData.Id,
             ExternalId = externalId,
             Name = storageData.Name,
-            EncryptionType = storageData.EncryptionType,
-            EncryptionDetails = encryptionDetails,
-            Encryption = encryption
+
+            Encryption = StorageEncryptionExtensions.GetStorageEncryption(
+                encryptionType: storageData.EncryptionType,
+                encryptionDetailsJson: encryptionDetailsJson)
         };
 
         var client = preparation.Details.StorageClientFactory(

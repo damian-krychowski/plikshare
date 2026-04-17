@@ -168,9 +168,13 @@ public class HardDriveDownloadOperation
                     
                     stream.Seek(encryptedRange.FirstSegment.Start, SeekOrigin.Begin);
 
-                    var ikm = hardDriveStorageClient
-                        .ManagedEncryptionKeyProvider
-                        !.GetEncryptionKey(fileEncryptionMetadata.KeyVersion);
+                    if (hardDriveStorageClient.Encryption is not ManagedStorageEncryption managedStorageEncryption)
+                        throw new InvalidOperationException(
+                            $"Storage encryption is supposed to be {nameof(ManagedStorageEncryption)} " +
+                            $"but found {hardDriveStorageClient.Encryption.GetType()}");
+                    
+                    var ikm = managedStorageEncryption.GetEncryptionKey(
+                        fileEncryptionMetadata.KeyVersion);
 
                     await Aes256GcmStreamingV1.DecryptRange(
                         fileAesInputs:  fileEncryptionMetadata.ToAesInputsV1(ikm),

@@ -1,4 +1,6 @@
-﻿using PlikShare.Core.Utils;
+﻿using PlikShare.Core.Encryption;
+using PlikShare.Core.Utils;
+using PlikShare.Storages.S3;
 
 namespace PlikShare.Storages.Encryption;
 
@@ -33,26 +35,8 @@ public static class StorageEncryptionExtensions
             _ => throw new ArgumentOutOfRangeException(nameof(dbValue), dbValue, null)
         };
     }
-
-    public static StorageEncryptionDetails? GetEncryptionDetails(
-        StorageEncryptionType encryptionType,
-        string? encryptionDetailsJson)
-    {
-        return encryptionType switch
-        {
-            StorageEncryptionType.None => null,
-
-            StorageEncryptionType.Managed => Json.Deserialize<StorageManagedEncryptionDetails>(
-                encryptionDetailsJson),
-
-            StorageEncryptionType.Full => Json.Deserialize<StorageFullEncryptionDetails>(
-                encryptionDetailsJson),
-
-            _ => throw new ArgumentOutOfRangeException(nameof(encryptionType), encryptionType, null)
-        };
-    }
-
-    public static StorageEncryption BuildEncryption(
+    
+    public static StorageEncryption GetStorageEncryption(
         StorageEncryptionType encryptionType,
         string? encryptionDetailsJson)
     {
@@ -73,23 +57,37 @@ public static class StorageEncryptionExtensions
         };
     }
 
-    public static ManagedEncryptionKeyProvider? PrepareEncryptionKeyProvider(
-        StorageEncryptionDetails? encryptionDetails)
+    extension(StorageEncryption encryption)
     {
-        if (encryptionDetails is null)
-            return null;
-
-        if (encryptionDetails.Managed is not null)
+        public StorageEncryptionType Type
         {
-            return new ManagedEncryptionKeyProvider(
-                encryptionDetails.Managed.Ikms);
+            get
+            {
+                return encryption switch
+                {
+                    NoStorageEncryption => StorageEncryptionType.None,
+                    ManagedStorageEncryption => StorageEncryptionType.Managed,
+                    FullStorageEncryption => StorageEncryptionType.Full,
+
+                    _ => throw new InvalidOperationException(
+                        $"Unsupported storage encryption type '{encryption.GetType().Name}'.")
+                };
+            }
         }
 
-        if (encryptionDetails.Full is not null)
-            return null;
+        public byte[]? EncryptJson(IDerivedMasterDataEncryption derivedEncryption)
+        {
+            return encryption switch
+            {
+                NoStorageEncryption => null,
 
-        throw new InvalidOperationException(
-            "StorageEncryptionDetails must have either Managed or Full set.");
+                ManagedStorageEncryption managed => derivedEncryption.EncryptJson(managed.Details),
+
+                FullStorageEncryption full => derivedEncryption.EncryptJson(full.Details),
+
+                _ => throw new InvalidOperationException(
+                    $"Unsupported storage encryption type '{encryption.GetType().Name}'.")
+            };
+        }
     }
-
 }
