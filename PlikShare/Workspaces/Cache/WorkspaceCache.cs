@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.ComponentModel;
 using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.Core.Database.MainDatabase;
@@ -20,179 +19,115 @@ public class WorkspaceCache(
     TextractClientStore textractClientStore,
     ChatGptClientStore chatGptClientStore)
 {
-    private readonly ConcurrentDictionary<int, WorkspaceExtId> _idExtIdMap = new();
-
-    private static string WorkspaceExternalIdKey(WorkspaceExtId externalId) => $"workspace:external-id:{externalId}";
-    
-    public async ValueTask<WorkspaceContext?> TryGetWorkspace(
-        WorkspaceExtId workspaceExternalId,
-        CancellationToken cancellationToken)
+    private static readonly HybridCacheEntryOptions ProbeOptions = new()
     {
-        var workspaceCached = await cache.GetOrCreateAsync(
-            key: WorkspaceExternalIdKey(workspaceExternalId),
-            factory: _ => ValueTask.FromResult(LoadWorkspace(workspaceExternalId)),
-            cancellationToken: cancellationToken);
+        Flags = HybridCacheEntryFlags.DisableLocalCacheWrite
+              | HybridCacheEntryFlags.DisableDistributedCacheWrite
+    };
 
-        if (workspaceCached is null)
-            return null;
-
-        var owner = await userCache.TryGetUser(
-            userId: workspaceCached.OwnerId,
-            cancellationToken: cancellationToken);
-
-        if (owner is null)
-        {
-            throw new InvalidOperationException(
-                $"Owner of workspace '{workspaceExternalId}' was not found.");
-        }
-
-        if(!storageClientStore.TryGetClient(storageId: workspaceCached.StorageId,  out var storageClient))
-        {
-            throw new InvalidOperationException(
-                $"Storage#{workspaceCached.StorageId} of workspace '{workspaceExternalId}' was not found.");
-        }
-
-        var textractClient = textractClientStore.TryGetClient(
-            workspaceId: workspaceCached.Id,
-            storageId: workspaceCached.StorageId);
-
-        var chatGptClients = chatGptClientStore.GetClients();
-
-        return new WorkspaceContext
-        {
-            Id = workspaceCached.Id,
-            ExternalId = workspaceCached.ExternalId,
-            Name = workspaceCached.Name,
-            CurrentSizeInBytes = workspaceCached.CurrentSizeInBytes,
-            MaxSizeInBytes = workspaceCached.MaxSizeInBytes,
-            MaxTeamMembers = workspaceCached.MaxTeamMembers,
-            BucketName = workspaceCached.BucketName,
-            IsBucketCreated = workspaceCached.IsBucketCreated,
-            IsBeingDeleted = workspaceCached.IsBeingDeleted,
-            Owner = owner,
-            Storage = storageClient,
-            EncryptionMetadata = workspaceCached.EncryptionMetadata,
-
-            Integrations = new WorkspaceIntegrations
-            {
-                Textract = textractClient,
-                ChatGpt = chatGptClients
-            }
-        };
-    }
-
-    private WorkspaceCached? LoadWorkspace(
-        WorkspaceExtId workspaceExternalId)
-    {
-        using var connection = plikShareDb.OpenConnection();
-
-        var (isEmpty, workspace) = connection
-            .OneRowCmd(
-                sql: """
-                     SELECT
-                     	w_id,
-                     	w_external_id,
-                     	w_owner_id,
-                     	w_name,
-                     	w_current_size_in_bytes,
-                        w_max_size_in_bytes,
-                        w_max_team_members,
-                     	w_bucket_name,
-                     	w_is_bucket_created,
-                     	w_is_being_deleted,
-                     	w_storage_id,
-                        w_encryption_salt
-                     FROM w_workspaces
-                     WHERE w_external_id = $workspaceExternalId
-                     LIMIT 1
-                     """,
-                readRowFunc: reader => new WorkspaceCached
-                {
-                    Id = reader.GetInt32(0),
-                    ExternalId = reader.GetExtId<WorkspaceExtId>(1),
-                    OwnerId = reader.GetInt32(2),
-                    Name = reader.GetString(3),
-                    CurrentSizeInBytes = reader.GetInt64(4),
-                    MaxSizeInBytes = reader.GetInt64OrNull(5),
-                    MaxTeamMembers = reader.GetInt32OrNull(6),
-                    BucketName = reader.GetString(7),
-                    IsBucketCreated = reader.GetBoolean(8),
-                    IsBeingDeleted = reader.GetBoolean(9),
-                    StorageId = reader.GetInt32(10),
-                    EncryptionMetadata = ReadEncryptionMetadata(reader, ordinal: 11)
-                })
-            .WithParameter("$workspaceExternalId", workspaceExternalId.Value)
-            .Execute();
-
-        if (isEmpty)
-            return null;
-
-        UpdateIdMap(
-            workspaceId: workspace.Id,
-            workspaceExternalId: workspace.ExternalId);
-        
-        return workspace;
-    }
+    private static string WorkspaceIdKey(int id) => $"workspace:id:{id}";
+    private static string WorkspaceExtIdKey(WorkspaceExtId extId) => $"workspace:extid:{extId.Value}";
+    private static string WorkspaceTag(int id) => $"workspace-{id}";
 
     public async ValueTask<WorkspaceContext?> TryGetWorkspace(
         int workspaceId,
         CancellationToken cancellationToken)
     {
-        if (_idExtIdMap.TryGetValue(workspaceId, out var externalId))
-            return await TryGetWorkspace(externalId, cancellationToken);
-        
-        using var connection = plikShareDb.OpenConnection();
-        
-        var (isEmpty, workspace) = connection
-            .OneRowCmd(
-                sql: """
-                     SELECT
-                     	w_id,
-                     	w_external_id,
-                     	w_owner_id,
-                     	w_name,
-                     	w_current_size_in_bytes,
-                        w_max_size_in_bytes,
-                        w_max_team_members,
-                     	w_bucket_name,
-                     	w_is_bucket_created,
-                     	w_is_being_deleted,
-                      	w_storage_id,
-                        w_encryption_salt
-                     FROM w_workspaces
-                     WHERE w_id = $workspaceId
-                     LIMIT 1
-                     """,
-                readRowFunc: reader => new WorkspaceCached
-                {
-                    Id = reader.GetInt32(0),
-                    ExternalId = reader.GetExtId<WorkspaceExtId>(1),
-                    OwnerId = reader.GetInt32(2),
-                    Name = reader.GetString(3),
-                    CurrentSizeInBytes = reader.GetInt64(4),
-                    MaxSizeInBytes = reader.GetInt64OrNull(5),
-                    MaxTeamMembers = reader.GetInt32OrNull(6),
-                    BucketName = reader.GetString(7),
-                    IsBucketCreated = reader.GetBoolean(8),
-                    IsBeingDeleted = reader.GetBoolean(9),
-                    StorageId = reader.GetInt32(10),
-                    EncryptionMetadata = ReadEncryptionMetadata(reader, ordinal: 11)
-                })
-            .WithParameter("$workspaceId", workspaceId)
-            .Execute();
+        var cached = await ProbeWorkspaceCache(
+            WorkspaceIdKey(workspaceId),
+            cancellationToken);
 
-        if (isEmpty)
+        if (cached is not null)
+            return await BuildContext(
+                cached, 
+                cancellationToken);
+
+        var workspace = LoadWorkspace(
+            WorkspaceLookup.ById(workspaceId));
+
+        if (workspace is null)
             return null;
 
-        UpdateIdMap(
-            workspaceId: workspace.Id,
-            workspaceExternalId: workspace.ExternalId);
-        
-        await cache.SetAsync(
-            key: WorkspaceExternalIdKey(workspace.ExternalId),
-            value: workspace,
+        await StoreInAllKeys(
+            workspace, 
+            cancellationToken);
+
+        return await BuildContext(
+            workspace, 
+            cancellationToken);
+    }
+
+    public async ValueTask<WorkspaceContext?> TryGetWorkspace(
+        WorkspaceExtId workspaceExternalId,
+        CancellationToken cancellationToken)
+    {
+        // Step 1: resolve ExtId → int Id via pointer
+        var workspaceId = await cache.GetOrCreateAsync<int?>(
+            key: WorkspaceExtIdKey(workspaceExternalId),
+            factory: _ => ValueTask.FromResult<int?>(null),
+            options: ProbeOptions,
             cancellationToken: cancellationToken);
 
+        if (workspaceId is not null)
+        {
+            // Step 2: delegate to the hot path
+            return await TryGetWorkspace(
+                workspaceId.Value, 
+                cancellationToken);
+        }
+
+        // Pointer not in cache — load from DB
+        var workspace = LoadWorkspace(
+            WorkspaceLookup.ByExternalId(workspaceExternalId));
+
+        if (workspace is null)
+            return null;
+
+        await StoreInAllKeys(
+            workspace, 
+            cancellationToken);
+
+        return await BuildContext(
+            workspace, 
+            cancellationToken);
+    }
+
+    private ValueTask<WorkspaceCached?> ProbeWorkspaceCache(
+        string key,
+        CancellationToken cancellationToken)
+    {
+        return cache.GetOrCreateAsync<WorkspaceCached?>(
+            key: key,
+            factory: _ => ValueTask.FromResult<WorkspaceCached?>(null),
+            options: ProbeOptions,
+            cancellationToken: cancellationToken);
+    }
+
+    private async ValueTask StoreInAllKeys(
+        WorkspaceCached workspace,
+        CancellationToken cancellationToken)
+    {
+        var tags = new[] { WorkspaceTag(workspace.Id) };
+
+        // Primary key — full data
+        await cache.SetAsync(
+            WorkspaceIdKey(workspace.Id),
+            workspace,
+            tags: tags,
+            cancellationToken: cancellationToken);
+
+        // Pointer: ExtId → int Id
+        await cache.SetAsync(
+            WorkspaceExtIdKey(workspace.ExternalId),
+            workspace.Id,
+            tags: tags,
+            cancellationToken: cancellationToken);
+    }
+
+    private async ValueTask<WorkspaceContext> BuildContext(
+        WorkspaceCached workspace,
+        CancellationToken cancellationToken)
+    {
         var owner = await userCache.TryGetUser(
             userId: workspace.OwnerId,
             cancellationToken: cancellationToken);
@@ -203,16 +138,18 @@ public class WorkspaceCache(
                 $"Owner of workspace '{workspace.ExternalId}' was not found.");
         }
 
-        if (!storageClientStore.TryGetClient(storageId: workspace.StorageId, out var storageClient))
+        if (!storageClientStore.TryGetClient(
+                storageId: workspace.StorageId,
+                out var storageClient))
         {
             throw new InvalidOperationException(
                 $"Storage#{workspace.StorageId} of workspace '{workspace.ExternalId}' was not found.");
         }
-        
+
         var textractClient = textractClientStore.TryGetClient(
             workspaceId: workspace.Id,
             storageId: workspace.StorageId);
-        
+
         var chatGptClients = chatGptClientStore.GetClients();
 
         return new WorkspaceContext
@@ -229,7 +166,6 @@ public class WorkspaceCache(
             Owner = owner,
             Storage = storageClient,
             EncryptionMetadata = workspace.EncryptionMetadata,
-
             Integrations = new WorkspaceIntegrations
             {
                 Textract = textractClient,
@@ -239,45 +175,98 @@ public class WorkspaceCache(
     }
 
     public ValueTask InvalidateEntry(
+        int workspaceId,
+        CancellationToken cancellationToken)
+    {
+        return cache.RemoveByTagAsync(
+            WorkspaceTag(workspaceId),
+            cancellationToken);
+    }
+
+    public async ValueTask InvalidateEntry(
         WorkspaceExtId workspaceExternalId,
         CancellationToken cancellationToken)
     {
-        return cache.RemoveAsync(
-            WorkspaceExternalIdKey(workspaceExternalId),
-            cancellationToken);
-    }
-    
-    public async ValueTask InvalidateEntry(
-        int workspaceId,
-        CancellationToken cancellationToken)
-    {
-        if (_idExtIdMap.Remove(workspaceId, out var workspaceExternalId))
+        var workspaceId = await cache.GetOrCreateAsync(
+            key: WorkspaceExtIdKey(workspaceExternalId),
+            factory: _ => ValueTask.FromResult<int?>(null),
+            options: ProbeOptions,
+            cancellationToken: cancellationToken);
+
+        if (workspaceId is not null)
         {
+            await InvalidateEntry(workspaceId.Value, cancellationToken);
+        }
+        else
+        {
+            // Fallback: drop the pointer key if the workspace is gone from the DB.
             await cache.RemoveAsync(
-                WorkspaceExternalIdKey(workspaceExternalId),
+                WorkspaceExtIdKey(workspaceExternalId),
                 cancellationToken);
         }
     }
-    
-    private void UpdateIdMap(
-        int workspaceId,
-        WorkspaceExtId workspaceExternalId)
+
+    private WorkspaceCached? LoadWorkspace(WorkspaceLookup lookup)
     {
-        _idExtIdMap.AddOrUpdate(
-            key: workspaceId,
-            addValueFactory: _ => workspaceExternalId,
-            updateValueFactory: (_, _) => workspaceExternalId);
+        using var connection = plikShareDb.OpenConnection();
+
+        var result = connection
+            .OneRowCmd(
+                sql: $"""
+                     SELECT
+                         w_id,
+                         w_external_id,
+                         w_owner_id,
+                         w_name,
+                         w_current_size_in_bytes,
+                         w_max_size_in_bytes,
+                         w_max_team_members,
+                         w_bucket_name,
+                         w_is_bucket_created,
+                         w_is_being_deleted,
+                         w_storage_id,
+                         w_encryption_salt
+                     FROM w_workspaces
+                     WHERE {lookup.WhereClause}
+                     LIMIT 1
+                     """,
+                readRowFunc: reader =>
+                {
+                    var salt = reader.GetFieldValueOrNull<byte[]>(11);
+
+                    return new WorkspaceCached
+                    {
+                        Id = reader.GetInt32(0),
+                        ExternalId = reader.GetExtId<WorkspaceExtId>(1),
+                        OwnerId = reader.GetInt32(2),
+                        Name = reader.GetString(3),
+                        CurrentSizeInBytes = reader.GetInt64(4),
+                        MaxSizeInBytes = reader.GetInt64OrNull(5),
+                        MaxTeamMembers = reader.GetInt32OrNull(6),
+                        BucketName = reader.GetString(7),
+                        IsBucketCreated = reader.GetBoolean(8),
+                        IsBeingDeleted = reader.GetBoolean(9),
+                        StorageId = reader.GetInt32(10),
+                        EncryptionMetadata = salt is null
+                            ? null
+                            : new WorkspaceEncryptionMetadata { Salt = salt }
+                    };
+                })
+            .WithParameter(lookup.ParamName, lookup.ParamValue)
+            .Execute();
+
+        return result.IsEmpty ? null : result.Value;
     }
-
-    private static WorkspaceEncryptionMetadata? ReadEncryptionMetadata(
-        System.Data.Common.DbDataReader reader,
-        int ordinal)
+    private readonly record struct WorkspaceLookup(
+        string WhereClause,
+        string ParamName,
+        object ParamValue)
     {
-        var salt = reader.GetFieldValueOrNull<byte[]>(ordinal);
+        public static WorkspaceLookup ById(int id) =>
+            new("w_id = $workspaceId", "$workspaceId", id);
 
-        return salt is null
-            ? null
-            : new WorkspaceEncryptionMetadata { Salt = salt };
+        public static WorkspaceLookup ByExternalId(WorkspaceExtId extId) =>
+            new("w_external_id = $workspaceExternalId", "$workspaceExternalId", extId.Value);
     }
 
     [ImmutableObject(true)]

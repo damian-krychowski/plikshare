@@ -221,21 +221,6 @@ public class UserCache(
         return cache.RemoveByTagAsync("*", cancellationToken);
     }
 
-    private readonly record struct UserLookup(
-        string WhereClause,
-        string ParamName,
-        object ParamValue)
-    {
-        public static UserLookup ById(int userId) =>
-            new("u_id = $userId", "$userId", userId);
-
-        public static UserLookup ByExternalId(UserExtId extId) =>
-            new("u_external_id = $userExternalId", "$userExternalId", extId.Value);
-
-        public static UserLookup ByEmail(Email email) =>
-            new("u_normalized_email = $normalizedEmail", "$normalizedEmail", email.Normalized);
-    }
-
     private UserContext? GetUser(UserLookup lookup)
     {
         using var connection = plikShareDb.OpenConnection();
@@ -276,73 +261,85 @@ public class UserCache(
                 WHERE {lookup.WhereClause}
                 LIMIT 1
                 """,
-                readRowFunc: MapUserContext)
+                readRowFunc: reader =>
+                {
+                    var email = reader.GetEmail(0);
+                    var isInvitation = reader.GetBoolean(1);
+                    var encryptionPublicKey = reader.GetFieldValueOrNull<byte[]>(21);
+
+                    return new UserContext
+                    {
+                        Status = isInvitation ? UserStatus.Invitation : UserStatus.Registered,
+                        ExternalId = reader.GetExtId<UserExtId>(2),
+                        Id = reader.GetInt32(3),
+                        Email = email,
+                        IsEmailConfirmed = reader.GetBoolean(4),
+
+                        Stamps = new UserSecurityStamps
+                        {
+                            Security = reader.GetString(5),
+                            Concurrency = reader.GetString(6)
+                        },
+
+                        Roles = new UserRoles
+                        {
+                            IsAppOwner = appOwners.IsAppOwner(email),
+                            IsAdmin = reader.GetBoolean(7)
+                        },
+
+                        Permissions = new UserPermissions
+                        {
+                            CanAddWorkspace = reader.GetBoolean(8),
+                            CanManageGeneralSettings = reader.GetBoolean(9),
+                            CanManageUsers = reader.GetBoolean(10),
+                            CanManageStorages = reader.GetBoolean(11),
+                            CanManageEmailProviders = reader.GetBoolean(12),
+                            CanManageAuth = reader.GetBoolean(13),
+                            CanManageIntegrations = reader.GetBoolean(14),
+                            CanManageAuditLog = reader.GetBoolean(15)
+                        },
+
+                        Invitation = isInvitation
+                            ? new UserInvitation { Code = reader.GetString(16) }
+                            : null,
+
+                        MaxWorkspaceNumber = reader.GetInt32OrNull(17),
+                        DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(18),
+                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(19),
+                        HasPassword = reader.GetBoolean(20),
+
+                        EncryptionMetadata = encryptionPublicKey is null
+                            ? null
+                            : new UserEncryptionMetadata
+                            {
+                                PublicKey = encryptionPublicKey,
+                                EncryptedPrivateKey = reader.GetFieldValue<byte[]>(22),
+                                KdfSalt = reader.GetFieldValue<byte[]>(23),
+                                KdfParams = EncryptionPasswordKdf.DeserializeParams(reader.GetString(24)),
+                                VerifyHash = reader.GetFieldValue<byte[]>(25),
+                                RecoveryWrappedPrivateKey = reader.GetFieldValue<byte[]>(26),
+                                RecoveryVerifyHash = reader.GetFieldValue<byte[]>(27)
+                            }
+                    };
+                })
             .WithParameter(lookup.ParamName, lookup.ParamValue)
             .Execute();
 
         return result.IsEmpty ? null : result.Value;
     }
 
-    private UserContext MapUserContext(
-        Microsoft.Data.Sqlite.SqliteDataReader reader)
+    private readonly record struct UserLookup(
+        string WhereClause,
+        string ParamName,
+        object ParamValue)
     {
-        var email = reader.GetEmail(0);
-        var isInvitation = reader.GetBoolean(1);
-        var encryptionPublicKey = reader.GetFieldValueOrNull<byte[]>(21);
+        public static UserLookup ById(int userId) =>
+            new("u_id = $userId", "$userId", userId);
 
-        return new UserContext
-        {
-            Status = isInvitation ? UserStatus.Invitation : UserStatus.Registered,
-            ExternalId = reader.GetExtId<UserExtId>(2),
-            Id = reader.GetInt32(3),
-            Email = email,
-            IsEmailConfirmed = reader.GetBoolean(4),
+        public static UserLookup ByExternalId(UserExtId extId) =>
+            new("u_external_id = $userExternalId", "$userExternalId", extId.Value);
 
-            Stamps = new UserSecurityStamps
-            {
-                Security = reader.GetString(5),
-                Concurrency = reader.GetString(6)
-            },
-
-            Roles = new UserRoles
-            {
-                IsAppOwner = appOwners.IsAppOwner(email),
-                IsAdmin = reader.GetBoolean(7)
-            },
-
-            Permissions = new UserPermissions
-            {
-                CanAddWorkspace = reader.GetBoolean(8),
-                CanManageGeneralSettings = reader.GetBoolean(9),
-                CanManageUsers = reader.GetBoolean(10),
-                CanManageStorages = reader.GetBoolean(11),
-                CanManageEmailProviders = reader.GetBoolean(12),
-                CanManageAuth = reader.GetBoolean(13),
-                CanManageIntegrations = reader.GetBoolean(14),
-                CanManageAuditLog = reader.GetBoolean(15)
-            },
-
-            Invitation = isInvitation
-                ? new UserInvitation { Code = reader.GetString(16) }
-                : null,
-
-            MaxWorkspaceNumber = reader.GetInt32OrNull(17),
-            DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(18),
-            DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(19),
-            HasPassword = reader.GetBoolean(20),
-
-            EncryptionMetadata = encryptionPublicKey is null
-                ? null
-                : new UserEncryptionMetadata
-                {
-                    PublicKey = encryptionPublicKey,
-                    EncryptedPrivateKey = reader.GetFieldValue<byte[]>(22),
-                    KdfSalt = reader.GetFieldValue<byte[]>(23),
-                    KdfParams = EncryptionPasswordKdf.DeserializeParams(reader.GetString(24)),
-                    VerifyHash = reader.GetFieldValue<byte[]>(25),
-                    RecoveryWrappedPrivateKey = reader.GetFieldValue<byte[]>(26),
-                    RecoveryVerifyHash = reader.GetFieldValue<byte[]>(27)
-                }
-        };
+        public static UserLookup ByEmail(Email email) =>
+            new("u_normalized_email = $normalizedEmail", "$normalizedEmail", email.Normalized);
     }
 }

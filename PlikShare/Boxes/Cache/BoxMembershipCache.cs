@@ -17,9 +17,21 @@ public class BoxMembershipCache(
     WorkspaceMembershipCache workspaceMembershipCache,
     UserCache userCache)
 {
-    private static string BoxMembershipKey(BoxExtId externalId, int memberId) 
-        => $"box-membership:box-external-id:{externalId}:member-id:{memberId}";
-    
+    private static readonly HybridCacheEntryOptions ProbeOptions = new()
+    {
+        Flags = HybridCacheEntryFlags.DisableLocalCacheWrite
+              | HybridCacheEntryFlags.DisableDistributedCacheWrite
+    };
+
+    private static string MembershipKey(int boxId, int memberId)
+        => $"box-membership:{boxId}:{memberId}";
+
+    private static string BoxMembershipsTag(int boxId)
+        => $"box-memberships-{boxId}";
+
+    private static string MemberBoxMembershipsTag(int memberId)
+        => $"member-box-memberships-{memberId}";
+
     public async ValueTask<BoxMembershipContext?> TryGetBoxMembership(
         BoxExtId boxExternalId,
         UserExtId memberExternalId,
@@ -38,7 +50,7 @@ public class BoxMembershipCache(
             member: user,
             cancellationToken: cancellationToken);
     }
-    
+
     private async ValueTask<BoxMembershipContext?> TryGetBoxMembership(
         BoxContext? box,
         UserContext? member,
@@ -46,10 +58,10 @@ public class BoxMembershipCache(
     {
         if (box is null || member is null)
             return null;
-            
+
         var workspaceMembershipContext = await workspaceMembershipCache.TryGetWorkspaceMembership(
-            workspaceExternalId: box.Workspace.ExternalId,
-            memberExternalId: member.ExternalId,
+            workspaceId: box.Workspace.Id,
+            memberId: member.Id,
             cancellationToken: cancellationToken);
 
         if (workspaceMembershipContext is { IsAvailableForUser: true })
@@ -62,13 +74,26 @@ public class BoxMembershipCache(
                 Permissions: BoxPermissions.Full());
         }
 
-        var cachedMembership = await cache.GetOrCreateAsync(
-            key: BoxMembershipKey(box.ExternalId, member.Id),
-            factory: _ => ValueTask.FromResult(LoadMembership(box.Id, member.Id)),
-            cancellationToken: cancellationToken);
+        var cachedMembership = await ProbeMembershipCache(
+            box.Id,
+            member.Id,
+            cancellationToken);
 
         if (cachedMembership is null)
-            return null;
+        {
+            var loaded = LoadMembership(box.Id, member.Id);
+
+            if (loaded is null)
+                return null;
+
+            await StoreMembership(
+                box.Id,
+                member.Id,
+                loaded,
+                cancellationToken);
+
+            cachedMembership = loaded;
+        }
 
         var inviter = await userCache.TryGetUser(
             userId: cachedMembership.InviterId,
@@ -82,81 +107,103 @@ public class BoxMembershipCache(
             Permissions: cachedMembership.Permissions);
     }
 
-    public async ValueTask InvalidateEntry(
-        int boxId, 
+    private async ValueTask<BoxMembershipCached?> ProbeMembershipCache(
+        int boxId,
         int memberId,
         CancellationToken cancellationToken)
     {
-        var box = await boxCache.TryGetBox(
-            boxId,
-            cancellationToken);
-        
-        if(box is null)
-            return;
-        
-        var key = BoxMembershipKey(
-            box.ExternalId,
-            memberId);
-        
-        await cache.RemoveAsync(
-            key, 
-            cancellationToken);
+        return await cache.GetOrCreateAsync<BoxMembershipCached?>(
+            key: MembershipKey(boxId, memberId),
+            factory: _ => ValueTask.FromResult<BoxMembershipCached?>(null),
+            options: ProbeOptions,
+            cancellationToken: cancellationToken);
     }
-    
+
+    private ValueTask StoreMembership(
+        int boxId,
+        int memberId,
+        BoxMembershipCached membership,
+        CancellationToken cancellationToken)
+    {
+        var tags = new[]
+        {
+            BoxMembershipsTag(boxId),
+            MemberBoxMembershipsTag(memberId)
+        };
+
+        return cache.SetAsync(
+            MembershipKey(boxId, memberId),
+            membership,
+            tags: tags,
+            cancellationToken: cancellationToken);
+    }
+
     public ValueTask InvalidateEntry(
-        BoxExtId boxExternalId, 
+        int boxId,
         int memberId,
         CancellationToken cancellationToken)
     {
-        var key = BoxMembershipKey(
-            boxExternalId,
-            memberId);
-        
         return cache.RemoveAsync(
-            key, 
+            MembershipKey(boxId, memberId),
             cancellationToken);
     }
-    
+
     public ValueTask InvalidateEntry(
         BoxMembershipContext boxMembership,
         CancellationToken cancellationToken)
     {
-        var key = BoxMembershipKey(
-            boxMembership.Box.ExternalId,
-            boxMembership.Member.Id);
-        
         return cache.RemoveAsync(
-            key, 
+            MembershipKey(
+                boxMembership.Box.Id,
+                boxMembership.Member.Id),
             cancellationToken);
     }
-    
+
+    public ValueTask InvalidateAllForBox(
+        int boxId,
+        CancellationToken cancellationToken)
+    {
+        return cache.RemoveByTagAsync(
+            BoxMembershipsTag(boxId),
+            cancellationToken);
+    }
+
+    public ValueTask InvalidateAllForMember(
+        int memberId,
+        CancellationToken cancellationToken)
+    {
+        return cache.RemoveByTagAsync(
+            MemberBoxMembershipsTag(memberId),
+            cancellationToken);
+    }
+
     private BoxMembershipCached? LoadMembership(
         int boxId,
         int memberId)
     {
         using var connection = plikShareDb.OpenConnection();
 
-        var (isEmpty, membership) = connection
+        var result = connection
             .OneRowCmd(
-                sql: @"
-                      SELECT
-                        bm_was_invitation_accepted,
-                        bm_inviter_id,
-                        bm_allow_download,
-                        bm_allow_upload,
-                        bm_allow_list,
-                        bm_allow_delete_file,
-                        bm_allow_rename_file,
-                        bm_allow_move_items,
-                        bm_allow_create_folder,
-                        bm_allow_rename_folder,
-                        bm_allow_delete_folder
-	                FROM bm_box_membership
-                    WHERE
-                        bm_box_id = $boxId
-                        AND bm_member_id = $memberId
-                    LIMIT 1
-                ",
+                sql: """
+                     SELECT
+                         bm_was_invitation_accepted,
+                         bm_inviter_id,
+                         bm_allow_download,
+                         bm_allow_upload,
+                         bm_allow_list,
+                         bm_allow_delete_file,
+                         bm_allow_rename_file,
+                         bm_allow_move_items,
+                         bm_allow_create_folder,
+                         bm_allow_rename_folder,
+                         bm_allow_delete_folder
+                     FROM bm_box_membership
+                     WHERE
+                         bm_box_id = $boxId
+                         AND bm_member_id = $memberId
+                     LIMIT 1
+                     """,
                 readRowFunc: reader => new BoxMembershipCached(
                     WasInvitationAccepted: reader.GetBoolean(0),
                     InviterId: reader.GetInt32(1),
@@ -174,7 +221,7 @@ public class BoxMembershipCache(
             .WithParameter("$memberId", memberId)
             .Execute();
 
-        return isEmpty ? null : membership;
+        return result.IsEmpty ? null : result.Value;
     }
 
     [ImmutableObject(true)]

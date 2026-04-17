@@ -15,9 +15,40 @@ public class WorkspaceMembershipCache(
     WorkspaceCache workspaceCache,
     UserCache userCache)
 {
-    private static string WorkspaceMembershipKey(WorkspaceExtId workspaceExternalId, int memberId) 
-        => $"workspace-membership:workspace-external-id:{workspaceExternalId}:member-id:{memberId}";
-    
+    private static readonly HybridCacheEntryOptions ProbeOptions = new()
+    {
+        Flags = HybridCacheEntryFlags.DisableLocalCacheWrite
+              | HybridCacheEntryFlags.DisableDistributedCacheWrite
+    };
+
+    private static string MembershipKey(int workspaceId, int memberId)
+        => $"workspace-membership:{workspaceId}:{memberId}";
+
+    private static string WorkspaceMembershipsTag(int workspaceId)
+        => $"workspace-memberships-{workspaceId}";
+
+    private static string MemberMembershipsTag(int memberId)
+        => $"member-memberships-{memberId}";
+
+    public async ValueTask<WorkspaceMembershipContext?> TryGetWorkspaceMembership(
+        int workspaceId,
+        int memberId,
+        CancellationToken cancellationToken)
+    {
+        var workspace = await workspaceCache.TryGetWorkspace(
+            workspaceId,
+            cancellationToken);
+
+        var user = await userCache.TryGetUser(
+            memberId,
+            cancellationToken);
+
+        return await TryGetWorkspaceMembership(
+            workspace: workspace,
+            member: user,
+            cancellationToken: cancellationToken);
+    }
+
     public async ValueTask<WorkspaceMembershipContext?> TryGetWorkspaceMembership(
         WorkspaceExtId workspaceExternalId,
         UserExtId memberExternalId,
@@ -36,7 +67,7 @@ public class WorkspaceMembershipCache(
             member: user,
             cancellationToken: cancellationToken);
     }
-    
+
     private async ValueTask<WorkspaceMembershipContext?> TryGetWorkspaceMembership(
         WorkspaceContext? workspace,
         UserContext? member,
@@ -53,7 +84,7 @@ public class WorkspaceMembershipCache(
                 Permissions: new WorkspacePermissions(AllowShare: true),
                 Invitation: null);
         }
-        
+
         if (workspace.Owner.Id == member.Id)
         {
             return new WorkspaceMembershipContext(
@@ -62,14 +93,29 @@ public class WorkspaceMembershipCache(
                 Permissions: new WorkspacePermissions(AllowShare: true),
                 Invitation: null);
         }
-        
-        var cachedMembership = await cache.GetOrCreateAsync(
-            key: WorkspaceMembershipKey(workspace.ExternalId, member.Id),
-            factory: _ => ValueTask.FromResult(LoadMembership(workspace.Id, member.Id)),
-            cancellationToken: cancellationToken);
+
+        var cachedMembership = await ProbeMembershipCache(
+            workspace.Id,
+            member.Id,
+            cancellationToken);
 
         if (cachedMembership is null)
-            return null;
+        {
+            var loaded = LoadMembership(
+                workspace.Id, 
+                member.Id);
+
+            if (loaded is null)
+                return null;
+
+            await StoreMembership(
+                workspace.Id,
+                member.Id,
+                loaded,
+                cancellationToken);
+
+            cachedMembership = loaded;
+        }
 
         var inviter = await userCache.TryGetUser(
             cachedMembership.InviterId,
@@ -84,71 +130,93 @@ public class WorkspaceMembershipCache(
                 Inviter: inviter));
     }
 
-    public async ValueTask InvalidateEntry(
+    private async ValueTask<WorkspaceMembershipCached?> ProbeMembershipCache(
         int workspaceId,
         int memberId,
         CancellationToken cancellationToken)
     {
-        var workspace = await workspaceCache.TryGetWorkspace(
-            workspaceId,
-            cancellationToken);
-        
-        if(workspace is null)
-            return;
-        
-        var key = WorkspaceMembershipKey(
-            workspace.ExternalId,
-            memberId);
-        
-        await cache.RemoveAsync(
-            key, 
-            cancellationToken);
+        return await cache.GetOrCreateAsync<WorkspaceMembershipCached?>(
+            key: MembershipKey(workspaceId, memberId),
+            factory: _ => ValueTask.FromResult<WorkspaceMembershipCached?>(null),
+            options: ProbeOptions,
+            cancellationToken: cancellationToken);
     }
-    
+
+    private ValueTask StoreMembership(
+        int workspaceId,
+        int memberId,
+        WorkspaceMembershipCached membership,
+        CancellationToken cancellationToken)
+    {
+        var tags = new[]
+        {
+            WorkspaceMembershipsTag(workspaceId),
+            MemberMembershipsTag(memberId)
+        };
+
+        return cache.SetAsync(
+            MembershipKey(workspaceId, memberId),
+            membership,
+            tags: tags,
+            cancellationToken: cancellationToken);
+    }
+
     public ValueTask InvalidateEntry(
-        WorkspaceExtId workspaceExternalId,
+        int workspaceId,
         int memberId,
         CancellationToken cancellationToken)
     {
-        var key = WorkspaceMembershipKey(
-            workspaceExternalId,
-            memberId);
-        
         return cache.RemoveAsync(
-            key, 
+            MembershipKey(workspaceId, memberId),
             cancellationToken);
     }
-    
+
     public ValueTask InvalidateEntry(
         WorkspaceMembershipContext workspaceMembership,
         CancellationToken cancellationToken)
     {
-        var key = WorkspaceMembershipKey(
-            workspaceMembership.Workspace.ExternalId,
-            workspaceMembership.User.Id);
-        
         return cache.RemoveAsync(
-            key, 
+            MembershipKey(
+                workspaceMembership.Workspace.Id,
+                workspaceMembership.User.Id),
             cancellationToken);
     }
-    
+
+    public ValueTask InvalidateAllForWorkspace(
+        int workspaceId,
+        CancellationToken cancellationToken)
+    {
+        return cache.RemoveByTagAsync(
+            WorkspaceMembershipsTag(workspaceId),
+            cancellationToken);
+    }
+
+    public ValueTask InvalidateAllForMember(
+        int memberId,
+        CancellationToken cancellationToken)
+    {
+        return cache.RemoveByTagAsync(
+            MemberMembershipsTag(memberId),
+            cancellationToken);
+    }
+
     private WorkspaceMembershipCached? LoadMembership(
         int workspaceId,
         int memberId)
     {
         using var connection = plikShareDb.OpenConnection();
-        
-        var (isEmpty, membership) =  connection
+
+        var result = connection
             .OneRowCmd(
                 sql: """
                      SELECT
-                     	wm_inviter_id,
-                     	wm_was_invitation_accepted,
-                     	wm_allow_share
+                         wm_inviter_id,
+                         wm_was_invitation_accepted,
+                         wm_allow_share
                      FROM wm_workspace_membership
                      WHERE
-                     	wm_workspace_id = $workspaceId
-                     	AND wm_member_id = $memberId
+                         wm_workspace_id = $workspaceId
+                         AND wm_member_id = $memberId
                      LIMIT 1
                      """,
                 readRowFunc: reader => new WorkspaceMembershipCached(
@@ -160,7 +228,7 @@ public class WorkspaceMembershipCache(
             .WithParameter("$memberId", memberId)
             .Execute();
 
-        return isEmpty ? null : membership;
+        return result.IsEmpty ? null : result.Value;
     }
 
     [ImmutableObject(true)]

@@ -17,82 +17,40 @@ public class PreSignedUrlsService(
     IDataProtectionProvider dataProtectionProvider)
 {
     private const string PreSignedPayloadPurpose = "PreSignedPayload";
-    
+
     public string GeneratePreSignedMultiFileDirectUploadUrl(
         MultiFileDirectUploadPayload payload)
     {
-        var urlEncoded = UrlEncodePayload(
-            payload);
-
-        return $"{config.AppUrl}/api/files/multi-file/{urlEncoded}";
+        return $"{config.AppUrl}/api/files/multi-file/{UrlEncodePayload(payload)}";
     }
 
     public string GeneratePreSignedUploadUrl(
         UploadPayload payload)
     {
-        var urlEncoded = UrlEncodePayload(
-            payload);
-
-        return $"{config.AppUrl}/api/files/{urlEncoded}";
+        return $"{config.AppUrl}/api/files/{UrlEncodePayload(payload)}";
     }
 
     public string GeneratePreSignedDownloadUrl(
         DownloadPayload payload)
     {
-        var urlEncoded = UrlEncodePayload(
-            payload);
-
-        return $"{config.AppUrl}/api/files/{urlEncoded}";
+        return $"{config.AppUrl}/api/files/{UrlEncodePayload(payload)}";
     }
 
     public string GeneratePreSignedBulkDownloadUrl(
         BulkDownloadPayload payload)
     {
-        var urlEncoded = UrlEncodePayload(
-            payload);
-
-        return $"{config.AppUrl}/api/bulk-download/{urlEncoded}";
+        return $"{config.AppUrl}/api/bulk-download/{UrlEncodePayload(payload)}";
     }
 
     public string GeneratePreSignedZipContentDownloadUrl(
         ZipContentDownloadPayload payload)
     {
-        var urlEncoded = UrlEncodePayload(
-            payload);
-
-        return $"{config.AppUrl}/api/zip-files/{urlEncoded}";
+        return $"{config.AppUrl}/api/zip-files/{UrlEncodePayload(payload)}";
     }
 
     public (ExtractionResult Code, MultiFileDirectUploadPayload? Payload) TryExtractPreSignedMultiFileDirectUploadPayload(
         string protectedDataUrlEncoded)
-    {
-        try
-        {
-            var protector = dataProtectionProvider.CreateProtector(
-                PreSignedPayloadPurpose);
-
-            var protectedData = HttpUtility.UrlDecode(
-                protectedDataUrlEncoded);
-
-            var jsonParameters = protector.Unprotect(
-                protectedData);
-
-            var payload = Json.Deserialize<MultiFileDirectUploadPayload>(
-                jsonParameters);
-
-            if (payload is null)
-                return (ExtractionResult.Invalid, null);
-            
-            if (payload.ExpirationDate < clock.UtcNow)
-                return (ExtractionResult.Expired, null);
-
-            return (ExtractionResult.Ok, payload);
-        }
-        catch (Exception)
-        {
-            return (ExtractionResult.Invalid, null);
-        }
-    }
+        => TryExtractPayload<MultiFileDirectUploadPayload>(protectedDataUrlEncoded);
 
     public (ExtractionResult Code, UploadPayload? Payload) TryExtractPreSignedUploadPayload(
         string protectedDataUrlEncoded,
@@ -114,11 +72,11 @@ public class PreSignedUrlsService(
 
             if (payload is null)
                 return (ExtractionResult.Invalid, null);
-            
+
             if (payload.ContentType != contentType)
                 return (ExtractionResult.Invalid, null);
 
-            if(payload.ExpirationDate < clock.UtcNow)
+            if (payload.ExpirationDate < clock.UtcNow)
                 return (ExtractionResult.Expired, null);
 
             return (ExtractionResult.Ok, payload);
@@ -131,68 +89,18 @@ public class PreSignedUrlsService(
 
     public (ExtractionResult Code, DownloadPayload? Payload) TryExtractPreSignedDownloadPayload(
         string protectedDataUrlEncoded)
-    {
-        try
-        {
-            var protector = dataProtectionProvider.CreateProtector(
-                PreSignedPayloadPurpose);
-
-            var protectedData = HttpUtility.UrlDecode(
-                protectedDataUrlEncoded);
-
-            var jsonParameters = protector.Unprotect(
-                protectedData);
-
-            var payload = Json.Deserialize<DownloadPayload>(
-                jsonParameters);
-
-            if (payload is null)
-                return (ExtractionResult.Invalid, null);
-            
-            if ( payload.ExpirationDate < clock.UtcNow)
-                return (ExtractionResult.Expired, null);
-
-            return (ExtractionResult.Ok, payload);
-        }
-        catch (Exception)
-        {
-            return (ExtractionResult.Invalid, null);
-        }
-    }
+        => TryExtractPayload<DownloadPayload>(protectedDataUrlEncoded);
 
     public (ExtractionResult Code, BulkDownloadPayload? Payload) TryExtractPreSignedBulkDownloadPayload(
         string protectedDataUrlEncoded)
-    {
-        try
-        {
-            var protector = dataProtectionProvider.CreateProtector(
-                PreSignedPayloadPurpose);
-
-            var protectedData = HttpUtility.UrlDecode(
-                protectedDataUrlEncoded);
-
-            var jsonParameters = protector.Unprotect(
-                protectedData);
-            
-            var payload = Json.Deserialize<BulkDownloadPayload>(
-                jsonParameters);
-
-            if (payload is null)
-                return (ExtractionResult.Invalid, null);
-            
-            if (payload.ExpirationDate < clock.UtcNow)
-                return (ExtractionResult.Expired, null);
-
-            return (ExtractionResult.Ok, payload);
-        }
-        catch (Exception)
-        {
-            return (ExtractionResult.Invalid, null);
-        }
-    }
+        => TryExtractPayload<BulkDownloadPayload>(protectedDataUrlEncoded);
 
     public (ExtractionResult Code, ZipContentDownloadPayload? Payload) TryExtractPreSignedZipContentDownloadPayload(
         string protectedDataUrlEncoded)
+        => TryExtractPayload<ZipContentDownloadPayload>(protectedDataUrlEncoded);
+
+    private (ExtractionResult Code, T? Payload) TryExtractPayload<T>(
+        string protectedDataUrlEncoded) where T : PreSignedPayload
     {
         try
         {
@@ -205,9 +113,9 @@ public class PreSignedUrlsService(
             var jsonParameters = protector.Unprotect(
                 protectedData);
 
-            var payload = Json.Deserialize<ZipContentDownloadPayload>(
+            var payload = Json.Deserialize<T>(
                 jsonParameters);
-            
+
             if (payload is null)
                 return (ExtractionResult.Invalid, null);
 
@@ -239,15 +147,22 @@ public class PreSignedUrlsService(
         return urlEncoded;
     }
 
-    public (bool Success, int? BoxLinkId) TryExtractBoxLinkIdFromProtectedData(string protectedDataUrlEncoded)
+    public (bool Success, int? BoxLinkId) TryExtractBoxLinkIdFromProtectedData(
+        string protectedDataUrlEncoded)
     {
         try
         {
-            var protector = dataProtectionProvider.CreateProtector(PreSignedPayloadPurpose);
-            var protectedData = HttpUtility.UrlDecode(protectedDataUrlEncoded);
-            var jsonParameters = protector.Unprotect(protectedData);
+            var protector = dataProtectionProvider.CreateProtector(
+                PreSignedPayloadPurpose);
 
-            var jsonObject = System.Text.Json.JsonDocument.Parse(jsonParameters);
+            var protectedData = HttpUtility.UrlDecode(
+                protectedDataUrlEncoded);
+
+            var jsonParameters = protector.Unprotect(
+                protectedData);
+
+            var jsonObject = System.Text.Json.JsonDocument.Parse(
+                jsonParameters);
 
             if (jsonObject.RootElement.TryGetProperty("boxLinkId", out var boxLinkIdElement))
             {
@@ -294,7 +209,7 @@ public class PreSignedUrlsService(
     }
 
     [ImmutableObject(true)]
-    public sealed class MultiFileDirectUploadPayload: PreSignedPayload
+    public sealed class MultiFileDirectUploadPayload : PreSignedPayload
     {
         public required int WorkspaceId { get; init; }
     }

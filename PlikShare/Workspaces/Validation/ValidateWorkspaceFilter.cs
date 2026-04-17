@@ -1,6 +1,5 @@
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Utils;
-using PlikShare.Users.Middleware;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Id;
 using Serilog;

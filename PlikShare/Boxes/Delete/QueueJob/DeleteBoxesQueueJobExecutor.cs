@@ -61,7 +61,7 @@ public class DeleteBoxesQueueJobExecutor(
         foreach (var deletedMember in result.DeletedBoxMembers)
         {
             await boxMembershipCache.InvalidateEntry(
-                boxExternalId: deletedMember.BoxExternalId,
+                boxId: deletedMember.BoxId,
                 memberId: deletedMember.MemberId,
                 cancellationToken: cancellationToken);
         }

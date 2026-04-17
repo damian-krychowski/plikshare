@@ -615,7 +615,7 @@ public static class WorkspacesEndpoints
         {
             case RevokeWorkspaceMemberQuery.ResultCode.Ok:
                 await workspaceMembershipCache.InvalidateEntry(
-                    workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                    workspaceId: workspaceMembership.Workspace.Id,
                     memberId: memberToRevoke.Id,
                     cancellationToken: cancellationToken);
 
@@ -725,7 +725,7 @@ public static class WorkspacesEndpoints
         {
             case LeaveSharedWorkspaceQuery.ResultCode.Ok:
                 await workspaceMembershipCache.InvalidateEntry(
-                    workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+                    workspaceId: workspaceMembership.Workspace.Id,
                     memberId: user.Id,
                     cancellationToken: cancellationToken);
 

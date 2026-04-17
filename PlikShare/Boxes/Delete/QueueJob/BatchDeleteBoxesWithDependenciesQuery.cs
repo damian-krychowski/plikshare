@@ -2,7 +2,6 @@ using Microsoft.Data.Sqlite;
 using PlikShare.Boxes.Id;
 using PlikShare.BoxLinks.Id;
 using PlikShare.Core.Clock;
-using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Emails;
 using PlikShare.Core.Emails.Definitions;
 using PlikShare.Core.Queue;
@@ -85,7 +84,7 @@ public class BatchDeleteBoxesWithDependenciesQuery(
             
             DeletedBoxMembers: deletedBoxMembers
                 .Select(member => new BoxMember(
-                    BoxExternalId: member.BoxExternalId,
+                    BoxId: member.BoxId,
                     MemberId: member.MemberId))
                 .ToArray());
     }
@@ -126,24 +125,24 @@ public class BatchDeleteBoxesWithDependenciesQuery(
 
         return dbWriteContext
             .Cmd(
-                sql: @"
-                    DELETE FROM bm_box_membership
-                    WHERE
-                        bm_box_id IN (
-                            SELECT value FROM json_each($boxIds)
-                        )
-                    RETURNING 
-                        bm_member_id,
-                        bm_was_invitation_accepted,
-                        (SELECT u_email FROM u_users WHERE u_id = bm_member_id) AS bm_member_email,
-                        (SELECT bo_external_id FROM bo_boxes WHERE bo_id = bm_box_id) AS bm_box_external_id,                        
-                        (SELECT bo_name FROM bo_boxes WHERE bo_id = bm_box_id) AS bm_box_name                        
-                ",
+                sql: """
+                     DELETE FROM bm_box_membership
+                     WHERE
+                         bm_box_id IN (
+                             SELECT value FROM json_each($boxIds)
+                         )
+                     RETURNING 
+                         bm_member_id,
+                         bm_was_invitation_accepted,
+                         (SELECT u_email FROM u_users WHERE u_id = bm_member_id) AS bm_member_email,
+                         bm_box_id,
+                         (SELECT bo_name FROM bo_boxes WHERE bo_id = bm_box_id) AS bm_box_name
+                     """,
                 readRowFunc: reader => new DeletedBoxMember(
                     MemberId: reader.GetInt32(0),
                     WasInvitationAccepted: reader.GetBoolean(1),
                     Email: reader.GetEmail(2),
-                    BoxExternalId: reader.GetExtId<BoxExtId>(3),
+                    BoxId: reader.GetInt32(3),
                     BoxName: reader.GetString(4)),
                 transaction: transaction)
             .WithJsonParameter("$boxIds", boxIds)
@@ -185,7 +184,7 @@ public class BatchDeleteBoxesWithDependenciesQuery(
 
     private readonly record struct DeletedBoxMember(
         int MemberId,
-        BoxExtId BoxExternalId,
+        int BoxId,
         Email Email,
         string BoxName,
         bool WasInvitationAccepted);
@@ -197,7 +196,7 @@ public class BatchDeleteBoxesWithDependenciesQuery(
         BoxExtId ExternalId);
     
     public readonly record struct BoxMember(
-        BoxExtId BoxExternalId,
+        int BoxId,
         int MemberId
     );
 }
