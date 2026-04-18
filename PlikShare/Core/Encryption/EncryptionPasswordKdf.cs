@@ -37,22 +37,49 @@ public static class EncryptionPasswordKdf
 
     public static byte[] GenerateSalt() => RandomNumberGenerator.GetBytes(SaltSize);
 
-    public static byte[] DeriveKek(string password, byte[] salt, Params parameters)
+    /// <summary>
+    /// Derives the KEK into a <see cref="SecureBytes"/> buffer (pinned, mlocked, zeroed
+    /// on dispose) that the caller MUST dispose. Argon2id itself returns a byte[] on the
+    /// managed heap which we zero immediately after copying — a brief (microsecond) window
+    /// of plaintext KEK on the unpinned heap is inherent to the Konscious.Security.Cryptography
+    /// API and not worth bypassing.
+    /// </summary>
+    public static async Task<SecureBytes> DeriveKek(string password, byte[] salt, Params parameters)
     {
         if (salt.Length != SaltSize)
             throw new ArgumentException(
                 $"Salt must be {SaltSize} bytes, got {salt.Length}.",
                 nameof(salt));
 
-        using var argon2 = new Argon2id(Encoding.UTF8.GetBytes(password))
-        {
-            Salt = salt,
-            DegreeOfParallelism = parameters.Parallelism,
-            Iterations = parameters.TimeCost,
-            MemorySize = parameters.MemoryCostKb
-        };
+        var passwordBytes = Encoding.UTF8.GetBytes(
+            password);
 
-        return argon2.GetBytes(KekSize);
+        try
+        {
+            using var argon2 = new Argon2id(passwordBytes)
+            {
+                Salt = salt,
+                DegreeOfParallelism = parameters.Parallelism,
+                Iterations = parameters.TimeCost,
+                MemorySize = parameters.MemoryCostKb
+            };
+
+            var kekBytes = await argon2.GetBytesAsync(
+                KekSize);
+
+            try
+            {
+                return SecureBytes.CopyFrom(kekBytes);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(kekBytes);
+            }
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(passwordBytes);
+        }
     }
 
     /// <summary>

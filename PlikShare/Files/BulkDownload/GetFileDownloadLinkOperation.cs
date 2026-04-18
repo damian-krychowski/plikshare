@@ -10,6 +10,7 @@ using PlikShare.Workspaces.Cache;
 namespace PlikShare.Files.BulkDownload;
 
 public class GetBulkDownloadLinkOperation(
+    IMasterDataEncryption masterDataEncryption,
     IClock clock,
     PreSignedUrlsService preSignedUrlsService,
     GetBulkDownloadDetailsQuery getBulkDownloadDetailsQuery)
@@ -77,7 +78,7 @@ public class GetBulkDownloadLinkOperation(
                 },
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
                 BoxLinkId = boxLinkId,
-                WorkspaceDeks = workspaceEncryptionSession?.Entries ?? []
+                WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? []
             });
 
         return new Result(

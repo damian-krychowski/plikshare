@@ -18,6 +18,7 @@ using System.IO.Pipelines;
 namespace PlikShare.Storages.HardDrive.StorageClient;
 
 public class HardDriveStorageClient(
+    IMasterDataEncryption masterDataEncryption,
     PreSignedUrlsService preSignedUrlsService,
     IClock clock,
     HardDriveDetailsEntity details,
@@ -266,7 +267,7 @@ public class HardDriveStorageClient(
                 },
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
                 BoxLinkId = boxLinkId,
-                WorkspaceDeks = workspaceEncryptionSession?.Entries ?? []
+                WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? []
             });
 
         var result = new PreSignedUploadLinkResult
@@ -302,7 +303,7 @@ public class HardDriveStorageClient(
                 ContentDisposition = contentDisposition,
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
                 BoxLinkId = boxLinkId,
-                WorkspaceDeks = workspaceEncryptionSession?.Entries ?? []
+                WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? []
             });
 
         return ValueTask.FromResult(result);

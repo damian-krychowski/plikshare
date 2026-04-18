@@ -19,5 +19,97 @@ public sealed class WorkspaceDekEntry
 {
     public required int StorageDekVersion { get; init; }
     public required byte[] Salt { get; init; }
-    public required byte[] Dek { get; init; }
+    public required SecureBytes Dek { get; init; }
+}
+
+public sealed class WorkspaceDekEntryWire
+{
+    public required int StorageDekVersion { get; init; }
+    public required byte[] Salt { get; init; }
+
+    /// <summary>
+    /// The Workspace DEK encrypted with <see cref="IMasterDataEncryption.EncryptBytes"/>.
+    /// Serializable without exposing plaintext: the raw DEK bytes never materialize as
+    /// a byte[] on the managed heap during encode/decode.
+    /// </summary>
+    public required byte[] EncryptedDek { get; init; }
+}
+
+public static class WorkspaceDekEntryWireExtensions
+{
+    /// <summary>
+    /// Converts an in-memory entry into its wire form. The DEK plaintext is read
+    /// only inside the pinned SecureBytes buffer — it is encrypted by
+    /// <paramref name="masterEncryption"/> directly from that span, never copied
+    /// to an unpinned heap byte[].
+    /// </summary>
+    public static WorkspaceDekEntryWire ToWire(
+        this WorkspaceDekEntry entry,
+        IMasterDataEncryption masterEncryption)
+    {
+        var encryptedDek = entry.Dek.Use(
+            masterEncryption,
+            static (span, enc) => enc.FastEncryptBytes(span));
+
+        return new WorkspaceDekEntryWire
+        {
+            StorageDekVersion = entry.StorageDekVersion,
+            Salt = entry.Salt,
+            EncryptedDek = encryptedDek
+        };
+    }
+
+    public static WorkspaceDekEntryWire[] ToWires(
+        this IEnumerable<WorkspaceDekEntry> entries,
+        IMasterDataEncryption masterEncryption)
+    {
+        return entries
+            .Select(entry => entry.ToWire(masterEncryption))
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Converts a wire entry back into its in-memory form. The DEK plaintext is
+    /// written directly into a freshly allocated pinned SecureBytes buffer —
+    /// AesGcm.Decrypt writes straight into the pinned memory, so plaintext never
+    /// lands on the unpinned heap.
+    /// </summary>
+    public static WorkspaceDekEntry ToEntry(
+        this WorkspaceDekEntryWire wire,
+        IMasterDataEncryption masterEncryption)
+    {
+        var plaintextLength = masterEncryption.GetFastDecryptedLength(wire.EncryptedDek);
+
+        var dek = SecureBytes.Create(
+            length: plaintextLength,
+            state: new DecryptState
+            {
+                Encryption = masterEncryption,
+                EncryptedDek = wire.EncryptedDek
+            },
+            initializer: static (output, s) =>
+                s.Encryption.FastDecryptBytes(s.EncryptedDek, output));
+
+        return new WorkspaceDekEntry
+        {
+            StorageDekVersion = wire.StorageDekVersion,
+            Salt = wire.Salt,
+            Dek = dek
+        };
+    }
+
+    public static WorkspaceDekEntry[] ToEntries(
+        this IEnumerable<WorkspaceDekEntryWire> wires,
+        IMasterDataEncryption masterEncryption)
+    {
+        return wires
+            .Select(wire => wire.ToEntry(masterEncryption))
+            .ToArray();
+    }
+
+    private readonly ref struct DecryptState
+    {
+        public required IMasterDataEncryption Encryption { get; init; }
+        public required byte[] EncryptedDek { get; init; }
+    }
 }

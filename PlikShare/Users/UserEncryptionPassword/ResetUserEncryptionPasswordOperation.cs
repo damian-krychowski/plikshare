@@ -28,7 +28,7 @@ public class ResetUserEncryptionPasswordOperation(
         }
 
         var decodeResult = RecoveryCodeCodec.TryDecode(
-            recoveryCode, 
+            recoveryCode,
             out var recoverySeed);
 
         if (decodeResult != RecoveryCodeCodec.DecodeResult.Ok)
@@ -52,12 +52,12 @@ public class ResetUserEncryptionPasswordOperation(
             return new Result(ResultCode.InvalidRecoveryCode);
         }
 
-        var recoveryKek = UserEncryptionRecovery.DeriveRecoveryKek(
+        using var recoveryKek = UserEncryptionRecovery.DeriveRecoveryKek(
             recoverySeed);
 
-        var privateKey = WrappedPrivateKey.Unwrap(
-            recoveryKek,
-            user.EncryptionMetadata.RecoveryWrappedPrivateKey);
+        using var privateKey = recoveryKek.Use(
+            state: user.EncryptionMetadata.RecoveryWrappedPrivateKey,
+            static (kekSpan, wrapped) => WrappedPrivateKey.Unwrap(kekSpan, wrapped));
 
         var newSalt = EncryptionPasswordKdf.GenerateSalt();
 
@@ -65,17 +65,18 @@ public class ResetUserEncryptionPasswordOperation(
             .Params
             .Default;
 
-        var newKek = EncryptionPasswordKdf.DeriveKek(
-            newPassword, 
-            newSalt, 
-            newParams);
+        using var newKek = await EncryptionPasswordKdf.DeriveKek(
+            password: newPassword,
+            salt: newSalt,
+            parameters: newParams);
 
-        var newVerifyHash = EncryptionPasswordKdf.ComputeVerifyHash(
-            newKek);
+        var newVerifyHash = newKek.Use(
+            static kekSpan => EncryptionPasswordKdf.ComputeVerifyHash(kekSpan));
 
-        var newEncryptedPrivateKey = WrappedPrivateKey.Wrap(
-            newKek, 
-            privateKey);
+        var newEncryptedPrivateKey = SecureBytes.UseBoth(
+            first: newKek,
+            second: privateKey,
+            action: static (kekSpan, pkSpan) => WrappedPrivateKey.Wrap(kekSpan, pkSpan));
 
         var writeCode = await upsertUserEncryptionDataQuery.Execute(
             userId: user.Id,
@@ -94,8 +95,8 @@ public class ResetUserEncryptionPasswordOperation(
         Log.Information("User '{UserId}' encryption password was reset via recovery code.", user.Id);
 
         return new Result(
-            Code: ResultCode.Ok,
-            PrivateKey: privateKey);
+            code: ResultCode.Ok,
+            privateKey: privateKey.Clone());
     }
 
     public enum ResultCode
@@ -106,7 +107,13 @@ public class ResetUserEncryptionPasswordOperation(
         UserNotFound
     }
 
-    public readonly record struct Result(
-        ResultCode Code,
-        byte[]? PrivateKey = null);
+    public sealed class Result(
+        ResultCode code,
+        SecureBytes? privateKey = null) : IDisposable
+    {
+        public ResultCode Code { get; } = code;
+        public SecureBytes? PrivateKey { get; } = privateKey;
+
+        public void Dispose() => PrivateKey?.Dispose();
+    }
 }

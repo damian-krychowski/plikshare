@@ -28,23 +28,29 @@ public static class UserEncryptionRecovery
     public static byte[] GenerateRecoverySeed()
         => RandomNumberGenerator.GetBytes(RecoverySeedSize);
 
-    public static byte[] DeriveRecoveryKek(ReadOnlySpan<byte> recoverySeed)
+    /// <summary>
+    /// Derives the recovery KEK into a <see cref="SecureBytes"/> buffer (pinned, mlocked,
+    /// zeroed on dispose) that the caller MUST dispose.
+    /// </summary>
+    public static SecureBytes DeriveRecoveryKek(ReadOnlySpan<byte> recoverySeed)
     {
         if (recoverySeed.Length != RecoverySeedSize)
             throw new ArgumentException(
                 $"Recovery seed must be {RecoverySeedSize} bytes, got {recoverySeed.Length}.",
                 nameof(recoverySeed));
 
-        var kek = new byte[RecoveryKekSize];
-
-        HKDF.DeriveKey(
-            hashAlgorithmName: HashAlgorithmName.SHA256,
-            ikm: recoverySeed,
-            output: kek,
-            salt: [],
-            info: KekInfo);
-
-        return kek;
+        return SecureBytes.Create(
+            length: RecoveryKekSize,
+            state: recoverySeed,
+            initializer: static (output, seed) =>
+            {
+                HKDF.DeriveKey(
+                    hashAlgorithmName: HashAlgorithmName.SHA256,
+                    ikm: seed,
+                    output: output,
+                    salt: [],
+                    info: KekInfo);
+            });
     }
 
     public static byte[] ComputeVerifyHash(ReadOnlySpan<byte> recoverySeed)
@@ -71,7 +77,7 @@ public static class UserEncryptionRecovery
         var actual = ComputeVerifyHash(recoverySeed);
 
         return CryptographicOperations.FixedTimeEquals(
-            actual, 
+            actual,
             expectedHash);
     }
 }

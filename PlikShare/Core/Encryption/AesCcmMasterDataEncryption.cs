@@ -9,11 +9,15 @@ public class AesCcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
     public byte[] Encrypt(string plainText)
     {
         var encryptionKey = masterEncryptionKeyProvider.GetCurrentEncryptionKey();
-        
-        var base64EncryptedText = AesCcmEncryptionService.Encrypt(
-            plainText, 
-            encryptionKey.Password);
-        
+
+        var base64EncryptedText = encryptionKey.PasswordBytes.Use(
+            plainText,
+            static (pwSpan, pt) =>
+            {
+                var password = Encoding.UTF8.GetString(pwSpan);
+                return AesCcmEncryptionService.Encrypt(pt, password);
+            });
+
         return VersionedAesCcmCiphertext.ToBytes(
             encryptionKey.Id, 
             base64EncryptedText);
@@ -26,10 +30,30 @@ public class AesCcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
         
         var encryptionKey = masterEncryptionKeyProvider.GetEncryptionKeyById(
             versionedCiphertext.KeyId);
-        
-        return AesCcmEncryptionService.Decrypt(
-            versionedCiphertext.Ciphertext,
-            encryptionKey.Password);
+
+        return encryptionKey.PasswordBytes.Use((pwSpan) =>
+        {
+            var password = Encoding.UTF8.GetString(pwSpan);
+
+            return AesCcmEncryptionService.Decrypt(
+                encryptedBytes: versionedCiphertext.Ciphertext,
+                password: password);
+        });
+    }
+
+    public byte[] FastEncryptBytes(ReadOnlySpan<byte> plaintext)
+    {
+        throw new NotImplementedException();
+    }
+
+    public void FastDecryptBytes(byte[] versionedEncryptedBytes, Span<byte> destination)
+    {
+        throw new NotImplementedException();
+    }
+
+    public int GetFastDecryptedLength(byte[] versionedEncryptedBytes)
+    {
+        throw new NotImplementedException();
     }
 
     public IDerivedMasterDataEncryption NewDerived()

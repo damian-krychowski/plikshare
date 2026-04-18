@@ -20,8 +20,12 @@ public sealed record FileAesInputsV1(
     byte[] Salt,
     byte[] NoncePrefix);
 
+/// <summary>
+/// AES inputs for V2 encryption. The Ikm is a BORROWED reference owned by the
+/// WorkspaceEncryptionSession — do NOT dispose it here.
+/// </summary>
 public sealed record FileAesInputsV2(
-    byte[] Ikm,
+    SecureBytes Ikm,
     byte KeyVersion,
     IReadOnlyList<byte[]> ChainStepSalts,
     byte[] Salt,

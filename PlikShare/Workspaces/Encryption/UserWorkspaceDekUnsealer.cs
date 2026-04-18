@@ -13,12 +13,13 @@ namespace PlikShare.Workspaces.Encryption;
 /// array is fresh and its plaintext DEKs are zeroed on partial-failure rollback before the
 /// method returns.
 /// </summary>
-public class UserWorkspaceDekUnsealer(GetUserWrappedWorkspaceDeksQuery getUserWrappedWorkspaceDeksQuery)
+public class UserWorkspaceDekUnsealer(
+    GetUserWrappedWorkspaceDeksQuery getUserWrappedWorkspaceDeksQuery)
 {
     public Result UnsealForUser(
-        int workspaceId, 
-        int userId, 
-        byte[] privateKey)
+        int workspaceId,
+        int userId,
+        SecureBytes privateKey)
     {
         var wrappedDeks = getUserWrappedWorkspaceDeksQuery.GetWrappedDeksForUser(
             workspaceId: workspaceId,
@@ -27,17 +28,18 @@ public class UserWorkspaceDekUnsealer(GetUserWrappedWorkspaceDeksQuery getUserWr
         if (wrappedDeks.Count == 0)
             return new Result(Code: ResultCode.NoWraps);
 
-        var entries = new List<WorkspaceDekEntry>(capacity: wrappedDeks.Count);
+        var entries = new List<WorkspaceDekEntry>(
+            capacity: wrappedDeks.Count);
 
         foreach (var row in wrappedDeks)
         {
-            byte[] dek;
+            SecureBytes dek;
 
             try
             {
                 dek = UserKeyPair.OpenSealed(
                     recipientPrivateKey: privateKey,
-                    sealed_: row.WrappedDek);
+                    @sealed: row.WrappedDek);
             }
             catch (Exception e)
             {
@@ -48,7 +50,7 @@ public class UserWorkspaceDekUnsealer(GetUserWrappedWorkspaceDeksQuery getUserWr
                     row.StorageDekVersion, userId, workspaceId);
 
                 foreach (var entry in entries)
-                    CryptographicOperations.ZeroMemory(entry.Dek);
+                    entry.Dek.Dispose();
 
                 return new Result(Code: ResultCode.UnsealFailed);
             }

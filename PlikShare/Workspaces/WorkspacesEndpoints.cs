@@ -177,14 +177,19 @@ public static class WorkspacesEndpoints
         {
             case WorkspaceCreationPreparation.ResultCode.StorageNotFound:
                 return HttpErrors.Storage.NotFound(request.StorageExternalId);
+
             case WorkspaceCreationPreparation.ResultCode.UserEncryptionSessionRequired:
                 return HttpErrors.Storage.UserEncryptionSessionRequired();
+
             case WorkspaceCreationPreparation.ResultCode.CreatorEncryptionNotSetUp:
                 return HttpErrors.Storage.CreatorEncryptionNotSetUp();
+
             case WorkspaceCreationPreparation.ResultCode.NotAStorageAdmin:
                 return HttpErrors.Storage.NotAStorageAdmin(request.StorageExternalId);
+
             case WorkspaceCreationPreparation.ResultCode.Ok:
                 break;
+
             default:
                 throw new UnexpectedOperationResultException(
                     operationName: nameof(WorkspaceCreationPreparation),

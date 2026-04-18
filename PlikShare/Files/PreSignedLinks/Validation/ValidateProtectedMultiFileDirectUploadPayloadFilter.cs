@@ -93,8 +93,16 @@ public class ValidateProtectedMultiFileDirectUploadPayloadFilter : IEndpointFilt
 
         if (payload.WorkspaceDeks is {Length: >0})
         {
+            var masterDataEncryption = context
+                .HttpContext
+                .RequestServices
+                .GetRequiredService<IMasterDataEncryption>();
+
+            var workspaceDeks = payload.WorkspaceDeks.ToEntries(
+                masterDataEncryption);
+
             context.HttpContext.Items[WorkspaceEncryptionSession.HttpContextName] =
-                new WorkspaceEncryptionSession(payload.WorkspaceDeks);
+                new WorkspaceEncryptionSession(workspaceDeks);
         }
 
         return await next(context);

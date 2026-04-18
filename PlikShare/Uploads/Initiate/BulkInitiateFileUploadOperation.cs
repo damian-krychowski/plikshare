@@ -25,6 +25,7 @@ public class BulkInitiateFileUploadOperation(
     PreSignedUrlsService preSignedUrlsService,
     BulkInsertFileUploadQuery bulkInsertFileUploadQuery,
     GetWorkspaceSizeQuery getWorkspaceSizeQuery,
+    IMasterDataEncryption masterDataEncryption,
     IClock clock)
 {
     /// <summary>
@@ -222,7 +223,7 @@ public class BulkInitiateFileUploadOperation(
                             },
                             ExpirationDate = clock.UtcNow.AddMinutes(15),
                             BoxLinkId = boxLinkId,
-                            WorkspaceDeks = workspaceEncryptionSession?.Entries ?? []
+                            WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? []
                         })
                 }
                 : null,

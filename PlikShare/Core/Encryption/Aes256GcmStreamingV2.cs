@@ -349,22 +349,37 @@ public static class Aes256GcmStreamingV2
                 array: heapBuffer);
         }
     }
-
+    
     private static AesGcm PrepareAesGcm(
-        ReadOnlySpan<byte> ikm,
+        SecureBytes ikm,
         ReadOnlySpan<byte> fileSalt,
         Span<byte> deriveKeyBuffer)
     {
-        HKDF.DeriveKey(
-            hashAlgorithmName: HashAlgorithmName.SHA256,
-            ikm: ikm,
-            output: deriveKeyBuffer,
-            salt: fileSalt,
-            info: null);
+        ikm.Use(
+            state: new HkdfInput
+            {
+                FileSalt = fileSalt, 
+                Output = deriveKeyBuffer
+            },
+            action: static (ikmSpan, input) =>
+            {
+                HKDF.DeriveKey(
+                    hashAlgorithmName: HashAlgorithmName.SHA256,
+                    ikm: ikmSpan,
+                    output: input.Output,
+                    salt: input.FileSalt,
+                    info: null);
+            });
 
         return new AesGcm(
             key: deriveKeyBuffer,
             tagSizeInBytes: TagSize);
+    }
+
+    private readonly ref struct HkdfInput
+    {
+        public ReadOnlySpan<byte> FileSalt { get; init; }
+        public Span<byte> Output { get; init; }
     }
 
     private static void WriteHeader(

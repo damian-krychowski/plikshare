@@ -26,68 +26,68 @@ public class EncryptionPasswordKdfTests
     }
 
     [Fact]
-    public void DeriveKek_ReturnsExpectedSize()
+    public async Task DeriveKek_ReturnsExpectedSize()
     {
         var salt = EncryptionPasswordKdf.GenerateSalt();
-        var kek = EncryptionPasswordKdf.DeriveKek("hunter2", salt, TestParams);
+        using var kek = await EncryptionPasswordKdf.DeriveKek("hunter2", salt, TestParams);
         Assert.Equal(EncryptionPasswordKdf.KekSize, kek.Length);
     }
 
     [Fact]
-    public void DeriveKek_IsDeterministic_SameInputsProduceSameKek()
+    public async Task DeriveKek_IsDeterministic_SameInputsProduceSameKek()
     {
         var salt = EncryptionPasswordKdf.GenerateSalt();
 
-        var kek1 = EncryptionPasswordKdf.DeriveKek("hunter2", salt, TestParams);
-        var kek2 = EncryptionPasswordKdf.DeriveKek("hunter2", salt, TestParams);
+        using var kek1 = await EncryptionPasswordKdf.DeriveKek("hunter2", salt, TestParams);
+        using var kek2 = await EncryptionPasswordKdf.DeriveKek("hunter2", salt, TestParams);
 
-        Assert.Equal(kek1, kek2);
+        AssertSecureBytesEqual(kek1, kek2);
     }
 
     [Fact]
-    public void DeriveKek_DifferentPasswords_ProduceDifferentKeks()
+    public async Task DeriveKek_DifferentPasswords_ProduceDifferentKeks()
     {
         var salt = EncryptionPasswordKdf.GenerateSalt();
 
-        var kek1 = EncryptionPasswordKdf.DeriveKek("hunter2", salt, TestParams);
-        var kek2 = EncryptionPasswordKdf.DeriveKek("hunter3", salt, TestParams);
+        using var kek1 = await EncryptionPasswordKdf.DeriveKek("hunter2", salt, TestParams);
+        using var kek2 = await EncryptionPasswordKdf.DeriveKek("hunter3", salt, TestParams);
 
-        Assert.NotEqual(kek1, kek2);
+        AssertSecureBytesNotEqual(kek1, kek2);
     }
 
     [Fact]
-    public void DeriveKek_DifferentSalts_ProduceDifferentKeks()
+    public async Task DeriveKek_DifferentSalts_ProduceDifferentKeks()
     {
         var saltA = EncryptionPasswordKdf.GenerateSalt();
         var saltB = EncryptionPasswordKdf.GenerateSalt();
 
-        var kekA = EncryptionPasswordKdf.DeriveKek("hunter2", saltA, TestParams);
-        var kekB = EncryptionPasswordKdf.DeriveKek("hunter2", saltB, TestParams);
+        using var kekA = await EncryptionPasswordKdf.DeriveKek("hunter2", saltA, TestParams);
+        using var kekB = await EncryptionPasswordKdf.DeriveKek("hunter2", saltB, TestParams);
 
-        Assert.NotEqual(kekA, kekB);
+        AssertSecureBytesNotEqual(kekA, kekB);
     }
 
     [Fact]
-    public void DeriveKek_DifferentParams_ProduceDifferentKeks()
+    public async Task DeriveKek_DifferentParams_ProduceDifferentKeks()
     {
         var salt = EncryptionPasswordKdf.GenerateSalt();
         var paramsA = new EncryptionPasswordKdf.Params(TimeCost: 1, MemoryCostKb: 1024, Parallelism: 1);
         var paramsB = new EncryptionPasswordKdf.Params(TimeCost: 2, MemoryCostKb: 1024, Parallelism: 1);
 
-        var kekA = EncryptionPasswordKdf.DeriveKek("hunter2", salt, paramsA);
-        var kekB = EncryptionPasswordKdf.DeriveKek("hunter2", salt, paramsB);
+        using var kekA = await EncryptionPasswordKdf.DeriveKek("hunter2", salt, paramsA);
+        using var kekB = await EncryptionPasswordKdf.DeriveKek("hunter2", salt, paramsB);
 
-        Assert.NotEqual(kekA, kekB);
+        AssertSecureBytesNotEqual(kekA, kekB);
     }
 
     [Fact]
-    public void DeriveKek_WithWrongSaltSize_Throws()
+    public async Task DeriveKek_WithWrongSaltSize_Throws()
     {
-        Assert.Throws<ArgumentException>(() =>
-            EncryptionPasswordKdf.DeriveKek("hunter2", new byte[16], TestParams));
+        await Assert.ThrowsAsync<ArgumentException>(async () =>
+            await EncryptionPasswordKdf.DeriveKek("hunter2", new byte[16], TestParams));
 
-        Assert.Throws<ArgumentException>(() =>
-            EncryptionPasswordKdf.DeriveKek("hunter2", new byte[64], TestParams));
+        await Assert.ThrowsAsync<ArgumentException>(async () =>
+            await EncryptionPasswordKdf.DeriveKek("hunter2", new byte[64], TestParams));
     }
 
     [Fact]
@@ -163,5 +163,23 @@ public class EncryptionPasswordKdfTests
         Assert.True(defaults.TimeCost >= 2, "TimeCost should be at least 2");
         Assert.True(defaults.MemoryCostKb >= 19 * 1024, "MemoryCostKb should be at least 19 MiB (OWASP min)");
         Assert.True(defaults.Parallelism >= 1);
+    }
+
+    private static void AssertSecureBytesEqual(SecureBytes a, SecureBytes b)
+    {
+        var aCopy = new byte[a.Length];
+        var bCopy = new byte[b.Length];
+        a.CopyTo(aCopy);
+        b.CopyTo(bCopy);
+        Assert.Equal(aCopy, bCopy);
+    }
+
+    private static void AssertSecureBytesNotEqual(SecureBytes a, SecureBytes b)
+    {
+        var aCopy = new byte[a.Length];
+        var bCopy = new byte[b.Length];
+        a.CopyTo(aCopy);
+        b.CopyTo(bCopy);
+        Assert.NotEqual(aCopy, bCopy);
     }
 }

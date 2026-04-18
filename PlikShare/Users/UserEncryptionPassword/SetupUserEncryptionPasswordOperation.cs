@@ -23,38 +23,36 @@ public class SetupUserEncryptionPasswordOperation(
         if (user.EncryptionMetadata is not null)
         {
             Log.Warning("User '{UserId}' already has encryption configured — setup rejected.", user.Id);
-
             return new Result(ResultCode.AlreadyConfigured);
         }
 
-        var keypair = UserKeyPair.Generate();
+        using var keypair = UserKeyPair.Generate();
 
         var kdfSalt = EncryptionPasswordKdf.GenerateSalt();
+        var kdfParams = EncryptionPasswordKdf.Params.Default;
 
-        var kdfParams = EncryptionPasswordKdf
-            .Params
-            .Default;
-
-        var passwordKek = EncryptionPasswordKdf.DeriveKek(
+        using var passwordKek = await EncryptionPasswordKdf.DeriveKek(
             encryptionPassword, 
             kdfSalt, 
             kdfParams);
 
-        var verifyHash = EncryptionPasswordKdf.ComputeVerifyHash(
-            passwordKek);
+        var verifyHash = passwordKek.Use(
+            static kekSpan => EncryptionPasswordKdf.ComputeVerifyHash(kekSpan));
 
-        var encryptedPrivateKey = WrappedPrivateKey.Wrap(
-            passwordKek, 
-            keypair.PrivateKey);
+        var encryptedPrivateKey = SecureBytes.UseBoth(
+            first: keypair.PrivateKey,
+            second: passwordKek,
+            action: static (privateKeySpan, kekSpan) => WrappedPrivateKey.Wrap(kekSpan, privateKeySpan));
 
         var recoverySeed = UserEncryptionRecovery.GenerateRecoverySeed();
 
-        var recoveryKek = UserEncryptionRecovery.DeriveRecoveryKek(
+        using var recoveryKek = UserEncryptionRecovery.DeriveRecoveryKek(
             recoverySeed);
 
-        var recoveryWrappedPrivateKey = WrappedPrivateKey.Wrap(
-            recoveryKek, 
-            keypair.PrivateKey);
+        var recoveryWrappedPrivateKey = SecureBytes.UseBoth(
+            first: keypair.PrivateKey,
+            second: recoveryKek,
+            action: static (privateKeySpan, kekSpan) => WrappedPrivateKey.Wrap(kekSpan, privateKeySpan));
 
         var recoveryVerifyHash = UserEncryptionRecovery.ComputeVerifyHash(
             recoverySeed);
@@ -73,12 +71,10 @@ public class SetupUserEncryptionPasswordOperation(
         if (writeCode == UpsertUserEncryptionDataQuery.ResultCode.UserNotFound)
             return new Result(ResultCode.UserNotFound);
 
-        var recoveryCode = RecoveryCodeCodec.Encode(recoverySeed);
-
         return new Result(
-            Code: ResultCode.Ok,
-            PrivateKey: keypair.PrivateKey,
-            RecoveryCode: recoveryCode);
+            code: ResultCode.Ok,
+            privateKey: keypair.PrivateKey.Clone(),
+            recoveryCode: RecoveryCodeCodec.Encode(recoverySeed));
     }
 
     public enum ResultCode
@@ -88,8 +84,15 @@ public class SetupUserEncryptionPasswordOperation(
         UserNotFound
     }
 
-    public readonly record struct Result(
-        ResultCode Code,
-        byte[]? PrivateKey = null,
-        string? RecoveryCode = null);
+    public sealed class Result(
+        ResultCode code,
+        SecureBytes? privateKey = null,
+        string? recoveryCode = null) : IDisposable
+    {
+        public ResultCode Code { get; } = code;
+        public SecureBytes? PrivateKey { get; } = privateKey;
+        public string? RecoveryCode { get; } = recoveryCode;
+
+        public void Dispose() => PrivateKey?.Dispose();
+    }
 }

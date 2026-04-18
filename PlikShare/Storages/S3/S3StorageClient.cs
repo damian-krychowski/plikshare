@@ -20,6 +20,7 @@ namespace PlikShare.Storages.S3;
 
 public class S3StorageClient(
     string appUrl,
+    IMasterDataEncryption masterDataEncryption,
     IClock clock,
     IAmazonS3 s3Client,
     int storageId,
@@ -167,7 +168,7 @@ public class S3StorageClient(
                     },
                     ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
                     BoxLinkId = boxLinkId,
-                    WorkspaceDeks = workspaceEncryptionSession?.Entries ?? []
+                    WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? []
                 });
 
             return new PreSignedUploadLinkResult
@@ -287,7 +288,7 @@ public class S3StorageClient(
                     ContentDisposition = contentDisposition,
                     ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
                     BoxLinkId = boxLinkId,
-                    WorkspaceDeks = workspaceEncryptionSession?.Entries ?? []
+                    WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? []
                 });
         }
 

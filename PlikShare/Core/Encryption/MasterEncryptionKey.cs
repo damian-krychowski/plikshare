@@ -2,12 +2,28 @@ using System.Text;
 
 namespace PlikShare.Core.Encryption;
 
-public class MasterEncryptionKey(
-    byte id,
-    string password)
+public class MasterEncryptionKey : IDisposable
 {
-    public byte Id { get; } = id;
-    public string Password { get; } = password;
+    public byte Id { get; }
+    public SecureBytes PasswordBytes { get; }
 
-    public ReadOnlyMemory<byte> PasswordBytes { get; } = Encoding.UTF8.GetBytes(password);
+    public MasterEncryptionKey(byte id, string password)
+    {
+        Id = id;
+
+        var passwordBytes = Encoding.UTF8.GetBytes(password);
+
+        try
+        {
+            PasswordBytes = SecureBytes.CopyFrom(passwordBytes);
+        }
+        finally
+        {
+            System.Security.Cryptography.CryptographicOperations.ZeroMemory(passwordBytes);
+        }
+    }
+
+    public void Dispose() => PasswordBytes.Dispose();
+
+    public override string ToString() => $"MasterEncryptionKey#{Id}";
 }

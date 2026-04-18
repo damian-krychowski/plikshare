@@ -6,6 +6,7 @@ using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
 using PlikShare.Storages.S3;
 using PlikShare.Core.Configuration;
+using PlikShare.Core.Encryption;
 
 namespace PlikShare.Storages;
 
@@ -51,6 +52,7 @@ public static class StoragePreparationDetailsExtensions
     extension(StoragePreparationDetails)
     {
         public static StoragePreparationDetails Prepare<TInput>(
+            IMasterDataEncryption masterDataEncryption,
             IConfig config,
             IClock clock,
             PreSignedUrlsService preSignedUrlsService,
@@ -64,6 +66,7 @@ public static class StoragePreparationDetailsExtensions
                 DetailsJson = Json.Serialize(input),
                 StorageClientFactory = clientDetails => new S3StorageClient(
                     appUrl: config.AppUrl,
+                    masterDataEncryption: masterDataEncryption,
                     clock: clock,
                     s3Client: client,
                     storageId: clientDetails.StorageId,

@@ -9,7 +9,7 @@ public class UserKeyPairTests
     [Fact]
     public void Generate_ReturnsKeysOfExpectedSize()
     {
-        var keypair = UserKeyPair.Generate();
+        using var keypair = UserKeyPair.Generate();
 
         Assert.Equal(UserKeyPair.PublicKeySize, keypair.PublicKey.Length);
         Assert.Equal(UserKeyPair.PrivateKeySize, keypair.PrivateKey.Length);
@@ -18,45 +18,44 @@ public class UserKeyPairTests
     [Fact]
     public void Generate_ProducesDifferentKeypairsEachTime()
     {
-        var a = UserKeyPair.Generate();
-        var b = UserKeyPair.Generate();
+        using var a = UserKeyPair.Generate();
+        using var b = UserKeyPair.Generate();
 
         Assert.NotEqual(a.PublicKey, b.PublicKey);
-        Assert.NotEqual(a.PrivateKey, b.PrivateKey);
+        AssertSecureBytesNotEqual(a.PrivateKey, b.PrivateKey);
     }
 
     [Fact]
     public void SealTo_OpenSealed_RoundTripRecoversPlaintext()
     {
-        var keypair = UserKeyPair.Generate();
+        using var keypair = UserKeyPair.Generate();
         var plaintext = Encoding.UTF8.GetBytes("the quick brown fox jumps over the lazy dog");
 
         var sealed_ = UserKeyPair.SealTo(keypair.PublicKey, plaintext);
-        var recovered = UserKeyPair.OpenSealed(keypair.PrivateKey, sealed_);
 
-        Assert.Equal(plaintext, recovered);
+        using var recovered = UserKeyPair.OpenSealed(keypair.PrivateKey, sealed_);
+
+        AssertSecureBytesEqual(plaintext, recovered);
     }
 
     [Fact]
     public void SealTo_OpenSealed_RoundTripForRandom32ByteDek()
     {
-        // Typical use: wrapping a 32-byte DEK (Workspace DEK, Storage DEK, etc.).
-        var keypair = UserKeyPair.Generate();
+        using var keypair = UserKeyPair.Generate();
         var dek = new byte[32];
         RandomNumberGenerator.Fill(dek);
 
         var sealed_ = UserKeyPair.SealTo(keypair.PublicKey, dek);
-        var recovered = UserKeyPair.OpenSealed(keypair.PrivateKey, sealed_);
 
-        Assert.Equal(dek, recovered);
+        using var recovered = UserKeyPair.OpenSealed(keypair.PrivateKey, sealed_);
+
+        AssertSecureBytesEqual(dek, recovered);
     }
 
     [Fact]
     public void SealTo_ProducesDifferentCiphertextsForSamePlaintext()
     {
-        // Ephemeral key on each seal → nonce + ciphertext differ even for identical inputs.
-        // Non-deterministic encryption is a property sealed-box offers over naive symmetric wrap.
-        var keypair = UserKeyPair.Generate();
+        using var keypair = UserKeyPair.Generate();
         var plaintext = new byte[] { 1, 2, 3, 4, 5 };
 
         var a = UserKeyPair.SealTo(keypair.PublicKey, plaintext);
@@ -68,8 +67,8 @@ public class UserKeyPairTests
     [Fact]
     public void OpenSealed_WithWrongPrivateKey_Throws()
     {
-        var recipient = UserKeyPair.Generate();
-        var attacker = UserKeyPair.Generate();
+        using var recipient = UserKeyPair.Generate();
+        using var attacker = UserKeyPair.Generate();
         var plaintext = new byte[] { 1, 2, 3 };
 
         var sealed_ = UserKeyPair.SealTo(recipient.PublicKey, plaintext);
@@ -81,12 +80,10 @@ public class UserKeyPairTests
     [Fact]
     public void OpenSealed_WithTamperedCiphertext_Throws()
     {
-        var keypair = UserKeyPair.Generate();
+        using var keypair = UserKeyPair.Generate();
         var plaintext = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
 
         var sealed_ = UserKeyPair.SealTo(keypair.PublicKey, plaintext);
-
-        // Flip a bit in the ciphertext region (after ephemeral public key + nonce).
         sealed_[^5] ^= 0x01;
 
         Assert.Throws<InvalidOperationException>(() =>
@@ -96,12 +93,10 @@ public class UserKeyPairTests
     [Fact]
     public void OpenSealed_WithTamperedEphemeralKey_Throws()
     {
-        var keypair = UserKeyPair.Generate();
+        using var keypair = UserKeyPair.Generate();
         var plaintext = new byte[] { 1, 2, 3 };
 
         var sealed_ = UserKeyPair.SealTo(keypair.PublicKey, plaintext);
-
-        // Flip a bit in the ephemeral public key region (first 32 bytes).
         sealed_[0] ^= 0x01;
 
         Assert.Throws<InvalidOperationException>(() =>
@@ -111,7 +106,7 @@ public class UserKeyPairTests
     [Fact]
     public void OpenSealed_WithTruncatedPayload_Throws()
     {
-        var keypair = UserKeyPair.Generate();
+        using var keypair = UserKeyPair.Generate();
         var plaintext = new byte[] { 1, 2, 3 };
 
         var sealed_ = UserKeyPair.SealTo(keypair.PublicKey, plaintext);
@@ -136,21 +131,23 @@ public class UserKeyPairTests
     [Fact]
     public void OpenSealed_WithWrongSizePrivateKey_Throws()
     {
-        var keypair = UserKeyPair.Generate();
+        using var keypair = UserKeyPair.Generate();
         var sealed_ = UserKeyPair.SealTo(keypair.PublicKey, new byte[] { 1, 2, 3 });
 
-        Assert.Throws<ArgumentException>(() =>
-            UserKeyPair.OpenSealed(new byte[16], sealed_));
+        using var tooShort = SecureBytes.CopyFrom(new byte[16]);
+        using var tooLong = SecureBytes.CopyFrom(new byte[64]);
 
         Assert.Throws<ArgumentException>(() =>
-            UserKeyPair.OpenSealed(new byte[64], sealed_));
+            UserKeyPair.OpenSealed(tooShort, sealed_));
+
+        Assert.Throws<ArgumentException>(() =>
+            UserKeyPair.OpenSealed(tooLong, sealed_));
     }
 
     [Fact]
     public void SealTo_PayloadSizeIsPlaintextPlusOverhead()
     {
-        // Overhead: ephemeral public key (32) + nonce (12) + AEAD tag (16) = 60 bytes.
-        var keypair = UserKeyPair.Generate();
+        using var keypair = UserKeyPair.Generate();
         var plaintext = new byte[100];
 
         var sealed_ = UserKeyPair.SealTo(keypair.PublicKey, plaintext);
@@ -161,8 +158,8 @@ public class UserKeyPairTests
     [Fact]
     public void SealTo_DifferentRecipients_ProduceDifferentCiphertexts()
     {
-        var recipientA = UserKeyPair.Generate();
-        var recipientB = UserKeyPair.Generate();
+        using var recipientA = UserKeyPair.Generate();
+        using var recipientB = UserKeyPair.Generate();
         var plaintext = new byte[] { 1, 2, 3 };
 
         var sealedA = UserKeyPair.SealTo(recipientA.PublicKey, plaintext);
@@ -174,9 +171,7 @@ public class UserKeyPairTests
     [Fact]
     public void MultipleSealsToSameRecipient_AllOpenCorrectly()
     {
-        // A realistic scenario: wrap the same Workspace DEK to the same user multiple times
-        // (e.g., rotation, re-wrap). Each wrap is independent and openable.
-        var keypair = UserKeyPair.Generate();
+        using var keypair = UserKeyPair.Generate();
         var dek = new byte[32];
         RandomNumberGenerator.Fill(dek);
 
@@ -184,8 +179,30 @@ public class UserKeyPairTests
         var sealedB = UserKeyPair.SealTo(keypair.PublicKey, dek);
         var sealedC = UserKeyPair.SealTo(keypair.PublicKey, dek);
 
-        Assert.Equal(dek, UserKeyPair.OpenSealed(keypair.PrivateKey, sealedA));
-        Assert.Equal(dek, UserKeyPair.OpenSealed(keypair.PrivateKey, sealedB));
-        Assert.Equal(dek, UserKeyPair.OpenSealed(keypair.PrivateKey, sealedC));
+        using var recoveredA = UserKeyPair.OpenSealed(keypair.PrivateKey, sealedA);
+        using var recoveredB = UserKeyPair.OpenSealed(keypair.PrivateKey, sealedB);
+        using var recoveredC = UserKeyPair.OpenSealed(keypair.PrivateKey, sealedC);
+
+        AssertSecureBytesEqual(dek, recoveredA);
+        AssertSecureBytesEqual(dek, recoveredB);
+        AssertSecureBytesEqual(dek, recoveredC);
+    }
+
+    private static void AssertSecureBytesEqual(byte[] expected, SecureBytes actual)
+    {
+        Assert.Equal(expected.Length, actual.Length);
+
+        var copy = new byte[actual.Length];
+        actual.CopyTo(copy);
+        Assert.Equal(expected, copy);
+    }
+
+    private static void AssertSecureBytesNotEqual(SecureBytes a, SecureBytes b)
+    {
+        var aCopy = new byte[a.Length];
+        var bCopy = new byte[b.Length];
+        a.CopyTo(aCopy);
+        b.CopyTo(bCopy);
+        Assert.NotEqual(aCopy, bCopy);
     }
 }

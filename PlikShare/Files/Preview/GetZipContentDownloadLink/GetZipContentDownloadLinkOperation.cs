@@ -11,6 +11,7 @@ using PlikShare.Workspaces.Cache;
 namespace PlikShare.Files.Preview.GetZipContentDownloadLink;
 
 public class GetZipContentDownloadLinkOperation(
+    IMasterDataEncryption masterDataEncryption,
     IClock clock,
     GetFileDetailsQuery getFileDetailsQuery,
     PreSignedUrlsService preSignedUrlsService)
@@ -59,7 +60,7 @@ public class GetZipContentDownloadLinkOperation(
                 ExpirationDate = clock.UtcNow.AddMinutes(10),
                 ContentDisposition = contentDisposition,
                 BoxLinkId = boxLinkId,
-                WorkspaceDeks = workspaceEncryptionSession?.Entries ?? []
+                WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? []
             });
 
         return new Result(

@@ -24,7 +24,7 @@ public static class WorkspaceDekDerivation
     public const int DekSize = 32;
     public const int SaltSize = 32;
 
-    public static byte[] Derive(
+    public static SecureBytes Derive(
         ReadOnlySpan<byte> storageDek,
         ReadOnlySpan<byte> workspaceSalt)
     {
@@ -38,15 +38,27 @@ public static class WorkspaceDekDerivation
                 $"Workspace salt must be {SaltSize} bytes, got {workspaceSalt.Length}.",
                 nameof(workspaceSalt));
 
-        var dek = new byte[DekSize];
+        return SecureBytes.Create(
+            length: DekSize,
+            state: new DeriveInput
+            {
+                Ikm = storageDek, 
+                Salt = workspaceSalt
+            },
+            initializer: static (output, state) =>
+            {
+                HKDF.DeriveKey(
+                    hashAlgorithmName: HashAlgorithmName.SHA256,
+                    ikm: state.Ikm,
+                    output: output,
+                    salt: state.Salt,
+                    info: []);
+            });
+    }
 
-        HKDF.DeriveKey(
-            hashAlgorithmName: HashAlgorithmName.SHA256,
-            ikm: storageDek,
-            output: dek,
-            salt: workspaceSalt,
-            info: []);
-
-        return dek;
+    private readonly ref struct DeriveInput
+    {
+        public ReadOnlySpan<byte> Ikm { get; init; }
+        public ReadOnlySpan<byte> Salt { get; init; }
     }
 }

@@ -26,14 +26,14 @@ public class ChangeUserEncryptionPasswordOperation(
             return new Result(ResultCode.NotConfigured);
         }
 
-        var oldKek = EncryptionPasswordKdf.DeriveKek(
+        using var oldKek = await EncryptionPasswordKdf.DeriveKek(
             oldPassword,
             user.EncryptionMetadata.KdfSalt,
             user.EncryptionMetadata.KdfParams);
 
-        var isOldPasswordMatching = EncryptionPasswordKdf.Verify(
-            oldKek,
-            user.EncryptionMetadata.VerifyHash);
+        var isOldPasswordMatching = oldKek.Use(
+            state: user.EncryptionMetadata.VerifyHash,
+            action: static (kekSpan, state) => EncryptionPasswordKdf.Verify(kekSpan, state));
 
         if (!isOldPasswordMatching)
         {
@@ -42,9 +42,9 @@ public class ChangeUserEncryptionPasswordOperation(
             return new Result(ResultCode.InvalidOldPassword);
         }
 
-        var privateKey = WrappedPrivateKey.Unwrap(
-            oldKek,
-            user.EncryptionMetadata.EncryptedPrivateKey);
+        using var privateKey = oldKek.Use(
+            state: user.EncryptionMetadata.EncryptedPrivateKey,
+            static (kekSpan, state) => WrappedPrivateKey.Unwrap(kekSpan, state));
 
         var newSalt = EncryptionPasswordKdf.GenerateSalt();
 
@@ -52,17 +52,18 @@ public class ChangeUserEncryptionPasswordOperation(
             .Params
             .Default;
 
-        var newKek = EncryptionPasswordKdf.DeriveKek(
-            newPassword, 
-            newSalt, 
+        using var newKek = await EncryptionPasswordKdf.DeriveKek(
+            newPassword,
+            newSalt,
             newParams);
 
-        var newVerifyHash = EncryptionPasswordKdf.ComputeVerifyHash(
-            newKek);
+        var newVerifyHash = newKek.Use(
+            static kekSpan => EncryptionPasswordKdf.ComputeVerifyHash(kekSpan));
 
-        var newEncryptedPrivateKey = WrappedPrivateKey.Wrap(
-            newKek, 
-            privateKey);
+        var newEncryptedPrivateKey = SecureBytes.UseBoth(
+            first: newKek,
+            second: privateKey,
+            action: static (kekSpan, pkSpan) => WrappedPrivateKey.Wrap(kekSpan, pkSpan));
 
         var writeCode = await upsertUserEncryptionDataQuery.Execute(
             userId: user.Id,
@@ -81,8 +82,8 @@ public class ChangeUserEncryptionPasswordOperation(
         Log.Information("User '{UserId}' encryption password was changed.", user.Id);
 
         return new Result(
-            Code: ResultCode.Ok,
-            PrivateKey: privateKey);
+            code: ResultCode.Ok,
+            privateKey: privateKey.Clone());
     }
 
     public enum ResultCode
@@ -93,7 +94,13 @@ public class ChangeUserEncryptionPasswordOperation(
         UserNotFound
     }
 
-    public readonly record struct Result(
-        ResultCode Code,
-        byte[]? PrivateKey = null);
+    public sealed class Result(
+        ResultCode code,
+        SecureBytes? privateKey = null) : IDisposable
+    {
+        public ResultCode Code { get; } = code;
+        public SecureBytes? PrivateKey { get; } = privateKey;
+
+        public void Dispose() => PrivateKey?.Dispose();
+    }
 }

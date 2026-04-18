@@ -199,13 +199,15 @@ public class PreSignedUrlsService(
         public required int? BoxLinkId { get; init; }
 
         /// <summary>
-        /// Unwrapped Workspace DEKs together with the Storage DEK version each was derived
-        /// from, or null for None/Managed storages. The list travels inside the
-        /// DataProtection-sealed URL payload so unauthenticated direct upload/download
-        /// requests can decrypt file bytes of any version without an ambient user session.
+        /// Per-version Workspace DEK entries for the workspace targeted by this URL, or
+        /// empty for None/Managed storages. Each entry carries the Storage DEK version,
+        /// the workspace salt, and the Workspace DEK material encrypted a second time
+        /// with <see cref="IMasterDataEncryption"/> — so the plaintext DEK never lands on
+        /// the managed heap during JSON serialization of this payload. The outer
+        /// DataProtection seal over the whole URL adds a second independent layer.
         /// Typically one entry; rotated storages produce more.
         /// </summary>
-        public required WorkspaceDekEntry[] WorkspaceDeks { get; init; }
+        public required WorkspaceDekEntryWire[] WorkspaceDeks { get; init; }
     }
 
     [ImmutableObject(true)]

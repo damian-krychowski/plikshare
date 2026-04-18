@@ -4,15 +4,6 @@ namespace PlikShare.Core.Encryption;
 
 public static class MasterDataEncryptionExtensions
 {
-    public static byte[] EncryptJson<T>(this IMasterDataEncryption encryption, T item)
-    {
-        var plainText = Json.Serialize(
-            item);
-
-        return encryption.Encrypt(
-            plainText);
-    }
-
     public static string EncryptToBase64(this IMasterDataEncryption encryption, string plainText)
     {
         var bytes = encryption.Encrypt(
@@ -44,13 +35,6 @@ public static class MasterDataEncryptionExtensions
 
         return encryption.Decrypt(
             encryptedBytes);
-    }
-    
-    public static string? DecryptIfNotNull(this IMasterDataEncryption encryption, byte[]? versionedEncryptedBytes)
-    {
-        return versionedEncryptedBytes is null
-            ? null
-            : encryption.Decrypt(versionedEncryptedBytes);
     }
 
     public static byte[] EncryptJson<T>(this IDerivedMasterDataEncryption encryption, T item)

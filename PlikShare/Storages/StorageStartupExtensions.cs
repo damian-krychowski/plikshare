@@ -117,13 +117,13 @@ public static class StorageStartupExtensions
             var client = storage.Type switch
             {
                 StorageType.HardDrive => (IStorageClient)BuildHardDriveStorageClient(
-                    storage, clock, preSignedUrlsService),
+                    storage, masterDataEncryption, clock, preSignedUrlsService),
 
                 StorageType.BackblazeB2 or
                     StorageType.CloudflareR2 or
                     StorageType.AwsS3 or
                     StorageType.DigitalOceanSpaces => BuildS3StorageClient(
-                        storage, clock, preSignedUrlsService, config),
+                        storage, masterDataEncryption, clock, preSignedUrlsService, config),
 
                 _ => throw new InvalidOperationException(
                     $"Unsupported storage type '{storage.Type}'.")
@@ -138,10 +138,12 @@ public static class StorageStartupExtensions
 
     private static HardDriveStorageClient BuildHardDriveStorageClient(
         StorageRow storage,
+        IMasterDataEncryption masterDataEncryption,
         IClock clock,
         PreSignedUrlsService preSignedUrlsService)
     {
         var hdStorageClient = new HardDriveStorageClient(
+            masterDataEncryption: masterDataEncryption,
             preSignedUrlsService: preSignedUrlsService,
             details: Json.Deserialize<HardDriveDetailsEntity>(
                 storage.DetailsJson)!,
@@ -156,6 +158,7 @@ public static class StorageStartupExtensions
 
     private static S3StorageClient BuildS3StorageClient(
         StorageRow storage, 
+        IMasterDataEncryption masterDataEncryption,
         IClock clock,
         PreSignedUrlsService preSignedUrlsService,
         IConfig config)
@@ -164,6 +167,7 @@ public static class StorageStartupExtensions
 
         var s3StorageClient = new S3StorageClient(
             appUrl: config.AppUrl,
+            masterDataEncryption: masterDataEncryption,
             clock: clock,
             s3Client: s3Client,
             storageId: storage.StorageId,

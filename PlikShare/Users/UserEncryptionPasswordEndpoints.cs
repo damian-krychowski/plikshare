@@ -33,7 +33,7 @@ public static class UserEncryptionPasswordEndpoints
     {
         var user = await httpContext.GetUserContext();
 
-        var result = await operation.Execute(
+        using var result = await operation.Execute(
             user: user,
             encryptionPassword: request.EncryptionPassword,
             cancellationToken: cancellationToken);
@@ -41,14 +41,14 @@ public static class UserEncryptionPasswordEndpoints
         switch (result.Code)
         {
             case SetupUserEncryptionPasswordOperation.ResultCode.AlreadyConfigured:
-                return TypedResults.Conflict(new HttpError
+                return TypedResults.Conflict(error: new HttpError
                 {
                     Code = "user-encryption-already-configured",
                     Message = "Encryption password is already set up. Use change or reset instead."
                 });
 
             case SetupUserEncryptionPasswordOperation.ResultCode.UserNotFound:
-                return TypedResults.BadRequest(new HttpError
+                return TypedResults.BadRequest(error: new HttpError
                 {
                     Code = "user-not-found",
                     Message = "The authenticated user was not found."
@@ -57,18 +57,19 @@ public static class UserEncryptionPasswordEndpoints
             case SetupUserEncryptionPasswordOperation.ResultCode.Ok:
             {
                 UserEncryptionSessionCookie.Set(
-                    httpContext, 
-                    result.PrivateKey!);
+                    httpContext: httpContext, 
+                    userExternalId: user.ExternalId,
+                    privateKey: result.PrivateKey!);
 
                 await userCache.InvalidateEntry(
                     userId: user.Id,
                     cancellationToken: cancellationToken);
 
-                return TypedResults.Ok(new SetupResponseDto(RecoveryCode: result.RecoveryCode!));
+                return TypedResults.Ok(value: new SetupResponseDto(RecoveryCode: result.RecoveryCode!));
             }
 
             default:
-                throw new InvalidOperationException($"Unexpected result code: {result.Code}");
+                throw new InvalidOperationException(message: $"Unexpected result code: {result.Code}");
         }
     }
 
@@ -79,7 +80,7 @@ public static class UserEncryptionPasswordEndpoints
     {
         var user = await httpContext.GetUserContext();
 
-        var result = operation.Execute(
+        using var result = await operation.Execute(
             user, 
             request.EncryptionPassword);
 
@@ -100,7 +101,11 @@ public static class UserEncryptionPasswordEndpoints
                 });
 
             case UnlockUserEncryptionPasswordOperation.ResultCode.Ok:
-                UserEncryptionSessionCookie.Set(httpContext, result.PrivateKey!);
+                UserEncryptionSessionCookie.Set(
+                    httpContext: httpContext, 
+                    userExternalId: user.ExternalId,
+                    privateKey: result.PrivateKey!);
+
                 return TypedResults.Ok();
 
             default:
@@ -110,8 +115,10 @@ public static class UserEncryptionPasswordEndpoints
 
     private static Ok Lock(HttpContext httpContext)
     {
+        var userExternalId = httpContext.User.GetExternalId();
+
         httpContext.Response.Cookies.Delete(
-            UserEncryptionSessionCookie.CookieName);
+            UserEncryptionSessionCookie.CookieName(userExternalId));
 
         return TypedResults.Ok();
     }
@@ -125,7 +132,7 @@ public static class UserEncryptionPasswordEndpoints
     {
         var user = await httpContext.GetUserContext();
 
-        var result = await operation.Execute(
+        using var result = await operation.Execute(
             user: user,
             oldPassword: request.OldPassword,
             newPassword: request.NewPassword,
@@ -157,8 +164,9 @@ public static class UserEncryptionPasswordEndpoints
             case ChangeUserEncryptionPasswordOperation.ResultCode.Ok:
             {
                 UserEncryptionSessionCookie.Set(
-                    httpContext, 
-                    result.PrivateKey!);
+                    httpContext: httpContext,
+                    userExternalId: user.ExternalId,
+                    privateKey: result.PrivateKey!);
                     
                 await userCache.InvalidateEntry(
                     userId: user.Id,
@@ -181,7 +189,7 @@ public static class UserEncryptionPasswordEndpoints
     {
         var user = await httpContext.GetUserContext();
 
-        var result = await operation.Execute(
+        using var result = await operation.Execute(
             user: user,
             recoveryCode: request.RecoveryCode,
             newPassword: request.NewPassword,
@@ -213,8 +221,9 @@ public static class UserEncryptionPasswordEndpoints
             case ResetUserEncryptionPasswordOperation.ResultCode.Ok:
             {
                 UserEncryptionSessionCookie.Set(
-                    httpContext, 
-                    result.PrivateKey!);
+                    httpContext: httpContext,
+                    userExternalId: user.ExternalId,
+                    privateKey: result.PrivateKey!);
                     
                 await userCache.InvalidateEntry(
                     userId: user.Id,

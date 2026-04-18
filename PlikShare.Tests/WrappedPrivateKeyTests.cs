@@ -27,9 +27,9 @@ public class WrappedPrivateKeyTests
         var privateKey = RandomPrivateKey();
 
         var wrapped = WrappedPrivateKey.Wrap(kek, privateKey);
-        var unwrapped = WrappedPrivateKey.Unwrap(kek, wrapped);
+        using var unwrapped = WrappedPrivateKey.Unwrap(kek, wrapped);
 
-        Assert.Equal(privateKey, unwrapped);
+        AssertSecureBytesEqual(privateKey, unwrapped);
     }
 
     [Fact]
@@ -145,7 +145,19 @@ public class WrappedPrivateKeyTests
         var passwordWrap = WrappedPrivateKey.Wrap(passwordKek, privateKey);
         var recoveryWrap = WrappedPrivateKey.Wrap(recoveryKek, privateKey);
 
-        Assert.Equal(privateKey, WrappedPrivateKey.Unwrap(passwordKek, passwordWrap));
-        Assert.Equal(privateKey, WrappedPrivateKey.Unwrap(recoveryKek, recoveryWrap));
+        using var fromPassword = WrappedPrivateKey.Unwrap(passwordKek, passwordWrap);
+        using var fromRecovery = WrappedPrivateKey.Unwrap(recoveryKek, recoveryWrap);
+
+        AssertSecureBytesEqual(privateKey, fromPassword);
+        AssertSecureBytesEqual(privateKey, fromRecovery);
+    }
+
+    private static void AssertSecureBytesEqual(byte[] expected, SecureBytes actual)
+    {
+        Assert.Equal(expected.Length, actual.Length);
+
+        var copy = new byte[actual.Length];
+        actual.CopyTo(copy);
+        Assert.Equal(expected, copy);
     }
 }

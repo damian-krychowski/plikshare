@@ -1,4 +1,5 @@
 using NSec.Cryptography;
+using System.Security.Cryptography;
 
 namespace PlikShare.Core.Encryption;
 
@@ -29,11 +30,19 @@ public static class UserKeyPair
 
     private static readonly byte[] SealedBoxInfo = "plikshare-sealed-box-v1\0"u8.ToArray();
 
-    public readonly record struct KeyMaterial(byte[] PublicKey, byte[] PrivateKey);
+    public sealed class KeyMaterial(byte[] publicKey, SecureBytes privateKey) : IDisposable
+    {
+        public byte[] PublicKey { get; } = publicKey;
+        public SecureBytes PrivateKey { get; } = privateKey;
+
+        public void Dispose() => PrivateKey.Dispose();
+    }
 
     /// <summary>
-    /// Generates a fresh X25519 keypair. Returns raw key bytes (32 + 32) — caller is responsible
-    /// for persisting the public key and wrapping the private key with the user's encryption KEK.
+    /// Generates a fresh X25519 keypair. Returns the public key as raw bytes (safe to persist
+    /// in plaintext) and the private key wrapped in <see cref="SecureBytes"/> (pinned, mlocked,
+    /// zeroed on dispose). Caller MUST dispose the private key — typically by transferring
+    /// ownership to a cookie or another SecureBytes-holding type.
     /// </summary>
     public static KeyMaterial Generate()
     {
@@ -42,9 +51,17 @@ public static class UserKeyPair
             new KeyCreationParameters { ExportPolicy = KeyExportPolicies.AllowPlaintextExport });
 
         var publicKey = key.PublicKey.Export(KeyBlobFormat.RawPublicKey);
-        var privateKey = key.Export(KeyBlobFormat.RawPrivateKey);
 
-        return new KeyMaterial(publicKey, privateKey);
+        var privateKeyBytes = key.Export(KeyBlobFormat.RawPrivateKey);
+        try
+        {
+            var privateKey = SecureBytes.CopyFrom(privateKeyBytes);
+            return new KeyMaterial(publicKey, privateKey);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(privateKeyBytes);
+        }
     }
 
     /// <summary>
@@ -89,7 +106,7 @@ public static class UserKeyPair
             creationParameters: new KeyCreationParameters { ExportPolicy = KeyExportPolicies.None });
 
         var nonce = new byte[AeadNonceSize];
-        System.Security.Cryptography.RandomNumberGenerator.Fill(nonce);
+        RandomNumberGenerator.Fill(nonce);
 
         var ciphertextWithTag = Aead.Encrypt(symmetricKey, nonce, associatedData: [], plaintext);
 
@@ -106,7 +123,9 @@ public static class UserKeyPair
     /// Parses the layout produced by <see cref="SealTo"/>, reconstructs the shared secret,
     /// and decrypts with the symmetric AEAD. Throws on tag-verification failure.
     /// </summary>
-    public static byte[] OpenSealed(ReadOnlySpan<byte> recipientPrivateKey, ReadOnlySpan<byte> sealed_)
+    public static SecureBytes OpenSealed(
+        SecureBytes recipientPrivateKey,
+        ReadOnlySpan<byte> @sealed)
     {
         if (recipientPrivateKey.Length != PrivateKeySize)
             throw new ArgumentException(
@@ -114,37 +133,82 @@ public static class UserKeyPair
                 nameof(recipientPrivateKey));
 
         var minLength = PublicKeySize + AeadNonceSize + Aead.TagSize;
-        if (sealed_.Length < minLength)
+        if (@sealed.Length < minLength)
             throw new ArgumentException(
-                $"Sealed payload too short: {sealed_.Length} bytes (minimum {minLength}).",
-                nameof(sealed_));
+                $"Sealed payload too short: {@sealed.Length} bytes (minimum {minLength}).",
+                nameof(@sealed));
 
-        var ephemeralPublicKeyBytes = sealed_[..PublicKeySize];
-        var nonce = sealed_.Slice(PublicKeySize, AeadNonceSize);
-        var ciphertextWithTag = sealed_[(PublicKeySize + AeadNonceSize)..];
+        var ephemeralPublicKeyBytes = @sealed[..PublicKeySize];
+        var nonce = @sealed.Slice(PublicKeySize, AeadNonceSize);
+        var ciphertextWithTag = @sealed[(PublicKeySize + AeadNonceSize)..];
 
-        using var recipient = Key.Import(KeyAgreement, recipientPrivateKey, KeyBlobFormat.RawPrivateKey);
-        var ephemeralPublicKey = PublicKey.Import(KeyAgreement, ephemeralPublicKeyBytes, KeyBlobFormat.RawPublicKey);
-        var recipientPublicKey = recipient.PublicKey.Export(KeyBlobFormat.RawPublicKey);
+        using var recipient = recipientPrivateKey.Use(privateKeySpan => Key.Import(
+            algorithm: KeyAgreement, 
+            blob: privateKeySpan, 
+            format: KeyBlobFormat.RawPrivateKey));
+
+        var ephemeralPublicKey = PublicKey.Import(
+            KeyAgreement,
+            ephemeralPublicKeyBytes,
+            KeyBlobFormat.RawPublicKey);
+
+        var recipientPublicKey = recipient.PublicKey.Export(
+            KeyBlobFormat.RawPublicKey);
 
         using var sharedSecret = KeyAgreement.Agree(recipient, ephemeralPublicKey)
-            ?? throw new InvalidOperationException(
-                "X25519 agreement failed — sealed payload is likely malformed or tampered.");
+                                 ?? throw new InvalidOperationException(
+                                     "X25519 agreement failed — sealed payload is likely malformed or tampered.");
 
         Span<byte> hkdfInfo = stackalloc byte[SealedBoxInfo.Length + PublicKeySize * 2];
-        SealedBoxInfo.CopyTo(hkdfInfo);
-        ephemeralPublicKeyBytes.CopyTo(hkdfInfo[SealedBoxInfo.Length..]);
-        recipientPublicKey.CopyTo(hkdfInfo[(SealedBoxInfo.Length + PublicKeySize)..]);
+
+        SealedBoxInfo.CopyTo(
+            hkdfInfo);
+
+        ephemeralPublicKeyBytes.CopyTo(
+            hkdfInfo[SealedBoxInfo.Length..]);
+
+        recipientPublicKey.CopyTo(
+            hkdfInfo[(SealedBoxInfo.Length + PublicKeySize)..]);
 
         using var symmetricKey = Kdf.DeriveKey(
             sharedSecret,
             salt: [],
             info: hkdfInfo,
             algorithm: Aead,
-            creationParameters: new KeyCreationParameters { ExportPolicy = KeyExportPolicies.None });
+            creationParameters: new KeyCreationParameters
+            {
+                ExportPolicy = KeyExportPolicies.None
+            });
 
-        return Aead.Decrypt(symmetricKey, nonce, associatedData: [], ciphertextWithTag)
-            ?? throw new InvalidOperationException(
-                "Sealed payload failed AEAD verification — wrong private key, or payload tampered.");
+        var plaintextLength = ciphertextWithTag.Length - Aead.TagSize;
+
+        return SecureBytes.Create(
+            length: plaintextLength,
+            state: new DecryptInput
+            {
+                Key = symmetricKey,
+                Nonce = nonce,
+                Ciphertext = ciphertextWithTag
+            },
+            initializer: static (output, state) =>
+            {
+                var isSuccess = Aead.Decrypt(
+                    key: state.Key,
+                    nonce: state.Nonce,
+                    associatedData: [],
+                    ciphertext: state.Ciphertext,
+                    plaintext: output);
+
+                if (!isSuccess)
+                    throw new InvalidOperationException(
+                        "Sealed payload failed AEAD verification — wrong private key, or payload tampered.");
+            });
+    }
+
+    private readonly ref struct DecryptInput
+    {
+        public required Key Key { get; init; }
+        public required ReadOnlySpan<byte> Nonce { get; init; }
+        public required ReadOnlySpan<byte> Ciphertext { get; init; }
     }
 }

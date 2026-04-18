@@ -11,8 +11,8 @@ namespace PlikShare.Users.UserEncryptionPassword;
 /// </summary>
 public class UnlockUserEncryptionPasswordOperation
 {
-    public Result Execute(
-        UserContext user, 
+    public async Task<Result> Execute(
+        UserContext user,
         string encryptionPassword)
     {
         if (user.EncryptionMetadata is null)
@@ -22,14 +22,14 @@ public class UnlockUserEncryptionPasswordOperation
             return new Result(ResultCode.NotConfigured);
         }
 
-        var kek = EncryptionPasswordKdf.DeriveKek(
+        using var kek = await EncryptionPasswordKdf.DeriveKek(
             encryptionPassword,
             user.EncryptionMetadata.KdfSalt,
             user.EncryptionMetadata.KdfParams);
 
-        var isPasswordVerified = EncryptionPasswordKdf.Verify(
-            kek,
-            user.EncryptionMetadata.VerifyHash);
+        var isPasswordVerified = kek.Use(
+            user.EncryptionMetadata.VerifyHash,
+            static (kekSpan, expectedHash) => EncryptionPasswordKdf.Verify(kekSpan, expectedHash));
 
         if (!isPasswordVerified)
         {
@@ -38,13 +38,13 @@ public class UnlockUserEncryptionPasswordOperation
             return new Result(ResultCode.InvalidPassword);
         }
 
-        var privateKey = WrappedPrivateKey.Unwrap(
-            kek,
-            user.EncryptionMetadata.EncryptedPrivateKey);
+        var privateKey = kek.Use(
+            state: user.EncryptionMetadata.EncryptedPrivateKey,
+            action: static (kekSpan, wrapped) => WrappedPrivateKey.Unwrap(kekSpan, wrapped));
 
         return new Result(
-            Code: ResultCode.Ok,
-            PrivateKey: privateKey);
+            code: ResultCode.Ok,
+            privateKey: privateKey);
     }
 
     public enum ResultCode
@@ -54,7 +54,13 @@ public class UnlockUserEncryptionPasswordOperation
         InvalidPassword
     }
 
-    public readonly record struct Result(
-        ResultCode Code,
-        byte[]? PrivateKey = null);
+    public sealed class Result(
+        ResultCode code,
+        SecureBytes? privateKey = null) : IDisposable
+    {
+        public ResultCode Code { get; } = code;
+        public SecureBytes? PrivateKey { get; } = privateKey;
+
+        public void Dispose() => PrivateKey?.Dispose();
+    }
 }

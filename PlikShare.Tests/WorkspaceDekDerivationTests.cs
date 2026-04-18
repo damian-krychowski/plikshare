@@ -11,10 +11,10 @@ public class WorkspaceDekDerivationTests
         var storageDek = RandomNumberGenerator.GetBytes(32);
         var salt = RandomNumberGenerator.GetBytes(32);
 
-        var a = WorkspaceDekDerivation.Derive(storageDek, salt);
-        var b = WorkspaceDekDerivation.Derive(storageDek, salt);
+        using var a = WorkspaceDekDerivation.Derive(storageDek, salt);
+        using var b = WorkspaceDekDerivation.Derive(storageDek, salt);
 
-        Assert.Equal(a, b);
+        AssertSecureBytesEqual(a, b);
     }
 
     [Fact]
@@ -27,10 +27,10 @@ public class WorkspaceDekDerivationTests
         var saltA = RandomNumberGenerator.GetBytes(32);
         var saltB = RandomNumberGenerator.GetBytes(32);
 
-        var workspaceDekA = WorkspaceDekDerivation.Derive(storageDek, saltA);
-        var workspaceDekB = WorkspaceDekDerivation.Derive(storageDek, saltB);
+        using var workspaceDekA = WorkspaceDekDerivation.Derive(storageDek, saltA);
+        using var workspaceDekB = WorkspaceDekDerivation.Derive(storageDek, saltB);
 
-        Assert.NotEqual(workspaceDekA, workspaceDekB);
+        AssertSecureBytesNotEqual(workspaceDekA, workspaceDekB);
     }
 
     [Fact]
@@ -40,10 +40,10 @@ public class WorkspaceDekDerivationTests
         var storageDekB = RandomNumberGenerator.GetBytes(32);
         var salt = RandomNumberGenerator.GetBytes(32);
 
-        var workspaceDekA = WorkspaceDekDerivation.Derive(storageDekA, salt);
-        var workspaceDekB = WorkspaceDekDerivation.Derive(storageDekB, salt);
+        using var workspaceDekA = WorkspaceDekDerivation.Derive(storageDekA, salt);
+        using var workspaceDekB = WorkspaceDekDerivation.Derive(storageDekB, salt);
 
-        Assert.NotEqual(workspaceDekA, workspaceDekB);
+        AssertSecureBytesNotEqual(workspaceDekA, workspaceDekB);
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public class WorkspaceDekDerivationTests
         var storageDek = RandomNumberGenerator.GetBytes(32);
         var salt = RandomNumberGenerator.GetBytes(32);
 
-        var dek = WorkspaceDekDerivation.Derive(storageDek, salt);
+        using var dek = WorkspaceDekDerivation.Derive(storageDek, salt);
 
         Assert.Equal(32, dek.Length);
     }
@@ -88,9 +88,30 @@ public class WorkspaceDekDerivationTests
         var storageDek = RandomNumberGenerator.GetBytes(32);
         var salt = RandomNumberGenerator.GetBytes(32);
 
-        var fromHelper = WorkspaceDekDerivation.Derive(storageDek, salt);
+        using var fromHelper = WorkspaceDekDerivation.Derive(storageDek, salt);
         var fromChain = KeyDerivationChain.Derive(storageDek, [salt]);
 
-        Assert.Equal(fromChain, fromHelper);
+        var fromHelperCopy = new byte[fromHelper.Length];
+        fromHelper.CopyTo(fromHelperCopy);
+
+        Assert.Equal(fromChain, fromHelperCopy);
+    }
+
+    private static void AssertSecureBytesEqual(SecureBytes a, SecureBytes b)
+    {
+        var aCopy = new byte[a.Length];
+        var bCopy = new byte[b.Length];
+        a.CopyTo(aCopy);
+        b.CopyTo(bCopy);
+        Assert.Equal(aCopy, bCopy);
+    }
+
+    private static void AssertSecureBytesNotEqual(SecureBytes a, SecureBytes b)
+    {
+        var aCopy = new byte[a.Length];
+        var bCopy = new byte[b.Length];
+        a.CopyTo(aCopy);
+        b.CopyTo(bCopy);
+        Assert.NotEqual(aCopy, bCopy);
     }
 }

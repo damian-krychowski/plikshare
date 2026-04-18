@@ -43,7 +43,12 @@ public static class WrappedPrivateKey
         return output;
     }
 
-    public static byte[] Unwrap(ReadOnlySpan<byte> kek, ReadOnlySpan<byte> wrapped)
+    /// <summary>
+    /// Unwraps a previously wrapped private key. Returns a <see cref="SecureBytes"/>
+    /// (pinned, mlocked, zeroed on dispose) that the caller MUST dispose.
+    /// Throws on tag-verification failure (wrong KEK or tampered ciphertext).
+    /// </summary>
+    public static SecureBytes Unwrap(ReadOnlySpan<byte> kek, ReadOnlySpan<byte> wrapped)
     {
         if (kek.Length != KekSize)
             throw new ArgumentException(
@@ -51,20 +56,40 @@ public static class WrappedPrivateKey
                 nameof(kek));
 
         var expectedSize = NonceSize + UserKeyPair.PrivateKeySize + TagSize;
+
         if (wrapped.Length != expectedSize)
             throw new ArgumentException(
                 $"Wrapped private key must be {expectedSize} bytes, got {wrapped.Length}.",
                 nameof(wrapped));
 
-        var nonce = wrapped[..NonceSize];
-        var ciphertext = wrapped.Slice(NonceSize, UserKeyPair.PrivateKeySize);
-        var tag = wrapped.Slice(NonceSize + UserKeyPair.PrivateKeySize, TagSize);
+        return SecureBytes.Create(
+            length: UserKeyPair.PrivateKeySize,
+            state: new DecryptInput
+            {
+                Kek = kek,
+                Nonce = wrapped[..NonceSize],
+                Ciphertext = wrapped.Slice(NonceSize, UserKeyPair.PrivateKeySize),
+                Tag = wrapped.Slice(NonceSize + UserKeyPair.PrivateKeySize, TagSize)
+            },
+            initializer: static (output, state) =>
+            {
+                using var aes = new AesGcm(
+                    state.Kek, 
+                    TagSize);
 
-        var plaintext = new byte[UserKeyPair.PrivateKeySize];
+                aes.Decrypt(
+                    state.Nonce, 
+                    state.Ciphertext, 
+                    state.Tag, 
+                    output);
+            });
+    }
 
-        using var aes = new AesGcm(kek, TagSize);
-        aes.Decrypt(nonce, ciphertext, tag, plaintext);
-
-        return plaintext;
+    private readonly ref struct DecryptInput
+    {
+        public required ReadOnlySpan<byte> Kek { get; init; }
+        public required ReadOnlySpan<byte> Nonce { get; init; }
+        public required ReadOnlySpan<byte> Ciphertext { get; init; }
+        public required ReadOnlySpan<byte> Tag { get; init; }
     }
 }

@@ -28,10 +28,12 @@ public static class UserEncryptionSessionsEndpoints
     private static GetUserEncryptionSessionResponseDto GetUnlockedSession(
         HttpContext httpContext)
     {
+        var userExternalId = httpContext.User.GetExternalId();
+
         var hasCookie = httpContext
             .Request
             .Cookies
-            .TryGetValue(UserEncryptionSessionCookie.CookieName, out var cookieValue);
+            .TryGetValue(UserEncryptionSessionCookie.CookieName(userExternalId), out var cookieValue);
         
         return new GetUserEncryptionSessionResponseDto(
             IsUnlocked: hasCookie && !string.IsNullOrEmpty(cookieValue));
@@ -39,8 +41,10 @@ public static class UserEncryptionSessionsEndpoints
 
     private static Ok LockSession(HttpContext httpContext)
     {
+        var userExternalId = httpContext.User.GetExternalId();
+
         httpContext.Response.Cookies.Delete(
-                UserEncryptionSessionCookie.CookieName);
+            UserEncryptionSessionCookie.CookieName(userExternalId));
 
         return TypedResults.Ok();
     }

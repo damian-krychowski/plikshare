@@ -34,7 +34,7 @@ public class WorkspaceCreationPreparation(
     public Result Prepare(
         StorageExtId storageExternalId,
         UserContext owner,
-        Func<byte[]?> loadUserPrivateKey)
+        Func<SecureBytes?> loadUserPrivateKey)
     {
         var storageContext = ResolveStorageContextForRead(storageExternalId);
 
@@ -83,82 +83,63 @@ public class WorkspaceCreationPreparation(
     private Result PrepareFullEncryptionArtifacts(
         UserContext owner,
         int storageId,
-        Func<byte[]?> loadUserPrivateKey)
+        Func<SecureBytes?> loadUserPrivateKey)
     {
-        var userPrivateKey = loadUserPrivateKey();
+        using var userPrivateKey = loadUserPrivateKey();
+
         if (userPrivateKey is null)
             return new Result(Code: ResultCode.UserEncryptionSessionRequired);
 
+        if (owner.EncryptionMetadata is null)
+            return new Result(Code: ResultCode.CreatorEncryptionNotSetUp);
+
+        // New workspaces are always derived from the storage's latest DEK version — the
+        // one the creator gets wrapped for here. Older versions exist only to keep files
+        // written before a past rotation decryptable.
+        var latestStorageKey = storageEncryptionKeyReader.TryLoadLatestWrappedDek(
+            storageId: storageId,
+            userId: owner.Id);
+
+        if (latestStorageKey is null)
+            return new Result(Code: ResultCode.NotAStorageAdmin);
+
+        SecureBytes storageDek;
         try
         {
-            if (owner.EncryptionMetadata is null)
-                return new Result(Code: ResultCode.CreatorEncryptionNotSetUp);
-
-            // New workspaces are always derived from the storage's latest DEK version — the
-            // one the creator gets wrapped for here. Older versions exist only to keep files
-            // written before a past rotation decryptable.
-            var latestStorageKey = storageEncryptionKeyReader.TryLoadLatestWrappedDek(
-                storageId: storageId,
-                userId: owner.Id);
-
-            if (latestStorageKey is null)
-                return new Result(Code: ResultCode.NotAStorageAdmin);
-
-            byte[] storageDek;
-            try
-            {
-                storageDek = UserKeyPair.OpenSealed(
-                    recipientPrivateKey: userPrivateKey,
-                    sealed_: latestStorageKey.Value.WrappedDek);
-            }
-            catch (Exception e)
-            {
-                // Opaque failure — corrupted wrap, mismatched key, tamper. Return the same
-                // code as a missing wrap so the caller's UX stays consistent.
-                Log.Error(e,
-                    "Unsealing wrapped Storage DEK failed for User#{UserId} while preparing a workspace on Storage#{StorageId}.",
-                    owner, storageId);
-
-                return new Result(Code: ResultCode.NotAStorageAdmin);
-            }
-
-            try
-            {
-                var salt = new byte[WorkspaceDekDerivation.SaltSize];
-                RandomNumberGenerator.Fill(salt);
-
-                var workspaceDek = WorkspaceDekDerivation.Derive(
-                    storageDek: storageDek,
-                    workspaceSalt: salt);
-
-                try
-                {
-                    var wrapped = UserKeyPair.SealTo(
-                        recipientPublicKey: owner.EncryptionMetadata.PublicKey,
-                        plaintext: workspaceDek);
-
-                    return new Result(
-                        Code: ResultCode.Ok,
-                        Artifacts: new WorkspaceFullEncryptionArtifacts(
-                            StorageDekVersion: latestStorageKey.Value.StorageDekVersion,
-                            EncryptionSalt: salt,
-                            OwnerWrappedWorkspaceDek: wrapped));
-                }
-                finally
-                {
-                    CryptographicOperations.ZeroMemory(workspaceDek);
-                }
-            }
-            finally
-            {
-                CryptographicOperations.ZeroMemory(storageDek);
-            }
+            storageDek = UserKeyPair.OpenSealed(
+                recipientPrivateKey: userPrivateKey,
+                @sealed: latestStorageKey.Value.WrappedDek);
         }
-        finally
+        catch (Exception e)
         {
-            // The private-key buffer was allocated by the factory delegate specifically for
-            // this call and has no other owner, so it's safe to wipe synchronously.
-            CryptographicOperations.ZeroMemory(userPrivateKey);
+            // Opaque failure — corrupted wrap, mismatched key, tamper. Return the same
+            // code as a missing wrap so the caller's UX stays consistent.
+            Log.Error(e,
+                "Unsealing wrapped Storage DEK failed for User#{UserId} while preparing a workspace on Storage#{StorageId}.",
+                owner, storageId);
+
+            return new Result(Code: ResultCode.NotAStorageAdmin);
+        }
+
+        using (storageDek)
+        {
+            var salt = new byte[WorkspaceDekDerivation.SaltSize];
+            RandomNumberGenerator.Fill(salt);
+
+            using var workspaceDek = storageDek.Use(span => WorkspaceDekDerivation.Derive(
+                storageDek: span,
+                workspaceSalt: salt));
+
+            var wrapped = workspaceDek.Use(span => UserKeyPair.SealTo(
+                recipientPublicKey: owner.EncryptionMetadata.PublicKey,
+                plaintext: span));
+
+            return new Result(
+                Code: ResultCode.Ok,
+                Artifacts: new WorkspaceFullEncryptionArtifacts(
+                    StorageDekVersion: latestStorageKey.Value.StorageDekVersion,
+                    EncryptionSalt: salt,
+                    OwnerWrappedWorkspaceDek: wrapped));
         }
     }
 

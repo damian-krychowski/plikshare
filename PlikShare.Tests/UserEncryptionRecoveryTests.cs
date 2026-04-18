@@ -24,7 +24,7 @@ public class UserEncryptionRecoveryTests
     public void DeriveRecoveryKek_ReturnsExpectedSize()
     {
         var seed = UserEncryptionRecovery.GenerateRecoverySeed();
-        var kek = UserEncryptionRecovery.DeriveRecoveryKek(seed);
+        using var kek = UserEncryptionRecovery.DeriveRecoveryKek(seed);
         Assert.Equal(UserEncryptionRecovery.RecoveryKekSize, kek.Length);
     }
 
@@ -33,10 +33,10 @@ public class UserEncryptionRecoveryTests
     {
         var seed = UserEncryptionRecovery.GenerateRecoverySeed();
 
-        var kek1 = UserEncryptionRecovery.DeriveRecoveryKek(seed);
-        var kek2 = UserEncryptionRecovery.DeriveRecoveryKek(seed);
+        using var kek1 = UserEncryptionRecovery.DeriveRecoveryKek(seed);
+        using var kek2 = UserEncryptionRecovery.DeriveRecoveryKek(seed);
 
-        Assert.Equal(kek1, kek2);
+        AssertSecureBytesEqual(kek1, kek2);
     }
 
     [Fact]
@@ -45,10 +45,10 @@ public class UserEncryptionRecoveryTests
         var seedA = UserEncryptionRecovery.GenerateRecoverySeed();
         var seedB = UserEncryptionRecovery.GenerateRecoverySeed();
 
-        var kekA = UserEncryptionRecovery.DeriveRecoveryKek(seedA);
-        var kekB = UserEncryptionRecovery.DeriveRecoveryKek(seedB);
+        using var kekA = UserEncryptionRecovery.DeriveRecoveryKek(seedA);
+        using var kekB = UserEncryptionRecovery.DeriveRecoveryKek(seedB);
 
-        Assert.NotEqual(kekA, kekB);
+        AssertSecureBytesNotEqual(kekA, kekB);
     }
 
     [Fact]
@@ -100,10 +100,10 @@ public class UserEncryptionRecoveryTests
         // "plikshare-user-encryption-recovery-kek\0". Different info → different output.
         var seed = UserEncryptionRecovery.GenerateRecoverySeed();
 
-        var userKek = UserEncryptionRecovery.DeriveRecoveryKek(seed);
+        using var userKek = UserEncryptionRecovery.DeriveRecoveryKek(seed);
         var storageDek = HkdfDekDerivation.DeriveDek(seed, version: 0);
 
-        Assert.NotEqual(userKek, storageDek);
+        AssertSecureBytesNotEqualToByteArray(userKek, storageDek);
     }
 
     [Fact]
@@ -123,12 +123,17 @@ public class UserEncryptionRecoveryTests
     {
         // Simulates the full flow: generate keypair, wrap private key with recovery KEK,
         // later use recovery code to unwrap and set a new password.
-        var keypair = UserKeyPair.Generate();
+        using var keypair = UserKeyPair.Generate();
         var recoverySeed = UserEncryptionRecovery.GenerateRecoverySeed();
 
         // Setup: wrap private key with recovery KEK
-        var recoveryKek = UserEncryptionRecovery.DeriveRecoveryKek(recoverySeed);
-        var recoveryWrappedPrivateKey = WrappedPrivateKey.Wrap(recoveryKek, keypair.PrivateKey);
+        using var recoveryKek = UserEncryptionRecovery.DeriveRecoveryKek(recoverySeed);
+
+        var recoveryWrappedPrivateKey = SecureBytes.UseBoth(
+            keypair.PrivateKey,
+            recoveryKek,
+            static (privateKeySpan, kekSpan) => WrappedPrivateKey.Wrap(kekSpan, privateKeySpan));
+
         var recoveryVerifyHash = UserEncryptionRecovery.ComputeVerifyHash(recoverySeed);
 
         // Some time later: user pastes recovery code → we decode → verify hash matches
@@ -136,9 +141,37 @@ public class UserEncryptionRecoveryTests
         Assert.True(UserEncryptionRecovery.Verify(pastedSeed, recoveryVerifyHash));
 
         // Unwrap private key
-        var rederivedKek = UserEncryptionRecovery.DeriveRecoveryKek(pastedSeed);
-        var recoveredPrivateKey = WrappedPrivateKey.Unwrap(rederivedKek, recoveryWrappedPrivateKey);
+        using var rederivedKek = UserEncryptionRecovery.DeriveRecoveryKek(pastedSeed);
 
-        Assert.Equal(keypair.PrivateKey, recoveredPrivateKey);
+        using var recoveredPrivateKey = rederivedKek.Use(
+            recoveryWrappedPrivateKey,
+            static (kekSpan, wrapped) => WrappedPrivateKey.Unwrap(kekSpan, wrapped));
+
+        AssertSecureBytesEqual(keypair.PrivateKey, recoveredPrivateKey);
+    }
+
+    private static void AssertSecureBytesEqual(SecureBytes a, SecureBytes b)
+    {
+        var aCopy = new byte[a.Length];
+        var bCopy = new byte[b.Length];
+        a.CopyTo(aCopy);
+        b.CopyTo(bCopy);
+        Assert.Equal(aCopy, bCopy);
+    }
+
+    private static void AssertSecureBytesNotEqual(SecureBytes a, SecureBytes b)
+    {
+        var aCopy = new byte[a.Length];
+        var bCopy = new byte[b.Length];
+        a.CopyTo(aCopy);
+        b.CopyTo(bCopy);
+        Assert.NotEqual(aCopy, bCopy);
+    }
+
+    private static void AssertSecureBytesNotEqualToByteArray(SecureBytes a, byte[] b)
+    {
+        var aCopy = new byte[a.Length];
+        a.CopyTo(aCopy);
+        Assert.NotEqual(aCopy, b);
     }
 }
