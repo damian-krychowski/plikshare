@@ -4,11 +4,11 @@ using System.Text;
 using OpenAI.Chat;
 using PlikShare.ArtificialIntelligence.AiIncludes;
 using PlikShare.ArtificialIntelligence.Id;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.Utils;
 using PlikShare.Integrations.OpenAi.ChatGpt;
 using PlikShare.Storages;
-using PlikShare.Storages.FileReading;
 using Serilog;
 
 namespace PlikShare.ArtificialIntelligence.SendFileMessage.QueueJob;
@@ -321,17 +321,20 @@ public class SendAiMessageQueueJobExecutor(
 
         try
         {
-            await using var fileStream = await FileReader.GetFile(
-                s3FileKey: new S3FileKey
-                {
-                    S3KeySecretPart = file.S3KeySecretPart,
-                    FileExternalId = file.ExternalId
-                },
-                fileEncryptionMetadata: file.EncryptionMetadata,
-                fileSizeInBytes: file.SizeInBytes,
+            var encryptionMode = file.EncryptionMetadata.ToEncryptionMode(
+                workspaceEncryptionSession: null,
+                storageClient: storage);
+
+            await using var storageFile = await storage.DownloadFile(
+                fileDetails: new DownloadFileDetails(
+                    S3FileKey: new S3FileKey
+                    {
+                        S3KeySecretPart = file.S3KeySecretPart,
+                        FileExternalId = file.ExternalId
+                    },
+                    FileSizeInBytes: file.SizeInBytes,
+                    EncryptionMode: encryptionMode),
                 bucketName: file.BucketName,
-                storage: storage,
-                workspaceEncryptionSession: null, //todo: background jobs cannot access full-encryption sessions yet
                 cancellationToken: cancellationToken);
 
             using var outputStream = new MemoryStream(
@@ -340,7 +343,7 @@ public class SendAiMessageQueueJobExecutor(
                 count: fileSizeInBytes, 
                 writable: true);
 
-            await fileStream.WriteTo(
+            await storageFile.ReadTo(
                 output: PipeWriter.Create(
                     stream: outputStream),
                 cancellationToken: cancellationToken);
@@ -358,10 +361,7 @@ public class SendAiMessageQueueJobExecutor(
             fileContentBuilder.AppendLine($"```{languageIdentifier}:{fileName}");
             fileContentBuilder.AppendLine(fileBody);
             fileContentBuilder.AppendLine("```");
-
-            //todo test and implement
-            throw new NotImplementedException();
-
+            
             return new AiIncludeContent
             {
                 Name = file.Name + file.Extension,

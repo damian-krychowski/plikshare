@@ -2,6 +2,7 @@
 using PlikShare.Core.Utils;
 using PlikShare.Files.Download;
 using PlikShare.Files.Id;
+using PlikShare.Files.Records;
 using PlikShare.Storages.Exceptions;
 using PlikShare.Storages.Zip;
 using PlikShare.Workspaces.Cache;
@@ -32,9 +33,10 @@ public class GetZipFileDetailsOperation(
         try
         {
             var result = await ZipDecoder.ReadZipEntries(
-                file: file,
+                file: file.Resolve(
+                    workspaceEncryptionSession: workspaceEncryptionSession,
+                    storageClient: workspace.Storage),
                 workspace: workspace,
-                workspaceEncryptionSession: workspaceEncryptionSession,
                 cancellationToken: cancellationToken);
 
             return result.Code switch

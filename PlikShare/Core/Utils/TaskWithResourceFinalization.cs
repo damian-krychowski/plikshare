@@ -16,7 +16,7 @@ public class TaskWithResourceFinalization
     private bool _shouldExecuteOriginalTaskFinallyAction = true;
     private bool _wasFinished = false;
 
-    public Task Execute(Func<Task> @try, Func<ValueTask> @finally)
+    public Task Execute(Func<ValueTask> @try, Func<ValueTask> @finally)
     {
         _finallyFunc = @finally;
         _task = ExecuteTask(@try, @finally);
@@ -24,7 +24,7 @@ public class TaskWithResourceFinalization
         return _task;
     }
 
-    private async Task ExecuteTask(Func<Task> @try, Func<ValueTask> @finally)
+    private async Task ExecuteTask(Func<ValueTask> @try, Func<ValueTask> @finally)
     {
         try
         {
@@ -41,7 +41,7 @@ public class TaskWithResourceFinalization
         }
     }
 
-    public async Task ContinueWith(Func<Task> continuationFunction, CancellationToken cancellationToken)
+    public async Task ContinueWith(Func<ValueTask> continuationFunction, CancellationToken cancellationToken)
     {
         if (_task is null || _finallyFunc is null)
             throw new InvalidOperationException(
@@ -57,7 +57,7 @@ public class TaskWithResourceFinalization
 
             await _task
                 .ContinueWith(
-                    continuationFunction: _ => continuationFunction(),
+                    continuationFunction: _ => continuationFunction().AsTask(),
                     cancellationToken: cancellationToken)
                 .Unwrap();
         }

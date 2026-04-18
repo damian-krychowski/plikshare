@@ -177,15 +177,12 @@ using PlikShare.Storages.FileCopying.CopyFile;
 using PlikShare.Storages.FileCopying.Delete;
 using PlikShare.Storages.FileCopying.OnCompletedActionHandler;
 using PlikShare.Storages.HardDrive;
-using PlikShare.Storages.HardDrive.BulkDownload;
 using PlikShare.Storages.HardDrive.GetVolumes;
 using PlikShare.Storages.List;
 using PlikShare.Storages.S3.AwsS3;
 using PlikShare.Storages.S3.BackblazeB2;
-using PlikShare.Storages.S3.BulkDownload;
 using PlikShare.Storages.S3.CloudflareR2;
 using PlikShare.Storages.S3.DigitalOcean;
-using PlikShare.Storages.S3.Download;
 using PlikShare.Storages.UpdateDetails;
 using PlikShare.Storages.UpdateName;
 using PlikShare.Uploads;
@@ -609,11 +606,8 @@ public class Startup
         builder.Services.AddSingleton<GetApplicationSettingsStatusQuery>();
 
         builder.Services.AddSingleton<PreSignedUrlsService>();
-        builder.Services.AddSingleton<HardDriveBulkDownloadOperation>();
         builder.Services.AddSingleton<GetHardDriveVolumesOperation>();
-        builder.Services.AddSingleton<S3BulkDownloadOperation>();
         builder.Services.AddSingleton<GetFilePreSignedDownloadLinkDetailsQuery>();
-        builder.Services.AddSingleton<S3DownloadOperation>();
 
         builder.Services.AddSingleton<BulkDownloadDetailsQuery>();
         

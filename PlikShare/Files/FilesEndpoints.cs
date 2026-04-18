@@ -39,6 +39,7 @@ using PlikShare.Uploads.Cache;
 using PlikShare.Workspaces.Validation;
 using System.Globalization;
 using System.IO.Pipelines;
+using PlikShare.Workspaces.Cache;
 using static PlikShare.Storages.HardDrive.HardDriveStorageClientFactory;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
@@ -171,10 +172,9 @@ public static class FilesEndpoints
             FileSizeInBytes: attachment.SizeInBytes,
             Part: FilePart.First((int)attachment.SizeInBytes),
             UploadAlgorithm: UploadAlgorithm.DirectUpload,
-            EncryptionMode: encryptionMode,
-            BucketName: workspace.BucketName);
+            EncryptionMode: encryptionMode);
 
-        await workspace.Storage.UploadFilePart(
+        await workspace.UploadFilePart(
             input: PipeReader.Create(
                 stream: file.OpenReadStream()),
             uploadDetails: uploadDetails,
@@ -245,10 +245,9 @@ public static class FilesEndpoints
             FileSizeInBytes: newSizeInBytes,
             Part: FilePart.First(newSizeInBytes),
             UploadAlgorithm: UploadAlgorithm.DirectUpload,
-            EncryptionMode: encryptionMode,
-            BucketName: workspaceMembership.Workspace.BucketName);
+            EncryptionMode: encryptionMode);
 
-        await workspaceMembership.Workspace.Storage.UploadFilePart(
+        await workspaceMembership.Workspace.UploadFilePart(
             input: httpContext.Request.BodyReader,
             uploadDetails: uploadDetails,
             cancellationToken: cancellationToken);

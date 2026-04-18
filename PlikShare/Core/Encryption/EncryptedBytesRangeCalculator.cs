@@ -27,8 +27,8 @@ public class EncryptedBytesRangeCalculator(
         return new EncryptedBytesRange(
             FirstSegment: firstSegment,
             LastSegment: lastSegment,
-            FirstSegmentReadOffset: (int)(startIndex - firstSegment.Start),
-            LastSegmentReadOffset: (int)(endIndex - lastSegment.Start));
+            FirstSegmentReadStart: (int)(startIndex - firstSegment.Start),
+            LastSegmentReadEnd: (int)(endIndex - lastSegment.Start));
     }
 
     public EncryptedBytesRange.Segment FindSegment(long encryptedIndex, long encryptedFileLastByteIndex)

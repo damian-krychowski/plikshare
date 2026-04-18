@@ -1,20 +1,14 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Clock;
 using PlikShare.Core.CORS;
-using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
-using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Storages.Entities;
-using PlikShare.Storages.HardDrive.BulkDownload;
 using PlikShare.Storages.HardDrive.StorageClient;
 using PlikShare.Storages.S3;
-using PlikShare.Storages.S3.BulkDownload;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 using Serilog.Events;
@@ -44,8 +38,6 @@ public static class BulkDownloadEndpoints
             IClock clock,
             WorkspaceCache workspaceCache,
             BulkDownloadDetailsQuery bulkDownloadDetailsQuery,
-            HardDriveBulkDownloadOperation hardDriveBulkDownloadOperation,
-            S3BulkDownloadOperation s3BulkDownloadOperation,
             AuditLogService auditLogService,
             CancellationToken cancellationToken)
     {
@@ -66,11 +58,13 @@ public static class BulkDownloadEndpoints
         }
 
         var bulkDownloadDetails = bulkDownloadDetailsQuery.GetDetailsFromDb(
-                workspaceId: payload.WorkspaceId,
-                selectedFileIds: payload.SelectedFileIds,
-                excludedFileIds: payload.ExcludedFileIds,
-                selectedFolderIds: payload.SelectedFolderIds,
-                excludedFolderIds: payload.ExcludedFolderIds);
+            workspaceId: payload.WorkspaceId,
+            selectedFileIds: payload.SelectedFileIds,
+            excludedFileIds: payload.ExcludedFileIds,
+            selectedFolderIds: payload.SelectedFolderIds,
+            excludedFolderIds: payload.ExcludedFolderIds,
+            storageClient: workspaceContext.Storage,
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
         if (Log.IsEnabled(LogEventLevel.Debug))
         {
@@ -96,35 +90,11 @@ public static class BulkDownloadEndpoints
 
         try
         {
-            switch (workspaceContext.Storage)
-            {
-                case S3StorageClient s3StorageClient:
-                    await s3BulkDownloadOperation.Execute(
-                        bulkDownloadDetails: bulkDownloadDetails,
-                        bucketName: workspaceContext.BucketName,
-                        workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
-                        s3StorageClient: s3StorageClient,
-                        responsePipeWriter: httpContext.Response.BodyWriter,
-                        cancellationToken: cancellationToken);
-                    break;
-
-                case HardDriveStorageClient hardDriveStorageClient:
-                    await hardDriveBulkDownloadOperation.Execute(
-                        bulkDownloadDetails: bulkDownloadDetails,
-                        bucketName: workspaceContext.BucketName,
-                        workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
-                        hardDriveStorage: hardDriveStorageClient,
-                        responsePipeWriter: httpContext.Response.BodyWriter,
-                        cancellationToken: cancellationToken);
-                    break;
-
-                default:
-                    throw new ArgumentOutOfRangeException(
-                        paramName: typeof(StorageType).FullName,
-                        actualValue: workspaceContext.Storage.GetType(),
-                        message: $"Bulk delete cannot be performed due to unknown Storage#{workspaceContext.Storage.StorageId} type");
-            }
-
+            await workspaceContext.DownloadFilesInBulk(
+                bulkDownloadDetails: bulkDownloadDetails,
+                responsePipeWriter: httpContext.Response.BodyWriter,
+                cancellationToken: cancellationToken);
+            
             return TypedResults.Empty;
         }
         finally

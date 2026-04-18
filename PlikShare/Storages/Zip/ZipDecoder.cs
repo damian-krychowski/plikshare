@@ -7,7 +7,6 @@ using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Files.Records;
 using PlikShare.Storages.Exceptions;
-using PlikShare.Storages.FileReading;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 
@@ -91,9 +90,8 @@ public static class ZipDecoder
     /// <exception cref="FileNotFoundInStorageException"></exception>
     /// <exception cref="OperationCanceledException"></exception>
     public static async Task<ZipEntriesLookupResult> ReadZipEntries(
-        FileRecord file,
+        ResolvedFileRecord file,
         WorkspaceContext workspace,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken)
     {
         if (file.SizeInBytes < ZipEocdRecord.MinimumSize)
@@ -113,7 +111,6 @@ public static class ZipDecoder
         var zipEocdLookupResult = await TryReadZipEocdAssumingNoComment(
             file,
             workspace,
-            workspaceEncryptionSession,
             pipe, 
             cancellationToken);
 
@@ -130,7 +127,6 @@ public static class ZipDecoder
             zipEocdLookupResult = await TryReadZipEocdAssumingLongestComment(
                 file,
                 workspace,
-                workspaceEncryptionSession,
                 pipe,
                 cancellationToken);
         }
@@ -167,7 +163,6 @@ public static class ZipDecoder
                 file, 
                 workspace,
                 zip64Locator, 
-                workspaceEncryptionSession,
                 pipe, 
                 cancellationToken);
 
@@ -194,7 +189,6 @@ public static class ZipDecoder
             file, 
             workspace,
             zipFinalEocd, 
-            workspaceEncryptionSession,
             pipe, 
             cancellationToken);
 
@@ -206,25 +200,19 @@ public static class ZipDecoder
     }
 
     private static async Task<List<ZipCdfhRecord>> ReadZipEntries(
-        FileRecord file,
+        ResolvedFileRecord file,
         WorkspaceContext workspace,
         ZipFinalEocdRecord zipFinalEocd, 
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Pipe pipe, 
         CancellationToken cancellationToken)
     {
         var zipCentralDirectoryFileReading = Try.Execute(
-            @try: () => FileReader.ReadRange(
-                s3FileKey: new S3FileKey
-                {
-                    S3KeySecretPart = file.S3KeySecretPart,
-                    FileExternalId = file.ExternalId,
-                },
-                fileEncryptionMetadata: file.EncryptionMetadata,
-                fileSizeInBytes: file.SizeInBytes,
-                range: zipFinalEocd.CentralDirectoryBytesRange,
-                workspace: workspace,
-                workspaceEncryptionSession: workspaceEncryptionSession,
+            @try: () => workspace.ReadRange(
+                details: new DownloadFileRangeDetails(
+                    Range: zipFinalEocd.CentralDirectoryBytesRange,
+                    S3FileKey: file.S3FileKey,
+                    FileSizeInBytes: file.SizeInBytes,
+                    EncryptionMode: file.EncryptionMode),
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -246,27 +234,21 @@ public static class ZipDecoder
     }
     
     private static async Task<Zip64EocdLookupResult> TryReadZip64Eocd(
-        FileRecord file,
+        ResolvedFileRecord file,
         WorkspaceContext workspace,
         Zip64LocatorRecord zip64Locator,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Pipe pipe, 
         CancellationToken cancellationToken)
     {
         var zip64EocdFileReading = Try.Execute(
-            @try: () => FileReader.ReadRange(
-                s3FileKey: new S3FileKey
-                {
-                    S3KeySecretPart = file.S3KeySecretPart,
-                    FileExternalId = file.ExternalId,
-                },
-                fileEncryptionMetadata: file.EncryptionMetadata,
-                fileSizeInBytes: file.SizeInBytes,
-                range: new BytesRange(
-                    zip64Locator.Zip64EocdOffset,
-                    zip64Locator.Zip64EocdOffset + Zip64EocdRecord.MinimumSize - 1),
-                workspace: workspace,
-                workspaceEncryptionSession: workspaceEncryptionSession, 
+            @try: () => workspace.ReadRange(
+                details: new DownloadFileRangeDetails(
+                    Range: new BytesRange(
+                        zip64Locator.Zip64EocdOffset,
+                        zip64Locator.Zip64EocdOffset + Zip64EocdRecord.MinimumSize - 1),
+                    S3FileKey: file.S3FileKey,
+                    FileSizeInBytes: file.SizeInBytes,
+                    EncryptionMode: file.EncryptionMode),
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -288,29 +270,23 @@ public static class ZipDecoder
 
 
     private static async Task<ZipEocdLookupResult> TryReadZipEocdAssumingNoComment(
-        FileRecord file,
+        ResolvedFileRecord file,
         WorkspaceContext workspace,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Pipe pipe, 
         CancellationToken cancellationToken)
     {
         var zipEocdFileReading = Try.Execute(
-            @try: () => FileReader.ReadRange(
-                s3FileKey: new S3FileKey
-                {
-                    S3KeySecretPart = file.S3KeySecretPart,
-                    FileExternalId = file.ExternalId,
-                },
-                fileEncryptionMetadata: file.EncryptionMetadata,
-                fileSizeInBytes: file.SizeInBytes,
-                range: new BytesRange(
-                    //we assume that someone could have used zip64 so we are getting ready to read its locator
-                    //for files smaller than EocdMinimumSize (e.g. empty ZIPs with just the 22-byte EOCD
-                    //and no ZIP64 locator), we read from the start of the file to avoid a negative offset
-                    Math.Max(0, file.SizeInBytes - EocdMinimumSize),
-                    file.SizeInBytes - 1),
-                workspace: workspace,
-                workspaceEncryptionSession: workspaceEncryptionSession, 
+            @try: () => workspace.ReadRange(
+                details: new DownloadFileRangeDetails(
+                    Range: new BytesRange(
+                        //we assume that someone could have used zip64 so we are getting ready to read its locator
+                        //for files smaller than EocdMinimumSize (e.g. empty ZIPs with just the 22-byte EOCD
+                        //and no ZIP64 locator), we read from the start of the file to avoid a negative offset
+                        Math.Max(0, file.SizeInBytes - EocdMinimumSize),
+                        file.SizeInBytes - 1),
+                    FileSizeInBytes: file.SizeInBytes,
+                    S3FileKey: file.S3FileKey,
+                    EncryptionMode: file.EncryptionMode),
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -331,9 +307,8 @@ public static class ZipDecoder
     }
     
     private static async Task<ZipEocdLookupResult> TryReadZipEocdAssumingLongestComment(
-        FileRecord file,
+        ResolvedFileRecord file,
         WorkspaceContext workspace,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Pipe pipe,
         CancellationToken cancellationToken)
     {
@@ -343,19 +318,14 @@ public static class ZipDecoder
         var eocdPossibleStartPosition = file.SizeInBytes - endBytes;
 
         var zipEocdWithCommentFileReading = Try.Execute(
-            @try: () => FileReader.ReadRange(
-                s3FileKey: new S3FileKey
-                {
-                    S3KeySecretPart = file.S3KeySecretPart,
-                    FileExternalId = file.ExternalId,
-                },
-                fileEncryptionMetadata: file.EncryptionMetadata,
-                fileSizeInBytes: file.SizeInBytes,
-                range: new BytesRange(
-                    eocdPossibleStartPosition,
-                    file.SizeInBytes - 1),
-                workspace: workspace,
-                workspaceEncryptionSession: workspaceEncryptionSession,
+            @try: () => workspace.ReadRange(
+                details: new DownloadFileRangeDetails(
+                    Range: new BytesRange(
+                        eocdPossibleStartPosition,
+                        file.SizeInBytes - 1),
+                    S3FileKey: file.S3FileKey,
+                    FileSizeInBytes: file.SizeInBytes,
+                    EncryptionMode: file.EncryptionMode),
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());

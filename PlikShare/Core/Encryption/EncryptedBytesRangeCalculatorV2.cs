@@ -1,5 +1,4 @@
 using PlikShare.Files.PreSignedLinks.RangeRequests;
-using static PlikShare.Core.Encryption.EncryptedBytesRange;
 
 namespace PlikShare.Core.Encryption;
 
@@ -47,11 +46,11 @@ public class EncryptedBytesRangeCalculatorV2(
         return new EncryptedBytesRange(
             FirstSegment: firstSegment,
             LastSegment: lastSegment,
-            FirstSegmentReadOffset: (int)(startIndex - firstSegment.Start),
-            LastSegmentReadOffset: (int)(endIndex - lastSegment.Start));
+            FirstSegmentReadStart: (int)(startIndex - firstSegment.Start),
+            LastSegmentReadEnd: (int)(endIndex - lastSegment.Start));
     }
 
-    public Segment FindSegment(
+    public EncryptedBytesRange.Segment FindSegment(
         long encryptedIndex,
         long encryptedFileLastByteIndex,
         int chainStepsCount)
@@ -82,7 +81,7 @@ public class EncryptedBytesRangeCalculatorV2(
 
         if (encryptedIndex < firstSegmentTagStartIndex)
         {
-            return new Segment(
+            return new EncryptedBytesRange.Segment(
                 Number: 0,
                 Start: headerSize,
                 End: Math.Min(
@@ -115,7 +114,7 @@ public class EncryptedBytesRangeCalculatorV2(
                 $"[{segmentStart + NextSegmentsCiphertextSize}..{segmentStart + NextSegmentFullSize - 1}].");
         }
 
-        return new Segment(
+        return new EncryptedBytesRange.Segment(
             Number: segmentNumber,
             Start: segmentStart,
             End: Math.Min(

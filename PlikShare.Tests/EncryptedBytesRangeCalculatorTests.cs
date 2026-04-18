@@ -1,7 +1,6 @@
 using FluentAssertions;
 using PlikShare.Core.Encryption;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
-using static PlikShare.Core.Encryption.EncryptedBytesRange;
 
 namespace PlikShare.Tests;
 
@@ -122,8 +121,8 @@ public class EncryptedBytesRangeCalculatorTests
         //then — both in segment 0
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(0);
-        range.FirstSegmentReadOffset.Should().Be(2); // offset within segment 0 ciphertext
-        range.LastSegmentReadOffset.Should().Be(5);
+        range.FirstSegmentReadStart.Should().Be(2); // offset within segment 0 ciphertext
+        range.LastSegmentReadEnd.Should().Be(5);
     }
 
     [Fact]
@@ -158,8 +157,8 @@ public class EncryptedBytesRangeCalculatorTests
         //then
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(1);
-        range.FirstSegmentReadOffset.Should().BeGreaterThanOrEqualTo(0);
-        range.LastSegmentReadOffset.Should().BeGreaterThanOrEqualTo(0);
+        range.FirstSegmentReadStart.Should().BeGreaterThanOrEqualTo(0);
+        range.LastSegmentReadEnd.Should().BeGreaterThanOrEqualTo(0);
     }
 
     [Fact]
@@ -178,8 +177,8 @@ public class EncryptedBytesRangeCalculatorTests
         //then
         range.FirstSegment.Number.Should().Be(1);
         range.LastSegment.Number.Should().Be(2);
-        range.FirstSegmentReadOffset.Should().BeGreaterThanOrEqualTo(0);
-        range.LastSegmentReadOffset.Should().BeGreaterThanOrEqualTo(0);
+        range.FirstSegmentReadStart.Should().BeGreaterThanOrEqualTo(0);
+        range.LastSegmentReadEnd.Should().BeGreaterThanOrEqualTo(0);
     }
 
     [Fact]
@@ -212,7 +211,7 @@ public class EncryptedBytesRangeCalculatorTests
         //then
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(0);
-        range.FirstSegmentReadOffset.Should().Be(range.LastSegmentReadOffset);
+        range.FirstSegmentReadStart.Should().Be(range.LastSegmentReadEnd);
     }
 
     [Fact]
@@ -245,7 +244,7 @@ public class EncryptedBytesRangeCalculatorTests
         //then
         range.FirstSegment.Number.Should().Be(1);
         range.LastSegment.Number.Should().Be(1);
-        range.FirstSegmentReadOffset.Should().Be(0);
+        range.FirstSegmentReadStart.Should().Be(0);
     }
 
     [Fact]
@@ -262,7 +261,7 @@ public class EncryptedBytesRangeCalculatorTests
         //then
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(1);
-        range.LastSegmentReadOffset.Should().Be(0); // first byte of segment 1
+        range.LastSegmentReadEnd.Should().Be(0); // first byte of segment 1
     }
 
     #endregion
@@ -284,8 +283,8 @@ public class EncryptedBytesRangeCalculatorTests
         //then
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(0);
-        range.FirstSegmentReadOffset.Should().Be(0);
-        range.LastSegmentReadOffset.Should().Be(99);
+        range.FirstSegmentReadStart.Should().Be(0);
+        range.LastSegmentReadEnd.Should().Be(99);
     }
 
     [Fact]
@@ -326,8 +325,8 @@ public class EncryptedBytesRangeCalculatorTests
         //then
         range.FirstSegment.Number.Should().Be(0, "plaintext byte 1,048,500 is within segment 0 (max 1,048,518)");
         range.LastSegment.Number.Should().Be(1, "plaintext byte 1,048,600 is within segment 1 (starts at 1,048,519)");
-        range.FirstSegmentReadOffset.Should().BeGreaterThanOrEqualTo(0, "offset within segment must be non-negative");
-        range.LastSegmentReadOffset.Should().BeGreaterThanOrEqualTo(0, "offset within segment must be non-negative");
+        range.FirstSegmentReadStart.Should().BeGreaterThanOrEqualTo(0, "offset within segment must be non-negative");
+        range.LastSegmentReadEnd.Should().BeGreaterThanOrEqualTo(0, "offset within segment must be non-negative");
     }
 
     [Fact]
@@ -345,7 +344,7 @@ public class EncryptedBytesRangeCalculatorTests
         //then
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(1);
-        range.LastSegmentReadOffset.Should().Be(0, "byte 1,048,519 is the very first byte of segment 1");
+        range.LastSegmentReadEnd.Should().Be(0, "byte 1,048,519 is the very first byte of segment 1");
     }
 
     [Fact]
@@ -380,7 +379,7 @@ public class EncryptedBytesRangeCalculatorTests
         //then
         range.FirstSegment.Number.Should().Be(1);
         range.LastSegment.Number.Should().Be(1);
-        range.FirstSegmentReadOffset.Should().Be(0);
+        range.FirstSegmentReadStart.Should().Be(0);
     }
 
     [Fact]
@@ -419,7 +418,7 @@ public class EncryptedBytesRangeCalculatorTests
 
         //then — for single-segment range: LastSegmentReadOffset - FirstSegmentReadOffset + 1 = range length
         range.FirstSegment.Number.Should().Be(range.LastSegment.Number, "range should be within one segment");
-        var readLength = range.LastSegmentReadOffset - range.FirstSegmentReadOffset + 1;
+        var readLength = range.LastSegmentReadEnd - range.FirstSegmentReadStart + 1;
         readLength.Should().Be((int)(rangeEnd - rangeStart + 1));
     }
 
@@ -447,12 +446,12 @@ public class EncryptedBytesRangeCalculatorTests
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(1);
 
-        var fromFirstSegment = firstSegmentCiphertextSize - range.FirstSegmentReadOffset;
-        var fromLastSegment = range.LastSegmentReadOffset + 1;
+        var fromFirstSegment = firstSegmentCiphertextSize - range.FirstSegmentReadStart;
+        var fromLastSegment = range.LastSegmentReadEnd + 1;
         var totalBytes = fromFirstSegment + fromLastSegment;
 
         totalBytes.Should().Be((int)expectedLength,
-            $"FirstSegmentReadOffset={range.FirstSegmentReadOffset}, LastSegmentReadOffset={range.LastSegmentReadOffset}");
+            $"FirstSegmentReadOffset={range.FirstSegmentReadStart}, LastSegmentReadOffset={range.LastSegmentReadEnd}");
     }
 
     #endregion

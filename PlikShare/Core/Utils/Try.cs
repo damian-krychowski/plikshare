@@ -2,6 +2,18 @@
 
 public static class Try
 {
+    public static async Task Execute(Func<ValueTask> @try, Func<ValueTask> @finally)
+    {
+        try
+        {
+            await @try();
+        }
+        finally
+        {
+            await @finally();
+        }
+    }
+
     public static async Task Execute(Func<Task> @try, Func<ValueTask> @finally)
     {
         try

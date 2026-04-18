@@ -513,11 +513,11 @@ public static class Aes256GcmStreamingV1
                 if (segmentNumber == range.FirstSegment.Number || segmentNumber == range.LastSegment.Number)
                 {
                     var startIndex = segmentNumber == range.FirstSegment.Number
-                        ? range.FirstSegmentReadOffset
+                        ? range.FirstSegmentReadStart
                         : 0;
 
                     var readLength = segmentNumber == range.LastSegment.Number
-                        ? (range.LastSegmentReadOffset + 1) - startIndex
+                        ? range.LastSegmentReadEnd - startIndex + 1
                         : ciphertextSize - startIndex;
 
                     var outputSpan = output.GetSpan(
@@ -864,16 +864,6 @@ public static class Aes256GcmStreamingV1
     public static int GetExpectedLastSegmentNumber(long fullFileSizeInBytes)
     {
         return GetExpectedSegmentsCount(fullFileSizeInBytes) - 1;
-    }
-    public static int CalculateSafeBufferSizeForMultiFileUploads(
-        int totalSizeInBytes, 
-        int numberOfFiles)
-    {
-        //each file for sure have at least header + 1 tag
-        //additionally MultiFile uploads is only one part max at once, which means 10 segments which means 10 tags
-        //so if there is 1 file only that will be 9 additional tags.
-
-        return totalSizeInBytes + numberOfFiles * (HeaderSize + TagSize) + 9 * TagSize;
     }
 
     private static void ComputeIvForSegment(

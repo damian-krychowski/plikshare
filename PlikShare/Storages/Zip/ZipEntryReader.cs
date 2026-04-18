@@ -1,12 +1,10 @@
 ﻿using System.Buffers;
 using System.IO.Compression;
 using System.IO.Pipelines;
-using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Files.Records;
 using PlikShare.Storages.Exceptions;
-using PlikShare.Storages.FileReading;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 using static PlikShare.Files.PreSignedLinks.PreSignedUrlsService;
@@ -28,10 +26,9 @@ public static class ZipEntryReader
     /// <exception cref="FileNotFoundInStorageException"></exception>
     /// <exception cref="OperationCanceledException"></exception>
     public static async Task ReadEntryAsync(
-        FileRecord file,
+        ResolvedFileRecord file,
         ZipEntryPayload entry,
         WorkspaceContext workspace,        
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
         PipeWriter output,
         CancellationToken cancellationToken = default)
     {
@@ -41,7 +38,6 @@ public static class ZipEntryReader
             file, 
             entry, 
             workspace,
-            workspaceEncryptionSession,
             pipe,
             cancellationToken);
 
@@ -102,10 +98,9 @@ public static class ZipEntryReader
     }
 
     private static async Task<(Task readTask, ZipLfhRecord zipLfh)> ReadFileData(
-        FileRecord file, 
+        ResolvedFileRecord file, 
         ZipEntryPayload entry, 
         WorkspaceContext workspace,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Pipe pipe,
         CancellationToken cancellationToken)
     {
@@ -114,21 +109,14 @@ public static class ZipEntryReader
             entry);
 
         var readTaskContinuationState = new TaskWithResourceFinalization();
-
-        var s3FileKey = new S3FileKey
-        {
-            S3KeySecretPart = file.S3KeySecretPart,
-            FileExternalId = file.ExternalId,
-        };
-
+        
         var readTask = readTaskContinuationState.Execute(
-            @try: () => FileReader.ReadRange(
-                s3FileKey: s3FileKey,
-                fileEncryptionMetadata: file.EncryptionMetadata,
-                fileSizeInBytes: file.SizeInBytes,
-                range: reasonableFileRange,
-                workspace: workspace,
-                workspaceEncryptionSession: workspaceEncryptionSession,
+            @try: () => workspace.ReadRange(
+                details: new DownloadFileRangeDetails(
+                    Range: reasonableFileRange,
+                    S3FileKey: file.S3FileKey,
+                    FileSizeInBytes: file.SizeInBytes,
+                    EncryptionMode: file.EncryptionMode),
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -162,13 +150,12 @@ public static class ZipEntryReader
 
 
                 readTask = readTaskContinuationState.ContinueWith(
-                    continuationFunction: () => FileReader.ReadRange(
-                        s3FileKey: s3FileKey,
-                        fileEncryptionMetadata: file.EncryptionMetadata,
-                        fileSizeInBytes: file.SizeInBytes,
-                        range: missingBytesRange,
-                        workspace: workspace,
-                        workspaceEncryptionSession: workspaceEncryptionSession,
+                    continuationFunction: () => workspace.ReadRange(
+                        details: new DownloadFileRangeDetails(
+                            Range: missingBytesRange,
+                            S3FileKey: file.S3FileKey,
+                            FileSizeInBytes: file.SizeInBytes,
+                            EncryptionMode: file.EncryptionMode),
                         output: pipe.Writer,
                         cancellationToken: cancellationToken),
                     cancellationToken: cancellationToken);
@@ -182,7 +169,7 @@ public static class ZipEntryReader
     }
 
     private static BytesRange CalculateRangeIncludingLfhWithReasonableExtraFieldAndFileData(
-        FileRecord file, 
+        ResolvedFileRecord file, 
         ZipEntryPayload entry)
     {
         return FileBytesRange.Create(
@@ -197,7 +184,7 @@ public static class ZipEntryReader
     }
     
     private static async Task ExtractFileData(
-        FileRecord file,
+        ResolvedFileRecord file,
         ZipEntryPayload entry,
         ushort extraFieldLength,
         PipeReader reader,
@@ -290,7 +277,7 @@ public static class ZipEntryReader
     }
 
     private static async Task DecompressZipEntry(
-        FileRecord file,
+        ResolvedFileRecord file,
         ZipEntryPayload entry,
         PipeReader reader,
         PipeWriter output)

@@ -217,16 +217,16 @@ public class TestTextractConfigurationOperation(
         var imageBytes = TextractTestImage.GetBytes();
 
         _ = await s3StorageClient.UploadFilePart(
-            fileBytes: imageBytes.AsMemory(),
+            input: imageBytes.AsMemory(),
             uploadDetails: new UploadFilePartDetails(
                 S3FileKey: imageFileKey,
                 S3UploadId: null,
                 FileSizeInBytes: imageBytes.Length,
                 Part: FilePart.First(imageBytes.Length),
                 UploadAlgorithm: UploadAlgorithm.DirectUpload,
-                EncryptionMode: NoEncryption.Instance,
-                BucketName: bucketName
+                EncryptionMode: NoEncryption.Instance
             ),
+            bucketName: bucketName,
             cancellationToken: cancellationToken);
     }
 

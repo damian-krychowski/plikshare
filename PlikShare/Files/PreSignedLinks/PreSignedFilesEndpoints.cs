@@ -16,9 +16,7 @@ using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Files.Records;
 using PlikShare.Storages;
-using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Exceptions;
-using PlikShare.Storages.FileReading;
 using PlikShare.Storages.Zip;
 using PlikShare.AuditLog;
 using PlikShare.Uploads.Algorithm;
@@ -26,6 +24,7 @@ using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.CompleteFileUpload;
 using PlikShare.Uploads.FilePartUpload.Complete;
 using PlikShare.Uploads.Id;
+using PlikShare.Workspaces.Cache;
 using Serilog;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
@@ -109,17 +108,13 @@ public static class PreSignedFilesEndpoints
 
         if (!int.TryParse(httpContext.Request.Headers[NumberOfFilesHeader], out var numberOfFiles))
             return HttpErrors.File.MissingRequestHeader(NumberOfFilesHeader);
-
-        var heapBufferSize = workspace.Storage.CalculateSafeBufferSizeForMultiFileUploads(
-            totalSizeInBytes,
-            numberOfFiles);
-
+        
         var heapBuffer = ArrayPool<byte>.Shared.Rent(
-            minimumLength: heapBufferSize);
+            minimumLength: totalSizeInBytes);
 
         var heapBufferMemory = heapBuffer
             .AsMemory()
-            .Slice(0, heapBufferSize);
+            .Slice(0, totalSizeInBytes);
         
         try
         {
@@ -141,17 +136,10 @@ public static class PreSignedFilesEndpoints
 
             foreach (var fileUpload in fileUploads)
             {
-                var filePart = new FilePart(
-                    Number: 1,
-                    SizeInBytes: (int) fileUpload.FileToUpload.SizeInBytes);
-
-                var fileBufferSize = fileUpload
-                    .FileToUpload
-                    .EncryptionMetadata.CalculateBufferSize(
-                        part: filePart);
+                var fileSize = (int) fileUpload.FileToUpload.SizeInBytes;
                 
                 var uploadTask = ProcessDirectFileUploadAsync(
-                    heapBufferMemory.Slice(fileOffset, fileBufferSize),
+                    heapBufferMemory.Slice(fileOffset, fileSize),
                     fileUpload,
                     httpContext.TryGetWorkspaceEncryptionSession(),
                     workspace.Storage,
@@ -159,7 +147,7 @@ public static class PreSignedFilesEndpoints
 
                 uploadTasks.Add(uploadTask);
 
-                fileOffset += fileBufferSize;
+                fileOffset += fileSize;
             }
 
             var processedFileUploads = (await Task.WhenAll(uploadTasks))
@@ -250,44 +238,13 @@ public static class PreSignedFilesEndpoints
 
             fileUploads.Add(fileUpload);
 
-            var filePart = new FilePart(
-                Number: 1,
-                SizeInBytes: (int)fileUpload.FileToUpload.SizeInBytes);
+            var fileSizeInBytes = (int)fileUpload.FileToUpload.SizeInBytes;
+            
+            await section.Body.ReadExactlyAsync(
+                heapBufferMemory.Slice(offset, fileSizeInBytes),
+                cancellationToken);
 
-            var metadata = fileUpload
-                .FileToUpload
-                .EncryptionMetadata;
-
-            var bufferSize = metadata.CalculateBufferSize(
-                filePart);
-
-            if (metadata is null)
-            {
-                await section.Body.ReadExactlyAsync(
-                    heapBufferMemory.Slice(offset, bufferSize),
-                    cancellationToken);
-            }
-            else if (metadata.FormatVersion == 1)
-            {
-                await section.Body.CopyIntoBufferReadyForInPlaceEncryption(
-                    output: heapBufferMemory.Slice(offset, bufferSize),
-                    filePart: filePart);
-            }
-            else if (metadata.FormatVersion == 2)
-            {
-                await section.Body.CopyIntoBufferReadyForInPlaceEncryption(
-                    output: heapBufferMemory.Slice(offset, bufferSize),
-                    filePart: filePart,
-                    chainStepsCount: metadata.ChainStepSalts.Count);
-            }
-            else
-            {
-                throw new InvalidOperationException(
-                    $"Unsupported file encryption format version '{metadata.FormatVersion}' " +
-                    $"for file '{fileUpload.FileToUpload.S3FileKey.FileExternalId}'.");
-            }
-
-            offset += bufferSize;
+            offset += fileSizeInBytes;
         }
 
         return (fileUploads, null);
@@ -312,12 +269,12 @@ public static class PreSignedFilesEndpoints
                 FileSizeInBytes: fileUpload.FileToUpload.SizeInBytes,
                 Part: FilePart.First((int) fileUpload.FileToUpload.SizeInBytes),
                 UploadAlgorithm: UploadAlgorithm.DirectUpload,
-                EncryptionMode: encryptionMode,
-                BucketName: fileUpload.Workspace.BucketName);
+                EncryptionMode: encryptionMode);
 
             var result = await storageClient.UploadFilePart(
-                fileBytes: fileBytes,
+                input: fileBytes,
                 uploadDetails: uploadDetails,
+                bucketName: fileUpload.Workspace.BucketName,
                 cancellationToken: cancellationToken);
 
             Log.Debug(
@@ -361,10 +318,9 @@ public static class PreSignedFilesEndpoints
                 FileSizeInBytes: fileUpload.FileToUpload.SizeInBytes,
                 Part: new FilePart(payload.PartNumber, partSizeInBytes),
                 UploadAlgorithm: fileUpload.UploadAlgorithm,
-                EncryptionMode: encryptionMode,
-                BucketName: fileUpload.Workspace.BucketName);
+                EncryptionMode: encryptionMode);
 
-            var result = await fileUpload.Workspace.Storage.UploadFilePart(
+            var result = await fileUpload.Workspace.UploadFilePart(
                 input: httpContext.Request.BodyReader,
                 uploadDetails: uploadDetails,
                 cancellationToken: cancellationToken);
@@ -475,20 +431,22 @@ public static class PreSignedFilesEndpoints
 
         try
         {
-            await using var rangedFileStream = await FileReader.GetFileRange(
-                s3FileKey: new S3FileKey
-                {
-                    S3KeySecretPart = file.S3KeySecretPart,
-                    FileExternalId = file.ExternalId,
-                },
-                fileEncryptionMetadata: file.EncryptionMetadata,
-                fileSizeInBytes: file.SizeInBytes,
-                range: rangeRequest.Range,
-                workspace: workspace,
+            var encryptionMode = file.EncryptionMetadata.ToEncryptionMode(
                 workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
-                output: httpContext.Response.BodyWriter,
-                cancellationToken: cancellationToken);
+                storageClient: workspace.Storage);
 
+            await using var storageFileRange = await workspace.DownloadFileRange(
+                fileDetails: new DownloadFileRangeDetails(
+                    Range: rangeRequest.Range,
+                    S3FileKey: new S3FileKey
+                    {
+                        S3KeySecretPart = file.S3KeySecretPart,
+                        FileExternalId = file.ExternalId,
+                    },
+                    FileSizeInBytes: file.SizeInBytes,
+                    EncryptionMode: encryptionMode),
+                cancellationToken: cancellationToken);
+            
             httpContext.Response.Headers.AcceptRanges = "bytes";
             httpContext.Response.Headers.ContentType = file.ContentType;
             httpContext.Response.Headers.ContentRange = rangeRequest.ValidContentRange(file.SizeInBytes);
@@ -499,7 +457,7 @@ public static class PreSignedFilesEndpoints
             
             httpContext.Response.StatusCode = StatusCodes.Status206PartialContent;
 
-            await rangedFileStream.WriteTo(
+            await storageFileRange.ReadTo(
                 output: httpContext.Response.BodyWriter,
                 cancellationToken: cancellationToken);
             
@@ -549,16 +507,19 @@ public static class PreSignedFilesEndpoints
 
         try
         {
-            await using var fileStream = await FileReader.GetFile(
-                s3FileKey: new S3FileKey
-                {
-                    S3KeySecretPart = file.S3KeySecretPart,
-                    FileExternalId = file.ExternalId,
-                },
-                fileEncryptionMetadata: file.EncryptionMetadata,
-                fileSizeInBytes: file.SizeInBytes,
-                workspace: workspace,
+            var encryptionMode = file.EncryptionMetadata.ToEncryptionMode(
                 workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
+                storageClient: workspace.Storage);
+
+            await using var storageFile = await workspace.DownloadFile(
+                fileDetails: new DownloadFileDetails(
+                    S3FileKey: new S3FileKey
+                    {
+                        S3KeySecretPart = file.S3KeySecretPart,
+                        FileExternalId = file.ExternalId,
+                    },
+                    FileSizeInBytes: file.SizeInBytes,
+                    EncryptionMode: encryptionMode),
                 cancellationToken: cancellationToken);
             
             httpContext.Response.Headers.AcceptRanges = "bytes";
@@ -569,7 +530,7 @@ public static class PreSignedFilesEndpoints
 
             httpContext.Response.Headers.ContentLength = file.SizeInBytes;
 
-            await fileStream.WriteTo(
+            await storageFile.ReadTo(
                 output: httpContext.Response.BodyWriter,
                 cancellationToken: cancellationToken);
 
@@ -633,10 +594,11 @@ public static class PreSignedFilesEndpoints
         try
         {
             await ZipEntryReader.ReadEntryAsync(
-                file: file,
+                file: file.Resolve(
+                    workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
+                    storageClient: workspace.Storage),
                 entry: payload.ZipEntry,
                 workspace: workspace,
-                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
                 output: httpContext.Response.BodyWriter,
                 cancellationToken: cancellationToken);
 

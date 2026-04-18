@@ -179,35 +179,6 @@ public static class Aes256GcmStreamingV2
         }
     }
 
-    public static ValueTask CopyIntoBufferReadyForInPlaceEncryption(
-        this Stream stream,
-        Memory<byte> output,
-        FilePart filePart,
-        int chainStepsCount)
-    {
-        return CopyIntoBufferReadyForInPlaceEncryption(
-            reader: PipeReader.Create(stream),
-            output,
-            filePart,
-            chainStepsCount);
-    }
-
-    /// <summary>                                                   
-    /// Upper bound on the buffer needed to hold a multi-file batch after encryption.
-    /// Uses a worst-case header (V2 with the deepest chain we'd ever realistically use:
-    /// workspace + box + user/link gives 3 steps, the cap is set with a 2× safety margin).
-    /// Slight over-allocation on V1 or shorter V2 chains is intentional — we'd rather waste
-    /// a few KB than thread per-file plans through the whole upload pipeline.                                                                              /// </summary>                                              
-    private const int SafeUpperBoundChainSteps = 8;
-
-    public static int CalculateSafeBufferSizeForMultiFileUploads(int totalSizeInBytes, int numberOfFiles)
-    {
-        var worstHeaderSize = GetHeaderSize(SafeUpperBoundChainSteps);
-        var worstPerFileOverhead = worstHeaderSize + TagSize;
-
-        return totalSizeInBytes + numberOfFiles * worstPerFileOverhead + 9 * TagSize;
-    }
-
     public static int CalculateEncryptedPartSize(
         FilePart filePart,
         int chainStepsCount)
@@ -559,11 +530,11 @@ public static class Aes256GcmStreamingV2
                 if (segmentNumber == range.FirstSegment.Number || segmentNumber == range.LastSegment.Number)
                 {
                     var startIndex = segmentNumber == range.FirstSegment.Number
-                        ? range.FirstSegmentReadOffset
+                        ? range.FirstSegmentReadStart
                         : 0;
 
                     var readLength = segmentNumber == range.LastSegment.Number
-                        ? (range.LastSegmentReadOffset + 1) - startIndex
+                        ? range.LastSegmentReadEnd - startIndex + 1
                         : ciphertextSize - startIndex;
 
                     var outputSpan = output.GetSpan(

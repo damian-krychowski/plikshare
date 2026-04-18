@@ -246,10 +246,9 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 Number: 1,
                 SizeInBytes: contentBytes.Length),
             UploadAlgorithm: UploadAlgorithm.DirectUpload,
-            EncryptionMode: encryptionMode,
-            BucketName: originalFileWorkspace.BucketName);
+            EncryptionMode: encryptionMode);
 
-        return await originalFileWorkspace.Storage.UploadFilePart(
+        return await originalFileWorkspace.UploadFilePart(
             input: contentBytes,
             uploadDetails: uploadDetails,
             cancellationToken: cancellationToken);

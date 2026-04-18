@@ -1,9 +1,10 @@
-using System.Buffers;
+using PlikShare.BulkDownload;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Storages.Encryption;
+using Serilog.Events;
+using System.IO.Compression;
 using System.IO.Pipelines;
-using PlikShare.Files.PreSignedLinks;
 using Serilog;
 
 namespace PlikShare.Storages;
@@ -63,197 +64,159 @@ public static class IStorageClientExtensions
                 $"for storage '{client.ExternalId}'.");
         }
 
-        public async ValueTask<FilePartUploadResult> UploadFilePart(
-            PipeReader input,
-            UploadFilePartDetails uploadDetails,
-            CancellationToken cancellationToken)
-        {
-            var heapBufferSize = FileEncryption.CalculateBufferSize(
-                encryptionMode: uploadDetails.EncryptionMode,
-                filePart: uploadDetails.Part);
-
-            var heapBuffer = ArrayPool<byte>.Shared.Rent(
-                minimumLength: heapBufferSize);
-
-            var heapBufferMemory = heapBuffer
-                .AsMemory()
-                .Slice(0, heapBufferSize);
-
-            try
-            {
-                await FileEncryption.CopyPlaintextIntoBuffer(
-                    encryptionMode: uploadDetails.EncryptionMode,
-                    input: input,
-                    buffer: heapBufferMemory,
-                    filePart: uploadDetails.Part,
-                    cancellationToken: cancellationToken);
-
-                return await client.UploadFilePart(
-                    fileBytes: heapBufferMemory,
-                    uploadDetails: uploadDetails,
-                    cancellationToken: cancellationToken);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(heapBuffer);
-            }
-        }
-
-        public async ValueTask<FilePartUploadResult> UploadFilePart(
-            byte[] input,
-            UploadFilePartDetails uploadDetails,
-            CancellationToken cancellationToken)
-        {
-            if (uploadDetails.EncryptionMode is NoEncryption)
-            {
-                return await client.UploadFilePart(
-                    fileBytes: input,
-                    uploadDetails: uploadDetails,
-                    cancellationToken: cancellationToken);
-            }
-
-            var heapBufferSize = FileEncryption.CalculateBufferSize(
-                encryptionMode: uploadDetails.EncryptionMode,
-                filePart: uploadDetails.Part);
-
-            var heapBuffer = ArrayPool<byte>.Shared.Rent(
-                minimumLength: heapBufferSize);
-
-            var heapBufferMemory = heapBuffer
-                .AsMemory()
-                .Slice(0, heapBufferSize);
-
-            try
-            {
-                FileEncryption.CopyPlaintextIntoBuffer(
-                    encryptionMode: uploadDetails.EncryptionMode,
-                    input: input,
-                    buffer: heapBufferMemory,
-                    filePart: uploadDetails.Part);
-
-                return await client.UploadFilePart(
-                    fileBytes: heapBufferMemory,
-                    uploadDetails: uploadDetails,
-                    cancellationToken: cancellationToken);
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(heapBuffer);
-            }
-        }
-
-        public async ValueTask WriteFileTo(
-            Stream stream,
-            PipeWriter output,
-            long fileSizeInBytes,
-            FileEncryptionMetadata? encryptionMetadata,
-            WorkspaceEncryptionSession? workspaceEncryptionSession,
+        public async Task DownloadFilesInBulk(
+            BulkDownloadDetails bulkDownloadDetails,
+            string bucketName,
+            PipeWriter responsePipeWriter,
             CancellationToken cancellationToken)
         {
             var startTime = DateTime.UtcNow;
+            var totalFiles = bulkDownloadDetails.Files.Count;
+            var processedFiles = 0;
+            var failedFiles = 0;
+            var totalBytes = 0L;
 
-            if (encryptionMetadata is null)
+            Log.Information(
+                "Starting bulk download operation for {FileCount} files from bucket {BucketName}",
+                totalFiles,
+                bucketName);
+
+            var (files, folderSubtree) = bulkDownloadDetails;
+
+            var uniqueFileNames = new UniqueFileNames(
+                capacity: totalFiles);
+
+            try
             {
-                Log.Debug("Starting unencrypted file transfer");
+                await using var archive = new ZipArchive(
+                    stream: responsePipeWriter.AsStream(),
+                    mode: ZipArchiveMode.Create,
+                    leaveOpen: true);
 
-                await stream.CopyToAsync(
-                    destination: output,
-                    cancellationToken: cancellationToken);
+                foreach (var file in files.OrderBy(f => folderSubtree.GetLevelInTree(f.FolderId)))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                var streamDuration = DateTime.UtcNow - startTime;
-                var streamSpeed = fileSizeInBytes / Math.Max(1, streamDuration.TotalSeconds);
+                    var fileStartTime = DateTime.UtcNow;
 
-                Log.Debug(
-                    "Completed unencrypted file transfer: {FileSize:N0} bytes in {DurationMs}ms. Speed: {Speed:N2} MB/s",
-                    fileSizeInBytes,
-                    streamDuration.TotalMilliseconds,
-                    streamSpeed / 1024.0 / 1024.0);
+                    var s3FileKey = new S3FileKey
+                    {
+                        FileExternalId = file.ExternalId,
+                        S3KeySecretPart = file.S3KeySecretPart
+                    };
+
+                    var folderPath = folderSubtree.GetPath(
+                        folderId: file.FolderId);
+
+                    try
+                    {
+                        Log.Debug(
+                            "Processing file {FileNumber}/{TotalFiles}: {FileName} at path {FilePath}",
+                            processedFiles + 1,
+                            totalFiles,
+                            file.FullName,
+                            folderPath);
+
+                        var (entryName, wasNameCollisionDetected) = uniqueFileNames.EnsureUniqueFileName(
+                            fullFileName: file.FullName,
+                            folderPath: folderPath);
+
+                        if (wasNameCollisionDetected)
+                        {
+                            Log.Debug(
+                                "File name collision detected. Original: {FilePath}{FileName}, Generated unique name: {UniqueName}",
+                                folderPath, file.FullName, entryName);
+                        }
+
+                        var entry = archive.CreateEntry(
+                            entryName,
+                            CompressionLevel.NoCompression);
+
+                        Log.Debug(
+                            "Downloading file {FileExternalId} from {BucketName}/{S3FileKey}",
+                            file.ExternalId,
+                            bucketName,
+                            s3FileKey.Value);
+
+                        await using var storageFile = await client.DownloadFile(
+                            fileDetails: new DownloadFileDetails(
+                                S3FileKey: s3FileKey,
+                                FileSizeInBytes: file.SizeInBytes,
+                                EncryptionMode: file.EncryptionMode),
+                            bucketName: bucketName,
+                            cancellationToken: cancellationToken);
+                        
+                        await using var entryStream = await entry.OpenAsync(
+                            cancellationToken);
+
+                        await storageFile.ReadTo(
+                            output: PipeWriter.Create(
+                                stream: entryStream,
+                                writerOptions: new StreamPipeWriterOptions(
+                                    leaveOpen: false)),
+                            cancellationToken: cancellationToken);
+
+                        processedFiles++;
+                        totalBytes += file.SizeInBytes;
+
+                        if (Log.IsEnabled(LogEventLevel.Debug))
+                        {
+                            var fileDuration = DateTime.UtcNow - fileStartTime;
+
+                            Log.Debug(
+                                "Successfully added file to archive: {FileName} ({FileSize:N0} bytes) in {DurationMs}ms. Speed: {Speed}",
+                                entryName,
+                                file.SizeInBytes,
+                                fileDuration.TotalMilliseconds,
+                                TransferSpeed.Format(file.SizeInBytes, fileDuration));
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Log.Warning(
+                            "Bulk download operation cancelled while processing file {FileName}",
+                            file.FullName);
+
+                        throw;
+                    }
+                    catch (Exception e)
+                    {
+                        failedFiles++;
+
+                        Log.Warning(
+                            e,
+                            "Failed to process file {FileName} ({FileExternalId}) from {BucketName}/{S3FileKey}",
+                            file.FullName,
+                            file.ExternalId,
+                            bucketName,
+                            s3FileKey.Value);
+                    }
+                }
+
+                var totalDuration = DateTime.UtcNow - startTime;
+
+                Log.Information(
+                    "Completed bulk download operation. Processed: {ProcessedFiles}/{TotalFiles} files, " +
+                    "Failed: {FailedFiles}, Total size: {TotalSize:N2} MB, " +
+                    "Duration: {DurationSec:N1}s, Average speed: {Speed:N2} MB/s",
+                    processedFiles,
+                    totalFiles,
+                    failedFiles,
+                    totalBytes / 1024.0 / 1024.0,
+                    totalDuration.TotalSeconds,
+                    TransferSpeed.Format(totalBytes, totalDuration));
             }
-            else if (encryptionMetadata.FormatVersion == 1)
+            catch (Exception e)
             {
-                Log.Debug("Starting encrypted file transfer using AES-256-GCM");
+                Log.Error(
+                    e,
+                    "Bulk download operation failed after processing {ProcessedFiles}/{TotalFiles} files. Error: {ErrorMessage}",
+                    processedFiles,
+                    totalFiles,
+                    e.Message);
 
-                if (client.Encryption is not ManagedStorageEncryption managedStorageEncryption)
-                    throw new InvalidOperationException(
-                        $"Storage encryption is supposed to be {nameof(ManagedStorageEncryption)} " +
-                        $"but found {client.Encryption.GetType()}");
-
-                var ikm = managedStorageEncryption.GetEncryptionKey(
-                    encryptionMetadata.KeyVersion);
-                
-                await Aes256GcmStreamingV1.Decrypt(
-                    fileAesInputs: encryptionMetadata.ToAesInputsV1(ikm),
-                    fileSizeInBytes: fileSizeInBytes,
-                    input: PipeReader.Create(
-                        stream,
-                        new StreamPipeReaderOptions(
-                            bufferSize: PlikShareStreams.DefaultBufferSize,
-                            leaveOpen: false)),
-                    output: output,
-                    cancellationToken);
-
-                var decryptDuration = DateTime.UtcNow - startTime;
-                var decryptSpeed = fileSizeInBytes / Math.Max(1, decryptDuration.TotalSeconds);
-
-                Log.Debug(
-                    "Completed encrypted file transfer: {FileSize:N0} bytes in {DurationMs}ms. Speed: {Speed:N2} MB/s",
-                    fileSizeInBytes,
-                    decryptDuration.TotalMilliseconds,
-                    decryptSpeed / 1024.0 / 1024.0);
+                throw;
             }
-            else if (encryptionMetadata.FormatVersion == 2)
-            {
-                Log.Debug("Starting encrypted file transfer using AES-256-GCM");
-
-                var ikm = workspaceEncryptionSession!.GetDekForVersion(
-                    encryptionMetadata.KeyVersion);
-
-                await Aes256GcmStreamingV2.Decrypt(
-                    fileAesInputs: encryptionMetadata.ToAesInputsV2(ikm),
-                    fileSizeInBytes: fileSizeInBytes,
-                    input: PipeReader.Create(
-                        stream,
-                        new StreamPipeReaderOptions(
-                            bufferSize: PlikShareStreams.DefaultBufferSize,
-                            leaveOpen: false)),
-                    output: output,
-                    cancellationToken);
-
-                var decryptDuration = DateTime.UtcNow - startTime;
-                var decryptSpeed = fileSizeInBytes / Math.Max(1, decryptDuration.TotalSeconds);
-
-                Log.Debug(
-                    "Completed encrypted file transfer: {FileSize:N0} bytes in {DurationMs}ms. Speed: {Speed:N2} MB/s",
-                    fileSizeInBytes,
-                    decryptDuration.TotalMilliseconds,
-                    decryptSpeed / 1024.0 / 1024.0);
-            }
-            else
-            {
-                throw new InvalidOperationException(
-                    $"Unsupported file encryption format version '{encryptionMetadata.FormatVersion}'");
-            }
-        }
-
-        public int CalculateSafeBufferSizeForMultiFileUploads(
-            int totalSizeInBytes,
-            int numberOfFiles)
-        {
-            return client.Encryption switch
-            {
-                NoStorageEncryption => totalSizeInBytes,
-
-                ManagedStorageEncryption => Aes256GcmStreamingV1.CalculateSafeBufferSizeForMultiFileUploads(
-                    totalSizeInBytes,
-                    numberOfFiles),
-
-                FullStorageEncryption => Aes256GcmStreamingV2.CalculateSafeBufferSizeForMultiFileUploads(
-                    totalSizeInBytes,
-                    numberOfFiles),
-
-                _ => throw new InvalidOperationException(
-                    $"Unsupported storage encryption type '{client.Encryption.GetType().Name}'.")
-            };
         }
     }
 }

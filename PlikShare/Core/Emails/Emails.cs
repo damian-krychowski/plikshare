@@ -199,13 +199,12 @@ public static class Emails
 
     public static (string Title, string Content) ConfirmationEmail(
         string applicationName,
-        string link)
+        string? link)
     {
         return (
             Title: $"{applicationName} - confirm your email",
             Content: "Click this link to confirm your email address: " +
-                     "<br><br>" +
-                     link
+                     "<br><br>" + link
         );
     }
 

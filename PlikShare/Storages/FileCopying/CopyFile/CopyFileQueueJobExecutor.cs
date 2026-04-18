@@ -5,12 +5,9 @@ using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
-using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.Records;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.FileReading;
 using PlikShare.Uploads.Algorithm;
-using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.Chunking;
 using PlikShare.Uploads.FilePartUpload.Complete;
 using PlikShare.Workspaces.Cache;
@@ -326,15 +323,18 @@ public class CopyFileQueueJobExecutor(
     {
         try
         {
-            await using var fileStream = await FileReader.GetFile(
-                s3FileKey: job.SourceS3FileKey,
-                fileSizeInBytes: job.FileSizeInBytes,
-                fileEncryptionMetadata: job.SourceFileEncryptionMetadata,
-                workspace: sourceWorkspace,
+            var encryptionMode = job.SourceFileEncryptionMetadata.ToEncryptionMode(
                 workspaceEncryptionSession: null, //todo: background jobs cannot access full-encryption sessions yet
+                storageClient: sourceWorkspace.Storage);
+
+            await using var storageFile = await sourceWorkspace.DownloadFile(
+                fileDetails: new DownloadFileDetails(
+                    S3FileKey: job.SourceS3FileKey,
+                    FileSizeInBytes: job.FileSizeInBytes,
+                    EncryptionMode: encryptionMode),
                 cancellationToken: stoppingToken);
 
-            await fileStream.WriteTo(
+            await storageFile.ReadTo(
                 output: output,
                 cancellationToken: stoppingToken);
         }
@@ -362,10 +362,9 @@ public class CopyFileQueueJobExecutor(
                 FileSizeInBytes: job.FileSizeInBytes,
                 Part: FilePart.First((int) job.FileSizeInBytes),
                 UploadAlgorithm: UploadAlgorithm.DirectUpload,
-                EncryptionMode: encryptionMode,
-                BucketName: destinationWorkspace.BucketName);
+                EncryptionMode: encryptionMode);
 
-            await destinationWorkspace.Storage.UploadFilePart(
+            await destinationWorkspace.UploadFilePart(
                 input: input,
                 uploadDetails: uploadDetails,
                 cancellationToken: stoppingToken);
@@ -413,10 +412,9 @@ public class CopyFileQueueJobExecutor(
                     FileSizeInBytes: job.FileSizeInBytes,
                     Part: new FilePart(partNumber, partSizeInBytes),
                     UploadAlgorithm: UploadAlgorithm.MultiStepChunkUpload,
-                    EncryptionMode: encryptionMode,
-                    BucketName: destinationWorkspace.BucketName);
+                    EncryptionMode: encryptionMode);
 
-                var result = await destinationWorkspace.Storage.UploadFilePart(
+                var result = await destinationWorkspace.UploadFilePart(
                     input: input,
                     uploadDetails: uploadDetails,
                     cancellationToken: cancellationToken);

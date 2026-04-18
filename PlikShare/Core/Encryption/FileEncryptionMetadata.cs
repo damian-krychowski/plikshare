@@ -1,7 +1,4 @@
-﻿using PlikShare.Files.PreSignedLinks.RangeRequests;
-using PlikShare.Files.Records;
-using PlikShare.Storages.Encryption;
-using PlikShare.Uploads.Cache;
+﻿using PlikShare.Storages.Encryption;
 using System.ComponentModel;
 using PlikShare.Storages;
 
@@ -29,70 +26,26 @@ public static class FileEncryptionMetadataExtensions
 {
     extension(FileEncryptionMetadata? metadata)
     {
-        public int CalculateBufferSize(
-            FilePart part)
-        {
-            if (metadata is null)
-                return part.SizeInBytes;
-
-            if (metadata.FormatVersion == 1)
-                return Aes256GcmStreamingV1.CalculateEncryptedPartSize(
-                    part);
-
-            if (metadata.FormatVersion == 2)
-                return Aes256GcmStreamingV2.CalculateEncryptedPartSize(
-                    part,
-                    metadata.ChainStepSalts.Count);
-
-            throw new InvalidOperationException(
-                $"Unsupported file encryption format version '{metadata.FormatVersion}'.");
-        }
-
-        public BytesRange CalculateFileRange(
-            long fileSizeInBytes,
-            BytesRange range)
-        {
-            if (metadata is null)
-                return range;
-
-            if (metadata.FormatVersion == 1)
-            {
-                var encryptedRange = Aes256GcmStreamingV1.EncryptedBytesRangeCalculator.FromUnencryptedRange(
-                    unencryptedRange: range,
-                    unencryptedFileSize: fileSizeInBytes);
-
-                return encryptedRange.ToBytesRange();
-            }
-
-            if (metadata.FormatVersion == 2)
-            {
-                var encryptedRange = Aes256GcmStreamingV2.EncryptedBytesRangeCalculator.FromUnencryptedRange(
-                    unencryptedRange: range,
-                    unencryptedFileSize: fileSizeInBytes,
-                    chainStepsCount: metadata.ChainStepSalts.Count);
-
-                return encryptedRange.ToBytesRange();
-            }
-
-            throw new InvalidOperationException(
-                $"Unsupported file encryption format version '{metadata.FormatVersion}'.");
-        }
-        
-        public byte[]? ToIkm(
+        public FileEncryptionMode ToEncryptionMode(
             WorkspaceEncryptionSession? workspaceEncryptionSession,
             IStorageClient storageClient)
         {
-            if (metadata == null)
-                return null;
-
-            if (metadata is { FormatVersion: 1 })
+            if (metadata is null)
+                return NoEncryption.Instance;
+            
+            if (metadata.FormatVersion == 1)
             {
                 if (storageClient.Encryption is not ManagedStorageEncryption managed)
                     throw new InvalidOperationException(
                         $"Cannot resolve IKM for V1 file: storage encryption must be Managed, " +
                         $"but was '{storageClient.Encryption.GetType().Name}'.");
 
-                return managed.GetEncryptionKey(metadata.KeyVersion);
+                return new AesGcmV1Encryption(
+                    Input: new FileAesInputsV1(
+                        Ikm: managed.GetEncryptionKey(metadata.KeyVersion),
+                        KeyVersion: metadata.KeyVersion,
+                        Salt: metadata.Salt,
+                        NoncePrefix: metadata.NoncePrefix));
             }
 
             if (metadata is { FormatVersion: 2 })
@@ -101,61 +54,18 @@ public static class FileEncryptionMetadataExtensions
                     throw new InvalidOperationException(
                         "Cannot resolve IKM for V2 file: workspace encryption session is null.");
 
-                return workspaceEncryptionSession.GetDekForVersion(metadata.KeyVersion);
+                return new AesGcmV2Encryption(
+                    Input: new FileAesInputsV2(
+                        Ikm: workspaceEncryptionSession.GetDekForVersion(
+                            metadata.KeyVersion),
+                        KeyVersion: metadata.KeyVersion,
+                        ChainStepSalts: metadata.ChainStepSalts,
+                        Salt: metadata.Salt,
+                        NoncePrefix: metadata.NoncePrefix));
             }
 
             throw new InvalidOperationException(
                 $"Unsupported file encryption format version '{metadata.FormatVersion}'.");
-        }
-
-        public FileEncryptionMode ToEncryptionMode(
-            WorkspaceEncryptionSession? workspaceEncryptionSession,
-            IStorageClient storageClient)
-        {
-            if (metadata is null)
-                return NoEncryption.Instance;
-            
-            var ikm = metadata.ToIkm(
-                workspaceEncryptionSession: workspaceEncryptionSession,
-                storageClient: storageClient);
-
-            if (ikm is null)
-                throw new InvalidOperationException(
-                    $"Cannot build encryption mode for file with format version '{metadata.FormatVersion}' " +
-                    $"because encryption IKM is null.");
-
-            if (metadata.FormatVersion == 1)
-                return new AesGcmV1Encryption(
-                    Input: metadata.ToAesInputsV1(ikm));
-
-            if (metadata.FormatVersion == 2)
-                return new AesGcmV2Encryption(
-                    Input: metadata.ToAesInputsV2(ikm));
-
-            throw new InvalidOperationException(
-                $"Unsupported file encryption format version '{metadata.FormatVersion}'.");
-        }
-    }
-
-    extension(FileEncryptionMetadata metadata)
-    {
-        public FileAesInputsV1 ToAesInputsV1(byte[] ikm)
-        {
-            return new FileAesInputsV1(
-                Ikm: ikm,
-                KeyVersion: metadata.KeyVersion,
-                Salt: metadata.Salt,
-                NoncePrefix: metadata.NoncePrefix);
-        }
-
-        public FileAesInputsV2 ToAesInputsV2(byte[] ikm)
-        {
-            return new FileAesInputsV2(
-                Ikm: ikm,
-                KeyVersion: metadata.KeyVersion,
-                ChainStepSalts: metadata.ChainStepSalts,
-                Salt: metadata.Salt,
-                NoncePrefix: metadata.NoncePrefix);
         }
     }
 }

@@ -1,7 +1,6 @@
 using FluentAssertions;
 using PlikShare.Core.Encryption;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
-using static PlikShare.Core.Encryption.EncryptedBytesRange;
 
 namespace PlikShare.Tests;
 
@@ -280,8 +279,8 @@ public class EncryptedBytesRangeCalculatorV2Tests
 
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(0);
-        range.FirstSegmentReadOffset.Should().Be(2);
-        range.LastSegmentReadOffset.Should().Be(5);
+        range.FirstSegmentReadStart.Should().Be(2);
+        range.LastSegmentReadEnd.Should().Be(5);
     }
 
     [Fact]
@@ -312,7 +311,7 @@ public class EncryptedBytesRangeCalculatorV2Tests
 
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(1);
-        range.LastSegmentReadOffset.Should().Be(0);
+        range.LastSegmentReadEnd.Should().Be(0);
     }
 
     #endregion
@@ -331,7 +330,7 @@ public class EncryptedBytesRangeCalculatorV2Tests
             chainStepsCount: 1);
 
         rangeAtOldBoundary.FirstSegment.Number.Should().Be(1, "chain shifts the boundary one byte earlier");
-        rangeAtOldBoundary.FirstSegmentReadOffset.Should().Be(0);
+        rangeAtOldBoundary.FirstSegmentReadStart.Should().Be(0);
     }
 
     [Fact]
@@ -346,7 +345,7 @@ public class EncryptedBytesRangeCalculatorV2Tests
             chainStepsCount: 2);
 
         range.FirstSegment.Number.Should().Be(1);
-        range.FirstSegmentReadOffset.Should().Be(0);
+        range.FirstSegmentReadStart.Should().Be(0);
     }
 
     [Fact]
@@ -396,8 +395,8 @@ public class EncryptedBytesRangeCalculatorV2Tests
 
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(0);
-        range.FirstSegmentReadOffset.Should().Be(0);
-        range.LastSegmentReadOffset.Should().Be(99);
+        range.FirstSegmentReadStart.Should().Be(0);
+        range.LastSegmentReadEnd.Should().Be(99);
     }
 
     [Fact]
@@ -416,7 +415,7 @@ public class EncryptedBytesRangeCalculatorV2Tests
 
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(1);
-        range.LastSegmentReadOffset.Should().Be(0);
+        range.LastSegmentReadEnd.Should().Be(0);
     }
 
     [Fact]
@@ -433,7 +432,7 @@ public class EncryptedBytesRangeCalculatorV2Tests
             chainStepsCount: 0);
 
         range.FirstSegment.Number.Should().Be(range.LastSegment.Number);
-        var readLength = range.LastSegmentReadOffset - range.FirstSegmentReadOffset + 1;
+        var readLength = range.LastSegmentReadEnd - range.FirstSegmentReadStart + 1;
         readLength.Should().Be((int)(rangeEnd - rangeStart + 1));
     }
 
@@ -457,7 +456,7 @@ public class EncryptedBytesRangeCalculatorV2Tests
 
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(1);
-        range.LastSegmentReadOffset.Should().Be(0);
+        range.LastSegmentReadEnd.Should().Be(0);
     }
 
     [Fact]
@@ -476,7 +475,7 @@ public class EncryptedBytesRangeCalculatorV2Tests
 
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(1);
-        range.LastSegmentReadOffset.Should().Be(0);
+        range.LastSegmentReadEnd.Should().Be(0);
     }
 
     [Fact]
@@ -524,12 +523,12 @@ public class EncryptedBytesRangeCalculatorV2Tests
         range.FirstSegment.Number.Should().Be(0);
         range.LastSegment.Number.Should().Be(1);
 
-        var fromFirstSegment = firstSegmentCiphertextSize - range.FirstSegmentReadOffset;
-        var fromLastSegment = range.LastSegmentReadOffset + 1;
+        var fromFirstSegment = firstSegmentCiphertextSize - range.FirstSegmentReadStart;
+        var fromLastSegment = range.LastSegmentReadEnd + 1;
         var totalBytes = fromFirstSegment + fromLastSegment;
 
         totalBytes.Should().Be((int)expectedLength,
-            $"FirstSegmentReadOffset={range.FirstSegmentReadOffset}, LastSegmentReadOffset={range.LastSegmentReadOffset}");
+            $"FirstSegmentReadOffset={range.FirstSegmentReadStart}, LastSegmentReadOffset={range.LastSegmentReadEnd}");
     }
 
     #endregion
