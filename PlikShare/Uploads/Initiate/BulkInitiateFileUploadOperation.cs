@@ -455,13 +455,13 @@ public class BulkInitiateFileUploadOperation(
                 S3KeySecretPart = bu.S3Key.S3KeySecretPart,
 
                 S3UploadId = bu.StorageUploadDetails.S3UploadId,
+
                 EncryptionKeyVersion = bu.StorageUploadDetails.FileEncryptionMetadata?.KeyVersion,
                 EncryptionSalt = bu.StorageUploadDetails.FileEncryptionMetadata?.Salt,
                 EncryptionNoncePrefix = bu.StorageUploadDetails.FileEncryptionMetadata?.NoncePrefix,
-                EncryptionChainSalts = bu.StorageUploadDetails.FileEncryptionMetadata is null
-                    ? null
-                    : KeyDerivationChain.Serialize(bu.StorageUploadDetails.FileEncryptionMetadata.ChainStepSalts),
                 EncryptionFormatVersion = bu.StorageUploadDetails.FileEncryptionMetadata?.FormatVersion,
+                EncryptionChainSalts = KeyDerivationChain.Serialize(
+                    bu.StorageUploadDetails.FileEncryptionMetadata?.ChainStepSalts),
 
                 FileMetadataBlob = null,
                 ParentFileId = null

@@ -143,10 +143,9 @@ public class BulkInitiateCopyFileUploadOperation(
                         NewFileEncryptionKeyVersion = encryptionDetails?.KeyVersion,
                         NewFileEncryptionSalt = encryptionDetails?.Salt,
                         NewFileEncryptionNoncePrefix = encryptionDetails?.NoncePrefix,
-                        NewFileEncryptionChainSalts = encryptionDetails is null
-                            ? null
-                            : KeyDerivationChain.Serialize(encryptionDetails.ChainStepSalts),
-                        NewFileEncryptionFormatVersion = encryptionDetails?.FormatVersion
+                        NewFileEncryptionFormatVersion = encryptionDetails?.FormatVersion,
+                        NewFileEncryptionChainSalts = KeyDerivationChain.Serialize(
+                            encryptionDetails?.ChainStepSalts)
                     };
                 })
             .WithJsonParameter("$fileIds", fileIds)

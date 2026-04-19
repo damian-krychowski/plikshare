@@ -50,8 +50,11 @@ public static class KeyDerivationChain
         return current.ToArray();
     }
 
-    public static byte[]? Serialize(IReadOnlyList<byte[]> stepSalts)
+    public static byte[]? Serialize(IReadOnlyList<byte[]>? stepSalts)
     {
+        if (stepSalts is null)
+            return null;
+
         if (stepSalts.Count == 0)
             return null;
 

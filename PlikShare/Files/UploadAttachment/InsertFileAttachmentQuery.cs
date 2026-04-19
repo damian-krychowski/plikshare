@@ -121,9 +121,7 @@ public class InsertFileAttachmentQuery(
                 .WithParameter("$encryptionKeyVersion", attachment.EncryptionMetadata?.KeyVersion)
                 .WithParameter("$encryptionSalt", attachment.EncryptionMetadata?.Salt)
                 .WithParameter("$encryptionNoncePrefix", attachment.EncryptionMetadata?.NoncePrefix)
-                .WithParameter("$encryptionChainSalts", attachment.EncryptionMetadata is null
-                    ? null
-                    : KeyDerivationChain.Serialize(attachment.EncryptionMetadata.ChainStepSalts))
+                .WithParameter("$encryptionChainSalts", KeyDerivationChain.Serialize(attachment.EncryptionMetadata?.ChainStepSalts))
                 .WithParameter("$encryptionFormatVersion", attachment.EncryptionMetadata?.FormatVersion)
                 .ExecuteOrThrow();
 

@@ -15,10 +15,7 @@ using PlikShare.Files.Metadata;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.Records;
 using PlikShare.Storages;
-using PlikShare.Storages.Encryption;
-using PlikShare.Storages.FileReading;
 using PlikShare.Uploads.Algorithm;
-using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.Id;
 using PlikShare.Uploads.Initiate;
 using PlikShare.Workspaces.Cache;
@@ -227,7 +224,8 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 KeyVersion = fileInsertEntity.EncryptionKeyVersion.Value,
                 NoncePrefix = fileInsertEntity.EncryptionNoncePrefix!,
                 Salt = fileInsertEntity.EncryptionSalt!,
-                ChainStepSalts = []
+                ChainStepSalts = KeyDerivationChain.Deserialize(
+                    fileInsertEntity.EncryptionChainSalts)
             };
 
         var encryptionMode = fileEncryptionMetadata.ToEncryptionMode(
@@ -385,14 +383,9 @@ public class DownloadTextractAnalysisQueueJobExecutor(
         IStorageClient storage,
         WorkspaceEncryptionMetadata? workspaceEncryption)
     {
-        // Metadata generation works fine for Full destinations as long as we have the
-        // workspace salt (needed for the file-header chain). What will still fail is the
-        // later encryption step, which needs a Workspace DEK that this background job has
-        // no way to obtain without a service-account key mechanism (pending task).
-        var encryptionMetadata = storage.GenerateFileEncryptionMetadata(workspaceEncryption);
-
-        //TODO: THAT IS NOT FINISED (METADATA)
-
+        var encryptionMetadata = storage.GenerateFileEncryptionMetadata(
+            workspaceEncryption);
+        
         return new BulkInsertFileUploadQuery.InsertEntity
         {
             FileUploadExternalId = FileUploadExtId.NewId().Value,
@@ -409,10 +402,9 @@ public class DownloadTextractAnalysisQueueJobExecutor(
             EncryptionKeyVersion = encryptionMetadata?.KeyVersion,
             EncryptionSalt = encryptionMetadata?.Salt,
             EncryptionNoncePrefix = encryptionMetadata?.NoncePrefix,
-            EncryptionChainSalts = encryptionMetadata is null
-                ? null
-                : KeyDerivationChain.Serialize(encryptionMetadata.ChainStepSalts),
             EncryptionFormatVersion = encryptionMetadata?.FormatVersion,
+            EncryptionChainSalts = KeyDerivationChain.Serialize(
+                encryptionMetadata?.ChainStepSalts),
 
             ParentFileId = textractJob.OriginalFileId,
             FileMetadataBlob = Json.SerializeToBlob<FileMetadata>(new TextractResultFileMetadata

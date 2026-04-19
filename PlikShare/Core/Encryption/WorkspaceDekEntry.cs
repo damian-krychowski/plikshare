@@ -37,25 +37,18 @@ public sealed class WorkspaceDekEntryWire
 
 public static class WorkspaceDekEntryWireExtensions
 {
-    /// <summary>
-    /// Converts an in-memory entry into its wire form. The DEK plaintext is read
-    /// only inside the pinned SecureBytes buffer — it is encrypted by
-    /// <paramref name="masterEncryption"/> directly from that span, never copied
-    /// to an unpinned heap byte[].
-    /// </summary>
+    
     public static WorkspaceDekEntryWire ToWire(
         this WorkspaceDekEntry entry,
         IMasterDataEncryption masterEncryption)
     {
-        var encryptedDek = entry.Dek.Use(
-            masterEncryption,
-            static (span, enc) => enc.FastEncryptBytes(span));
-
         return new WorkspaceDekEntryWire
         {
             StorageDekVersion = entry.StorageDekVersion,
             Salt = entry.Salt,
-            EncryptedDek = encryptedDek
+
+            EncryptedDek = entry.Dek.ToWire(
+                masterEncryption)
         };
     }
 
@@ -67,34 +60,18 @@ public static class WorkspaceDekEntryWireExtensions
             .Select(entry => entry.ToWire(masterEncryption))
             .ToArray();
     }
-
-    /// <summary>
-    /// Converts a wire entry back into its in-memory form. The DEK plaintext is
-    /// written directly into a freshly allocated pinned SecureBytes buffer —
-    /// AesGcm.Decrypt writes straight into the pinned memory, so plaintext never
-    /// lands on the unpinned heap.
-    /// </summary>
     public static WorkspaceDekEntry ToEntry(
         this WorkspaceDekEntryWire wire,
         IMasterDataEncryption masterEncryption)
     {
-        var plaintextLength = masterEncryption.GetFastDecryptedLength(wire.EncryptedDek);
-
-        var dek = SecureBytes.Create(
-            length: plaintextLength,
-            state: new DecryptState
-            {
-                Encryption = masterEncryption,
-                EncryptedDek = wire.EncryptedDek
-            },
-            initializer: static (output, s) =>
-                s.Encryption.FastDecryptBytes(s.EncryptedDek, output));
-
         return new WorkspaceDekEntry
         {
             StorageDekVersion = wire.StorageDekVersion,
             Salt = wire.Salt,
-            Dek = dek
+
+            Dek = SecureBytes.FromWire(
+                encryptedSecureBytes: wire.EncryptedDek,
+                masterEncryption: masterEncryption)
         };
     }
 
@@ -105,11 +82,5 @@ public static class WorkspaceDekEntryWireExtensions
         return wires
             .Select(wire => wire.ToEntry(masterEncryption))
             .ToArray();
-    }
-
-    private readonly ref struct DecryptState
-    {
-        public required IMasterDataEncryption Encryption { get; init; }
-        public required byte[] EncryptedDek { get; init; }
     }
 }

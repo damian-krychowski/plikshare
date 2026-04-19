@@ -264,7 +264,7 @@ public class Startup
                 Expiration = TimeSpan.FromMinutes(30),
                 LocalCacheExpiration = TimeSpan.FromMinutes(30)
             };
-        }).AddSerializerFactory(new PlikShareJsonHybridCacheSerializerFactory());
+        });
 
         builder.SetupCors();
 

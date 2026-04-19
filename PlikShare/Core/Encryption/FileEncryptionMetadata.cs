@@ -48,7 +48,7 @@ public static class FileEncryptionMetadataExtensions
                         NoncePrefix: metadata.NoncePrefix));
             }
 
-            if (metadata is { FormatVersion: 2 })
+            if (metadata.FormatVersion == 2)
             {
                 if (workspaceEncryptionSession is null)
                     throw new InvalidOperationException(

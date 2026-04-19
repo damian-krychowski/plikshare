@@ -2,11 +2,6 @@
 
 public class CopyFileQueueOnCompletedActionDefinition
 {
-    public CopyFileQueueOnCompletedActionDefinition()
-    {
-        
-    }
-
     public required string HandlerType { get; init; }
-    public string? ActionHandlerDefinition { get; init; } = default;
+    public string? ActionHandlerDefinition { get; init; } = null;
 }
