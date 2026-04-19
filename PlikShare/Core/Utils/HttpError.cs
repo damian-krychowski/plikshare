@@ -437,6 +437,12 @@ public static class HttpErrors
             Code = "integration-doesnt-exist",
             Message = $"Integration with externalId '{externalId}' was not found"
         });
+
+        public static BadRequest<HttpError> NotSupportedOnEncryptedStorage() => TypedResults.BadRequest(new HttpError
+        {
+            Code = "integration-not-supported-on-encrypted-storage",
+            Message = "Integrations are not supported on fully-encrypted storages."
+        });
     }
 
     public static class File

@@ -175,6 +175,9 @@ public static class ArtificialIntelligenceEndpoints
             SendAiFileMessageOperation.ResultCode.StaleCounter =>
                 HttpErrors.ArtificialIntelligence.StaleConversationCounter(),
 
+            SendAiFileMessageOperation.ResultCode.EncryptedStorageNotSupported =>
+                HttpErrors.Integration.NotSupportedOnEncryptedStorage(),
+
             _ => throw new UnexpectedOperationResultException(
                 operationName: nameof(SendAiFileMessageOperation),
                 resultValueStr: result.ToString())

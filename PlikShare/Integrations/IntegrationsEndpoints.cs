@@ -113,6 +113,9 @@ public static class IntegrationsEndpoints
                 return HttpErrors.Storage.NotFound(
                     result.MissingStorageExternalId!.Value);
 
+            case CreateIntegrationWithWorkspaceQuery.ResultCode.EncryptedStorageNotSupported:
+                return HttpErrors.Integration.NotSupportedOnEncryptedStorage();
+
             default:
                 throw new UnexpectedOperationResultException(
                     operationName: nameof(CreateIntegrationWithWorkspaceQuery),

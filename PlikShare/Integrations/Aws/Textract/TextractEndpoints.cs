@@ -139,6 +139,9 @@ public static class TextractEndpoints
                 ExternalId = result.TextractJob!.ExternalId
             }),
 
+            StartTextractJobOperation.ResultCode.EncryptedStorageNotSupported =>
+                HttpErrors.Integration.NotSupportedOnEncryptedStorage(),
+
             _ => throw new UnexpectedOperationResultException(
                 operationName: nameof(StartTextractJobOperation),
                 resultValueStr: result.Code.ToString())

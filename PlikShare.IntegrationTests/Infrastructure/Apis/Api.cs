@@ -28,6 +28,8 @@ public class Api(IFlurlClient flurlClient, string appUrl)
     public AccessCodesApi AccessCodesApi = new(flurlClient, appUrl);
 
     public IntegrationsApi Integrations { get; } = new(flurlClient, appUrl);
+    public TextractApi Textract { get; } = new(flurlClient, appUrl);
+    public ArtificialIntelligenceApi Ai { get; } = new(flurlClient, appUrl);
 
     public AuditLogApi AuditLog { get; } = new(flurlClient, appUrl);
 

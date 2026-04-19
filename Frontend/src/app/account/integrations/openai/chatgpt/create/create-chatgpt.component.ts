@@ -159,6 +159,7 @@ export class CreateChatGptComponent implements OnInit {
     pickStorage() {
         const awsS3Storages = this
             ._storages
+            .filter(s => s.encryptionType !== 'full')
             .map((s) => {
                 const storage: AppStorage = {
                     externalId: s.externalId,

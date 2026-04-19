@@ -9,6 +9,7 @@ using PlikShare.Files.Id;
 using PlikShare.Integrations.Aws.Textract.Id;
 using PlikShare.Integrations.Aws.Textract.Jobs.InitiateTextractAnalysis;
 using PlikShare.Integrations.Aws.Textract.Jobs.UpdateJobTextractFileAndStatus;
+using PlikShare.Storages.Encryption;
 using PlikShare.Storages.FileCopying;
 using PlikShare.Storages.FileCopying.BulkInitiateCopyFiles;
 using PlikShare.Workspaces.Cache;
@@ -30,6 +31,10 @@ public class StartTextractJobOperation(
         Guid correlationId,
         CancellationToken cancellationToken)
     {
+        if (workspace.Storage.Encryption.Type == StorageEncryptionType.Full)
+            return new Result(
+                Code: ResultCode.EncryptedStorageNotSupported);
+
         if (workspace.Integrations.Textract is null)
             return new Result(
                 Code: ResultCode.TextractIntegrationNotAvailable);
@@ -275,7 +280,8 @@ public class StartTextractJobOperation(
     {
         Ok = 0,
         TextractIntegrationNotAvailable,
-        FileNotFound
+        FileNotFound,
+        EncryptedStorageNotSupported
     }
 
     public readonly record struct Result(

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using PlikShare.AuditLog;
 using PlikShare.AuditLog.Details;
 using PlikShare.Integrations;
@@ -6,6 +7,7 @@ using PlikShare.Integrations.Create.Contracts;
 using PlikShare.Integrations.List.Contracts;
 using PlikShare.Integrations.UpdateName.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
+using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.Storages.Encryption;
 using Xunit.Abstractions;
 using Audit = PlikShare.AuditLog.Details.Audit;
@@ -274,6 +276,60 @@ public class integrations_tests : TestFixture
             assertDetails: details => details.Integration.ExternalId.Should().Be(response.ExternalId),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Warning);
+    }
+
+    [Fact]
+    public async Task creating_aws_textract_integration_on_full_encrypted_storage_returns_bad_request()
+    {
+        //given
+        var fullStorage = await CreateHardDriveStorage(
+            user: AppOwner,
+            encryptionType: StorageEncryptionType.Full);
+
+        //when
+        var apiError = await Assert.ThrowsAsync<TestApiCallException>(
+            async () => await Api.Integrations.Create(
+                request: new CreateAwsTextractIntegrationRequestDto
+                {
+                    Name = Random.Name("Textract"),
+                    StorageExternalId = fullStorage.ExternalId,
+                    AccessKey = Random.ClientId(),
+                    SecretAccessKey = Random.ClientSecret(),
+                    Region = "us-east-1"
+                },
+                cookie: AppOwner.Cookie,
+                antiforgery: AppOwner.Antiforgery));
+
+        //then
+        apiError.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        apiError.HttpError.Should().NotBeNull();
+        apiError.HttpError!.Code.Should().Be("integration-not-supported-on-encrypted-storage");
+    }
+
+    [Fact]
+    public async Task creating_openai_chatgpt_integration_on_full_encrypted_storage_returns_bad_request()
+    {
+        //given
+        var fullStorage = await CreateHardDriveStorage(
+            user: AppOwner,
+            encryptionType: StorageEncryptionType.Full);
+
+        //when
+        var apiError = await Assert.ThrowsAsync<TestApiCallException>(
+            async () => await Api.Integrations.Create(
+                request: new CreateOpenAiChatGptIntegrationRequestDto
+                {
+                    Name = Random.Name("ChatGpt"),
+                    StorageExternalId = fullStorage.ExternalId,
+                    ApiKey = Random.ClientSecret()
+                },
+                cookie: AppOwner.Cookie,
+                antiforgery: AppOwner.Antiforgery));
+
+        //then
+        apiError.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        apiError.HttpError.Should().NotBeNull();
+        apiError.HttpError!.Code.Should().Be("integration-not-supported-on-encrypted-storage");
     }
 
     private async Task<CreateIntegrationResponseDto> CreateTextractIntegration()

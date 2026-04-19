@@ -6,6 +6,7 @@ using PlikShare.Core.SQLite;
 using PlikShare.Integrations.Aws.Textract;
 using PlikShare.Integrations.OpenAi.ChatGpt;
 using PlikShare.Storages;
+using PlikShare.Storages.Encryption;
 using PlikShare.Users.Cache;
 using PlikShare.Workspaces.Id;
 
@@ -146,11 +147,9 @@ public class WorkspaceCache(
                 $"Storage#{workspace.StorageId} of workspace '{workspace.ExternalId}' was not found.");
         }
 
-        var textractClient = textractClientStore.TryGetClient(
-            workspaceId: workspace.Id,
-            storageId: workspace.StorageId);
-
-        var chatGptClients = chatGptClientStore.GetClients();
+        var integrations = PrepareWorkspaceIntegrations(
+            workspace, 
+            storageClient);
 
         return new WorkspaceContext
         {
@@ -166,12 +165,37 @@ public class WorkspaceCache(
             Owner = owner,
             Storage = storageClient,
             EncryptionMetadata = workspace.EncryptionMetadata,
-            Integrations = new WorkspaceIntegrations
-            {
-                Textract = textractClient,
-                ChatGpt = chatGptClients
-            }
+            Integrations = integrations
         };
+    }
+
+    private WorkspaceIntegrations PrepareWorkspaceIntegrations(
+        WorkspaceCached workspace, 
+        IStorageClient storageClient)
+    {
+        // Full-encrypted storages must not expose any third-party integration: the server cannot
+        // read file contents, so Textract/ChatGPT can't operate, and silently returning an
+        // unrelated client (TextractClientStore falls back to any registered client) would surface
+        // bogus actions in the UI and leak cross-storage integration presence.
+        var isFullyEncrypted = storageClient.Encryption.Type == StorageEncryptionType.Full;
+
+        var textractClient = isFullyEncrypted
+            ? null
+            : textractClientStore.TryGetClient(
+                workspaceId: workspace.Id,
+                storageId: workspace.StorageId);
+
+        var chatGptClients = isFullyEncrypted
+            ? []
+            : chatGptClientStore.GetClients();
+
+        var integrations = new WorkspaceIntegrations
+        {
+            Textract = textractClient,
+            ChatGpt = chatGptClients
+        };
+
+        return integrations;
     }
 
     public ValueTask InvalidateEntry(

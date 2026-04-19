@@ -16,6 +16,7 @@ using PlikShare.Files.AiConversation;
 using PlikShare.Files.Artifacts;
 using PlikShare.Files.Id;
 using PlikShare.Integrations.Id;
+using PlikShare.Storages.Encryption;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 
@@ -38,6 +39,9 @@ public class SendAiFileMessageOperation(
         Guid correlationId,
         CancellationToken cancellationToken)
     {
+        if (workspace.Storage.Encryption.Type == StorageEncryptionType.Full)
+            return ResultCode.EncryptedStorageNotSupported;
+
         if (!HasUserRightsToAllIncludes(workspace, request.Includes))
             return ResultCode.FileNotFound;
 
@@ -571,7 +575,8 @@ public class SendAiFileMessageOperation(
     {
         Ok,
         FileNotFound,
-        StaleCounter
+        StaleCounter,
+        EncryptedStorageNotSupported
     }
 
     private readonly record struct AiMessage(
