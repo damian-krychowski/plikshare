@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using PlikShare.Core.IdentityProvider;
 using PlikShare.Users.Entities;
+using PlikShare.Users.Id;
 using Serilog;
 
 namespace PlikShare.Core.Authorization;
@@ -27,18 +28,28 @@ public static class AppOwnersStartupExtensions
         
         foreach (var owner in appOwners.Owners())
         {
-            CreateUserIfDoesntExist( 
-                owner: owner,
+            var externalId = CreateUserIfDoesntExist( 
+                owner: owner.Email,
                 password: appOwners.InitialPassword,
                 userStore: userStore, 
-                userManager: userManager).Wait();
+                userManager: userManager).Result;
+
+            // AppOwners singleton is registered during SetupAuth (builder phase) based purely on
+            // configuration (emails + initial password), before the database is available and
+            // before Identity services can be resolved. The UserExtId for each owner only comes
+            // into existence here, during app initialization, when we actually create/lookup the
+            // underlying ApplicationUser. We back-fill it into the already-registered AppOwners
+            // instance instead of constructing a second, "complete" AppOwners later — this way
+            // consumers across the app always inject the same singleton and, once startup
+            // finishes, get a fully populated object with ExternalId available.
+            owner.SetExternalId(externalId);
         }
 
         Log.Information("[INITIALIZATION] App Owners initialization finished: {AppOwners}.",
-            appOwners.Owners().Select(owner => EmailAnonymization.Anonymize(owner.Value)));
+            appOwners.Owners().Select(owner => owner.Email.Anonymize()));
     }
 
-    private static async Task CreateUserIfDoesntExist( 
+    private static async Task<UserExtId> CreateUserIfDoesntExist( 
         Email owner, 
         string password,
         IUserStore<ApplicationUser> userStore,
@@ -50,8 +61,8 @@ public static class AppOwnersStartupExtensions
             normalizedUserName: owner.Normalized,
             cancellationToken: CancellationToken.None);
             
-        if(user is not null)
-            return;
+        if (user is not null)
+            return UserExtId.Parse(user.Id);
 
         user = new ApplicationUser
         {
@@ -97,5 +108,7 @@ public static class AppOwnersStartupExtensions
 
         Log.Information("AppOwner '{AppOwnerEmail}' user was created with initial password.",
             owner.Value);
+
+        return UserExtId.Parse(user.Id);
     }
 }

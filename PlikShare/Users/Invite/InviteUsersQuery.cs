@@ -93,6 +93,7 @@ public class InviteUsersQuery(
     {
         var normalizedEmail = email.Normalized;
         var invitationCode = oneTimeInvitationCode.Generate();
+        var invitationCodeHash = InvitationCodeHasher.Hash(invitationCode);
         var securityStamp = Guid.NewGuid().ToString();
         var concurrencyStamp = Guid.NewGuid().ToString();
         var externalId = UserExtId.NewId();
@@ -121,7 +122,7 @@ public class InviteUsersQuery(
                          u_lockout_enabled,
                          u_access_failed_count,
                          u_is_invitation,
-                         u_invitation_code,
+                         u_invitation_code_hash,
                          u_max_workspace_number,
                          u_default_max_workspace_size_in_bytes,
                          u_default_max_workspace_team_members
@@ -142,7 +143,7 @@ public class InviteUsersQuery(
                          FALSE,
                          0,
                          TRUE,
-                         $invitationCode,
+                         $invitationCodeHash,
                          $maxWorkspaceNumber,
                          $defaultMaxWorkspaceSizeInBytes,
                          $defaultMaxWorkspaceTeamMembers
@@ -160,7 +161,7 @@ public class InviteUsersQuery(
             .WithParameter("$normalizedEmail", normalizedEmail)
             .WithParameter("$securityStamp", securityStamp)
             .WithParameter("$concurrencyStamp", concurrencyStamp)
-            .WithParameter("$invitationCode", invitationCode)
+            .WithParameter("$invitationCodeHash", invitationCodeHash)
             .WithParameter("$maxWorkspaceNumber", maxWorkspaceNumber)
             .WithParameter("$defaultMaxWorkspaceSizeInBytes", defaultMaxWorkspaceSizeInBytes)
             .WithParameter("$defaultMaxWorkspaceTeamMembers", defaultMaxWorkspaceTeamMembers)

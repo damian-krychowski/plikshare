@@ -301,6 +301,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_24_UserEncryptionKeypairIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_25_StorageEncryptionKeysIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_26_WorkspaceEncryptionKeysIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_27_InvitationCodeHashedAndInvalidated>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 

@@ -42,7 +42,7 @@ public static class AuthorizationStartupExtensions
         ArgumentNullException.ThrowIfNull(app);
 
         app.Services.AddSingleton(
-            GetAppOwnersOrThrow(app));
+            InitializeAppOwnersOrThrow(app));
 
         app.Services.AddAntiforgery(options =>
         {
@@ -149,7 +149,8 @@ public static class AuthorizationStartupExtensions
         Log.Information("[SETUP] Auth setup finished.");
     }
     
-    private static AppOwners GetAppOwnersOrThrow(WebApplicationBuilder app)
+    private static AppOwners InitializeAppOwnersOrThrow(
+        WebApplicationBuilder app)
     {
         var ownersStr = app.Configuration.GetValue<string>(
             "AppOwners");
@@ -173,6 +174,7 @@ public static class AuthorizationStartupExtensions
             .Split(",", StringSplitOptions.RemoveEmptyEntries)
             .Select(owner => new Email(owner))
             .ToList();
+
 
         return new AppOwners(
             owners, 

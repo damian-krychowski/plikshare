@@ -4,7 +4,6 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Users.Entities;
-using PlikShare.Users.GetOrCreate;
 using PlikShare.Users.Id;
 using PlikShare.Users.Sql;
 
@@ -13,8 +12,7 @@ namespace PlikShare.Users.Cache;
 public class UserCache(
     PlikShareDb plikShareDb,
     AppOwners appOwners,
-    HybridCache cache,
-    GetOrCreateUserInvitationQuery getOrCreateUserInvitationQuery)
+    HybridCache cache)
 {
     // Probe options: read from cache without writing anything back when the factory returns null.
     private static readonly HybridCacheEntryOptions ProbeOptions = new()
@@ -23,33 +21,10 @@ public class UserCache(
               | HybridCacheEntryFlags.DisableDistributedCacheWrite
     };
 
-    private static string UserEmailKey(string email) => $"user:email:{email}";
     private static string UserIdKey(int userId) => $"user:id:{userId}";
     private static string UserExtIdKey(UserExtId extId) => $"user:extid:{extId.Value}";
     private static string UserTag(int userId) => $"user-{userId}";
-
-    public async ValueTask<UserContext> GetOrCreateUserInvitationByEmail(
-        Email email,
-        CancellationToken cancellationToken)
-    {
-        var cached = await ProbeCache(
-            UserEmailKey(email.Value),
-            cancellationToken);
-
-        if (cached is not null)
-            return cached;
-
-        var user = await getOrCreateUserInvitationQuery.Execute(
-            email,
-            cancellationToken);
-
-        await StoreInAllKeys(
-            user,
-            cancellationToken);
-
-        return user;
-    }
-
+    
     public async ValueTask<UserContext?> TryGetUser(
         int userId,
         CancellationToken cancellationToken)
@@ -68,26 +43,6 @@ public class UserCache(
             primaryKey: UserExtIdKey(userExternalId),
             loader: () => GetUser(UserLookup.ByExternalId(userExternalId)),
             cancellationToken: cancellationToken);
-    }
-
-    public async ValueTask<UserContext?> TryGetUser(
-        Email email,
-        CancellationToken cancellationToken)
-    {
-        return await GetOrLoadAsync(
-            primaryKey: UserEmailKey(email.Value),
-            loader: () => GetUser(UserLookup.ByEmail(email)),
-            cancellationToken: cancellationToken);
-    }
-
-    public async ValueTask<UserContext> GetOrThrow(
-        Email email,
-        CancellationToken cancellationToken)
-    {
-        var user = await TryGetUser(email, cancellationToken);
-
-        return user ?? throw new InvalidOperationException(
-            $"User with email '{email.Anonymize()}' was not found.");
     }
 
     public async ValueTask<UserContext> GetOrThrow(
@@ -153,12 +108,6 @@ public class UserCache(
             user,
             tags: tags,
             cancellationToken: cancellationToken);
-
-        await cache.SetAsync(
-            UserEmailKey(user.Email.Value),
-            user,
-            tags: tags,
-            cancellationToken: cancellationToken);
     }
 
     public ValueTask InvalidateEntry(
@@ -194,27 +143,6 @@ public class UserCache(
         }
     }
 
-    public async ValueTask InvalidateEntry(
-        Email email,
-        CancellationToken cancellationToken)
-    {
-        var cached = await ProbeCache(
-            UserEmailKey(email.Value),
-            cancellationToken);
-
-        if (cached is not null)
-        {
-            await InvalidateEntry(
-                cached.Id,
-                cancellationToken);
-        }
-        else
-        {
-            await cache.RemoveAsync(
-                UserEmailKey(email.Value),
-                cancellationToken);
-        }
-    }
 
     public ValueTask InvalidateAllEntries(CancellationToken cancellationToken)
     {
@@ -234,6 +162,7 @@ public class UserCache(
                     u_external_id,
                     u_id,
                     u_email_confirmed,
+                    u_invitation_code_hash,
                     u_security_stamp,
                     u_concurrency_stamp,
                     ({UserSql.HasRole(Roles.Admin)}) AS u_is_admin,
@@ -245,7 +174,6 @@ public class UserCache(
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuth)}) AS u_can_manage_auth,
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageIntegrations)}) AS u_can_manage_integrations,
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuditLog)}) AS u_can_manage_audit_log,
-                    u_invitation_code,
                     u_max_workspace_number,
                     u_default_max_workspace_size_in_bytes,
                     u_default_max_workspace_team_members,
@@ -277,30 +205,30 @@ public class UserCache(
 
                         Stamps = new UserSecurityStamps
                         {
-                            Security = reader.GetString(5),
-                            Concurrency = reader.GetString(6)
+                            Security = reader.GetString(6),
+                            Concurrency = reader.GetString(7)
                         },
 
                         Roles = new UserRoles
                         {
                             IsAppOwner = appOwners.IsAppOwner(email),
-                            IsAdmin = reader.GetBoolean(7)
+                            IsAdmin = reader.GetBoolean(8)
                         },
 
                         Permissions = new UserPermissions
                         {
-                            CanAddWorkspace = reader.GetBoolean(8),
-                            CanManageGeneralSettings = reader.GetBoolean(9),
-                            CanManageUsers = reader.GetBoolean(10),
-                            CanManageStorages = reader.GetBoolean(11),
-                            CanManageEmailProviders = reader.GetBoolean(12),
-                            CanManageAuth = reader.GetBoolean(13),
-                            CanManageIntegrations = reader.GetBoolean(14),
-                            CanManageAuditLog = reader.GetBoolean(15)
+                            CanAddWorkspace = reader.GetBoolean(9),
+                            CanManageGeneralSettings = reader.GetBoolean(10),
+                            CanManageUsers = reader.GetBoolean(11),
+                            CanManageStorages = reader.GetBoolean(12),
+                            CanManageEmailProviders = reader.GetBoolean(13),
+                            CanManageAuth = reader.GetBoolean(14),
+                            CanManageIntegrations = reader.GetBoolean(15),
+                            CanManageAuditLog = reader.GetBoolean(16)
                         },
 
                         Invitation = isInvitation
-                            ? new UserInvitation { Code = reader.GetString(16) }
+                            ? new UserInvitation { CodeHash = reader.GetFieldValue<byte[]>(5) }
                             : null,
 
                         MaxWorkspaceNumber = reader.GetInt32OrNull(17),

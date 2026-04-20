@@ -20,7 +20,7 @@ public class CreateWorkspaceMemberInvitationQuery(
     public Task Execute(
         WorkspaceContext workspace,
         UserContext inviter,
-        UserContext[] members,
+        Member[] members,
         bool allowShare,
         Guid correlationId,
         CancellationToken cancellationToken)
@@ -40,7 +40,7 @@ public class CreateWorkspaceMemberInvitationQuery(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         UserContext inviter,
-        UserContext[] members,
+        Member[] members,
         bool allowShare,
         Guid correlationId)
     {
@@ -54,7 +54,7 @@ public class CreateWorkspaceMemberInvitationQuery(
             foreach (var member in members)
             {
                 var insertInvitationResult = InsertWorkspaceInvitation(
-                    member.Id,
+                    member.User.Id,
                     workspace.Id,
                     inviter.Id,
                     allowShare,
@@ -72,7 +72,7 @@ public class CreateWorkspaceMemberInvitationQuery(
                     dbWriteContext,
                     transaction);
 
-                invitedMemberIds.Add(member.Id);
+                invitedMemberIds.Add(member.User.Id);
                 createdQueueJobIds.Add(queueJob.Value);
             }
 
@@ -80,7 +80,7 @@ public class CreateWorkspaceMemberInvitationQuery(
 
             Log.Information("Members '{MemberIds}' was invited to Workspace#{WorkspaceId} by Inviter '{InviterId}'. " +
                             "QueryResult: '{@QueryResult}'",
-                members.Select(x => x.Id),
+                members.Select(x => x.User.Id),
                 workspace.Id,
                 inviter.Id,
                 new
@@ -97,7 +97,7 @@ public class CreateWorkspaceMemberInvitationQuery(
                 "Something went wrong while creating Workspace#{WorkspaceId} invitation by Inviter '{InviterId}' to Member '{MemberIds}'",
                 workspace.Id,
                 inviter.Id,
-                members.Select(x => x.Id));
+                members.Select(x => x.User.Id));
 
             throw;
         }
@@ -105,27 +105,23 @@ public class CreateWorkspaceMemberInvitationQuery(
 
     private SQLiteOneRowCommandResult<QueueJobId> EnqueueWorkspaceInvitationEmail(
         Guid correlationId,
-        UserContext member,
+        Member member,
         Email inviterEmail,
         string workspaceName,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
-        var wasMemberFreshlyInvited = member.Status == UserStatus.Invitation;
-
         return queue.Enqueue(
             correlationId: correlationId,
             jobType: EmailQueueJobType.Value,
             definition: new EmailQueueJobDefinition<WorkspaceMembershipInvitationEmailDefinition>
             {
-                Email = member.Email.Value,
+                Email = member.User.Email.Value,
                 Template = EmailTemplate.WorkspaceMembershipInvitation,
                 Definition = new WorkspaceMembershipInvitationEmailDefinition(
                     InviterEmail: inviterEmail.Value,
                     WorkspaceName: workspaceName,
-                    InvitationCode: wasMemberFreshlyInvited
-                        ? member.Invitation!.Code
-                        : null)
+                    InvitationCode: member.InvitationCode?.Value)
             },
             executeAfterDate: clock.UtcNow,
             debounceId: null,
@@ -172,4 +168,8 @@ public class CreateWorkspaceMemberInvitationQuery(
             .WithParameter("$now", clock.UtcNow)
             .Execute();
     }
+
+    public record Member(
+        UserContext User,
+        InvitationCode? InvitationCode);
 }

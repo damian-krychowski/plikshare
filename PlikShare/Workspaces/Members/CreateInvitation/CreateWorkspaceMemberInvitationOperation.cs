@@ -1,13 +1,14 @@
 using PlikShare.Users.Cache;
 using PlikShare.Users.Entities;
+using PlikShare.Users.GetOrCreate;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Permissions;
 
 namespace PlikShare.Workspaces.Members.CreateInvitation;
 
 public class CreateWorkspaceMemberInvitationOperation(
-    UserCache userCache,
-    CreateWorkspaceMemberInvitationQuery createWorkspaceMemberInvitationQuery)
+    CreateWorkspaceMemberInvitationQuery createWorkspaceMemberInvitationQuery,
+    GetOrCreateUserInvitationQuery getOrCreateUserInvitationQuery)
 {
     public async Task<Result> Execute(
         WorkspaceContext workspace,
@@ -17,15 +18,17 @@ public class CreateWorkspaceMemberInvitationOperation(
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        var list = new List<UserContext>();
+        var list = new List<CreateWorkspaceMemberInvitationQuery.Member>();
 
         foreach (var email in memberEmails)
         {
-            var user = await userCache.GetOrCreateUserInvitationByEmail(
+            var (user, invitationCode) = await getOrCreateUserInvitationQuery.Execute(
                 email,
                 cancellationToken);
 
-            list.Add(user);
+            list.Add(new CreateWorkspaceMemberInvitationQuery.Member(
+                User: user,
+                InvitationCode: invitationCode));
         }
 
         var members = list
@@ -40,7 +43,7 @@ public class CreateWorkspaceMemberInvitationOperation(
             cancellationToken: cancellationToken);
 
         return new Result(
-            Members: members);
+            Members: members.Select(m => m.User).ToArray());
     }
 
     public readonly record struct Result(

@@ -1,6 +1,7 @@
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Users.Entities;
+using PlikShare.Users.Invite;
 
 namespace PlikShare.Auth.CheckInvitation;
 
@@ -12,25 +13,27 @@ public class CheckUserInvitationCodeQuery(PlikShareDb plikShareDb)
     {
         using var connection = plikShareDb.OpenConnection();
 
-        var result = connection
+        var storedHash = connection
             .OneRowCmd(
                 sql: @"
-                    SELECT u_invitation_code
+                    SELECT u_invitation_code_hash
                     FROM u_users
-                    WHERE 
+                    WHERE
                         u_normalized_email = $normalizedEmail
                         AND u_is_invitation = TRUE
                     LIMIT 1
                 ",
-                readRowFunc: reader => reader.GetString(0))
+                readRowFunc: reader => reader.GetFieldValue<byte[]>(0))
             .WithParameter("$normalizedEmail", Email.Normalize(email))
             .Execute();
 
-        if (result.IsEmpty)
+        if (storedHash.IsEmpty)
             return ResultCode.WrongInvitationCode;
 
-        return invitationCode.Equals(result.Value) 
-            ? ResultCode.Ok 
+        var submittedHash = InvitationCodeHasher.Hash(invitationCode);
+
+        return InvitationCodeHasher.FixedTimeEquals(submittedHash, storedHash.Value)
+            ? ResultCode.Ok
             : ResultCode.WrongInvitationCode;
     }
 

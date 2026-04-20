@@ -3,11 +3,11 @@ using PlikShare.Core.Authorization;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
-using PlikShare.Core.Utils;
 using PlikShare.GeneralSettings;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
+using PlikShare.Users.Invite;
 using PlikShare.Users.Sql;
 using Serilog;
 
@@ -16,9 +16,10 @@ namespace PlikShare.Users.GetOrCreate;
 public class GetOrCreateUserInvitationQuery(
     DbWriteQueue dbWriteQueue,
     AppOwners appOwners,
-    AppSettings appSettings)
+    AppSettings appSettings,
+    IOneTimeInvitationCode oneTimeInvitationCode)
 {
-    public Task<UserContext> Execute(
+    public Task<Result> Execute(
         Email email,
         CancellationToken cancellationToken)
     {
@@ -29,7 +30,7 @@ public class GetOrCreateUserInvitationQuery(
             cancellationToken: cancellationToken);
     }
 
-    private UserContext ExecuteOperation(
+    private Result ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         Email email)
     {
@@ -44,13 +45,13 @@ public class GetOrCreateUserInvitationQuery(
 
             transaction.Commit();
 
-            if (result.WasJustCreated)
+            if (result.InvitationCode is not null)
             {
                 Log.Information("User '{UserEmail}' was created.",
                     email.Anonymize());
             }
 
-            return result.User;
+            return result;
         }
         catch (Exception e)
         {
@@ -63,7 +64,7 @@ public class GetOrCreateUserInvitationQuery(
         }
     }
 
-    private (UserContext User, bool WasJustCreated) GetOrCreateUserInvitation(
+    private Result GetOrCreateUserInvitation(
         Email email,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
@@ -74,7 +75,9 @@ public class GetOrCreateUserInvitationQuery(
             transaction);
 
         if (!userResult.IsEmpty)
-            return (userResult.Value, WasJustCreated: false);
+            return new Result(
+                User: userResult.Value,
+                InvitationCode: null);
 
         var newUserResult = TryInsertUserInvitation(
             email,
@@ -82,7 +85,7 @@ public class GetOrCreateUserInvitationQuery(
             transaction);
 
         if (!newUserResult.IsEmpty)
-            return (newUserResult.Value, WasJustCreated: true);
+            return newUserResult.Value;
 
         userResult = TrySelectUser(
             email,
@@ -95,17 +98,20 @@ public class GetOrCreateUserInvitationQuery(
                 $"Cannot create nor select user with email '{email}'");
         }
 
-        return (userResult.Value, WasJustCreated: false);
+        return new Result(
+            User: userResult.Value,
+            InvitationCode: null);
     }
 
-    private SQLiteOneRowCommandResult<UserContext> TryInsertUserInvitation(
+    private SQLiteOneRowCommandResult<Result> TryInsertUserInvitation(
         Email email,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
         var externalId = UserExtId.NewId();
         var normalizedEmail = email.Normalized;
-        var invitationCode = Guid.NewGuid().ToBase62();
+        var invitationCode = oneTimeInvitationCode.Generate();
+        var invitationCodeHash = InvitationCodeHasher.Hash(invitationCode);
         var securityStamp = Guid.NewGuid().ToString();
         var concurrencyStamp = Guid.NewGuid().ToString();
 
@@ -133,7 +139,7 @@ public class GetOrCreateUserInvitationQuery(
                          u_lockout_enabled,
                          u_access_failed_count,
                          u_is_invitation,
-                         u_invitation_code,
+                         u_invitation_code_hash,
                          u_max_workspace_number,
                          u_default_max_workspace_size_in_bytes,
                          u_default_max_workspace_team_members
@@ -154,7 +160,7 @@ public class GetOrCreateUserInvitationQuery(
                          FALSE,
                          0,
                          TRUE,
-                         $invitationCode,
+                         $invitationCodeHash,
                          $maxWorkspaceNumber,
                          $defaultMaxWorkspaceSizeInBytes,
                          $defaultMaxWorkspaceTeamMembers
@@ -163,44 +169,46 @@ public class GetOrCreateUserInvitationQuery(
                      RETURNING
                          u_id
                      """,
-                readRowFunc: reader => new UserContext
-                {
-                    Status = UserStatus.Invitation,
-                    Id = reader.GetInt32(0),
-                    ExternalId = externalId,
-                    Email = email,
-                    IsEmailConfirmed = false,
-                    Stamps = new UserSecurityStamps
+                readRowFunc: reader => new Result(
+                    User: new UserContext
                     {
-                        Security = securityStamp,
-                        Concurrency = concurrencyStamp
+                        Status = UserStatus.Invitation,
+                        Id = reader.GetInt32(0),
+                        ExternalId = externalId,
+                        Email = email,
+                        IsEmailConfirmed = false,
+                        Stamps = new UserSecurityStamps
+                        {
+                            Security = securityStamp,
+                            Concurrency = concurrencyStamp
+                        },
+                        Roles = new UserRoles
+                        {
+                            IsAppOwner = appOwners.IsAppOwner(email),
+                            IsAdmin = false
+                        },
+                        Permissions = new UserPermissions
+                        {
+                            CanAddWorkspace = false,
+                            CanManageGeneralSettings = false,
+                            CanManageUsers = false,
+                            CanManageStorages = false,
+                            CanManageEmailProviders = false,
+                            CanManageAuth = false,
+                            CanManageIntegrations = false,
+                            CanManageAuditLog = false
+                        },
+                        Invitation = new UserInvitation { CodeHash = invitationCodeHash },
+                        MaxWorkspaceNumber = maxWorkspaceNumber,
+                        DefaultMaxWorkspaceSizeInBytes = defaultMaxWorkspaceSizeInBytes,
+                        DefaultMaxWorkspaceTeamMembers = defaultMaxWorkspaceTeamMembers,
+                        HasPassword = false,
+                        EncryptionMetadata = null
                     },
-                    Roles = new UserRoles
+                    InvitationCode: new InvitationCode
                     {
-                        IsAppOwner = appOwners.IsAppOwner(email),
-                        IsAdmin = false
-                    },
-                    Permissions = new UserPermissions
-                    {
-                        CanAddWorkspace = false,
-                        CanManageGeneralSettings = false,
-                        CanManageUsers = false,
-                        CanManageStorages = false,
-                        CanManageEmailProviders = false,
-                        CanManageAuth = false,
-                        CanManageIntegrations = false,
-                        CanManageAuditLog = false
-                    },
-                    Invitation = new UserInvitation
-                    {
-                        Code = invitationCode
-                    },
-                    MaxWorkspaceNumber = maxWorkspaceNumber,
-                    DefaultMaxWorkspaceSizeInBytes = defaultMaxWorkspaceSizeInBytes,
-                    DefaultMaxWorkspaceTeamMembers = defaultMaxWorkspaceTeamMembers,
-                    HasPassword = false,
-                    EncryptionMetadata = null
-                },
+                        Value = invitationCode
+                    }),
                 transaction: transaction)
             .WithParameter("$externalId", externalId.Value)
             .WithParameter("$userName", email.Value)
@@ -209,7 +217,7 @@ public class GetOrCreateUserInvitationQuery(
             .WithParameter("$normalizedEmail", normalizedEmail)
             .WithParameter("$securityStamp", securityStamp)
             .WithParameter("$concurrencyStamp", concurrencyStamp)
-            .WithParameter("$invitationCode", invitationCode)
+            .WithParameter("$invitationCodeHash", invitationCodeHash)
             .WithParameter("$maxWorkspaceNumber", maxWorkspaceNumber)
             .WithParameter("$defaultMaxWorkspaceSizeInBytes", defaultMaxWorkspaceSizeInBytes)
             .WithParameter("$defaultMaxWorkspaceTeamMembers", defaultMaxWorkspaceTeamMembers)
@@ -229,7 +237,7 @@ public class GetOrCreateUserInvitationQuery(
                           u_external_id,
                           u_email_confirmed,
                           u_is_invitation,
-                          u_invitation_code,
+                          u_invitation_code_hash,
                           u_security_stamp,
                           u_concurrency_stamp,
                           ({UserSql.HasRole(Roles.Admin)}) AS u_is_admin,
@@ -296,10 +304,7 @@ public class GetOrCreateUserInvitationQuery(
                         },
 
                         Invitation = isInvitation
-                            ? new UserInvitation
-                            {
-                                Code = reader.GetString(4)
-                            }
+                            ? new UserInvitation { CodeHash = reader.GetFieldValue<byte[]>(4) }
                             : null,
 
                         MaxWorkspaceNumber = reader.GetInt32OrNull(16),
@@ -325,4 +330,8 @@ public class GetOrCreateUserInvitationQuery(
             .WithParameter("$userNormalizedEmail", email.Normalized)
             .Execute();
     }
+
+    public record Result(
+        UserContext User,
+        InvitationCode? InvitationCode = null);
 }

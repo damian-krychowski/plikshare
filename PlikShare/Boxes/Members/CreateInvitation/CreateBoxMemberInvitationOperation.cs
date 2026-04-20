@@ -1,12 +1,13 @@
 using PlikShare.Boxes.Cache;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Entities;
+using PlikShare.Users.GetOrCreate;
 
 namespace PlikShare.Boxes.Members.CreateInvitation;
 
 public class CreateBoxMemberInvitationOperation(
-    UserCache userCache,
-    CreateBoxMemberInvitationQuery createBoxMemberInvitationQuery)
+    CreateBoxMemberInvitationQuery createBoxMemberInvitationQuery,
+    GetOrCreateUserInvitationQuery getOrCreateUserInvitationQuery)
 {
     public async Task<Result> Execute(
         BoxContext box,
@@ -15,20 +16,22 @@ public class CreateBoxMemberInvitationOperation(
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        var list = new List<UserContext>();
+        var list = new List<CreateBoxMemberInvitationQuery.Member>();
 
         foreach (var email in memberEmails)
         {
-            var user = await userCache.GetOrCreateUserInvitationByEmail(
+            var (user, invitationCode) = await getOrCreateUserInvitationQuery.Execute(
                 email: email,
                 cancellationToken: cancellationToken);
 
-            list.Add(user);
+            list.Add(new CreateBoxMemberInvitationQuery.Member(
+                User: user,
+                InvitationCode: invitationCode));
         }
 
         var members = list
             .ToArray();
-        
+
         await createBoxMemberInvitationQuery.Execute(
             box: box,
             inviter: inviter,
@@ -37,7 +40,7 @@ public class CreateBoxMemberInvitationOperation(
             cancellationToken: cancellationToken);
 
         return new Result(
-            Members: members);
+            Members: members.Select(m => m.User).ToArray());
     }
 
     public readonly record struct Result(

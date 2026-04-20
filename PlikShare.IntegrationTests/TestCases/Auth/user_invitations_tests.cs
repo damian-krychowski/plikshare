@@ -1,14 +1,17 @@
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using PlikShare.Account.Contracts;
 using PlikShare.AuditLog;
 using PlikShare.Auth.Contracts;
 using PlikShare.Core.Emails;
 using PlikShare.EmailProviders.ExternalProviders.Resend;
 using PlikShare.GeneralSettings;
+using System.Text;
 using System.Text.Json;
 using PlikShare.AuditLog.Details;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Users.Cache;
+using PlikShare.Users.Invite;
 using PlikShare.Users.Invite.Contracts;
 using PlikShare.Users.PermissionsAndRoles;
 using Xunit.Abstractions;
@@ -386,6 +389,50 @@ public class user_invitation_tests : TestFixture
             assertDetails: details => details.Users.Should().Contain(u => u.Email == userEmail),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public void invitation_code_is_256_bit_base64url_when_not_mocked()
+    {
+        // Uses the real generator (not the mock) to assert the entropy/encoding contract.
+        var realGenerator = new OneTimeInvitationCode();
+
+        var code = realGenerator.Generate();
+
+        // 32 bytes of entropy → 43 Base64Url chars (no padding).
+        code.Should().HaveLength(43);
+        code.Should().MatchRegex("^[A-Za-z0-9_-]+$");
+
+        // Two independent draws should differ with overwhelming probability.
+        var anotherCode = realGenerator.Generate();
+        anotherCode.Should().NotBe(code);
+    }
+
+    [Fact]
+    public async Task invitation_code_stored_in_database_is_hashed_not_plaintext()
+    {
+        //given
+        var predefined = Random.InvitationCode();
+        OneTimeInvitationCode.AddCode(predefined);
+
+        var email = Random.Email();
+
+        //when
+        await Api.Users.InviteUsers(
+            request: new InviteUsersRequestDto { Emails = [email] },
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then
+        var storedHash = GetStoredInvitationCodeHash(email);
+        storedHash.Should().NotBeNull("an invited user must have a stored hash");
+        storedHash!.Length.Should().Be(32, "HMAC-SHA256 output is 32 bytes");
+
+        var plaintextUtf8 = Encoding.UTF8.GetBytes(predefined);
+        storedHash.Should().NotEqual(plaintextUtf8, "the plaintext code must not leak into storage");
+
+        var expectedHash = InvitationCodeHasher.Hash(predefined);
+        storedHash.Should().Equal(expectedHash, "the stored value must be the SHA-256 of the plaintext");
     }
 
     [Fact]

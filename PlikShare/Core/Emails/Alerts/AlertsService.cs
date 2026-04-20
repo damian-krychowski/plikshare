@@ -31,7 +31,7 @@ public class AlertsService(
                     jobType: EmailQueueJobType.Value,
                     definition: new EmailQueueJobDefinition<AlertEmailDefinition>
                     {
-                        Email = appOwner.Value,
+                        Email = appOwner.Email.Value,
                         Definition = new AlertEmailDefinition
                         {
                             Title = title,

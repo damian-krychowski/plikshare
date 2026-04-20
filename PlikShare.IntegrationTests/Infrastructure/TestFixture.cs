@@ -990,6 +990,25 @@ public class TestFixture: IAsyncLifetime
             Token: boxLinkToken);
     }
 
+    protected byte[]? GetStoredInvitationCodeHash(string email)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT u_invitation_code_hash
+                     FROM u_users
+                     WHERE u_normalized_email = $normalizedEmail
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => reader.IsDBNull(0) ? null : reader.GetFieldValue<byte[]>(0))
+            .WithParameter("$normalizedEmail", PlikShare.Users.Entities.Email.Normalize(email))
+            .Execute();
+
+        return rows.Count == 0 ? null : rows[0];
+    }
+
     protected List<string> GetStorageEncryptionKeyOwnerEmails(StorageExtId storageExternalId)
     {
         using var connection = HostFixture.Db.OpenConnection();

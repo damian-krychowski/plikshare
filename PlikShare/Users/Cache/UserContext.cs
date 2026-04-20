@@ -57,7 +57,7 @@ public sealed class UserPermissions
 [ImmutableObject(true)]
 public sealed class UserInvitation
 {
-    public required string Code { get; init; }
+    public required byte[] CodeHash { get; init; }
 }
 
 [ImmutableObject(true)]
@@ -77,4 +77,9 @@ public sealed class UserEncryptionMetadata
     public required byte[] VerifyHash { get; init; }
     public required byte[] RecoveryWrappedPrivateKey { get; init; }
     public required byte[] RecoveryVerifyHash { get; init; }
+}
+
+public class InvitationCode
+{
+    public required string Value { get; init; }
 }

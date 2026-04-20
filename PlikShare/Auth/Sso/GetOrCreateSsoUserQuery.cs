@@ -261,7 +261,7 @@ public class GetOrCreateSsoUserQuery(
                          u_lockout_enabled,
                          u_access_failed_count,
                          u_is_invitation,
-                         u_invitation_code,
+                         u_invitation_code_hash,
                          u_max_workspace_number,
                          u_default_max_workspace_size_in_bytes,
                          u_default_max_workspace_team_members

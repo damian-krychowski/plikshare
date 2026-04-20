@@ -20,7 +20,7 @@ public class CreateBoxMemberInvitationQuery(
     public Task Execute(
         BoxContext box,
         UserContext inviter,
-        UserContext[] members,
+        Member[] members,
         Guid correlationId,
         CancellationToken cancellationToken)
     {
@@ -38,11 +38,11 @@ public class CreateBoxMemberInvitationQuery(
         SqliteWriteContext dbWriteContext,
         BoxContext box,
         UserContext inviter,
-        UserContext[] members,
+        Member[] members,
         Guid correlationId)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
-        
+
         try
         {
             var invitedMemberIds = new List<int>();
@@ -51,34 +51,34 @@ public class CreateBoxMemberInvitationQuery(
             foreach (var member in members)
             {
                 var insertInvitationResult = InsertBoxInvitation(
-                    member.Id,
+                    member.User.Id,
                     box.Id,
-                    inviter.Id, 
+                    inviter.Id,
                     dbWriteContext,
                     transaction);
 
-                if (insertInvitationResult.IsEmpty) 
-                    continue; 
-                
+                if (insertInvitationResult.IsEmpty)
+                    continue;
+
                 var queueJob = EnqueueBoxInvitationEmail(
-                    correlationId, 
+                    correlationId,
                     member,
-                    inviter.Email, 
-                    box.Name, 
-                    dbWriteContext, 
+                    inviter.Email,
+                    box.Name,
+                    dbWriteContext,
                     transaction);
 
-                invitedMemberIds.Add(member.Id);
+                invitedMemberIds.Add(member.User.Id);
                 createdQueueJobIds.Add(queueJob.Value.Value);
             }
-            
+
             transaction.Commit();
 
             Log.Information(
                 "Box '{BoxExternalId}' invitation for Members '{MemberIds}' by Inviter '{InviterId}' in Workspace#{WorkspaceId} was created. " +
                 "QueryResult: {@QueryResult}",
                 box.ExternalId,
-                members.Select(member => member.Id),
+                members.Select(member => member.User.Id),
                 inviter.Id,
                 box.Workspace.Id,
                 new
@@ -86,17 +86,17 @@ public class CreateBoxMemberInvitationQuery(
                     invitedMemberIds,
                     createdQueueJobIds
                 });
-        } 
+        }
         catch (Exception e)
         {
             transaction.Rollback();
-            
+
             Log.Error(e, "Something went wrong while creating Box '{BoxExternalId}' invitation for Member '{MemberIds}' by Inviter '{InviterId}' in Workspace#{WorkspaceId}",
                 box.ExternalId,
-                members.Select(member => member.Id),
+                members.Select(member => member.User.Id),
                 inviter.Id,
                 box.Workspace.Id);
-            
+
             throw;
         }
     }
@@ -155,28 +155,24 @@ public class CreateBoxMemberInvitationQuery(
     }
 
     private SQLiteOneRowCommandResult<QueueJobId> EnqueueBoxInvitationEmail(
-        Guid correlationId, 
-        UserContext member,
-        Email inviterEmail, 
+        Guid correlationId,
+        Member member,
+        Email inviterEmail,
         string boxName,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
-        var wasMemberFreshlyInvited = member.Status == UserStatus.Invitation;
-        
         return queue.Enqueue(
             correlationId: correlationId,
             jobType: EmailQueueJobType.Value,
             definition: new EmailQueueJobDefinition<BoxMembershipInvitationEmailDefinition>
             {
-                Email = member.Email.Value,
+                Email = member.User.Email.Value,
                 Template = EmailTemplate.BoxMembershipInvitation,
                 Definition = new BoxMembershipInvitationEmailDefinition(
                     InviterEmail: inviterEmail.Value,
                     BoxName: boxName,
-                    InvitationCode: wasMemberFreshlyInvited
-                        ? member.Invitation!.Code
-                        : null)
+                    InvitationCode: member.InvitationCode?.Value)
             },
             executeAfterDate: clock.UtcNow,
             debounceId: null,
@@ -184,4 +180,8 @@ public class CreateBoxMemberInvitationQuery(
             dbWriteContext: dbWriteContext,
             transaction: transaction);
     }
+
+    public record Member(
+        UserContext User,
+        InvitationCode? InvitationCode);
 }
