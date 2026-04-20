@@ -1,19 +1,34 @@
 <div class="item-bar flex-row">
     <div class="item">
-        <i class="icon icon-xl icon-nucleo-user"></i>     
-      
+        <i class="icon icon-xl" [class.icon-nucleo-user]="!isPendingKeyGrant()" [class.icon-nucleo-user-clock]="isPendingKeyGrant()"></i>
+
         <div class="item__details">
             <div class="item__title">
                 {{ memberEmail() }}
             </div>
+
+            @if(isPendingKeyGrant()) {
+                <div class="item__subtitle">
+                    Waiting for encryption key grant
+                </div>
+            }
         </div>
     </div>
 
     <div class="flex-row ml-auto" (click)="$event.stopPropagation()">
+        @if(isPendingKeyGrant() && canGrantEncryptionAccess()) {
+            <app-action-btn
+                class="mr-1"
+                tooltip="Grant encryption access"
+                icon="icon-lucide-key"
+                (clicked)="encryptionAccessGrantRequested.emit()">
+            </app-action-btn>
+        }
+
         <app-action-btn
             tooltip="Revoke access"
             icon="icon-lucide-xmark"
-            (clicked)="revoked.emit()">            
-        </app-action-btn>       
+            (clicked)="revoked.emit()">
+        </app-action-btn>
     </div>
 </div>

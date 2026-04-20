@@ -1009,6 +1009,29 @@ public class TestFixture: IAsyncLifetime
         return rows.Count == 0 ? null : rows[0];
     }
 
+    protected bool HasWorkspaceEncryptionKey(WorkspaceExtId workspaceExternalId, string userEmail)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT 1
+                     FROM wek_workspace_encryption_keys wek
+                     JOIN w_workspaces w ON w.w_id = wek.wek_workspace_id
+                     JOIN u_users u ON u.u_id = wek.wek_user_id
+                     WHERE w.w_external_id = $workspaceExternalId
+                       AND u.u_normalized_email = $normalizedEmail
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$workspaceExternalId", workspaceExternalId.Value)
+            .WithParameter("$normalizedEmail", PlikShare.Users.Entities.Email.Normalize(userEmail))
+            .Execute();
+
+        return rows.Count > 0;
+    }
+
     protected List<string> GetStorageEncryptionKeyOwnerEmails(StorageExtId storageExternalId)
     {
         using var connection = HostFixture.Db.OpenConnection();

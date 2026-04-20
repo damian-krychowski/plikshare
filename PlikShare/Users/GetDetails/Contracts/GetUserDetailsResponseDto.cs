@@ -54,6 +54,7 @@ public static class GetUserDetails
         public required WorkspacePermissionsDto Permissions { get; init; }
         public required bool IsUsedByIntegration { get; init; }
         public required bool IsBucketCreated { get; init; }
+        public required string StorageEncryptionType { get; init; }
     }
 
     public class SharedBoxDto

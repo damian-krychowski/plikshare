@@ -69,6 +69,14 @@ public static partial class Audit
             public required bool AllowShare { get; init; }
         }
 
+        public class MemberEncryptionAccessGranted
+        {
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required UserRef Member { get; init; }
+            public required int WrappedStorageDekVersionsCount { get; init; }
+        }
+
         public class InvitationResponse
         {
             public required StorageRef Storage { get; init; }
@@ -268,6 +276,28 @@ public static partial class Audit
                 Workspace = workspace,
                 Member = member,
                 AllowShare = allowShare })
+        };
+
+        public static AuditLogEntry MemberEncryptionAccessGrantedEntry(
+            AuditLogActorContext actor,
+            StorageRef storage,
+            WorkspaceRef workspace,
+            UserRef member,
+            int wrappedStorageDekVersionsCount) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.MemberEncryptionAccessGranted,
+            Severity = AuditLogSeverities.Warning,
+            WorkspaceExternalId = workspace.ExternalId.Value,
+            DetailsJson = Json.Serialize(new MemberEncryptionAccessGranted {
+                Storage = storage,
+                Workspace = workspace,
+                Member = member,
+                WrappedStorageDekVersionsCount = wrappedStorageDekVersionsCount })
         };
 
         public static AuditLogEntry InvitationAcceptedEntry(

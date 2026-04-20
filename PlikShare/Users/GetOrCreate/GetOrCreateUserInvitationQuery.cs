@@ -38,10 +38,10 @@ public class GetOrCreateUserInvitationQuery(
 
         try
         {
-            var result = GetOrCreateUserInvitation(
-                email: email,
+            var result = ExecuteTransaction(
                 dbWriteContext: dbWriteContext,
-                transaction: transaction);
+                transaction: transaction,
+                email: email);
 
             transaction.Commit();
 
@@ -64,10 +64,16 @@ public class GetOrCreateUserInvitationQuery(
         }
     }
 
-    private Result GetOrCreateUserInvitation(
-        Email email,
+    /// <summary>
+    /// Get-or-create variant for callers composing a larger transaction (e.g. workspace
+    /// invite + auto-grant). Runs inside the caller's transaction so user invitation row,
+    /// membership insert, and any follow-up writes either commit together or roll back
+    /// together — no orphan invitation rows on partial failure.
+    /// </summary>
+    public Result ExecuteTransaction(
         SqliteWriteContext dbWriteContext,
-        SqliteTransaction transaction)
+        SqliteTransaction transaction,
+        Email email)
     {
         var userResult = TrySelectUser(
             email,

@@ -4,6 +4,7 @@ import { ConfirmOperationDirective } from '../operation-confirm/confirm-operatio
 import { AppUser } from '../app-user';
 import { UserLinkComponenet } from '../user-link/user-link.component';
 import { ActionButtonComponent } from '../buttons/action-btn/action-btn.component';
+import { AppStorageEncryptionType } from '../../services/storages.api';
 
 export type AppWorkspaceInvitation = {
     type: 'app-workspace-invitation';
@@ -17,6 +18,7 @@ export type AppWorkspaceInvitation = {
     },
     isUsedByIntegration: boolean;
     isBucketCreated: boolean;
+    storageEncryptionType: AppStorageEncryptionType;
 }
 
 @Component({

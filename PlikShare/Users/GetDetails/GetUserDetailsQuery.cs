@@ -126,7 +126,8 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
                               )
                           
                           ) AS w_is_used_by_integration,
-                          w_is_bucket_created
+                          w_is_bucket_created,
+                          storage.s_encryption_type
                       FROM wm_workspace_membership
                       INNER JOIN w_workspaces
                           ON w_id = wm_workspace_id
@@ -165,7 +166,8 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
                      },
                      WasInvitationAccepted = reader.GetBoolean(10),
                      IsUsedByIntegration = reader.GetBoolean(11),
-                     IsBucketCreated = reader.GetBoolean(12)
+                     IsBucketCreated = reader.GetBoolean(12),
+                     StorageEncryptionType = reader.GetString(13)
                  }
              )
              .WithParameter("$userId", user.Id)

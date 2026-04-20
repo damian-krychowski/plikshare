@@ -56,6 +56,20 @@ public static class UserEncryptionSessionCookie
     }
 
     /// <summary>
+    /// Cheap presence check — does the request carry our session cookie with a non-empty
+    /// value? Does NOT unprotect the payload. Use this when the caller only needs to
+    /// branch on "there is / isn't a session attempt" without paying the DataProtection
+    /// cost (e.g. deciding whether to prompt for setup vs unlock).
+    /// </summary>
+    public static bool IsPresent(
+        HttpContext httpContext,
+        UserExtId userExternalId)
+    {
+        return httpContext.Request.Cookies.TryGetValue(CookieName(userExternalId), out var value)
+            && !string.IsNullOrEmpty(value);
+    }
+
+    /// <summary>
     /// Reads and unprotects the user encryption cookie for the given authenticated user.
     /// Returns a <see cref="SecureBytes"/> that the caller MUST dispose (use <c>using</c>).
     /// Returns null when the cookie is absent or fails to decrypt — callers that need to

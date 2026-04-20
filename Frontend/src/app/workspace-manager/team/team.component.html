@@ -22,7 +22,9 @@
     @for(member of workspaceMembers(); track member.memberExternalId()) {
         <app-workspace-team-member
             [member]="member"
-            (revoked)="revokeMember(member)">            
+            [canGrantEncryptionAccess]="isCurrentUserOwner()"
+            (revoked)="revokeMember(member)"
+            (encryptionAccessGrantRequested)="grantEncryptionAccess(member)">
         </app-workspace-team-member>
     }
 </div>

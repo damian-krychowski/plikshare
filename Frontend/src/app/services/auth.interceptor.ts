@@ -2,15 +2,19 @@ import { HttpInterceptor, HttpErrorResponse, HttpRequest, HttpHandler, HttpEvent
 import { Injectable } from "@angular/core";
 import { MatDialog } from "@angular/material/dialog";
 import { Router } from "@angular/router";
-import { Observable, of, throwError, catchError, from, switchMap, map } from "rxjs";
+import { Observable, of, throwError, catchError, from, switchMap, map, tap } from "rxjs";
 import { ToastrService } from 'ngx-toastr';
 import { AccessCodesApi } from "../external-access/external-link/access-codes.api";
 import { SignOutService } from "./sign-out.service";
 import { BOX_LINK_TOKEN_HEADER } from "./box-link-token.service";
 import { UnlockFullEncryptionComponent } from "../shared/unlock-full-encryption/unlock-full-encryption.component";
+import { SetupEncryptionPasswordComponent } from "../shared/setup-encryption-password/setup-encryption-password.component";
+import { GenericDialogService } from "../shared/generic-message-dialog/generic-dialog-service";
 
 const USER_ENCRYPTION_SESSION_REQUIRED = "user-encryption-session-required";
+const USER_ENCRYPTION_SETUP_REQUIRED = "user-encryption-setup-required";
 const CREATOR_ENCRYPTION_NOT_SET_UP = "creator-encryption-not-set-up";
+const WORKSPACE_ENCRYPTION_PENDING_KEY_GRANT = "workspace-encryption-pending-key-grant";
 
 @Injectable({
     providedIn: 'root'
@@ -21,7 +25,8 @@ export class AuthInterceptor implements HttpInterceptor {
         private _signOutService: SignOutService,
         private _toastr: ToastrService,
         private _accessCodesApi: AccessCodesApi,
-        private _dialog: MatDialog
+        private _dialog: MatDialog,
+        private _genericDialog: GenericDialogService
         ){}
 
     intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
@@ -73,9 +78,20 @@ export class AuthInterceptor implements HttpInterceptor {
 
             return of(err.message);
         } else if (err.status === 403) {
+            const body = this.parseErrorBody(err);
+
             if(err.error && err.error.code == "terms-not-accepted") {
                 this._router.navigateByUrl(`/accept-terms`);
                 return of(err.message);
+            } else if (body?.code === WORKSPACE_ENCRYPTION_PENDING_KEY_GRANT) {
+                // Proper modal explaining the situation + navigate back to the dashboard
+                // so the user doesn't stare at an empty workspace view. The dashboard
+                // marks pending workspaces with an icon so they know which one is blocked.
+                return this._genericDialog
+                    .openPendingKeyGrantDialog()
+                    .pipe(
+                        tap(() => this._router.navigateByUrl('/workspaces')),
+                        switchMap(() => throwError(() => err)));
             } else {
                 this._router.navigateByUrl(`#`);
                 this._toastr.error("Something went wrong. Try again later or contact the administrator");
@@ -88,6 +104,14 @@ export class AuthInterceptor implements HttpInterceptor {
                 return this
                     .openUnlockDialog()
                     .pipe(switchMap(unlocked => unlocked
+                        ? next.handle(req)
+                        : throwError(() => err)));
+            }
+
+            if (body?.code === USER_ENCRYPTION_SETUP_REQUIRED) {
+                return this
+                    .openSetupDialog()
+                    .pipe(switchMap(setUp => setUp
                         ? next.handle(req)
                         : throwError(() => err)));
             }
@@ -139,6 +163,19 @@ export class AuthInterceptor implements HttpInterceptor {
             UnlockFullEncryptionComponent,
             void,
             boolean>(UnlockFullEncryptionComponent, {
+                width: '500px',
+                position: { top: '100px' },
+                disableClose: true
+            });
+
+        return dialogRef.afterClosed().pipe(map(result => result === true));
+    }
+
+    private openSetupDialog(): Observable<boolean> {
+        const dialogRef = this._dialog.open<
+            SetupEncryptionPasswordComponent,
+            void,
+            boolean>(SetupEncryptionPasswordComponent, {
                 width: '500px',
                 position: { top: '100px' },
                 disableClose: true

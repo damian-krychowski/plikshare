@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.Storages.Encryption;
+using PlikShare.Workspaces.Members.CreateInvitation.Contracts;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Users;
@@ -580,6 +581,126 @@ public class user_encryption_password_tests : TestFixture
         apiError.StatusCode.Should().Be(StatusCodes.Status423Locked);
         apiError.HttpError.Should().NotBeNull();
         apiError.HttpError!.Code.Should().Be("user-encryption-session-required");
+    }
+
+    [Fact]
+    public async Task invited_user_without_encryption_setup_accessing_full_encrypted_workspace_fails_with_setup_required()
+    {
+        //given — owner owns a full-encrypted workspace with a file in it
+        var storage = await CreateHardDriveStorage(
+            user: AppOwner,
+            encryptionType: StorageEncryptionType.Full);
+
+        var workspace = await CreateWorkspace(
+            storage: storage,
+            user: AppOwner);
+
+        var folder = await CreateFolder(
+            workspace: workspace,
+            user: AppOwner);
+
+        var uploadedFile = await UploadFile(
+            content: Random.Bytes(256),
+            fileName: $"{Random.Name("file")}.bin",
+            contentType: "application/octet-stream",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        // Fresh user — registered via invitation, but never configured an encryption password.
+        var invitee = await InviteAndRegisterUser(user: AppOwner);
+
+        await Api.Workspaces.InviteMember(
+            externalId: workspace.ExternalId,
+            request: new CreateWorkspaceMemberInvitationRequestDto(
+                MemberEmails: [invitee.Email],
+                AllowShare: false),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery,
+            userEncryptionSession: storage.WorkspaceEncryptionSession);
+
+        await Api.Workspaces.AcceptInvitation(
+            externalId: workspace.ExternalId,
+            cookie: invitee.Cookie,
+            antiforgery: invitee.Antiforgery);
+
+        //when — invitee hits a full-encryption endpoint with no encryption session
+        var apiError = await Assert.ThrowsAsync<TestApiCallException>(
+            async () => await Api.Files.GetDownloadLink(
+                workspaceExternalId: workspace.ExternalId,
+                fileExternalId: uploadedFile.ExternalId,
+                contentDisposition: "attachment",
+                cookie: invitee.Cookie,
+                workspaceEncryptionSession: null));
+
+        //then — server distinguishes "no setup yet" from "setup but not unlocked",
+        //       so the UI can open the setup dialog instead of the unlock dialog.
+        apiError.StatusCode.Should().Be(StatusCodes.Status423Locked);
+        apiError.HttpError.Should().NotBeNull();
+        apiError.HttpError!.Code.Should().Be("user-encryption-setup-required");
+    }
+
+    [Fact]
+    public async Task after_invitee_sets_up_encryption_access_switches_from_setup_required_to_pending_key_grant()
+    {
+        //given — same full-encrypted workspace with a file, fresh invited user without encryption
+        var storage = await CreateHardDriveStorage(
+            user: AppOwner,
+            encryptionType: StorageEncryptionType.Full);
+
+        var workspace = await CreateWorkspace(
+            storage: storage,
+            user: AppOwner);
+
+        var folder = await CreateFolder(
+            workspace: workspace,
+            user: AppOwner);
+
+        var uploadedFile = await UploadFile(
+            content: Random.Bytes(256),
+            fileName: $"{Random.Name("file")}.bin",
+            contentType: "application/octet-stream",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        var invitee = await InviteAndRegisterUser(user: AppOwner);
+
+        await Api.Workspaces.InviteMember(
+            externalId: workspace.ExternalId,
+            request: new CreateWorkspaceMemberInvitationRequestDto(
+                MemberEmails: [invitee.Email],
+                AllowShare: false),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery,
+            userEncryptionSession: storage.WorkspaceEncryptionSession);
+
+        await Api.Workspaces.AcceptInvitation(
+            externalId: workspace.ExternalId,
+            cookie: invitee.Cookie,
+            antiforgery: invitee.Antiforgery);
+
+        //when — invitee configures their own encryption password; server now has
+        //       their public key but still no wek wrap for this workspace.
+        var inviteeSetup = await Api.UserEncryptionPassword.Setup(
+            userExternalId: invitee.ExternalId,
+            encryptionPassword: "Invitee-Encryption-Password-1!",
+            cookie: invitee.Cookie,
+            antiforgery: invitee.Antiforgery);
+
+        var apiError = await Assert.ThrowsAsync<TestApiCallException>(
+            async () => await Api.Files.GetDownloadLink(
+                workspaceExternalId: workspace.ExternalId,
+                fileExternalId: uploadedFile.ExternalId,
+                contentDisposition: "attachment",
+                cookie: invitee.Cookie,
+                workspaceEncryptionSession: inviteeSetup.EncryptionCookie));
+
+        //then — no longer setup-required nor session-required; the Phase 2 flow
+        //       takes over and asks the invitee to wait for owner approval.
+        apiError.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        apiError.HttpError.Should().NotBeNull();
+        apiError.HttpError!.Code.Should().Be("workspace-encryption-pending-key-grant");
     }
 
     [Fact]

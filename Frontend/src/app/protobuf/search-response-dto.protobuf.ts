@@ -15,7 +15,8 @@ export function getSearchResponseDtoProtobuf() {
         .add(new protobuf.Field("isOwnedByUser", 7, "bool"))
         .add(new protobuf.Field("allowShare", 8, "bool"))
         .add(new protobuf.Field("isUsedByIntegration", 9, "bool"))
-        .add(new protobuf.Field("isBucketCreated", 10, "bool"));
+        .add(new protobuf.Field("isBucketCreated", 10, "bool"))
+        .add(new protobuf.Field("isPendingKeyGrant", 11, "bool"));
 
     const workspaceFolderType = new protobuf.Type("WorkspaceFolder")
         .add(new protobuf.Field("externalId", 1, "string"))

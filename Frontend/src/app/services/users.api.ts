@@ -58,6 +58,7 @@ export interface GetUserDetailsResponse {
             allowShare: boolean;
         };
         isBucketCreated: boolean;
+        storageEncryptionType: string;
     }[];
 
     sharedBoxes: {

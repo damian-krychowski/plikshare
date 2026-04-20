@@ -44,6 +44,7 @@ export interface SearchWorkspaceItemDto {
     allowShare: boolean;
     isUsedByIntegration: boolean;
     isBucketCreated: boolean;
+    isPendingKeyGrant: boolean;
 }
 
 export interface SearchWorkspaceFolderItemDto {

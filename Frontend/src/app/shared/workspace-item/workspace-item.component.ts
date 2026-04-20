@@ -40,6 +40,7 @@ export type AppWorkspace = {
     storageEncryptionType: AppStorageEncryptionType;
     isNameEditing: WritableSignal<boolean>;
     isHighlighted: WritableSignal<boolean>;
+    isPendingKeyGrant: WritableSignal<boolean>;
 };
 
 @Component({
@@ -80,6 +81,7 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
     isFullEncryption = computed(() => this.workspace().storageEncryptionType === 'full');
     isFullEncryptionUnlocked = computed(() => this.isFullEncryption()
         && this.auth.isEncryptionUnlocked());
+    isPendingKeyGrant = computed(() => this.workspace().isPendingKeyGrant());
     owner = computed(() => this.workspace().owner());
 
     isNameEditing = computed(() => this.workspace().isNameEditing());    
@@ -240,6 +242,12 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
             return;
 
         if(this.isFullEncryption() && !this.isFullEncryptionUnlocked())
+            return;
+
+        // Prefetch of the workspace's files hits the encryption-session filter which would
+        // bounce with 403 pending-key-grant. Skipping the prefetch avoids the wasted round
+        // trip AND prevents the interceptor dialog from firing on mouseover.
+        if(this.isPendingKeyGrant())
             return;
 
         this.dataStore.prefetchWorkspaceTopFolders(

@@ -224,6 +224,7 @@ using PlikShare.Workspaces.GetSize;
 using PlikShare.Workspaces.Members.AcceptInvitation;
 using PlikShare.Workspaces.Members.CountAll;
 using PlikShare.Workspaces.Members.CreateInvitation;
+using PlikShare.Workspaces.Members.GrantEncryptionAccess;
 using PlikShare.Workspaces.Members.LeaveWorkspace;
 using PlikShare.Workspaces.Members.List;
 using PlikShare.Workspaces.Members.RejectInvitation;
@@ -443,6 +444,8 @@ public class Startup
         builder.Services.AddSingleton<RevokeWorkspaceMemberQuery>();
         builder.Services.AddSingleton<LeaveSharedWorkspaceQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceMemberPermissionsQuery>();
+        builder.Services.AddSingleton<GrantEncryptionAccessOperation>();
+        builder.Services.AddSingleton<NotifyOwnersOfPendingGrantsQuery>();
         builder.Services.AddSingleton<WorkspaceCache>();
         builder.Services.AddSingleton<WorkspaceMembershipCache>();
         builder.Services.AddSingleton<ScheduleWorkspaceDeleteQuery>();

@@ -18,6 +18,7 @@ import { AppWorkspaceInvitation, WorkspaceInvitationItemComponent } from "../../
 import { BoxesSetApi } from "../../services/boxes.api";
 import { mapDtoToPermissions, mapPermissionsToDto } from "../../shared/box-permissions/box-permissions-list.component";
 import { WorkspacesApi } from "../../services/workspaces.api";
+import { AppStorageEncryptionType } from "../../services/storages.api";
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
 import { pushItems, removeItems } from "../../shared/signal-utils";
 import { UsersApi } from "../../services/users.api";
@@ -149,12 +150,13 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                         storageEncryptionType: 'none',
                         wasUserInvited: signal(false),
                         isUsedByIntegration: w.isUsedByIntegration,
-                        isBucketCreated: signal(w.isBucketCreated)
+                        isBucketCreated: signal(w.isBucketCreated),
+                        isPendingKeyGrant: signal(false)
                     };
 
                     return workspace;
                 }));
-            
+
             this.sharedWorkspaces.set(userDetails
                 .sharedWorkspaces
                 .filter(w => w.wasInvitationAccepted)
@@ -179,7 +181,8 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                         storageEncryptionType: 'none',
                         wasUserInvited: signal(true),
                         isUsedByIntegration: w.isUsedByIntegration,
-                        isBucketCreated: signal(w.isBucketCreated)
+                        isBucketCreated: signal(w.isBucketCreated),
+                        isPendingKeyGrant: signal(false)
                     };
 
                     return workspace;
@@ -205,7 +208,8 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                             allowShare: w.permissions.allowShare
                         },         
                         isUsedByIntegration: w.isUsedByIntegration,
-                        isBucketCreated: w.isBucketCreated
+                        isBucketCreated: w.isBucketCreated,
+                        storageEncryptionType: w.storageEncryptionType as AppStorageEncryptionType
                     };
 
                     return invitation;

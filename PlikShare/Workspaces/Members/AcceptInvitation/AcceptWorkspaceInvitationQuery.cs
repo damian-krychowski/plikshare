@@ -4,6 +4,7 @@ using PlikShare.Core.Emails;
 using PlikShare.Core.Emails.Definitions;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
+using PlikShare.Storages.Encryption;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 
@@ -14,7 +15,7 @@ public class AcceptWorkspaceInvitationQuery(
     IQueue queue,
     DbWriteQueue dbWriteQueue)
 {
-    public Task<ResultCode> Execute(
+    public Task<Result> Execute(
         WorkspaceMembershipContext workspaceMembership,
         Guid correlationId,
         CancellationToken cancellationToken)
@@ -27,7 +28,7 @@ public class AcceptWorkspaceInvitationQuery(
             cancellationToken: cancellationToken);
     }
 
-    private ResultCode ExecuteOperation(
+    private Result ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         WorkspaceMembershipContext workspaceMembership,
         Guid correlationId)
@@ -41,10 +42,10 @@ public class AcceptWorkspaceInvitationQuery(
                     sql: """
                          UPDATE wm_workspace_membership
                          SET wm_was_invitation_accepted = TRUE
-                         WHERE 
+                         WHERE
                              wm_workspace_id = $workspaceId
                              AND wm_member_id = $memberId
-                         RETURNING 
+                         RETURNING
                              wm_workspace_id,
                              wm_member_id
                          """,
@@ -64,7 +65,7 @@ public class AcceptWorkspaceInvitationQuery(
                     workspaceMembership.Workspace.ExternalId,
                     workspaceMembership.User.Id);
 
-                return ResultCode.MembershipNotFound;
+                return new Result(Code: ResultCode.MembershipNotFound, IsPendingKeyGrant: false);
             }
 
             int? enqueuedJobId = null;
@@ -93,6 +94,27 @@ public class AcceptWorkspaceInvitationQuery(
                 enqueuedJobId = queueJob.Value.Value;
             }
 
+            var isPendingKeyGrant = false;
+
+            if (workspaceMembership.Workspace.Storage.Encryption.Type == StorageEncryptionType.Full)
+            {
+                var hasWek = dbWriteContext
+                    .Cmd(
+                        sql: """
+                             SELECT 1
+                             FROM wek_workspace_encryption_keys
+                             WHERE wek_workspace_id = $wekWorkspaceId
+                               AND wek_user_id = $wekUserId
+                             LIMIT 1
+                             """,
+                        readRowFunc: reader => reader.GetInt32(0),
+                        transaction: transaction)
+                    .WithParameter("$wekWorkspaceId", workspaceMembership.Workspace.Id)
+                    .WithParameter("$wekUserId", workspaceMembership.User.Id)
+                    .Execute();
+
+                isPendingKeyGrant = hasWek.Count == 0;
+            }
 
             transaction.Commit();
 
@@ -104,10 +126,13 @@ public class AcceptWorkspaceInvitationQuery(
                 {
                     MemberId = updateMembershipResult.Value.MemberId,
                     WorkspaceId = updateMembershipResult.Value.WorkspaceId,
-                    EnqueuedJobId = enqueuedJobId
+                    EnqueuedJobId = enqueuedJobId,
+                    IsPendingKeyGrant = isPendingKeyGrant
                 });
 
-            return ResultCode.Ok;
+            return new Result(
+                Code: ResultCode.Ok,
+                IsPendingKeyGrant: isPendingKeyGrant);
         }
         catch (Exception e)
         {
@@ -120,6 +145,10 @@ public class AcceptWorkspaceInvitationQuery(
             throw;
         }
     }
+
+    public readonly record struct Result(
+        ResultCode Code,
+        bool IsPendingKeyGrant);
 
     public enum ResultCode
     {

@@ -174,6 +174,11 @@ public class DeleteWorkspaceWithDependenciesQuery(
             dbWriteContext,
             transaction);
 
+        DeleteWorkspaceEncryptionKeys(
+            workspaceId,
+            dbWriteContext,
+            transaction);
+
         var deletedWorkspaceMemberships = DeleteWorkspaceMemberships(
             workspaceId,
             dbWriteContext,
@@ -442,6 +447,23 @@ public class DeleteWorkspaceWithDependenciesQuery(
             .Execute();
     }
     
+    private static void DeleteWorkspaceEncryptionKeys(
+        int workspaceId,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction)
+    {
+        dbWriteContext
+            .Cmd(
+                sql: """
+                     DELETE FROM wek_workspace_encryption_keys
+                     WHERE wek_workspace_id = $workspaceId
+                     """,
+                readRowFunc: reader => reader.GetInt32(0),
+                transaction: transaction)
+            .WithParameter("$workspaceId", workspaceId)
+            .Execute();
+    }
+
     private static List<DeletedWorkspaceMembership> DeleteWorkspaceMemberships(
         int workspaceId,
         SqliteWriteContext dbWriteContext,

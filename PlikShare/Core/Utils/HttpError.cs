@@ -31,12 +31,21 @@ public class UserEncryptionSessionRequiredHttpError : HttpError
 {
 }
 
+public class UserEncryptionSetupRequiredHttpError : HttpError
+{
+}
+
 public class NotAStorageAdminHttpError : HttpError
 {
     public required StorageExtId StorageExternalId { get; set; }
 }
 
 public class WorkspaceEncryptionAccessDeniedHttpError : HttpError
+{
+    public required WorkspaceExtId WorkspaceExternalId { get; set; }
+}
+
+public class WorkspaceEncryptionPendingKeyGrantHttpError : HttpError
 {
     public required WorkspaceExtId WorkspaceExternalId { get; set; }
 }
@@ -63,6 +72,37 @@ public static class HttpErrors
                     WorkspaceExternalId = workspaceExternalId
                 },
                 statusCode: StatusCodes.Status403Forbidden);
+
+        public static IResult PendingKeyGrant(WorkspaceExtId workspaceExternalId) =>
+            TypedResults.Json(
+                new WorkspaceEncryptionPendingKeyGrantHttpError
+                {
+                    Code = "workspace-encryption-pending-key-grant",
+                    Message = "You were invited to this encrypted workspace but the workspace owner has not yet granted you an encryption key. Ask the owner to log in and approve your access.",
+                    WorkspaceExternalId = workspaceExternalId
+                },
+                statusCode: StatusCodes.Status403Forbidden);
+
+        public static BadRequest<HttpError> NotOwner(WorkspaceExtId externalId) =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "not-workspace-owner",
+                Message = $"Only the owner of workspace '{externalId}' can perform this action."
+            });
+
+        public static BadRequest<HttpError> NotFullEncryption(WorkspaceExtId externalId) =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "workspace-is-not-full-encrypted",
+                Message = $"Workspace '{externalId}' does not use full encryption; granting encryption access does not apply."
+            });
+
+        public static BadRequest<HttpError> MemberEncryptionNotSetUp(UserExtId memberExternalId) =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "member-encryption-not-set-up",
+                Message = $"Member '{memberExternalId}' has not yet configured an encryption password. Ask them to set one up before granting access."
+            });
 
         public static BadRequest<HttpError> NotEnoughSpace(WorkspaceExtId externalId) =>
             TypedResults.BadRequest(new HttpError
@@ -211,6 +251,14 @@ public static class HttpErrors
             {
                 Code = "user-encryption-session-required",
                 Message = "User encryption session is required. Unlock your encryption password to continue."
+            },
+            statusCode: StatusCodes.Status423Locked);
+
+        public static IResult UserEncryptionSetupRequired() => TypedResults.Json(
+            new UserEncryptionSetupRequiredHttpError
+            {
+                Code = "user-encryption-setup-required",
+                Message = "Your encryption password is not yet configured. Set one up to access this encrypted workspace."
             },
             statusCode: StatusCodes.Status423Locked);
 

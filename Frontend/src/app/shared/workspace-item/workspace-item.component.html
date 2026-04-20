@@ -52,7 +52,13 @@
                         <span class="ml-1">Storage: {{storageNameValue}}</span>
                     }
 
-                    @if(isFullEncryption()) {
+                    @if(isPendingKeyGrant()) {
+                        <!-- Pending-key-grant is implicitly full-encryption; shown even in
+                             search results where storageEncryptionType isn't carried. -->
+                        <i class="icon icon-sm icon-lucide-key ml-1 color-danger"
+                            matTooltip="Waiting for workspace owner to grant encryption access"
+                            matTooltipPosition="above"></i>
+                    } @else if(isFullEncryption()) {
                         @if(isFullEncryptionUnlocked()) {
                             <i class="icon icon-sm icon-nucleo-lock-open ml-1"
                                 matTooltip="Full encryption — unlocked for this session"

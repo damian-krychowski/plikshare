@@ -240,7 +240,16 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                         (CASE
                             WHEN storage.s_encryption_type IS NULL THEN 'none'
                             ELSE storage.s_encryption_type
-                        END) AS w_storage_encryption_type
+                        END) AS w_storage_encryption_type,
+                        (
+                            storage.s_encryption_type = 'full'
+                            AND NOT EXISTS (
+                                SELECT 1
+                                FROM wek_workspace_encryption_keys
+                                WHERE wek_workspace_id = w_id
+                                  AND wek_user_id = $userId
+                            )
+                        ) AS w_is_pending_key_grant
                     FROM w_workspaces
                     INNER JOIN u_users AS owner
                         ON owner.u_id = w_owner_id
@@ -281,7 +290,8 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                     IsBucketCreated = reader.GetBoolean(11),
                     TypeDelimiter = reader.GetInt32(12),
                     StorageExternalId = reader.GetString(13),
-                    StorageEncryptionType = reader.GetString(14)
+                    StorageEncryptionType = reader.GetString(14),
+                    IsPendingKeyGrant = reader.GetBoolean(15)
                 })
             .WithParameter("$userId", user.Id)
             .WithParameter("$isUserAdmin", user.Roles.IsAppOwner || user.Roles.IsAdmin)
@@ -305,7 +315,8 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                         IsUsedByIntegration = entity.IsUsedByIntegration,
                         IsBucketCreated = entity.IsBucketCreated,
                         StorageExternalId = entity.StorageExternalId,
-                        StorageEncryptionType = entity.StorageEncryptionType
+                        StorageEncryptionType = entity.StorageEncryptionType,
+                        IsPendingKeyGrant = entity.IsPendingKeyGrant
                     });
                     break;
 
@@ -344,7 +355,8 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                         IsUsedByIntegration = entity.IsUsedByIntegration,
                         IsBucketCreated = entity.IsBucketCreated,
                         StorageExternalId = entity.StorageExternalId,
-                        StorageEncryptionType = entity.StorageEncryptionType
+                        StorageEncryptionType = entity.StorageEncryptionType,
+                        IsPendingKeyGrant = entity.IsPendingKeyGrant
                     });
                     break;
 

@@ -80,14 +80,16 @@ public class WorkspacesApi(IFlurlClient flurlClient, string appUrl)
         WorkspaceExtId externalId,
         CreateWorkspaceMemberInvitationRequestDto request,
         SessionAuthCookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies antiforgery,
+        Cookie? userEncryptionSession = null)
     {
         return await flurlClient.ExecutePost<CreateWorkspaceMemberInvitationResponseDto, CreateWorkspaceMemberInvitationRequestDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{externalId.Value}/members",
             request: request,
             cookie: cookie,
-            antiforgery: antiforgery);
+            antiforgery: antiforgery,
+            extraCookie: userEncryptionSession);
     }
 
     public async Task RevokeMember(
@@ -116,6 +118,22 @@ public class WorkspacesApi(IFlurlClient flurlClient, string appUrl)
             request: request,
             cookie: cookie,
             antiforgery: antiforgery);
+    }
+
+    public async Task GrantEncryptionAccess(
+        WorkspaceExtId externalId,
+        UserExtId memberExternalId,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery,
+        Cookie? userEncryptionSession = null)
+    {
+        await flurlClient.ExecutePost(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{externalId.Value}/members/{memberExternalId.Value}/grant-encryption-access",
+            request: new object(),
+            cookie: cookie,
+            antiforgery: antiforgery,
+            extraCookie: userEncryptionSession);
     }
 
     public async Task<AcceptWorkspaceInvitationResponseDto> AcceptInvitation(

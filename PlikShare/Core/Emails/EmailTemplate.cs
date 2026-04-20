@@ -7,7 +7,9 @@ public enum EmailTemplate
     WorkspaceMembershipInvitationRejected,
     WorkspaceMembershipRevoked,
     WorkspaceMemberLeft,
-    
+    WorkspaceEncryptionKeyGrantRequired,
+    WorkspaceEncryptionKeyGrantApproved,
+
     BoxMembershipInvitation,
     BoxMembershipInvitationAccepted,
     BoxMembershipInvitationRejected,

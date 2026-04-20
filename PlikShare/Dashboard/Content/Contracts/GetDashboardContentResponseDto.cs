@@ -80,6 +80,9 @@ public class GetDashboardContentResponseDto
 
         [ProtoMember(11)]
         public required string StorageEncryptionType { get; init; }
+
+        [ProtoMember(12)]
+        public required bool IsPendingKeyGrant { get; init; }
     }
 
     [ProtoContract]

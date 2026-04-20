@@ -392,16 +392,17 @@ public class user_invitation_tests : TestFixture
     }
 
     [Fact]
-    public void invitation_code_is_256_bit_base64url_when_not_mocked()
+    public void invitation_code_is_256_bit_base62_when_not_mocked()
     {
         // Uses the real generator (not the mock) to assert the entropy/encoding contract.
         var realGenerator = new OneTimeInvitationCode();
 
         var code = realGenerator.Generate();
 
-        // 32 bytes of entropy → 43 Base64Url chars (no padding).
-        code.Should().HaveLength(43);
-        code.Should().MatchRegex("^[A-Za-z0-9_-]+$");
+        // 32 bytes of entropy → up to 43 Base62 chars; ~97.6% of draws hit 43, the rest
+        // a few chars shorter because the high bits happened to be zero.
+        code.Length.Should().BeInRange(41, 43);
+        code.Should().MatchRegex("^[0-9a-zA-Z]+$");
 
         // Two independent draws should differ with overwhelming probability.
         var anotherCode = realGenerator.Generate();

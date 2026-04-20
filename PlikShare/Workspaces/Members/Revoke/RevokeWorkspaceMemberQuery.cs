@@ -68,6 +68,19 @@ public class RevokeWorkspaceMemberQuery(
                 return ResultCode.MembershipNotFound;
             }
 
+            dbWriteContext
+                .Cmd(
+                    sql: """
+                         DELETE FROM wek_workspace_encryption_keys
+                         WHERE wek_workspace_id = $workspaceId
+                           AND wek_user_id = $userId
+                         """,
+                    readRowFunc: reader => reader.GetInt32(0),
+                    transaction: transaction)
+                .WithParameter("$workspaceId", workspace.Id)
+                .WithParameter("$userId", member.Id)
+                .Execute();
+
             var queueJob = queue.Enqueue(
                 correlationId: correlationId,
                 jobType: EmailQueueJobType.Value,

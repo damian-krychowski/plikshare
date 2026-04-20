@@ -7,7 +7,7 @@ import { BoxExternalAccessApi } from '../services/box-external-access.api';
 import { DataStore } from '../services/data-store.service';
 import { SearchComponent } from '../shared/search/search.component';
 import { SearchInputComponent } from '../shared/search-input/search-input.component';
-import { Subscription, filter } from 'rxjs';
+import { Subscription, filter, firstValueFrom } from 'rxjs';
 import { InAppSharing } from '../services/in-app-sharing.service';
 import { AppExternalBox, ExternalBoxItemComponent } from '../shared/external-box-item/external-box-item.component';
 import { MatDialog } from '@angular/material/dialog';
@@ -23,6 +23,7 @@ import { ActionButtonComponent } from '../shared/buttons/action-btn/action-btn.c
 import { removeItems, unshiftItems } from '../shared/signal-utils';
 import { FooterComponent } from '../static-pages/shared/footer/footer.component';
 import { GenericDialogService } from '../shared/generic-message-dialog/generic-dialog-service';
+import { SetupEncryptionPasswordComponent } from '../shared/setup-encryption-password/setup-encryption-password.component';
 
 
 @Component({
@@ -215,7 +216,8 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                     storageExternalId: item.storageExternalId,
                     storageEncryptionType: item.storageEncryptionType,
                     isNameEditing: signal(false),
-                    isHighlighted: signal(false)
+                    isHighlighted: signal(false),
+                    isPendingKeyGrant: signal(item.isPendingKeyGrant)
                 };
 
                 return workspace;
@@ -255,7 +257,8 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                 storageExternalId: item.storageExternalId,
                 storageEncryptionType: item.storageEncryptionType,
                 isNameEditing: signal(false),
-                isHighlighted: signal(false)
+                isHighlighted: signal(false),
+                isPendingKeyGrant: signal(item.isPendingKeyGrant)
             })));
 
             this.sharedBoxes.set(response.boxes.map((item) => ({
@@ -279,6 +282,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                 name: item.workspaceName,
                 isUsedByIntegration: item.isUsedByIntegration,
                 isBucketCreated: item.isBucketCreated,
+                storageEncryptionType: item.storageEncryptionType,
                 owner: {
                     email: signal(item.owner.email),
                     externalId: item.owner.externalId
@@ -286,7 +290,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                 inviter: {
                     email: signal(item.inviter.email),
                     externalId: item.inviter.externalId
-                },                
+                },
                 permissions: item.permissions,
             })));
 
@@ -368,7 +372,9 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
             storageExternalId: storage.externalId,
             storageEncryptionType: storage.encryptionType,
             isNameEditing: signal(true),
-            isHighlighted: signal(false)
+            isHighlighted: signal(false),
+            // Owner always receives a wek wrap at storage/workspace creation.
+            isPendingKeyGrant: signal(false)
         };
 
         this.workspaces.update(values => [...values,workspace]);
@@ -398,6 +404,21 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
 
     async acceptWorkspaceInvitation(invitation: AppWorkspaceInvitation) {
         try {
+            if (invitation.storageEncryptionType === 'full' && !this.auth.isEncryptionConfigured()) {
+                const dialogRef = this._dialog.open<SetupEncryptionPasswordComponent, void, boolean>(
+                    SetupEncryptionPasswordComponent, {
+                        width: '500px',
+                        position: { top: '100px' },
+                        disableClose: true
+                    });
+
+                const wasSetUp = await firstValueFrom(dialogRef.afterClosed()) === true;
+
+                if (!wasSetUp) {
+                    return;
+                }
+            }
+
             this.isLoading.set(true);
 
             const workspace: AppWorkspace = {
@@ -406,7 +427,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                 name: signal(invitation.name),
                 currentSizeInBytes: signal(0),
                 maxSizeInBytes: signal(null),
-                owner: signal(invitation.owner), 
+                owner: signal(invitation.owner),
                 wasUserInvited: signal(true),
                 permissions: invitation.permissions,
                 isUsedByIntegration: invitation.isUsedByIntegration,
@@ -415,7 +436,8 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                 storageExternalId: '',
                 storageEncryptionType: 'none',
                 isNameEditing: signal(false),
-                isHighlighted: signal(false)
+                isHighlighted: signal(false),
+                isPendingKeyGrant: signal(false)
             }
 
             if(invitation.isUsedByIntegration) {
@@ -432,6 +454,8 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
 
             workspace.currentSizeInBytes.set(response.workspaceCurrentSizeInBytes);
             workspace.maxSizeInBytes.set(response.workspaceMaxSizeInBytes);
+            workspace.storageEncryptionType = response.storageEncryptionType;
+            workspace.isPendingKeyGrant.set(response.isPendingKeyGrant);
         } catch (error) {
             console.error(error);
         } finally {

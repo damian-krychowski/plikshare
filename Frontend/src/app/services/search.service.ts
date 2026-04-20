@@ -507,7 +507,8 @@ export class SearchService {
             storageExternalId: '',
             storageEncryptionType: 'none',
             isNameEditing: signal(false),
-            isHighlighted: signal(false)
+            isHighlighted: signal(false),
+            isPendingKeyGrant: signal(item.isPendingKeyGrant)
         };
 
         return {

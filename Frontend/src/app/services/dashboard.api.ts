@@ -32,6 +32,7 @@ export interface GetDashboardDataResponse {
         };
         isUsedByIntegration: boolean;
         isBucketCreated: boolean;
+        isPendingKeyGrant: boolean;
     }[];
 
     otherWorkspaces: {
@@ -51,6 +52,7 @@ export interface GetDashboardDataResponse {
         };
         isUsedByIntegration: boolean;
         isBucketCreated: boolean;
+        isPendingKeyGrant: boolean;
     }[];
 
     workspaceInvitations: {

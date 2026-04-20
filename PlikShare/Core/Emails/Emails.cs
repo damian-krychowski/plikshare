@@ -109,6 +109,30 @@ public static class Emails
         );
     }
 
+    public static (string Title, string Content) WorkspaceEncryptionKeyGrantRequired(
+        string applicationName,
+        string inviteeEmail,
+        string workspaceName)
+    {
+        return (
+            Title: $"{applicationName} - encryption key grant required",
+            Content: $"User <strong>{inviteeEmail}</strong> was invited to your encrypted Workspace <strong>'{workspaceName}'</strong> and is waiting for you to grant them an encryption key. " +
+                     $"Sign in, unlock your encryption password, and approve the access on the workspace members page."
+        );
+    }
+
+    public static (string Title, string Content) WorkspaceEncryptionKeyGrantApproved(
+        string applicationName,
+        string ownerEmail,
+        string workspaceName)
+    {
+        return (
+            Title: $"{applicationName} - encryption access granted",
+            Content: $"Owner <strong>{ownerEmail}</strong> has granted you encryption access to Workspace <strong>'{workspaceName}'</strong>. " +
+                     $"You can now sign in, unlock your encryption password, and enter the workspace."
+        );
+    }
+
     public static (string Title, string Content) WorkspaceMemberLeft(
         string applicationName,
         string memberEmail,

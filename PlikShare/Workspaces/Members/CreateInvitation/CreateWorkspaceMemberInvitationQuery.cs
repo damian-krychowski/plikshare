@@ -14,93 +14,63 @@ namespace PlikShare.Workspaces.Members.CreateInvitation;
 
 public class CreateWorkspaceMemberInvitationQuery(
     IClock clock,
-    IQueue queue,
-    DbWriteQueue dbWriteQueue)
+    IQueue queue)
 {
-    public Task Execute(
-        WorkspaceContext workspace,
-        UserContext inviter,
-        Member[] members,
-        bool allowShare,
-        Guid correlationId,
-        CancellationToken cancellationToken)
-    {
-        return dbWriteQueue.Execute(
-            operationToEnqueue: context => ExecuteOperation(
-                dbWriteContext: context,
-                workspace,
-                inviter,
-                members,
-                allowShare,
-                correlationId),
-            cancellationToken: cancellationToken);
-    }
-
-    private void ExecuteOperation(
+    /// <summary>
+    /// Inserts memberships and enqueues invitation emails inside the caller's transaction.
+    /// Returns IDs of members that were actually inserted (i.e. not duplicates) — the caller
+    /// needs this to compose follow-up writes (e.g. auto-grant of wek wraps) only for new
+    /// memberships, all atomically with the invitation insert.
+    /// </summary>
+    public int[] ExecuteTransaction(
         SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction,
         WorkspaceContext workspace,
         UserContext inviter,
-        Member[] members,
+        List<Member> members,
         bool allowShare,
         Guid correlationId)
     {
-        using var transaction = dbWriteContext.Connection.BeginTransaction();
+        var invitedMemberIds = new List<int>();
+        var createdQueueJobIds = new List<QueueJobId>();
 
-        try
+        foreach (var member in members)
         {
-            var invitedMemberIds = new List<int>();
-            var createdQueueJobIds = new List<QueueJobId>();
+            var insertInvitationResult = InsertWorkspaceInvitation(
+                member.User.Id,
+                workspace.Id,
+                inviter.Id,
+                allowShare,
+                dbWriteContext,
+                transaction);
 
-            foreach (var member in members)
+            if (insertInvitationResult.IsEmpty)
+                continue; //member with given id was already invited to that workspace so we ignore and continue
+
+            var queueJob = EnqueueWorkspaceInvitationEmail(
+                correlationId,
+                member,
+                inviter.Email,
+                workspace.Name,
+                dbWriteContext,
+                transaction);
+
+            invitedMemberIds.Add(member.User.Id);
+            createdQueueJobIds.Add(queueJob.Value);
+        }
+
+        Log.Information("Members '{MemberIds}' was invited to Workspace#{WorkspaceId} by Inviter '{InviterId}'. " +
+                        "QueryResult: '{@QueryResult}'",
+            members.Select(x => x.User.Id),
+            workspace.Id,
+            inviter.Id,
+            new
             {
-                var insertInvitationResult = InsertWorkspaceInvitation(
-                    member.User.Id,
-                    workspace.Id,
-                    inviter.Id,
-                    allowShare,
-                    dbWriteContext,
-                    transaction);
+                InvitedMembers = invitedMemberIds,
+                CreatedQueueJobs = createdQueueJobIds
+            });
 
-                if (insertInvitationResult.IsEmpty)
-                    continue; //member with given id was already invited to that workspace so we ignore and continue
-
-                var queueJob = EnqueueWorkspaceInvitationEmail(
-                    correlationId,
-                    member,
-                    inviter.Email,
-                    workspace.Name,
-                    dbWriteContext,
-                    transaction);
-
-                invitedMemberIds.Add(member.User.Id);
-                createdQueueJobIds.Add(queueJob.Value);
-            }
-
-            transaction.Commit();
-
-            Log.Information("Members '{MemberIds}' was invited to Workspace#{WorkspaceId} by Inviter '{InviterId}'. " +
-                            "QueryResult: '{@QueryResult}'",
-                members.Select(x => x.User.Id),
-                workspace.Id,
-                inviter.Id,
-                new
-                {
-                    InvitedMembers = invitedMemberIds,
-                    CreatedQueueJobs = createdQueueJobIds
-                });
-        }
-        catch (Exception e)
-        {
-            transaction.Rollback();
-
-            Log.Error(e,
-                "Something went wrong while creating Workspace#{WorkspaceId} invitation by Inviter '{InviterId}' to Member '{MemberIds}'",
-                workspace.Id,
-                inviter.Id,
-                members.Select(x => x.User.Id));
-
-            throw;
-        }
+        return invitedMemberIds.ToArray();
     }
 
     private SQLiteOneRowCommandResult<QueueJobId> EnqueueWorkspaceInvitationEmail(
@@ -155,9 +125,9 @@ public class CreateWorkspaceMemberInvitationQuery(
                          FALSE,
                          $allowShare,
                          $now
-                     )                                    
+                     )
                      ON CONFLICT(wm_workspace_id, wm_member_id) DO NOTHING
-                     RETURNING wm_member_id                        
+                     RETURNING wm_member_id
                      """,
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)

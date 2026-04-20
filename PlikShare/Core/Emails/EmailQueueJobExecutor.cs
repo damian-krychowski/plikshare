@@ -66,6 +66,12 @@ namespace PlikShare.Core.Emails
                 EmailTemplate.WorkspaceMemberLeft => GetWorkspaceLeftEmail(
                     definitionJson),
 
+                EmailTemplate.WorkspaceEncryptionKeyGrantRequired => GetWorkspaceEncryptionKeyGrantRequiredEmail(
+                    definitionJson),
+
+                EmailTemplate.WorkspaceEncryptionKeyGrantApproved => GetWorkspaceEncryptionKeyGrantApprovedEmail(
+                    definitionJson),
+
                 EmailTemplate.BoxMembershipInvitation => GetBoxInvitationEmail(
                     definitionJson),
 
@@ -211,6 +217,40 @@ namespace PlikShare.Core.Emails
             var (title, content) = Emails.WorkspaceMemberLeft(
                 applicationName: appSettings.ApplicationName.Name!,
                 memberEmail: operation!.Definition.MemberEmail,
+                workspaceName: operation.Definition.WorkspaceName);
+
+            var htmlContent = genericEmailTemplate.Build(
+                title: title,
+                content: content);
+
+            return new Email(operation.Email, title, htmlContent);
+        }
+
+        private Email GetWorkspaceEncryptionKeyGrantRequiredEmail(string json)
+        {
+            var operation = Json.Deserialize<EmailQueueJobDefinition<WorkspaceEncryptionKeyGrantRequiredEmailDefinition>>(
+                json);
+
+            var (title, content) = Emails.WorkspaceEncryptionKeyGrantRequired(
+                applicationName: appSettings.ApplicationName.Name!,
+                inviteeEmail: operation!.Definition.InviteeEmail,
+                workspaceName: operation.Definition.WorkspaceName);
+
+            var htmlContent = genericEmailTemplate.Build(
+                title: title,
+                content: content);
+
+            return new Email(operation.Email, title, htmlContent);
+        }
+
+        private Email GetWorkspaceEncryptionKeyGrantApprovedEmail(string json)
+        {
+            var operation = Json.Deserialize<EmailQueueJobDefinition<WorkspaceEncryptionKeyGrantApprovedEmailDefinition>>(
+                json);
+
+            var (title, content) = Emails.WorkspaceEncryptionKeyGrantApproved(
+                applicationName: appSettings.ApplicationName.Name!,
+                ownerEmail: operation!.Definition.OwnerEmail,
                 workspaceName: operation.Definition.WorkspaceName);
 
             var htmlContent = genericEmailTemplate.Build(

@@ -34,6 +34,13 @@ export class TeamComponent implements OnInit, OnDestroy {
     workspaceMembers: WritableSignal<AppWorkspaceTeamMember[]> = signal([]);
 
     hasAnyInvitation = computed(() => this.workspaceInvitations().length > 0);
+
+    isCurrentUserOwner = computed(() => {
+        const workspace = this.context.workspace();
+        if (!workspace) return false;
+        return workspace.owner.externalId === this._auth.userExternalId();
+    });
+
     canInviteMoreMembers = computed(() => {
         const workspace = this.context.workspace();
 
@@ -140,6 +147,7 @@ export class TeamComponent implements OnInit, OnDestroy {
                     const member: AppWorkspaceTeamMember = {
                         memberExternalId: signal(item.memberExternalId),
                         email: signal(item.memberEmail),
+                        isPendingKeyGrant: signal(item.isPendingKeyGrant),
                         permissions: {
                             allowShare: signal(item.permissions.allowShare)
                         }
@@ -180,6 +188,27 @@ export class TeamComponent implements OnInit, OnDestroy {
                 this.workspaceInvitations, 
                 invitation, 
                 deletedItem.index);
+        } finally {
+            this.isLoading.set(false);
+        }
+    }
+
+    async grantEncryptionAccess(member: AppWorkspaceTeamMember) {
+        if (!member.isPendingKeyGrant())
+            return;
+
+        try {
+            this.isLoading.set(true);
+
+            await this._workspaceApi.grantWorkspaceMemberEncryptionAccess(
+                this._currentWorkspaceExternalId!,
+                member.memberExternalId());
+
+            member.isPendingKeyGrant.set(false);
+
+            this._genericDialogService.openEncryptionAccessGrantedDialog(member.email());
+        } catch (error) {
+            console.error(error);
         } finally {
             this.isLoading.set(false);
         }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.Core.Authorization;
+using PlikShare.Core.CorrelationId;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Users.Cache;
@@ -36,6 +37,7 @@ public static class UserEncryptionPasswordEndpoints
         using var result = await operation.Execute(
             user: user,
             encryptionPassword: request.EncryptionPassword,
+            correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
         switch (result.Code)

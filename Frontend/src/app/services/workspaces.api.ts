@@ -2,6 +2,7 @@ import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 import { FileType } from "./filte-type";
+import { AppStorageEncryptionType } from "./storages.api";
 
 export type GetWorkspaceDetailsResponse = WorkspaceDto;
 
@@ -90,6 +91,7 @@ export interface GetWorkspaceMembersList {
         memberEmail: string;
         inviterEmail: string;
         wasInvitationAccepted: boolean;
+        isPendingKeyGrant: boolean;
         permissions: {
             allowShare: boolean;
         }
@@ -103,6 +105,8 @@ export interface UpdateWorkspaceMemberPermissionsRequest {
 export type AcceptWorkspaceInvitationResponse = {
     workspaceCurrentSizeInBytes: number;
     workspaceMaxSizeInBytes: number | null;
+    storageEncryptionType: AppStorageEncryptionType;
+    isPendingKeyGrant: boolean;
 };
 
 export interface GetWorkspaceBucketStatusResponse {
@@ -144,6 +148,15 @@ export class WorkspacesApi {
             ._http
             .delete(
                 `/api/workspaces/${workspaceExternalId}/members/${memberExternalId}`);
+
+        await firstValueFrom(call);
+    }
+
+    public async grantWorkspaceMemberEncryptionAccess(workspaceExternalId: string, memberExternalId: string): Promise<void> {
+        const call = this
+            ._http
+            .post(
+                `/api/workspaces/${workspaceExternalId}/members/${memberExternalId}/grant-encryption-access`, {});
 
         await firstValueFrom(call);
     }

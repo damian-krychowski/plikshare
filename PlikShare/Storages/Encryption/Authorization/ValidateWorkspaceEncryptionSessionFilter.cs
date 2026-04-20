@@ -50,12 +50,29 @@ public class ValidateWorkspaceEncryptionSessionFilter : IEndpointFilter
             .User
             .GetExternalId();
 
+        // Cheap cookie-presence check first — lets us hand the right error back to the UI
+        // (setup vs unlock dialog) without paying DataProtection cost when there's no
+        // cookie at all.
+        if (!UserEncryptionSessionCookie.IsPresent(context.HttpContext, userExternalId))
+        {
+            var caller = await context.HttpContext.GetUserContext();
+
+            return caller.EncryptionMetadata is null
+                ? HttpErrors.Storage.UserEncryptionSetupRequired()
+                : HttpErrors.Storage.UserEncryptionSessionRequired();
+        }
+
         using var privateKey = UserEncryptionSessionCookie.TryReadPrivateKey(
             context.HttpContext,
             userExternalId);
 
         if (privateKey is null)
+        {
+            // Cookie existed but failed to unprotect (stale data-protection key, tamper,
+            // truncation). Treat as "session gone" and make the user unlock again — the
+            // key material in DB is intact, so setup is not appropriate here.
             return HttpErrors.Storage.UserEncryptionSessionRequired();
+        }
 
         var user = await context.HttpContext.GetUserContext();
 
@@ -70,11 +87,11 @@ public class ValidateWorkspaceEncryptionSessionFilter : IEndpointFilter
         switch (result.Code)
         {
             case UserWorkspaceDekUnsealer.ResultCode.NoWraps:
-                Log.Warning(
-                    "User#{UserId} attempted to access full-encrypted Workspace#{WorkspaceId} but has no wraps in wek_workspace_encryption_keys.",
+                Log.Information(
+                    "User#{UserId} is a member of full-encrypted Workspace#{WorkspaceId} but has no wraps yet — pending owner key grant.",
                     user.Id, workspace.Id);
 
-                return HttpErrors.Workspace.EncryptionAccessDenied(workspace.ExternalId);
+                return HttpErrors.Workspace.PendingKeyGrant(workspace.ExternalId);
 
             case UserWorkspaceDekUnsealer.ResultCode.UnsealFailed:
                 // The unsealer already logged the specifics. We hide the distinction

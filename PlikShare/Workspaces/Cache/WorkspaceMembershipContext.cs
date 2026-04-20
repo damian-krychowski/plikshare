@@ -11,7 +11,7 @@ public record WorkspaceMembershipContext(
 {
     public bool IsAvailableForUser =>
         !Workspace.IsBeingDeleted && (User.HasAdminRole || IsOwnedByUser || Invitation is { WasInvitationAccepted: true });
-    
+
     public bool IsOwnedByUser => User.Id == Workspace.Owner.Id;
     public bool WasUserInvited => Invitation is not null;
 }

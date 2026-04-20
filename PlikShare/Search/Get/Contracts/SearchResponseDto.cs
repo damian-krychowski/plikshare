@@ -65,6 +65,9 @@ public class SearchResponseDto
 
         [ProtoMember(10)]
         public required bool IsBucketCreated { get; init; }
+
+        [ProtoMember(11)]
+        public required bool IsPendingKeyGrant { get; init; }
     }
 
 

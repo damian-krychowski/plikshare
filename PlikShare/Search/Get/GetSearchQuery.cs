@@ -40,6 +40,14 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
             .Select(w => w.Id)
             .ToList();
 
+        // Pending-key-grant workspaces surface as top-level name matches so the user
+        // knows they exist, but their content (folders / boxes / files) is excluded from
+        // search — the user has no encryption key to read any of it anyway.
+        var searchableWorkspaceIds = userWorkspaces
+            .Where(w => !w.IsPendingKeyGrant)
+            .Select(w => w.Id)
+            .ToList();
+
         var userExternalBoxes = GetBoxesAvailableToUser(
             user,
             boxExternalIds,
@@ -50,35 +58,38 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
             workspaces = GetMatchingWorkspaces(
                 userWorkspaces,
                 phrase);
-            
-            workspaceFolders = SearchFoldersInWorkspaces(
-                userWorkspaceIds,
-                query,
-                connection);
 
-            foreach (var folder in workspaceFolders)
+            if (searchableWorkspaceIds.Count > 0)
             {
-                workspaceGroupExternalIds.Add(folder.WorkspaceExternalId);
-            }
+                workspaceFolders = SearchFoldersInWorkspaces(
+                    searchableWorkspaceIds,
+                    query,
+                    connection);
 
-            workspaceBoxes = SearchBoxesInWorkspaces(
-                userWorkspaceIds,
-                query,
-                connection);
+                foreach (var folder in workspaceFolders)
+                {
+                    workspaceGroupExternalIds.Add(folder.WorkspaceExternalId);
+                }
 
-            foreach (var box in workspaceBoxes)
-            {
-                workspaceGroupExternalIds.Add(box.WorkspaceExternalId);
-            }
+                workspaceBoxes = SearchBoxesInWorkspaces(
+                    searchableWorkspaceIds,
+                    query,
+                    connection);
 
-            workspaceFiles = SearchFilesInWorkspaces(
-                userWorkspaceIds,
-                query,
-                connection);
+                foreach (var box in workspaceBoxes)
+                {
+                    workspaceGroupExternalIds.Add(box.WorkspaceExternalId);
+                }
 
-            foreach (var file in workspaceFiles)
-            {
-                workspaceGroupExternalIds.Add(file.WorkspaceExternalId);
+                workspaceFiles = SearchFilesInWorkspaces(
+                    searchableWorkspaceIds,
+                    query,
+                    connection);
+
+                foreach (var file in workspaceFiles)
+                {
+                    workspaceGroupExternalIds.Add(file.WorkspaceExternalId);
+                }
             }
         }
 
@@ -162,7 +173,7 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
     }
 
     private static List<SearchResponseDto.Workspace> GetMatchingWorkspaces(
-        List<Workspace> userWorkspaces, 
+        List<Workspace> userWorkspaces,
         string phrase)
     {
         return userWorkspaces
@@ -178,7 +189,8 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
                 CurrentSizeInBytes = w.CurrentSizeInBytes,
                 MaxSizeInBytes = w.MaxSizeInBytes ?? -1,
                 IsBucketCreated = w.IsBucketCreated,
-                IsOwnedByUser = w.IsOwnedByUser
+                IsOwnedByUser = w.IsOwnedByUser,
+                IsPendingKeyGrant = w.IsPendingKeyGrant
             })
             .ToList();
     }
@@ -542,7 +554,7 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
                         w_id,
                         w_external_id,
                         w_name,
-                        w_current_size_in_bytes, 
+                        w_current_size_in_bytes,
                         w_max_size_in_bytes,
                         u_email,
                         u_external_id,
@@ -557,17 +569,27 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
                              )
                          END) AS allow_share,
                          (
-                             SELECT EXISTS (       
+                             SELECT EXISTS (
                                  SELECT 1
                                  FROM i_integrations
                                  WHERE i_workspace_id = w_id
                              )
                          ) AS is_used_by_integration,
-                         w_is_bucket_created
+                         w_is_bucket_created,
+                         (
+                             s.s_encryption_type = 'full'
+                             AND NOT EXISTS (
+                                 SELECT 1 FROM wek_workspace_encryption_keys
+                                 WHERE wek_workspace_id = w_id
+                                   AND wek_user_id = $userId
+                             )
+                         ) AS is_pending_key_grant
                      FROM w_workspaces
                      INNER JOIN u_users
                          ON u_id = w_owner_id
-                     WHERE 
+                     INNER JOIN s_storages AS s
+                         ON s.s_id = w_storage_id
+                     WHERE
                          w_id IN (SELECT w_id FROM user_workspaces)
                      """,
                 readRowFunc: reader => new Workspace
@@ -582,7 +604,8 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
                     IsOwnedByUser = reader.GetBoolean(7),
                     AllowShare = reader.GetBoolean(8),
                     IsUsedByIntegration = reader.GetBoolean(9),
-                    IsBucketCreated = reader.GetBoolean(10)
+                    IsBucketCreated = reader.GetBoolean(10),
+                    IsPendingKeyGrant = reader.GetBoolean(11)
                 })
             .WithParameter("$userId", user.Id)
             .WithJsonParameter("$workspaceExternalIds", workspaceExternalIds)
@@ -671,6 +694,7 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
         public required bool AllowShare { get; init; }
         public required bool IsUsedByIntegration { get; init; }
         public required bool IsBucketCreated { get; init; }
+        public required bool IsPendingKeyGrant { get; init; }
     }
 
     private class ExternalBox

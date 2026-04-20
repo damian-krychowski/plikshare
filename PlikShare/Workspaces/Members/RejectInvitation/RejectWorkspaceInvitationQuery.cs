@@ -68,6 +68,19 @@ public class RejectWorkspaceInvitationQuery(
                 return ResultCode.MembershipNotFound;
             }
 
+            dbWriteContext
+                .Cmd(
+                    sql: """
+                         DELETE FROM wek_workspace_encryption_keys
+                         WHERE wek_workspace_id = $workspaceId
+                           AND wek_user_id = $userId
+                         """,
+                    readRowFunc: reader => reader.GetInt32(0),
+                    transaction: transaction)
+                .WithParameter("$workspaceId", workspaceMembership.Workspace.Id)
+                .WithParameter("$userId", workspaceMembership.User.Id)
+                .Execute();
+
             QueueJobId? enqueuedJobId = null;
 
             if (workspaceMembership.Invitation?.Inviter is not null)

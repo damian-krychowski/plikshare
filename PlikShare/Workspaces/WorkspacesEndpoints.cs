@@ -10,6 +10,8 @@ using PlikShare.Core.Protobuf;
 using PlikShare.Core.Queue;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
+using PlikShare.Storages.Encryption;
+using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
@@ -29,6 +31,7 @@ using PlikShare.Workspaces.Members.AcceptInvitation.Contracts;
 using PlikShare.Workspaces.Members.CountAll;
 using PlikShare.Workspaces.Members.CreateInvitation;
 using PlikShare.Workspaces.Members.CreateInvitation.Contracts;
+using PlikShare.Workspaces.Members.GrantEncryptionAccess;
 using PlikShare.Workspaces.Members.LeaveWorkspace;
 using PlikShare.Workspaces.Members.List;
 using PlikShare.Workspaces.Members.List.Contracts;
@@ -101,6 +104,7 @@ public static class WorkspacesEndpoints
 
         group.MapPost("/{workspaceExternalId}/members", InviteMember)
             .AddEndpointFilter<ValidateWorkspaceFilter>()
+            .AddEndpointFilter<ValidateWorkspaceEncryptionSessionFilter>()
             .WithName("InviteWorkspaceMember");
 
         group.MapDelete("/{workspaceExternalId}/members/{memberExternalId}", RevokeMember)
@@ -110,6 +114,11 @@ public static class WorkspacesEndpoints
         group.MapPatch("/{workspaceExternalId}/members/{memberExternalId}/permissions", UpdateMemberPermissions)
             .AddEndpointFilter<ValidateWorkspaceFilter>()
             .WithName("UpdateWorkspaceMemberPermissions");
+
+        group.MapPost("/{workspaceExternalId}/members/{memberExternalId}/grant-encryption-access", GrantEncryptionAccess)
+            .AddEndpointFilter<ValidateWorkspaceFilter>()
+            .AddEndpointFilter<ValidateWorkspaceEncryptionSessionFilter>()
+            .WithName("GrantWorkspaceMemberEncryptionAccess");
 
         group.MapPost("/{workspaceExternalId}/members/leave", LeaveSharedWorkspace)
             .AddEndpointFilter<ValidateWorkspaceFilter>()
@@ -307,7 +316,7 @@ public static class WorkspacesEndpoints
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
-        switch (result)
+        switch (result.Code)
         {
             case AcceptWorkspaceInvitationQuery.ResultCode.Ok:
                 await workspaceMembershipCache.InvalidateEntry(
@@ -325,7 +334,9 @@ public static class WorkspacesEndpoints
                 return TypedResults.Ok(new AcceptWorkspaceInvitationResponseDto
                 {
                     WorkspaceCurrentSizeInBytes = workspaceMembership.Workspace.CurrentSizeInBytes,
-                    WorkspaceMaxSizeInBytes = workspaceMembership.Workspace.MaxSizeInBytes
+                    WorkspaceMaxSizeInBytes = workspaceMembership.Workspace.MaxSizeInBytes,
+                    StorageEncryptionType = workspaceMembership.Workspace.Storage.Encryption.Type.ToDbValue(),
+                    IsPendingKeyGrant = result.IsPendingKeyGrant
                 });
 
             case AcceptWorkspaceInvitationQuery.ResultCode.MembershipNotFound:
@@ -334,7 +345,7 @@ public static class WorkspacesEndpoints
             default:
                 throw new UnexpectedOperationResultException(
                     operationName: nameof(AcceptWorkspaceInvitationQuery),
-                    resultValueStr: result.ToString());
+                    resultValueStr: result.Code.ToString());
         }
     }
 
@@ -558,6 +569,7 @@ public static class WorkspacesEndpoints
                 .Select(email => new Email(email)),
             permission: new WorkspacePermissions(
                 AllowShare: request.AllowShare),
+            ownerSession: httpContext.TryGetWorkspaceEncryptionSession(),
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
@@ -645,6 +657,70 @@ public static class WorkspacesEndpoints
                     operationName: nameof(RevokeWorkspaceMemberQuery),
                     resultValueStr: result.ToString());
         }
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> GrantEncryptionAccess(
+        [FromRoute] UserExtId memberExternalId,
+        HttpContext httpContext,
+        UserCache userCache,
+        WorkspaceMembershipCache workspaceMembershipCache,
+        GrantEncryptionAccessOperation grantEncryptionAccessOperation,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+
+        if (!workspaceMembership.IsOwnedByUser)
+            return HttpErrors.Workspace.NotOwner(workspaceMembership.Workspace.ExternalId);
+
+        if (workspaceMembership.Workspace.Storage.Encryption.Type != StorageEncryptionType.Full)
+            return HttpErrors.Workspace.NotFullEncryption(workspaceMembership.Workspace.ExternalId);
+
+        var target = await userCache.TryGetUser(
+            userExternalId: memberExternalId,
+            cancellationToken: cancellationToken);
+
+        if (target is null)
+            return HttpErrors.Workspace.MemberNotFound(
+                memberExternalId,
+                workspaceMembership.Workspace.ExternalId);
+
+        if (target.EncryptionMetadata is null)
+            return HttpErrors.Workspace.MemberEncryptionNotSetUp(memberExternalId);
+
+        var targetMembership = await workspaceMembershipCache.TryGetWorkspaceMembership(
+            workspaceExternalId: workspaceMembership.Workspace.ExternalId,
+            memberExternalId: memberExternalId,
+            cancellationToken: cancellationToken);
+
+        if (targetMembership is null)
+            return HttpErrors.Workspace.MemberNotFound(
+                memberExternalId,
+                workspaceMembership.Workspace.ExternalId);
+
+        var ownerSession = httpContext.TryGetWorkspaceEncryptionSession()
+            ?? throw new InvalidOperationException(
+                "Encryption session filter should have populated the session on a full-encryption workspace before reaching the grant handler.");
+
+        var wrappedVersionsCount = await grantEncryptionAccessOperation.Execute(
+            workspace: workspaceMembership.Workspace,
+            owner: workspaceMembership.User,
+            target: target,
+            ownerSession: ownerSession,
+            correlationId: httpContext.GetCorrelationId(),
+            cancellationToken: cancellationToken);
+
+        await auditLogService.LogWithStorageContext(
+            storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
+            buildEntry: storageRef => Audit.Workspace.MemberEncryptionAccessGrantedEntry(
+                actor: httpContext.GetAuditLogActorContext(),
+                storage: storageRef,
+                workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
+                member: target.ToAuditLogUserRef(),
+                wrappedStorageDekVersionsCount: wrappedVersionsCount),
+            cancellationToken);
+
+        return TypedResults.Ok();
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, ForbidHttpResult>> UpdateMemberPermissions(

@@ -12,6 +12,7 @@ public class GetWorkspaceMembersListResponseDto
         public required string? InviterEmail { get; init; }
         public required string MemberEmail { get; init; }
         public required bool WasInvitationAccepted { get; init; }
+        public required bool IsPendingKeyGrant { get; init; }
         public required WorkspacePermissions Permissions { get; init; }
     }
 

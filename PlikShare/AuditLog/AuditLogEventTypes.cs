@@ -136,6 +136,7 @@ public static class AuditLogEventTypes
         public const string MemberInvited = "workspace.member-invited";
         public const string MemberRevoked = "workspace.member-revoked";
         public const string MemberPermissionsUpdated = "workspace.member-permissions-updated";
+        public const string MemberEncryptionAccessGranted = "workspace.member-encryption-access-granted";
         public const string InvitationAccepted = "workspace.invitation-accepted";
         public const string InvitationRejected = "workspace.invitation-rejected";
         public const string MemberLeft = "workspace.member-left";
@@ -146,6 +147,7 @@ public static class AuditLogEventTypes
             Created, Deleted, NameUpdated,
             OwnerChanged, MaxSizeUpdated, MaxTeamMembersUpdated,
             MemberInvited, MemberRevoked, MemberPermissionsUpdated,
+            MemberEncryptionAccessGranted,
             InvitationAccepted, InvitationRejected, MemberLeft,
             BulkDeleteRequested
         ];

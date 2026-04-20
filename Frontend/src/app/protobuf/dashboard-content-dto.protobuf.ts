@@ -37,7 +37,8 @@ export function getDashboardContentDtoProtobuf() {
         .add(new protobuf.Field("isUsedByIntegration", 8, "bool"))
         .add(new protobuf.Field("isBucketCreated", 9, "bool"))
         .add(new protobuf.Field("storageExternalId", 10, "string"))
-        .add(new protobuf.Field("storageEncryptionType", 11, "string"));
+        .add(new protobuf.Field("storageEncryptionType", 11, "string"))
+        .add(new protobuf.Field("isPendingKeyGrant", 12, "bool"));
 
     const workspaceInvitationType = new protobuf.Type("WorkspaceInvitation")
         .add(new protobuf.Field("workspaceExternalId", 1, "string"))

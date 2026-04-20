@@ -1,5 +1,6 @@
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
+using PlikShare.Storages.Encryption;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Members.List.Contracts;
@@ -14,6 +15,8 @@ public class GetWorkspaceMembersListQuery(PlikShareDb plikShareDb)
     {
         using var connection = plikShareDb.OpenConnection();
 
+        var isFullEncrypted = workspace.Storage.Encryption.Type == StorageEncryptionType.Full;
+
         var memberships = connection
             .Cmd(
                 sql: """
@@ -22,7 +25,15 @@ public class GetWorkspaceMembersListQuery(PlikShareDb plikShareDb)
                          um.u_email AS w_member_email,
                          wm_was_invitation_accepted,
                          wm_allow_share,
-                         ui.u_email AS w_inviter_email
+                         ui.u_email AS w_inviter_email,
+                         (
+                             $isFullEncrypted = TRUE AND NOT EXISTS (
+                                 SELECT 1
+                                 FROM wek_workspace_encryption_keys
+                                 WHERE wek_workspace_id = $workspaceId
+                                   AND wek_user_id = wm_member_id
+                             )
+                         ) AS w_is_pending_key_grant
                      FROM wm_workspace_membership
                      INNER JOIN u_users AS ui
                          ON ui.u_id = wm_inviter_id
@@ -40,9 +51,11 @@ public class GetWorkspaceMembersListQuery(PlikShareDb plikShareDb)
                     {
                         AllowShare = reader.GetBoolean(3)
                     },
-                    InviterEmail = reader.GetStringOrNull(4)
+                    InviterEmail = reader.GetStringOrNull(4),
+                    IsPendingKeyGrant = reader.GetBoolean(5)
                 })
             .WithParameter("$workspaceId", workspace.Id)
+            .WithParameter("$isFullEncrypted", isFullEncrypted)
             .Execute();
 
         return new GetWorkspaceMembersListResponseDto

@@ -76,6 +76,7 @@ public class workspace_tests : TestFixture
             StorageEncryptionType = "none",
             IsBucketCreated = false,
             IsUsedByIntegration = false,
+            IsPendingKeyGrant = false,
             MaxSizeInBytes = -1,
         });
     }

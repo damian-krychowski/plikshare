@@ -1,5 +1,6 @@
 using PlikShare.Core.Encryption;
 using PlikShare.Users.Cache;
+using PlikShare.Workspaces.Members.GrantEncryptionAccess;
 using Serilog;
 
 namespace PlikShare.Users.UserEncryptionPassword;
@@ -13,11 +14,13 @@ namespace PlikShare.Users.UserEncryptionPassword;
 /// Rejects users who already have encryption configured — change/reset flows are separate.
 /// </summary>
 public class SetupUserEncryptionPasswordOperation(
-    UpsertUserEncryptionDataQuery upsertUserEncryptionDataQuery)
+    UpsertUserEncryptionDataQuery upsertUserEncryptionDataQuery,
+    NotifyOwnersOfPendingGrantsQuery notifyOwnersOfPendingGrantsQuery)
 {
     public async Task<Result> Execute(
         UserContext user,
         string encryptionPassword,
+        Guid correlationId,
         CancellationToken cancellationToken)
     {
         if (user.EncryptionMetadata is not null)
@@ -70,6 +73,15 @@ public class SetupUserEncryptionPasswordOperation(
 
         if (writeCode == UpsertUserEncryptionDataQuery.ResultCode.UserNotFound)
             return new Result(ResultCode.UserNotFound);
+
+        // The user can now be granted encryption keys for any full-encrypted workspaces
+        // they were previously invited to. Notify each such workspace owner now so they
+        // can act — deferred from invitation time when the user had no public key yet.
+        await notifyOwnersOfPendingGrantsQuery.Execute(
+            userId: user.Id,
+            inviteeEmail: user.Email.Value,
+            correlationId: correlationId,
+            cancellationToken: cancellationToken);
 
         return new Result(
             code: ResultCode.Ok,
