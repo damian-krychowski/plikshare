@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
@@ -25,20 +26,37 @@ public class UpsertUserEncryptionDataQuery(DbWriteQueue dbWriteQueue)
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
-            operationToEnqueue: context => ExecuteOperation(
-                dbWriteContext: context,
-                userId: userId,
-                publicKey: publicKey,
-                encryptedPrivateKey: encryptedPrivateKey,
-                kdfSalt: kdfSalt,
-                kdfParams: kdfParams,
-                verifyHash: verifyHash,
-                recoveryWrappedPrivateKey: recoveryWrappedPrivateKey,
-                recoveryVerifyHash: recoveryVerifyHash),
+            operationToEnqueue: context =>
+            {
+                using var transaction = context.Connection.BeginTransaction();
+
+                try
+                {
+                    var code = ExecuteTransaction(
+                        dbWriteContext: context,
+                        userId: userId,
+                        publicKey: publicKey,
+                        encryptedPrivateKey: encryptedPrivateKey,
+                        kdfSalt: kdfSalt,
+                        kdfParams: kdfParams,
+                        verifyHash: verifyHash,
+                        recoveryWrappedPrivateKey: recoveryWrappedPrivateKey,
+                        recoveryVerifyHash: recoveryVerifyHash,
+                        transaction: transaction);
+
+                    transaction.Commit();
+                    return code;
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            },
             cancellationToken: cancellationToken);
     }
 
-    private ResultCode ExecuteOperation(
+    public ResultCode ExecuteTransaction(
         SqliteWriteContext dbWriteContext,
         int userId,
         byte[] publicKey,
@@ -47,7 +65,8 @@ public class UpsertUserEncryptionDataQuery(DbWriteQueue dbWriteQueue)
         EncryptionPasswordKdf.Params kdfParams,
         byte[] verifyHash,
         byte[] recoveryWrappedPrivateKey,
-        byte[] recoveryVerifyHash)
+        byte[] recoveryVerifyHash,
+        SqliteTransaction transaction)
     {
         var result = dbWriteContext
             .OneRowCmd(
@@ -65,7 +84,8 @@ public class UpsertUserEncryptionDataQuery(DbWriteQueue dbWriteQueue)
                      WHERE u_id = $userId
                      RETURNING u_id
                      """,
-                readRowFunc: reader => reader.GetInt32(0))
+                readRowFunc: reader => reader.GetInt32(0),
+                transaction: transaction)
             .WithParameter("$userId", userId)
             .WithParameter("$publicKey", publicKey)
             .WithParameter("$encryptedPrivateKey", encryptedPrivateKey)

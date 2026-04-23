@@ -188,12 +188,12 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
             }
         });
 
-        dialogRef.afterClosed().subscribe((inviteeEmails: string[]) => {
-            if(!inviteeEmails || inviteeEmails.length === 0)
+        dialogRef.afterClosed().subscribe((result: { emails: string[]; ephemeralDekLifetimeHours: number | null } | undefined) => {
+            if(!result || !result.emails || result.emails.length === 0)
                 return;
-            
+
             const temporaryKey = this._inAppSharing.set(
-                inviteeEmails);
+                result.emails);
 
             const navigationExtras: NavigationExtras = {
                 state: {
@@ -202,9 +202,9 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
             };
 
             this._router.navigate(
-                [`/workspaces/${externalId}/team`], 
-                navigationExtras);     
-        });       
+                [`/workspaces/${externalId}/team`],
+                navigationExtras);
+        });
     }
 
     async leaveWorkspace() {

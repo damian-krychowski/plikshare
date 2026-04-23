@@ -132,7 +132,7 @@ public class UserEncryptionRecoveryTests
         var recoveryWrappedPrivateKey = SecureBytes.UseBoth(
             keypair.PrivateKey,
             recoveryKek,
-            static (privateKeySpan, kekSpan) => WrappedPrivateKey.Wrap(kekSpan, privateKeySpan));
+            static (privateKeySpan, kekSpan) => SymmetricAeadWrap.Wrap(kekSpan, privateKeySpan));
 
         var recoveryVerifyHash = UserEncryptionRecovery.ComputeVerifyHash(recoverySeed);
 
@@ -145,7 +145,7 @@ public class UserEncryptionRecoveryTests
 
         using var recoveredPrivateKey = rederivedKek.Use(
             recoveryWrappedPrivateKey,
-            static (kekSpan, wrapped) => WrappedPrivateKey.Unwrap(kekSpan, wrapped));
+            static (kekSpan, wrapped) => SymmetricAeadWrap.Unwrap(kekSpan, wrapped));
 
         AssertSecureBytesEqual(keypair.PrivateKey, recoveredPrivateKey);
     }

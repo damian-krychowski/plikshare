@@ -121,8 +121,12 @@ export class UsersSettingsComponent implements OnInit {
             }
         });
 
-        dialogRef.afterClosed().subscribe(
-            (inviteeEmails: string[]) => this.inviteMembers(inviteeEmails));
+        dialogRef.afterClosed().subscribe((result: { emails: string[]; ephemeralDekLifetimeHours: number | null } | undefined) => {
+            if (!result)
+                return;
+
+            this.inviteMembers(result.emails);
+        });
     }
 
     async inviteMembers(inviteeEmails: string[]) {

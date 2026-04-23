@@ -81,6 +81,23 @@ public class RevokeWorkspaceMemberQuery(
                 .WithParameter("$userId", member.Id)
                 .Execute();
 
+            // Also wipe any ephemeral wrap still staged for a brand-new invitee. This covers
+            // the "cancel pending invitation" case — an ephemeral DEK is a live access token
+            // until its TTL elapses, so the owner cancelling the invite must revoke it now
+            // rather than waiting on the cleanup job.
+            dbWriteContext
+                .Cmd(
+                    sql: """
+                         DELETE FROM ewek_ephemeral_workspace_encryption_keys
+                         WHERE ewek_workspace_id = $workspaceId
+                           AND ewek_user_id = $userId
+                         """,
+                    readRowFunc: reader => reader.GetInt32(0),
+                    transaction: transaction)
+                .WithParameter("$workspaceId", workspace.Id)
+                .WithParameter("$userId", member.Id)
+                .Execute();
+
             var queueJob = queue.Enqueue(
                 correlationId: correlationId,
                 jobType: EmailQueueJobType.Value,

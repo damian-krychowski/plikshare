@@ -1,6 +1,8 @@
 
 import { Component, NgZone, OnDestroy, OnInit, WritableSignal, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
+import { firstValueFrom } from 'rxjs';
 import { TopBarComponent } from '../shared/top-bar/top-bar.component';
 import { FooterComponent } from '../shared/footer/footer.component';
 import { AuthApi } from '../../services/auth.api';
@@ -14,6 +16,7 @@ import { Countdown } from '../../services/countdown';
 import { SecureInputDirective } from '../../shared/secure-input.directive';
 import { EntryPageService } from '../../services/entry-page.service';
 import { SignUpCheckboxDto } from '../../services/general-settings.api';
+import { SetupEncryptionPasswordComponent, SetupEncryptionPasswordDialogData } from '../../shared/setup-encryption-password/setup-encryption-password.component';
 
 type ViewState = 'sign-up' | 'confirm-email';
 
@@ -65,7 +68,8 @@ export class SignUpPageComponent implements OnInit, OnDestroy {
         private _authService: AuthService,
         private _authApi: AuthApi,
         private _activatedRoute: ActivatedRoute,
-        private _router: Router) {
+        private _router: Router,
+        private _dialog: MatDialog) {
 
         this.checkboxes = this._formBuilder.array<FormControl<boolean | null>>([]);
 
@@ -157,6 +161,11 @@ export class SignUpPageComponent implements OnInit, OnDestroy {
                 this.isInvitationRequired.set(true);
             } else if(result.code === 'signed-up-and-signed-in'){
                 this._authService.initiateSession();
+
+                if (this._invitationCode) {
+                    await this.promptEncryptionPasswordSetup(this._invitationCode);
+                }
+
                 await this._router.navigate(['workspaces']);
             }
         } catch (err: any) {
@@ -184,5 +193,20 @@ export class SignUpPageComponent implements OnInit, OnDestroy {
 
     public goBackFromConfirmationEmail() {
         this.viewState.set('sign-up');
+    }
+
+    private async promptEncryptionPasswordSetup(invitationCode: string): Promise<void> {
+        const data: SetupEncryptionPasswordDialogData = {
+            invitationCode,
+            mode: 'post-invitation-signup'
+        };
+
+        const dialogRef = this._dialog.open(SetupEncryptionPasswordComponent, {
+            width: '500px',
+            position: { top: '100px' },
+            data
+        });
+
+        await firstValueFrom(dialogRef.afterClosed());
     }
 }

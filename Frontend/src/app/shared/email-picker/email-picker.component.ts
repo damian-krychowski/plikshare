@@ -1,14 +1,44 @@
-import { Component, computed, OnDestroy, OnInit, Signal, signal, ViewEncapsulation, WritableSignal } from '@angular/core';
-import { MatDialogRef } from '@angular/material/dialog';
+import { Component, computed, Inject, OnDestroy, OnInit, Optional, Signal, signal, ViewEncapsulation, WritableSignal } from '@angular/core';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { FormControl, FormGroupDirective, FormsModule, NgForm } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatSelectModule } from '@angular/material/select';
 import { ActionButtonComponent } from '../buttons/action-btn/action-btn.component';
 import { AccountApi, KnownUser } from '../../services/account.api';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { Subscription } from 'rxjs';
+
+export type EmailPickerDialogData = {
+    /**
+     * When true, the dialog also asks the inviter to pick how long the ephemeral
+     * workspace DEK staged for brand-new invitees stays valid. The selected value
+     * is passed to the backend as part of the invitation request.
+     * Only meaningful for full-encryption workspace invitations.
+     */
+    showEphemeralDekLifetime?: boolean;
+};
+
+export type EmailPickerResult = {
+    emails: string[];
+    ephemeralDekLifetimeHours: number | null;
+};
+
+type EphemeralDekLifetimeOption = {
+    label: string;
+    hours: number;
+};
+
+const EPHEMERAL_DEK_LIFETIME_OPTIONS: EphemeralDekLifetimeOption[] = [
+    { label: '24 hours', hours: 24 },
+    { label: '48 hours', hours: 48 },
+    { label: '7 days', hours: 168 },
+    { label: '30 days', hours: 720 }
+];
+
+const DEFAULT_EPHEMERAL_DEK_LIFETIME_HOURS = 168;
 
 export class MyErrorStateMatcher implements ErrorStateMatcher {
     isErrorState(control: FormControl | null, form: FormGroupDirective | NgForm | null): boolean {
@@ -36,6 +66,7 @@ type EmailUser = {
         MatFormFieldModule,
         MatInputModule,
         MatButtonModule,
+        MatSelectModule,
         ActionButtonComponent,
         MatAutocompleteModule
     ],
@@ -49,13 +80,19 @@ export class EmailPickerComponent implements OnInit, OnDestroy {
     alreadyPickedEmails = computed(() => this.emails().filter(e => e.value()).map(e => e.value()))
     knownUsers = signal<EmailUser[]>([]);
 
+    showEphemeralDekLifetime: boolean;
+    ephemeralDekLifetimeOptions = EPHEMERAL_DEK_LIFETIME_OPTIONS;
+    ephemeralDekLifetimeHours: WritableSignal<number> = signal(DEFAULT_EPHEMERAL_DEK_LIFETIME_HOURS);
+
     matcher = new MyErrorStateMatcher();
 
     private _subscription: Subscription | null = null;
-    
+
     constructor(
         private _accountApi: AccountApi,
-        public dialogRef: MatDialogRef<EmailPickerComponent>) {    
+        public dialogRef: MatDialogRef<EmailPickerComponent>,
+        @Optional() @Inject(MAT_DIALOG_DATA) data?: EmailPickerDialogData) {
+        this.showEphemeralDekLifetime = data?.showEphemeralDekLifetime === true;
     }
 
     async ngOnInit(): Promise<void> {
@@ -120,7 +157,13 @@ export class EmailPickerComponent implements OnInit, OnDestroy {
     }
 
     public onEmailPicked() {
-        this.dialogRef.close(this.emails().map(email => email.value()));
+        const result: EmailPickerResult = {
+            emails: this.emails().map(email => email.value()),
+            ephemeralDekLifetimeHours: this.showEphemeralDekLifetime
+                ? this.ephemeralDekLifetimeHours()
+                : null
+        };
+        this.dialogRef.close(result);
     }
 
     public onCancel() {

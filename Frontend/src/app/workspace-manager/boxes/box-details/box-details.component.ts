@@ -449,9 +449,11 @@ export class BoxDetailsComponent implements OnInit, OnDestroy {
             }
         });
 
-        dialogRef.afterClosed().subscribe(async (inviteeEmails: string[]) => {
-            if (!inviteeEmails || inviteeEmails.length === 0)
+        dialogRef.afterClosed().subscribe(async (result: { emails: string[]; ephemeralDekLifetimeHours: number | null } | undefined) => {
+            if (!result || !result.emails || result.emails.length === 0)
                 return;
+
+            const inviteeEmails = result.emails;
 
             if(!this._boxExternalId)
                 return;

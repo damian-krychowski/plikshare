@@ -56,16 +56,18 @@
                 <i class="icon icon-xl icon-nucleo-explorer"></i>    
             </button> 
 
-            <button class="top-nav-btn d-none-on-mobile-early" 
-                [class.top-nav-btn--active]="isBoxesActive()"
-                aria-label="Boxes" 
-                mat-flat-button  
-                matTooltip="Boxes"
-                matTooltipPosition="below"
-                (prefetch)="prefetchBoxes()"
-                (click)="goToBoxes()"> 
-                <i class="icon icon-xl icon-nucleo-box"></i>
-            </button> 
+            @if(areBoxesSupported()) {
+                <button class="top-nav-btn d-none-on-mobile-early"
+                    [class.top-nav-btn--active]="isBoxesActive()"
+                    aria-label="Boxes"
+                    mat-flat-button
+                    matTooltip="Boxes"
+                    matTooltipPosition="below"
+                    (prefetch)="prefetchBoxes()"
+                    (click)="goToBoxes()">
+                    <i class="icon icon-xl icon-nucleo-box"></i>
+                </button>
+            }
 
             @if(isTeamVisible()) {
                 <button
@@ -132,11 +134,13 @@
                 <i class="icon icon-xl icon-nucleo-explorer"></i>    
             </a>
 
-            <a class="app-menu__link" (click)="goToBoxes()"
-                [class.app-menu__link--active]="isBoxesActive()">
-                Boxes
-                <i class="icon icon-xl icon-nucleo-box"></i>
-            </a>
+            @if(areBoxesSupported()) {
+                <a class="app-menu__link" (click)="goToBoxes()"
+                    [class.app-menu__link--active]="isBoxesActive()">
+                    Boxes
+                    <i class="icon icon-xl icon-nucleo-box"></i>
+                </a>
+            }
 
             <a class="app-menu__link" (click)="goToTeam()"
                 [class.app-menu__link--active]="isTeamActive()">

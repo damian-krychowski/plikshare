@@ -20,6 +20,7 @@ public record GetWorkspaceDetailsResponseDto
     public required WorkspacePermissions Permissions { get; init; }
     public required WorkspaceIntegrationsDto Integrations { get; init; }
     public required bool IsBucketCreated { get; init; }
+    public required string StorageEncryptionType { get; init; }
 }
 
 public class WorkspaceOwnerDto

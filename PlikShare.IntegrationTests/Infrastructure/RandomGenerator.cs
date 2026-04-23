@@ -1,9 +1,12 @@
 using PlikShare.Core.Utils;
+using PlikShare.Users.Invite;
 
 namespace PlikShare.IntegrationTests.Infrastructure;
 
 public class RandomGenerator
 {
+    private readonly OneTimeInvitationCode _realOneTimeInvitationCode = new();
+
     public string Email(string? prefix = null)
     {
         var pref = prefix is null ? "" : $"{prefix}_";
@@ -17,6 +20,15 @@ public class RandomGenerator
 
         return $"{pref}invitation_code_{Guid.NewGuid().ToBase62()}";
     }
+
+    /// <summary>
+    /// Produces an invitation code in the exact Base62-of-32-random-bytes shape the
+    /// production <see cref="OneTimeInvitationCode"/> generator emits. Required for
+    /// tests that need to exercise the full-encryption ephemeral path — the ephemeral
+    /// DEK KEK is derived by decoding the code from Base62, which rejects prefixes or
+    /// underscores that <see cref="InvitationCode"/> injects for readability.
+    /// </summary>
+    public string RealShapeInvitationCode() => _realOneTimeInvitationCode.Generate();
 
     public string Password()
     {

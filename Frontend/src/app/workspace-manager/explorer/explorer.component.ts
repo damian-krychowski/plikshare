@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, signal, WritableSignal } from '@angular/core';
+import { Component, computed, OnDestroy, OnInit, signal, WritableSignal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { ActivatedRoute, Navigation, NavigationEnd, NavigationExtras, Router, RouterModule } from '@angular/router';
 import { FilesExplorerApi, FilesExplorerComponent, ItemToHighlight } from '../../files-explorer/files-explorer.component';
@@ -30,6 +30,8 @@ export class ExplorerComponent implements OnInit, OnDestroy {
     itemToHighlight: WritableSignal<ItemToHighlight | null> = signal(null);
     filesApi: WritableSignal<FilesExplorerApi | null> = signal(null);
     uploadsApi: WritableSignal<FileUploadApi | null> = signal(null);
+
+    areBoxesSupported = computed(() => this.context.workspace()?.storageEncryptionType !== 'full');
 
     private _workspaceExternalId: string | null = null;
 

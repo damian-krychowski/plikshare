@@ -50,3 +50,15 @@
         padding-bottom: 2rem;
     }
 }
+
+.ephemeral-dek-lifetime {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    padding-bottom: 1rem;
+
+    &__info {
+        font-size: var(--company-medium-font);
+        color: var(--company-grey-font);
+        padding-bottom: 1rem;
+    }
+}

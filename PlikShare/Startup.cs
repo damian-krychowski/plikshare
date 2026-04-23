@@ -225,6 +225,7 @@ using PlikShare.Workspaces.Members.AcceptInvitation;
 using PlikShare.Workspaces.Members.CountAll;
 using PlikShare.Workspaces.Members.CreateInvitation;
 using PlikShare.Workspaces.Members.GrantEncryptionAccess;
+using PlikShare.Workspaces.Members.GrantEncryptionAccess.Cleanup;
 using PlikShare.Workspaces.Members.LeaveWorkspace;
 using PlikShare.Workspaces.Members.List;
 using PlikShare.Workspaces.Members.RejectInvitation;
@@ -303,6 +304,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_25_StorageEncryptionKeysIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_26_WorkspaceEncryptionKeysIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_27_InvitationCodeHashedAndInvalidated>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_28_EphemeralWorkspaceEncryptionKeysIntroduced>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 
@@ -446,6 +448,9 @@ public class Startup
         builder.Services.AddSingleton<UpdateWorkspaceMemberPermissionsQuery>();
         builder.Services.AddSingleton<GrantEncryptionAccessOperation>();
         builder.Services.AddSingleton<NotifyOwnersOfPendingGrantsQuery>();
+        builder.Services.AddSingleton<UpsertEphemeralWorkspaceEncryptionKeyQuery>();
+        builder.Services.AddSingleton<PromoteEphemeralWorkspaceEncryptionKeysQuery>();
+        builder.Services.AddSingleton<IQueueDbOnlyJobExecutor, DeleteEphemeralWorkspaceEncryptionKeysQueueJobExecutor>();
         builder.Services.AddSingleton<WorkspaceCache>();
         builder.Services.AddSingleton<WorkspaceMembershipCache>();
         builder.Services.AddSingleton<ScheduleWorkspaceDeleteQuery>();

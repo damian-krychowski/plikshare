@@ -48,7 +48,10 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
     workspaceName = computed(() => this.context.workspace()?.name);
     currentSizeInBytes = computed(() => this.context.workspace()?.currentSizeInBytes ?? 0);
     maxSizeInBytes = computed(() => this.context.workspace()?.maxSizeInBytes ?? null);
-    
+
+    isFullEncryption = computed(() => this.context.workspace()?.storageEncryptionType === 'full');
+    areBoxesSupported = computed(() => !this.isFullEncryption());
+
     allowShare = computed(() => this.context.workspace()?.permissions?.allowShare ?? false);
     isTeamVisible = computed(() => {
         const allowShare = this.allowShare();

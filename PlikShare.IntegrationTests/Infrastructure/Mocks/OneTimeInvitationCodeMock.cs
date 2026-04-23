@@ -20,6 +20,11 @@ public class OneTimeInvitationCodeMock : IOneTimeInvitationCode
         }
     }
 
+    public void ClearPredefinedCodes()
+    {
+        _predefinedCodes.Clear();
+    }
+
     public string Generate()
     {
         return _predefinedCodes.Count > 0

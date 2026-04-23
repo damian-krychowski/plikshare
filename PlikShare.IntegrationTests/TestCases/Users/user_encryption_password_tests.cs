@@ -614,7 +614,8 @@ public class user_encryption_password_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [invitee.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
             userEncryptionSession: storage.WorkspaceEncryptionSession);
@@ -670,7 +671,8 @@ public class user_encryption_password_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [invitee.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
             userEncryptionSession: storage.WorkspaceEncryptionSession);

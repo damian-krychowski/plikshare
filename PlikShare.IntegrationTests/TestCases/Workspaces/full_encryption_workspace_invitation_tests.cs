@@ -64,7 +64,8 @@ public class full_encryption_workspace_invitation_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [invitee.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
             userEncryptionSession: storage.WorkspaceEncryptionSession);
@@ -104,7 +105,8 @@ public class full_encryption_workspace_invitation_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [invitee.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
             userEncryptionSession: storage.WorkspaceEncryptionSession);
@@ -159,7 +161,8 @@ public class full_encryption_workspace_invitation_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [invitee.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
             userEncryptionSession: storage.WorkspaceEncryptionSession);
@@ -257,7 +260,8 @@ public class full_encryption_workspace_invitation_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [alice.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
             userEncryptionSession: storage.WorkspaceEncryptionSession);
@@ -290,16 +294,22 @@ public class full_encryption_workspace_invitation_tests : TestFixture
         // Bucket D — dave's email has no row in u_users at all. Pre-feed the invitation
         // code mock LAST, so the very next Generate() (the one inside the test InviteMember
         // call) returns this exact code; that's how we know what the email body will carry.
+        // Use the real-shape Base62 code because Dave lands on the ephemeral path, which
+        // decodes the invitation code back to raw entropy bytes for KEK derivation.
         var daveEmail = Random.Email();
-        var daveCode = Random.InvitationCode();
+        var daveCode = Random.RealShapeInvitationCode();
         OneTimeInvitationCode.AddCode(daveCode);
 
         //when — single InviteMember call covering all four buckets in one transaction.
+        // TTL is required because Dave is a brand-new invitee and lands on the ephemeral
+        // path; it is ignored for Alice/Bob (existing + encrypted → wek auto-grant) and
+        // Carol (existing, no encryption → deferred).
         await Api.Workspaces.InviteMember(
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [alice.Email, bob.Email, carol.Email, daveEmail],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: 24),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
             userEncryptionSession: storage.WorkspaceEncryptionSession);
@@ -409,7 +419,8 @@ public class full_encryption_workspace_invitation_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [invitee.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
             userEncryptionSession: storage.WorkspaceEncryptionSession);
@@ -456,7 +467,8 @@ public class full_encryption_workspace_invitation_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [invitee.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
             userEncryptionSession: storage.WorkspaceEncryptionSession);
@@ -504,7 +516,8 @@ public class full_encryption_workspace_invitation_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [invitee.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
             userEncryptionSession: storage.WorkspaceEncryptionSession);
@@ -553,7 +566,8 @@ public class full_encryption_workspace_invitation_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [acceptedMember.Email, pendingMember.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery,
             userEncryptionSession: storage.WorkspaceEncryptionSession);

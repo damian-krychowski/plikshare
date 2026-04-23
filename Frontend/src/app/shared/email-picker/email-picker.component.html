@@ -57,10 +57,32 @@
                         </app-action-btn>
                     }
                 </mat-form-field>
-            }       
+            }
         </div>
 
-        <div class="questionaire__actions">     
+        @if(showEphemeralDekLifetime) {
+            <div class="ephemeral-dek-lifetime">
+                <div class="ephemeral-dek-lifetime__info">
+                    This workspace uses full encryption. Invited users who are new to PlikShare
+                    receive a temporary access key valid for the chosen time window — after it
+                    elapses they will need the workspace owner to grant access manually.
+                </div>
+
+                <mat-form-field class="questionaire__form-field">
+                    <mat-label>Access expires after</mat-label>
+                    <mat-select
+                        [ngModel]="ephemeralDekLifetimeHours()"
+                        (ngModelChange)="ephemeralDekLifetimeHours.set($event)"
+                        name="ephemeralDekLifetimeHours">
+                        @for(option of ephemeralDekLifetimeOptions; track option.hours) {
+                            <mat-option [value]="option.hours">{{ option.label }}</mat-option>
+                        }
+                    </mat-select>
+                </mat-form-field>
+            </div>
+        }
+
+        <div class="questionaire__actions">
             <app-action-btn 
                 [tooltip]="'Add email'"
                 icon="icon-lucide-plus"

@@ -37,6 +37,7 @@ public static class UserEncryptionPasswordEndpoints
         using var result = await operation.Execute(
             user: user,
             encryptionPassword: request.EncryptionPassword,
+            invitationCode: request.InvitationCode,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
@@ -240,7 +241,7 @@ public static class UserEncryptionPasswordEndpoints
     }
 }
 
-public record SetupRequestDto(string EncryptionPassword);
+public record SetupRequestDto(string EncryptionPassword, string? InvitationCode);
 public record SetupResponseDto(string RecoveryCode);
 public record UnlockRequestDto(string EncryptionPassword);
 public record ChangeRequestDto(string OldPassword, string NewPassword);

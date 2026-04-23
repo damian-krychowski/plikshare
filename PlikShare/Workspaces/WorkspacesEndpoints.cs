@@ -466,7 +466,8 @@ public static class WorkspacesEndpoints
                     })
                     .ToList()
             },
-            IsBucketCreated = workspaceMembership.Workspace.IsBucketCreated
+            IsBucketCreated = workspaceMembership.Workspace.IsBucketCreated,
+            StorageEncryptionType = workspaceMembership.Workspace.Storage.Encryption.Type.ToDbValue()
         });
     }
 
@@ -545,19 +546,19 @@ public static class WorkspacesEndpoints
             return TypedResults.Forbid();
         }
 
-        var workspaceMaxTeamMembers = workspaceMembership.Workspace.MaxTeamMembers;
+        var teamMembersLimitError = ValidateTeamMembersLimit(
+            workspace: workspaceMembership.Workspace,
+            requestedEmails: request.MemberEmails.Count,
+            countQuery: countWorkspaceTotalTeamMembersQuery);
 
-        if (workspaceMaxTeamMembers is not null)
-        {
-            var currentTeamMembers = countWorkspaceTotalTeamMembersQuery.Execute(
-                workspaceId: workspaceMembership.Workspace.Id);
+        if (teamMembersLimitError is not null)
+            return teamMembersLimitError;
 
-            if (currentTeamMembers.TotalCount + request.MemberEmails.Count > workspaceMaxTeamMembers)
-            {
-                return HttpErrors.Workspace.MaxTeamMembersExceeded(
-                    workspaceMembership.Workspace.ExternalId);
-            }
-        }
+        var (ephemeralDekLifetime, ephemeralDekLifetimeError) = ValidateEphemeralDekLifetime(
+            request.EphemeralDekLifetimeHours);
+
+        if (ephemeralDekLifetimeError is not null)
+            return ephemeralDekLifetimeError;
 
         var user = await httpContext.GetUserContext();
 
@@ -570,6 +571,7 @@ public static class WorkspacesEndpoints
             permission: new WorkspacePermissions(
                 AllowShare: request.AllowShare),
             ownerSession: httpContext.TryGetWorkspaceEncryptionSession(),
+            ephemeralDekLifetime: ephemeralDekLifetime,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
@@ -869,5 +871,47 @@ public static class WorkspacesEndpoints
             cancellationToken);
 
         return result;
+    }
+
+    private static BadRequest<HttpError>? ValidateTeamMembersLimit(
+        WorkspaceContext workspace,
+        int requestedEmails,
+        CountWorkspaceTotalTeamMembersQuery countQuery)
+    {
+        var maxTeamMembers = workspace.MaxTeamMembers;
+
+        if (maxTeamMembers is null)
+            return null;
+
+        var currentTeamMembers = countQuery.Execute(
+            workspaceId: workspace.Id);
+
+        if (currentTeamMembers.TotalCount + requestedEmails > maxTeamMembers)
+            return HttpErrors.Workspace.MaxTeamMembersExceeded(workspace.ExternalId);
+
+        return null;
+    }
+
+    private static (TimeSpan? Lifetime, BadRequest<HttpError>? Error) ValidateEphemeralDekLifetime(
+        int? ephemeralDekLifetimeHours)
+    {
+        if (ephemeralDekLifetimeHours is null)
+            return (null, null);
+
+        var hours = ephemeralDekLifetimeHours.Value;
+        var maxHours = (int) CreateWorkspaceMemberInvitationOperation
+            .MaxEphemeralDekLifetime
+            .TotalHours;
+
+        if (hours < 1 || hours > maxHours)
+        {
+            return (null, TypedResults.BadRequest(new HttpError
+            {
+                Code = "invalid-ephemeral-dek-lifetime",
+                Message = $"Ephemeral DEK lifetime must be between 1 and {maxHours} hours ({maxHours / 24} days)."
+            }));
+        }
+
+        return (TimeSpan.FromHours(hours), null);
     }
 }

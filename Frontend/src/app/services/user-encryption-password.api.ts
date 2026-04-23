@@ -4,6 +4,7 @@ import { firstValueFrom } from "rxjs";
 
 export interface SetupEncryptionPasswordRequest {
     encryptionPassword: string;
+    invitationCode: string | null;
 }
 
 export interface SetupEncryptionPasswordResponse {

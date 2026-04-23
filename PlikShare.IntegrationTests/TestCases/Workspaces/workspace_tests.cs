@@ -122,7 +122,8 @@ public class workspace_tests : TestFixture
             },
             IsBucketCreated = false,
             MaxSizeInBytes = null,
-            MaxTeamMembers = null
+            MaxTeamMembers = null,
+            StorageEncryptionType = "none"
         });
     }
 
@@ -190,7 +191,8 @@ public class workspace_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [member.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -218,7 +220,8 @@ public class workspace_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [member.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -426,7 +429,8 @@ public class workspace_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [member.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -457,7 +461,8 @@ public class workspace_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [member.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -495,7 +500,8 @@ public class workspace_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [member.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -538,7 +544,8 @@ public class workspace_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [member.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -572,7 +579,8 @@ public class workspace_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [member.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -606,7 +614,8 @@ public class workspace_tests : TestFixture
             externalId: workspace.ExternalId,
             request: new CreateWorkspaceMemberInvitationRequestDto(
                 MemberEmails: [member.Email],
-                AllowShare: false),
+                AllowShare: false,
+                EphemeralDekLifetimeHours: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 

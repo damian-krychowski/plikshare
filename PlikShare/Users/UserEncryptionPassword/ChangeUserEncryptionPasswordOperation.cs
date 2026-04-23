@@ -44,7 +44,7 @@ public class ChangeUserEncryptionPasswordOperation(
 
         using var privateKey = oldKek.Use(
             state: user.EncryptionMetadata.EncryptedPrivateKey,
-            static (kekSpan, state) => WrappedPrivateKey.Unwrap(kekSpan, state));
+            static (kekSpan, state) => SymmetricAeadWrap.Unwrap(kekSpan, state));
 
         var newSalt = EncryptionPasswordKdf.GenerateSalt();
 
@@ -63,7 +63,7 @@ public class ChangeUserEncryptionPasswordOperation(
         var newEncryptedPrivateKey = SecureBytes.UseBoth(
             first: newKek,
             second: privateKey,
-            action: static (kekSpan, pkSpan) => WrappedPrivateKey.Wrap(kekSpan, pkSpan));
+            action: static (kekSpan, pkSpan) => SymmetricAeadWrap.Wrap(kekSpan, pkSpan));
 
         var writeCode = await upsertUserEncryptionDataQuery.Execute(
             userId: user.Id,

@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit, WritableSignal, computed, signal } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { WorkspacesApi } from '../../services/workspaces.api';
-import { EmailPickerComponent } from '../../shared/email-picker/email-picker.component';
+import { EmailPickerComponent, EmailPickerResult } from '../../shared/email-picker/email-picker.component';
 import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '../../services/auth.service';
 import { Subscription, filter } from 'rxjs';
@@ -108,7 +108,41 @@ export class TeamComponent implements OnInit, OnDestroy {
         if(!emails)
             return;
 
-        await this.inviteMembers(emails);
+        // Full-encryption workspaces require the inviter to pick a TTL for the ephemeral
+        // DEK staged for brand-new invitees. The navigation-state path only carries emails
+        // from an upstream "share workspace" action, so for that case we defer to the
+        // picker dialog which also lets the inviter confirm/edit the emails.
+        if (this.context.workspace()?.storageEncryptionType === 'full') {
+            this.openPickerAndInvite(emails);
+            return;
+        }
+
+        await this.inviteMembers(emails, null);
+    }
+
+    private openPickerAndInvite(preFilledEmails: string[] | null) {
+        const dialogRef = this._dialog.open(EmailPickerComponent, {
+            width: '500px',
+            maxHeight: '80vh',
+            position: {
+                top: '100px'
+            },
+            data: {
+                showEphemeralDekLifetime: this.context.workspace()?.storageEncryptionType === 'full'
+            }
+        });
+
+        dialogRef.afterClosed().subscribe(
+            (result: EmailPickerResult | undefined) => {
+                if (!result)
+                    return;
+
+                const emails = preFilledEmails && preFilledEmails.length > 0
+                    ? Array.from(new Set([...preFilledEmails, ...result.emails]))
+                    : result.emails;
+
+                this.inviteMembers(emails, result.ephemeralDekLifetimeHours);
+            });
     }
 
     ngOnDestroy(): void {
@@ -240,19 +274,10 @@ export class TeamComponent implements OnInit, OnDestroy {
     }
 
     async createInvitation() {
-        const dialogRef = this._dialog.open(EmailPickerComponent, {
-            width: '500px',
-            maxHeight: '80vh',
-            position: {
-                top: '100px'
-            }
-        });
-
-        dialogRef.afterClosed().subscribe(
-            (inviteeEmails: string[]) => this.inviteMembers(inviteeEmails));
+        this.openPickerAndInvite(null);
     }
 
-    async inviteMembers(inviteeEmails: string[]) {
+    async inviteMembers(inviteeEmails: string[], ephemeralDekLifetimeHours: number | null) {
         if (!inviteeEmails || inviteeEmails.length === 0)
             return;
 
@@ -266,7 +291,7 @@ export class TeamComponent implements OnInit, OnDestroy {
             memberExternalId: signal(null),
             inviterEmail: signal(inviterEmail),
             email: signal(email)
-        }));        
+        }));
 
         pushItems(this.workspaceInvitations, ...invitations);
 
@@ -275,7 +300,8 @@ export class TeamComponent implements OnInit, OnDestroy {
 
             const response = await this._workspaceApi.createMemberInvitation(
                 this._currentWorkspaceExternalId!, {
-                memberEmails: inviteeEmails
+                memberEmails: inviteeEmails,
+                ephemeralDekLifetimeHours: ephemeralDekLifetimeHours
             });
 
             await this.refreshWorkspaceContext();
@@ -283,7 +309,7 @@ export class TeamComponent implements OnInit, OnDestroy {
             for (const newMember of response.members) {
                 const newInvitation = invitations
                     .find(invitation => invitation.email().toLowerCase() === newMember.email.toLowerCase());
-                
+
                 if(newInvitation) {
                     newInvitation.memberExternalId.set(newMember.externalId);
                 }

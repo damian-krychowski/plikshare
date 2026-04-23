@@ -23,6 +23,7 @@ export type WorkspaceDto = {
         allowShare: boolean;
     };
     integrations: WorkspaceIntegrations;
+    storageEncryptionType: AppStorageEncryptionType;
 };
 
 export interface WorkspaceIntegrations {
@@ -76,6 +77,7 @@ export interface CreateWorkspaceResponse {
 
 export interface CreateWorkspaceMemberInvitationRequest {
     memberEmails: string[];
+    ephemeralDekLifetimeHours: number | null;
 }
 
 export interface CreateWorkspaceMemberInvitationResponse {

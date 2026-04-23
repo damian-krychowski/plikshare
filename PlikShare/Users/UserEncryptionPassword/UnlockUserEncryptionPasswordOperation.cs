@@ -40,7 +40,7 @@ public class UnlockUserEncryptionPasswordOperation
 
         var privateKey = kek.Use(
             state: user.EncryptionMetadata.EncryptedPrivateKey,
-            action: static (kekSpan, wrapped) => WrappedPrivateKey.Unwrap(kekSpan, wrapped));
+            action: static (kekSpan, wrapped) => SymmetricAeadWrap.Unwrap(kekSpan, wrapped));
 
         return new Result(
             code: ResultCode.Ok,

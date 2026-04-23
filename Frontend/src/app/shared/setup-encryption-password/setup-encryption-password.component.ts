@@ -1,5 +1,5 @@
-import { Component, ViewEncapsulation, signal } from '@angular/core';
-import { MatDialogRef } from '@angular/material/dialog';
+import { Component, Inject, Optional, ViewEncapsulation, signal } from '@angular/core';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -8,6 +8,11 @@ import { UserEncryptionPasswordApi } from '../../services/user-encryption-passwo
 import { SecureInputDirective } from '../secure-input.directive';
 import { RecoveryCodeDialogService } from '../recovery-code-display/recovery-code-dialog.service';
 import { AuthService } from '../../services/auth.service';
+
+export type SetupEncryptionPasswordDialogData = {
+    invitationCode: string | null;
+    mode: 'post-invitation-signup' | 'account';
+};
 
 @Component({
     selector: 'app-setup-encryption-password',
@@ -39,11 +44,20 @@ export class SetupEncryptionPasswordComponent {
 
     formGroup: FormGroup;
 
+    readonly mode: 'post-invitation-signup' | 'account';
+    readonly isPostInvitationSignup: boolean;
+    private readonly _invitationCode: string | null;
+
     constructor(
         private _encryptionApi: UserEncryptionPasswordApi,
         private _recoveryCodeDialog: RecoveryCodeDialogService,
         private _auth: AuthService,
-        public dialogRef: MatDialogRef<SetupEncryptionPasswordComponent>) {
+        public dialogRef: MatDialogRef<SetupEncryptionPasswordComponent, boolean>,
+        @Optional() @Inject(MAT_DIALOG_DATA) data: SetupEncryptionPasswordDialogData | null) {
+
+        this._invitationCode = data?.invitationCode ?? null;
+        this.mode = data?.mode ?? 'account';
+        this.isPostInvitationSignup = this.mode === 'post-invitation-signup';
 
         this.formGroup = new FormGroup({
             password: this.password,
@@ -64,7 +78,8 @@ export class SetupEncryptionPasswordComponent {
             this.isLoading.set(true);
 
             const response = await this._encryptionApi.setup({
-                encryptionPassword: this.password.value!
+                encryptionPassword: this.password.value!,
+                invitationCode: this._invitationCode
             });
 
             this._auth.notifyEncryptionUnlocked();

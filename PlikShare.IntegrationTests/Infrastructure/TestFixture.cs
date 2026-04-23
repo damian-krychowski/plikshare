@@ -1032,6 +1032,124 @@ public class TestFixture: IAsyncLifetime
         return rows.Count > 0;
     }
 
+    protected int CountEphemeralWorkspaceEncryptionKeys(WorkspaceExtId workspaceExternalId, string userEmail)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        return connection
+            .Cmd(
+                sql: """
+                     SELECT 1
+                     FROM ewek_ephemeral_workspace_encryption_keys ewek
+                     JOIN w_workspaces w ON w.w_id = ewek.ewek_workspace_id
+                     JOIN u_users u ON u.u_id = ewek.ewek_user_id
+                     WHERE w.w_external_id = $workspaceExternalId
+                       AND u.u_normalized_email = $normalizedEmail
+                     """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$workspaceExternalId", workspaceExternalId.Value)
+            .WithParameter("$normalizedEmail", PlikShare.Users.Entities.Email.Normalize(userEmail))
+            .Execute()
+            .Count;
+    }
+
+    protected bool HasEphemeralWorkspaceEncryptionKey(WorkspaceExtId workspaceExternalId, string userEmail)
+        => CountEphemeralWorkspaceEncryptionKeys(workspaceExternalId, userEmail) > 0;
+
+    protected DateTimeOffset? GetEphemeralWorkspaceEncryptionKeyExpiresAt(
+        WorkspaceExtId workspaceExternalId,
+        string userEmail)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT ewek.ewek_expires_at
+                     FROM ewek_ephemeral_workspace_encryption_keys ewek
+                     JOIN w_workspaces w ON w.w_id = ewek.ewek_workspace_id
+                     JOIN u_users u ON u.u_id = ewek.ewek_user_id
+                     WHERE w.w_external_id = $workspaceExternalId
+                       AND u.u_normalized_email = $normalizedEmail
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => reader.GetFieldValue<DateTimeOffset>(0))
+            .WithParameter("$workspaceExternalId", workspaceExternalId.Value)
+            .WithParameter("$normalizedEmail", PlikShare.Users.Entities.Email.Normalize(userEmail))
+            .Execute();
+
+        return rows.Count == 0 ? null : rows[0];
+    }
+
+    protected int DeleteEphemeralWorkspaceEncryptionKeys(
+        WorkspaceExtId workspaceExternalId,
+        string userEmail)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        return connection
+            .NonQueryCmd(
+                sql: """
+                     DELETE FROM ewek_ephemeral_workspace_encryption_keys
+                     WHERE ewek_workspace_id IN (
+                             SELECT w_id FROM w_workspaces WHERE w_external_id = $workspaceExternalId
+                         )
+                       AND ewek_user_id IN (
+                             SELECT u_id FROM u_users WHERE u_normalized_email = $normalizedEmail
+                         )
+                     """)
+            .WithParameter("$workspaceExternalId", workspaceExternalId.Value)
+            .WithParameter("$normalizedEmail", PlikShare.Users.Entities.Email.Normalize(userEmail))
+            .Execute()
+            .AffectedRows;
+    }
+
+    protected string BuildEphemeralCleanupDebounceId(
+        WorkspaceExtId workspaceExternalId,
+        string userEmail)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT w.w_id, u.u_id
+                     FROM w_workspaces w
+                     CROSS JOIN u_users u
+                     WHERE w.w_external_id = $workspaceExternalId
+                       AND u.u_normalized_email = $normalizedEmail
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => (WorkspaceId: reader.GetInt32(0), UserId: reader.GetInt32(1)))
+            .WithParameter("$workspaceExternalId", workspaceExternalId.Value)
+            .WithParameter("$normalizedEmail", PlikShare.Users.Entities.Email.Normalize(userEmail))
+            .Execute();
+
+        if (rows.Count == 0)
+            throw new InvalidOperationException(
+                $"Could not resolve internal ids for workspace '{workspaceExternalId}' and user '{userEmail}'.");
+
+        return $"ewek-cleanup-{rows[0].WorkspaceId}-{rows[0].UserId}";
+    }
+
+    protected (int Count, DateTimeOffset? ExecuteAfter) GetCleanupJobInfo(string debounceId)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT q_execute_after_date
+                     FROM q_queue
+                     WHERE q_debounce_id = $debounceId
+                     """,
+                readRowFunc: reader => reader.GetFieldValue<DateTimeOffset>(0))
+            .WithParameter("$debounceId", debounceId)
+            .Execute();
+
+        return (rows.Count, rows.Count == 0 ? null : rows[0]);
+    }
+
     protected List<string> GetStorageEncryptionKeyOwnerEmails(StorageExtId storageExternalId)
     {
         using var connection = HostFixture.Db.OpenConnection();

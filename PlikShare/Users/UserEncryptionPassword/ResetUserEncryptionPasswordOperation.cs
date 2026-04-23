@@ -57,7 +57,7 @@ public class ResetUserEncryptionPasswordOperation(
 
         using var privateKey = recoveryKek.Use(
             state: user.EncryptionMetadata.RecoveryWrappedPrivateKey,
-            static (kekSpan, wrapped) => WrappedPrivateKey.Unwrap(kekSpan, wrapped));
+            static (kekSpan, wrapped) => SymmetricAeadWrap.Unwrap(kekSpan, wrapped));
 
         var newSalt = EncryptionPasswordKdf.GenerateSalt();
 
@@ -76,7 +76,7 @@ public class ResetUserEncryptionPasswordOperation(
         var newEncryptedPrivateKey = SecureBytes.UseBoth(
             first: newKek,
             second: privateKey,
-            action: static (kekSpan, pkSpan) => WrappedPrivateKey.Wrap(kekSpan, pkSpan));
+            action: static (kekSpan, pkSpan) => SymmetricAeadWrap.Wrap(kekSpan, pkSpan));
 
         var writeCode = await upsertUserEncryptionDataQuery.Execute(
             userId: user.Id,
