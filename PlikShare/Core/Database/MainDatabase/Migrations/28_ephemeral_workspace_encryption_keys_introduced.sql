@@ -1,3 +1,14 @@
+CREATE TABLE euek_ephemeral_user_encryption_keys (
+    euek_user_id INTEGER NOT NULL,
+    euek_public_key BLOB NOT NULL,
+    euek_encrypted_private_key BLOB NOT NULL,
+    euek_created_at TEXT NOT NULL,
+    euek_created_by_user_id INTEGER NULL,
+    PRIMARY KEY (euek_user_id),
+    FOREIGN KEY (euek_user_id) REFERENCES u_users(u_id) ON DELETE CASCADE,
+    FOREIGN KEY (euek_created_by_user_id) REFERENCES u_users(u_id) ON DELETE SET NULL
+);
+
 CREATE TABLE ewek_ephemeral_workspace_encryption_keys (
     ewek_workspace_id INTEGER NOT NULL,
     ewek_user_id INTEGER NOT NULL,

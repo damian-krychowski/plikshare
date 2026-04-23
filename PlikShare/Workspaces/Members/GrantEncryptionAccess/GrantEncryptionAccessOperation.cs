@@ -44,13 +44,12 @@ public class GrantEncryptionAccessOperation(
                 $"Cannot grant encryption access to User#{target.Id}: encryption metadata is not set. " +
                 "The caller must validate this before invoking the operation.");
 
-        var targetPublicKey = target.EncryptionMetadata.PublicKey;
-
-        return ownerSession.Entries
+        return ownerSession
+            .Entries
             .Select(entry => new WrappedVersion(
                 StorageDekVersion: entry.StorageDekVersion,
                 WrappedDek: entry.Dek.Use(
-                    state: targetPublicKey,
+                    state: target.EncryptionMetadata.PublicKey,
                     (dekSpan, pubKey) => UserKeyPair.SealTo(pubKey, dekSpan))))
             .ToArray();
     }

@@ -1,6 +1,5 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
-using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Emails;
 using PlikShare.Core.Emails.Definitions;
 using PlikShare.Core.Queue;
@@ -18,11 +17,11 @@ public class CreateWorkspaceMemberInvitationQuery(
 {
     /// <summary>
     /// Inserts memberships and enqueues invitation emails inside the caller's transaction.
-    /// Returns IDs of members that were actually inserted (i.e. not duplicates) — the caller
-    /// needs this to compose follow-up writes (e.g. auto-grant of wek wraps) only for new
-    /// memberships, all atomically with the invitation insert.
+    /// Returns the IDs of members that were actually inserted (i.e. not duplicates) — the
+    /// caller needs this to compose follow-up writes (e.g. auto-grant of wek wraps) only
+    /// for new memberships, all atomically with the invitation insert.
     /// </summary>
-    public int[] ExecuteTransaction(
+    public Result ExecuteTransaction(
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction,
         WorkspaceContext workspace,
@@ -31,7 +30,7 @@ public class CreateWorkspaceMemberInvitationQuery(
         bool allowShare,
         Guid correlationId)
     {
-        var invitedMemberIds = new List<int>();
+        var invitedMemberIds = new HashSet<int>();
         var createdQueueJobIds = new List<QueueJobId>();
 
         foreach (var member in members)
@@ -70,7 +69,8 @@ public class CreateWorkspaceMemberInvitationQuery(
                 CreatedQueueJobs = createdQueueJobIds
             });
 
-        return invitedMemberIds.ToArray();
+        return new Result(
+            NewlyInvitedMemberIds: invitedMemberIds);
     }
 
     private SQLiteOneRowCommandResult<QueueJobId> EnqueueWorkspaceInvitationEmail(
@@ -142,4 +142,6 @@ public class CreateWorkspaceMemberInvitationQuery(
     public record Member(
         UserContext User,
         InvitationCode? InvitationCode);
+
+    public readonly record struct Result(HashSet<int> NewlyInvitedMemberIds);
 }

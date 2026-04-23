@@ -449,6 +449,7 @@ public class Startup
         builder.Services.AddSingleton<GrantEncryptionAccessOperation>();
         builder.Services.AddSingleton<NotifyOwnersOfPendingGrantsQuery>();
         builder.Services.AddSingleton<UpsertEphemeralWorkspaceEncryptionKeyQuery>();
+        builder.Services.AddSingleton<CreateOrGetEphemeralUserKeyPairQuery>();
         builder.Services.AddSingleton<PromoteEphemeralWorkspaceEncryptionKeysQuery>();
         builder.Services.AddSingleton<IQueueDbOnlyJobExecutor, DeleteEphemeralWorkspaceEncryptionKeysQueueJobExecutor>();
         builder.Services.AddSingleton<WorkspaceCache>();

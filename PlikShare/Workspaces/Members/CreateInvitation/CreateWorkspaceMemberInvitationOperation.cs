@@ -14,6 +14,7 @@ using PlikShare.Workspaces.Members.GrantEncryptionAccess.Cleanup;
 using PlikShare.Workspaces.Permissions;
 using Serilog;
 using System.Security.Cryptography;
+using Microsoft.Data.Sqlite;
 
 namespace PlikShare.Workspaces.Members.CreateInvitation;
 
@@ -24,6 +25,7 @@ public class CreateWorkspaceMemberInvitationOperation(
     CreateWorkspaceMemberInvitationQuery createWorkspaceMemberInvitationQuery,
     GetOrCreateUserInvitationQuery getOrCreateUserInvitationQuery,
     GrantEncryptionAccessOperation grantEncryptionAccessOperation,
+    CreateOrGetEphemeralUserKeyPairQuery createOrGetEphemeralUserKeyPairQuery,
     UpsertEphemeralWorkspaceEncryptionKeyQuery upsertEphemeralWorkspaceEncryptionKeyQuery)
 {
     /// <summary>
@@ -31,19 +33,21 @@ public class CreateWorkspaceMemberInvitationOperation(
     ///
     /// 1. Existing user with encryption already set up → immediate auto-grant of wek wraps
     ///    (owner's unlocked session is enforced by the endpoint's session filter).
-    /// 2. Brand-new invitee (fresh user row + invitation code) → ephemeral wrap staged under
-    ///    a KEK derived from the invitation code, paired with a cleanup queue job that wipes
-    ///    the ewek rows after the owner-chosen TTL. The invitee promotes the wrap to wek
-    ///    during their encryption-password setup using the invitation code they received in
-    ///    the invitation email.
+    /// 2. Brand-new invitee (fresh user row + invitation code) → an ephemeral user keypair
+    ///    is created (or reused if a prior invitation already staged one), its private key
+    ///    wrapped with a KEK derived from the invitation code; the workspace DEK is then
+    ///    sealed to the ephemeral public key and persisted as an ewek row. A cleanup queue
+    ///    job wipes the ewek row after the owner-chosen TTL. The invitee promotes the wrap
+    ///    during encryption-password setup using the invitation code they received by email.
     /// 3. Existing user without encryption → deferred: no wek and no ewek at invite time.
     ///    When they later set up encryption, <c>NotifyOwnersOfPendingGrantsQuery</c> notifies
     ///    the owner to grant manually.
     ///
     /// Every DB write the invite path produces — user invitation row (for brand-new emails),
-    /// workspace membership insert, invitation email enqueue, wek upserts for auto-grant,
-    /// ewek upserts for the ephemeral path, and the cleanup queue job enqueue — runs in a
-    /// single SQLite transaction. Anything that fails rolls back the whole batch.
+    /// ephemeral keypair creation, workspace membership insert, invitation email enqueue, wek
+    /// upserts for auto-grant, ewek upserts for the ephemeral path, and the cleanup queue job
+    /// enqueue — runs in a single SQLite transaction. Anything that fails rolls back the whole
+    /// batch.
     /// </summary>
     public static readonly TimeSpan MaxEphemeralDekLifetime = TimeSpan.FromDays(30);
 
@@ -113,18 +117,7 @@ public class CreateWorkspaceMemberInvitationOperation(
                     InvitationCode: resolved.InvitationCode));
             }
 
-            var autoGrants = BuildAutoGrants(
-                workspace,
-                ownerSession,
-                members);
-
-            var ephemeralGrants = BuildEphemeralGrants(
-                workspace,
-                ownerSession,
-                members,
-                ephemeralDekLifetime);
-
-            var insertedMemberIds = createWorkspaceMemberInvitationQuery.ExecuteTransaction(
+            var insertResult = createWorkspaceMemberInvitationQuery.ExecuteTransaction(
                 dbWriteContext: dbWriteContext,
                 transaction: transaction,
                 workspace: workspace,
@@ -132,81 +125,52 @@ public class CreateWorkspaceMemberInvitationOperation(
                 members: members,
                 allowShare: allowShare,
                 correlationId: correlationId);
+            
+            var shouldGrantFullEncryptionAccess =
+                workspace.Storage.Encryption.Type == StorageEncryptionType.Full
+                && ownerSession is not null;
 
-            var insertedSet = insertedMemberIds.ToHashSet();
-            var autoGrantedCount = 0;
-            var ephemeralGrantedCount = 0;
-
-            foreach (var grant in autoGrants)
+            if (shouldGrantFullEncryptionAccess)
             {
-                if (!insertedSet.Contains(grant.Target.Id))
-                    continue;
+                var newlyInvitedMembers = members
+                    .Where(member => insertResult.NewlyInvitedMemberIds.Contains(
+                        member.User.Id))
+                    .ToList();
 
-                grantEncryptionAccessOperation.ExecuteTransaction(
+                var (autoGrantedCount, ephemeralGrantedCount) = GrantAccessToFullyEncryptedWorkspace(
                     dbWriteContext: dbWriteContext,
-                    transaction: transaction,
                     workspace: workspace,
-                    owner: inviter,
-                    target: grant.Target,
-                    wrapped: grant.Wrapped,
+                    inviter: inviter,
+                    ownerSession: ownerSession!,
+                    ephemeralDekLifetime: ephemeralDekLifetime,
                     correlationId: correlationId,
-                    notifyTarget: false);
-
-                autoGrantedCount++;
-            }
-
-            var expiresAt = ephemeralDekLifetime is not null
-                ? clock.UtcNow + ephemeralDekLifetime.Value
-                : (DateTimeOffset?)null;
-
-            foreach (var grant in ephemeralGrants)
-            {
-                if (!insertedSet.Contains(grant.Target.Id))
-                    continue;
-
-                foreach (var wrap in grant.Wrapped)
-                {
-                    upsertEphemeralWorkspaceEncryptionKeyQuery.ExecuteTransaction(
-                        dbWriteContext: dbWriteContext,
-                        workspaceId: workspace.Id,
-                        userId: grant.Target.Id,
-                        storageDekVersion: wrap.StorageDekVersion,
-                        encryptedWorkspaceDek: wrap.EncryptedDek,
-                        expiresAt: expiresAt!.Value,
-                        createdByUserId: inviter.Id,
-                        transaction: transaction);
-                }
-
-                queue.Enqueue(
-                    correlationId: correlationId,
-                    jobType: DeleteEphemeralWorkspaceEncryptionKeysQueueJobType.Value,
-                    definition: new DeleteEphemeralWorkspaceEncryptionKeysQueueJobDefinition
-                    {
-                        WorkspaceId = workspace.Id,
-                        UserId = grant.Target.Id
-                    },
-                    executeAfterDate: expiresAt!.Value,
-                    debounceId: $"ewek-cleanup-{workspace.Id}-{grant.Target.Id}",
-                    sagaId: null,
-                    dbWriteContext: dbWriteContext,
+                    newlyInvitedMembers: newlyInvitedMembers,
                     transaction: transaction);
-
-                ephemeralGrantedCount++;
+                
+                Log.Information(
+                    "Workspace#{WorkspaceId} invitation by Inviter '{InviterId}' completed. " +
+                    "Inserted {InsertedCount} of {RequestedCount} membership(s); " +
+                    "auto-granted encryption access to {AutoGrantedCount} invitee(s); " +
+                    "staged {EphemeralGrantedCount} ephemeral DEK(s).",
+                    workspace.Id,
+                    inviter.Id,
+                    insertResult.NewlyInvitedMemberIds.Count,
+                    members.Count,
+                    autoGrantedCount,
+                    ephemeralGrantedCount);
             }
-
+            else
+            {
+                Log.Information(
+                    "Workspace#{WorkspaceId} invitation by Inviter '{InviterId}' completed. " +
+                    "Inserted {InsertedCount} of {RequestedCount} membership(s)",
+                    workspace.Id,
+                    inviter.Id,
+                    insertResult.NewlyInvitedMemberIds.Count,
+                    members.Count);
+            }
+            
             transaction.Commit();
-
-            Log.Information(
-                "Workspace#{WorkspaceId} invitation by Inviter '{InviterId}' completed. " +
-                "Inserted {InsertedCount} of {RequestedCount} membership(s); " +
-                "auto-granted encryption access to {AutoGrantedCount} invitee(s); " +
-                "staged {EphemeralGrantedCount} ephemeral DEK(s).",
-                workspace.Id,
-                inviter.Id,
-                insertedMemberIds.Length,
-                members.Count,
-                autoGrantedCount,
-                ephemeralGrantedCount);
 
             return members.Select(m => m.User).ToArray();
         }
@@ -225,17 +189,157 @@ public class CreateWorkspaceMemberInvitationOperation(
         }
     }
 
-    private static AutoGrant[] BuildAutoGrants(
+    private GrantedAccessCounter GrantAccessToFullyEncryptedWorkspace(
+        SqliteWriteContext dbWriteContext, 
         WorkspaceContext workspace,
-        WorkspaceEncryptionSession? ownerSession,
-        List<CreateWorkspaceMemberInvitationQuery.Member> members)
+        UserContext inviter, 
+        WorkspaceEncryptionSession ownerSession, 
+        TimeSpan? ephemeralDekLifetime,
+        Guid correlationId,
+        List<CreateWorkspaceMemberInvitationQuery.Member> newlyInvitedMembers, 
+        SqliteTransaction transaction)
     {
-        if (workspace.Storage.Encryption.Type != StorageEncryptionType.Full)
-            return [];
+        var autoGrants = BuildAutoGrants(
+            ownerSession: ownerSession,
+            members: newlyInvitedMembers);
+            
+        var autoGrantedCount = 0;
+        var ephemeralGrantedCount = 0;
 
-        if (ownerSession is null)
-            return [];
+        foreach (var grant in autoGrants)
+        {
+            grantEncryptionAccessOperation.ExecuteTransaction(
+                dbWriteContext: dbWriteContext,
+                transaction: transaction,
+                workspace: workspace,
+                owner: inviter,
+                target: grant.Target,
+                wrapped: grant.Wrapped,
+                correlationId: correlationId,
+                notifyTarget: false);
 
+            autoGrantedCount++;
+        }
+            
+        var ephemeralGrants = BuildEphemeralGrants(
+            dbWriteContext: dbWriteContext,
+            transaction: transaction,
+            members: newlyInvitedMembers);
+
+        if (ephemeralGrants.Length > 0)
+        {
+            // Hard precondition on the full eligible set: every row we're about to stage needs
+            // a cleanup job with a TTL, including the subsequent-invite case that reuses an
+            // existing euek. Silently continuing would produce ewek rows with no scheduled
+            // expiry — live credentials with no bound.
+            if (ephemeralDekLifetime is null)
+                throw new InvalidOperationException(
+                    $"Ephemeral DEK lifetime is required when inviting {ephemeralGrants.Length} user(s) " +
+                    $"eligible for ephemeral staging on full-encryption Workspace#{workspace.Id}. " +
+                    $"The caller must validate this precondition.");
+
+            var expiresAt = clock.UtcNow + ephemeralDekLifetime.Value;
+
+            foreach (var grant in ephemeralGrants)
+            {
+                var wasStaged = StageEphemeralGrant(
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction,
+                    workspace: workspace,
+                    inviter: inviter,
+                    ownerSession: ownerSession!,
+                    grant: grant,
+                    expiresAt: expiresAt,
+                    correlationId: correlationId);
+
+                if (wasStaged)
+                    ephemeralGrantedCount++;
+            }
+        }
+
+        return new GrantedAccessCounter(
+            AutoGrantedCount: autoGrantedCount,
+            EphemeralGrantedCount: ephemeralGrantedCount);
+    }
+
+    private bool StageEphemeralGrant(
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction,
+        WorkspaceContext workspace,
+        UserContext inviter,
+        WorkspaceEncryptionSession ownerSession,
+        EphemeralGrant grant,
+        DateTimeOffset expiresAt,
+        Guid correlationId)
+    {
+        var invitationCodeBytes = grant.InvitationCode is null
+            ? null
+            : Base62Encoding.FromBase62ToBytes(grant.InvitationCode.Value);
+
+        try
+        {
+            var ephemeralPublicKey = createOrGetEphemeralUserKeyPairQuery.ExecuteTransaction(
+                dbWriteContext: dbWriteContext,
+                userId: grant.Target.Id,
+                invitationCodeBytes: invitationCodeBytes,
+                createdByUserId: inviter.Id,
+                transaction: transaction);
+
+            if (ephemeralPublicKey is null)
+            {
+                Log.Warning(
+                    "Workspace#{WorkspaceId} ephemeral DEK staging skipped for User#{UserId}: " +
+                    "no existing ephemeral keypair and no invitation code available to create one. " +
+                    "User falls back to the deferred-grant path on encryption-password setup.",
+                    workspace.Id, grant.Target.Id);
+
+                return false;
+            }
+
+            foreach (var entry in ownerSession.Entries)
+            {
+                var sealedDek = entry.Dek.Use(
+                    state: ephemeralPublicKey.Value,
+                    action: static (dekSpan, pubKey) => UserKeyPair.SealTo(pubKey.Bytes, dekSpan));
+
+                upsertEphemeralWorkspaceEncryptionKeyQuery.ExecuteTransaction(
+                    dbWriteContext: dbWriteContext,
+                    workspaceId: workspace.Id,
+                    userId: grant.Target.Id,
+                    storageDekVersion: entry.StorageDekVersion,
+                    encryptedWorkspaceDek: sealedDek,
+                    expiresAt: expiresAt,
+                    createdByUserId: inviter.Id,
+                    transaction: transaction);
+            }
+        }
+        finally
+        {
+            if (invitationCodeBytes is not null)
+                CryptographicOperations.ZeroMemory(invitationCodeBytes);
+        }
+
+        queue.Enqueue(
+            correlationId: correlationId,
+            jobType: DeleteEphemeralWorkspaceEncryptionKeysQueueJobType.Value,
+            definition: new DeleteEphemeralWorkspaceEncryptionKeysQueueJobDefinition
+            {
+                WorkspaceId = workspace.Id,
+                UserId = grant.Target.Id
+            },
+            executeAfterDate: expiresAt,
+            debounceId: $"ewek-cleanup-{workspace.Id}-{grant.Target.Id}",
+            sagaId: null,
+            dbWriteContext: dbWriteContext,
+            transaction: transaction);
+
+        return true;
+    }
+
+    private static AutoGrant[] BuildAutoGrants(
+        WorkspaceEncryptionSession ownerSession,
+        IEnumerable<CreateWorkspaceMemberInvitationQuery.Member> members)
+    {
         return members
             .Where(m => m.User.EncryptionMetadata is not null)
             .Select(m => new AutoGrant
@@ -247,65 +351,81 @@ public class CreateWorkspaceMemberInvitationOperation(
     }
 
     private static EphemeralGrant[] BuildEphemeralGrants(
-        WorkspaceContext workspace,
-        WorkspaceEncryptionSession? ownerSession,
-        List<CreateWorkspaceMemberInvitationQuery.Member> members,
-        TimeSpan? ephemeralDekLifetime)
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction,
+        IEnumerable<CreateWorkspaceMemberInvitationQuery.Member> members)
     {
-        if (workspace.Storage.Encryption.Type != StorageEncryptionType.Full)
+        var candidates = members
+            .Where(m => m.User.EncryptionMetadata is null)
+            .ToArray();
+
+        if (candidates.Length == 0)
             return [];
 
-        if (ownerSession is null)
-            return [];
+        // An invitee without encryption is eligible for the ephemeral path either because
+        // they are brand-new (fresh u_users row → InvitationCode just issued → we can wrap
+        // the ephemeral private key with it) OR because a prior invite already staged an
+        // ephemeral keypair for them (subsequent invite from a different workspace → we
+        // reuse the shared euek_public_key without touching the code).
+        //
+        // Candidates that are neither — registered-without-encryption + no prior euek —
+        // fall into the deferred grant path: membership row + NotifyOwnersOfPendingGrantsQuery
+        // after the invitee sets up encryption. No ewek is staged for them here, so they
+        // are intentionally excluded from the TTL precondition below.
+        var existingEuekUserIds = CandidatesWithExistingEuek(
+            dbWriteContext,
+            transaction,
+            candidates);
 
-        var eligible = members
-            .Where(m => m.User.EncryptionMetadata is null && m.InvitationCode is not null)
+        var eligible = candidates
+            .Where(candidate => candidate.InvitationCode is not null || existingEuekUserIds.Contains(candidate.User.Id))
             .ToArray();
 
         if (eligible.Length == 0)
             return [];
-
-        // Hard precondition: the endpoint must validate and forward a lifetime whenever any
-        // invitee qualifies for an ephemeral grant. Silently falling back to the deferred
-        // flow here would strand the invitation code the user just received: they would
-        // never be able to promote their ephemeral DEK (none exists), and the owner would
-        // not be notified until the invitee sets up encryption. Failing loud forces callers
-        // to pass the TTL.
-        if (ephemeralDekLifetime is null)
-            throw new InvalidOperationException(
-                $"Ephemeral DEK lifetime is required when inviting {eligible.Length} brand-new user(s) " +
-                $"to full-encryption Workspace#{workspace.Id}. The caller must validate this precondition.");
-
+        
         return eligible
             .Select(m => new EphemeralGrant
             {
                 Target = m.User,
-                Wrapped = BuildEphemeralWrapped(ownerSession, m.InvitationCode!)
+                InvitationCode = m.InvitationCode
             })
             .ToArray();
     }
 
-    private static EphemeralWrappedVersion[] BuildEphemeralWrapped(
-        WorkspaceEncryptionSession ownerSession,
-        InvitationCode invitationCode)
-    {
-        var invitationCodeBytes = Base62Encoding.FromBase62ToBytes(invitationCode.Value);
 
-        try
-        {
-            return ownerSession.Entries
-                .Select(entry => new EphemeralWrappedVersion(
-                    StorageDekVersion: entry.StorageDekVersion,
-                    EncryptedDek: entry.Dek.Use(
-                        state: invitationCodeBytes,
-                        (dekSpan, ikm) => InvitationCodeDekWrap.Wrap(ikm, dekSpan))))
-                .ToArray();
-        }
-        finally
-        {
-            CryptographicOperations.ZeroMemory(invitationCodeBytes);
-        }
+    private static HashSet<int> CandidatesWithExistingEuek(
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction, 
+        CreateWorkspaceMemberInvitationQuery.Member[] candidates)
+    {
+        var candidatesWithoutCode = candidates
+            .Where(m => m.InvitationCode is null)
+            .Select(m => m.User.Id)
+            .ToArray();
+
+        if (candidatesWithoutCode.Length == 0)
+            return [];
+
+        return dbWriteContext
+            .Cmd(
+                sql: """
+                     SELECT euek_user_id
+                     FROM euek_ephemeral_user_encryption_keys
+                     WHERE euek_user_id IN (
+                        SELECT value FROM json_each($userIds)
+                     )
+                     """,
+                readRowFunc: reader => reader.GetInt32(0),
+                transaction: transaction)
+            .WithJsonParameter("$userIds", candidatesWithoutCode)
+            .Execute()
+            .ToHashSet();
     }
+
+    private readonly record struct GrantedAccessCounter(
+        int AutoGrantedCount,
+        int EphemeralGrantedCount);
 
     private class AutoGrant
     {
@@ -316,12 +436,8 @@ public class CreateWorkspaceMemberInvitationOperation(
     private class EphemeralGrant
     {
         public required UserContext Target { get; init; }
-        public required EphemeralWrappedVersion[] Wrapped { get; init; }
+        public required InvitationCode? InvitationCode { get; init; }
     }
-
-    private readonly record struct EphemeralWrappedVersion(
-        int StorageDekVersion,
-        byte[] EncryptedDek);
 
     public readonly record struct Result(
         UserContext[]? Members = default);

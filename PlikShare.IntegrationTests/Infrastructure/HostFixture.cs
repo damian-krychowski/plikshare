@@ -223,6 +223,8 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
 
         connection.NonQueryCmd(sql: "DELETE FROM sek_storage_encryption_keys").Execute();
         connection.NonQueryCmd(sql: "DELETE FROM wek_workspace_encryption_keys").Execute();
+        connection.NonQueryCmd(sql: "DELETE FROM ewek_ephemeral_workspace_encryption_keys").Execute();
+        connection.NonQueryCmd(sql: "DELETE FROM euek_ephemeral_user_encryption_keys").Execute();
 
         await UserCache.InvalidateAllEntries(cancellationToken);
     }

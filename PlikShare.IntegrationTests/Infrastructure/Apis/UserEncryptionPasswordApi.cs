@@ -12,14 +12,17 @@ public class UserEncryptionPasswordApi(IFlurlClient flurlClient, string appUrl)
         UserExtId userExternalId,
         string encryptionPassword,
         SessionAuthCookie cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies antiforgery,
+        string? invitationCode = null)
     {
         var response = await flurlClient
             .Request(appUrl, "api/user-encryption-password/setup")
             .AllowAnyHttpStatus()
             .WithCookie(cookie)
             .WithAntiforgery(antiforgery)
-            .PostJsonAsync(new SetupRequestDto(EncryptionPassword: encryptionPassword));
+            .PostJsonAsync(new SetupRequestDto(
+                EncryptionPassword: encryptionPassword,
+                InvitationCode: invitationCode));
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
         {

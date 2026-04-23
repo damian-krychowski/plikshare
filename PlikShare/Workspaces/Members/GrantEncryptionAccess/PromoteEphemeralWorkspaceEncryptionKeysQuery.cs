@@ -10,14 +10,18 @@ namespace PlikShare.Workspaces.Members.GrantEncryptionAccess;
 /// <summary>
 /// Promotes every ephemeral wrap staged for a user to a normal per-user <c>wek_*</c> wrap,
 /// called exactly once during the user's encryption-password setup when they registered
-/// using an invitation code. For each <c>ewek_*</c> row: unwraps the DEK with the
-/// invitation-code-derived KEK, seals it to the user's freshly-generated public key, upserts
-/// into <c>wek_*</c>, deletes the ephemeral row. Caller provides an open transaction so
-/// the entire promotion is atomic with the <c>u_users</c> encryption-metadata write.
+/// using an invitation code. Resolves the shared ephemeral private key from
+/// <c>euek_ephemeral_user_encryption_keys</c> (unwrapped with the invitation code), opens
+/// each <c>ewek_*</c> sealed DEK with it, re-seals to the user's freshly-generated real
+/// public key, upserts into <c>wek_*</c>, and finally wipes both the ewek rows and the euek
+/// row. Caller provides an open transaction so the entire promotion is atomic with the
+/// <c>u_users</c> encryption-metadata write.
 ///
 /// The invitation code validity is asserted at sign-up (hash match against
-/// <c>u_user_invitations</c>); if unwrap fails here the DB is corrupt or the wrong bytes
-/// were passed — we throw and the caller rolls back.
+/// <c>u_user_invitations</c>); if either the private-key unwrap or a DEK open fails here
+/// the DB is corrupt or the wrong bytes were passed — we throw and the caller rolls back.
+/// A present euek row with no ewek rows is a degenerate but not-erroneous state
+/// (e.g. all invitations TTL-expired before setup) — we still wipe the euek row and return 0.
 /// </summary>
 public class PromoteEphemeralWorkspaceEncryptionKeysQuery(
     UpsertWorkspaceEncryptionKeyQuery upsertWorkspaceEncryptionKeyQuery)
@@ -29,7 +33,22 @@ public class PromoteEphemeralWorkspaceEncryptionKeysQuery(
         byte[] invitationCodeBytes,
         SqliteTransaction transaction)
     {
-        var rows = dbWriteContext
+        var euekRow = dbWriteContext
+            .OneRowCmd(
+                sql: """
+                     SELECT euek_encrypted_private_key
+                     FROM euek_ephemeral_user_encryption_keys
+                     WHERE euek_user_id = $userId
+                     """,
+                readRowFunc: reader => reader.GetFieldValue<byte[]>(0),
+                transaction: transaction)
+            .WithParameter("$userId", userId)
+            .Execute();
+
+        if (euekRow.IsEmpty)
+            return 0;
+
+        var ewekRows = dbWriteContext
             .Cmd(
                 sql: """
                      SELECT
@@ -49,46 +68,60 @@ public class PromoteEphemeralWorkspaceEncryptionKeysQuery(
             .WithParameter("$userId", userId)
             .Execute();
 
-        if (rows.Count == 0)
-            return 0;
-
-        foreach (var row in rows)
+        if (ewekRows.Count > 0)
         {
-            using var dek = InvitationCodeDekWrap.Unwrap(
+            using var ephemeralPrivateKey = InvitationCodePrivateKeyWrap.Unwrap(
                 invitationCodeBytes,
-                row.EncryptedWorkspaceDek);
+                euekRow.Value);
 
-            var sealedDek = dek.Use(
-                state: publicKey,
-                action: static (dekSpan, pubKey) => UserKeyPair.SealTo(pubKey, dekSpan));
+            foreach (var row in ewekRows)
+            {
+                using var dek = UserKeyPair.OpenSealed(
+                    ephemeralPrivateKey,
+                    row.EncryptedWorkspaceDek);
 
-            upsertWorkspaceEncryptionKeyQuery.ExecuteTransaction(
-                dbWriteContext: dbWriteContext,
-                workspaceId: row.WorkspaceId,
-                userId: userId,
-                storageDekVersion: row.StorageDekVersion,
-                wrappedWorkspaceDek: sealedDek,
-                wrappedByUserId: row.CreatedByUserId,
-                transaction: transaction);
+                var sealedDek = dek.Use(
+                    state: publicKey,
+                    action: static (dekSpan, pubKey) => UserKeyPair.SealTo(pubKey, dekSpan));
+
+                upsertWorkspaceEncryptionKeyQuery.ExecuteTransaction(
+                    dbWriteContext: dbWriteContext,
+                    workspaceId: row.WorkspaceId,
+                    userId: userId,
+                    storageDekVersion: row.StorageDekVersion,
+                    wrappedWorkspaceDek: sealedDek,
+                    wrappedByUserId: row.CreatedByUserId,
+                    transaction: transaction);
+            }
+
+            dbWriteContext
+                .Cmd(
+                    sql: """
+                         DELETE FROM ewek_ephemeral_workspace_encryption_keys
+                         WHERE ewek_user_id = $userId
+                         """,
+                    readRowFunc: static reader => reader.GetInt32(0),
+                    transaction: transaction)
+                .WithParameter("$userId", userId)
+                .Execute();
         }
 
-        var deletedCount = dbWriteContext
+        dbWriteContext
             .Cmd(
                 sql: """
-                     DELETE FROM ewek_ephemeral_workspace_encryption_keys
-                     WHERE ewek_user_id = $userId
+                     DELETE FROM euek_ephemeral_user_encryption_keys
+                     WHERE euek_user_id = $userId
                      """,
                 readRowFunc: static reader => reader.GetInt32(0),
                 transaction: transaction)
             .WithParameter("$userId", userId)
-            .Execute()
-            .Count;
+            .Execute();
 
         Log.Information(
-            "User#{UserId} promoted {PromotedCount} ephemeral workspace encryption key(s) to normal wraps during encryption-password setup.",
-            userId, rows.Count);
+            "User#{UserId} promoted {PromotedCount} ephemeral workspace encryption key(s) to normal wraps during encryption-password setup; ephemeral keypair wiped.",
+            userId, ewekRows.Count);
 
-        return rows.Count;
+        return ewekRows.Count;
     }
 
     private readonly record struct EphemeralRow(

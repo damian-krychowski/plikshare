@@ -1056,6 +1056,46 @@ public class TestFixture: IAsyncLifetime
     protected bool HasEphemeralWorkspaceEncryptionKey(WorkspaceExtId workspaceExternalId, string userEmail)
         => CountEphemeralWorkspaceEncryptionKeys(workspaceExternalId, userEmail) > 0;
 
+    protected bool HasEphemeralUserKeyPair(string userEmail)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT 1
+                     FROM euek_ephemeral_user_encryption_keys euek
+                     JOIN u_users u ON u.u_id = euek.euek_user_id
+                     WHERE u.u_normalized_email = $normalizedEmail
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$normalizedEmail", PlikShare.Users.Entities.Email.Normalize(userEmail))
+            .Execute();
+
+        return rows.Count > 0;
+    }
+
+    protected byte[]? GetEphemeralUserPublicKey(string userEmail)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT euek.euek_public_key
+                     FROM euek_ephemeral_user_encryption_keys euek
+                     JOIN u_users u ON u.u_id = euek.euek_user_id
+                     WHERE u.u_normalized_email = $normalizedEmail
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => reader.GetFieldValue<byte[]>(0))
+            .WithParameter("$normalizedEmail", PlikShare.Users.Entities.Email.Normalize(userEmail))
+            .Execute();
+
+        return rows.Count == 0 ? null : rows[0];
+    }
+
     protected DateTimeOffset? GetEphemeralWorkspaceEncryptionKeyExpiresAt(
         WorkspaceExtId workspaceExternalId,
         string userEmail)
