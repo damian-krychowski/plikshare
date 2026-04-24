@@ -38,7 +38,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
             user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         var invitedAt = DateTimeOffset.UtcNow;
@@ -96,7 +96,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
             user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         //when
@@ -135,7 +135,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
             user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         //when
@@ -176,7 +176,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
             user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         var invitedAt = DateTimeOffset.UtcNow;
@@ -216,7 +216,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
             user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         var invitedAt = DateTimeOffset.UtcNow;
@@ -261,7 +261,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
             user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         var invitedAt = DateTimeOffset.UtcNow;
@@ -314,7 +314,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
             user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         await Api.Workspaces.InviteMember(
@@ -358,7 +358,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
             user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         var inviteResponse = await Api.Workspaces.InviteMember(
@@ -406,7 +406,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
         var workspaceB = await CreateWorkspace(storage: storage, user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         //when — first invite creates the euek row.
@@ -461,7 +461,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
         var workspace = await CreateWorkspace(storage: storage, user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         await Api.Workspaces.InviteMember(
@@ -528,7 +528,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
         var workspaceB = await CreateWorkspace(storage: storage, user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         await Api.Workspaces.InviteMember(
@@ -608,7 +608,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
             user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         await Api.Workspaces.InviteMember(
@@ -680,7 +680,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
         var workspace = await CreateWorkspace(storage: storage, user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         await Api.Workspaces.InviteMember(
@@ -738,7 +738,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
         var workspace = await CreateWorkspace(storage: storage, user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var realInvitationCode = Random.RealShapeInvitationCode();
+        var realInvitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(realInvitationCode);
 
         await Api.Workspaces.InviteMember(
@@ -766,7 +766,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
         var inviteeAccount = await Api.Account.GetDetails(inviteeCookie);
 
         // Different random entropy — same Base62 shape, wrong bytes for the wrap.
-        var wrongCode = Random.RealShapeInvitationCode();
+        var wrongCode = Random.InvitationCode();
 
         //when
         var apiError = await Assert.ThrowsAsync<TestApiCallException>(async () =>
@@ -804,7 +804,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
         var workspace = await CreateWorkspace(storage: storage, user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         var invitedAt = DateTimeOffset.UtcNow;
@@ -878,7 +878,7 @@ public class ephemeral_workspace_dek_tests : TestFixture
             user: AppOwner);
 
         var inviteeEmail = Random.Email();
-        var invitationCode = Random.RealShapeInvitationCode();
+        var invitationCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(invitationCode);
 
         var invitedAt = DateTimeOffset.UtcNow;

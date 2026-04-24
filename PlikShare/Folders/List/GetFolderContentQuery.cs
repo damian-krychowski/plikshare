@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Folders.Id;
@@ -15,7 +16,7 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 		bool GetSubfolders,
 		FilesExecutionFlag GetFiles,
 		bool GetUploads);
-	
+
 	public enum FilesExecutionFlag
 	{
 		All = 0,
@@ -27,15 +28,16 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 	    FolderExtId folderExternalId,
 	    int? boxFolderId,
 	    IUserIdentity userIdentity,
-	    ExecutionFlags executionFlags)
+	    ExecutionFlags executionFlags,
+	    WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
 	    using var connection = plikShareDb.OpenConnection();
 
 		//todo what to do with this isEmpty?
 	    var (isCurrentFolderEmpty, currentFolderId) = TryGetCurrentFolderId(
-		    workspace, 
+		    workspace,
 		    folderExternalId,
-		    boxFolderId, 
+		    boxFolderId,
 		    connection);
 
         if (isCurrentFolderEmpty)
@@ -46,13 +48,15 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
             boxFolderId,
             currentFolderId,
             connection,
-            executionFlags.GetCurrentFolder);
+            executionFlags.GetCurrentFolder,
+            workspaceEncryptionSession);
 
         var subfolders = GetSubfolders(
             currentFolderId,
             userIdentity,
             connection,
-            executionFlags.GetSubfolders);
+            executionFlags.GetSubfolders,
+            workspaceEncryptionSession);
         
         var allFiles = GetAllFiles(
             workspace,
@@ -229,11 +233,12 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
     }
 
     private static CurrentFolderDto? GetCurrentFolder(
-	    WorkspaceContext workspace, 
-	    int? boxFolderId, 
+	    WorkspaceContext workspace,
+	    int? boxFolderId,
 	    int currentFolderId,
 	    SqliteConnection connection,
-        bool shouldGetCurrentFolder)
+        bool shouldGetCurrentFolder,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         if (!shouldGetCurrentFolder)
             return null;
@@ -241,8 +246,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 	    var result = connection
 		    .OneRowCmd(
 			    sql: """
-			     SELECT 
-			        cf.fo_external_id, 
+			     SELECT
+			        cf.fo_external_id,
 			        cf.fo_name,
 			        (
 			            SELECT json_group_array(json_object(
@@ -259,16 +264,16 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 			                    AND af.fo_workspace_id = $workspaceId
 			                    AND af.fo_is_being_deleted = FALSE
 			                    AND (
-			                        $boxFolderId IS NULL 
+			                        $boxFolderId IS NULL
 			                        OR $boxFolderId IN (
-			                            SELECT value FROM json_each(af.fo_ancestor_folder_ids) 
+			                            SELECT value FROM json_each(af.fo_ancestor_folder_ids)
 			                        )
 			                    )
 			                ORDER BY json_array_length(af.fo_ancestor_folder_ids)
 			            ) AS sub
 			        ) AS fo_ancestors
 			    FROM fo_folders AS cf
-			    WHERE 
+			    WHERE
 			        cf.fo_id = $folderId
 			        AND (
 			            $boxFolderId IS NULL
@@ -280,8 +285,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 				readRowFunc: reader => new CurrentFolderDto
                 {
                     ExternalId = reader.GetString(0),
-					Name = reader.GetString(1),
-					Ancestors = reader.GetFromJson<List<AncestorFolderDto>>(2)
+					Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+					Ancestors = reader.GetFromJson<List<AncestorFolderDto>>(2, workspaceEncryptionSession)
                 })
 		    .WithParameter("$workspaceId", workspace.Id)
 		    .WithParameter("$folderId", currentFolderId)
@@ -295,9 +300,10 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 
     private static List<SubfolderDto> GetSubfolders(
 	    int currentFolderId,
-	    IUserIdentity userIdentity, 
+	    IUserIdentity userIdentity,
 	    SqliteConnection connection,
-        bool shouldGetSubfolders)
+        bool shouldGetSubfolders,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         if (!shouldGetSubfolders)
             return [];
@@ -308,24 +314,24 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 			        SELECT
 			            fo_external_id,
 			            fo_name,
-						CASE 
+						CASE
 	                        WHEN fo_creator_identity_type = $creatorIdentityType AND fo_creator_identity = $creatorIdentity THEN TRUE
 							ELSE FALSE
 	                    END AS fo_was_created_by_user,
-			            CASE 
+			            CASE
 	                        WHEN fo_creator_identity_type = $creatorIdentityType AND fo_creator_identity = $creatorIdentity THEN fo_created_at
-	                    END AS fo_created_at			            	
+	                    END AS fo_created_at
 			        FROM fo_folders
 			        WHERE
 			            fo_parent_folder_id = $parentFolderId
 			            AND fo_is_being_deleted = FALSE
-			        ORDER BY 
+			        ORDER BY
 			            fo_id
 				",
                 readRowFunc: reader => new SubfolderDto
                 {
                     ExternalId = reader.GetString(0),
-                    Name = reader.GetString(1),
+                    Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
                     WasCreatedByUser = reader.GetBoolean(2),
 					CreatedAt = reader.GetDateTimeOffsetOrNull(3)?.DateTime
 				})

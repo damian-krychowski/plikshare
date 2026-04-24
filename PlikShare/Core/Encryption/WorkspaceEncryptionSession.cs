@@ -1,3 +1,5 @@
+using PlikShare.Workspaces.Id;
+
 namespace PlikShare.Core.Encryption;
 
 /// <summary>
@@ -22,10 +24,15 @@ namespace PlikShare.Core.Encryption;
 public sealed class WorkspaceEncryptionSession : IDisposable
 {
     public const string HttpContextName = "WorkspaceEncryptionSession";
+    public int WorkspaceId{ get; }
     public WorkspaceDekEntry[] Entries { get; }
-    private bool _disposed;
 
-    public WorkspaceEncryptionSession(WorkspaceDekEntry[] entries)
+    private bool _disposed;
+    private readonly int _latestIndex;
+
+    public WorkspaceEncryptionSession(
+        int workspaceId,
+        WorkspaceDekEntry[] entries)
     {
         ArgumentNullException.ThrowIfNull(entries);
 
@@ -34,7 +41,41 @@ public sealed class WorkspaceEncryptionSession : IDisposable
                 "WorkspaceEncryptionSession requires at least one Workspace DEK entry.",
                 nameof(entries));
 
+        WorkspaceId = workspaceId;
         Entries = entries;
+
+        _latestIndex = GetLatestIndex(entries);
+    }
+
+    private int GetLatestIndex(WorkspaceDekEntry[] entries)
+    {
+        var latestIndex = 0;
+        var latestVersion = entries[0].StorageDekVersion;
+
+        for (var i = 1; i < entries.Length; i++)
+        {
+            if (entries[i].StorageDekVersion <= latestVersion) 
+                continue;
+
+            latestVersion = entries[i].StorageDekVersion;
+            latestIndex = i;
+        }
+
+        return latestIndex;
+    }
+
+    /// <summary>
+    /// Returns the unwrapped Workspace DEK with the highest Storage DEK version.
+    /// Used when encrypting new content, which should always use the latest key.
+    ///
+    /// OWNERSHIP: The returned <see cref="SecureBytes"/> is owned by this session and
+    /// MUST NOT be disposed by the caller.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">The session has already been disposed.</exception>
+    public WorkspaceDekEntry GetLatestDek()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return Entries[_latestIndex];
     }
 
     /// <summary>
@@ -53,17 +94,17 @@ public sealed class WorkspaceEncryptionSession : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        var entry = Entries.FirstOrDefault(
-            entry => entry.StorageDekVersion == storageDekVersion);
-
-        if (entry is not null)
-            return entry.Dek;
+        for (var i = 0; i < Entries.Length; i++)
+        {
+            if (Entries[i].StorageDekVersion == storageDekVersion)
+                return Entries[i].Dek;
+        }
 
         throw new WorkspaceDekForVersionNotAvailableException(
             requestedStorageDekVersion: storageDekVersion,
             availableStorageDekVersions: Entries.Select(e => e.StorageDekVersion).ToArray());
     }
-
+    
     public void Dispose()
     {
         if (_disposed) return;

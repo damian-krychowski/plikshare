@@ -18,7 +18,7 @@ public class GetFolderAuditContextQuery(PlikShareDb plikShareDb)
                     SELECT
                         f.fo_name,
                         (
-                            SELECT GROUP_CONCAT(af.fo_name, '/')
+                            SELECT json_group_array(af.fo_name)
                             FROM (
                                 SELECT fo_name
                                 FROM fo_folders
@@ -30,11 +30,18 @@ public class GetFolderAuditContextQuery(PlikShareDb plikShareDb)
                     WHERE f.fo_external_id = $folderExternalId
                     LIMIT 1
                     """,
-                readRowFunc: reader => new Audit.FolderRef
+                readRowFunc: reader =>
                 {
-                    ExternalId = folderExternalId,
-                    Name = reader.GetString(0),
-                    FolderPath = reader.GetStringOrNull(1)
+                    var ancestors = reader.GetFromJsonOrNull<List<string>>(1);
+
+                    return new Audit.FolderRef
+                    {
+                        ExternalId = folderExternalId,
+                        Name = reader.GetString(0),
+                        FolderPath = ancestors is null or { Count: 0 }
+                            ? null
+                            : ancestors
+                    };
                 })
             .WithParameter("$folderExternalId", folderExternalId.Value)
             .Execute();
@@ -59,7 +66,7 @@ public class GetFolderAuditContextQuery(PlikShareDb plikShareDb)
                         f.fo_external_id,
                         f.fo_name,
                         (
-                            SELECT GROUP_CONCAT(af.fo_name, '/')
+                            SELECT json_group_array(af.fo_name)
                             FROM (
                                 SELECT fo_name
                                 FROM fo_folders
@@ -73,6 +80,7 @@ public class GetFolderAuditContextQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader =>
                 {
                     var externalId = new FolderExtId(reader.GetString(0));
+                    var ancestors = reader.GetFromJsonOrNull<List<string>>(2);
 
                     return new
                     {
@@ -81,7 +89,9 @@ public class GetFolderAuditContextQuery(PlikShareDb plikShareDb)
                         {
                             ExternalId = externalId,
                             Name = reader.GetString(1),
-                            FolderPath = reader.GetStringOrNull(2)
+                            FolderPath = ancestors is null or { Count: 0 }
+                                ? null
+                                : ancestors
                         }
                     };
                 })

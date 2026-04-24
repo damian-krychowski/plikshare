@@ -79,7 +79,8 @@ public static class BulkDownloadEndpoints
                 files: bulkDownloadDetails.Files.Select(f => new Audit.FileRef
                 {
                     ExternalId = f.ExternalId,
-                    Name = f.FullName,
+                    Name = f.Name,
+                    Extension = f.Extension,
                     SizeInBytes = f.SizeInBytes,
                     FolderPath = bulkDownloadDetails.FolderSubtree.GetFullPath(f.FolderId)
                 }).ToList()),

@@ -107,6 +107,7 @@ public static class UploadsEndpoints
                             ExternalId = f.FileUploadExternalId,
                             FileExternalId = f.FileExternalId,
                             Name = f.FileName,
+                            Extension = f.FileExtension,
                             SizeInBytes = f.SizeInBytes,
                             FolderPath = f.FolderPath
                         }).ToList()),
@@ -266,7 +267,8 @@ public static class UploadsEndpoints
                         {
                             ExternalId = fileUpload.ExternalId,
                             FileExternalId = fileUpload.FileToUpload.S3FileKey.FileExternalId,
-                            Name = $"{fileUpload.FileName}{fileUpload.FileExtension}",
+                            Name = fileUpload.FileName,
+                            Extension = fileUpload.FileExtension,
                             SizeInBytes = fileUpload.FileToUpload.SizeInBytes,
                             FolderPath = fileUpload.FolderAncestors.ToFolderPath()
                         }),
@@ -299,7 +301,8 @@ public static class UploadsEndpoints
         var response = getUploadsListQuery.Execute(
             workspace: workspaceMembership.Workspace,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
-            boxFolderId: null);
+            boxFolderId: null,
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
         return response;
     }

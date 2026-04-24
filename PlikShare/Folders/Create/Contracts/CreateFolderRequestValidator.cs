@@ -1,4 +1,5 @@
 using FluentValidation;
+using PlikShare.Core.Encryption;
 
 namespace PlikShare.Folders.Create.Contracts;
 
@@ -7,6 +8,7 @@ public class CreateFolderRequestValidator : AbstractValidator<CreateFolderReques
     public CreateFolderRequestValidator()
     {
         RuleFor(x => x.Name)
-            .NotEmpty();
+            .NotEmpty()
+            .MustNotStartWithReservedMetadataPrefix();
     }
 }

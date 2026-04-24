@@ -122,8 +122,9 @@ public class ValidateProtectedUploadPayloadFilter : IEndpointFilter
             var workspaceDeks = payload.WorkspaceDeks.ToEntries(
                 masterDataEncryption);
 
-            context.HttpContext.Items[WorkspaceEncryptionSession.HttpContextName] =
-                new WorkspaceEncryptionSession(workspaceDeks);
+            context.HttpContext.Items[WorkspaceEncryptionSession.HttpContextName] = new WorkspaceEncryptionSession(
+                workspaceId: workspaceDeks[0].WorkspaceId,
+                entries: workspaceDeks);
         }
 
         return await next(context);

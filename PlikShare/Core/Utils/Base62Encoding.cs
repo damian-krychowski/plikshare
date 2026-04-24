@@ -170,8 +170,39 @@ public static class Base62Encoding
     {
         ArgumentNullException.ThrowIfNull(base62String);
 
+        if (!TryDecode(base62String, out var result))
+        {
+            throw new FormatException(
+                "Input contains one or more non-Base62 characters.");
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Non-throwing counterpart to <see cref="FromBase62ToBytes"/>. Returns <c>false</c>
+    /// if <paramref name="base62String"/> is <c>null</c> or contains any character outside
+    /// the Base62 alphabet; otherwise returns <c>true</c> and sets <paramref name="result"/>
+    /// to the decoded bytes.
+    /// </summary>
+    public static bool TryFromBase62ToBytes(string? base62String, out byte[] result)
+    {
+        if (base62String is null)
+        {
+            result = [];
+            return false;
+        }
+
+        return TryDecode(base62String, out result);
+    }
+
+    private static bool TryDecode(string base62String, out byte[] result)
+    {
         if (base62String.Length == 0)
-            return Array.Empty<byte>();
+        {
+            result = [];
+            return true;
+        }
 
         var leadingZeroMarkers = 0;
         while (leadingZeroMarkers < base62String.Length
@@ -183,7 +214,8 @@ public static class Base62Encoding
         if (leadingZeroMarkers == base62String.Length)
         {
             // All '0' — all-zero input of this exact length.
-            return new byte[base62String.Length];
+            result = new byte[base62String.Length];
+            return true;
         }
 
         BigInteger numericValue = 0;
@@ -192,23 +224,22 @@ public static class Base62Encoding
             var digit = Characters.IndexOf(base62String[i]);
             if (digit < 0)
             {
-                throw new FormatException(
-                    $"Invalid Base62 character at index {i}: '{base62String[i]}'.");
+                result = [];
+                return false;
             }
 
             numericValue *= Base;
             numericValue += digit;
         }
 
-        // Unsigned LE minimal representation; top byte is always non-zero for value > 0.
         var significant = numericValue.ToByteArray(
             isUnsigned: true,
             isBigEndian: false);
 
-        var result = new byte[significant.Length + leadingZeroMarkers];
-        significant.CopyTo(result, 0);
-        // Remaining bytes are already zero from the fresh allocation.
+        var bytes = new byte[significant.Length + leadingZeroMarkers];
+        significant.CopyTo(bytes, 0);
 
-        return result;
+        result = bytes;
+        return true;
     }
 }

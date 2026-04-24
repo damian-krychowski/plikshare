@@ -119,6 +119,7 @@ public class GetBoxContentHandler(
             folderExternalId: folderExternalId ?? boxAccess.Box.Folder!.ExternalId,
             boxFolderId: boxAccess.Box.Folder!.Id,
             userIdentity: boxAccess.UserIdentity,
-            executionFlags: executionFlags);
+            executionFlags: executionFlags,
+            workspaceEncryptionSession: null);
     }
 }

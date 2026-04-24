@@ -13,7 +13,8 @@ public class GetFileDetailsQuery(PlikShareDb plikShareDb)
     public SQLiteOneRowCommandResult<FileRecord> Execute(
         int workspaceId,
         FileExtId fileExternalId,
-        int? boxFolderId)
+        int? boxFolderId,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         using var connection = plikShareDb.OpenConnection();
 
@@ -91,7 +92,7 @@ public class GetFileDetailsQuery(PlikShareDb plikShareDb)
                                     reader.GetFieldValueOrNull<byte[]>(8)),
                                 FormatVersion = reader.GetByteOrNull(9) ?? 1
                             },
-                        FolderAncestors = reader.GetFromJsonOrNull<FileRecordFolderAncestor[]>(10) ?? []
+                        FolderAncestors = reader.GetFromJsonOrNull<FileRecordFolderAncestor[]>(10, workspaceEncryptionSession) ?? []
                     };
                 })
             .WithParameter("$workspaceId", workspaceId)

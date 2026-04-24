@@ -606,7 +606,7 @@ public class upload_and_download_tests : TestFixture
             assertDetails: details =>
             {
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
-                details.FileUploads.Should().Contain(f => f.Name == "audit-upload.txt");
+                details.FileUploads.Should().Contain(f => f.Name == "audit-upload" && f.Extension == ".txt");
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);

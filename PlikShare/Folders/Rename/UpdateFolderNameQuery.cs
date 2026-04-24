@@ -15,7 +15,7 @@ public class UpdateFolderNameQuery(
     public Task<ResultCode> Execute(
         WorkspaceContext workspace,
         FolderExtId folderExternalId,
-        string name,
+        EncryptableMetadata name,
         int? boxFolderId,
         IUserIdentity userIdentity,
         bool isOperationAllowedByBoxPermissions,
@@ -37,7 +37,7 @@ public class UpdateFolderNameQuery(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FolderExtId folderExternalId,
-        string name,
+        EncryptableMetadata name,
         int? boxFolderId,
         IUserIdentity userIdentity,
         bool isOperationAllowedByBoxPermissions)
@@ -76,7 +76,7 @@ public class UpdateFolderNameQuery(
                          """,
                     readRowFunc: reader => reader.GetInt32(0),
                     transaction: transaction)
-                .WithParameter("$name", name)
+                .WithEncryptableParameter("$name", name)
                 .WithParameter("$folderExternalId", folderExternalId.Value)
                 .WithParameter("$workspaceId", workspace.Id)
                 .WithParameter("$boxFolderId", boxFolderId)

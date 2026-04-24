@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Folders.List.Contracts;
@@ -11,13 +12,15 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
 {
     public GetTopFolderContentResponseDto Execute(
 	    WorkspaceContext workspace,
-	    IUserIdentity userIdentity)
+	    IUserIdentity userIdentity,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
 	    using var connection = plikShareDb.OpenConnection();
 
 	    var folders = GetFolders(
 		    workspace,
 			userIdentity,
+			workspaceEncryptionSession,
 		    connection);
 	    
 	    var files = GetFiles(
@@ -128,6 +131,7 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
     private static List<SubfolderDto> GetFolders(
 	    WorkspaceContext workspace,
         IUserIdentity userIdentity,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         SqliteConnection connection)
     {
 	    return connection
@@ -155,7 +159,7 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader => new SubfolderDto
                 {
                     ExternalId = reader.GetString(0),
-					Name = reader.GetString(1),
+					Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
 					WasCreatedByUser = reader.GetBoolean(2),
 					CreatedAt = reader.GetDateTimeOffsetOrNull(3)?.DateTime
 				})

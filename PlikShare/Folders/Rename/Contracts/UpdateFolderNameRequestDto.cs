@@ -1,4 +1,5 @@
 using FluentValidation;
+using PlikShare.Core.Encryption;
 
 namespace PlikShare.Folders.Rename.Contracts;
 
@@ -9,6 +10,8 @@ public class UpdateFolderNameRequestValidator : AbstractValidator<UpdateFolderNa
 {
     public UpdateFolderNameRequestValidator()
     {
-        RuleFor(x => x.Name).NotEmpty();
+        RuleFor(x => x.Name)
+            .NotEmpty()
+            .MustNotStartWithReservedMetadataPrefix();
     }
 }

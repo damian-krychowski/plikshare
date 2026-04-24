@@ -7,7 +7,6 @@ using PlikShare.Core.UserIdentity;
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
 using PlikShare.Storages;
-using PlikShare.Storages.Encryption;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Id;
 using PlikShare.Workspaces.Cache;
@@ -218,9 +217,9 @@ static class CachedFolderAncestorExtensions
 {
     extension(CachedFolderAncestor[] ancestors)
     {
-        public string? ToFolderPath() => ancestors.Length == 0
+        public List<string>? ToFolderPath() => ancestors.Length == 0
             ? null
-            : string.Join("/", ancestors.Select(a => a.Name));
+            : ancestors.Select(a => a.Name).ToList();
     }
 }
 

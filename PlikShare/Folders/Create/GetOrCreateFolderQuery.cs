@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Folders.Create.Contracts;
@@ -19,8 +20,9 @@ public class GetOrCreateFolderQuery(
         FolderExtId? parentFolderExternalId,
         int? boxFolderId,
         IUserIdentity userIdentity,
-        List<FolderTreeDto> folderTreeItems, 
+        List<FolderTreeDto> folderTreeItems,
         bool ensureUniqueNames,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken = default)
     {
         if (parentFolderExternalId is null && boxFolderId is not null)
@@ -52,11 +54,12 @@ public class GetOrCreateFolderQuery(
                 TemporaryIdsWithDuplications: duplicatedNames);
 
         var (code, foldersToCreate, existingFolderDtos) = CheckParentFolderAndGetFoldersToCreate(
-            workspace: workspace, 
-            parentFolderExternalId: parentFolderExternalId, 
-            boxFolderId: boxFolderId, 
-            folderTreeItems: folderTreeItems, 
-            ensureUniqueNames: ensureUniqueNames);
+            workspace: workspace,
+            parentFolderExternalId: parentFolderExternalId,
+            boxFolderId: boxFolderId,
+            folderTreeItems: folderTreeItems,
+            ensureUniqueNames: ensureUniqueNames,
+            workspaceEncryptionSession: workspaceEncryptionSession);
 
         if (code == ResultCode.ParentFolderNotFound)
             return new BulkResult(Code: ResultCode.ParentFolderNotFound);
@@ -65,6 +68,7 @@ public class GetOrCreateFolderQuery(
             workspace: workspace,
             userIdentity: userIdentity,
             inputTreeNodes: foldersToCreate,
+            workspaceEncryptionSession: workspaceEncryptionSession,
             cancellationToken: cancellationToken);
 
         return new BulkResult(
@@ -143,7 +147,8 @@ public class GetOrCreateFolderQuery(
         FolderExtId? parentFolderExternalId,
         int? boxFolderId,
         List<FolderTreeDto> folderTreeItems,
-        bool ensureUniqueNames)
+        bool ensureUniqueNames,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         if (parentFolderExternalId is null && !ensureUniqueNames)
         {
@@ -170,7 +175,8 @@ public class GetOrCreateFolderQuery(
                 workspace: workspace,
                 parentFolderExternalId: parentFolderExternalId.Value,
                 boxFolderId: boxFolderId,
-                connection: connection);
+                connection: connection,
+                workspaceEncryptionSession: workspaceEncryptionSession);
 
             if (parentFolderResult.IsEmpty)
                 return new CheckParentFolderResult(
@@ -194,12 +200,13 @@ public class GetOrCreateFolderQuery(
                 ],
                 ExistingFolders: []
             );
-        
+
         var existingFoldersResult = TryGetExistingFoldersFast(
             workspace: workspace,
             parent: parentFolder,
             folderTreeItems: folderTreeItems,
-            connection: connection);
+            connection: connection,
+            workspaceEncryptionSession: workspaceEncryptionSession);
         
         var inputTreeNodes = GetMissingFoldersList(
             existingFolders: existingFoldersResult,
@@ -225,7 +232,8 @@ public class GetOrCreateFolderQuery(
         WorkspaceContext workspace,
         Folder? parent,
         List<FolderTreeDto> folderTreeItems,
-        SqliteConnection connection)
+        SqliteConnection connection,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         using var commandsPool = connection.CreateLazyCommandsPool();
 
@@ -246,11 +254,13 @@ public class GetOrCreateFolderQuery(
             var existingFolders = folderTreeNodes is [{ Parent: null }]
                 ? GetExistingTopFolders(
                     commandsPool,
-                    workspace)
+                    workspace,
+                    workspaceEncryptionSession)
                 : GetExistingFolders(
                     commandsPool,
                     workspace,
-                    folderTreeNodes.Select(x => x.Parent!.Id).ToList());
+                    folderTreeNodes.Select(x => x.Parent!.Id).ToList(),
+                    workspaceEncryptionSession);
 
             foreach (var folderTreeNode in folderTreeNodes)
             {
@@ -346,6 +356,7 @@ public class GetOrCreateFolderQuery(
         WorkspaceContext workspace,
         IUserIdentity userIdentity,
         List<FolderTreeNode> inputTreeNodes,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken)
     {
         if (inputTreeNodes.Count == 0)
@@ -380,16 +391,19 @@ public class GetOrCreateFolderQuery(
                     var externalId = FolderExtId.NewId();
 
                     subfoldersDataList.Add(new SubfolderData(
-                        Node: node, 
-                        Subfolder: subfolder, 
+                        Node: node,
+                        Subfolder: subfolder,
                         ExternalId: externalId));
 
                     foldersToCreate.Add(new FolderToCreate
                     {
                         ExternalId = externalId.Value,
                         AncestorFolderIds = node.Parent?.AncestorFolderIdsForSubfolders ?? [],
-                        Name = subfolder.Name,
-                        ParentId = node.Parent?.Id
+                        ParentId = node.Parent?.Id,
+
+                        Name = workspaceEncryptionSession
+                            .ToEncryptableMetadata(subfolder.Name)
+                            .Encode(),
                     });
                 }
             }
@@ -468,17 +482,18 @@ public class GetOrCreateFolderQuery(
     
     private List<Folder> GetExistingTopFolders(
         LazySqLiteCommandsPool commandsPool,
-        WorkspaceContext workspace)
+        WorkspaceContext workspace,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         var result = commandsPool
             .Cmd(
                 sql: """
-                     SELECT 
+                     SELECT
                          fo.fo_id,
                          fo.fo_external_id,
                          fo.fo_name
                      FROM fo_folders AS fo
-                     WHERE 
+                     WHERE
                          fo.fo_workspace_id = $workspaceId
                          AND fo.fo_is_being_deleted = FALSE
                          AND fo.fo_parent_folder_id IS NULL
@@ -492,7 +507,7 @@ public class GetOrCreateFolderQuery(
                         Id = id,
                         ParentId = null,
                         ExternalId = reader.GetString(1),
-                        Name = reader.GetString(2),
+                        Name = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
                         AncestorFolderIdsForSubfolders = [id],
                         Ancestors = []
                     };
@@ -506,12 +521,13 @@ public class GetOrCreateFolderQuery(
     private List<Folder> GetExistingFolders(
         LazySqLiteCommandsPool commandsPool,
         WorkspaceContext workspace,
-        List<int> parentIds)
+        List<int> parentIds,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         var result = commandsPool
             .Cmd(
                 sql: """
-                     SELECT 
+                     SELECT
                          fo.fo_id,
                          fo.fo_external_id,
                          fo.fo_name,
@@ -529,7 +545,7 @@ public class GetOrCreateFolderQuery(
                              ) AS sub
                          ) AS fo_ancestors
                      FROM fo_folders AS fo
-                     WHERE 
+                     WHERE
                          fo.fo_workspace_id = $workspaceId
                          AND fo.fo_is_being_deleted = FALSE
                          AND fo.fo_parent_folder_id IN (
@@ -540,18 +556,18 @@ public class GetOrCreateFolderQuery(
                 {
                     var id = reader.GetInt32(0);
                     var externalId = reader.GetString(1);
-                    var name = reader.GetString(2);
+                    var name = reader.DecodeEncryptableString(2, workspaceEncryptionSession);
                     var ancestorFolderIds = reader.GetFromJson<int[]>(3);
                     var parentId = ancestorFolderIds.Last();
-                    
+
                     return new Folder
                     {
                         Id = id,
                         ParentId = parentId,
                         ExternalId = externalId,
-                        Name = name, 
+                        Name = name,
                         AncestorFolderIdsForSubfolders = [.. ancestorFolderIds, id],
-                        Ancestors = reader.GetFromJsonOrNull<FolderAncestor[]>(4) ?? []
+                        Ancestors = reader.GetFromJsonOrNull<FolderAncestor[]>(4, workspaceEncryptionSession) ?? []
                     };
                 })
             .WithParameter("$workspaceId", workspace.Id)
@@ -617,13 +633,14 @@ public class GetOrCreateFolderQuery(
         WorkspaceContext workspace,
         FolderExtId parentFolderExternalId,
         int? boxFolderId,
-        SqliteConnection connection)
+        SqliteConnection connection,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         return connection
             .OneRowCmd(
                 sql: """
-                     SELECT 
-                         f.fo_id, 
+                     SELECT
+                         f.fo_id,
                          f.fo_parent_folder_id,
                          f.fo_ancestor_folder_ids,
                          f.fo_name,
@@ -639,18 +656,18 @@ public class GetOrCreateFolderQuery(
                                  ORDER BY json_array_length(af.fo_ancestor_folder_ids)
                              ) AS sub
                          )
-                     FROM 
+                     FROM
                          fo_folders AS f
-                     WHERE 
+                     WHERE
                          f.fo_external_id = $parentExternalId
                        AND f.fo_workspace_id = $workspaceId
                          AND f.fo_is_being_deleted = FALSE
                          AND (
-                             $boxFolderId IS NULL 
-                             OR $boxFolderId = f.fo_id 
+                             $boxFolderId IS NULL
+                             OR $boxFolderId = f.fo_id
                              OR $boxFolderId IN (
-                                 SELECT value FROM json_each(f.fo_ancestor_folder_ids) 
-                             ) 
+                                 SELECT value FROM json_each(f.fo_ancestor_folder_ids)
+                             )
                          )
                      LIMIT 1
                      """,
@@ -665,9 +682,9 @@ public class GetOrCreateFolderQuery(
                         Id = id,
                         ParentId = parentId,
                         AncestorFolderIdsForSubfolders = [..ancestorFolderIds, id],
-                        Name = reader.GetString(3),
+                        Name = reader.DecodeEncryptableString(3, workspaceEncryptionSession),
                         ExternalId = parentFolderExternalId.Value,
-                        Ancestors = reader.GetFromJsonOrNull<FolderAncestor[]>(4) ?? []
+                        Ancestors = reader.GetFromJsonOrNull<FolderAncestor[]>(4, workspaceEncryptionSession) ?? []
                     };
                 })
             .WithParameter("$parentExternalId", parentFolderExternalId.Value)
@@ -706,6 +723,8 @@ public class GetOrCreateFolderQuery(
     public class FolderAncestor
     {
         public required string ExternalId { get; init; }
+
+        [EncryptedMetadata]
         public required string Name { get; init; }
     }
 

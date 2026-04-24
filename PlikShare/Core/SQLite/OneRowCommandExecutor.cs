@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.Data.Sqlite;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 
 namespace PlikShare.Core.SQLite;
@@ -63,6 +64,19 @@ public class SQLiteOneRowCommandExecutor<TRow>
     public SQLiteOneRowCommandExecutor<TRow> WithJsonParameter<T>(string name, T value)
     {
         _command.WithJsonParameter(name, value);
+        return this;
+    }
+
+    /// <summary>
+    /// Binds an <see cref="EncryptableMetadata"/> value: for plaintext-mode workspaces
+    /// the raw string is bound; for full-encryption workspaces the value is AES-GCM
+    /// encrypted under the workspace DEK and bound as base64 of the envelope. All the
+    /// mode-switching logic lives inside <see cref="EncryptableMetadataExtensions.Encode"/>;
+    /// queries stay oblivious to encryption.
+    /// </summary>
+    public SQLiteOneRowCommandExecutor<TRow> WithEncryptableParameter(string name, EncryptableMetadata metadata)
+    {
+        _command.WithParameter(name, metadata.Encode());
         return this;
     }
 

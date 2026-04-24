@@ -1,4 +1,5 @@
 using FluentValidation;
+using PlikShare.Core.Encryption;
 
 namespace PlikShare.BoxExternalAccess.Contracts;
 
@@ -9,6 +10,8 @@ public class UpdateAccessCodeFolderNameRequestValidator : AbstractValidator<Upda
 {
     public UpdateAccessCodeFolderNameRequestValidator()
     {
-        RuleFor(x => x.Name).NotEmpty();
+        RuleFor(x => x.Name)
+            .NotEmpty()
+            .MustNotStartWithReservedMetadataPrefix();
     }
 }

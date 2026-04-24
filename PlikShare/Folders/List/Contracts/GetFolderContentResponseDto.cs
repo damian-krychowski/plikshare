@@ -1,3 +1,4 @@
+using PlikShare.Core.Encryption;
 using ProtoBuf;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -41,5 +42,6 @@ public class AncestorFolderDto
     public required string ExternalId { get; init; }
 
     [ProtoMember(2)]
+    [EncryptedMetadata]
     public required string Name { get; init; }
 }

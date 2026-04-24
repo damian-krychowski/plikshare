@@ -1,4 +1,5 @@
 using FluentValidation;
+using PlikShare.Core.Encryption;
 
 namespace PlikShare.BoxExternalAccess.Contracts;
 
@@ -6,6 +7,8 @@ public class UpdateBoxFileNameRequestValidator : AbstractValidator<UpdateBoxFile
 {
     public UpdateBoxFileNameRequestValidator()
     {
-        RuleFor(x => x.Name).NotEmpty();
+        RuleFor(x => x.Name)
+            .NotEmpty()
+            .MustNotStartWithReservedMetadataPrefix();
     }
 }

@@ -405,6 +405,7 @@ public class BoxExternalAccessHandler(
             userIdentity: boxAccess.UserIdentity,
             folderTreeItems: request.FolderTrees ?? [],
             ensureUniqueNames: request.EnsureUniqueNames,
+            workspaceEncryptionSession: null,
             cancellationToken: cancellationToken);
 
         if (result.Code == GetOrCreateFolderQuery.ResultCode.Ok)
@@ -413,7 +414,8 @@ public class BoxExternalAccessHandler(
                 Audit.Folder.BulkCreatedEntry(
                     actor: boxAccess.ToAuditLogActorContext(correlationId),
                     workspace: boxAccess.Box.Workspace.ToAuditLogWorkspaceRef(),
-                    folders: result.CreatedFolders.ToAuditLogFolderRefs(),
+                    folders: result.CreatedFolders.ToAuditLogFolderRefs(
+                        workspaceEncryptionSession: null), //todo: box external access to full-encryption storage not supported yet
                     box: boxAccess.ToAuditLogBoxRef()),
                 cancellationToken);
         }
@@ -455,7 +457,9 @@ public class BoxExternalAccessHandler(
 
         var result = await createFolderQuery.Execute(
             workspace: boxAccess.Box.Workspace,
-            name: request.Name,
+            name: new EncryptableMetadata(
+                Value: request.Name,
+                EncryptionMode: NoMetadataEncryption.Instance), //todo fix
             folderExternalId: request.ExternalId,
             parentFolderExternalId: folderExternalId,
             boxFolderId: boxAccess.Box.Folder.Id,
@@ -506,7 +510,9 @@ public class BoxExternalAccessHandler(
         var resultCode = await updateFolderNameQuery.Execute(
             workspace: boxAccess.Box.Workspace,
             folderExternalId: folderExternalId,
-            name: request.Name,
+            name: new EncryptableMetadata(
+                Value: request.Name,
+                EncryptionMode: NoMetadataEncryption.Instance), //todo fix
             boxFolderId: boxAccess.Box.Folder.Id,
             userIdentity: boxAccess.UserIdentity,
             isOperationAllowedByBoxPermissions: boxAccess.Permissions is {AllowList: true, AllowRenameFolder: true},
@@ -648,6 +654,7 @@ public class BoxExternalAccessHandler(
                             ExternalId = f.FileUploadExternalId,
                             FileExternalId = f.FileExternalId,
                             Name = f.FileName,
+                            Extension = f.FileExtension,
                             SizeInBytes = f.SizeInBytes,
                             FolderPath = f.FolderPath
                         }).ToList(),
@@ -797,7 +804,8 @@ public class BoxExternalAccessHandler(
                         {
                             ExternalId = fileUpload.ExternalId,
                             FileExternalId = fileUpload.FileToUpload.S3FileKey.FileExternalId,
-                            Name = $"{fileUpload.FileName}{fileUpload.FileExtension}",
+                            Name = fileUpload.FileName,
+                            Extension = fileUpload.FileExtension,
                             SizeInBytes = fileUpload.FileToUpload.SizeInBytes,
                             FolderPath = fileUpload.FolderAncestors.ToFolderPath()
                         },
@@ -828,7 +836,8 @@ public class BoxExternalAccessHandler(
         var response = getUploadsListQuery.Execute(
             workspace: boxAccess.Box.Workspace,
             userIdentity: boxAccess.UserIdentity,
-            boxFolderId: boxAccess.Box.Folder!.Id);
+            boxFolderId: boxAccess.Box.Folder!.Id,
+            workspaceEncryptionSession: null); //todo: box external access to full-encryption storage not supported yet
 
         return response;
     }

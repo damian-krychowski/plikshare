@@ -103,14 +103,14 @@ public sealed class SecureBytes : IDisposable
         return action(_buffer);
     }
 
-    public void Use<TState>(TState state, Action<ReadOnlySpan<byte>, TState> action)
+    public void Use<TState>(in TState state, Action<ReadOnlySpan<byte>, TState> action)
         where TState : allows ref struct
     {
         ThrowIfDisposed();
         action(_buffer, state);
     }
 
-    public TResult Use<TState, TResult>(TState state, Func<ReadOnlySpan<byte>, TState, TResult> action)
+    public TResult Use<TState, TResult>(in TState state, Func<ReadOnlySpan<byte>, TState, TResult> action)
         where TState : allows ref struct
     {
         ThrowIfDisposed();

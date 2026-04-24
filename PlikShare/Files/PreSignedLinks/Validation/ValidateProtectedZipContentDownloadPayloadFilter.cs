@@ -109,8 +109,9 @@ public class ValidateProtectedZipContentDownloadPayloadFilter : IEndpointFilter
             var workspaceDeks = payload.WorkspaceDeks.ToEntries(
                 masterDataEncryption);
 
-            context.HttpContext.Items[WorkspaceEncryptionSession.HttpContextName] =
-                new WorkspaceEncryptionSession(workspaceDeks);
+            context.HttpContext.Items[WorkspaceEncryptionSession.HttpContextName] = new WorkspaceEncryptionSession(
+                workspaceId: workspace.Id,
+                entries: workspaceDeks);
         }
 
         return await next(context);

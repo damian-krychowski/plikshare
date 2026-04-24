@@ -13,7 +13,7 @@ public static class KeyDerivationChain
     public const int StepSaltSize = 32;
     public const int DerivedKeySize = 32;
 
-    public static byte[] Derive(
+    public static SecureBytes Derive(
         ReadOnlySpan<byte> startingDek,
         IReadOnlyList<byte[]> stepSalts)
     {
@@ -22,32 +22,147 @@ public static class KeyDerivationChain
                 $"Starting DEK must be {DerivedKeySize} bytes, got {startingDek.Length}.",
                 nameof(startingDek));
 
-        if (stepSalts.Count == 0)
-            return startingDek.ToArray();
-
-        Span<byte> current = stackalloc byte[DerivedKeySize];
-        startingDek.CopyTo(current);
-
-        Span<byte> next = stackalloc byte[DerivedKeySize];
-
         foreach (var salt in stepSalts)
         {
             if (salt.Length != StepSaltSize)
                 throw new ArgumentException(
                     $"Each step salt must be {StepSaltSize} bytes, got {salt.Length}.",
                     nameof(stepSalts));
-
-            HKDF.DeriveKey(
-                hashAlgorithmName: HashAlgorithmName.SHA256,
-                ikm: current,
-                output: next,
-                salt: salt,
-                info: []);
-
-            next.CopyTo(current);
         }
 
-        return current.ToArray();
+        return SecureBytes.Create(
+            length: DerivedKeySize,
+            state: new ListChainInput
+            {
+                StartingDek = startingDek,
+                StepSalts = stepSalts
+            },
+            initializer: static (output, state) =>
+            {
+                if (state.StepSalts.Count == 0)
+                {
+                    state.StartingDek.CopyTo(output);
+                    return;
+                }
+
+                Span<byte> current = stackalloc byte[DerivedKeySize];
+                Span<byte> next = stackalloc byte[DerivedKeySize];
+
+                state.StartingDek.CopyTo(current);
+
+                try
+                {
+                    var lastIndex = state.StepSalts.Count - 1;
+
+                    for (var i = 0; i < lastIndex; i++)
+                    {
+                        HKDF.DeriveKey(
+                            hashAlgorithmName: HashAlgorithmName.SHA256,
+                            ikm: current,
+                            output: next,
+                            salt: state.StepSalts[i],
+                            info: []);
+
+                        next.CopyTo(current);
+                    }
+
+                    HKDF.DeriveKey(
+                        hashAlgorithmName: HashAlgorithmName.SHA256,
+                        ikm: current,
+                        output: output,
+                        salt: state.StepSalts[lastIndex],
+                        info: []);
+                }
+                finally
+                {
+                    current.Clear();
+                    next.Clear();
+                }
+            });
+    }
+
+    private readonly ref struct ListChainInput
+    {
+        public required ReadOnlySpan<byte> StartingDek { get; init; }
+        public required IReadOnlyList<byte[]> StepSalts { get; init; }
+    }
+
+    /// <summary>
+    /// Span-based variant returning the terminal DEK as a <see cref="SecureBytes"/> (pinned,
+    /// mlocked, zeroed on dispose). <paramref name="chainSalts"/> carries the salts as a single contiguous span of
+    /// <c>N * StepSaltSize</c> bytes — the layout used by metadata envelopes and file frame
+    /// headers. When <paramref name="chainSalts"/> is empty, the starting DEK is copied
+    /// through unchanged into a fresh <see cref="SecureBytes"/>.
+    /// </summary>
+    public static SecureBytes Derive(
+        ReadOnlySpan<byte> startingDek,
+        ReadOnlySpan<byte> chainSalts)
+    {
+        if (startingDek.Length != DerivedKeySize)
+            throw new ArgumentException(
+                $"Starting DEK must be {DerivedKeySize} bytes, got {startingDek.Length}.",
+                nameof(startingDek));
+
+        if (chainSalts.Length % StepSaltSize != 0)
+            throw new ArgumentException(
+                $"Chain salts length {chainSalts.Length} is not a multiple of {StepSaltSize}.",
+                nameof(chainSalts));
+
+        return SecureBytes.Create(
+            length: DerivedKeySize,
+            state: new ChainInput
+            {
+                StartingDek = startingDek,
+                ChainSalts = chainSalts
+            },
+            initializer: static (output, state) =>
+            {
+                if (state.ChainSalts.IsEmpty)
+                {
+                    state.StartingDek.CopyTo(output);
+                    return;
+                }
+
+                var stepCount = state.ChainSalts.Length / StepSaltSize;
+
+                scoped Span<byte> current = stackalloc byte[DerivedKeySize];
+                scoped Span<byte> next = stackalloc byte[DerivedKeySize];
+
+                state.StartingDek.CopyTo(current);
+
+                try
+                {
+                    for (var i = 0; i < stepCount - 1; i++)
+                    {
+                        HKDF.DeriveKey(
+                            hashAlgorithmName: HashAlgorithmName.SHA256,
+                            ikm: current,
+                            output: next,
+                            salt: state.ChainSalts.Slice(i * StepSaltSize, StepSaltSize),
+                            info: []);
+
+                        next.CopyTo(current);
+                    }
+
+                    HKDF.DeriveKey(
+                        hashAlgorithmName: HashAlgorithmName.SHA256,
+                        ikm: current,
+                        output: output,
+                        salt: state.ChainSalts.Slice((stepCount - 1) * StepSaltSize, StepSaltSize),
+                        info: []);
+                }
+                finally
+                {
+                    current.Clear();
+                    next.Clear();
+                }
+            });
+    }
+
+    private readonly ref struct ChainInput
+    {
+        public required ReadOnlySpan<byte> StartingDek { get; init; }
+        public required ReadOnlySpan<byte> ChainSalts { get; init; }
     }
 
     public static byte[]? Serialize(IReadOnlyList<byte[]>? stepSalts)

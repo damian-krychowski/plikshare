@@ -297,7 +297,7 @@ public class full_encryption_workspace_invitation_tests : TestFixture
         // Use the real-shape Base62 code because Dave lands on the ephemeral path, which
         // decodes the invitation code back to raw entropy bytes for KEK derivation.
         var daveEmail = Random.Email();
-        var daveCode = Random.RealShapeInvitationCode();
+        var daveCode = Random.InvitationCode();
         OneTimeInvitationCode.AddCode(daveCode);
 
         //when — single InviteMember call covering all four buckets in one transaction.

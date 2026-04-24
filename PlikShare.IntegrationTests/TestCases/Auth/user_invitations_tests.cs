@@ -272,7 +272,7 @@ public class user_invitation_tests : TestFixture
             {
                 Email = invitedUser.Email,
                 Password = Random.Password(),
-                InvitationCode = Random.InvitationCode("wrong-code"),
+                InvitationCode = "wrong-invitation-code",
                 SelectedCheckboxIds = []
             },
             antiforgeryCookies: anonymousAntiforgeryCookies);
@@ -451,7 +451,7 @@ public class user_invitation_tests : TestFixture
             {
                 Email = invitedUser.Email,
                 Password = Random.Password(),
-                InvitationCode = Random.InvitationCode("wrong-code"),
+                InvitationCode = "wrong-invitation-code",
                 SelectedCheckboxIds = []
             },
             antiforgeryCookies: anonymousAntiforgeryCookies);

@@ -16,15 +16,16 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
             .OneRowCmd(
                 sql: """
                     SELECT
-                        fi.fi_name || fi.fi_extension,
+                        fi.fi_name,
+                        fi.fi_extension,
                         fi.fi_size_in_bytes,
                         (
-                            SELECT GROUP_CONCAT(af.fo_name, '/')
+                            SELECT json_group_array(af.fo_name)
                             FROM (
                                 SELECT fo_name
                                 FROM fo_folders
                                 WHERE (fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
-                                       OR fo_id = fi.fi_folder_id)                                  
+                                       OR fo_id = fi.fi_folder_id)
                                 ORDER BY json_array_length(fo_ancestor_folder_ids)
                             ) AS af
                         )
@@ -33,12 +34,20 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
                     WHERE fi.fi_external_id = $fileExternalId
                     LIMIT 1
                     """,
-                readRowFunc: reader => new Audit.FileRef
+                readRowFunc: reader =>
                 {
-                    ExternalId = fileExternalId,
-                    Name = reader.GetString(0),
-                    SizeInBytes = reader.GetInt64(1),
-                    FolderPath = reader.GetStringOrNull(2)
+                    var ancestors = reader.GetFromJsonOrNull<List<string>>(3);
+
+                    return new Audit.FileRef
+                    {
+                        ExternalId = fileExternalId,
+                        Name = reader.GetString(0),
+                        Extension = reader.GetString(1),
+                        SizeInBytes = reader.GetInt64(2),
+                        FolderPath = ancestors is null or { Count: 0 }
+                            ? null
+                            : ancestors
+                    };
                 })
             .WithParameter("$fileExternalId", fileExternalId.Value)
             .Execute();
@@ -61,10 +70,11 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
                 sql: """
                     SELECT
                         fi.fi_external_id,
-                        fi.fi_name || fi.fi_extension,
+                        fi.fi_name,
+                        fi.fi_extension,
                         fi.fi_size_in_bytes,
                         (
-                            SELECT GROUP_CONCAT(af.fo_name, '/')
+                            SELECT json_group_array(af.fo_name)
                             FROM (
                                 SELECT fo_name
                                 FROM fo_folders
@@ -80,6 +90,7 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader =>
                 {
                     var externalId = new FileExtId(reader.GetString(0));
+                    var ancestors = reader.GetFromJsonOrNull<List<string>>(4);
 
                     return new
                     {
@@ -88,8 +99,11 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
                         {
                             ExternalId = externalId,
                             Name = reader.GetString(1),
-                            SizeInBytes = reader.GetInt64(2),
-                            FolderPath = reader.GetStringOrNull(3)
+                            Extension = reader.GetString(2),
+                            SizeInBytes = reader.GetInt64(3),
+                            FolderPath = ancestors is null or { Count: 0 }
+                                ? null
+                                : ancestors
                         }
                     };
                 })

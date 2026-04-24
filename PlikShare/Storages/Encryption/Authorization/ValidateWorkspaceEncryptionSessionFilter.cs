@@ -76,7 +76,9 @@ public class ValidateWorkspaceEncryptionSessionFilter : IEndpointFilter
 
         var user = await context.HttpContext.GetUserContext();
 
-        var unsealer = context.HttpContext.RequestServices
+        var unsealer = context
+            .HttpContext
+            .RequestServices
             .GetRequiredService<UserWorkspaceDekUnsealer>();
 
         var result = unsealer.UnsealForUser(
@@ -100,7 +102,10 @@ public class ValidateWorkspaceEncryptionSessionFilter : IEndpointFilter
 
             case UserWorkspaceDekUnsealer.ResultCode.Ok:
                 {
-                    var session = new WorkspaceEncryptionSession(result.Entries!);
+                    var session = new WorkspaceEncryptionSession(
+                        workspaceId: workspace.Id,
+                        entries: result.Entries!);
+
                     context.HttpContext.Response.RegisterForDispose(session);
                     context.HttpContext.Items[WorkspaceEncryptionSession.HttpContextName] = session;
 

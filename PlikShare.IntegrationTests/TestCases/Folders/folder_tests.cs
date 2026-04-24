@@ -245,7 +245,8 @@ public class folder_tests : TestFixture
                 details.Folders.Should().HaveCount(3);
                 details.Folders.Should().Contain(f => f.Name == "Folder A" && f.FolderPath == null);
                 details.Folders.Should().Contain(f => f.Name == "Folder B" && f.FolderPath == null);
-                details.Folders.Should().Contain(f => f.Name == "Folder B_A" && f.FolderPath == "Folder B");
+                details.Folders.Should().Contain(f => f.Name == "Folder B_A"
+                    && f.FolderPath != null && f.FolderPath.SequenceEqual(new[] { "Folder B" }));
                 details.Box.Should().BeNull();
             },
             expectedActorEmail: AppOwner.Email,

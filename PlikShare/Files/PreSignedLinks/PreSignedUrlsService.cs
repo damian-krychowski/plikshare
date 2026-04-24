@@ -8,6 +8,7 @@ using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Uploads.Id;
+using PlikShare.Workspaces.Id;
 
 namespace PlikShare.Files.PreSignedLinks;
 

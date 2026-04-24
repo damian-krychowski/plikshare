@@ -324,6 +324,13 @@ public static class HttpErrors
                 Message = $"Following temporary ids are duplicated: {string.Join(",", temporaryIdsWithDuplications)}"
             });
 
+        public static BadRequest<HttpError> NamesStartWithReservedPrefix(IEnumerable<int> temporaryIdsWithReservedPrefix) =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "names-start-with-reserved-prefix",
+                Message = $"Items with following temporary ids have names starting with a reserved prefix: {string.Join(",", temporaryIdsWithReservedPrefix)}"
+            });
+
         public static NotFound<HttpError> SomeFolderNotFound() =>
             TypedResults.NotFound(new HttpError
             {

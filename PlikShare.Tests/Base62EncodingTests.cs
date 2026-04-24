@@ -130,4 +130,112 @@ public class Base62EncodingTests
     {
         bytes.ToBase62().Should().Be(expected);
     }
+
+    // --- TryFromBase62ToBytes ---
+
+    // Whenever FromBase62ToBytes would succeed, TryFromBase62ToBytes must succeed with
+    // the SAME output. This is the behavioural-equivalence contract between the two.
+    [Theory]
+    [InlineData(new byte[] { })]
+    [InlineData(new byte[] { 0x00 })]
+    [InlineData(new byte[] { 0x00, 0x00 })]
+    [InlineData(new byte[] { 0x01 })]
+    [InlineData(new byte[] { 0x01, 0x00 })]
+    [InlineData(new byte[] { 0xFF, 0x00, 0x00, 0x00 })]
+    [InlineData(new byte[] { 0x00, 0x01 })]
+    [InlineData(new byte[] { 0x00, 0x00, 0xFF })]
+    public void try_from_base62_to_bytes_matches_throwing_variant_on_valid_input(byte[] bytes)
+    {
+        var encoded = bytes.ToBase62();
+
+        var success = Base62Encoding.TryFromBase62ToBytes(encoded, out var decoded);
+
+        success.Should().BeTrue();
+        decoded.Should().Equal(bytes);
+        decoded.Should().Equal(Base62Encoding.FromBase62ToBytes(encoded));
+    }
+
+    [Fact]
+    public void try_from_base62_to_bytes_roundtrips_cryptographically_random_32_byte_arrays()
+    {
+        for (var i = 0; i < 200; i++)
+        {
+            var bytes = RandomNumberGenerator.GetBytes(32);
+
+            var success = Base62Encoding.TryFromBase62ToBytes(bytes.ToBase62(), out var decoded);
+
+            success.Should().BeTrue();
+            decoded.Should().Equal(bytes);
+        }
+    }
+
+    // Invalid characters must produce false + empty result, NEVER throw.
+    [Theory]
+    [InlineData("!")]                  // punctuation — outside alphabet
+    [InlineData("abc!def")]            // invalid char in middle
+    [InlineData("abc def")]            // whitespace
+    [InlineData("zzz-zzz")]            // hyphen
+    [InlineData("héllo")]              // non-ASCII letter
+    [InlineData("abc\0def")]           // embedded null char
+    [InlineData("日本語")]              // non-Latin script
+    [InlineData("0+1")]                // plus sign (valid in Base64, not Base62)
+    [InlineData("ABC/DEF")]            // forward slash (valid in Base64)
+    [InlineData("abc=")]               // padding char (valid in Base64)
+    public void try_from_base62_to_bytes_returns_false_for_invalid_characters(string input)
+    {
+        var success = Base62Encoding.TryFromBase62ToBytes(input, out var result);
+
+        success.Should().BeFalse();
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void try_from_base62_to_bytes_returns_false_for_null()
+    {
+        var success = Base62Encoding.TryFromBase62ToBytes(null, out var result);
+
+        success.Should().BeFalse();
+        result.Should().BeEmpty();
+    }
+
+    // Empty string is a valid Base62 encoding (of the empty byte array), not an error.
+    [Fact]
+    public void try_from_base62_to_bytes_returns_true_with_empty_array_for_empty_string()
+    {
+        var success = Base62Encoding.TryFromBase62ToBytes(string.Empty, out var result);
+
+        success.Should().BeTrue();
+        result.Should().BeEmpty();
+    }
+
+    // All-'0' input decodes to an all-zero byte array of the same length — the Try variant
+    // must handle this edge case the same way as the throwing one.
+    [Theory]
+    [InlineData("0", 1)]
+    [InlineData("00", 2)]
+    [InlineData("00000000", 8)]
+    public void try_from_base62_to_bytes_handles_all_zero_markers(string input, int expectedLength)
+    {
+        var success = Base62Encoding.TryFromBase62ToBytes(input, out var result);
+
+        success.Should().BeTrue();
+        result.Should().Equal(new byte[expectedLength]);
+    }
+
+    // The throwing variant must keep throwing — adding Try must not regress Hash().
+    [Fact]
+    public void from_base62_to_bytes_still_throws_on_invalid_characters()
+    {
+        var act = () => Base62Encoding.FromBase62ToBytes("abc!def");
+
+        act.Should().Throw<FormatException>();
+    }
+
+    [Fact]
+    public void from_base62_to_bytes_still_throws_on_null()
+    {
+        var act = () => Base62Encoding.FromBase62ToBytes(null!);
+
+        act.Should().Throw<ArgumentNullException>();
+    }
 }

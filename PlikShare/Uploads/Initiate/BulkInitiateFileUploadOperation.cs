@@ -130,7 +130,8 @@ public class BulkInitiateFileUploadOperation(
             .Select(bu => new InitiatedFile(
                 FileExternalId: bu.S3Key.FileExternalId,
                 FileUploadExternalId: new FileUploadExtId(bu.FileUploadExternalId),
-                FileName: $"{bu.Name}{bu.Extension}",
+                FileName: bu.Name,
+                FileExtension: bu.Extension,
                 SizeInBytes: bu.SizeInBytes,
                 FolderPath: bu.FolderExternalId is not null
                     && folderValidationResults.TryGetValue(bu.FolderExternalId, out var fvr)
@@ -736,8 +737,9 @@ public class BulkInitiateFileUploadOperation(
         Files.Id.FileExtId FileExternalId,
         FileUploadExtId FileUploadExternalId,
         string FileName,
+        string FileExtension,
         long SizeInBytes,
-        string? FolderPath);
+        List<string>? FolderPath);
 
     public enum ResultCode
     {

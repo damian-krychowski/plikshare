@@ -8,7 +8,8 @@ public static partial class Audit
     {
         public required FileExtId ExternalId { get; init; }
         public required string Name { get; init; }
+        public required string Extension { get; init; }
         public required long SizeInBytes { get; init; }
-        public string? FolderPath { get; init; }
+        public List<string>? FolderPath { get; init; }
     }
 }

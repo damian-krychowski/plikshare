@@ -38,8 +38,8 @@ static class FileRecordExtensions
     {
         public string FullName => $"{file.Name}{file.Extension}";
 
-        public string? FolderPath => file.FolderAncestors.ToFolderPath();
-        
+        public List<string>? FolderPath => file.FolderAncestors.ToFolderPath();
+
         public S3FileKey S3FileKey => new()
         {
             S3KeySecretPart = file.S3KeySecretPart,
@@ -72,21 +72,23 @@ static class FileRecordExtensions
     {
         public string FullName => $"{file.Name}{file.Extension}";
 
-        public string? FolderPath => file.FolderAncestors.ToFolderPath();
+        public List<string>? FolderPath => file.FolderAncestors.ToFolderPath();
 
         public FileExtId ExternalId => file.S3FileKey.FileExternalId;
     }
 
     extension(FileRecordFolderAncestor[] ancestors)
     {
-        public string? ToFolderPath() => ancestors.Length == 0
+        public List<string>? ToFolderPath() => ancestors.Length == 0
             ? null
-            : string.Join("/", ancestors.Select(a => a.Name));
+            : ancestors.Select(a => a.Name).ToList();
     }
 }
 
 public class FileRecordFolderAncestor
 {
     public required FolderExtId ExternalId { get; init; }
+
+    [EncryptedMetadata]
     public required string Name { get; init; }
 }

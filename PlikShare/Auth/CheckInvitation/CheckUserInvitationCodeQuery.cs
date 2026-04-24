@@ -30,7 +30,8 @@ public class CheckUserInvitationCodeQuery(PlikShareDb plikShareDb)
         if (storedHash.IsEmpty)
             return ResultCode.WrongInvitationCode;
 
-        var submittedHash = InvitationCodeHasher.Hash(invitationCode);
+        if (!InvitationCodeHasher.TryHash(invitationCode, out var submittedHash))
+            return ResultCode.WrongInvitationCode;
 
         return InvitationCodeHasher.FixedTimeEquals(submittedHash, storedHash.Value)
             ? ResultCode.Ok

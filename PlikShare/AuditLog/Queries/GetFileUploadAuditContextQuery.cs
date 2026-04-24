@@ -22,10 +22,11 @@ public class GetFileUploadAuditContextQuery(PlikShareDb plikShareDb)
                     SELECT
                         fu.fu_external_id,
                         fu.fu_file_external_id,
-                        fu.fu_file_name || fu.fu_file_extension,
+                        fu.fu_file_name,
+                        fu.fu_file_extension,
                         fu.fu_file_size_in_bytes,
                         (
-                            SELECT GROUP_CONCAT(af.fo_name, '/')
+                            SELECT json_group_array(af.fo_name)
                             FROM (
                                 SELECT fo_name
                                 FROM fo_folders
@@ -41,6 +42,7 @@ public class GetFileUploadAuditContextQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader =>
                 {
                     var externalId = new FileUploadExtId(reader.GetString(0));
+                    var ancestors = reader.GetFromJsonOrNull<List<string>>(5);
 
                     return new
                     {
@@ -50,8 +52,11 @@ public class GetFileUploadAuditContextQuery(PlikShareDb plikShareDb)
                             ExternalId = externalId,
                             FileExternalId = new FileExtId(reader.GetString(1)),
                             Name = reader.GetString(2),
-                            SizeInBytes = reader.GetInt64(3),
-                            FolderPath = reader.GetStringOrNull(4)
+                            Extension = reader.GetString(3),
+                            SizeInBytes = reader.GetInt64(4),
+                            FolderPath = ancestors is null or { Count: 0 }
+                                ? null
+                                : ancestors
                         }
                     };
                 })

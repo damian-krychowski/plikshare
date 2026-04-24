@@ -4,10 +4,18 @@ namespace PlikShare.Storages.Encryption.Authorization;
 
 public static class HttpContextWorkspaceEncryptionSessionExtensions
 {
-    public static WorkspaceEncryptionSession? TryGetWorkspaceEncryptionSession(
-        this HttpContext httpContext)
+    extension(HttpContext httpContext)
     {
-        return httpContext.Items[WorkspaceEncryptionSession.HttpContextName]
-            as WorkspaceEncryptionSession;
+        public WorkspaceEncryptionSession? TryGetWorkspaceEncryptionSession()
+        {
+            return httpContext.Items[WorkspaceEncryptionSession.HttpContextName]
+                as WorkspaceEncryptionSession;
+        }
+
+        public EncryptableMetadata ToEncryptable(string value)
+        {
+            var wes = httpContext.TryGetWorkspaceEncryptionSession();
+            return wes.ToEncryptableMetadata(value);
+        }
     }
 }

@@ -123,12 +123,12 @@ public class WorkspaceCreationPreparation(
 
         using (storageDek)
         {
-            var salt = new byte[WorkspaceDekDerivation.SaltSize];
+            var salt = new byte[KeyDerivationChain.StepSaltSize];
             RandomNumberGenerator.Fill(salt);
 
-            using var workspaceDek = storageDek.Use(span => WorkspaceDekDerivation.Derive(
-                storageDek: span,
-                workspaceSalt: salt));
+            using var workspaceDek = storageDek.Use(span => KeyDerivationChain.Derive(
+                startingDek: span,
+                stepSalts: [salt]));
 
             var wrapped = workspaceDek.Use(span => UserKeyPair.SealTo(
                 recipientPublicKey: owner.EncryptionMetadata.PublicKey,

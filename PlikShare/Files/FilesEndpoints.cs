@@ -194,6 +194,7 @@ public static class FilesEndpoints
                 {
                     ExternalId = attachment.ExternalId,
                     Name = fileName.Name,
+                    Extension = fileName.Extension,
                     SizeInBytes = attachment.SizeInBytes
                 }),
             cancellationToken);

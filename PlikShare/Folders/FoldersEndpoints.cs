@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
 using PlikShare.AuditLog.Details;
 using PlikShare.Core.Authorization;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
@@ -73,6 +74,7 @@ public static class FoldersEndpoints
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             folderTreeItems: request.FolderTrees ?? [],
             ensureUniqueNames: request.EnsureUniqueNames,
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -82,7 +84,8 @@ public static class FoldersEndpoints
                     Audit.Folder.BulkCreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
-                        folders: result.CreatedFolders.ToAuditLogFolderRefs()),
+                        folders: result.CreatedFolders.ToAuditLogFolderRefs(
+                            httpContext.TryGetWorkspaceEncryptionSession())),
                     cancellationToken);
 
                 return TypedResults.Ok(
@@ -120,7 +123,7 @@ public static class FoldersEndpoints
             workspace: workspaceMembership.Workspace,
             folderExternalId: request.ExternalId,
             parentFolderExternalId: request.ParentExternalId,
-            name: request.Name,
+            name: httpContext.ToEncryptable(value: request.Name),
             boxFolderId: null,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             cancellationToken: cancellationToken);
@@ -160,7 +163,8 @@ public static class FoldersEndpoints
 
         var response = getTopFolderContentQuery.Execute(
             workspace: workspaceMembership.Workspace,
-            userIdentity: new UserIdentity(workspaceMembership.User.ExternalId));
+            userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
         return response;
     }
@@ -181,7 +185,8 @@ public static class FoldersEndpoints
                 GetCurrentFolder: true,
                 GetSubfolders: true,
                 GetFiles: GetFolderContentQuery.FilesExecutionFlag.All,
-                GetUploads: true));
+                GetUploads: true),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
         return response switch
         {
@@ -203,7 +208,7 @@ public static class FoldersEndpoints
         var resultCode = await updateFolderNameQuery.Execute(
             workspace: workspaceMembership.Workspace,
             folderExternalId: folderExternalId,
-            name: request.Name,
+            name: httpContext.ToEncryptable(request.Name),
             boxFolderId: null,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             isOperationAllowedByBoxPermissions: true,

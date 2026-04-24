@@ -24,7 +24,8 @@ public class GetFileDownloadLinkOperation(
         var fileQueryResult = getFileDetailsQuery.Execute(
             workspaceId: workspace.Id,
             fileExternalId: fileExternalId,
-            boxFolderId: boxFolderId);
+            boxFolderId: boxFolderId,
+            workspaceEncryptionSession: workspaceEncryptionSession);
 
         if (fileQueryResult.IsEmpty)
             return new Result(Code: ResultCode.FileNotFound);

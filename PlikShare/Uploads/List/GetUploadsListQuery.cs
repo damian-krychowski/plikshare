@@ -1,4 +1,5 @@
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Folders.Id;
@@ -13,7 +14,8 @@ public class GetUploadsListQuery(PlikShareDb plikShareDb)
     public GetUploadsListResponseDto Execute(
 	    WorkspaceContext workspace,
 	    IUserIdentity userIdentity,
-	    int? boxFolderId)
+	    int? boxFolderId,
+	    WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
 	    using var connection = plikShareDb.OpenConnection();
 
@@ -81,8 +83,10 @@ public class GetUploadsListQuery(PlikShareDb plikShareDb)
 					FileContentType = reader.GetString(3),
 					FileSizeInBytes = reader.GetInt64(4),
 					FolderExternalId = reader.GetExtIdOrNull<FolderExtId>(5),
-					FolderName = reader.GetStringOrNull(6),
-					FolderPath = reader.GetFromJsonOrNull<List<string>>(7),
+					FolderName = reader.DecodeEncryptableStringOrNull(6, workspaceEncryptionSession),
+					FolderPath = reader
+						.GetFromJsonOrNull<List<string>>(7)
+						?.ConvertAll(s => workspaceEncryptionSession.DecodeEncryptableMetadata(s)),
 					AlreadyUploadedPartNumbers = reader.GetFromJson<List<int>>(8)
                 })
 		    .WithParameter("$workspaceId", workspace.Id)

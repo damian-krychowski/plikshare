@@ -22,7 +22,8 @@ public class GetZipFileDetailsOperation(
         var (isEmpty, file) = getFileDetailsQuery.Execute(
             workspaceId: workspace.Id,
             fileExternalId: fileExternalId,
-            boxFolderId: boxFolderId);
+            boxFolderId: boxFolderId,
+            workspaceEncryptionSession: workspaceEncryptionSession);
 
         if (isEmpty)
             return new Result { Code = ResultCode.FileNotFound };

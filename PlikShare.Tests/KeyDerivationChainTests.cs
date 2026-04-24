@@ -19,6 +19,23 @@ public class KeyDerivationChainTests
         return bytes;
     }
 
+    private static byte[] ToBytes(SecureBytes secureBytes)
+    {
+        var copy = new byte[secureBytes.Length];
+        secureBytes.CopyTo(copy);
+        return copy;
+    }
+
+    private static void AssertSecureBytesEqual(SecureBytes a, SecureBytes b)
+    {
+        Assert.Equal(ToBytes(a), ToBytes(b));
+    }
+
+    private static void AssertSecureBytesNotEqual(SecureBytes a, SecureBytes b)
+    {
+        Assert.NotEqual(ToBytes(a), ToBytes(b));
+    }
+
     // ---- Derive ----
 
     [Fact]
@@ -26,10 +43,9 @@ public class KeyDerivationChainTests
     {
         var startingDek = RandomBytes(KeyDerivationChain.DerivedKeySize);
 
-        var result = KeyDerivationChain.Derive(startingDek, []);
+        using var result = KeyDerivationChain.Derive(startingDek, Array.Empty<byte[]>());
 
-        Assert.Equal(startingDek, result);
-        Assert.NotSame(startingDek, result);
+        Assert.Equal(startingDek, ToBytes(result));
     }
 
     [Fact]
@@ -38,10 +54,10 @@ public class KeyDerivationChainTests
         var startingDek = RandomBytes(KeyDerivationChain.DerivedKeySize);
         var stepSalt = RandomBytes(KeyDerivationChain.StepSaltSize);
 
-        var result = KeyDerivationChain.Derive(startingDek, [stepSalt]);
+        using var result = KeyDerivationChain.Derive(startingDek, [stepSalt]);
 
         Assert.Equal(KeyDerivationChain.DerivedKeySize, result.Length);
-        Assert.NotEqual(startingDek, result);
+        Assert.NotEqual(startingDek, ToBytes(result));
     }
 
     [Fact]
@@ -49,9 +65,9 @@ public class KeyDerivationChainTests
     {
         var startingDek = RandomBytes(KeyDerivationChain.DerivedKeySize);
 
-        var oneStep = KeyDerivationChain.Derive(startingDek, [RandomBytes(32)]);
-        var twoSteps = KeyDerivationChain.Derive(startingDek, [RandomBytes(32), RandomBytes(32)]);
-        var fourSteps = KeyDerivationChain.Derive(
+        using var oneStep = KeyDerivationChain.Derive(startingDek, [RandomBytes(32)]);
+        using var twoSteps = KeyDerivationChain.Derive(startingDek, [RandomBytes(32), RandomBytes(32)]);
+        using var fourSteps = KeyDerivationChain.Derive(
             startingDek,
             [RandomBytes(32), RandomBytes(32), RandomBytes(32), RandomBytes(32)]);
 
@@ -67,10 +83,10 @@ public class KeyDerivationChainTests
         var saltA = RandomBytes(KeyDerivationChain.StepSaltSize);
         var saltB = RandomBytes(KeyDerivationChain.StepSaltSize);
 
-        var first = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
-        var second = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
+        using var first = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
+        using var second = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
 
-        Assert.Equal(first, second);
+        AssertSecureBytesEqual(first, second);
     }
 
     [Fact]
@@ -80,10 +96,10 @@ public class KeyDerivationChainTests
         var saltA = RandomBytes(KeyDerivationChain.StepSaltSize);
         var saltB = RandomBytes(KeyDerivationChain.StepSaltSize);
 
-        var keyA = KeyDerivationChain.Derive(startingDek, [saltA]);
-        var keyB = KeyDerivationChain.Derive(startingDek, [saltB]);
+        using var keyA = KeyDerivationChain.Derive(startingDek, [saltA]);
+        using var keyB = KeyDerivationChain.Derive(startingDek, [saltB]);
 
-        Assert.NotEqual(keyA, keyB);
+        AssertSecureBytesNotEqual(keyA, keyB);
     }
 
     [Fact]
@@ -93,10 +109,10 @@ public class KeyDerivationChainTests
         var startingDekB = RandomBytes(KeyDerivationChain.DerivedKeySize);
         var stepSalt = RandomBytes(KeyDerivationChain.StepSaltSize);
 
-        var keyA = KeyDerivationChain.Derive(startingDekA, [stepSalt]);
-        var keyB = KeyDerivationChain.Derive(startingDekB, [stepSalt]);
+        using var keyA = KeyDerivationChain.Derive(startingDekA, [stepSalt]);
+        using var keyB = KeyDerivationChain.Derive(startingDekB, [stepSalt]);
 
-        Assert.NotEqual(keyA, keyB);
+        AssertSecureBytesNotEqual(keyA, keyB);
     }
 
     [Fact]
@@ -106,10 +122,10 @@ public class KeyDerivationChainTests
         var saltA = RandomBytes(KeyDerivationChain.StepSaltSize);
         var saltB = RandomBytes(KeyDerivationChain.StepSaltSize);
 
-        var forward = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
-        var reversed = KeyDerivationChain.Derive(startingDek, [saltB, saltA]);
+        using var forward = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
+        using var reversed = KeyDerivationChain.Derive(startingDek, [saltB, saltA]);
 
-        Assert.NotEqual(forward, reversed);
+        AssertSecureBytesNotEqual(forward, reversed);
     }
 
     [Fact]
@@ -119,10 +135,10 @@ public class KeyDerivationChainTests
         var saltA = RandomBytes(KeyDerivationChain.StepSaltSize);
         var saltB = RandomBytes(KeyDerivationChain.StepSaltSize);
 
-        var oneStep = KeyDerivationChain.Derive(startingDek, [saltA]);
-        var twoSteps = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
+        using var oneStep = KeyDerivationChain.Derive(startingDek, [saltA]);
+        using var twoSteps = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
 
-        Assert.NotEqual(oneStep, twoSteps);
+        AssertSecureBytesNotEqual(oneStep, twoSteps);
     }
 
     [Fact]
@@ -132,12 +148,12 @@ public class KeyDerivationChainTests
         var saltA = RandomBytes(KeyDerivationChain.StepSaltSize);
         var saltB = RandomBytes(KeyDerivationChain.StepSaltSize);
 
-        var chained = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
+        using var chained = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
 
-        var manualStep1 = KeyDerivationChain.Derive(startingDek, [saltA]);
-        var manualFinal = KeyDerivationChain.Derive(manualStep1, [saltB]);
+        using var manualStep1 = KeyDerivationChain.Derive(startingDek, [saltA]);
+        using var manualFinal = KeyDerivationChain.Derive(ToBytes(manualStep1), [saltB]);
 
-        Assert.Equal(chained, manualFinal);
+        AssertSecureBytesEqual(chained, manualFinal);
     }
 
     [Fact]
@@ -176,12 +192,12 @@ public class KeyDerivationChainTests
         var saltA = FixedBytes(KeyDerivationChain.StepSaltSize, fill: 0xA1);
         var saltB = FixedBytes(KeyDerivationChain.StepSaltSize, fill: 0xB2);
 
-        var firstRun = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
-        var secondRun = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
+        using var firstRun = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
+        using var secondRun = KeyDerivationChain.Derive(startingDek, [saltA, saltB]);
 
-        Assert.Equal(firstRun, secondRun);
+        AssertSecureBytesEqual(firstRun, secondRun);
         Assert.Equal(KeyDerivationChain.DerivedKeySize, firstRun.Length);
-        Assert.NotEqual(startingDek, firstRun);
+        Assert.NotEqual(startingDek, ToBytes(firstRun));
     }
 
     // ---- Serialize ----
@@ -358,12 +374,12 @@ public class KeyDerivationChainTests
             RandomBytes(KeyDerivationChain.StepSaltSize)
         };
 
-        var directKey = KeyDerivationChain.Derive(startingDek, original);
+        using var directKey = KeyDerivationChain.Derive(startingDek, original);
 
         var roundTripped = KeyDerivationChain.Deserialize(
             KeyDerivationChain.Serialize(original));
-        var roundTrippedKey = KeyDerivationChain.Derive(startingDek, roundTripped);
+        using var roundTrippedKey = KeyDerivationChain.Derive(startingDek, roundTripped);
 
-        Assert.Equal(directKey, roundTrippedKey);
+        AssertSecureBytesEqual(directKey, roundTrippedKey);
     }
 }

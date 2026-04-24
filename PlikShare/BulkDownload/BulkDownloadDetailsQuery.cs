@@ -74,7 +74,8 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                 sql: """
                      SELECT
                          fi_external_id,
-                         fi_name || fi_extension,
+                         fi_name,
+                         fi_extension,
                          fi_s3_key_secret_part,
                          fi_size_in_bytes,
                          fi_folder_id,
@@ -92,29 +93,30 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                      """,
                 readRowFunc: reader =>
                 {
-                    var encryptionKeyVersion = reader.GetByteOrNull(5);
+                    var encryptionKeyVersion = reader.GetByteOrNull(6);
 
                     var fileEncryptionMetadata = encryptionKeyVersion is null
                         ? null
                         : new FileEncryptionMetadata
                         {
                             KeyVersion = encryptionKeyVersion.Value,
-                            Salt = reader.GetFieldValue<byte[]>(6),
-                            NoncePrefix = reader.GetFieldValue<byte[]>(7),
+                            Salt = reader.GetFieldValue<byte[]>(7),
+                            NoncePrefix = reader.GetFieldValue<byte[]>(8),
                             ChainStepSalts = KeyDerivationChain.Deserialize(
-                                reader.GetFieldValueOrNull<byte[]>(8)),
-                            FormatVersion = reader.GetByteOrNull(9) ?? 1
+                                reader.GetFieldValueOrNull<byte[]>(9)),
+                            FormatVersion = reader.GetByteOrNull(10) ?? 1
                         };
 
                     return new ResolvedBulkDownloadFile
                     {
                         ExternalId = reader.GetExtId<FileExtId>(0),
-                        FullName = reader.GetString(1),
-                        S3KeySecretPart = reader.GetString(2),
-                        SizeInBytes = reader.GetInt64(3),
-                        FolderId = reader.GetInt32OrNull(4),
+                        Name = reader.GetString(1),
+                        Extension = reader.GetString(2),
+                        S3KeySecretPart = reader.GetString(3),
+                        SizeInBytes = reader.GetInt64(4),
+                        FolderId = reader.GetInt32OrNull(5),
                         EncryptionMode = fileEncryptionMetadata.ToEncryptionMode(
-                            workspaceEncryptionSession, 
+                            workspaceEncryptionSession,
                             storageClient)
                     };
                 })
@@ -139,16 +141,18 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                 sql: """
                      SELECT
                          fi_external_id,
-                         fi_name || fi_extension,
+                         fi_name,
+                         fi_extension,
                          fi_s3_key_secret_part,
                          fi_folder_id,
                          fi_size_in_bytes,
+                         fi_encryption_key_version,
                          fi_encryption_salt,
                          fi_encryption_nonce_prefix,
                          fi_encryption_chain_salts,
                          fi_encryption_format_version
                      FROM fi_files
-                     WHERE 
+                     WHERE
                          fi_workspace_id = $workspaceId
                          AND fi_folder_id IN (
                              SELECT value FROM json_each($folderIds)
@@ -159,29 +163,30 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                      """,
                 readRowFunc: reader =>
                 {
-                    var encryptionKeyVersion = reader.GetByteOrNull(5);
+                    var encryptionKeyVersion = reader.GetByteOrNull(6);
 
                     var fileEncryptionMetadata = encryptionKeyVersion is null
                         ? null
                         : new FileEncryptionMetadata
                         {
                             KeyVersion = encryptionKeyVersion.Value,
-                            Salt = reader.GetFieldValue<byte[]>(6),
-                            NoncePrefix = reader.GetFieldValue<byte[]>(7),
+                            Salt = reader.GetFieldValue<byte[]>(7),
+                            NoncePrefix = reader.GetFieldValue<byte[]>(8),
                             ChainStepSalts = KeyDerivationChain.Deserialize(
-                                reader.GetFieldValueOrNull<byte[]>(8)),
-                            FormatVersion = reader.GetByteOrNull(9) ?? 1
+                                reader.GetFieldValueOrNull<byte[]>(9)),
+                            FormatVersion = reader.GetByteOrNull(10) ?? 1
                         };
 
                     return new ResolvedBulkDownloadFile
                     {
                         ExternalId = reader.GetExtId<FileExtId>(0),
-                        FullName = reader.GetString(1),
-                        S3KeySecretPart = reader.GetString(2),
-                        FolderId = reader.GetInt32(3),
-                        SizeInBytes = reader.GetInt64(4),
+                        Name = reader.GetString(1),
+                        Extension = reader.GetString(2),
+                        S3KeySecretPart = reader.GetString(3),
+                        FolderId = reader.GetInt32(4),
+                        SizeInBytes = reader.GetInt64(5),
                         EncryptionMode = fileEncryptionMetadata.ToEncryptionMode(
-                            workspaceEncryptionSession, 
+                            workspaceEncryptionSession,
                             storageClient)
                     };
                 })
@@ -321,11 +326,14 @@ public class BulkDownloadDetails
 public class ResolvedBulkDownloadFile
 {
     public required FileExtId ExternalId {get;init;}
-    public required string FullName { get; init; }
+    public required string Name { get; init; }
+    public required string Extension { get; init; }
     public required string S3KeySecretPart {get; init;}
     public required long SizeInBytes {get; init;}
     public required int? FolderId { get; init; }
     public required FileEncryptionMode EncryptionMode { get; init; }
+
+    public string FullName => $"{Name}{Extension}";
 }
 
 // FolderSubtree holds the full folder context for a bulk download operation.
@@ -390,14 +398,14 @@ public class FolderSubtree(
     // Builds the full path from workspace root to this folder, using both
     // download folders and ancestor folders for name resolution.
     // Used for audit log entries where the complete workspace path is needed.
-    public string? GetFullPath(int? folderId)
+    public List<string>? GetFullPath(int? folderId)
     {
         if (folderId is null)
             return null;
 
         var folder = GetAnyFolderOrThrow(folderId.Value);
 
-        var parts = new List<string>();
+        var parts = new List<string>(folder.AncestorFolderIds.Length + 1);
 
         foreach (var ancestorId in folder.AncestorFolderIds)
         {
@@ -407,7 +415,7 @@ public class FolderSubtree(
 
         parts.Add(folder.Name);
 
-        return string.Join("/", parts);
+        return parts;
     }
 
     // Looks up a folder in both dictionaries — download folders first, then ancestors.

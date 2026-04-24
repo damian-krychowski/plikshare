@@ -14,21 +14,10 @@ public class RandomGenerator
         return $"{pref}email_{Guid.NewGuid().ToBase62().ToLowerInvariant()}@plikshare.com";
     }
 
-    public string InvitationCode(string? prefix = null)
+    public string InvitationCode()
     {
-        var pref = prefix is null ? "" : $"{prefix}_";
-
-        return $"{pref}invitation_code_{Guid.NewGuid().ToBase62()}";
+        return _realOneTimeInvitationCode.Generate();
     }
-
-    /// <summary>
-    /// Produces an invitation code in the exact Base62-of-32-random-bytes shape the
-    /// production <see cref="OneTimeInvitationCode"/> generator emits. Required for
-    /// tests that need to exercise the full-encryption ephemeral path — the ephemeral
-    /// DEK KEK is derived by decoding the code from Base62, which rejects prefixes or
-    /// underscores that <see cref="InvitationCode"/> injects for readability.
-    /// </summary>
-    public string RealShapeInvitationCode() => _realOneTimeInvitationCode.Generate();
 
     public string Password()
     {

@@ -188,7 +188,8 @@ public static class PreSignedFilesEndpoints
                         {
                             ExternalId = u!.ExternalId,
                             FileExternalId = u.FileToUpload.S3FileKey.FileExternalId,
-                            Name = $"{u.FileName}{u.FileExtension}",
+                            Name = u.FileName,
+                            Extension = u.FileExtension,
                             SizeInBytes = u.FileToUpload.SizeInBytes,
                             FolderPath = u.FolderAncestors.ToFolderPath()
                         }).ToList()),
@@ -386,7 +387,8 @@ public static class PreSignedFilesEndpoints
                 file: new Audit.FileRef
                 {
                     ExternalId = payload.FileExternalId,
-                    Name = file.FullName,
+                    Name = file.Name,
+                    Extension = file.Extension,
                     SizeInBytes = file.SizeInBytes,
                     FolderPath = file.FolderPath
                 }),

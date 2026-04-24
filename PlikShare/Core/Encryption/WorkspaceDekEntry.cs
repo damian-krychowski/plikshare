@@ -17,6 +17,7 @@ namespace PlikShare.Core.Encryption;
 /// </summary>
 public sealed class WorkspaceDekEntry
 {
+    public required int WorkspaceId { get; init; }
     public required int StorageDekVersion { get; init; }
     public required byte[] Salt { get; init; }
     public required SecureBytes Dek { get; init; }
@@ -24,6 +25,7 @@ public sealed class WorkspaceDekEntry
 
 public sealed class WorkspaceDekEntryWire
 {
+    public required int WorkspaceId { get; init; }
     public required int StorageDekVersion { get; init; }
     public required byte[] Salt { get; init; }
 
@@ -44,6 +46,7 @@ public static class WorkspaceDekEntryWireExtensions
     {
         return new WorkspaceDekEntryWire
         {
+            WorkspaceId = entry.WorkspaceId,
             StorageDekVersion = entry.StorageDekVersion,
             Salt = entry.Salt,
 
@@ -66,6 +69,7 @@ public static class WorkspaceDekEntryWireExtensions
     {
         return new WorkspaceDekEntry
         {
+            WorkspaceId = wire.WorkspaceId,
             StorageDekVersion = wire.StorageDekVersion,
             Salt = wire.Salt,
 
