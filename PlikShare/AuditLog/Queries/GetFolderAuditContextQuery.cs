@@ -1,5 +1,6 @@
 using PlikShare.AuditLog.Details;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Folders.Id;
 
@@ -32,12 +33,12 @@ public class GetFolderAuditContextQuery(PlikShareDb plikShareDb)
                     """,
                 readRowFunc: reader =>
                 {
-                    var ancestors = reader.GetFromJsonOrNull<List<string>>(1);
+                    var ancestors = reader.GetFromJsonOrNull<List<EncodedMetadataValue>>(1);
 
                     return new Audit.FolderRef
                     {
                         ExternalId = folderExternalId,
-                        Name = reader.GetString(0),
+                        Name = reader.GetEncodedMetadata(0),
                         FolderPath = ancestors is null or { Count: 0 }
                             ? null
                             : ancestors
@@ -80,7 +81,7 @@ public class GetFolderAuditContextQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader =>
                 {
                     var externalId = new FolderExtId(reader.GetString(0));
-                    var ancestors = reader.GetFromJsonOrNull<List<string>>(2);
+                    var ancestors = reader.GetFromJsonOrNull<List<EncodedMetadataValue>>(2);
 
                     return new
                     {
@@ -88,7 +89,7 @@ public class GetFolderAuditContextQuery(PlikShareDb plikShareDb)
                         FolderRef = new Audit.FolderRef
                         {
                             ExternalId = externalId,
-                            Name = reader.GetString(1),
+                            Name = reader.GetEncodedMetadata(1),
                             FolderPath = ancestors is null or { Count: 0 }
                                 ? null
                                 : ancestors

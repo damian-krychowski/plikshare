@@ -267,7 +267,7 @@ public class HardDriveStorageClient(
                 },
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
                 BoxLinkId = boxLinkId,
-                WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? [],
+                WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption),
             });
 
         var result = new PreSignedUploadLinkResult
@@ -303,7 +303,7 @@ public class HardDriveStorageClient(
                 ContentDisposition = contentDisposition,
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
                 BoxLinkId = boxLinkId,
-                WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? []
+                WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
             });
 
         return ValueTask.FromResult(result);

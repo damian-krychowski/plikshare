@@ -84,6 +84,7 @@ public class BulkInitiateFileUploadOperation(
             fileDetailsList: fileDetailsList,
             workspace,
             userIdentity,
+            workspaceEncryptionSession,
             cancellationToken);
 
         var insertFileUploadsResult = await InsertFileUploadsIntoDb(
@@ -224,7 +225,7 @@ public class BulkInitiateFileUploadOperation(
                             },
                             ExpirationDate = clock.UtcNow.AddMinutes(15),
                             BoxLinkId = boxLinkId,
-                            WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? []
+                            WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
                         })
                 }
                 : null,
@@ -241,6 +242,7 @@ public class BulkInitiateFileUploadOperation(
         BulkInitiateFileUploadItemDto[] fileDetailsList,
         WorkspaceContext workspace,
         IUserIdentity userIdentity,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken)
     {
         return workspace.Storage switch
@@ -249,12 +251,14 @@ public class BulkInitiateFileUploadOperation(
                 hardDriveStorage: hardDriveStorageClient,
                 fileDetailsList: fileDetailsList,
                 userIdentity: userIdentity,
-                workspaceEncryption: workspace.EncryptionMetadata),
+                workspaceEncryption: workspace.EncryptionMetadata,
+                workspaceEncryptionSession: workspaceEncryptionSession),
 
             S3StorageClient s3StorageClient => await HandleMultipleS3Uploads(
                 s3StorageClient: s3StorageClient,
                 workspace: workspace,
                 fileDetailsList: fileDetailsList,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 cancellationToken: cancellationToken),
 
             _ => throw new ArgumentOutOfRangeException(nameof(workspace.Storage))
@@ -265,7 +269,8 @@ public class BulkInitiateFileUploadOperation(
         HardDriveStorageClient hardDriveStorage,
         BulkInitiateFileUploadItemDto[] fileDetailsList,
         IUserIdentity userIdentity,
-        WorkspaceEncryptionMetadata? workspaceEncryption)
+        WorkspaceEncryptionMetadata? workspaceEncryption,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         return fileDetailsList
             .Select(fileDetails =>
@@ -277,11 +282,11 @@ public class BulkInitiateFileUploadOperation(
                 {
                     FileUploadExternalId = fileDetails.FileUploadExternalId,
 
-                    Name = name,
-                    Extension = extension,
+                    Name = workspaceEncryptionSession.ToEncryptableMetadata(name),
+                    Extension = workspaceEncryptionSession.ToEncryptableMetadata(extension),
                     SizeInBytes = fileDetails.FileSizeInBytes,
                     FolderExternalId = fileDetails.FolderExternalId,
-                    ContentType = fileDetails.FileContentType,
+                    ContentType = workspaceEncryptionSession.ToEncryptableMetadata(fileDetails.FileContentType),
 
                     StorageUploadDetails = hardDriveStorage.GetStorageUploadDetails(
                         fileUploadExternalId: FileUploadExtId.Parse(fileDetails.FileUploadExternalId),
@@ -301,6 +306,7 @@ public class BulkInitiateFileUploadOperation(
         S3StorageClient s3StorageClient,
         WorkspaceContext workspace,
         BulkInitiateFileUploadItemDto[] fileDetailsList,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken)
     {
         var results = new List<UploadDetails>();
@@ -325,10 +331,10 @@ public class BulkInitiateFileUploadOperation(
                 {
                     FileUploadExternalId = fileDetails.FileUploadExternalId,
 
-                    Name = name,
-                    Extension = extension,
+                    Name = workspaceEncryptionSession.ToEncryptableMetadata(name),
+                    Extension = workspaceEncryptionSession.ToEncryptableMetadata(extension),
 
-                    ContentType = fileDetails.FileContentType,
+                    ContentType = workspaceEncryptionSession.ToEncryptableMetadata(fileDetails.FileContentType),
                     SizeInBytes = fileDetails.FileSizeInBytes,
                     FolderExternalId = fileDetails.FolderExternalId,
                     S3Key = S3FileKey.NewKey(),
@@ -403,10 +409,10 @@ public class BulkInitiateFileUploadOperation(
                     {
                         FileUploadExternalId = fileDetails.FileUploadExternalId,
 
-                        Name = name,
-                        Extension = extension,
+                        Name = workspaceEncryptionSession.ToEncryptableMetadata(name),
+                        Extension = workspaceEncryptionSession.ToEncryptableMetadata(extension),
 
-                        ContentType = fileDetails.FileContentType,
+                        ContentType = workspaceEncryptionSession.ToEncryptableMetadata(fileDetails.FileContentType),
                         SizeInBytes = fileDetails.FileSizeInBytes,
                         FolderExternalId = fileDetails.FolderExternalId,
                         S3Key = s3Key,
@@ -464,7 +470,7 @@ public class BulkInitiateFileUploadOperation(
                 EncryptionChainSalts = KeyDerivationChain.Serialize(
                     bu.StorageUploadDetails.FileEncryptionMetadata?.ChainStepSalts),
 
-                FileMetadataBlob = null,
+                FileMetadata = null,
                 ParentFileId = null
             })
             .ToArray();
@@ -533,12 +539,12 @@ public class BulkInitiateFileUploadOperation(
                         S3FileKey = upload.S3Key,
                         S3UploadId = upload.StorageUploadDetails.S3UploadId,
                     },
-                    ContentType = upload.ContentType,
+                    ContentType = upload.ContentType.Encode(),
                     WorkspaceId = workspace.Id,
                     OwnerIdentity = userIdentity.Identity,
                     OwnerIdentityType = userIdentity.IdentityType,
-                    FileName = upload.Name,
-                    FileExtension = upload.Extension,
+                    FileName = upload.Name.Encode(),
+                    FileExtension = upload.Extension.Encode(),
                     FolderAncestors = folderAncestors
                 },
                 cancellationToken: cancellationToken);
@@ -736,10 +742,10 @@ public class BulkInitiateFileUploadOperation(
     public record InitiatedFile(
         Files.Id.FileExtId FileExternalId,
         FileUploadExtId FileUploadExternalId,
-        string FileName,
-        string FileExtension,
+        EncryptableMetadata FileName,
+        EncryptableMetadata FileExtension,
         long SizeInBytes,
-        List<string>? FolderPath);
+        List<EncodedMetadataValue>? FolderPath);
 
     public enum ResultCode
     {
@@ -772,10 +778,10 @@ public class BulkInitiateFileUploadOperation(
     private class UploadDetails
     {
         public required string FileUploadExternalId { get; init; }
-        public required string Name { get; init; }
-        public required string Extension { get; init; }
+        public required EncryptableMetadata Name { get; init; }
+        public required EncryptableMetadata Extension { get; init; }
         public required long SizeInBytes { get; init; }
-        public required string ContentType { get; init; }
+        public required EncryptableMetadata ContentType { get; init; }
         public required string? FolderExternalId { get; init; }
         public required S3FileKey S3Key { get; init; }
         public required StorageUploadDetails StorageUploadDetails { get; init; }

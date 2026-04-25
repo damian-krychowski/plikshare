@@ -61,7 +61,7 @@ public class GetZipContentDownloadLinkOperation(
                 ExpirationDate = clock.UtcNow.AddMinutes(10),
                 ContentDisposition = contentDisposition,
                 BoxLinkId = boxLinkId,
-                WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? []
+                WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
             });
 
         return new Result(

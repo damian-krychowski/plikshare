@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using PlikShare.Boxes.Cache;
 using PlikShare.Boxes.Get.Contracts;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 
 namespace PlikShare.Boxes.Get;
@@ -9,20 +10,22 @@ namespace PlikShare.Boxes.Get;
 public class GetBoxQuery(PlikShareDb plikShareDb)
 {
     public GetBoxResponseDto Execute(
-	    BoxContext box)
+	    BoxContext box,
+	    WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
 	    using var connection = plikShareDb.OpenConnection();
 
 	    var details = GetBoxDetails(
 		    box,
-		    connection);
-        
+		    connection,
+		    workspaceEncryptionSession);
+
 	    var links = GetLinks(
 		    box,
 		    connection);
-        
+
 	    var members = GetMembers(
-		    box, 
+		    box,
 		    connection);
 
         if (box.Folder is null)
@@ -34,14 +37,16 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
                 Files = null,
                 Subfolders = null
             };
-	    
+
 	    var subfolders = GetSubfolders(
-		    box, 
-		    connection);
-        
+		    box,
+		    connection,
+		    workspaceEncryptionSession);
+
 	    var files = GetFiles(
-		    box, 
-		    connection);
+		    box,
+		    connection,
+		    workspaceEncryptionSession);
 
         return new GetBoxResponseDto
         {
@@ -54,8 +59,9 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
     }
 
     private static List<GetBoxResponseDto.File> GetFiles(
-	    BoxContext box, 
-	    SqliteConnection connection)
+	    BoxContext box,
+	    SqliteConnection connection,
+	    WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
 	    return connection
 		    .Cmd(
@@ -75,8 +81,8 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader => new GetBoxResponseDto.File
                 {
                     ExternalId = reader.GetString(0),
-                    Name = reader.GetString(1),
-                    Extension = reader.GetString(2),
+                    Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                    Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
                     SizeInBytes = reader.GetInt64(3)
                 })
 		    .WithParameter("$boxFolderId", box.Folder!.Id)
@@ -85,8 +91,9 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
     }
 
     private static List<GetBoxResponseDto.Subfolder> GetSubfolders(
-	    BoxContext box, 
-	    SqliteConnection connection)
+	    BoxContext box,
+	    SqliteConnection connection,
+	    WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
 	    return connection
 		    .Cmd(
@@ -105,7 +112,7 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
 			    readRowFunc: reader => new GetBoxResponseDto.Subfolder
                 {
                     ExternalId = reader.GetString(0),
-                    Name = reader.GetString(1)
+                    Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession)
                 })
 		    .WithParameter("$boxFolderId", box.Folder!.Id)
 		    .WithParameter("$workspaceId", box.Workspace.Id)
@@ -214,8 +221,9 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
     }
 
     private static GetBoxResponseDto.BoxDetails GetBoxDetails(
-	    BoxContext box, 
-	    SqliteConnection connection)
+	    BoxContext box,
+	    SqliteConnection connection,
+	    WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
 	    return connection
 		    .OneRowCmd(
@@ -263,7 +271,7 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
                     var headerJson = reader.GetStringOrNull(4);
                     var isFooterEnabled = reader.GetBoolean(5);
                     var footerJson = reader.GetStringOrNull(6);
-                    var folderPath = reader.GetFromJson<List<GetBoxResponseDto.FolderItem>>(7);
+                    var folderPath = reader.GetFromJson<List<GetBoxResponseDto.FolderItem>>(7, workspaceEncryptionSession);
 
                     return new GetBoxResponseDto.BoxDetails
                     {

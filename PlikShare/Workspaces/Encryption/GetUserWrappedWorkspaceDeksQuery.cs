@@ -8,10 +8,6 @@ namespace PlikShare.Workspaces.Encryption;
 /// <c>wek_workspace_encryption_keys</c>. After a Storage DEK rotation every existing
 /// workspace member gains a new wrap row for the new Storage DEK version, so a user with
 /// access holds one sealed-box wrap per version they can still read.
-///
-/// Every row is joined to its parent <c>w_workspaces</c> so the workspace salt travels
-/// alongside each wrap — that is the salt the DEK was derived with and is needed by
-/// downstream chain walkers.
 /// </summary>
 public class GetUserWrappedWorkspaceDeksQuery(PlikShareDb plikShareDb)
 {
@@ -29,18 +25,15 @@ public class GetUserWrappedWorkspaceDeksQuery(PlikShareDb plikShareDb)
                 sql: """
                      SELECT
                          wek.wek_storage_dek_version,
-                         w.w_encryption_salt,
                          wek.wek_wrapped_workspace_dek
                      FROM wek_workspace_encryption_keys wek
-                     INNER JOIN w_workspaces w ON w.w_id = wek.wek_workspace_id
                      WHERE wek.wek_workspace_id = $workspaceId
                        AND wek.wek_user_id = $userId
                      ORDER BY wek.wek_storage_dek_version
                      """,
                 readRowFunc: reader => new WrappedDekRow(
                     StorageDekVersion: reader.GetInt32(0),
-                    Salt: reader.GetFieldValue<byte[]>(1),
-                    WrappedDek: reader.GetFieldValue<byte[]>(2)))
+                    WrappedDek: reader.GetFieldValue<byte[]>(1)))
             .WithParameter("$workspaceId", workspaceId)
             .WithParameter("$userId", userId)
             .Execute();
@@ -48,6 +41,5 @@ public class GetUserWrappedWorkspaceDeksQuery(PlikShareDb plikShareDb)
 
     public readonly record struct WrappedDekRow(
         int StorageDekVersion,
-        byte[] Salt,
         byte[] WrappedDek);
 }

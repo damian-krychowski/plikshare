@@ -77,6 +77,33 @@ public static class EncryptableMetadataExtensions
         }
 
         /// <summary>
+        /// Direct shortcut equivalent to <c>session.ToEncryptableMetadata(value).Encode()</c>
+        /// without constructing the intermediate <see cref="EncryptableMetadata"/> /
+        /// <see cref="AesGcmV1MetadataEncryption"/> objects. Use this at call sites that
+        /// only need the at-rest <see cref="EncodedMetadataValue"/> (e.g. audit log refs)
+        /// and don't pass the value through the <c>EncryptableMetadata</c> abstraction.
+        /// For SQLite parameter binding via <c>WithEncryptableParameter</c>, prefer
+        /// <see cref="ToEncryptableMetadata"/> — the binder owns the encode call.
+        /// </summary>
+        public EncodedMetadataValue Encode(string value)
+        {
+            if (value.StartsWith(ReservedPrefix, StringComparison.Ordinal))
+                throw new InvalidOperationException(
+                    $"Metadata value must not start with reserved prefix '{ReservedPrefix}'. " +
+                    "Request validation should have rejected this input before reaching the encryption layer.");
+
+            if (workspaceEncryptionSession is null)
+                return new EncodedMetadataValue(value);
+
+            var latest = workspaceEncryptionSession.GetLatestDek();
+
+            return new EncodedMetadataValue(EncodeAesGcmV1(
+                value: value,
+                ikm: latest.Dek,
+                keyVersion: (byte)latest.StorageDekVersion));
+        }
+
+        /// <summary>
         /// Inverse of <see cref="Encode"/>. Plaintext passthrough when the session is null
         /// (workspace has no full encryption). Otherwise parses the base64 envelope
         /// <c>[format(1) | key_version(1) | chain_steps_count(1) | N × step_salt(32) | nonce(12) | ciphertext | tag(16)]</c>,
@@ -94,6 +121,9 @@ public static class EncryptableMetadataExtensions
         /// those indicate either corruption or a stale client key bundle and should not be
         /// silently recovered from.
         /// </summary>
+        public string DecodeEncryptableMetadata(EncodedMetadataValue encoded)
+            => workspaceEncryptionSession.DecodeEncryptableMetadata(encoded.Encoded);
+
         public string DecodeEncryptableMetadata(string encoded)
         {
             if (workspaceEncryptionSession is null)
@@ -220,24 +250,37 @@ public static class EncryptableMetadataExtensions
     extension(EncryptableMetadata metadata)
     {
         /// <summary>
-        /// Returns the string to bind to a SQLite TEXT parameter:
-        ///   - <see cref="NoMetadataEncryption"/>: the raw value.
-        ///   - <see cref="AesGcmV1MetadataEncryption"/>: base64 of the encrypted envelope.
-        /// Called by the command-builder extension <c>WithEncryptableParameter</c>.
+        /// Returns the on-wire / at-rest form of this metadata wrapped in
+        /// <see cref="EncodedMetadataValue"/>:
+        ///   - <see cref="NoMetadataEncryption"/>: the raw value verbatim.
+        ///   - <see cref="AesGcmV1MetadataEncryption"/>: base64 of the encrypted envelope
+        ///     prefixed with <see cref="ReservedPrefix"/>.
+        /// Boundaries that need a plain <c>string</c> (SQLite TEXT parameter, JSON writer)
+        /// extract it via <see cref="EncodedMetadataValue.Encoded"/>.
         /// </summary>
-        public string Encode()
+        public EncodedMetadataValue Encode()
         {
-            return metadata.EncryptionMode switch
+            var raw = metadata.EncryptionMode switch
             {
                 NoMetadataEncryption => metadata.Value,
-                AesGcmV1MetadataEncryption aes => EncodeAesGcmV1(metadata.Value, aes),
+
+                AesGcmV1MetadataEncryption aes => EncodeAesGcmV1(
+                    metadata.Value,
+                    aes.Ikm,
+                    aes.KeyVersion),
+
                 _ => throw new InvalidOperationException(
                     $"Unsupported metadata encryption mode '{metadata.EncryptionMode.GetType().Name}'.")
             };
+
+            return new EncodedMetadataValue(raw);
         }
     }
 
-    private static string EncodeAesGcmV1(string value, AesGcmV1MetadataEncryption mode)
+    private static string EncodeAesGcmV1(
+        string value, 
+        SecureBytes ikm, 
+        byte keyVersion)
     {
         var utf8Length = Encoding.UTF8.GetByteCount(value);
 
@@ -267,7 +310,7 @@ public static class EncryptableMetadataExtensions
                 : rentedEnvelope.AsSpan(0, envelopeLength);
 
             envelope[0] = FormatTagAesGcmV1;
-            envelope[1] = mode.KeyVersion;
+            envelope[1] = keyVersion;
             envelope[2] = chainStepsCount;
 
             var nonceStart = HeaderFixedSize + saltsLength;
@@ -284,7 +327,7 @@ public static class EncryptableMetadataExtensions
 
             Encoding.UTF8.GetBytes(value, plaintext);
 
-            mode.Ikm.Use(
+            ikm.Use(
                 state: new EncryptState
                 {
                     Plaintext = plaintext,

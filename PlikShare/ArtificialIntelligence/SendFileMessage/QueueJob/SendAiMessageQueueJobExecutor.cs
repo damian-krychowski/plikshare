@@ -246,7 +246,8 @@ public class SendAiMessageQueueJobExecutor(
             .ToList();
 
         var filesToInclude = getFilesToIncludeDetailsQuery.GetFilesToInclude(
-            externalIds: fileExternalIds);
+            externalIds: fileExternalIds,
+            workspaceEncryptionSession: null);
 
         var downloadFileTasks = new List<Task<AiIncludeContent>>();
 

@@ -1,3 +1,4 @@
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
@@ -27,7 +28,7 @@ public static partial class Audit
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
             public required FileArtifactExtId CommentExternalId { get; init; }
-            public required string ContentJson { get; init; }
+            public required EncodedMetadataValue ContentJson { get; init; }
             public BoxAccessRef? Box { get; init; }
         }
 
@@ -44,7 +45,7 @@ public static partial class Audit
             public required WorkspaceRef Workspace { get; init; }
             public required FileRef File { get; init; }
             public required FileArtifactExtId CommentExternalId { get; init; }
-            public required string ContentJson { get; init; }
+            public required EncodedMetadataValue ContentJson { get; init; }
             public BoxAccessRef? Box { get; init; }
         }
 
@@ -162,7 +163,7 @@ public static partial class Audit
             WorkspaceRef workspace,
             FileRef file,
             FileArtifactExtId commentExternalId,
-            string contentJson,
+            EncodedMetadataValue contentJson,
             BoxAccessRef? box = null) => new()
         {
             Actor = actor.Identity,
@@ -212,7 +213,7 @@ public static partial class Audit
             WorkspaceRef workspace,
             FileRef file,
             FileArtifactExtId commentExternalId,
-            string contentJson,
+            EncodedMetadataValue contentJson,
             BoxAccessRef? box = null) => new()
         {
             Actor = actor.Identity,

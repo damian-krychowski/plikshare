@@ -1,5 +1,6 @@
 ﻿using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Uploads.Id;
@@ -138,7 +139,7 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
                         json_extract(value, '$.encryptionFormatVersion'),
                         FALSE,
                         json_extract(value, '$.parentFileId'),
-                        app_json_array_to_blob(json_extract(value, '$.fileMetadataBlob'))
+                        CAST(json_extract(value, '$.fileMetadata') AS BLOB)
                     FROM
                         json_each($fileUploads)
                     RETURNING
@@ -191,9 +192,9 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
         public required string S3UploadId { get; init; }
         public required string S3KeySecretPart { get; init; }
         public required int? FolderId { get; init; }
-        public required string FileName { get; init; }
-        public required string FileExtension { get; init; }
-        public required string FileContentType { get; init; }
+        public required EncryptableMetadata FileName { get; init; }
+        public required EncryptableMetadata FileExtension { get; init; }
+        public required EncryptableMetadata FileContentType { get; init; }
         public required long FileSizeInBytes { get; init; }
         public required byte? EncryptionKeyVersion { get; init; }
         public required byte[]? EncryptionSalt { get; init; }
@@ -201,6 +202,6 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
         public required byte[]? EncryptionChainSalts { get; init; }
         public required byte? EncryptionFormatVersion { get; init; }
         public required int? ParentFileId { get; init; }
-        public required byte[]? FileMetadataBlob { get; init; }
+        public required EncryptableMetadata? FileMetadata { get; init; }
     }
 }

@@ -62,7 +62,23 @@ public class ValidateProtectedDownloadPayloadFilter : IEndpointFilter
 
         if (extractionResult != PreSignedUrlsService.ExtractionResult.Ok)
             throw new InvalidOperationException(
-                $"Unrecognized ExtractionResul value: '{extractionResult}'");
+                $"Unrecognized ExtractionResul value: '{extractionResult}co'");
+
+        WorkspaceEncryptionSession? session = null;
+
+        if (payload.WorkspaceDeks is {Length: >0})
+        {
+            var masterDataEncryption = context
+                .HttpContext
+                .RequestServices
+                .GetRequiredService<IMasterDataEncryption>();
+
+            session = payload.WorkspaceDeks.ToSession(
+                masterDataEncryption);
+
+            context.HttpContext.Items[WorkspaceEncryptionSession.HttpContextName] = session;
+            context.HttpContext.Response.RegisterForDispose(session);
+        }
 
         var getFileDetailsQuery = context
             .HttpContext
@@ -70,12 +86,21 @@ public class ValidateProtectedDownloadPayloadFilter : IEndpointFilter
             .GetRequiredService<GetFilePreSignedDownloadLinkDetailsQuery>();
 
         var file = getFileDetailsQuery.Execute(
-            fileExternalId: payload.FileExternalId);
+            fileExternalId: payload.FileExternalId,
+            workspaceEncryptionSession: session);
 
         if (file.Code == GetFilePreSignedDownloadLinkDetailsQuery.ResultCode.NotFound)
         {
             Log.Warning("Could not execute file download with pre-signed url because File '{FileExternalId}' was not found.",
                 payload.FileExternalId);
+
+            return HttpErrors.File.NotFound(payload.FileExternalId);
+        }
+
+        if (session is not null && session.WorkspaceId != file.Details!.WorkspaceId)
+        {
+            Log.Warning("Could not execute file download with pre-signed url because File '{FileExternalId}' belongs to Workspace#{FileWorkspaceId} but pre-signed session is for Workspace#{SessionWorkspaceId}.",
+                payload.FileExternalId, file.Details.WorkspaceId, session.WorkspaceId);
 
             return HttpErrors.File.NotFound(payload.FileExternalId);
         }
@@ -92,30 +117,15 @@ public class ValidateProtectedDownloadPayloadFilter : IEndpointFilter
         if (workspace is null)
         {
             Log.Warning("Could not execute file download with pre-signed url because Workspace#{WorkspaceId} was not found.",
-                file.Details!.WorkspaceId);
-            
+                file.Details.WorkspaceId);
+
             return HttpErrors.Workspace.NotFound();
         }
 
         context.HttpContext.Items[ProtectedDownloadPayloadContext] = new ProtectedDownloadPayload(
             Payload: payload,
-            File: file.Details!,
+            File: file.Details,
             Workspace: workspace);
-
-        if (payload.WorkspaceDeks is {Length: >0})
-        {
-            var masterDataEncryption = context
-                .HttpContext
-                .RequestServices
-                .GetRequiredService<IMasterDataEncryption>();
-
-            var workspaceDeks = payload.WorkspaceDeks.ToEntries(
-                masterDataEncryption);
-
-            context.HttpContext.Items[WorkspaceEncryptionSession.HttpContextName] = new WorkspaceEncryptionSession(
-                workspaceId: workspace.Id,
-                entries: workspaceDeks);
-        }
 
         return await next(context);
     }

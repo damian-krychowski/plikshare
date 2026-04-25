@@ -2,6 +2,7 @@
 using PlikShare.ArtificialIntelligence.Id;
 using PlikShare.Core.Database.AiDatabase;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
@@ -29,7 +30,8 @@ public class GetFilePreviewDetailsQuery(
         WorkspaceContext workspace,
         FileExtId fileExternalId,
         IUserIdentity userIdentity,
-        FilePreviewDetailsField[] requestedFields)
+        FilePreviewDetailsField[] requestedFields,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         var shouldGetAll = requestedFields.Length == 0;
 
@@ -48,7 +50,8 @@ public class GetFilePreviewDetailsQuery(
             ? GetArtifacts(
                 workspace: workspace,
                 fileExternalId: fileExternalId,
-                connection: connection)
+                connection: connection,
+                workspaceEncryptionSession: workspaceEncryptionSession)
             : ([], UserIdentityResolver.BulkResult.Empty);
 
 
@@ -69,7 +72,8 @@ public class GetFilePreviewDetailsQuery(
                 workspace,
                 fileExternalId,
                 userIdentity,
-                connection)
+                connection,
+                workspaceEncryptionSession)
             : [];
 
         var textractResultFiles = shouldGetAll || requestedFields.Contains(FilePreviewDetailsField.TextractResultFiles)
@@ -149,10 +153,11 @@ public class GetFilePreviewDetailsQuery(
     }
 
     private static List<DependentFile> GetDependentFiles(
-        WorkspaceContext workspace, 
-        FileExtId fileExternalId, 
+        WorkspaceContext workspace,
+        FileExtId fileExternalId,
         IUserIdentity userIdentity,
-        SqliteConnection connection)
+        SqliteConnection connection,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         var dependentFiles = connection
             .Cmd(
@@ -177,15 +182,22 @@ public class GetFilePreviewDetailsQuery(
                         AND parent_fi.fi_external_id = $fileExternalId
                     ORDER BY child_fi.fi_id DESC
                 ",
-                readRowFunc: reader => new DependentFile
+                readRowFunc: reader =>
                 {
-                    Id = reader.GetInt32(0),
-                    ExternalId = reader.GetExtId<FileExtId>(1),
-                    Name = reader.GetString(2),
-                    Extension = reader.GetString(3),
-                    SizeInBytes = reader.GetInt64(4),
-                    Metadata = reader.GetFromJsonOrNull<FileMetadata>(5),
-                    WasUploadedByUser = reader.GetBoolean(6)
+                    var metadataJson = reader.DecodeEncryptableBlobOrNull(5, workspaceEncryptionSession);
+
+                    return new DependentFile
+                    {
+                        Id = reader.GetInt32(0),
+                        ExternalId = reader.GetExtId<FileExtId>(1),
+                        Name = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
+                        Extension = reader.DecodeEncryptableString(3, workspaceEncryptionSession),
+                        SizeInBytes = reader.GetInt64(4),
+                        Metadata = metadataJson is null
+                            ? null
+                            : Json.Deserialize<FileMetadata>(metadataJson),
+                        WasUploadedByUser = reader.GetBoolean(6)
+                    };
                 })
             .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$fileExternalId", fileExternalId.Value)
@@ -326,9 +338,10 @@ public class GetFilePreviewDetailsQuery(
     }
 
     private (List<Artifact> Artifacts, UserIdentityResolver.BulkResult ResolvedIdentities) GetArtifacts(
-        WorkspaceContext workspace, 
-        FileExtId fileExternalId, 
-        SqliteConnection connection)
+        WorkspaceContext workspace,
+        FileExtId fileExternalId,
+        SqliteConnection connection,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         var artifacts = connection
             .Cmd(
@@ -349,15 +362,22 @@ public class GetFilePreviewDetailsQuery(
                         AND fa_workspace_id = $workspaceId
                     ORDER BY fa_id ASC
                 ",
-                readRowFunc: reader => new Artifact
+                readRowFunc: reader =>
                 {
-                    ExternalId = reader.GetExtId<FileArtifactExtId>(0),
-                    ContentString = reader.GetStringFromBlob(1),
-                    CreatedAt = reader.GetDateTimeOffset(2),
-                    Owner = new GenericUserIdentity(
-                        IdentityType: reader.GetString(3),
-                        Identity: reader.GetString(4)),
-                    Type = reader.GetEnum<FileArtifactType>(5)
+                    var type = reader.GetEnum<FileArtifactType>(5);
+
+                    return new Artifact
+                    {
+                        ExternalId = reader.GetExtId<FileArtifactExtId>(0),
+                        ContentString = type == FileArtifactType.AiConversation
+                            ? reader.GetStringFromBlob(1) //todo: fix when AI conversations works for full-encryption
+                            : reader.DecodeEncryptableBlob(1, workspaceEncryptionSession),
+                        CreatedAt = reader.GetDateTimeOffset(2),
+                        Owner = new GenericUserIdentity(
+                            IdentityType: reader.GetString(3),
+                            Identity: reader.GetString(4)),
+                        Type = type
+                    };
                 })
             .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$fileExternalId", fileExternalId.Value)

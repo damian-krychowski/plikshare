@@ -29,11 +29,11 @@ static class GetOrCreateFolderQueryAuditLogExtensions
             WorkspaceEncryptionSession? workspaceEncryptionSession) => new()
         {
             ExternalId = FolderExtId.Parse(folder.ExternalId),
-            Name = workspaceEncryptionSession.ToEncryptableMetadata(folder.Name).Encode(),
+            Name = workspaceEncryptionSession.Encode(folder.Name),
             FolderPath = folder.Ancestors.Length == 0
                 ? null
                 : folder.Ancestors
-                    .Select(a => workspaceEncryptionSession.ToEncryptableMetadata(a.Name).Encode())
+                    .Select(a => workspaceEncryptionSession.Encode(a.Name))
                     .ToList()
         };
     }

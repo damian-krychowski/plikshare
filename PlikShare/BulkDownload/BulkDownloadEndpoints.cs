@@ -3,6 +3,7 @@ using PlikShare.AuditLog;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Clock;
 using PlikShare.Core.CORS;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Storages.Encryption.Authorization;
@@ -57,6 +58,8 @@ public static class BulkDownloadEndpoints
            return HttpErrors.BulkDownload.WorkspaceNotFound();
         }
 
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
         var bulkDownloadDetails = bulkDownloadDetailsQuery.GetDetailsFromDb(
             workspaceId: payload.WorkspaceId,
             selectedFileIds: payload.SelectedFileIds,
@@ -64,7 +67,7 @@ public static class BulkDownloadEndpoints
             selectedFolderIds: payload.SelectedFolderIds,
             excludedFolderIds: payload.ExcludedFolderIds,
             storageClient: workspaceContext.Storage,
-            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
+            workspaceEncryptionSession: workspaceEncryptionSession);
 
         if (Log.IsEnabled(LogEventLevel.Debug))
         {
@@ -79,10 +82,11 @@ public static class BulkDownloadEndpoints
                 files: bulkDownloadDetails.Files.Select(f => new Audit.FileRef
                 {
                     ExternalId = f.ExternalId,
-                    Name = f.Name,
-                    Extension = f.Extension,
+                    Name = workspaceEncryptionSession.Encode(f.Name),
+                    Extension = workspaceEncryptionSession.Encode(f.Extension),
                     SizeInBytes = f.SizeInBytes,
                     FolderPath = bulkDownloadDetails.FolderSubtree.GetFullPath(f.FolderId)
+                        ?.Select(workspaceEncryptionSession.Encode).ToList()
                 }).ToList()),
             cancellationToken);
 

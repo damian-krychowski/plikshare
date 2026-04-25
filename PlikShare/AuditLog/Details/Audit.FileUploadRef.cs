@@ -1,3 +1,4 @@
+using PlikShare.Core.Encryption;
 using PlikShare.Files.Id;
 using PlikShare.Uploads.Id;
 
@@ -9,9 +10,9 @@ public static partial class Audit
     {
         public required FileUploadExtId ExternalId { get; init; }
         public required FileExtId FileExternalId { get; init; }
-        public required string Name { get; init; }
-        public required string Extension { get; init; }
+        public required EncodedMetadataValue Name { get; init; }
+        public required EncodedMetadataValue Extension { get; init; }
         public required long SizeInBytes { get; init; }
-        public List<string>? FolderPath { get; init; }
+        public List<EncodedMetadataValue>? FolderPath { get; init; }
     }
 }

@@ -380,6 +380,8 @@ public static class PreSignedFilesEndpoints
         Log.Debug("File download with pre-signed url started: {Payload}",
             payload);
 
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
         await auditLogService.Log(
             Audit.File.DownloadedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
@@ -387,14 +389,14 @@ public static class PreSignedFilesEndpoints
                 file: new Audit.FileRef
                 {
                     ExternalId = payload.FileExternalId,
-                    Name = file.Name,
-                    Extension = file.Extension,
+                    Name = workspaceEncryptionSession.Encode(file.Name),
+                    Extension = workspaceEncryptionSession.Encode(file.Extension),
                     SizeInBytes = file.SizeInBytes,
-                    FolderPath = file.FolderPath
+                    FolderPath = file.FolderPath?.Select(workspaceEncryptionSession.Encode).ToList()
                 }),
             cancellationToken);
 
-        
+
         var rangeRequest = httpContext.TryGetRangeRequest(
             fileSizeInBytes: file.SizeInBytes);
 

@@ -1,6 +1,9 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using System.Security.Cryptography;
+using System.Text;
+using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
@@ -20,7 +23,7 @@ public class CreateFileCommentQuery(DbWriteQueue dbWriteQueue, IClock clock)
         FileExtId fileExternalId,
         IUserIdentity userIdentity,
         FileArtifactExtId commentExternalId,
-        string commentContentJson,
+        EncryptableMetadata commentContent,
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
@@ -30,7 +33,7 @@ public class CreateFileCommentQuery(DbWriteQueue dbWriteQueue, IClock clock)
                 fileExternalId: fileExternalId,
                 userIdentity: userIdentity,
                 commentExternalId: commentExternalId,
-                commentContentJson: commentContentJson),
+                commentContent: commentContent),
             cancellationToken: cancellationToken);
     }
 
@@ -40,15 +43,12 @@ public class CreateFileCommentQuery(DbWriteQueue dbWriteQueue, IClock clock)
         FileExtId fileExternalId,
         IUserIdentity userIdentity,
         FileArtifactExtId commentExternalId,
-        string commentContentJson)
+        EncryptableMetadata commentContent)
     {
         try
         {
             var createdAt = clock.UtcNow;
-
-            var contentEntity = new CommentContentEntity(
-                ContentJson: commentContentJson,
-                WasEdited: false);
+            var contentHash = SHA256.HashData(Encoding.UTF8.GetBytes(commentContent.Value));
 
             var result = dbWriteContext
                 .OneRowCmd(
@@ -59,6 +59,7 @@ public class CreateFileCommentQuery(DbWriteQueue dbWriteQueue, IClock clock)
                                 fa_file_id,
                                 fa_type,
                                 fa_content,
+                                fa_content_hash,
                                 fa_owner_identity_type,
                                 fa_owner_identity,
                                 fa_created_at,
@@ -70,12 +71,13 @@ public class CreateFileCommentQuery(DbWriteQueue dbWriteQueue, IClock clock)
                                 fi_id,
                                 $fileArtifactType,
                                 $content,
+                                $contentHash,
                                 $ownerIdentityType,
                                 $ownerIdentity,
                                 $createdAt,
                                 NULL
                             FROM fi_files
-                            WHERE 
+                            WHERE
                                 fi_external_id = $fileExternalId
                                 AND fi_workspace_id = $workspaceId
                             RETURNING
@@ -84,7 +86,8 @@ public class CreateFileCommentQuery(DbWriteQueue dbWriteQueue, IClock clock)
                     readRowFunc: reader => reader.GetInt32(0))
                 .WithParameter("$externalId", commentExternalId.Value)
                 .WithEnumParameter("$fileArtifactType", FileArtifactType.Comment)
-                .WithBlobParameter("$content", Json.Serialize(contentEntity))
+                .WithEncryptableBlobParameter("$content", commentContent)
+                .WithParameter("$contentHash", contentHash)
                 .WithParameter("$ownerIdentityType", userIdentity.IdentityType)
                 .WithParameter("$ownerIdentity", userIdentity.Identity)
                 .WithParameter("$createdAt", createdAt)

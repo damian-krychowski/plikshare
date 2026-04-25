@@ -6,6 +6,7 @@ using PlikShare.ArtificialIntelligence.Id;
 using PlikShare.Boxes.Id;
 using PlikShare.BoxLinks.Id;
 using PlikShare.Core.Emails;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.ExternalIds;
 using PlikShare.EmailProviders.ExternalProviders.Smtp;
 using PlikShare.EmailProviders.Id;
@@ -114,5 +115,7 @@ public static class JsonConverters
 
         options.Converters.Add(new NullableByteArrayJsonConverter());
         options.Converters.Add(new S3FileKeyJsonConverter());
+        options.Converters.Add(new EncryptableMetadataJsonConverter());
+        options.Converters.Add(new EncodedMetadataValueJsonConverter());
     }
 }

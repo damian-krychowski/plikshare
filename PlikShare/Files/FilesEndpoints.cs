@@ -13,6 +13,7 @@ using PlikShare.Files.Download;
 using PlikShare.Files.Download.Contracts;
 using PlikShare.Files.Id;
 using PlikShare.Files.PreSignedLinks.Validation;
+using PlikShare.Files.Preview.Comment;
 using PlikShare.Files.Preview.Comment.CreateComment;
 using PlikShare.Files.Preview.Comment.CreateComment.Contracts;
 using PlikShare.Files.Preview.Comment.DeleteComment;
@@ -184,6 +185,8 @@ public static class FilesEndpoints
             fileExternalId: attachment.ExternalId,
             cancellationToken: cancellationToken);
 
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
         await auditLogService.LogWithFileContext(
             fileExternalId: fileExternalId,
             buildEntry: fileRef => Audit.File.AttachmentUploadedEntry(
@@ -193,8 +196,8 @@ public static class FilesEndpoints
                 attachment: new Audit.FileRef
                 {
                     ExternalId = attachment.ExternalId,
-                    Name = fileName.Name,
-                    Extension = fileName.Extension,
+                    Name = workspaceEncryptionSession.Encode(fileName.Name),
+                    Extension = workspaceEncryptionSession.Encode(fileName.Extension),
                     SizeInBytes = attachment.SizeInBytes
                 }),
             cancellationToken);
@@ -213,7 +216,8 @@ public static class FilesEndpoints
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
 
         var file = getFilePreSignedDownloadLinkDetailsQuery.Execute(
-            fileExternalId: fileExternalId);
+            fileExternalId: fileExternalId,
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
         if (file.Code == GetFilePreSignedDownloadLinkDetailsQuery.ResultCode.NotFound ||
             file.Details?.WorkspaceId != workspaceMembership.Workspace.Id)
@@ -375,6 +379,11 @@ public static class FilesEndpoints
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
+        var serializedContent = Json.Serialize(new CommentContentEntity(
+            ContentJson: request.ContentJson,
+            WasEdited: true));
 
         var resultCode = await updateFileCommentQuery.Execute(
             workspace: workspaceMembership.Workspace,
@@ -382,7 +391,7 @@ public static class FilesEndpoints
             commentExternalId: commentExternalId,
             userIdentity: new UserIdentity(
                 UserExternalId: workspaceMembership.User.ExternalId),
-            updatedCommentContentJson: request.ContentJson,
+            updatedCommentContent: workspaceEncryptionSession.ToEncryptableMetadata(serializedContent),
             cancellationToken: cancellationToken);
 
         switch (resultCode)
@@ -395,7 +404,7 @@ public static class FilesEndpoints
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef,
                         commentExternalId: commentExternalId,
-                        contentJson: request.ContentJson),
+                        contentJson: workspaceEncryptionSession.Encode(request.ContentJson)),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -468,6 +477,11 @@ public static class FilesEndpoints
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
+        var serializedContent = Json.Serialize(new CommentContentEntity(
+            ContentJson: request.ContentJson,
+            WasEdited: false));
 
         var resultCode = await createFileCommentQuery.Execute(
             workspace: workspaceMembership.Workspace,
@@ -475,7 +489,7 @@ public static class FilesEndpoints
             userIdentity: new UserIdentity(
                 UserExternalId: workspaceMembership.User.ExternalId),
             commentExternalId: request.ExternalId,
-            commentContentJson: request.ContentJson,
+            commentContent: workspaceEncryptionSession.ToEncryptableMetadata(serializedContent),
             cancellationToken: cancellationToken);
 
         switch (resultCode)
@@ -488,7 +502,7 @@ public static class FilesEndpoints
                         workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                         file: fileRef,
                         commentExternalId: request.ExternalId,
-                        contentJson: request.ContentJson),
+                        contentJson: workspaceEncryptionSession.Encode(request.ContentJson)),
                     cancellationToken);
 
                 return TypedResults.Ok();
@@ -513,12 +527,16 @@ public static class FilesEndpoints
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
 
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
         var resultCode = await saveFileNoteQuery.Execute(
             workspace: workspaceMembership.Workspace,
             fileExternalId: fileExternalId,
             userIdentity: new UserIdentity(
                 UserExternalId: workspaceMembership.User.ExternalId),
-            contentJson: request.ContentJson,
+            content: request.ContentJson is null
+                ? null
+                : workspaceEncryptionSession.ToEncryptableMetadata(request.ContentJson),
             cancellationToken: cancellationToken);
 
         switch (resultCode)
@@ -562,7 +580,8 @@ public static class FilesEndpoints
                 UserExternalId: workspaceMembership.User.ExternalId),
             requestedFields: fields
                 .Select(EnumUtils.FromKebabCase<FilePreviewDetailsField>)
-                .ToArray());
+                .ToArray(),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
         return TypedResults.Ok(result);
     }
@@ -678,7 +697,9 @@ public static class FilesEndpoints
         var resultCode = await updateFileNameQuery.Execute(
             workspace: workspaceMembership.Workspace,
             fileExternalId: fileExternalId,
-            name: request.Name,
+            name: httpContext
+                .TryGetWorkspaceEncryptionSession()
+                .ToEncryptableMetadata(request.Name),
             boxFolderId: null,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             isRenameAllowedByBoxPermissions: true,

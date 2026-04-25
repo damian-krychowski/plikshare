@@ -8,6 +8,7 @@ using PlikShare.BoxExternalAccess.Handler.GetContent;
 using PlikShare.BoxExternalAccess.Handler.GetHtml;
 using PlikShare.BulkDelete;
 using PlikShare.BulkDelete.Contracts;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.BulkDownload;
 using PlikShare.Files.BulkDownload.Contracts;
@@ -227,7 +228,9 @@ public class BoxExternalAccessHandler(
         var resultCode = await updateFileNameQuery.Execute(
             workspace: boxAccess.Box.Workspace,
             fileExternalId: fileExternalId,
-            name: request.Name,
+            name: new EncryptableMetadata(
+                Value: request.Name,
+                EncryptionMode: NoMetadataEncryption.Instance), //todo fix
             boxFolderId: boxAccess.Box.Folder.Id,
             userIdentity: boxAccess.UserIdentity,
             isRenameAllowedByBoxPermissions: boxAccess.Permissions is { AllowList: true, AllowRenameFile: true },
@@ -653,8 +656,8 @@ public class BoxExternalAccessHandler(
                         {
                             ExternalId = f.FileUploadExternalId,
                             FileExternalId = f.FileExternalId,
-                            Name = f.FileName,
-                            Extension = f.FileExtension,
+                            Name = f.FileName.Encode(),
+                            Extension = f.FileExtension.Encode(),
                             SizeInBytes = f.SizeInBytes,
                             FolderPath = f.FolderPath
                         }).ToList(),

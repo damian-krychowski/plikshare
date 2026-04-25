@@ -63,21 +63,24 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
             userIdentity,
             currentFolderId,
             connection,
-            executionFlags.GetFiles == FilesExecutionFlag.All);
-        
+            executionFlags.GetFiles == FilesExecutionFlag.All,
+            workspaceEncryptionSession);
+
         var filesUploadedByUser = GetFilesUploadedByUser(
             workspace,
             userIdentity,
             currentFolderId,
             connection,
-            executionFlags.GetFiles == FilesExecutionFlag.UploadedByUserOnly);
+            executionFlags.GetFiles == FilesExecutionFlag.UploadedByUserOnly,
+            workspaceEncryptionSession);
         
         var uploads = GetUploads(
             workspace,
             userIdentity,
             currentFolderId,
             connection,
-            executionFlags.GetUploads);
+            executionFlags.GetUploads,
+            workspaceEncryptionSession);
 
         return new GetFolderContentResponseDto
         {
@@ -93,7 +96,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 	    IUserIdentity userIdentity,
 	    int currentFolderId,
 	    SqliteConnection connection,
-        bool shouldGetUploads)
+        bool shouldGetUploads,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         if (!shouldGetUploads)
             return [];
@@ -127,9 +131,9 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader => new UploadDto
                 {
                     ExternalId = reader.GetString(0),
-                    FileName = reader.GetString(1),
-                    FileExtension = reader.GetString(2),
-                    FileContentType = reader.GetString(3),
+                    FileName = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                    FileExtension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
+                    FileContentType = reader.DecodeEncryptableString(3, workspaceEncryptionSession),
                     FileSizeInBytes = reader.GetInt64(4),
                     AlreadyUploadedPartNumbers = reader.GetFromJson<List<int>>(5)
                 })
@@ -141,11 +145,12 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
     }
 
     private static List<FileDto> GetFilesUploadedByUser(
-	    WorkspaceContext workspace, 
-	    IUserIdentity userIdentity, 
-	    int currentFolderId, 
-	    SqliteConnection connection, 
-        bool shouldGetFilesUploadedByUser)
+	    WorkspaceContext workspace,
+	    IUserIdentity userIdentity,
+	    int currentFolderId,
+	    SqliteConnection connection,
+        bool shouldGetFilesUploadedByUser,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         if (!shouldGetFilesUploadedByUser)
             return [];
@@ -172,8 +177,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader => new FileDto
                 {
                     ExternalId = reader.GetString(0),
-                    Name = reader.GetString(1),
-                    Extension = reader.GetString(2),
+                    Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                    Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
                     SizeInBytes = reader.GetInt64(3),
                     WasUploadedByUser = reader.GetBoolean(4),
                     IsLocked = reader.GetBoolean(5)
@@ -186,11 +191,12 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
     }
 
     private static List<FileDto> GetAllFiles(
-	    WorkspaceContext workspace, 
-	    IUserIdentity userIdentity, 
-	    int currentFolderId, 
+	    WorkspaceContext workspace,
+	    IUserIdentity userIdentity,
+	    int currentFolderId,
 	    SqliteConnection connection,
-        bool shouldGetAllFiles)
+        bool shouldGetAllFiles,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         if (!shouldGetAllFiles)
             return [];
@@ -219,8 +225,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader => new FileDto
                 {
                     ExternalId = reader.GetString(0),
-                    Name = reader.GetString(1),
-                    Extension = reader.GetString(2),
+                    Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                    Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
                     SizeInBytes = reader.GetInt64(3),
                     WasUploadedByUser = reader.GetBoolean(4),
                     IsLocked = reader.GetBoolean(5)

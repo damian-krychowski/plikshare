@@ -1,7 +1,9 @@
-﻿using PlikShare.Core.Database.MainDatabase;
+﻿using System.Security.Cryptography;
+using System.Text;
+using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
-using PlikShare.Core.Utils;
 using PlikShare.Files.Artifacts;
 using PlikShare.Files.Id;
 using PlikShare.Workspaces.Cache;
@@ -12,13 +14,13 @@ namespace PlikShare.Files.Preview.Comment.EditComment;
 public class UpdateFileCommentQuery(DbWriteQueue dbWriteQueue)
 {
     private static readonly Serilog.ILogger Logger = Log.ForContext<UpdateFileCommentQuery>();
-    
+
     public Task<ResultCode> Execute(
         WorkspaceContext workspace,
         FileExtId fileExternalId,
         FileArtifactExtId commentExternalId,
         IUserIdentity userIdentity,
-        string updatedCommentContentJson,
+        EncryptableMetadata updatedCommentContent,
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
@@ -28,7 +30,7 @@ public class UpdateFileCommentQuery(DbWriteQueue dbWriteQueue)
                 fileExternalId: fileExternalId,
                 commentExternalId: commentExternalId,
                 userIdentity: userIdentity,
-                updatedCommentContentJson: updatedCommentContentJson),
+                updatedCommentContent: updatedCommentContent),
             cancellationToken: cancellationToken);
     }
 
@@ -38,7 +40,7 @@ public class UpdateFileCommentQuery(DbWriteQueue dbWriteQueue)
         FileExtId fileExternalId,
         FileArtifactExtId commentExternalId,
         IUserIdentity userIdentity,
-        string updatedCommentContentJson)
+        EncryptableMetadata updatedCommentContent)
     {
         try
         {
@@ -46,9 +48,9 @@ public class UpdateFileCommentQuery(DbWriteQueue dbWriteQueue)
             var fileResult = dbWriteContext
                 .OneRowCmd(
                     sql: @"
-                        SELECT fi_id 
-                        FROM fi_files 
-                        WHERE fi_external_id = $fileExternalId 
+                        SELECT fi_id
+                        FROM fi_files
+                        WHERE fi_external_id = $fileExternalId
                         AND fi_workspace_id = $workspaceId",
                     readRowFunc: reader => reader.GetInt32(0))
                 .WithParameter("$fileExternalId", fileExternalId.Value)
@@ -65,18 +67,17 @@ public class UpdateFileCommentQuery(DbWriteQueue dbWriteQueue)
 
                 return ResultCode.FileNotFound;
             }
-            
-            var contentEntity = new CommentContentEntity(
-                ContentJson: updatedCommentContentJson,
-                WasEdited: true);
+
+            var contentHash = SHA256.HashData(Encoding.UTF8.GetBytes(updatedCommentContent.Value));
 
             // Then update the comment, checking ownership
             var result = dbWriteContext
                 .OneRowCmd(
                     sql: @"
                         UPDATE fa_file_artifacts
-                        SET fa_content = $content
-                        WHERE 
+                        SET fa_content = $content,
+                            fa_content_hash = $contentHash
+                        WHERE
                             fa_external_id = $commentExternalId
                             AND fa_file_id = $fileId
                             AND fa_type = $fileArtifactType
@@ -87,7 +88,8 @@ public class UpdateFileCommentQuery(DbWriteQueue dbWriteQueue)
                 .WithParameter("$commentExternalId", commentExternalId.Value)
                 .WithParameter("$fileId", fileResult.Value)
                 .WithEnumParameter("$fileArtifactType", FileArtifactType.Comment)
-                .WithBlobParameter("$content", Json.Serialize(contentEntity))
+                .WithEncryptableBlobParameter("$content", updatedCommentContent)
+                .WithParameter("$contentHash", contentHash)
                 .WithParameter("$ownerIdentityType", userIdentity.IdentityType)
                 .WithParameter("$ownerIdentity", userIdentity.Identity)
                 .Execute();

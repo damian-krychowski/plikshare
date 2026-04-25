@@ -57,9 +57,7 @@ public class UserWorkspaceDekUnsealer(
 
             entries.Add(new WorkspaceDekEntry
             {
-                WorkspaceId = workspaceId,
                 StorageDekVersion = row.StorageDekVersion,
-                Salt = row.Salt,
                 Dek = dek
             });
         }

@@ -1,5 +1,6 @@
 using PlikShare.AuditLog.Details;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
 using PlikShare.Uploads.Id;
@@ -42,7 +43,7 @@ public class GetFileUploadAuditContextQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader =>
                 {
                     var externalId = new FileUploadExtId(reader.GetString(0));
-                    var ancestors = reader.GetFromJsonOrNull<List<string>>(5);
+                    var ancestors = reader.GetFromJsonOrNull<List<EncodedMetadataValue>>(5);
 
                     return new
                     {
@@ -51,8 +52,8 @@ public class GetFileUploadAuditContextQuery(PlikShareDb plikShareDb)
                         {
                             ExternalId = externalId,
                             FileExternalId = new FileExtId(reader.GetString(1)),
-                            Name = reader.GetString(2),
-                            Extension = reader.GetString(3),
+                            Name = reader.GetEncodedMetadata(2),
+                            Extension = reader.GetEncodedMetadata(3),
                             SizeInBytes = reader.GetInt64(4),
                             FolderPath = ancestors is null or { Count: 0 }
                                 ? null

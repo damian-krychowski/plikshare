@@ -1,3 +1,5 @@
+using PlikShare.Core.Encryption;
+
 namespace PlikShare.Boxes.Get.Contracts;
 
 public class GetBoxResponseDto
@@ -21,6 +23,8 @@ public class GetBoxResponseDto
     public class FolderItem
     {
         public required string ExternalId { get; set; }
+
+        [EncryptedMetadata]
         public required string Name { get; set; }
     }
     

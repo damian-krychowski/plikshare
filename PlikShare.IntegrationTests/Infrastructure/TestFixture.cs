@@ -146,9 +146,11 @@ public class TestFixture: IAsyncLifetime
             expectedSeverity,
             assertDetailsRaw: detailsJson =>
             {
-                var details = JsonSerializer.Deserialize<TDetails>(
-                        detailsJson,
-                        new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+                // Reuse the production JsonSerializerOptions so converters registered in
+                // Json.cs apply (EncodedMetadataValue, ExternalIds, kebab-case enums…).
+                // A fresh options instance without converters fails on records like
+                // EncodedMetadataValue that expect a JSON string, not a JSON object.
+                var details = Json.Deserialize<TDetails>(detailsJson)
                     ?? throw new InvalidOperationException(
                         $"Failed to deserialize audit log details to {typeof(TDetails).Name}: {detailsJson}");
 
@@ -1206,6 +1208,131 @@ public class TestFixture: IAsyncLifetime
                 readRowFunc: reader => reader.GetString(0))
             .WithParameter("$storageExternalId", storageExternalId.Value)
             .Execute();
+    }
+
+    /// <summary>
+    /// Reserved prefix that marks an encrypted-metadata envelope at rest. Tests assert
+    /// presence/absence of this prefix on persisted columns to verify that full-encryption
+    /// workspaces actually write ciphertext (and that non-encrypted workspaces do not).
+    /// </summary>
+    protected const string EncryptedMetadataPrefix = PlikShare.Core.Encryption.EncryptableMetadataExtensions.ReservedPrefix;
+
+    protected record FilePersistedRow(
+        string Name,
+        string Extension,
+        string ContentType,
+        byte[]? Metadata);
+
+    protected record FileUploadPersistedRow(
+        string FileName,
+        string FileExtension,
+        string FileContentType,
+        byte[]? FileMetadata);
+
+    protected record FileArtifactPersistedRow(
+        byte[] Content,
+        byte[] ContentHash);
+
+    protected string GetFolderPersistedName(FolderExtId externalId)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT fo_name
+                     FROM fo_folders
+                     WHERE fo_external_id = $externalId
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => reader.GetString(0))
+            .WithParameter("$externalId", externalId.Value)
+            .Execute();
+
+        if (rows.Count == 0)
+            throw new InvalidOperationException(
+                $"Folder '{externalId}' was not found in the database.");
+
+        return rows[0];
+    }
+
+    protected FilePersistedRow GetFilePersistedRow(FileExtId externalId)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT fi_name, fi_extension, fi_content_type, fi_metadata
+                     FROM fi_files
+                     WHERE fi_external_id = $externalId
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => new FilePersistedRow(
+                    Name: reader.GetString(0),
+                    Extension: reader.GetString(1),
+                    ContentType: reader.GetString(2),
+                    Metadata: reader.IsDBNull(3) ? null : reader.GetFieldValue<byte[]>(3)))
+            .WithParameter("$externalId", externalId.Value)
+            .Execute();
+
+        if (rows.Count == 0)
+            throw new InvalidOperationException(
+                $"File '{externalId}' was not found in the database.");
+
+        return rows[0];
+    }
+
+    protected FileUploadPersistedRow GetFileUploadPersistedRow(FileUploadExtId externalId)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT fu_file_name, fu_file_extension, fu_file_content_type, fu_file_metadata
+                     FROM fu_file_uploads
+                     WHERE fu_external_id = $externalId
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => new FileUploadPersistedRow(
+                    FileName: reader.GetString(0),
+                    FileExtension: reader.GetString(1),
+                    FileContentType: reader.GetString(2),
+                    FileMetadata: reader.IsDBNull(3) ? null : reader.GetFieldValue<byte[]>(3)))
+            .WithParameter("$externalId", externalId.Value)
+            .Execute();
+
+        if (rows.Count == 0)
+            throw new InvalidOperationException(
+                $"FileUpload '{externalId}' was not found in the database.");
+
+        return rows[0];
+    }
+
+    protected FileArtifactPersistedRow GetFileArtifactPersistedRow(FileArtifactExtId externalId)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT fa_content, fa_content_hash
+                     FROM fa_file_artifacts
+                     WHERE fa_external_id = $externalId
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => new FileArtifactPersistedRow(
+                    Content: reader.GetFieldValue<byte[]>(0),
+                    ContentHash: reader.GetFieldValue<byte[]>(1)))
+            .WithParameter("$externalId", externalId.Value)
+            .Execute();
+
+        if (rows.Count == 0)
+            throw new InvalidOperationException(
+                $"FileArtifact '{externalId}' was not found in the database.");
+
+        return rows[0];
     }
 
     protected record AppBoxLinkPermissions(

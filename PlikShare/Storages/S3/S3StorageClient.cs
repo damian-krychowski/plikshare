@@ -168,7 +168,7 @@ public class S3StorageClient(
                     },
                     ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
                     BoxLinkId = boxLinkId,
-                    WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? []
+                    WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
                 });
 
             return new PreSignedUploadLinkResult
@@ -288,7 +288,7 @@ public class S3StorageClient(
                     ContentDisposition = contentDisposition,
                     ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
                     BoxLinkId = boxLinkId,
-                    WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? []
+                    WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
                 });
         }
 

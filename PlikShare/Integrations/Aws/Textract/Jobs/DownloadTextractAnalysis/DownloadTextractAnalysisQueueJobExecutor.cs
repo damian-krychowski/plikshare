@@ -391,9 +391,19 @@ public class DownloadTextractAnalysisQueueJobExecutor(
             FileUploadExternalId = FileUploadExtId.NewId().Value,
             FileExternalId = FileExtId.NewId().Value,
             FolderId = null, //todo think where it should go
-            FileName = file.Name,
-            FileContentType = ContentTypeHelper.GetContentTypeFromExtension(file.Extension),
-            FileExtension = file.Extension,
+
+            FileName = new EncryptableMetadata(
+                file.Name, 
+                NoMetadataEncryption.Instance),
+
+            FileContentType = new EncryptableMetadata(
+                ContentTypeHelper.GetContentTypeFromExtension(file.Extension),
+                NoMetadataEncryption.Instance),
+
+            FileExtension = new EncryptableMetadata(
+                file.Extension, 
+                NoMetadataEncryption.Instance),
+
             FileSizeInBytes = file.SizeInBytes,
             S3KeySecretPart = storage.GenerateFileS3KeySecretPart(),
 
@@ -407,10 +417,12 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 encryptionMetadata?.ChainStepSalts),
 
             ParentFileId = textractJob.OriginalFileId,
-            FileMetadataBlob = Json.SerializeToBlob<FileMetadata>(new TextractResultFileMetadata
-            {
-                Features = textractJob.Features
-            })
+            FileMetadata = new EncryptableMetadata(
+                Value: Json.Serialize<FileMetadata>(new TextractResultFileMetadata
+                {
+                    Features = textractJob.Features
+                }),
+                EncryptionMode: NoMetadataEncryption.Instance)
         };
     }
 

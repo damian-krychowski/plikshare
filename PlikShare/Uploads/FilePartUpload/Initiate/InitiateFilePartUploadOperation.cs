@@ -62,7 +62,7 @@ public class InitiateFilePartUploadOperation(
                 key: fileUpload.FileToUpload.S3FileKey,
                 uploadId: fileUpload.FileToUpload.S3UploadId,
                 partNumber: partNumber,
-                contentType: fileUpload.ContentType,
+                contentType: workspaceEncryptionSession.DecodeEncryptableMetadata(fileUpload.ContentType),
                 boxLinkId: boxLinkId,
                 userIdentity: userIdentity,
                 enforceInternalPassThrough: enforceInternalPassThrough,

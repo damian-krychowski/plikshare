@@ -75,9 +75,9 @@ public class GetFileDetailsQuery(PlikShareDb plikShareDb)
                     return new FileRecord
                     {
                         ExternalId = fileExternalId,
-                        Name = reader.GetString(0),
-                        ContentType = reader.GetString(1),
-                        Extension = reader.GetString(2),
+                        Name = reader.DecodeEncryptableString(0, workspaceEncryptionSession),
+                        ContentType = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                        Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
                         S3KeySecretPart = reader.GetString(3),
                         SizeInBytes = reader.GetInt64(4),
                         WorkspaceId = workspaceId,

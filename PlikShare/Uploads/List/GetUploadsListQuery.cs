@@ -78,9 +78,9 @@ public class GetUploadsListQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader => new GetUploadsListResponseDto.Upload
                 {
                     ExternalId = reader.GetExtId<FileUploadExtId>(0),
-					FileName = reader.GetString(1),
-					FileExtension = reader.GetString(2),
-					FileContentType = reader.GetString(3),
+					FileName = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+					FileExtension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
+					FileContentType = reader.DecodeEncryptableString(3, workspaceEncryptionSession),
 					FileSizeInBytes = reader.GetInt64(4),
 					FolderExternalId = reader.GetExtIdOrNull<FolderExtId>(5),
 					FolderName = reader.DecodeEncryptableStringOrNull(6, workspaceEncryptionSession),

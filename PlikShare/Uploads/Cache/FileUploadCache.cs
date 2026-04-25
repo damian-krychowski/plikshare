@@ -167,12 +167,12 @@ public class FileUploadCache(
                             SizeInBytes = reader.GetInt64(3),
                             S3UploadId = reader.GetString(5),
                         },
-                        ContentType = reader.GetString(2),
+                        ContentType = reader.GetEncodedMetadata(2),
                         WorkspaceId = reader.GetInt32(11),
                         OwnerIdentity = reader.GetString(12),
                         OwnerIdentityType = reader.GetString(13),
-                        FileName = reader.GetString(14),
-                        FileExtension = reader.GetString(15),
+                        FileName = reader.GetEncodedMetadata(14),
+                        FileExtension = reader.GetEncodedMetadata(15),
                         FolderAncestors = reader.GetFromJsonOrNull<CachedFolderAncestor[]>(16) ?? []
                     };
                 })
@@ -197,12 +197,12 @@ public class FileUploadCache(
         public required int Id { get; init; }
         public required FileUploadExtId ExternalId { get; init; }
         public required FileToUploadDetails FileToUpload { get; init; }
-        public required string ContentType { get; init; }
+        public required EncodedMetadataValue ContentType { get; init; }
         public required int WorkspaceId { get; init; }
         public required string OwnerIdentity { get; init; }
         public required string OwnerIdentityType { get; init; }
-        public required string FileName { get; init; }
-        public required string FileExtension { get; init; }
+        public required EncodedMetadataValue FileName { get; init; }
+        public required EncodedMetadataValue FileExtension { get; init; }
         public required CachedFolderAncestor[] FolderAncestors { get; init; }
     }
 }
@@ -210,14 +210,14 @@ public class FileUploadCache(
 public class CachedFolderAncestor
 {
     public required FolderExtId ExternalId { get; init; }
-    public required string Name { get; init; }
+    public required EncodedMetadataValue Name { get; init; }
 }
 
 static class CachedFolderAncestorExtensions
 {
     extension(CachedFolderAncestor[] ancestors)
     {
-        public List<string>? ToFolderPath() => ancestors.Length == 0
+        public List<EncodedMetadataValue>? ToFolderPath() => ancestors.Length == 0
             ? null
             : ancestors.Select(a => a.Name).ToList();
     }
@@ -229,13 +229,13 @@ public sealed class FileUploadContext
     public required int Id { get; init; }
     public required FileUploadExtId ExternalId { get; init; }
     public required FileToUploadDetails FileToUpload { get; init; }
-    public required string ContentType { get; init; }
+    public required EncodedMetadataValue ContentType { get; init; }
     public required string OwnerIdentity { get; init; }
     public required string OwnerIdentityType { get; init; }
     public required UploadAlgorithm UploadAlgorithm { get; init; }
     public required int PartsCount { get; init; }
-    public required string FileName { get; init; }
-    public required string FileExtension { get; init; }
+    public required EncodedMetadataValue FileName { get; init; }
+    public required EncodedMetadataValue FileExtension { get; init; }
     public required CachedFolderAncestor[] FolderAncestors { get; init; }
 
     public required WorkspaceContext Workspace { get; init; }

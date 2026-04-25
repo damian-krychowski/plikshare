@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
@@ -106,8 +107,8 @@ public static class UploadsEndpoints
                         {
                             ExternalId = f.FileUploadExternalId,
                             FileExternalId = f.FileExternalId,
-                            Name = f.FileName,
-                            Extension = f.FileExtension,
+                            Name = f.FileName.Encode(),
+                            Extension = f.FileExtension.Encode(),
                             SizeInBytes = f.SizeInBytes,
                             FolderPath = f.FolderPath
                         }).ToList()),

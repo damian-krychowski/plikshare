@@ -8,7 +8,6 @@ using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Uploads.Id;
-using PlikShare.Workspaces.Id;
 
 namespace PlikShare.Files.PreSignedLinks;
 
@@ -201,16 +200,24 @@ public class PreSignedUrlsService(
 
         /// <summary>
         /// Per-version Workspace DEK entries for the workspace targeted by this URL, or
-        /// empty for None/Managed storages. Each entry carries the Storage DEK version,
-        /// the workspace salt, and the Workspace DEK material encrypted a second time
+        /// empty for None/Managed storages. Each entry carries the workspace id, the
+        /// Storage DEK version, and the Workspace DEK material encrypted a second time
         /// with <see cref="IMasterDataEncryption"/> — so the plaintext DEK never lands on
         /// the managed heap during JSON serialization of this payload. The outer
         /// DataProtection seal over the whole URL adds a second independent layer.
-        /// Typically one entry; rotated storages produce more.
+        /// Typically one entry; rotated storages produce more. The workspace salt is
+        /// intentionally not duplicated here — it lives on
+        /// <c>w_workspaces.w_encryption_salt</c> and is read through
+        /// <see cref="Workspaces.Cache.WorkspaceCache"/> at the call sites that need it.
         /// </summary>
         public required WorkspaceDekEntryWire[] WorkspaceDeks { get; init; }
     }
 
+    /// <summary>
+    /// Multi-file direct upload payload. Carries an explicit <see cref="WorkspaceId"/>
+    /// because there is no per-file lookup in this flow — non-encrypted variants would
+    /// otherwise have no source for the workspace identifier.
+    /// </summary>
     [ImmutableObject(true)]
     public sealed class MultiFileDirectUploadPayload : PreSignedPayload
     {
@@ -232,14 +239,19 @@ public class PreSignedUrlsService(
         public required ContentDispositionType ContentDisposition { get; init; }
     }
 
+    /// <summary>
+    /// Bulk download payload. Carries an explicit <see cref="WorkspaceId"/> because the
+    /// flow operates on selected/excluded folder and file ids — there is no single file
+    /// lookup that could supply the workspace identifier in non-encrypted variants.
+    /// </summary>
     [ImmutableObject(true)]
     public sealed class BulkDownloadPayload : PreSignedPayload
     {
+        public required int WorkspaceId { get; init; }
         public required int[] SelectedFileIds { get; init; }
         public required int[] ExcludedFileIds { get; init; }
         public required int[] SelectedFolderIds { get; init; }
         public required int[] ExcludedFolderIds { get; init; }
-        public required int WorkspaceId { get; init; }
     }
 
     [ImmutableObject(true)]

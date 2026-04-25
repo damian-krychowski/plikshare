@@ -259,8 +259,18 @@ public class file_tests : TestFixture
             {
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
                 details.File.ExternalId.Should().Be(file.ExternalId);
-                details.File.Name.Should().Be("audit-renamed");
-                details.File.Extension.Should().Be(".txt");
+
+                if (encryptionType == StorageEncryptionType.Full)
+                {
+                    details.File.Name.Encoded.Should().StartWith(EncryptedMetadataPrefix);
+                    details.File.Name.Encoded.Should().NotContain("audit-renamed");
+                    details.File.Extension.Encoded.Should().StartWith(EncryptedMetadataPrefix);
+                }
+                else
+                {
+                    details.File.Name.Encoded.Should().Be("audit-renamed");
+                    details.File.Extension.Encoded.Should().Be(".txt");
+                }
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);

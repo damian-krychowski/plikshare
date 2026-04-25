@@ -26,12 +26,14 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
 	    var files = GetFiles(
 		    workspace,
 			userIdentity,
-		    connection);
+		    connection,
+		    workspaceEncryptionSession);
 
 	    var uploads = GetUploads(
 		    workspace,
 		    userIdentity,
-		    connection);
+		    connection,
+		    workspaceEncryptionSession);
 
         return new GetTopFolderContentResponseDto
         {
@@ -42,9 +44,10 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
     }
 
     private static List<UploadDto> GetUploads(
-	    WorkspaceContext workspace, 
-	    IUserIdentity userIdentity, 
-	    SqliteConnection connection)
+	    WorkspaceContext workspace,
+	    IUserIdentity userIdentity,
+	    SqliteConnection connection,
+	    WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
 	    return connection
 		    .Cmd(
@@ -75,9 +78,9 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader => new UploadDto
                 {
                     ExternalId = reader.GetString(0),
-					FileName = reader.GetString(1),
-					FileExtension = reader.GetString(2),
-					FileContentType = reader.GetString(3),
+					FileName = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+					FileExtension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
+					FileContentType = reader.DecodeEncryptableString(3, workspaceEncryptionSession),
 					FileSizeInBytes = reader.GetInt64(4),
 					AlreadyUploadedPartNumbers = reader.GetFromJson<List<int>>(5)
                 })
@@ -90,7 +93,8 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
     private static List<FileDto> GetFiles(
 	    WorkspaceContext workspace,
         IUserIdentity userIdentity,
-        SqliteConnection connection)
+        SqliteConnection connection,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
 	    return connection
 		    .Cmd(
@@ -116,8 +120,8 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader => new FileDto
                 {
                     ExternalId = reader.GetString(0),
-					Name = reader.GetString(1),
-					Extension = reader.GetString(2),
+					Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+					Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
 					SizeInBytes = reader.GetInt64(3),
 					WasUploadedByUser = reader.GetBoolean(4),
 					IsLocked = reader.GetBoolean(5)

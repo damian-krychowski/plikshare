@@ -186,7 +186,7 @@ public class folder_tests : TestFixture
             {
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
                 details.Folder.ExternalId.Should().Be(folderExternalId);
-                details.Folder.Name.Should().Be(folderName);
+                details.Folder.Name.Encoded.Should().Be(folderName);
                 details.Folder.FolderPath.Should().BeNull();
                 details.Box.Should().BeNull();
             },
@@ -243,10 +243,10 @@ public class folder_tests : TestFixture
             {
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
                 details.Folders.Should().HaveCount(3);
-                details.Folders.Should().Contain(f => f.Name == "Folder A" && f.FolderPath == null);
-                details.Folders.Should().Contain(f => f.Name == "Folder B" && f.FolderPath == null);
-                details.Folders.Should().Contain(f => f.Name == "Folder B_A"
-                    && f.FolderPath != null && f.FolderPath.SequenceEqual(new[] { "Folder B" }));
+                details.Folders.Should().Contain(f => f.Name.Encoded == "Folder A" && f.FolderPath == null);
+                details.Folders.Should().Contain(f => f.Name.Encoded == "Folder B" && f.FolderPath == null);
+                details.Folders.Should().Contain(f => f.Name.Encoded == "Folder B_A"
+                    && f.FolderPath != null && f.FolderPath.Select(p => p.Encoded).SequenceEqual(new[] { "Folder B" }));
                 details.Box.Should().BeNull();
             },
             expectedActorEmail: AppOwner.Email,
@@ -283,7 +283,7 @@ public class folder_tests : TestFixture
             {
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
                 details.Folder.ExternalId.Should().Be(folder.ExternalId);
-                details.Folder.Name.Should().Be(newName);
+                details.Folder.Name.Encoded.Should().Be(newName);
                 details.Box.Should().BeNull();
             },
             expectedActorEmail: AppOwner.Email,

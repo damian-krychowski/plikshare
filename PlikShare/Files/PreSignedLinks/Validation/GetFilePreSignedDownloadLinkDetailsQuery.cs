@@ -15,7 +15,8 @@ public class GetFilePreSignedDownloadLinkDetailsQuery(PlikShareDb plikShareDb)
     }
 
     public Result Execute(
-        FileExtId fileExternalId)
+        FileExtId fileExternalId,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         using var connection = plikShareDb.OpenConnection();
 
@@ -59,9 +60,9 @@ public class GetFilePreSignedDownloadLinkDetailsQuery(PlikShareDb plikShareDb)
                     return new FileRecord
                     {
                         ExternalId = fileExternalId,
-                        Name = reader.GetString(0),
-                        ContentType = reader.GetString(1),
-                        Extension = reader.GetString(2),
+                        Name = reader.DecodeEncryptableString(0, workspaceEncryptionSession),
+                        ContentType = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                        Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
                         S3KeySecretPart = reader.GetString(3),
                         SizeInBytes = reader.GetInt64(4),
                         WorkspaceId = reader.GetInt32(5),
@@ -76,7 +77,7 @@ public class GetFilePreSignedDownloadLinkDetailsQuery(PlikShareDb plikShareDb)
                                     reader.GetFieldValueOrNull<byte[]>(9)),
                                 FormatVersion = reader.GetByteOrNull(10) ?? 1
                             },
-                        FolderAncestors = reader.GetFromJsonOrNull<FileRecordFolderAncestor[]>(11) ?? []
+                        FolderAncestors = reader.GetFromJsonOrNull<FileRecordFolderAncestor[]>(11, workspaceEncryptionSession) ?? []
                     };
                 })
             .WithParameter("$externalId", fileExternalId.Value)

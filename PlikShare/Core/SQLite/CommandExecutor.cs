@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
@@ -63,7 +64,38 @@ public class SQLiteCommandExecutor<TRow>
     /// </summary>
     public SQLiteCommandExecutor<TRow> WithEncryptableParameter(string name, EncryptableMetadata metadata)
     {
-        _command.WithParameter(name, metadata.Encode());
+        _command.WithParameter(name, metadata.Encode().Encoded);
+        return this;
+    }
+
+    /// <summary>
+    /// BLOB-affinity sibling of <see cref="WithEncryptableParameter"/>: encodes the value
+    /// the same way (plaintext for non-encrypted workspaces, <c>pse:</c>-prefixed envelope
+    /// for full-encryption workspaces) but binds the result as UTF-8 bytes. Use for
+    /// columns declared BLOB whose readers go through
+    /// <see cref="DbReaderExtensions.GetStringFromBlob"/>.
+    /// </summary>
+    public SQLiteCommandExecutor<TRow> WithEncryptableBlobParameter(string name, EncryptableMetadata metadata)
+    {
+        var bytes = Encoding.UTF8.GetBytes(metadata.Encode().Encoded);
+        _command.WithParameter(name, bytes);
+        return this;
+    }
+
+    /// <summary>
+    /// Nullable variant of <see cref="WithEncryptableBlobParameter"/> for nullable BLOB
+    /// columns. A null metadata binds NULL; otherwise behaves identically.
+    /// </summary>
+    public SQLiteCommandExecutor<TRow> WithEncryptableBlobParameterOrNull(string name, EncryptableMetadata? metadata)
+    {
+        if (metadata is null)
+        {
+            _command.WithParameter<byte[]?>(name, null);
+            return this;
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(metadata.Value.Encode().Encoded);
+        _command.WithParameter(name, bytes);
         return this;
     }
     public List<TRow> Execute()

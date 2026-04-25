@@ -42,7 +42,8 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
             selectedFolderIds: selectedFolderIds,
             excludedFolderIds: excludedFolderIds,
             selectedFileFolderIds: selectedFileFolderIds,
-            connection: connection);
+            connection: connection,
+            workspaceEncryptionSession: workspaceEncryptionSession);
 
         var nestedFiles = GetFilesFromFolders(
             workspaceId: workspaceId,
@@ -110,8 +111,8 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                     return new ResolvedBulkDownloadFile
                     {
                         ExternalId = reader.GetExtId<FileExtId>(0),
-                        Name = reader.GetString(1),
-                        Extension = reader.GetString(2),
+                        Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                        Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
                         S3KeySecretPart = reader.GetString(3),
                         SizeInBytes = reader.GetInt64(4),
                         FolderId = reader.GetInt32OrNull(5),
@@ -180,8 +181,8 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                     return new ResolvedBulkDownloadFile
                     {
                         ExternalId = reader.GetExtId<FileExtId>(0),
-                        Name = reader.GetString(1),
-                        Extension = reader.GetString(2),
+                        Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                        Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
                         S3KeySecretPart = reader.GetString(3),
                         FolderId = reader.GetInt32(4),
                         SizeInBytes = reader.GetInt64(5),
@@ -201,7 +202,8 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
         int[] selectedFolderIds,
         int[] excludedFolderIds,
         int[] selectedFileFolderIds,
-        SqliteConnection connection)
+        SqliteConnection connection,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         // This query fetches four groups of folders in a single shot:
         // 1. The selected (top) folders and their ancestors up to workspace root
@@ -263,7 +265,7 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader => new BulkDownloadFolder
                 {
                     Id = reader.GetInt32(0),
-                    Name = reader.GetString(1),
+                    Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
                     AncestorFolderIds = reader.GetFromJson<int[]>(2)
                 })
             .WithParameter("$workspaceId", workspaceId)

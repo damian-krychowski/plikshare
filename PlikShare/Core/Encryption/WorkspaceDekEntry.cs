@@ -2,24 +2,18 @@ namespace PlikShare.Core.Encryption;
 
 /// <summary>
 /// A single unwrapped Workspace DEK together with the Storage DEK version it was derived
-/// from and the workspace salt that went into the HKDF step producing it. Files encrypted
-/// before a rotation carry the older <see cref="StorageDekVersion"/> in their V2 header;
-/// after rotation there may be several entries per workspace-member.
+/// from. Files encrypted before a rotation carry the older <see cref="StorageDekVersion"/>
+/// in their V2 header; after rotation there may be several entries per workspace-member.
 ///
-/// <see cref="Salt"/> is the same value for every entry belonging to one workspace (stored
-/// once on <c>w_workspaces.w_encryption_salt</c>) — it is copied onto each entry so the
-/// record is self-contained for audit, re-derivation, and presigned-URL payloads that
-/// should not require a separate workspace-row lookup to reconstruct the chain.
-///
-/// Used both inside <see cref="WorkspaceEncryptionSession"/> (one entry per wrap row the
-/// caller holds) and inside the DataProtection-sealed presigned-URL payload (copied over
-/// so unauthenticated direct transfers can still pick the right DEK per file).
+/// The owning workspace id is held once on the enclosing
+/// <see cref="WorkspaceEncryptionSession.WorkspaceId"/>. The workspace salt is stored on
+/// <c>w_workspaces.w_encryption_salt</c> and read through <see cref="Workspaces.Cache.WorkspaceCache"/>
+/// at the call sites that need it (file-header chain steps); it is intentionally not
+/// duplicated here.
 /// </summary>
 public sealed class WorkspaceDekEntry
 {
-    public required int WorkspaceId { get; init; }
     public required int StorageDekVersion { get; init; }
-    public required byte[] Salt { get; init; }
     public required SecureBytes Dek { get; init; }
 }
 
@@ -27,7 +21,6 @@ public sealed class WorkspaceDekEntryWire
 {
     public required int WorkspaceId { get; init; }
     public required int StorageDekVersion { get; init; }
-    public required byte[] Salt { get; init; }
 
     /// <summary>
     /// The Workspace DEK encrypted with <see cref="IMasterDataEncryption.EncryptBytes"/>.
@@ -39,52 +32,73 @@ public sealed class WorkspaceDekEntryWire
 
 public static class WorkspaceDekEntryWireExtensions
 {
-    
-    public static WorkspaceDekEntryWire ToWire(
-        this WorkspaceDekEntry entry,
-        IMasterDataEncryption masterEncryption)
+    extension(WorkspaceEncryptionSession? session)
     {
-        return new WorkspaceDekEntryWire
+        public WorkspaceDekEntryWire[] ToWires(
+            IMasterDataEncryption masterEncryption)
         {
-            WorkspaceId = entry.WorkspaceId,
-            StorageDekVersion = entry.StorageDekVersion,
-            Salt = entry.Salt,
+            if (session is null)
+                return [];
 
-            EncryptedDek = entry.Dek.ToWire(
-                masterEncryption)
-        };
+            var entries = session.Entries;
+            var wires = new WorkspaceDekEntryWire[entries.Length];
+
+            for (var i = 0; i < entries.Length; i++)
+            {
+                wires[i] = new WorkspaceDekEntryWire
+                {
+                    WorkspaceId = session.WorkspaceId,
+                    StorageDekVersion = entries[i].StorageDekVersion,
+                    EncryptedDek = entries[i].Dek.ToWire(masterEncryption)
+                };
+            }
+
+            return wires;
+        }
     }
 
-    public static WorkspaceDekEntryWire[] ToWires(
-        this IEnumerable<WorkspaceDekEntry> entries,
-        IMasterDataEncryption masterEncryption)
+    extension(WorkspaceDekEntryWire wire)
     {
-        return entries
-            .Select(entry => entry.ToWire(masterEncryption))
-            .ToArray();
-    }
-    public static WorkspaceDekEntry ToEntry(
-        this WorkspaceDekEntryWire wire,
-        IMasterDataEncryption masterEncryption)
-    {
-        return new WorkspaceDekEntry
+        public WorkspaceDekEntry ToEntry(
+            IMasterDataEncryption masterEncryption)
         {
-            WorkspaceId = wire.WorkspaceId,
-            StorageDekVersion = wire.StorageDekVersion,
-            Salt = wire.Salt,
+            return new WorkspaceDekEntry
+            {
+                StorageDekVersion = wire.StorageDekVersion,
 
-            Dek = SecureBytes.FromWire(
-                encryptedSecureBytes: wire.EncryptedDek,
-                masterEncryption: masterEncryption)
-        };
+                Dek = SecureBytes.FromWire(
+                    encryptedSecureBytes: wire.EncryptedDek,
+                    masterEncryption: masterEncryption)
+            };
+        }
     }
 
-    public static WorkspaceDekEntry[] ToEntries(
-        this IEnumerable<WorkspaceDekEntryWire> wires,
-        IMasterDataEncryption masterEncryption)
+    extension(IEnumerable<WorkspaceDekEntryWire> wires)
     {
-        return wires
-            .Select(wire => wire.ToEntry(masterEncryption))
-            .ToArray();
+        public WorkspaceEncryptionSession ToSession(
+            IMasterDataEncryption masterEncryption)
+        {
+            var wireArray = wires as WorkspaceDekEntryWire[] ?? wires.ToArray();
+
+            if (wireArray.Length == 0)
+                throw new InvalidOperationException(
+                    "Cannot build WorkspaceEncryptionSession from an empty WorkspaceDekEntryWire collection.");
+
+            var workspaceId = wireArray[0].WorkspaceId;
+
+            for (var i = 1; i < wireArray.Length; i++)
+            {
+                if (wireArray[i].WorkspaceId != workspaceId)
+                    throw new InvalidOperationException(
+                        $"Cannot build WorkspaceEncryptionSession: entries belong to different workspaces " +
+                        $"(found {workspaceId} and {wireArray[i].WorkspaceId}).");
+            }
+            
+            return new WorkspaceEncryptionSession(
+                workspaceId: workspaceId,
+                entries: wireArray
+                    .Select(wire => wire.ToEntry(masterEncryption))
+                    .ToArray());
+        }
     }
 }

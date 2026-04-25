@@ -34,6 +34,59 @@ public static class DbReaderExtensions
             encoded: value);
     }
 
+    /// <summary>
+    /// BLOB-affinity sibling of <see cref="DecodeEncryptableString"/>: reads the cell as
+    /// UTF-8 bytes, interprets them as a string, then decodes through the workspace
+    /// encryption session. Use for columns declared BLOB whose writers go through
+    /// <see cref="SQLiteOneRowCommandExecutor{TRow}.WithEncryptableBlobParameter"/>.
+    /// </summary>
+    public static string DecodeEncryptableBlob(
+        this DbDataReader reader,
+        int ordinal,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
+    {
+        var bytes = reader.GetFieldValue<byte[]>(ordinal);
+        var value = Encoding.UTF8.GetString(bytes);
+
+        return workspaceEncryptionSession.DecodeEncryptableMetadata(
+            encoded: value);
+    }
+
+    /// <summary>
+    /// Nullable variant of <see cref="DecodeEncryptableBlob"/> for nullable BLOB columns.
+    /// Returns null when the cell is NULL; otherwise behaves identically.
+    /// </summary>
+    public static string? DecodeEncryptableBlobOrNull(
+        this DbDataReader reader,
+        int ordinal,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
+    {
+        if (reader.IsDBNull(ordinal))
+            return null;
+
+        var bytes = reader.GetFieldValue<byte[]>(ordinal);
+        var value = Encoding.UTF8.GetString(bytes);
+
+        return workspaceEncryptionSession.DecodeEncryptableMetadata(
+            encoded: value);
+    }
+
+    public static EncodedMetadataValue GetEncodedMetadata(
+        this DbDataReader reader,
+        int ordinal)
+    {
+        return new EncodedMetadataValue(reader.GetString(ordinal));
+    }
+
+    public static EncodedMetadataValue? GetEncodedMetadataOrNull(
+        this DbDataReader reader,
+        int ordinal)
+    {
+        return reader.IsDBNull(ordinal)
+            ? null
+            : new EncodedMetadataValue(reader.GetString(ordinal));
+    }
+
     public static Email GetEmail(
         this DbDataReader reader, 
         int ordinal)

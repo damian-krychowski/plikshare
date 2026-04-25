@@ -151,10 +151,10 @@ public class bulk_create_folder_tests : TestFixture
             {
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
                 details.Folders.Should().HaveCount(2);
-                details.Folders.Should().Contain(f => f.Name == "Child"
-                    && f.FolderPath != null && f.FolderPath.SequenceEqual(new[] { parent.Name }));
-                details.Folders.Should().Contain(f => f.Name == "Grandchild"
-                    && f.FolderPath != null && f.FolderPath.SequenceEqual(new[] { parent.Name, "Child" }));
+                details.Folders.Should().Contain(f => f.Name.Encoded == "Child"
+                    && f.FolderPath != null && f.FolderPath.Select(p => p.Encoded).SequenceEqual(new[] { parent.Name }));
+                details.Folders.Should().Contain(f => f.Name.Encoded == "Grandchild"
+                    && f.FolderPath != null && f.FolderPath.Select(p => p.Encoded).SequenceEqual(new[] { parent.Name, "Child" }));
                 details.Box.Should().BeNull();
             },
             expectedActorEmail: AppOwner.Email,
@@ -254,8 +254,9 @@ public class bulk_create_folder_tests : TestFixture
             assertDetails: details =>
             {
                 details.Folders.Should().ContainSingle();
-                details.Folders[0].Name.Should().Be("Leaf");
-                details.Folders[0].FolderPath.Should().Equal(grandparent.Name, parent.Name);
+                details.Folders[0].Name.Encoded.Should().Be("Leaf");
+                details.Folders[0].FolderPath.Should().NotBeNull();
+                details.Folders[0].FolderPath!.Select(p => p.Encoded).Should().Equal(grandparent.Name, parent.Name);
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -383,10 +384,10 @@ public class bulk_create_folder_tests : TestFixture
             assertDetails: details =>
             {
                 details.Folders.Should().HaveCount(2);
-                details.Folders.Should().Contain(f => f.Name == "NewChild"
-                    && f.FolderPath != null && f.FolderPath.SequenceEqual(new[] { "Existing" }));
-                details.Folders.Should().Contain(f => f.Name == "BrandNew" && f.FolderPath == null);
-                details.Folders.Should().NotContain(f => f.Name == "Existing");
+                details.Folders.Should().Contain(f => f.Name.Encoded == "NewChild"
+                    && f.FolderPath != null && f.FolderPath.Select(p => p.Encoded).SequenceEqual(new[] { "Existing" }));
+                details.Folders.Should().Contain(f => f.Name.Encoded == "BrandNew" && f.FolderPath == null);
+                details.Folders.Should().NotContain(f => f.Name.Encoded == "Existing");
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -651,12 +652,12 @@ public class bulk_create_folder_tests : TestFixture
             assertDetails: details =>
             {
                 details.Folders.Should().HaveCount(4);
-                details.Folders.Should().Contain(f => f.Name == "TreeA" && f.FolderPath == null);
-                details.Folders.Should().Contain(f => f.Name == "TreeA_Child"
-                    && f.FolderPath != null && f.FolderPath.SequenceEqual(new[] { "TreeA" }));
-                details.Folders.Should().Contain(f => f.Name == "TreeB" && f.FolderPath == null);
-                details.Folders.Should().Contain(f => f.Name == "TreeB_Child"
-                    && f.FolderPath != null && f.FolderPath.SequenceEqual(new[] { "TreeB" }));
+                details.Folders.Should().Contain(f => f.Name.Encoded == "TreeA" && f.FolderPath == null);
+                details.Folders.Should().Contain(f => f.Name.Encoded == "TreeA_Child"
+                    && f.FolderPath != null && f.FolderPath.Select(p => p.Encoded).SequenceEqual(new[] { "TreeA" }));
+                details.Folders.Should().Contain(f => f.Name.Encoded == "TreeB" && f.FolderPath == null);
+                details.Folders.Should().Contain(f => f.Name.Encoded == "TreeB_Child"
+                    && f.FolderPath != null && f.FolderPath.Select(p => p.Encoded).SequenceEqual(new[] { "TreeB" }));
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
@@ -790,11 +791,11 @@ public class bulk_create_folder_tests : TestFixture
             assertDetails: details =>
             {
                 details.Folders.Should().HaveCount(2);
-                details.Folders.Should().Contain(f => f.Name == "2024"
-                    && f.FolderPath != null && f.FolderPath.SequenceEqual(new[] { "Photos" }));
-                details.Folders.Should().Contain(f => f.Name == "January"
-                    && f.FolderPath != null && f.FolderPath.SequenceEqual(new[] { "Photos", "2024" }));
-                details.Folders.Should().NotContain(f => f.Name == "Photos");
+                details.Folders.Should().Contain(f => f.Name.Encoded == "2024"
+                    && f.FolderPath != null && f.FolderPath.Select(p => p.Encoded).SequenceEqual(new[] { "Photos" }));
+                details.Folders.Should().Contain(f => f.Name.Encoded == "January"
+                    && f.FolderPath != null && f.FolderPath.Select(p => p.Encoded).SequenceEqual(new[] { "Photos", "2024" }));
+                details.Folders.Should().NotContain(f => f.Name.Encoded == "Photos");
             },
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);

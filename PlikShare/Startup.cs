@@ -196,6 +196,7 @@ using PlikShare.Uploads.FilePartUpload.Complete;
 using PlikShare.Uploads.FilePartUpload.Initiate;
 using PlikShare.Uploads.GetDetails;
 using PlikShare.Uploads.Initiate;
+using PlikShare.Uploads.Initiate.Contracts;
 using PlikShare.Uploads.List;
 using PlikShare.Users;
 using PlikShare.Users.Cache;
@@ -305,6 +306,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_26_WorkspaceEncryptionKeysIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_27_InvitationCodeHashedAndInvalidated>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_28_EphemeralWorkspaceEncryptionKeysIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_29_FileArtifactContentHashIntroduced>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 
@@ -482,6 +484,7 @@ public class Startup
         builder.Services.AddSingleton<UpdateUserDefaultMaxWorkspaceTeamMembersQuery>();
 
         builder.Services.AddScoped<IValidator<CreateFolderRequestDto>, CreateFolderRequestValidator>();
+        builder.Services.AddScoped<IValidator<BulkCreateFolderRequestDto>, BulkCreateFolderRequestValidator>();
         builder.Services.AddScoped<IValidator<UpdateFolderNameRequestDto>, UpdateFolderNameRequestValidator>();
 
         builder.Services.AddSingleton<ConvertFileUploadToFileOperation>();
@@ -640,6 +643,8 @@ public class Startup
         builder.Services.AddSingleton<BulkInitiateFileUploadOperation>();
         builder.Services.AddSingleton<BulkInitiateCopyFileUploadOperation>();
         builder.Services.AddSingleton<BulkConvertDirectFileUploadsToFilesQuery>();
+
+        builder.Services.AddScoped<IValidator<BulkInitiateFileUploadRequestDto>, BulkInitiateFileUploadRequestValidator>();
 
         builder.Services.AddSingleton<GetIntegrationsQuery>();
         builder.Services.AddSingleton<DeleteIntegrationQuery>();

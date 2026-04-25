@@ -1,5 +1,6 @@
 using PlikShare.AuditLog.Details;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
 
@@ -36,13 +37,13 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
                     """,
                 readRowFunc: reader =>
                 {
-                    var ancestors = reader.GetFromJsonOrNull<List<string>>(3);
+                    var ancestors = reader.GetFromJsonOrNull<List<EncodedMetadataValue>>(3);
 
                     return new Audit.FileRef
                     {
                         ExternalId = fileExternalId,
-                        Name = reader.GetString(0),
-                        Extension = reader.GetString(1),
+                        Name = reader.GetEncodedMetadata(0),
+                        Extension = reader.GetEncodedMetadata(1),
                         SizeInBytes = reader.GetInt64(2),
                         FolderPath = ancestors is null or { Count: 0 }
                             ? null
@@ -90,7 +91,7 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader =>
                 {
                     var externalId = new FileExtId(reader.GetString(0));
-                    var ancestors = reader.GetFromJsonOrNull<List<string>>(4);
+                    var ancestors = reader.GetFromJsonOrNull<List<EncodedMetadataValue>>(4);
 
                     return new
                     {
@@ -98,8 +99,8 @@ public class GetFileAuditContextQuery(PlikShareDb plikShareDb)
                         FileRef = new Audit.FileRef
                         {
                             ExternalId = externalId,
-                            Name = reader.GetString(1),
-                            Extension = reader.GetString(2),
+                            Name = reader.GetEncodedMetadata(1),
+                            Extension = reader.GetEncodedMetadata(2),
                             SizeInBytes = reader.GetInt64(3),
                             FolderPath = ancestors is null or { Count: 0 }
                                 ? null

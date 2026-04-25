@@ -37,6 +37,7 @@ using PlikShare.Boxes.Validation;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
 using PlikShare.Core.Utils;
+using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
 using PlikShare.Users.Middleware;
@@ -177,7 +178,8 @@ public static class BoxesEndpoints
         CancellationToken cancellationToken)
     {
         var response = getBoxQuery.Execute(
-            box: httpContext.GetBoxContext());
+            box: httpContext.GetBoxContext(),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
         return response;
     }

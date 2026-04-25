@@ -78,7 +78,7 @@ public class GetBulkDownloadLinkOperation(
                 },
                 ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
                 BoxLinkId = boxLinkId,
-                WorkspaceDeks = workspaceEncryptionSession?.Entries.ToWires(masterDataEncryption) ?? []
+                WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
             });
 
         return new Result(

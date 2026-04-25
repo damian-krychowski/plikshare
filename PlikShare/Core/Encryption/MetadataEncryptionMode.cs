@@ -36,7 +36,7 @@ public sealed record NoMetadataEncryption: MetadataEncryptionMode
 /// <see cref="WorkspaceEncryptionSession"/>), with a fresh per-call 12-byte random nonce.
 ///
 /// Produces the on-disk envelope:
-/// <c>[format_version(1) | key_version(1) | nonce(12) | ciphertext | tag(16)]</c>,
+/// <c>[format(1) | key_version(1) | chain_steps_count(1) | N × step_salt(32) | nonce(12) | ciphertext | tag(16)]</c>.
 /// base64-encoded when bound to the TEXT column. The leading <c>format_version</c> byte
 /// (currently <c>0x01</c>) leaves room for future envelope format upgrades; the
 /// <c>key_version</c> byte records which Workspace DEK version the payload was sealed

@@ -606,7 +606,18 @@ public class upload_and_download_tests : TestFixture
             assertDetails: details =>
             {
                 details.Workspace.ExternalId.Should().Be(workspace.ExternalId);
-                details.FileUploads.Should().Contain(f => f.Name == "audit-upload" && f.Extension == ".txt");
+
+                if (encryptionType == StorageEncryptionType.Full)
+                {
+                    details.FileUploads.Should().Contain(f =>
+                        f.Name.Encoded.StartsWith(EncryptedMetadataPrefix)
+                        && !f.Name.Encoded.Contains("audit-upload")
+                        && f.Extension.Encoded.StartsWith(EncryptedMetadataPrefix));
+                }
+                else
+                {
+                    details.FileUploads.Should().Contain(f => f.Name.Encoded == "audit-upload" && f.Extension.Encoded == ".txt");
+                }
             },
             expectedActorEmail: user.Email,
             expectedSeverity: AuditLogSeverities.Info);

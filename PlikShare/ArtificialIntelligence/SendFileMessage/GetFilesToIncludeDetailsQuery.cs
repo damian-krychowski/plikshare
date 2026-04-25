@@ -8,7 +8,8 @@ namespace PlikShare.ArtificialIntelligence.SendFileMessage;
 public class GetFilesToIncludeDetailsQuery(PlikShareDb plikShareDb)
 {
     public List<FileToInclude> GetFilesToInclude(
-        List<FileExtId> externalIds)
+        List<FileExtId> externalIds,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         using var connection = plikShareDb.OpenConnection();
 
@@ -42,8 +43,8 @@ public class GetFilesToIncludeDetailsQuery(PlikShareDb plikShareDb)
                     return new FileToInclude
                     {
                         ExternalId = reader.GetExtId<FileExtId>(0),
-                        Name = reader.GetString(1),
-                        Extension = reader.GetString(2),
+                        Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                        Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
                         SizeInBytes = reader.GetInt64(3),
                         S3KeySecretPart = reader.GetString(4),
                         EncryptionMetadata = encryptionKeyVersion is null
