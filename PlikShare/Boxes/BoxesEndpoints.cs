@@ -609,14 +609,14 @@ public static class BoxesEndpoints
                 },
                 members: result
                     .Members
-                    ?.Select(m => m.ToAuditLogUserRef())
-                    .ToList() ?? []),
+                    .Select(m => m.ToAuditLogUserRef())
+                    .ToList()),
             cancellationToken);
 
         return TypedResults.Ok(new CreateBoxInvitationResponseDto
         {
             Members = result
-                .Members!
+                .Members
                 .Select(m => new CreateBoxInvitationResponseDto.BoxInvitationMember(
                     m.Email.Value,
                     ExternalId: m.ExternalId))

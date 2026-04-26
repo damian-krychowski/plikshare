@@ -9,6 +9,7 @@ using PlikShare.Account;
 using PlikShare.Account.GetKnownUsers;
 using PlikShare.Antiforgery;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Decryption;
 using PlikShare.AuditLog.Queries;
 using PlikShare.ArtificialIntelligence;
 using PlikShare.ArtificialIntelligence.Cache;
@@ -320,6 +321,7 @@ public class Startup
         builder.Services.AddSingleton<GetAuditLogStatsQuery>();
         builder.Services.AddSingleton<GetAuditLogFilterOptionsQuery>();
         builder.Services.AddSingleton<GetAuditLogEntryDetailsQuery>();
+        builder.Services.AddSingleton<AuditLogDetailsDecryptor>();
         builder.Services.AddSingleton<DeleteOldAuditLogsQuery>();
         builder.Services.AddSingleton<ArchiveAuditLogsQuery>();
         builder.Services.AddSingleton<GetFileAuditContextQuery>();
@@ -434,6 +436,7 @@ public class Startup
         builder.Services.AddSingleton<GetUserWrappedWorkspaceDeksQuery>();
         builder.Services.AddSingleton<UpsertWorkspaceEncryptionKeyQuery>();
         builder.Services.AddSingleton<UserWorkspaceDekUnsealer>();
+        builder.Services.AddSingleton<UserWorkspaceEncryptionSessionsLoader>();
         builder.Services.AddSingleton<WorkspaceCreationPreparation>();
         builder.Services.AddExceptionHandler<WorkspaceDekUnavailableExceptionHandler>();
         builder.Services.AddSingleton<RevokeWorkspaceEncryptionKeyQuery>();

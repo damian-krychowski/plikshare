@@ -36,7 +36,7 @@ public class CreateWorkspaceMemberInvitationQuery(
         foreach (var member in members)
         {
             var insertInvitationResult = InsertWorkspaceInvitation(
-                member.User.Id,
+                member.Id,
                 workspace.Id,
                 inviter.Id,
                 allowShare,
@@ -54,13 +54,13 @@ public class CreateWorkspaceMemberInvitationQuery(
                 dbWriteContext,
                 transaction);
 
-            invitedMemberIds.Add(member.User.Id);
+            invitedMemberIds.Add(member.Id);
             createdQueueJobIds.Add(queueJob.Value);
         }
 
         Log.Information("Members '{MemberIds}' was invited to Workspace#{WorkspaceId} by Inviter '{InviterId}'. " +
                         "QueryResult: '{@QueryResult}'",
-            members.Select(x => x.User.Id),
+            members.Select(x => x.Id),
             workspace.Id,
             inviter.Id,
             new
@@ -86,7 +86,7 @@ public class CreateWorkspaceMemberInvitationQuery(
             jobType: EmailQueueJobType.Value,
             definition: new EmailQueueJobDefinition<WorkspaceMembershipInvitationEmailDefinition>
             {
-                Email = member.User.Email.Value,
+                Email = member.Email.Value,
                 Template = EmailTemplate.WorkspaceMembershipInvitation,
                 Definition = new WorkspaceMembershipInvitationEmailDefinition(
                     InviterEmail: inviterEmail.Value,
@@ -140,7 +140,8 @@ public class CreateWorkspaceMemberInvitationQuery(
     }
 
     public record Member(
-        UserContext User,
+        int Id,
+        Email Email,
         InvitationCode? InvitationCode);
 
     public readonly record struct Result(HashSet<int> NewlyInvitedMemberIds);

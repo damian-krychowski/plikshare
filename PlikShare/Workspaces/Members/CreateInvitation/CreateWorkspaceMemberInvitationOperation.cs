@@ -89,7 +89,7 @@ public class CreateWorkspaceMemberInvitationOperation(
             Members: members);
     }
 
-    private UserContext[] ExecuteOperation(
+    private List<GetOrCreateUserInvitationQuery.User> ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         UserContext inviter,
@@ -103,26 +103,29 @@ public class CreateWorkspaceMemberInvitationOperation(
 
         try
         {
-            var members = new List<CreateWorkspaceMemberInvitationQuery.Member>();
+            var users = memberEmails
+                .Select(email =>
+                {
+                    var user = getOrCreateUserInvitationQuery.ExecuteTransaction(
+                        dbWriteContext: dbWriteContext,
+                        transaction: transaction, 
+                        email: email);
 
-            foreach (var email in memberEmails)
-            {
-                var resolved = getOrCreateUserInvitationQuery.ExecuteTransaction(
-                    dbWriteContext: dbWriteContext,
-                    transaction: transaction,
-                    email: email);
-
-                members.Add(new CreateWorkspaceMemberInvitationQuery.Member(
-                    User: resolved.User,
-                    InvitationCode: resolved.InvitationCode));
-            }
+                    return user;
+                })
+                .ToList();
 
             var insertResult = createWorkspaceMemberInvitationQuery.ExecuteTransaction(
                 dbWriteContext: dbWriteContext,
                 transaction: transaction,
                 workspace: workspace,
                 inviter: inviter,
-                members: members,
+                members: users
+                    .Select(user => new CreateWorkspaceMemberInvitationQuery.Member(
+                        Id: user.Id,
+                        Email: user.Email,
+                        InvitationCode: user.InvitationCode))
+                    .ToList(),
                 allowShare: allowShare,
                 correlationId: correlationId);
             
@@ -132,9 +135,9 @@ public class CreateWorkspaceMemberInvitationOperation(
 
             if (shouldGrantFullEncryptionAccess)
             {
-                var newlyInvitedMembers = members
+                var newlyInvitedUsers = users
                     .Where(member => insertResult.NewlyInvitedMemberIds.Contains(
-                        member.User.Id))
+                        member.Id))
                     .ToList();
 
                 var (autoGrantedCount, ephemeralGrantedCount) = GrantAccessToFullyEncryptedWorkspace(
@@ -144,7 +147,7 @@ public class CreateWorkspaceMemberInvitationOperation(
                     ownerSession: ownerSession!,
                     ephemeralDekLifetime: ephemeralDekLifetime,
                     correlationId: correlationId,
-                    newlyInvitedMembers: newlyInvitedMembers,
+                    newlyInvitedMembers: newlyInvitedUsers,
                     transaction: transaction);
                 
                 Log.Information(
@@ -155,7 +158,7 @@ public class CreateWorkspaceMemberInvitationOperation(
                     workspace.Id,
                     inviter.Id,
                     insertResult.NewlyInvitedMemberIds.Count,
-                    members.Count,
+                    users.Count,
                     autoGrantedCount,
                     ephemeralGrantedCount);
             }
@@ -167,12 +170,12 @@ public class CreateWorkspaceMemberInvitationOperation(
                     workspace.Id,
                     inviter.Id,
                     insertResult.NewlyInvitedMemberIds.Count,
-                    members.Count);
+                    users.Count);
             }
             
             transaction.Commit();
 
-            return members.Select(m => m.User).ToArray();
+            return users;
         }
         catch (Exception e)
         {
@@ -196,7 +199,7 @@ public class CreateWorkspaceMemberInvitationOperation(
         WorkspaceEncryptionSession ownerSession, 
         TimeSpan? ephemeralDekLifetime,
         Guid correlationId,
-        List<CreateWorkspaceMemberInvitationQuery.Member> newlyInvitedMembers, 
+        List<GetOrCreateUserInvitationQuery.User> newlyInvitedMembers, 
         SqliteTransaction transaction)
     {
         var autoGrants = BuildAutoGrants(
@@ -213,7 +216,10 @@ public class CreateWorkspaceMemberInvitationOperation(
                 transaction: transaction,
                 workspace: workspace,
                 owner: inviter,
-                target: grant.Target,
+                target: new GrantEncryptionAccessOperation.TargetUser(
+                    Id: grant.Target.Id,
+                    Email: grant.Target.Email,
+                    EncryptionMetadata: grant.Target.EncryptionMetadata),
                 wrapped: grant.Wrapped,
                 correlationId: correlationId,
                 notifyTarget: false);
@@ -338,14 +344,19 @@ public class CreateWorkspaceMemberInvitationOperation(
 
     private static AutoGrant[] BuildAutoGrants(
         WorkspaceEncryptionSession ownerSession,
-        IEnumerable<CreateWorkspaceMemberInvitationQuery.Member> members)
+        IEnumerable<GetOrCreateUserInvitationQuery.User> members)
     {
         return members
-            .Where(m => m.User.EncryptionMetadata is not null)
+            .Where(m => m.EncryptionMetadata is not null)
             .Select(m => new AutoGrant
             {
-                Target = m.User,
-                Wrapped = GrantEncryptionAccessOperation.BuildWrapped(ownerSession, m.User)
+                Target = m,
+                Wrapped = GrantEncryptionAccessOperation.BuildWrapped(
+                    ownerSession: ownerSession, 
+                    target: new GrantEncryptionAccessOperation.TargetUser(
+                        Id: m.Id,
+                        Email: m.Email,
+                        EncryptionMetadata: m.EncryptionMetadata))
             })
             .ToArray();
     }
@@ -353,10 +364,10 @@ public class CreateWorkspaceMemberInvitationOperation(
     private static EphemeralGrant[] BuildEphemeralGrants(
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction,
-        IEnumerable<CreateWorkspaceMemberInvitationQuery.Member> members)
+        IEnumerable<GetOrCreateUserInvitationQuery.User> members)
     {
         var candidates = members
-            .Where(m => m.User.EncryptionMetadata is null)
+            .Where(m => m.EncryptionMetadata is null)
             .ToArray();
 
         if (candidates.Length == 0)
@@ -378,7 +389,7 @@ public class CreateWorkspaceMemberInvitationOperation(
             candidates);
 
         var eligible = candidates
-            .Where(candidate => candidate.InvitationCode is not null || existingEuekUserIds.Contains(candidate.User.Id))
+            .Where(candidate => candidate.InvitationCode is not null || existingEuekUserIds.Contains(candidate.Id))
             .ToArray();
 
         if (eligible.Length == 0)
@@ -387,7 +398,7 @@ public class CreateWorkspaceMemberInvitationOperation(
         return eligible
             .Select(m => new EphemeralGrant
             {
-                Target = m.User,
+                Target = m,
                 InvitationCode = m.InvitationCode
             })
             .ToArray();
@@ -396,12 +407,12 @@ public class CreateWorkspaceMemberInvitationOperation(
 
     private static HashSet<int> CandidatesWithExistingEuek(
         SqliteWriteContext dbWriteContext,
-        SqliteTransaction transaction, 
-        CreateWorkspaceMemberInvitationQuery.Member[] candidates)
+        SqliteTransaction transaction,
+        GetOrCreateUserInvitationQuery.User[] candidates)
     {
         var candidatesWithoutCode = candidates
             .Where(m => m.InvitationCode is null)
-            .Select(m => m.User.Id)
+            .Select(m => m.Id)
             .ToArray();
 
         if (candidatesWithoutCode.Length == 0)
@@ -429,16 +440,16 @@ public class CreateWorkspaceMemberInvitationOperation(
 
     private class AutoGrant
     {
-        public required UserContext Target { get; init; }
+        public required GetOrCreateUserInvitationQuery.User Target { get; init; }
         public required GrantEncryptionAccessOperation.WrappedVersion[] Wrapped { get; init; }
     }
 
     private class EphemeralGrant
     {
-        public required UserContext Target { get; init; }
+        public required GetOrCreateUserInvitationQuery.User Target { get; init; }
         public required InvitationCode? InvitationCode { get; init; }
     }
 
     public readonly record struct Result(
-        UserContext[]? Members = default);
+        List<GetOrCreateUserInvitationQuery.User> Members);
 }

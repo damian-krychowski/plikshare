@@ -87,6 +87,13 @@ public class CreateStorageFlow(
             if (queryResult.Code == CreateStorageQuery.ResultCode.NameNotUnique)
                 return new Result(Code: StorageOperationResultCode.NameNotUnique);
 
+            foreach (var ownerEncryptionKeyData in ownerKeyDataList)
+            {
+                await userCache.InvalidateEntry(
+                    userId: ownerEncryptionKeyData.UserId,
+                    cancellationToken: cancellationToken);
+            }
+
             var storageClientDetails = new StorageClientDetails
             {
                 StorageId = queryResult.StorageId,

@@ -157,12 +157,11 @@ public class UserCache(
             .OneRowCmd(
                 sql: $"""
                 SELECT
+                    u_is_invitation,    
                     u_email,
-                    u_is_invitation,
                     u_external_id,
                     u_id,
                     u_email_confirmed,
-                    u_invitation_code_hash,
                     u_security_stamp,
                     u_concurrency_stamp,
                     ({UserSql.HasRole(Roles.Admin)}) AS u_is_admin,
@@ -191,62 +190,60 @@ public class UserCache(
                 """,
                 readRowFunc: reader =>
                 {
-                    var email = reader.GetEmail(0);
-                    var isInvitation = reader.GetBoolean(1);
-                    var encryptionPublicKey = reader.GetFieldValueOrNull<byte[]>(21);
+                    var email = reader.GetEmail(1);
+                    var encryptionPublicKey = reader.GetFieldValueOrNull<byte[]>(20);
 
                     return new UserContext
                     {
-                        Status = isInvitation ? UserStatus.Invitation : UserStatus.Registered,
+                        Status = reader.GetBoolean(0) 
+                            ? UserStatus.Invitation 
+                            : UserStatus.Registered,
+
+                        Email = email,
                         ExternalId = reader.GetExtId<UserExtId>(2),
                         Id = reader.GetInt32(3),
-                        Email = email,
                         IsEmailConfirmed = reader.GetBoolean(4),
 
                         Stamps = new UserSecurityStamps
                         {
-                            Security = reader.GetString(6),
-                            Concurrency = reader.GetString(7)
+                            Security = reader.GetString(5),
+                            Concurrency = reader.GetString(6)
                         },
 
                         Roles = new UserRoles
                         {
                             IsAppOwner = appOwners.IsAppOwner(email),
-                            IsAdmin = reader.GetBoolean(8)
+                            IsAdmin = reader.GetBoolean(7)
                         },
 
                         Permissions = new UserPermissions
                         {
-                            CanAddWorkspace = reader.GetBoolean(9),
-                            CanManageGeneralSettings = reader.GetBoolean(10),
-                            CanManageUsers = reader.GetBoolean(11),
-                            CanManageStorages = reader.GetBoolean(12),
-                            CanManageEmailProviders = reader.GetBoolean(13),
-                            CanManageAuth = reader.GetBoolean(14),
-                            CanManageIntegrations = reader.GetBoolean(15),
-                            CanManageAuditLog = reader.GetBoolean(16)
+                            CanAddWorkspace = reader.GetBoolean(8),
+                            CanManageGeneralSettings = reader.GetBoolean(9),
+                            CanManageUsers = reader.GetBoolean(10),
+                            CanManageStorages = reader.GetBoolean(11),
+                            CanManageEmailProviders = reader.GetBoolean(12),
+                            CanManageAuth = reader.GetBoolean(13),
+                            CanManageIntegrations = reader.GetBoolean(14),
+                            CanManageAuditLog = reader.GetBoolean(15)
                         },
-
-                        Invitation = isInvitation
-                            ? new UserInvitation { CodeHash = reader.GetFieldValue<byte[]>(5) }
-                            : null,
-
-                        MaxWorkspaceNumber = reader.GetInt32OrNull(17),
-                        DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(18),
-                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(19),
-                        HasPassword = reader.GetBoolean(20),
+                        
+                        MaxWorkspaceNumber = reader.GetInt32OrNull(16),
+                        DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(17),
+                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(18),
+                        HasPassword = reader.GetBoolean(19),
 
                         EncryptionMetadata = encryptionPublicKey is null
                             ? null
                             : new UserEncryptionMetadata
                             {
                                 PublicKey = encryptionPublicKey,
-                                EncryptedPrivateKey = reader.GetFieldValue<byte[]>(22),
-                                KdfSalt = reader.GetFieldValue<byte[]>(23),
-                                KdfParams = EncryptionPasswordKdf.DeserializeParams(reader.GetString(24)),
-                                VerifyHash = reader.GetFieldValue<byte[]>(25),
-                                RecoveryWrappedPrivateKey = reader.GetFieldValue<byte[]>(26),
-                                RecoveryVerifyHash = reader.GetFieldValue<byte[]>(27)
+                                EncryptedPrivateKey = reader.GetFieldValue<byte[]>(21),
+                                KdfSalt = reader.GetFieldValue<byte[]>(22),
+                                KdfParams = EncryptionPasswordKdf.DeserializeParams(reader.GetString(23)),
+                                VerifyHash = reader.GetFieldValue<byte[]>(24),
+                                RecoveryWrappedPrivateKey = reader.GetFieldValue<byte[]>(25),
+                                RecoveryVerifyHash = reader.GetFieldValue<byte[]>(26)
                             }
                     };
                 })

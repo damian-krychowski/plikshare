@@ -7,6 +7,7 @@ using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Users.Cache;
+using PlikShare.Users.Entities;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Encryption;
 using Serilog;
@@ -37,7 +38,7 @@ public class GrantEncryptionAccessOperation(
     /// </summary>
     public static WrappedVersion[] BuildWrapped(
         WorkspaceEncryptionSession ownerSession,
-        UserContext target)
+        TargetUser target)
     {
         if (target.EncryptionMetadata is null)
             throw new InvalidOperationException(
@@ -65,7 +66,7 @@ public class GrantEncryptionAccessOperation(
         SqliteTransaction transaction,
         WorkspaceContext workspace,
         UserContext owner,
-        UserContext target,
+        TargetUser target,
         WrappedVersion[] wrapped,
         Guid correlationId,
         bool notifyTarget)
@@ -111,7 +112,7 @@ public class GrantEncryptionAccessOperation(
     public Task<int> Execute(
         WorkspaceContext workspace,
         UserContext owner,
-        UserContext target,
+        TargetUser target,
         WorkspaceEncryptionSession ownerSession,
         Guid correlationId,
         CancellationToken cancellationToken,
@@ -151,4 +152,9 @@ public class GrantEncryptionAccessOperation(
     public readonly record struct WrappedVersion(
         int StorageDekVersion,
         byte[] WrappedDek);
+    
+    public readonly record struct TargetUser(
+        int Id,
+        Email Email,
+        UserEncryptionMetadata? EncryptionMetadata);
 }

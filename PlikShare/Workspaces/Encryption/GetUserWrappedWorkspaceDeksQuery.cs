@@ -1,5 +1,6 @@
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
+using PlikShare.Workspaces.Id;
 
 namespace PlikShare.Workspaces.Encryption;
 
@@ -11,11 +12,6 @@ namespace PlikShare.Workspaces.Encryption;
 /// </summary>
 public class GetUserWrappedWorkspaceDeksQuery(PlikShareDb plikShareDb)
 {
-    /// <summary>
-    /// Loads every wrap the user holds for this workspace, one row per Storage DEK version.
-    /// The read-side filter unseals the whole set eagerly so subsequent file operations
-    /// pick the right DEK by the version recorded in each file header.
-    /// </summary>
     public List<WrappedDekRow> GetWrappedDeksForUser(int workspaceId, int userId)
     {
         using var connection = plikShareDb.OpenConnection();
@@ -39,7 +35,40 @@ public class GetUserWrappedWorkspaceDeksQuery(PlikShareDb plikShareDb)
             .Execute();
     }
 
+    public List<WrappedDekForWorkspaceRow> GetAllWrappedDeksForUser(int userId)
+    {
+        using var connection = plikShareDb.OpenConnection();
+
+        return connection
+            .Cmd(
+                sql: """
+                     SELECT
+                         wek.wek_workspace_id,
+                         w.w_external_id,
+                         wek.wek_storage_dek_version,
+                         wek.wek_wrapped_workspace_dek
+                     FROM wek_workspace_encryption_keys wek
+                     INNER JOIN w_workspaces w ON w.w_id = wek.wek_workspace_id
+                     WHERE wek.wek_user_id = $userId
+                       AND w.w_is_being_deleted = FALSE
+                     ORDER BY wek.wek_workspace_id, wek.wek_storage_dek_version
+                     """,
+                readRowFunc: reader => new WrappedDekForWorkspaceRow(
+                    WorkspaceId: reader.GetInt32(0),
+                    WorkspaceExternalId: new WorkspaceExtId(reader.GetString(1)),
+                    StorageDekVersion: reader.GetInt32(2),
+                    WrappedDek: reader.GetFieldValue<byte[]>(3)))
+            .WithParameter("$userId", userId)
+            .Execute();
+    }
+
     public readonly record struct WrappedDekRow(
+        int StorageDekVersion,
+        byte[] WrappedDek);
+
+    public readonly record struct WrappedDekForWorkspaceRow(
+        int WorkspaceId,
+        WorkspaceExtId WorkspaceExternalId,
         int StorageDekVersion,
         byte[] WrappedDek);
 }

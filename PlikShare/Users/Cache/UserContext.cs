@@ -22,8 +22,6 @@ public sealed class UserContext
     public required int? DefaultMaxWorkspaceTeamMembers { get; init; }
     public required UserEncryptionMetadata? EncryptionMetadata { get; init; }
     
-    public UserInvitation? Invitation { get; init; }
-
     public bool HasAdminRole => Roles.IsAppOwner || Roles.IsAdmin;
     public bool IsEncryptionConfigured => EncryptionMetadata is not null;
 }
@@ -52,12 +50,6 @@ public sealed class UserPermissions
     public required bool CanManageAuth { get; init; }
     public required bool CanManageIntegrations { get; init; }
     public required bool CanManageAuditLog { get; init; }
-}
-
-[ImmutableObject(true)]
-public sealed class UserInvitation
-{
-    public required byte[] CodeHash { get; init; }
 }
 
 [ImmutableObject(true)]

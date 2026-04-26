@@ -51,7 +51,7 @@ public class CreateBoxMemberInvitationQuery(
             foreach (var member in members)
             {
                 var insertInvitationResult = InsertBoxInvitation(
-                    member.User.Id,
+                    member.Id,
                     box.Id,
                     inviter.Id,
                     dbWriteContext,
@@ -68,7 +68,7 @@ public class CreateBoxMemberInvitationQuery(
                     dbWriteContext,
                     transaction);
 
-                invitedMemberIds.Add(member.User.Id);
+                invitedMemberIds.Add(member.Id);
                 createdQueueJobIds.Add(queueJob.Value.Value);
             }
 
@@ -78,7 +78,7 @@ public class CreateBoxMemberInvitationQuery(
                 "Box '{BoxExternalId}' invitation for Members '{MemberIds}' by Inviter '{InviterId}' in Workspace#{WorkspaceId} was created. " +
                 "QueryResult: {@QueryResult}",
                 box.ExternalId,
-                members.Select(member => member.User.Id),
+                members.Select(member => member.Id),
                 inviter.Id,
                 box.Workspace.Id,
                 new
@@ -93,7 +93,7 @@ public class CreateBoxMemberInvitationQuery(
 
             Log.Error(e, "Something went wrong while creating Box '{BoxExternalId}' invitation for Member '{MemberIds}' by Inviter '{InviterId}' in Workspace#{WorkspaceId}",
                 box.ExternalId,
-                members.Select(member => member.User.Id),
+                members.Select(member => member.Id),
                 inviter.Id,
                 box.Workspace.Id);
 
@@ -167,7 +167,7 @@ public class CreateBoxMemberInvitationQuery(
             jobType: EmailQueueJobType.Value,
             definition: new EmailQueueJobDefinition<BoxMembershipInvitationEmailDefinition>
             {
-                Email = member.User.Email.Value,
+                Email = member.Email.Value,
                 Template = EmailTemplate.BoxMembershipInvitation,
                 Definition = new BoxMembershipInvitationEmailDefinition(
                     InviterEmail: inviterEmail.Value,
@@ -182,6 +182,7 @@ public class CreateBoxMemberInvitationQuery(
     }
 
     public record Member(
-        UserContext User,
+        int Id,
+        Email Email,
         InvitationCode? InvitationCode);
 }

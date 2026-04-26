@@ -16,33 +16,35 @@ public class CreateBoxMemberInvitationOperation(
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        var list = new List<CreateBoxMemberInvitationQuery.Member>();
+        var users = new List<GetOrCreateUserInvitationQuery.User>();
 
         foreach (var email in memberEmails)
         {
-            var (user, invitationCode) = await getOrCreateUserInvitationQuery.Execute(
+            var user = await getOrCreateUserInvitationQuery.Execute(
                 email: email,
                 cancellationToken: cancellationToken);
-
-            list.Add(new CreateBoxMemberInvitationQuery.Member(
-                User: user,
-                InvitationCode: invitationCode));
+            
+            users.Add(user);
         }
 
-        var members = list
+        var members = users
             .ToArray();
 
         await createBoxMemberInvitationQuery.Execute(
             box: box,
             inviter: inviter,
-            members: members,
+            members: users
+                .Select(user => new CreateBoxMemberInvitationQuery.Member(
+                    Id: user.Id,
+                    Email: user.Email,
+                    InvitationCode: user.InvitationCode))
+                .ToArray(),
             correlationId: correlationId,
             cancellationToken: cancellationToken);
 
-        return new Result(
-            Members: members.Select(m => m.User).ToArray());
+        return new Result(users);
     }
 
     public readonly record struct Result(
-        UserContext[] Members);
+        List<GetOrCreateUserInvitationQuery.User> Members);
 }

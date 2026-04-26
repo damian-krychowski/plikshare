@@ -1,6 +1,6 @@
 namespace PlikShare.AuditLog.Contracts;
 
-public class GetAuditLogEntryDetailsResponseDto
+public record class GetAuditLogEntryDetailsResponseDto
 {
     public required string ExternalId { get; init; }
     public required string CreatedAt { get; init; }

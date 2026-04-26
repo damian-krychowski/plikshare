@@ -537,6 +537,7 @@ public static class WorkspacesEndpoints
         CountWorkspaceTotalTeamMembersQuery countWorkspaceTotalTeamMembersQuery,
         HttpContext httpContext,
         AuditLogService auditLogService,
+        UserCache userCache,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
@@ -575,6 +576,13 @@ public static class WorkspacesEndpoints
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
+        foreach (var member in result.Members)
+        {
+            await userCache.InvalidateEntry(
+                member.Id,
+                cancellationToken);
+        }
+        
         await auditLogService.LogWithStorageContext(
             storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
             buildEntry: storageRef => Audit.Workspace.MemberInvitedEntry(
@@ -583,8 +591,8 @@ public static class WorkspacesEndpoints
                 workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
                 members: result
                     .Members
-                    ?.Select(m => m.ToAuditLogUserRef())
-                    .ToList() ?? []),
+                    .Select(m => m.ToAuditLogUserRef())
+                    .ToList()),
             cancellationToken);
 
         return TypedResults.Ok(
@@ -633,9 +641,14 @@ public static class WorkspacesEndpoints
         switch (result)
         {
             case RevokeWorkspaceMemberQuery.ResultCode.Ok:
+            {
                 await workspaceMembershipCache.InvalidateEntry(
                     workspaceId: workspaceMembership.Workspace.Id,
                     memberId: memberToRevoke.Id,
+                    cancellationToken: cancellationToken);
+
+                await userCache.InvalidateEntry(
+                    memberToRevoke.Id,
                     cancellationToken: cancellationToken);
 
                 await auditLogService.LogWithStorageContext(
@@ -648,6 +661,7 @@ public static class WorkspacesEndpoints
                     cancellationToken);
 
                 return TypedResults.Ok();
+            }
 
             case RevokeWorkspaceMemberQuery.ResultCode.MembershipNotFound:
                 return HttpErrors.Workspace.MemberNotFound(
@@ -707,9 +721,16 @@ public static class WorkspacesEndpoints
         var wrappedVersionsCount = await grantEncryptionAccessOperation.Execute(
             workspace: workspaceMembership.Workspace,
             owner: workspaceMembership.User,
-            target: target,
+            target: new GrantEncryptionAccessOperation.TargetUser(
+                Id: target.Id,
+                Email: target.Email,
+                EncryptionMetadata: target.EncryptionMetadata),
             ownerSession: ownerSession,
             correlationId: httpContext.GetCorrelationId(),
+            cancellationToken: cancellationToken);
+
+        await userCache.InvalidateEntry(
+            userId: target.Id,
             cancellationToken: cancellationToken);
 
         await auditLogService.LogWithStorageContext(

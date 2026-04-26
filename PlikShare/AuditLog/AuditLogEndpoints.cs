@@ -2,11 +2,16 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog.Contracts;
+using PlikShare.AuditLog.Decryption;
 using PlikShare.AuditLog.Id;
 using PlikShare.AuditLog.Queries;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.Utils;
+using PlikShare.Storages.Encryption;
+using PlikShare.Workspaces.Cache;
+using PlikShare.Workspaces.Encryption;
+using PlikShare.Workspaces.Id;
 
 namespace PlikShare.AuditLog;
 
@@ -62,17 +67,46 @@ public static class AuditLogEndpoints
         return getAuditLogFilterOptionsQuery.Execute();
     }
 
-    private static Results<Ok<GetAuditLogEntryDetailsResponseDto>, NotFound<HttpError>> GetAuditLogEntryDetails(
+    private static async Task<Results<Ok<GetAuditLogEntryDetailsResponseDto>, NotFound<HttpError>>> GetAuditLogEntryDetails(
         AuditLogExtId externalId,
-        GetAuditLogEntryDetailsQuery getAuditLogEntryDetailsQuery)
+        HttpContext httpContext,
+        GetAuditLogEntryDetailsQuery getAuditLogEntryDetailsQuery,
+        AuditLogDetailsDecryptor auditLogDetailsDecryptor,
+        WorkspaceCache workspaceCache,
+        CancellationToken cancellationToken)
     {
-        var result = getAuditLogEntryDetailsQuery.Execute(externalId);
+        var result = getAuditLogEntryDetailsQuery.Execute(
+            externalId);
 
-        return result switch
+        if (result is null)
+            return HttpErrors.AuditLog.NotFound(externalId);
+
+        if (result.Details is null || result.WorkspaceExternalId is null)
+            return TypedResults.Ok(result);
+
+        var workspace = await workspaceCache.TryGetWorkspace(
+            workspaceExternalId: WorkspaceExtId.Parse(
+                result.WorkspaceExternalId),
+            cancellationToken: cancellationToken);
+
+        if(workspace?.Storage.Encryption is not FullStorageEncryption)
+            return TypedResults.Ok(result);
+
+        var sessions = await httpContext
+            .GetUserWorkspaceEncryptionSessions();
+
+        var workspaceEncryptionSession = sessions.TryGet(
+            workspaceId: workspace.Id);
+
+        var decryptedDetails = auditLogDetailsDecryptor.Decrypt(
+            detailsJson: result.Details,
+            entryWorkspaceExternalId: WorkspaceExtId.Parse(result.WorkspaceExternalId),
+            workspaceEncryptionSession: workspaceEncryptionSession);
+
+        return TypedResults.Ok(result with
         {
-            null => HttpErrors.AuditLog.NotFound(externalId),
-            _ => TypedResults.Ok(result)
-        };
+            Details = decryptedDetails
+        });
     }
 
     private static DeleteOldAuditLogsResponseDto DeleteOldAuditLogs(
