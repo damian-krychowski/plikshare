@@ -563,6 +563,7 @@ public class Startup
         builder.Services.AddSingleton<GetDashboardContentQuery>();
 
         builder.Services.AddSingleton<GetSearchQuery>();
+        builder.Services.AddSingleton<SearchSessionLoader>();
 
         builder.Services.AddScoped<IValidator<UpdateFileNameRequestDto>, UpdateFileNameRequestValidator>();
 

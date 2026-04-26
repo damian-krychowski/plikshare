@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.Core.Authorization;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Protobuf;
 using PlikShare.Search.Get;
 using PlikShare.Search.Get.Contracts;
@@ -24,14 +25,21 @@ public static class SearchEndpoints
         [FromBody] SearchRequestDto request,
         HttpContext httpContext,
         GetSearchQuery getSearchQuery,
+        SearchSessionLoader searchSessionLoader,
         CancellationToken cancellationToken)
     {
-        var response = getSearchQuery.Execute(
-            user: await httpContext.GetUserContext(),
+        var user = await httpContext.GetUserContext();
+
+        using var privateKey = UserEncryptionSessionCookie.TryReadPrivateKey(
+            httpContext,
+            user.ExternalId);
+
+        return await getSearchQuery.Execute(
+            user: user,
+            privateKey: privateKey,
             workspaceExternalIds: request.WorkspaceExternalIds,
             boxExternalIds: request.BoxExternalIds,
-            phrase: request.Phrase);
-
-        return response;
+            phrase: request.Phrase,
+            cancellationToken: cancellationToken);
     }
 }

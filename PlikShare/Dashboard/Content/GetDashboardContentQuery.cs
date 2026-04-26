@@ -249,6 +249,12 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                                 WHERE wek_workspace_id = w_id
                                   AND wek_user_id = $userId
                             )
+                            AND NOT EXISTS (
+                                SELECT 1
+                                FROM sek_storage_encryption_keys
+                                WHERE sek_storage_id = storage.s_id
+                                  AND sek_user_id = $userId
+                            )
                         ) AS w_is_pending_key_grant
                     FROM w_workspaces
                     INNER JOIN u_users AS owner

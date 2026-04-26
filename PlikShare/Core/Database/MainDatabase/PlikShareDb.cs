@@ -36,10 +36,24 @@ public class PlikShareDb
         return connection;
     }
 
+    public SqliteConnection OpenNonPooledConnection()
+    {
+        var csb = new SqliteConnectionStringBuilder(_connectionString) { Pooling = false };
+        var connection = new SqliteConnection(csb.ToString());
+
+        connection.Open();
+
+        connection
+            .NonQueryCmd("PRAGMA synchronous=NORMAL")
+            .Execute();
+
+        return connection;
+    }
+
     public SqliteConnection OpenInitialConnection()
     {
         var connection = OpenConnection();
-        
+
         connection
             .NonQueryCmd(sql: "PRAGMA journal_mode=WAL")
             .Execute();

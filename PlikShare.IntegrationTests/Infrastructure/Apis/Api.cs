@@ -32,6 +32,7 @@ public class Api(IFlurlClient flurlClient, string appUrl)
     public ArtificialIntelligenceApi Ai { get; } = new(flurlClient, appUrl);
 
     public AuditLogApi AuditLog { get; } = new(flurlClient, appUrl);
+    public SearchApi Search { get; } = new(flurlClient, appUrl);
 
     public UploadsApi Uploads { get; } = new(flurlClient, appUrl);
     public FilesApi Files { get; } = new(flurlClient, appUrl);

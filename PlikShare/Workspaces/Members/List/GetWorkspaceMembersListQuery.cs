@@ -27,11 +27,18 @@ public class GetWorkspaceMembersListQuery(PlikShareDb plikShareDb)
                          wm_allow_share,
                          ui.u_email AS w_inviter_email,
                          (
-                             $isFullEncrypted = TRUE AND NOT EXISTS (
+                             $isFullEncrypted = TRUE
+                             AND NOT EXISTS (
                                  SELECT 1
                                  FROM wek_workspace_encryption_keys
                                  WHERE wek_workspace_id = $workspaceId
                                    AND wek_user_id = wm_member_id
+                             )
+                             AND NOT EXISTS (
+                                 SELECT 1
+                                 FROM sek_storage_encryption_keys
+                                 WHERE sek_storage_id = $storageId
+                                   AND sek_user_id = wm_member_id
                              )
                          ) AS w_is_pending_key_grant
                      FROM wm_workspace_membership
@@ -55,6 +62,7 @@ public class GetWorkspaceMembersListQuery(PlikShareDb plikShareDb)
                     IsPendingKeyGrant = reader.GetBoolean(5)
                 })
             .WithParameter("$workspaceId", workspace.Id)
+            .WithParameter("$storageId", workspace.Storage.StorageId)
             .WithParameter("$isFullEncrypted", isFullEncrypted)
             .Execute();
 

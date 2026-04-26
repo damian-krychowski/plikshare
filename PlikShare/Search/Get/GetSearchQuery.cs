@@ -1,20 +1,31 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Search.Get.Contracts;
 using PlikShare.Users.Cache;
 
 namespace PlikShare.Search.Get;
 
-public class GetSearchQuery(PlikShareDb plikShareDb)
+public class GetSearchQuery(
+    PlikShareDb plikShareDb,
+    SearchSessionLoader searchSessionLoader)
 {
-    public SearchResponseDto Execute(
+    public async ValueTask<SearchResponseDto> Execute(
         UserContext user,
+        SecureBytes? privateKey,
         string[] workspaceExternalIds,
         string[] boxExternalIds,
-        string phrase)
+        string phrase,
+        CancellationToken cancellationToken)
     {
         using var connection = plikShareDb.OpenConnection();
+
+        using var sessions = await searchSessionLoader.Load(
+            user: user,
+            privateKey: privateKey,
+            connection: connection,
+            cancellationToken: cancellationToken);
 
         var query = $"%{phrase}%";
 
@@ -27,7 +38,7 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
         List<SearchResponseDto.ExternalBox>? externalBoxes = null;
         List<SearchResponseDto.ExternalBoxFolder>? externalBoxFolders = null;
         List<SearchResponseDto.ExternalBoxFile>? externalBoxFiles = null;
-        
+
         var workspaceGroupExternalIds = new HashSet<string>();
         var externalBoxGroupExternalIds = new HashSet<string>();
 
@@ -36,15 +47,22 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
             workspaceExternalIds,
             connection);
 
-        var userWorkspaceIds = userWorkspaces
+        // Plain content (fo_name / fi_name / fi_extension stored as cleartext) — searched
+        // with classic SQL LIKE on the pooled connection. Encrypted workspaces are excluded
+        // here even when the caller has DEKs for them; their content goes through the UDF
+        // path on a non-pooled connection.
+        var plainContentWorkspaceIds = userWorkspaces
+            .Where(w => !w.IsFullEncrypted)
             .Select(w => w.Id)
             .ToList();
 
-        // Pending-key-grant workspaces surface as top-level name matches so the user
-        // knows they exist, but their content (folders / boxes / files) is excluded from
-        // search — the user has no encryption key to read any of it anyway.
-        var searchableWorkspaceIds = userWorkspaces
-            .Where(w => !w.IsPendingKeyGrant)
+        // Encrypted content (pse: envelopes) — searchable only for workspaces the caller
+        // actually has a Workspace DEK for. The session map is the authoritative gate;
+        // a full-encrypted workspace not present here is silently skipped. Boxes can never
+        // live in a full-encrypted workspace (creation is blocked at workspace level), so
+        // there is no encrypted box search path.
+        var encryptedContentWorkspaceIds = userWorkspaces
+            .Where(w => w.IsFullEncrypted && sessions.ContainsWorkspace(w.Id))
             .Select(w => w.Id)
             .ToList();
 
@@ -59,10 +77,10 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
                 userWorkspaces,
                 phrase);
 
-            if (searchableWorkspaceIds.Count > 0)
+            if (plainContentWorkspaceIds.Count > 0)
             {
                 workspaceFolders = SearchFoldersInWorkspaces(
-                    searchableWorkspaceIds,
+                    plainContentWorkspaceIds,
                     query,
                     connection);
 
@@ -71,24 +89,68 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
                     workspaceGroupExternalIds.Add(folder.WorkspaceExternalId);
                 }
 
-                workspaceBoxes = SearchBoxesInWorkspaces(
-                    searchableWorkspaceIds,
-                    query,
-                    connection);
-
-                foreach (var box in workspaceBoxes)
-                {
-                    workspaceGroupExternalIds.Add(box.WorkspaceExternalId);
-                }
-
                 workspaceFiles = SearchFilesInWorkspaces(
-                    searchableWorkspaceIds,
+                    plainContentWorkspaceIds,
                     query,
                     connection);
 
                 foreach (var file in workspaceFiles)
                 {
                     workspaceGroupExternalIds.Add(file.WorkspaceExternalId);
+                }
+            }
+
+            if (encryptedContentWorkspaceIds.Count > 0)
+            {
+                // Non-pooled connection so the UDF closure (which captures the per-request
+                // session map and through it live SecureBytes DEKs) cannot be observed by a
+                // later request that draws the same connection from the pool. The connection
+                // is opened, used, and closed within this scope; the UDF binding dies with it.
+                //
+                // app_decrypt_metadata runs inline during query execution: SQLite hands each
+                // pse: envelope back to managed code, the UDF decodes via the right
+                // WorkspaceEncryptionSession from the map, and returns plaintext that the
+                // WHERE / LIKE filter and the projected columns operate on. No need to
+                // materialize encrypted rows into .NET and decrypt-then-filter in a second
+                // pass — and unrelated rows never leave SQLite at all.
+                using var encConnection = plikShareDb.OpenNonPooledConnection();
+                using var udfScope = encConnection.RegisterDecryptMetadataFunction(sessions.ByWorkspaceId);
+
+                var encryptedFolders = SearchEncryptedFoldersInWorkspaces(
+                    encryptedContentWorkspaceIds,
+                    query,
+                    encConnection);
+
+                workspaceFolders = (workspaceFolders ?? []).Concat(encryptedFolders).ToList();
+
+                foreach (var folder in encryptedFolders)
+                {
+                    workspaceGroupExternalIds.Add(folder.WorkspaceExternalId);
+                }
+
+                var encryptedFiles = SearchEncryptedFilesInWorkspaces(
+                    encryptedContentWorkspaceIds,
+                    query,
+                    encConnection);
+
+                workspaceFiles = (workspaceFiles ?? []).Concat(encryptedFiles).ToList();
+
+                foreach (var file in encryptedFiles)
+                {
+                    workspaceGroupExternalIds.Add(file.WorkspaceExternalId);
+                }
+            }
+
+            if (plainContentWorkspaceIds.Count > 0)
+            {
+                workspaceBoxes = SearchBoxesInWorkspaces(
+                    plainContentWorkspaceIds,
+                    query,
+                    connection);
+
+                foreach (var box in workspaceBoxes)
+                {
+                    workspaceGroupExternalIds.Add(box.WorkspaceExternalId);
                 }
             }
         }
@@ -518,6 +580,121 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
             .Execute();
     }
 
+    /// <summary>
+    /// Encrypted-content twin of <see cref="SearchFilesInWorkspaces"/>. Runs on a non-pooled
+    /// connection that has <c>app_decrypt_metadata</c> registered with the caller's session
+    /// map. <c>fi_name</c>, <c>fi_extension</c>, and ancestor <c>fo_name</c> values are all
+    /// decoded inline so the WHERE filter and the returned strings are plaintext. Rows the
+    /// UDF cannot decode (no session for the workspace, wrong key version, garbled envelope)
+    /// surface as NULL and silently fail the LIKE.
+    /// </summary>
+    private static List<SearchResponseDto.WorkspaceFile> SearchEncryptedFilesInWorkspaces(
+        List<int> encryptedWorkspaceIds,
+        string query,
+        SqliteConnection connection)
+    {
+        return connection
+            .Cmd(
+                sql: """
+                     SELECT
+                         fi_external_id,
+                         app_decrypt_metadata(fi_name, fi_workspace_id) AS fi_name_plain,
+                         w_external_id,
+                         fi_size_in_bytes,
+                         app_decrypt_metadata(fi_extension, fi_workspace_id) AS fi_extension_plain,
+                         (CASE
+                             WHEN fi_folder_id IS NULL THEN json('[]')
+                             ELSE (
+                                 SELECT json_group_array(
+                                     json_object(
+                                         'name', app_decrypt_metadata(af.fo_name, af.fo_workspace_id),
+                                         'externalId', af.fo_external_id
+                                     )
+                                 )
+                                 FROM fo_folders AS af
+                                 WHERE
+                                     af.fo_id IN (
+                                         SELECT value FROM json_each(fo.fo_ancestor_folder_ids)
+                                         UNION ALL
+                                         SELECT fo.fo_id
+                                     )
+                                     AND af.fo_is_being_deleted = FALSE
+                             )
+                         END) AS folder_path
+                     FROM fi_files
+                     INNER JOIN w_workspaces
+                         ON w_id = fi_workspace_id
+                     LEFT JOIN fo_folders AS fo
+                         ON fo.fo_id = fi_folder_id
+                         AND fo.fo_is_being_deleted = FALSE
+                     WHERE
+                         w_id IN (SELECT value FROM json_each($workspaceIds))
+                         AND app_decrypt_metadata(fi_name, fi_workspace_id) LIKE $query
+                     """,
+                readRowFunc: reader => new SearchResponseDto.WorkspaceFile
+                {
+                    ExternalId = reader.GetString(0),
+                    Name = reader.GetString(1),
+                    WorkspaceExternalId = reader.GetString(2),
+                    SizeInBytes = reader.GetInt64(3),
+                    Extension = reader.GetStringOrNull(4) ?? string.Empty,
+                    FolderPath = reader.GetFromJson<List<SearchResponseDto.FolderAncestor>>(5)
+                })
+            .WithJsonParameter("$workspaceIds", encryptedWorkspaceIds)
+            .WithParameter("$query", query)
+            .Execute();
+    }
+
+    /// <summary>
+    /// Encrypted-content twin of <see cref="SearchFoldersInWorkspaces"/>. See the file
+    /// variant above for the UDF semantics.
+    /// </summary>
+    private static List<SearchResponseDto.WorkspaceFolder> SearchEncryptedFoldersInWorkspaces(
+        List<int> encryptedWorkspaceIds,
+        string query,
+        SqliteConnection connection)
+    {
+        return connection
+            .Cmd(
+                sql: """
+                     SELECT
+                        fo_external_id,
+                        app_decrypt_metadata(fo.fo_name, fo.fo_workspace_id) AS fo_name_plain,
+                        w_external_id,
+                        (
+                            SELECT json_group_array(
+                                json_object(
+                                    'name', app_decrypt_metadata(af.fo_name, af.fo_workspace_id),
+                                    'externalId', af.fo_external_id
+                                )
+                            )
+                            FROM fo_folders AS af
+                            WHERE
+                                af.fo_id IN (
+                                    SELECT value FROM json_each(fo.fo_ancestor_folder_ids)
+                                )
+                                 AND af.fo_is_being_deleted = FALSE
+                         ) AS ancestors
+                     FROM fo_folders AS fo
+                     INNER JOIN w_workspaces
+                         ON w_id = fo.fo_workspace_id
+                     WHERE
+                         w_id IN (SELECT value FROM json_each($workspaceIds))
+                         AND fo.fo_is_being_deleted = FALSE
+                         AND app_decrypt_metadata(fo.fo_name, fo.fo_workspace_id) LIKE $query
+                     """,
+                readRowFunc: reader => new SearchResponseDto.WorkspaceFolder
+                {
+                    ExternalId = reader.GetString(0),
+                    Name = reader.GetString(1),
+                    WorkspaceExternalId = reader.GetString(2),
+                    Ancestors = reader.GetFromJson<List<SearchResponseDto.FolderAncestor>>(3)
+                })
+            .WithJsonParameter("$workspaceIds", encryptedWorkspaceIds)
+            .WithParameter("$query", query)
+            .Execute();
+    }
+
     private static List<Workspace> GetWorkspacesAvailableToUser(
         UserContext user,
         string[] workspaceExternalIds,
@@ -548,7 +725,24 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
                             AND (
                                  NOT EXISTS (SELECT 1 FROM json_each($workspaceExternalIds))
                                  OR w_external_id IN (SELECT value FROM json_each($workspaceExternalIds))
-                            )         
+                            )
+                        UNION ALL
+                        SELECT w_id
+                        FROM w_workspaces
+                        WHERE
+                            $isUserAdmin = TRUE
+                            AND w_owner_id != $userId
+                            AND w_is_being_deleted = FALSE
+                            AND NOT EXISTS (
+                                SELECT 1 FROM wm_workspace_membership
+                                WHERE wm_workspace_id = w_id
+                                  AND wm_member_id = $userId
+                                  AND wm_was_invitation_accepted = TRUE
+                            )
+                            AND (
+                                 NOT EXISTS (SELECT 1 FROM json_each($workspaceExternalIds))
+                                 OR w_external_id IN (SELECT value FROM json_each($workspaceExternalIds))
+                            )
                      )
                      SELECT
                         w_id,
@@ -560,7 +754,7 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
                         u_external_id,
                         (u_id = $userId) AS is_owned_by_user,
                         (CASE
-                             WHEN w_owner_id = $userId THEN TRUE
+                             WHEN (w_owner_id = $userId OR $isUserAdmin = TRUE) THEN TRUE
                              ELSE (
                                  SELECT wm_allow_share
                                  FROM wm_workspace_membership
@@ -583,7 +777,13 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
                                  WHERE wek_workspace_id = w_id
                                    AND wek_user_id = $userId
                              )
-                         ) AS is_pending_key_grant
+                             AND NOT EXISTS (
+                                 SELECT 1 FROM sek_storage_encryption_keys
+                                 WHERE sek_storage_id = s.s_id
+                                   AND sek_user_id = $userId
+                             )
+                         ) AS is_pending_key_grant,
+                         (s.s_encryption_type = 'full') AS is_full_encrypted
                      FROM w_workspaces
                      INNER JOIN u_users
                          ON u_id = w_owner_id
@@ -605,9 +805,11 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
                     AllowShare = reader.GetBoolean(8),
                     IsUsedByIntegration = reader.GetBoolean(9),
                     IsBucketCreated = reader.GetBoolean(10),
-                    IsPendingKeyGrant = reader.GetBoolean(11)
+                    IsPendingKeyGrant = reader.GetBoolean(11),
+                    IsFullEncrypted = reader.GetBoolean(12)
                 })
             .WithParameter("$userId", user.Id)
+            .WithParameter("$isUserAdmin", user.HasAdminRole)
             .WithJsonParameter("$workspaceExternalIds", workspaceExternalIds)
             .Execute();
     }
@@ -695,6 +897,7 @@ public class GetSearchQuery(PlikShareDb plikShareDb)
         public required bool IsUsedByIntegration { get; init; }
         public required bool IsBucketCreated { get; init; }
         public required bool IsPendingKeyGrant { get; init; }
+        public required bool IsFullEncrypted { get; init; }
     }
 
     private class ExternalBox
