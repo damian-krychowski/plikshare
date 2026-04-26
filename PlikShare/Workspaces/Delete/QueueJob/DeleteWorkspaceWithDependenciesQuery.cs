@@ -274,7 +274,8 @@ public class DeleteWorkspaceWithDependenciesQuery(
         return new Result(
             Code: ResultCode.Ok,
             WorkspaceExternalId: workspace.Value.ExternalId,
-            DeletedBoxes: deletedBoxes.Select(box => box.ExternalId).ToArray());
+            DeletedBoxes: deletedBoxes.Select(box => box.ExternalId).ToArray(),
+            DeletedMemberIds: deletedWorkspaceMemberships.Select(m => m.MemberId).ToArray());
     }
 
     private static List<DeletedBoxMembership> DeleteBoxMemberships(
@@ -528,7 +529,8 @@ public class DeleteWorkspaceWithDependenciesQuery(
     public readonly record struct Result(
         ResultCode Code,
         WorkspaceExtId WorkspaceExternalId = default,
-        BoxExtId[]? DeletedBoxes = default);
+        BoxExtId[]? DeletedBoxes = default,
+        int[]? DeletedMemberIds = default);
     
     public enum ResultCode
     {

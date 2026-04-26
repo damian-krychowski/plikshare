@@ -101,7 +101,7 @@ public class UserEncryptionRecoveryTests
         var seed = UserEncryptionRecovery.GenerateRecoverySeed();
 
         using var userKek = UserEncryptionRecovery.DeriveRecoveryKek(seed);
-        var storageDek = HkdfDekDerivation.DeriveDek(seed, version: 0);
+        var storageDek = StorageDekDerivation.DeriveDek(seed, version: 0);
 
         AssertSecureBytesNotEqualToByteArray(userKek, storageDek);
     }

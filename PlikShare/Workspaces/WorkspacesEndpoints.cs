@@ -352,6 +352,7 @@ public static class WorkspacesEndpoints
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> RejectWorkspaceInvitation(
         [FromRoute] WorkspaceExtId workspaceExternalId,
         HttpContext httpContext,
+        UserCache userCache,
         WorkspaceMembershipCache workspaceMembershipCache,
         RejectWorkspaceInvitationQuery rejectWorkspaceInvitationQuery,
         AuditLogService auditLogService,
@@ -376,6 +377,12 @@ public static class WorkspacesEndpoints
         switch (result)
         {
             case RejectWorkspaceInvitationQuery.ResultCode.Ok:
+                // Reject also wipes the user's wek rows for this workspace, which UserCache
+                // mirrors in WrappedWorkspaceDeks. Drop the cache so the next request reloads.
+                await userCache.InvalidateEntry(
+                    userId: workspaceMembership.User.Id,
+                    cancellationToken: cancellationToken);
+
                 await auditLogService.LogWithStorageContext(
                     storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
                     buildEntry: storageRef => Audit.Workspace.InvitationRejectedEntry(
@@ -807,6 +814,7 @@ public static class WorkspacesEndpoints
     
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> LeaveSharedWorkspace(
         HttpContext httpContext,
+        UserCache userCache,
         LeaveSharedWorkspaceQuery leaveSharedWorkspaceQuery,
         WorkspaceMembershipCache workspaceMembershipCache,
         AuditLogService auditLogService,
@@ -831,6 +839,12 @@ public static class WorkspacesEndpoints
                 await workspaceMembershipCache.InvalidateEntry(
                     workspaceId: workspaceMembership.Workspace.Id,
                     memberId: user.Id,
+                    cancellationToken: cancellationToken);
+
+                // Leaving wipes the user's wek rows for this workspace; UserCache mirrors
+                // those in WrappedWorkspaceDeks, so invalidate.
+                await userCache.InvalidateEntry(
+                    userId: user.Id,
                     cancellationToken: cancellationToken);
 
                 await auditLogService.LogWithStorageContext(

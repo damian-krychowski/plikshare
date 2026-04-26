@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog.Contracts;
 using PlikShare.AuditLog.Decryption;
@@ -9,8 +8,8 @@ using PlikShare.Core.Authorization;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.Utils;
 using PlikShare.Storages.Encryption;
+using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Workspaces.Cache;
-using PlikShare.Workspaces.Encryption;
 using PlikShare.Workspaces.Id;
 
 namespace PlikShare.AuditLog;
@@ -67,7 +66,7 @@ public static class AuditLogEndpoints
         return getAuditLogFilterOptionsQuery.Execute();
     }
 
-    private static async Task<Results<Ok<GetAuditLogEntryDetailsResponseDto>, NotFound<HttpError>>> GetAuditLogEntryDetails(
+    private static async Task<IResult> GetAuditLogEntryDetails(
         AuditLogExtId externalId,
         HttpContext httpContext,
         GetAuditLogEntryDetailsQuery getAuditLogEntryDetailsQuery,
@@ -92,21 +91,24 @@ public static class AuditLogEndpoints
         if(workspace?.Storage.Encryption is not FullStorageEncryption)
             return TypedResults.Ok(result);
 
-        var sessions = await httpContext
-            .GetUserWorkspaceEncryptionSessions();
+        var (code, session) = await httpContext.TryStartWorkspaceEncryptionSession(
+            workspace);
 
-        var workspaceEncryptionSession = sessions.TryGet(
-            workspaceId: workspace.Id);
+        if (code == StartWorkspaceEncryptionSessionResultCode.UserEncryptionSessionRequired)
+            return HttpErrors.Storage.UserEncryptionSessionRequired();
 
-        var decryptedDetails = auditLogDetailsDecryptor.Decrypt(
-            detailsJson: result.Details,
-            entryWorkspaceExternalId: WorkspaceExtId.Parse(result.WorkspaceExternalId),
-            workspaceEncryptionSession: workspaceEncryptionSession);
-
-        return TypedResults.Ok(result with
+        using (session)
         {
-            Details = decryptedDetails
-        });
+            var decryptedDetails = auditLogDetailsDecryptor.Decrypt(
+                detailsJson: result.Details,
+                entryWorkspaceExternalId: WorkspaceExtId.Parse(result.WorkspaceExternalId),
+                workspaceEncryptionSession: session);
+
+            return TypedResults.Ok(result with
+            {
+                Details = decryptedDetails
+            });
+        }
     }
 
     private static DeleteOldAuditLogsResponseDto DeleteOldAuditLogs(

@@ -111,6 +111,6 @@ public sealed class WorkspaceEncryptionSession : IDisposable
         _disposed = true;
 
         foreach (var entry in Entries)
-            entry.Dek.Dispose();
+            entry.Dispose();
     }
 }

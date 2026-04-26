@@ -35,7 +35,7 @@ public class StorageFullEncryptionServiceTests
         var result = StorageFullEncryptionService.GenerateDetails();
 
         RecoveryCodeCodec.TryDecode(result.RecoveryCode, out var recoveryBytes);
-        var dekFromRecoverySeed = HkdfDekDerivation.DeriveDek(recoveryBytes, version: 0);
+        var dekFromRecoverySeed = StorageDekDerivation.DeriveDek(recoveryBytes, version: 0);
 
         Assert.Equal(dekFromRecoverySeed, result.Dek);
     }

@@ -3,7 +3,7 @@ using PlikShare.Core.Encryption;
 
 namespace PlikShare.Tests;
 
-public class HkdfDekDerivationTests
+public class StorageDekDerivationTests
 {
     [Fact]
     public void DeriveDek_ReturnsExactly32Bytes()
@@ -11,7 +11,7 @@ public class HkdfDekDerivationTests
         var seed = new byte[32];
         RandomNumberGenerator.Fill(seed);
 
-        var dek = HkdfDekDerivation.DeriveDek(seed, 0);
+        var dek = StorageDekDerivation.DeriveDek(seed, 0);
 
         Assert.Equal(32, dek.Length);
     }
@@ -22,8 +22,8 @@ public class HkdfDekDerivationTests
         var seed = new byte[32];
         RandomNumberGenerator.Fill(seed);
 
-        var dek1 = HkdfDekDerivation.DeriveDek(seed, 0);
-        var dek2 = HkdfDekDerivation.DeriveDek(seed, 0);
+        var dek1 = StorageDekDerivation.DeriveDek(seed, 0);
+        var dek2 = StorageDekDerivation.DeriveDek(seed, 0);
 
         Assert.Equal(dek1, dek2);
     }
@@ -34,9 +34,9 @@ public class HkdfDekDerivationTests
         var seed = new byte[32];
         RandomNumberGenerator.Fill(seed);
 
-        var dekV0 = HkdfDekDerivation.DeriveDek(seed, 0);
-        var dekV1 = HkdfDekDerivation.DeriveDek(seed, 1);
-        var dekV100 = HkdfDekDerivation.DeriveDek(seed, 100);
+        var dekV0 = StorageDekDerivation.DeriveDek(seed, 0);
+        var dekV1 = StorageDekDerivation.DeriveDek(seed, 1);
+        var dekV100 = StorageDekDerivation.DeriveDek(seed, 100);
 
         Assert.NotEqual(dekV0, dekV1);
         Assert.NotEqual(dekV0, dekV100);
@@ -51,8 +51,8 @@ public class HkdfDekDerivationTests
         RandomNumberGenerator.Fill(seedA);
         RandomNumberGenerator.Fill(seedB);
 
-        var dekA = HkdfDekDerivation.DeriveDek(seedA, 0);
-        var dekB = HkdfDekDerivation.DeriveDek(seedB, 0);
+        var dekA = StorageDekDerivation.DeriveDek(seedA, 0);
+        var dekB = StorageDekDerivation.DeriveDek(seedB, 0);
 
         Assert.NotEqual(dekA, dekB);
     }
@@ -62,7 +62,7 @@ public class HkdfDekDerivationTests
     {
         var seed = new byte[32];
 
-        var dek = HkdfDekDerivation.DeriveDek(seed, 0);
+        var dek = StorageDekDerivation.DeriveDek(seed, 0);
 
         Assert.NotEqual(new byte[32], dek);
     }
@@ -75,8 +75,8 @@ public class HkdfDekDerivationTests
         // mapping being stable forever.
         var seed = Enumerable.Range(0, 32).Select(i => (byte)i).ToArray();
 
-        var dekV0 = HkdfDekDerivation.DeriveDek(seed, 0);
-        var dekV1 = HkdfDekDerivation.DeriveDek(seed, 1);
+        var dekV0 = StorageDekDerivation.DeriveDek(seed, 0);
+        var dekV1 = StorageDekDerivation.DeriveDek(seed, 1);
 
         // Recompute expected values with the same algorithm (acts as a structural
         // assertion, not a golden vector).
@@ -84,7 +84,7 @@ public class HkdfDekDerivationTests
         Assert.Equal(32, dekV1.Length);
         Assert.NotEqual(dekV0, dekV1);
 
-        var dekV0Again = HkdfDekDerivation.DeriveDek(seed, 0);
+        var dekV0Again = StorageDekDerivation.DeriveDek(seed, 0);
         Assert.Equal(dekV0, dekV0Again);
     }
 }

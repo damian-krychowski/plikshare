@@ -28,15 +28,15 @@ namespace PlikShare.Workspaces.Encryption;
 /// directly without dragging in crypto state.
 /// </summary>
 public class WorkspaceCreationPreparation(
-    PlikShareDb plikShareDb,
-    StorageEncryptionKeyReader storageEncryptionKeyReader)
+    PlikShareDb plikShareDb)
 {
     public Result Prepare(
         StorageExtId storageExternalId,
         UserContext owner,
         Func<SecureBytes?> loadUserPrivateKey)
     {
-        var storageContext = ResolveStorageContextForRead(storageExternalId);
+        var storageContext = ResolveStorageContextForRead(
+            storageExternalId);
 
         if (storageContext is null)
             return new Result(Code: ResultCode.StorageNotFound);
@@ -96,50 +96,43 @@ public class WorkspaceCreationPreparation(
         // New workspaces are always derived from the storage's latest DEK version — the
         // one the creator gets wrapped for here. Older versions exist only to keep files
         // written before a past rotation decryptable.
-        var latestStorageKey = storageEncryptionKeyReader.TryLoadLatestWrappedDek(
-            storageId: storageId,
-            userId: owner.Id);
+        var latestWrappedStorageDek = owner.TryGetLatestStorageDek(
+            storageId: storageId);
 
-        if (latestStorageKey is null)
+        if (latestWrappedStorageDek is null)
             return new Result(Code: ResultCode.NotAStorageAdmin);
 
-        SecureBytes storageDek;
         try
         {
-            storageDek = UserKeyPair.OpenSealed(
-                recipientPrivateKey: userPrivateKey,
-                @sealed: latestStorageKey.Value.WrappedDek);
-        }
-        catch (Exception e)
-        {
-            // Opaque failure — corrupted wrap, mismatched key, tamper. Return the same
-            // code as a missing wrap so the caller's UX stays consistent.
-            Log.Error(e,
-                "Unsealing wrapped Storage DEK failed for User#{UserId} while preparing a workspace on Storage#{StorageId}.",
-                owner, storageId);
+            using var storageDekEntry = latestWrappedStorageDek.Unseal(
+                userPrivateKey);
 
-            return new Result(Code: ResultCode.NotAStorageAdmin);
-        }
+            var salt = RandomNumberGenerator.GetBytes(
+                KeyDerivationChain.StepSaltSize);
 
-        using (storageDek)
-        {
-            var salt = new byte[KeyDerivationChain.StepSaltSize];
-            RandomNumberGenerator.Fill(salt);
-
-            using var workspaceDek = storageDek.Use(span => KeyDerivationChain.Derive(
-                startingDek: span,
-                stepSalts: [salt]));
-
-            var wrapped = workspaceDek.Use(span => UserKeyPair.SealTo(
+            using var workspaceDek = storageDekEntry.DeriveWorkspaceDek(
+                    workspaceDekSalts: [salt]);
+                
+            var wrapped = workspaceDek.Dek.Use(span => UserKeyPair.SealTo(
                 recipientPublicKey: owner.EncryptionMetadata.PublicKey,
                 plaintext: span));
 
             return new Result(
                 Code: ResultCode.Ok,
                 Artifacts: new WorkspaceFullEncryptionArtifacts(
-                    StorageDekVersion: latestStorageKey.Value.StorageDekVersion,
+                    StorageDekVersion: latestWrappedStorageDek.StorageDekVersion,
                     EncryptionSalt: salt,
                     OwnerWrappedWorkspaceDek: wrapped));
+        }
+        catch (StorageDekUnsealException e)
+        {
+            // Opaque failure — corrupted wrap, mismatched key, tamper. Return the same
+            // code as a missing wrap so the caller's UX stays consistent.
+            Log.Error(e,
+                "Unsealing wrapped Storage DEK v{StorageDekVersion} failed for User#{UserId} while preparing a workspace on Storage#{StorageId}.",
+                e.StorageDekVersion, owner, e.StorageId);
+
+            return new Result(Code: ResultCode.NotAStorageAdmin);
         }
     }
 

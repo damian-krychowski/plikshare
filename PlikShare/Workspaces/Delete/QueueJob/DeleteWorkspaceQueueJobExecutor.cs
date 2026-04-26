@@ -4,6 +4,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
+using PlikShare.Users.Cache;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 
@@ -12,6 +13,7 @@ namespace PlikShare.Workspaces.Delete.QueueJob;
 public class DeleteWorkspaceQueueJobExecutor(
     DeleteWorkspaceWithDependenciesQuery deleteWorkspaceWithDependenciesQuery,
     BoxCache boxCache,
+    UserCache userCache,
     WorkspaceCache workspaceCache) : IQueueDbOnlyJobExecutor
 {
     public string JobType => DeleteWorkspaceQueueJobType.Value;
@@ -61,11 +63,20 @@ public class DeleteWorkspaceQueueJobExecutor(
         await workspaceCache.InvalidateEntry(
             workspaceExternalId: result.WorkspaceExternalId,
             cancellationToken: cancellationToken);
-        
+
         foreach (var deletedBox in result.DeletedBoxes!)
         {
             await boxCache.InvalidateEntry(
                 boxExternalId: deletedBox,
+                cancellationToken: cancellationToken);
+        }
+
+        // Wek rows for every member were dropped by the workspace delete; UserCache mirrors
+        // those in WrappedWorkspaceDeks, so each affected member needs invalidation.
+        foreach (var memberId in result.DeletedMemberIds!)
+        {
+            await userCache.InvalidateEntry(
+                userId: memberId,
                 cancellationToken: cancellationToken);
         }
     }

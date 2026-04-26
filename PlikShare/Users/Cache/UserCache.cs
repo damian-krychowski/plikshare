@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Database.MainDatabase;
@@ -153,11 +154,41 @@ public class UserCache(
     {
         using var connection = plikShareDb.OpenConnection();
 
+        var row = ReadUserRow(connection, lookup);
+
+        if (row is null)
+            return null;
+
+        var wrappedStorageDeks = ReadWrappedStorageDeks(connection, row.Id);
+        var wrappedWorkspaceDeks = ReadWrappedWorkspaceDeks(connection, row.Id);
+
+        return new UserContext
+        {
+            Status = row.Status,
+            Email = row.Email,
+            ExternalId = row.ExternalId,
+            Id = row.Id,
+            IsEmailConfirmed = row.IsEmailConfirmed,
+            Stamps = row.Stamps,
+            Roles = row.Roles,
+            Permissions = row.Permissions,
+            MaxWorkspaceNumber = row.MaxWorkspaceNumber,
+            DefaultMaxWorkspaceSizeInBytes = row.DefaultMaxWorkspaceSizeInBytes,
+            DefaultMaxWorkspaceTeamMembers = row.DefaultMaxWorkspaceTeamMembers,
+            HasPassword = row.HasPassword,
+            EncryptionMetadata = row.EncryptionMetadata,
+            WrappedStorageDeks = wrappedStorageDeks,
+            WrappedWorkspaceDeks = wrappedWorkspaceDeks
+        };
+    }
+
+    private UserRow? ReadUserRow(SqliteConnection connection, UserLookup lookup)
+    {
         var result = connection
             .OneRowCmd(
                 sql: $"""
                 SELECT
-                    u_is_invitation,    
+                    u_is_invitation,
                     u_email,
                     u_external_id,
                     u_id,
@@ -193,30 +224,25 @@ public class UserCache(
                     var email = reader.GetEmail(1);
                     var encryptionPublicKey = reader.GetFieldValueOrNull<byte[]>(20);
 
-                    return new UserContext
-                    {
-                        Status = reader.GetBoolean(0) 
-                            ? UserStatus.Invitation 
+                    return new UserRow(
+                        Status: reader.GetBoolean(0)
+                            ? UserStatus.Invitation
                             : UserStatus.Registered,
-
-                        Email = email,
-                        ExternalId = reader.GetExtId<UserExtId>(2),
-                        Id = reader.GetInt32(3),
-                        IsEmailConfirmed = reader.GetBoolean(4),
-
-                        Stamps = new UserSecurityStamps
+                        Email: email,
+                        ExternalId: reader.GetExtId<UserExtId>(2),
+                        Id: reader.GetInt32(3),
+                        IsEmailConfirmed: reader.GetBoolean(4),
+                        Stamps: new UserSecurityStamps
                         {
                             Security = reader.GetString(5),
                             Concurrency = reader.GetString(6)
                         },
-
-                        Roles = new UserRoles
+                        Roles: new UserRoles
                         {
                             IsAppOwner = appOwners.IsAppOwner(email),
                             IsAdmin = reader.GetBoolean(7)
                         },
-
-                        Permissions = new UserPermissions
+                        Permissions: new UserPermissions
                         {
                             CanAddWorkspace = reader.GetBoolean(8),
                             CanManageGeneralSettings = reader.GetBoolean(9),
@@ -227,13 +253,11 @@ public class UserCache(
                             CanManageIntegrations = reader.GetBoolean(14),
                             CanManageAuditLog = reader.GetBoolean(15)
                         },
-                        
-                        MaxWorkspaceNumber = reader.GetInt32OrNull(16),
-                        DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(17),
-                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(18),
-                        HasPassword = reader.GetBoolean(19),
-
-                        EncryptionMetadata = encryptionPublicKey is null
+                        MaxWorkspaceNumber: reader.GetInt32OrNull(16),
+                        DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(17),
+                        DefaultMaxWorkspaceTeamMembers: reader.GetInt32OrNull(18),
+                        HasPassword: reader.GetBoolean(19),
+                        EncryptionMetadata: encryptionPublicKey is null
                             ? null
                             : new UserEncryptionMetadata
                             {
@@ -244,14 +268,70 @@ public class UserCache(
                                 VerifyHash = reader.GetFieldValue<byte[]>(24),
                                 RecoveryWrappedPrivateKey = reader.GetFieldValue<byte[]>(25),
                                 RecoveryVerifyHash = reader.GetFieldValue<byte[]>(26)
-                            }
-                    };
+                            });
                 })
             .WithParameter(lookup.ParamName, lookup.ParamValue)
             .Execute();
 
         return result.IsEmpty ? null : result.Value;
     }
+
+    private static UserWrappedStorageDek[] ReadWrappedStorageDeks(SqliteConnection connection, int userId)
+    {
+        return connection
+            .Cmd(
+                sql: """
+                     SELECT sek_storage_id, sek_storage_dek_version, sek_wrapped_storage_dek
+                     FROM sek_storage_encryption_keys
+                     WHERE sek_user_id = $userId
+                     ORDER BY sek_storage_id, sek_storage_dek_version
+                     """,
+                readRowFunc: reader => new UserWrappedStorageDek
+                {
+                    StorageId = reader.GetInt32(0),
+                    StorageDekVersion = reader.GetInt32(1),
+                    WrappedStorageDek = reader.GetFieldValue<byte[]>(2)
+                })
+            .WithParameter("$userId", userId)
+            .Execute()
+            .ToArray();
+    }
+
+    private static UserWrappedWorkspaceDek[] ReadWrappedWorkspaceDeks(SqliteConnection connection, int userId)
+    {
+        return connection
+            .Cmd(
+                sql: """
+                     SELECT wek_workspace_id, wek_storage_dek_version, wek_wrapped_workspace_dek
+                     FROM wek_workspace_encryption_keys
+                     WHERE wek_user_id = $userId
+                     ORDER BY wek_workspace_id, wek_storage_dek_version
+                     """,
+                readRowFunc: reader => new UserWrappedWorkspaceDek
+                {
+                    WorkspaceId = reader.GetInt32(0),
+                    StorageDekVersion = reader.GetInt32(1),
+                    WrappedWorkspaceDek = reader.GetFieldValue<byte[]>(2)
+                })
+            .WithParameter("$userId", userId)
+            .Execute()
+            .ToArray();
+    }
+
+    private sealed record UserRow(
+        UserStatus Status,
+        Email Email,
+        UserExtId ExternalId,
+        int Id,
+        bool IsEmailConfirmed,
+        UserSecurityStamps Stamps,
+        UserRoles Roles,
+        UserPermissions Permissions,
+        int? MaxWorkspaceNumber,
+        long? DefaultMaxWorkspaceSizeInBytes,
+        int? DefaultMaxWorkspaceTeamMembers,
+        bool HasPassword,
+        UserEncryptionMetadata? EncryptionMetadata);
 
     private readonly record struct UserLookup(
         string WhereClause,

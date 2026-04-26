@@ -1,5 +1,6 @@
 using Flurl.Http;
 using PlikShare.AuditLog.Contracts;
+using PlikShare.AuditLog.Id;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
@@ -17,6 +18,18 @@ public class AuditLogApi(IFlurlClient flurlClient, string appUrl)
             cookie: cookie,
             antiforgery: antiforgery,
             isResponseInProtobuf: true);
+    }
+
+    public async Task<GetAuditLogEntryDetailsResponseDto> GetEntryDetails(
+        AuditLogExtId externalId,
+        SessionAuthCookie? cookie,
+        Cookie? userEncryptionSession = null)
+    {
+        return await flurlClient.ExecuteGet<GetAuditLogEntryDetailsResponseDto>(
+            appUrl: appUrl,
+            apiPath: $"api/audit-log/{externalId.Value}",
+            cookie: cookie,
+            extraCookie: userEncryptionSession);
     }
 
     public async Task<AuditLogStatsResponseDto> GetStats(

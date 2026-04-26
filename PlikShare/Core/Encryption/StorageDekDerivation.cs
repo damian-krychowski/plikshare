@@ -8,7 +8,7 @@ namespace PlikShare.Core.Encryption;
 /// For the same recoveryBytes and version this function always returns the same DEK —
 /// so a recovery code alone (without the database) is sufficient to reconstruct the DEK.
 /// </summary>
-public static class HkdfDekDerivation
+public static class StorageDekDerivation
 {
     public const int DekSize = 32;
 

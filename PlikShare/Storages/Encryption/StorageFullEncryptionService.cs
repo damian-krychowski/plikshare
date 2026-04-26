@@ -26,7 +26,7 @@ public static class StorageFullEncryptionService
             // Storage DEK v0 is deterministically derived from the recovery seed so the
             // recovery code alone (without the database) is sufficient to reconstruct
             // the DEK for offline file recovery.
-            var dek = HkdfDekDerivation.DeriveDek(
+            var dek = StorageDekDerivation.DeriveDek(
                 recoveryBytes, 
                 version: 0);
 

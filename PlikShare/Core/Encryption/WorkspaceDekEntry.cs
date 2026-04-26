@@ -2,8 +2,13 @@ namespace PlikShare.Core.Encryption;
 
 /// <summary>
 /// A single unwrapped Workspace DEK together with the Storage DEK version it was derived
-/// from. Files encrypted before a rotation carry the older <see cref="StorageDekVersion"/>
-/// in their V2 header; after rotation there may be several entries per workspace-member.
+/// from. The Workspace DEK is derived deterministically from a specific version of the
+/// Storage DEK combined with the workspace salt (HKDF), so the pair
+/// (<see cref="StorageDekVersion"/>, workspace salt) fully identifies which key material
+/// produced this DEK. Files encrypted before a Storage DEK rotation carry the older
+/// <see cref="StorageDekVersion"/> in their V2 header; after rotation there may be several
+/// entries per workspace-member, one per Storage DEK version still referenced by existing
+/// files.
 ///
 /// The owning workspace id is held once on the enclosing
 /// <see cref="WorkspaceEncryptionSession.WorkspaceId"/>. The workspace salt is stored on
@@ -11,10 +16,15 @@ namespace PlikShare.Core.Encryption;
 /// at the call sites that need it (file-header chain steps); it is intentionally not
 /// duplicated here.
 /// </summary>
-public sealed class WorkspaceDekEntry
+public sealed class WorkspaceDekEntry: IDisposable
 {
     public required int StorageDekVersion { get; init; }
     public required SecureBytes Dek { get; init; }
+
+    public void Dispose()
+    {
+        Dek.Dispose();
+    }
 }
 
 public sealed class WorkspaceDekEntryWire

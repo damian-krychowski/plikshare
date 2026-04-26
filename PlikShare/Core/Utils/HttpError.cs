@@ -246,7 +246,7 @@ public static class HttpErrors
             Message = $"Volume '{volumePath}' was not found"
         });
 
-        public static IResult UserEncryptionSessionRequired() => TypedResults.Json(
+        public static JsonHttpResult<UserEncryptionSessionRequiredHttpError> UserEncryptionSessionRequired() => TypedResults.Json(
             new UserEncryptionSessionRequiredHttpError
             {
                 Code = "user-encryption-session-required",

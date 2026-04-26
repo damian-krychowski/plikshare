@@ -21,9 +21,27 @@ public sealed class UserContext
     public required long? DefaultMaxWorkspaceSizeInBytes { get; init; }
     public required int? DefaultMaxWorkspaceTeamMembers { get; init; }
     public required UserEncryptionMetadata? EncryptionMetadata { get; init; }
-    
+    public required UserWrappedStorageDek[] WrappedStorageDeks { get; init; }
+    public required UserWrappedWorkspaceDek[] WrappedWorkspaceDeks { get; init; }
+
     public bool HasAdminRole => Roles.IsAppOwner || Roles.IsAdmin;
     public bool IsEncryptionConfigured => EncryptionMetadata is not null;
+}
+
+[ImmutableObject(true)]
+public sealed class UserWrappedStorageDek
+{
+    public required int StorageId { get; init; }
+    public required int StorageDekVersion { get; init; }
+    public required byte[] WrappedStorageDek { get; init; }
+}
+
+[ImmutableObject(true)]
+public sealed class UserWrappedWorkspaceDek
+{
+    public required int WorkspaceId { get; init; }
+    public required int StorageDekVersion { get; init; }
+    public required byte[] WrappedWorkspaceDek { get; init; }
 }
 
 public enum UserStatus
