@@ -34,7 +34,8 @@ public class GetUsersQuery(
                ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuditLog)}) AS u_can_manage_audit_log,
                u_max_workspace_number,
                u_default_max_workspace_size_in_bytes,
-               u_default_max_workspace_team_members
+               u_default_max_workspace_team_members,
+               (u_encryption_public_key IS NOT NULL) AS u_is_encryption_configured
            FROM u_users
            ORDER BY u_id ASC
          """;
@@ -74,7 +75,8 @@ public class GetUsersQuery(
                         },
                         MaxWorkspaceNumber = reader.GetInt32OrNull(13),
                         DefaultMaxWorkspaceSizeInBytes = reader.GetInt64OrNull(14),
-                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(15)
+                        DefaultMaxWorkspaceTeamMembers = reader.GetInt32OrNull(15),
+                        IsEncryptionConfigured = reader.GetBoolean(16)
                     };
                 })
             .Execute();

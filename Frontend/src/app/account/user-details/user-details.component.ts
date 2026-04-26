@@ -272,6 +272,7 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                 externalId: signal(userDetails.user.externalId),
                 email: signal(userDetails.user.email),
                 isEmailConfirmed: signal(userDetails.user.isEmailConfirmed),
+                isEncryptionConfigured: signal(userDetails.user.isEncryptionConfigured),
                 hasPassword: signal(userDetails.user.hasPassword),
                 ssoProviders: signal(userDetails.user.ssoProviders),
                 isHighlighted: signal(false),

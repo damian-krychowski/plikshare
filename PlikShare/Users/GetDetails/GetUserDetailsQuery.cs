@@ -40,6 +40,7 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
                 ExternalId = user.ExternalId,
                 Email = user.Email.Value,
                 IsEmailConfirmed = user.IsEmailConfirmed,
+                IsEncryptionConfigured = user.IsEncryptionConfigured,
                 HasPassword = user.HasPassword,
                 SsoProviders = ssoProviders,
                 Roles = user.Roles,

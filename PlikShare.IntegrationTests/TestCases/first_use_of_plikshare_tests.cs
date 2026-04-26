@@ -131,6 +131,7 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
                     ExternalId = user.ExternalId,
                     Email = user.Email,
                     IsEmailConfirmed = true,
+                    IsEncryptionConfigured = false,
                     WorkspacesCount = 0,
                     Roles = new UserRoles
                     {
@@ -160,6 +161,7 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
                     DefaultMaxWorkspaceSizeInBytes = null,
                     DefaultMaxWorkspaceTeamMembers = null,
                     IsEmailConfirmed = true,
+                    IsEncryptionConfigured = false,
                     MaxWorkspaceNumber = null,
                     Permissions = new UserPermissions
                     {

@@ -5,9 +5,16 @@
         <app-item-search
             class="ml-auto"
             [count]="searchCount()"
-            (searched)="performSearch($event)">            
+            (searched)="performSearch($event)">
         </app-item-search>
     </div>
+
+    @if (requireEncryptionConfigured()) {
+        <div class="questionaire__subtitle">
+            Only users with an encryption password configured are listed —
+            transferring a full-encryption workspace requires the new owner to already hold encryption keys.
+        </div>
+    }
 
     <div class="questionaire__content" >
         @for(user of users(); track user.externalId()) {

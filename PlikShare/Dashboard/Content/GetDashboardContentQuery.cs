@@ -37,6 +37,9 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
         };
     }
 
+    // Full-encrypted storages where the caller has no sek wrap are hidden — workspace
+    // creation on those would fail with 403 not-a-storage-admin (see WorkspaceCreationPreparation),
+    // so the UI should not offer them as a choice.
     private static List<Storage> GetStorages(
         UserContext user,
         SqliteConnection connection)
@@ -58,6 +61,14 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                              ELSE s_encryption_type
                          END) AS s_encryption_type
                      FROM s_storages
+                     WHERE
+                         COALESCE(s_encryption_type, 'none') != 'full'
+                         OR EXISTS (
+                             SELECT 1
+                             FROM sek_storage_encryption_keys
+                             WHERE sek_storage_id = s_id
+                               AND sek_user_id = $userId
+                         )
                      ORDER BY s_id ASC
                      """,
                 readRowFunc: reader => new Storage
@@ -69,6 +80,7 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                     EncryptionType = reader.GetString(4)
                 })
             .WithParameter("$isUserAdmin", user.Roles.IsAppOwner)
+            .WithParameter("$userId", user.Id)
             .Execute();
     }
     

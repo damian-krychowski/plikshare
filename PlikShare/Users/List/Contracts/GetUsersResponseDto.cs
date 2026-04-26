@@ -13,6 +13,7 @@ public class GetUsersItemDto
     public required UserExtId ExternalId { get; init; }
     public required string Email { get; init; }
     public required bool IsEmailConfirmed { get; init; }
+    public required bool IsEncryptionConfigured { get; init; }
     public required int WorkspacesCount { get; init; }
     public required UserRoles Roles { get; init; }
     public required UserPermissions Permissions { get; init; }

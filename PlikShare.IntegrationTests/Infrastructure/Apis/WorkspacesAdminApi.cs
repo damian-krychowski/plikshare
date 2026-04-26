@@ -12,14 +12,16 @@ public class WorkspacesAdminApi(IFlurlClient flurlClient, string appUrl)
         WorkspaceExtId externalId,
         ChangeWorkspaceOwnerRequestDto request,
         SessionAuthCookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies antiforgery,
+        Cookie? userEncryptionSession = null)
     {
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{externalId.Value}/owner",
             request: request,
             cookie: cookie,
-            antiforgery: antiforgery);
+            antiforgery: antiforgery,
+            extraCookie: userEncryptionSession);
     }
 
     public async Task UpdateMaxSize(

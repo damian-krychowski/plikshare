@@ -7,10 +7,11 @@ export interface GetUserDetailsResponse {
         externalId: string;
         email: string;
         isEmailConfirmed: boolean;
+        isEncryptionConfigured: boolean;
         roles: {
             isAppOwner: boolean;
             isAdmin: boolean;
-        };        
+        };
         permissions: {
             canAddWorkspace: boolean;
             canManageGeneralSettings: boolean;
@@ -98,6 +99,7 @@ export interface UserItemDto {
     externalId: string;
     email: string;
     isEmailConfirmed: boolean;
+    isEncryptionConfigured: boolean;
     workspacesCount: number;
     roles: {
         isAppOwner: boolean;

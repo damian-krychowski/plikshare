@@ -2,8 +2,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.Core.Authorization;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
+using PlikShare.Storages.Encryption;
 using PlikShare.Users.Cache;
+using PlikShare.Users.Middleware;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.ChangeOwner;
 using PlikShare.Workspaces.ChangeOwner.Contracts;
@@ -127,7 +130,7 @@ public static class WorkspacesAdminEndpoints
         return TypedResults.Ok();
     }
 
-    private static async Task<Results<Ok, NotFound<HttpError>>> UpdateWorkspaceOwner(
+    private static async Task<IResult> UpdateWorkspaceOwner(
         [FromBody] ChangeWorkspaceOwnerRequestDto request,
         HttpContext httpContext,
         UserCache userCache,
@@ -144,16 +147,60 @@ public static class WorkspacesAdminEndpoints
         if (newOwner is null)
             return HttpErrors.User.NotFound(request.NewOwnerExternalId);
 
+        var previousOwnerId = workspaceMembership.Workspace.Owner.Id;
+
         if (newOwner.ExternalId == workspaceMembership.Workspace.Owner.ExternalId)
             return TypedResults.Ok();
 
-        await changeWorkspaceOwnerQuery.Execute(
+        var actor = await httpContext.GetUserContext();
+
+        // Full-encryption transfers re-wrap the workspace DEK to the new owner using the
+        // actor's own keys (sek-derivation or wek), so the actor must arrive with an
+        // unlocked encryption session. For None/Managed storages the cookie is never read.
+        using var actorPrivateKey = workspaceMembership.Workspace.Storage.Encryption is FullStorageEncryption
+            ? UserEncryptionSessionCookie.TryReadPrivateKey(httpContext, actor.ExternalId)
+            : null;
+
+        var resultCode = await changeWorkspaceOwnerQuery.Execute(
             workspace: workspaceMembership.Workspace,
             newOwner: newOwner,
+            actor: actor,
+            actorPrivateKey: actorPrivateKey,
             cancellationToken: cancellationToken);
+
+        switch (resultCode)
+        {
+            case ChangeWorkspaceOwnerQuery.ResultCode.Ok:
+                break;
+
+            case ChangeWorkspaceOwnerQuery.ResultCode.TargetEncryptionNotSetUp:
+                return HttpErrors.Workspace.MemberEncryptionNotSetUp(newOwner.ExternalId);
+
+            case ChangeWorkspaceOwnerQuery.ResultCode.ActorEncryptionSessionRequired:
+                return HttpErrors.Storage.UserEncryptionSessionRequired();
+
+            case ChangeWorkspaceOwnerQuery.ResultCode.ActorCannotDecryptWorkspace:
+                return HttpErrors.Storage.NotAStorageAdmin(workspaceMembership.Workspace.Storage.ExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(ChangeWorkspaceOwnerQuery),
+                    resultValueStr: resultCode.ToString());
+        }
 
         await workspaceCache.InvalidateEntry(
             workspaceMembership.Workspace.ExternalId,
+            cancellationToken: cancellationToken);
+
+        // Old owner lost their wek wraps; new owner gained wek wraps and (if applicable)
+        // dropped a workspace-membership row. Both UserContext caches must reload before
+        // the next encryption-aware request.
+        await userCache.InvalidateEntry(
+            userId: previousOwnerId,
+            cancellationToken: cancellationToken);
+
+        await userCache.InvalidateEntry(
+            userId: newOwner.Id,
             cancellationToken: cancellationToken);
 
         await auditLogService.LogWithStorageContext(

@@ -1,10 +1,19 @@
-import { Component, computed, OnInit, Signal, signal, WritableSignal } from '@angular/core';
-import { MatDialogRef } from '@angular/material/dialog';
+import { Component, computed, Inject, OnInit, Optional, Signal, signal, WritableSignal } from '@angular/core';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { UsersApi } from '../../services/users.api';
 import { AppUserDetails } from '../user-item/app-user';
 import { UserItemComponent } from '../user-item/user-item.component';
 import { ItemSearchComponent, ItemSearchCount } from '../item-search/item-search.component';
+
+export interface UserPickerDialogData {
+    /**
+     * When true, only users that have already configured their encryption password
+     * are offered to the picker. Used by the change-owner flow on full-encryption
+     * workspaces, where transferring to a user without keys would always 400.
+     */
+    requireEncryptionConfigured?: boolean;
+}
 
 @Component({
     selector: 'app-user-picker',
@@ -18,6 +27,7 @@ import { ItemSearchComponent, ItemSearchCount } from '../item-search/item-search
 })
 export class UserPickerComponent implements OnInit  {
     private _allUsers: AppUserDetails[] = [];
+    private _requireEncryptionConfigured: boolean;
 
     users: WritableSignal<AppUserDetails[]> = signal([]);
 
@@ -27,28 +37,35 @@ export class UserPickerComponent implements OnInit  {
         matchingItems: this.users().length
     }));
 
+    requireEncryptionConfigured: Signal<boolean>;
+
     constructor(
         private _usersApi: UsersApi,
-        public dialogRef: MatDialogRef<UserPickerComponent>) {    
+        public dialogRef: MatDialogRef<UserPickerComponent>,
+        @Optional() @Inject(MAT_DIALOG_DATA) data: UserPickerDialogData | null) {
+        this._requireEncryptionConfigured = data?.requireEncryptionConfigured ?? false;
+        this.requireEncryptionConfigured = signal(this._requireEncryptionConfigured);
     }
 
     async ngOnInit(): Promise<void> {
         const users = await this._usersApi.getUsers();
-        
+
         this._allUsers = users
             .items
+            .filter(user => !this._requireEncryptionConfigured || user.isEncryptionConfigured)
             .map(user => {
                 const item: AppUserDetails = {
                     externalId: signal(user.externalId),
                     email: signal(user.email),
                     isEmailConfirmed: signal(user.isEmailConfirmed),
+                    isEncryptionConfigured: signal(user.isEncryptionConfigured),
                     hasPassword: signal(false),
                     ssoProviders: signal([]),
                     workspacesCount: signal(user.workspacesCount),
                     roles: {
                         isAppOwner: signal(user.roles.isAppOwner),
                         isAdmin: signal(user.roles.isAdmin)
-                    }, 
+                    },
                     permissions: {
                         canAddWorkspace: signal(user.permissions.canAddWorkspace),
                         canManageGeneralSettings: signal(user.permissions.canManageGeneralSettings),
@@ -68,7 +85,7 @@ export class UserPickerComponent implements OnInit  {
                 return item;
             });
 
-        this.users.set(this._allUsers);     
+        this.users.set(this._allUsers);
     }
 
     public onUserPicked(user: AppUserDetails) {
@@ -79,7 +96,7 @@ export class UserPickerComponent implements OnInit  {
         this.dialogRef.close();
     }
 
-    performSearch(query: string) {              
+    performSearch(query: string) {
         this.searchPhrase.set(query);
         this.users.set(this._allUsers.filter(u => u.email().includes(query)));
     }

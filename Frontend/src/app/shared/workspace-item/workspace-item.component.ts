@@ -302,7 +302,10 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
             maxHeight: '80vh',
             position: {
                 top: '100px'
-            }   
+            },
+            data: {
+                requireEncryptionConfigured: workspace.storageEncryptionType === 'full'
+            }
         });
 
         dialogRef.afterClosed().subscribe(async (user: AppUserDetails) => {
