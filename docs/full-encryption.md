@@ -4,13 +4,13 @@ A technical description of full encryption mode in Plikshare: the key hierarchy,
 
 ## Design goals
 
-Full-encryption mode is built around two properties:
+Full-encryption mode is built around three properties:
 
 1. **Resilient to database and storage compromise.** An attacker who obtains the SQLite database, the file storage, or both simultaneously cannot read file contents, file names, folder names, or audit log details. The database holds only ciphertext, wrapped keys, public keys, salts, and verify hashes. Storage holds only encrypted file frames.
 
 2. **Encryption scoping.** Encryption keys are scoped hard to the resources a user has access to inside the application. A user who only has access to one workspace holds key material that decrypts that workspace and nothing else — possessing their unwrapped private key does not unlock data they were never granted access to. The goal is to limit the blast radius of combined attacks: a database or storage compromise plus a phished encryption password from one user must not cascade into a global decryption.
 
-2. **Recoverable from a recovery code alone.** If the database is lost, a user holding a recovery code can still decrypt files left in storage. The recovery code is the disaster-recovery root — no DB row, no admin assistance, no backup of any wrapped key is required.
+3. **Recoverable from a recovery code alone.** If the database is lost, a user holding a recovery code can still decrypt files left in storage. The recovery code is the disaster-recovery root — no DB row, no admin assistance, no backup of any wrapped key is required.
 
 ### Out of scope
 
@@ -68,7 +68,7 @@ The recovery seed is encoded as a 24-word BIP-39 mnemonic and returned to the us
 └──────────────────────────┘
 ```
 
-### Sealed box
+## Sealed box
 
 The X25519 keypair is the foundation of how full-encrypted workspaces are shared. Each user has one keypair and one encryption password — a single password unlocks every workspace ever shared with them. The asymmetric construction has a second useful property: workspaces can be shared with a user offline. The inviter only needs the recipient's public key, which lives in the database in plaintext. Access to full-encryption resources rests on this pattern — every user holds their own sealed copies of the keys they need, and unsealing any of them requires only their private key.
 
@@ -86,18 +86,18 @@ The keypair is X25519, used in a sealed-box construction (the same primitive lib
 5. Output envelope: eph_pub(32) | nonce(12) | ciphertext | tag(16)
 ```
 
-### User encryption session
+## User encryption session
 
 To access full-encryption resources, the user must unlock their private key with their `encryption-password`. Unlock does not write to the database — it verifies the password and derives the private key into a session.
 
-#### Inputs (from `u_users.EncryptionMetadata`)
+### Inputs (from `u_users.EncryptionMetadata`)
 
 - `KdfSalt` — Argon2id salt, unique per user
 - `KdfParams` — Argon2id parameters (memory, iterations, parallelism)
 - `VerifyHash` — derived from the KEK, used to check the password without attempting an unwrap
 - `EncryptedPrivateKey` — user's X25519 private key, AEAD-wrapped with the KEK
 
-#### Flow 
+### Flow 
 ```
 ┌──────────────────────────┐
 │   Encryption-Password    │
@@ -144,21 +144,21 @@ match  │            │  mismatch
 │ scoped to ExternalId)    │
 └──────────────────────────┘
 ```
-The KEK is zeroed after use. The private key lives only inside the session cookie (encrypted with buil-int .Net Data Protection module) - never persisted in plaintext server-side.
+The KEK is zeroed after use. The private key lives only inside the session cookie (encrypted with built-in .NET Data Protection module) — never persisted in plaintext server-side.
 
-#### Session lifetime
+### Session lifetime
 
 The unwrapped private key is sealed into `UserEncryptionSessionCookie` (server-side encryption, bound to `ExternalId`) and returned to the browser. On each subsequent request that touches a full-encryption resource, the cookie is decrypted server-side to obtain the private key, which is then used to unwrap the relevant workspace DEK.
 
 `POST /api/user-encryption-password/lock` deletes the cookie. There is no server-side session state to clear.
 
-#### Workspace DEK access
+### Workspace DEK access
 
 The private key on its own does not decrypt anything — it exists to unseal wrapped DEKs. Every request that touches a full-encrypted workspace has to turn that private key into a set of Workspace DEKs for the workspace it is operating on, one per Storage DEK version that has ever applied to files in it. Those DEKs land in a `WorkspaceEncryptionSession` parked in `HttpContext.Items` for the rest of the request.
 
 A user can reach a workspace's DEKs through two paths:
 
-- **Member path** — a wrap in `wek_workspace_encryption_keys` sealed to the user's public key when they were added to the workspace. Unsealing it with the private key yields the Workspace DEK directly.
+- **Member path** — a wrap in `wek_workspace_encryption_keys` sealed to the user's public key when they were added to the workspace. Unsealing it with the private key yields the Workspace DEK directly. This is the path used by workspace creators (who get a `wek` row at creation time) and by invited members.
 
 - **Storage-owner path** — a wrap in `sek_storage_encryption_keys` sealed to the user's public key when they were granted storage access. Unsealing yields the Storage DEK; the Workspace DEK is then derived on the fly from `(Storage DEK, workspace_salt)`. This is the same derivation an offline recovery tool would walk from the seed — a storage owner can read every file in every workspace on their storage without ever being added as a workspace member.
 
@@ -201,6 +201,8 @@ The session's lifetime is bound to the HTTP request. The unsealed private key is
 ### Encryption password recovery
 
 If a user forgets their `encryption-password`, the only way to regain access to their private key is through the recovery code they received as a 24-word BIP-39 mnemonic when the encryption-password was first set. Recovery seed is never stored in the database — the user is responsible for keeping the mnemonic safe.
+
+The recovery seed is therefore as sensitive as the password itself: anyone holding it can reset the password and take over the encryption session without ever knowing the current password. Treating the mnemonic as a password-equivalent secret is essential — losing control of it is equivalent to losing control of the account.
 
 #### Inputs (from `u_users.EncryptionMetadata`)
 
@@ -394,7 +396,9 @@ In that scenario the file storage may still be intact — S3 buckets, local volu
 └────────────┬─────────────┘
              │
              │  for each file: read header,
-             │  walk chain salts
+             │  walk chain salts to
+             │  Workspace DEK, then HKDF
+             │  with FILE_SALT
              ▼
 ┌──────────────────────────┐
 │  Per-file AES key        │
@@ -406,7 +410,7 @@ The same derivation that produced Storage DEK v0 at creation time produces it ag
 
 This recovery path is not yet exposed in the product — no endpoint accepts a recovery code, no UI prompts for it. The intended consumer is an out-of-band tool that operates directly on the file storage: point it at a bucket, give it the 24-word mnemonic, and let it walk every encrypted frame, deriving keys from headers and emitting plaintext. No database, no running server, no admin credentials — only the storage and the seed.
 
-Designing for it now matters because recoverability is a property of the format, not the tooling. Every V2 file already carries the format version, the Storage DEK version, and the full chain of salts — a tool written years from now decrypts files written today. Storage rotation falls out of this for free: DeriveDek(seed, v) is deterministic for any v, so a single mnemonic re-derives every version, and files under v0, v1, v2 all decrypt from the same seed.
+Designing for it now matters because recoverability is a property of the format, not the tooling. Every V2 file already carries the format version, the Storage DEK version, and the full chain of salts — a tool written years from now decrypts files written today. Storage rotation falls out of this for free: `DeriveDek(seed, v)` is deterministic for any `v`, so a single mnemonic re-derives every version, and files under v0, v1, v2 all decrypt from the same seed.
 
 What the recovery code cannot reconstruct is anything that lived only in the database — workspace membership, audit history, share links, user accounts. Recovery is a path back to the bytes, not back to the application state.
 
@@ -461,13 +465,13 @@ The `workspace_salt` is generated freshly per workspace and persisted on the wor
 
 The Workspace DEK is always derived from the **latest** Storage DEK version available to the creator. Older versions exist only to keep files written before a past rotation decryptable — new derivations always go through the newest parent. The version used is recorded on the `wek` row so the read side can later line up wraps with files that were written under that version.
 
-A non-admin who somehow reaches the creation endpoint cannot succeed: without a row in `sek_storage_encryption_keys` for the target storage there is no Storage DEK to unseal, and the request is rejected before any workspace state is touched. This is the same gate that protects against an attacker holding a valid session for one storage trying to create workspaces on another — the only Storage DEKs they can unseal are the ones already wrapped to their public key.
+A non-admin cannot reach this flow — without a row in `sek_storage_encryption_keys` for the target storage there is no Storage DEK to unseal, and the request is rejected before any workspace state is touched. The only Storage DEKs a user can unseal are the ones already wrapped to their public key, so they can never create workspaces on a storage they were not granted access to.
 
 After creation, the creator can immediately use the workspace: their session holds the private key that unwraps the `wek` row, which yields the Workspace DEK that decrypts every file and every metadata field. Adding members later is purely a re-wrap operation against the same Workspace DEK — no derivation, no file ciphertext touched.
 
 ## File Encryption Flow
 
-By the time a file handler runs, the Workspace DEKs it needs are already in memory. A filter at the start of the request loads every row from `wek_workspace_encryption_keys` for the caller, unseals each with their X25519 private key, and parks the results in a `WorkspaceEncryptionSession` held in protected memory until the response is flushed.
+By the time a file handler runs, the Workspace DEKs it needs are already in memory — unsealed by the encryption filter described in [Workspace DEK access](#workspace-dek-access).
 
 A workspace can hold multiple Workspace DEKs at once — one per Storage DEK version that has ever been used for files in it. After a Storage DEK rotation, files written under v0 keep their v0-derived Workspace DEK and files written under v1 use the v1-derived one; both wraps live in `wek_workspace_encryption_keys` and both get unsealed into the session. Encryption uses the latest version. Decryption reads the version byte from the file header and asks the session for the matching DEK.
 
@@ -509,7 +513,7 @@ Encrypting a new file:
 
 The file's header is written out alongside: format version `0x02`, the Storage DEK version the Workspace DEK was derived from, the chain step salts (for now one entry: the workspace salt), the freshly random `FILE_SALT`, and the freshly random `NONCE_PREFIX`. The same fields are also persisted on the file's row in the database. The header carries everything a future reader needs to find the right key — whether that reader is the live application or an offline recovery tool.
 
-The duplication into the database row is what makes range reads cheap: to decrypt a segment from the middle of a large file, the server reads `STORAGE_DEK_VERSION`, `FILE_SALT` and `NONCE_PREFIX` straight from the row, without first issuing a storage round-trip just to fetch the header bytes. The in-file copy still matters — it is what lets an offline recovery tool decrypt a file with no database at all — but on the hot path, the database row is the source of truth.
+The duplication into the database row is what makes range reads cheap: to decrypt a segment from the middle of a large file, the server reads `STORAGE_DEK_VERSION`, the chain step salts, `FILE_SALT` and `NONCE_PREFIX` straight from the row, without first issuing a storage round-trip just to fetch the header bytes. The in-file copy still matters — it is what lets an offline recovery tool decrypt a file with no database at all — but on the hot path, the database row is the source of truth.
 
 Decrypting an existing file:
 
@@ -629,24 +633,22 @@ Every V2 file currently ships with `CHAIN_STEPS_COUNT = 1`, where the single ste
 
 ### Range reads on encrypted blobs
 
-HTTP `Range:` is required for a file-sharing application — video streaming, resumable downloads, partial reads. Encrypted blobs change the math: a plaintext byte range maps to an encrypted byte range that includes the full segment containing each endpoint, plus the header for segment 0.
+HTTP `Range:` is required for a file-sharing application — video streaming, resumable downloads, partial reads. Encrypted blobs change the math: a plaintext byte range maps to an encrypted byte range that includes the full segment containing each endpoint.
 
 ```
-Plaintext range:                [P_start ─────── P_end]
-                                            │
-                                            ▼
-Encrypted range: [HEADER][seg₀ TAG][seg₁ TAG][seg₂ TAG] ... [segₙ TAG]
-                         │                            │
-                         └── start segment            └── end segment
+Plaintext range:                        [P_start ─────── P_end]
+                                                    │
+                                                    ▼
+Encrypted range: [seg_k CIPHERTEXT][TAG][seg_k+1 CIPHERTEXT][TAG] ... [seg_n CIPHERTEXT][TAG]
+                  │                                                    │
+                  └── start segment                                    └── end segment
 ```
 
-Given a plaintext range and the file's header parameters, the encrypted byte range to fetch from storage is computed, along with the trim offsets to apply after decryption. Only the needed segments are pulled, each authenticated independently, and plaintext is yielded into the response stream.
-
----
+The header bytes do not need to be fetched on the hot path: `STORAGE_DEK_VERSION`, the chain step salts, `FILE_SALT` and `NONCE_PREFIX` are already on the file's database row. Given those fields and the requested plaintext range, the server computes which segments cover the range, fetches just those segment ranges from storage, authenticates and decrypts each independently, and yields plaintext into the response stream with the trim offsets applied.
 
 ## Metadata encryption: the `pse:` prefix
 
-File contents are the obvious target for encryption. File names are the less obvious one. Folder names, audit log entries, upload metadata — all of them leak structure if stored in the clear.
+File contents are the obvious target for encryption. File names, folder names, upload metadata are the less obvious one — all of them leak the names and structure of stored data if kept in the clear.
 
 In full-encryption mode, every text metadata field is encrypted with AES-256-GCM under the Workspace DEK and stored as base64 with a self-identifying prefix:
 
@@ -681,7 +683,7 @@ The session map is built once at the start of the request: every workspace the s
 
 There is no index, so this is a full scan over the workspace's metadata. Workspaces are bounded, so the scan runs at I/O speed.
 
-### Audit logs
+## Audit logs
 
 The audit log records every meaningful action in the system: workspace created, member invited, file uploaded, folder renamed, link generated, and so on. Each entry carries a structured `details` JSON payload — for a rename, the old and new names; for an upload, the file path; for a member invitation, the email of the invitee. In full-encryption mode that payload is a problem. A workspace whose files are encrypted at rest still leaks every name they ever held to anyone who can read the audit log table directly.
 
@@ -758,6 +760,27 @@ Flow:
 The TTL on `ewek_expires_at` is the safety net: if Alice never accepts, a cleanup job deletes the rows and the inviter has to re-invite. The sealed-box mechanism means the inviter does not need Alice's eventual private key — only a public key to seal to, even an ephemeral one.
 
 The symmetric wrap of the ephemeral private key under the code-derived KEK lasts only as long as the invitation code does.
+
+## Membership revocation
+
+Removing a user from a workspace, or cancelling a pending invitation, comes down to deleting wraps. The user's keypair is not touched, the Workspace DEK is not touched, file ciphertext is not touched — what changes is which wraps exist in the database.
+
+For a user who already accepted the invitation, removal deletes their `wek_workspace_encryption_keys` rows for the workspace they are being removed from. Without a wrap, no new request can produce a `WorkspaceEncryptionSession` for that workspace — the next request fails the unseal step and is rejected. The same applies when a user leaves a workspace voluntarily, or when their account is deleted entirely (in which case all `wek_*` and `sek_*` rows for that user are dropped together with the user row).
+
+For a user who has not yet accepted, cancellation deletes the corresponding `ewek_ephemeral_workspace_encryption_keys` rows. The ephemeral private key in `euek_ephemeral_user_encryption_keys` may stay until the invitation TTL expires, but with no `ewek_*` rows to unwrap, it has nothing to act on.
+
+## Storage DEK rotation
+
+The format and key hierarchy were designed for rotation, but rotation itself is not yet implemented. There is currently exactly one Storage DEK version per storage — version 0 — and no mechanism to introduce a new one.
+
+What the format already supports:
+
+- The V2 file header carries `STORAGE_DEK_VERSION`, so files written under different versions coexist without ambiguity.
+- `wek_workspace_encryption_keys` has `wek_storage_dek_version` in its primary key, allowing one workspace member to hold wraps under multiple versions simultaneously.
+- `WorkspaceEncryptionSession` indexes its DEKs by version and exposes `GetDekForVersion(v)`, so decryption picks the right key per file.
+- `DeriveDek(seed, v)` is parameterized by version, so a single recovery seed re-derives every past Storage DEK on demand.
+
+What is missing is the operation itself: the act of generating a new version, sealing it to every storage admin, and switching new writes over to it. When rotation is added, existing files keep their version byte and remain decryptable under the old DEK; new files will be written under the new DEK, and the read path will continue to dispatch by version with no further changes.
 
 ## Planned extensions
 
