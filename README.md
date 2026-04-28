@@ -57,6 +57,18 @@ PlikShare supports Single Sign-On via OIDC providers like Google or Keycloak. Yo
 
 <img width="1558" height="1702" alt="image" src="https://github.com/user-attachments/assets/22d1489d-8e0f-4070-b821-f1291f17a76a" />
 
+## Full Encryption
+
+PlikShare supports a **full-encryption** mode where workspaces, file contents, file/folder names, and audit log details are encrypted at rest with keys derived from each user's encryption-password. The server stores only ciphertext, wrapped keys, and public keys — an attacker with full access to the database and file storage cannot read user data without a user's encryption-password or recovery code.
+
+Key properties:
+- **Per-user X25519 keypair** unlocked by an encryption password (Argon2id-derived KEK).
+- **Per-workspace DEK** sealed to each member's public key — sharing a workspace doesn't require the recipient to be online.
+- **24-word BIP-39 recovery code** as the disaster-recovery root: even if the database is lost, files left in storage stay decryptable.
+- **Scoped keys**: a phished password unlocks only what that specific user had access to — no global decryption.
+
+For the full design — key hierarchy, file frame format, metadata envelope, recovery flows, invitation/revocation, and DEK rotation — see [docs/full-encryption.md](docs/full-encryption.md).
+
 ## How to upload files
 The fastes way is to create zip archive out of the files you want to upload and then use PlikShare bulk upload feature!
 

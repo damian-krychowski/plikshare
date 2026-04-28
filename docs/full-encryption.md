@@ -2,6 +2,24 @@
 
 A technical description of full encryption mode in Plikshare: the key hierarchy, the file frame format, the metadata envelope, and the recovery mechanisms.
 
+## Table of contents
+
+- [Design goals](#design-goals)
+- [User identities](#user-identities)
+- [Sealed box](#sealed-box)
+- [User encryption session](#user-encryption-session)
+- [Storage key hierarchy](#storage-key-hierarchy)
+- [Storage Creation Flow](#storage-creation-flow)
+- [Storage Recovery codes](#storage-recovery-codes)
+- [Workspace Creation Flow](#workspace-creation-flow)
+- [File Encryption Flow](#file-encryption-flow)
+- [Metadata encryption: the `pse:` prefix](#metadata-encryption-the-pse-prefix)
+- [Audit logs](#audit-logs)
+- [Invitations: the bootstrapping problem](#invitations-the-bootstrapping-problem)
+- [Membership revocation](#membership-revocation)
+- [Storage DEK rotation](#storage-dek-rotation)
+- [Planned extensions](#planned-extensions)
+
 ## Design goals
 
 Full-encryption mode is built around three properties:
