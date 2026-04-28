@@ -11,7 +11,7 @@ public class StorageDekDerivationTests
         var seed = new byte[32];
         RandomNumberGenerator.Fill(seed);
 
-        var dek = StorageDekDerivation.DeriveDek(seed, 0);
+        using var dek = StorageDekDerivation.DeriveDek(seed, 0);
 
         Assert.Equal(32, dek.Length);
     }
@@ -22,10 +22,10 @@ public class StorageDekDerivationTests
         var seed = new byte[32];
         RandomNumberGenerator.Fill(seed);
 
-        var dek1 = StorageDekDerivation.DeriveDek(seed, 0);
-        var dek2 = StorageDekDerivation.DeriveDek(seed, 0);
+        using var dek1 = StorageDekDerivation.DeriveDek(seed, 0);
+        using var dek2 = StorageDekDerivation.DeriveDek(seed, 0);
 
-        Assert.Equal(dek1, dek2);
+        AssertSecureBytesEqual(dek1, dek2);
     }
 
     [Fact]
@@ -34,13 +34,13 @@ public class StorageDekDerivationTests
         var seed = new byte[32];
         RandomNumberGenerator.Fill(seed);
 
-        var dekV0 = StorageDekDerivation.DeriveDek(seed, 0);
-        var dekV1 = StorageDekDerivation.DeriveDek(seed, 1);
-        var dekV100 = StorageDekDerivation.DeriveDek(seed, 100);
+        using var dekV0 = StorageDekDerivation.DeriveDek(seed, 0);
+        using var dekV1 = StorageDekDerivation.DeriveDek(seed, 1);
+        using var dekV100 = StorageDekDerivation.DeriveDek(seed, 100);
 
-        Assert.NotEqual(dekV0, dekV1);
-        Assert.NotEqual(dekV0, dekV100);
-        Assert.NotEqual(dekV1, dekV100);
+        AssertSecureBytesNotEqual(dekV0, dekV1);
+        AssertSecureBytesNotEqual(dekV0, dekV100);
+        AssertSecureBytesNotEqual(dekV1, dekV100);
     }
 
     [Fact]
@@ -51,10 +51,10 @@ public class StorageDekDerivationTests
         RandomNumberGenerator.Fill(seedA);
         RandomNumberGenerator.Fill(seedB);
 
-        var dekA = StorageDekDerivation.DeriveDek(seedA, 0);
-        var dekB = StorageDekDerivation.DeriveDek(seedB, 0);
+        using var dekA = StorageDekDerivation.DeriveDek(seedA, 0);
+        using var dekB = StorageDekDerivation.DeriveDek(seedB, 0);
 
-        Assert.NotEqual(dekA, dekB);
+        AssertSecureBytesNotEqual(dekA, dekB);
     }
 
     [Fact]
@@ -62,9 +62,10 @@ public class StorageDekDerivationTests
     {
         var seed = new byte[32];
 
-        var dek = StorageDekDerivation.DeriveDek(seed, 0);
+        using var dek = StorageDekDerivation.DeriveDek(seed, 0);
 
-        Assert.NotEqual(new byte[32], dek);
+        var dekBytes = ToArray(dek);
+        Assert.NotEqual(new byte[32], dekBytes);
     }
 
     [Fact]
@@ -75,16 +76,33 @@ public class StorageDekDerivationTests
         // mapping being stable forever.
         var seed = Enumerable.Range(0, 32).Select(i => (byte)i).ToArray();
 
-        var dekV0 = StorageDekDerivation.DeriveDek(seed, 0);
-        var dekV1 = StorageDekDerivation.DeriveDek(seed, 1);
+        using var dekV0 = StorageDekDerivation.DeriveDek(seed, 0);
+        using var dekV1 = StorageDekDerivation.DeriveDek(seed, 1);
 
         // Recompute expected values with the same algorithm (acts as a structural
         // assertion, not a golden vector).
         Assert.Equal(32, dekV0.Length);
         Assert.Equal(32, dekV1.Length);
-        Assert.NotEqual(dekV0, dekV1);
+        AssertSecureBytesNotEqual(dekV0, dekV1);
 
-        var dekV0Again = StorageDekDerivation.DeriveDek(seed, 0);
-        Assert.Equal(dekV0, dekV0Again);
+        using var dekV0Again = StorageDekDerivation.DeriveDek(seed, 0);
+        AssertSecureBytesEqual(dekV0, dekV0Again);
+    }
+
+    private static byte[] ToArray(SecureBytes secure)
+    {
+        var copy = new byte[secure.Length];
+        secure.CopyTo(copy);
+        return copy;
+    }
+
+    private static void AssertSecureBytesEqual(SecureBytes a, SecureBytes b)
+    {
+        Assert.Equal(ToArray(a), ToArray(b));
+    }
+
+    private static void AssertSecureBytesNotEqual(SecureBytes a, SecureBytes b)
+    {
+        Assert.NotEqual(ToArray(a), ToArray(b));
     }
 }

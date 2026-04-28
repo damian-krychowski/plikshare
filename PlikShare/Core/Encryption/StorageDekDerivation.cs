@@ -14,21 +14,36 @@ public static class StorageDekDerivation
 
     private static readonly byte[] InfoPrefix = "plikshare-dek\0"u8.ToArray();
 
-    public static byte[] DeriveDek(ReadOnlySpan<byte> recoveryBytes, uint version)
+    public static SecureBytes DeriveDek(ReadOnlySpan<byte> recoveryBytes, uint version)
     {
-        Span<byte> info = stackalloc byte[InfoPrefix.Length + sizeof(uint)];
-        InfoPrefix.CopyTo(info);
-        BinaryPrimitives.WriteUInt32BigEndian(info[InfoPrefix.Length..], version);
+        return SecureBytes.Create(
+            length: DekSize,
+            state: new Input
+            {
+                RecoveryBytes = recoveryBytes,
+                Version = version
+            },
+            initializer: static (output, state) =>
+            {
+                Span<byte> info = stackalloc byte[InfoPrefix.Length + sizeof(uint)];
+                InfoPrefix.CopyTo(info);
 
-        var dek = new byte[DekSize];
+                BinaryPrimitives.WriteUInt32BigEndian(
+                    destination: info[InfoPrefix.Length..], 
+                    value: state.Version);
+                
+                HKDF.DeriveKey(
+                    hashAlgorithmName: HashAlgorithmName.SHA256,
+                    ikm: state.RecoveryBytes,
+                    output: output,
+                    salt: [],
+                    info: info);
+            });
+    }
 
-        HKDF.DeriveKey(
-            hashAlgorithmName: HashAlgorithmName.SHA256,
-            ikm: recoveryBytes,
-            output: dek,
-            salt: [],
-            info: info);
-
-        return dek;
+    private readonly ref struct Input
+    {
+        public required ReadOnlySpan<byte> RecoveryBytes { get; init; }
+        public required uint Version { get; init; }
     }
 }

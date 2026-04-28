@@ -10,7 +10,6 @@ public static class StorageManagedEncryptionService
     public static GenerateDetailsResult GenerateDetails()
     {
         Span<byte> recoveryBytes = stackalloc byte[RecoverySeedSize];
-        byte[]? ikmV0 = null;
 
         try
         {
@@ -19,24 +18,23 @@ public static class StorageManagedEncryptionService
             // IKM_v0 is deterministically derived from the recovery seed, so the
             // recovery code alone (used by an offline tool) is sufficient to
             // reconstruct the IKM if the database is ever lost.
-            ikmV0 = StorageDekDerivation.DeriveDek(
+            using var ikmV0 = StorageDekDerivation.DeriveDek(
                 recoveryBytes,
-                 version: 0);
+                version: 0);
 
             var recoveryCode = RecoveryCodeCodec.Encode(
                 recoveryBytes);
 
+            var ikmV0Base64 = ikmV0.Use(static span => Convert.ToBase64String(span));
+
             var details = new StorageManagedEncryptionDetails(
-                Ikms: [Convert.ToBase64String(ikmV0)]);
+                Ikms: [ikmV0Base64]);
 
             return new GenerateDetailsResult(details, recoveryCode);
         }
         finally
         {
             CryptographicOperations.ZeroMemory(recoveryBytes);
-
-            if (ikmV0 != null)
-                CryptographicOperations.ZeroMemory(ikmV0);
         }
     }
 

@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Encryption;
 using PlikShare.Storages.Encryption;
@@ -42,7 +41,7 @@ public class CreateStorageFlow(
 
         StorageEncryption encryption;
         string? recoveryCode = null;
-        byte[]? fullDekToWrap = null;
+        SecureBytes? fullDekToWrap = null;
 
         switch (encryptionType)
         {
@@ -72,7 +71,7 @@ public class CreateStorageFlow(
             var ownerKeyDataList = encryptionType == StorageEncryptionType.Full
                 ? await GetOwnerEncryptionKeyDataList(
                     creator,
-                    fullDekToWrap,
+                    fullDekToWrap!,
                     cancellationToken)
                 : [];
 
@@ -114,14 +113,13 @@ public class CreateStorageFlow(
         }
         finally
         {
-            if (fullDekToWrap is not null)
-                CryptographicOperations.ZeroMemory(fullDekToWrap);
+            fullDekToWrap?.Dispose();
         }
     }
 
     private async Task<OwnerEncryptionKeyData[]> GetOwnerEncryptionKeyDataList(
         UserContext creator,
-        byte[]? fullDekToWrap, 
+        SecureBytes fullDekToWrap,
         CancellationToken cancellationToken)
     {
         var owners = await appOwners.OwnerContexts(
@@ -134,9 +132,11 @@ public class CreateStorageFlow(
             .DistinctBy(user => user.Id)
             .Select(user =>
             {
-                var wrappedDek = UserKeyPair.SealTo(
-                    recipientPublicKey: user.EncryptionMetadata!.PublicKey,
-                    plaintext: fullDekToWrap!);
+                var wrappedDek = fullDekToWrap.Use(
+                    user.EncryptionMetadata!.PublicKey,
+                    static (dekSpan, publicKey) => UserKeyPair.SealTo(
+                        recipientPublicKey: publicKey,
+                        plaintext: dekSpan));
 
                 return new OwnerEncryptionKeyData(
                     UserId: user.Id,

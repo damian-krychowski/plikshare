@@ -101,9 +101,9 @@ public class UserEncryptionRecoveryTests
         var seed = UserEncryptionRecovery.GenerateRecoverySeed();
 
         using var userKek = UserEncryptionRecovery.DeriveRecoveryKek(seed);
-        var storageDek = StorageDekDerivation.DeriveDek(seed, version: 0);
+        using var storageDek = StorageDekDerivation.DeriveDek(seed, version: 0);
 
-        AssertSecureBytesNotEqualToByteArray(userKek, storageDek);
+        AssertSecureBytesNotEqual(userKek, storageDek);
     }
 
     [Fact]
@@ -168,10 +168,4 @@ public class UserEncryptionRecoveryTests
         Assert.NotEqual(aCopy, bCopy);
     }
 
-    private static void AssertSecureBytesNotEqualToByteArray(SecureBytes a, byte[] b)
-    {
-        var aCopy = new byte[a.Length];
-        a.CopyTo(aCopy);
-        Assert.NotEqual(aCopy, b);
-    }
 }

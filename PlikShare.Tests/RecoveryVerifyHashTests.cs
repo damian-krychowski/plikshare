@@ -85,8 +85,11 @@ public class RecoveryVerifyHashTests
         RandomNumberGenerator.Fill(seed);
 
         var verifyHash = RecoveryVerifyHash.Compute(seed);
-        var dekV0 = StorageDekDerivation.DeriveDek(seed, 0);
+        using var dekV0 = StorageDekDerivation.DeriveDek(seed, 0);
 
-        Assert.NotEqual(verifyHash, dekV0);
+        var dekV0Bytes = new byte[dekV0.Length];
+        dekV0.CopyTo(dekV0Bytes);
+
+        Assert.NotEqual(verifyHash, dekV0Bytes);
     }
 }

@@ -50,7 +50,9 @@ public class SetupUserEncryptionPasswordOperation(
             encryptionPassword: encryptionPassword,
             recoverySeed: recoverySeed);
 
-        var hasInvitationCode = !string.IsNullOrWhiteSpace(invitationCode);
+        var hasInvitationCode = !string.IsNullOrWhiteSpace(
+            invitationCode);
+        
         var invitationCodeBytes = hasInvitationCode
             ? Base62Encoding.FromBase62ToBytes(invitationCode!)
             : null;
@@ -122,16 +124,20 @@ public class SetupUserEncryptionPasswordOperation(
         var encryptedPrivateKey = SecureBytes.UseBoth(
             first: keypair.PrivateKey,
             second: passwordKek,
-            action: static (privateKeySpan, kekSpan) => SymmetricAeadWrap.Wrap(kekSpan, privateKeySpan));
+            action: static (privateKeySpan, kekSpan) => SymmetricAeadWrap.Wrap(
+                kek: kekSpan, 
+                plaintext: privateKeySpan));
 
-        using var recoveryKek = UserEncryptionRecovery.DeriveRecoveryKek(recoverySeed);
+        using var recoveryKek = UserEncryptionRecovery.DeriveRecoveryKek(
+            recoverySeed);
 
         var recoveryWrappedPrivateKey = SecureBytes.UseBoth(
             first: keypair.PrivateKey,
             second: recoveryKek,
             action: static (privateKeySpan, kekSpan) => SymmetricAeadWrap.Wrap(kekSpan, privateKeySpan));
 
-        var recoveryVerifyHash = UserEncryptionRecovery.ComputeVerifyHash(recoverySeed);
+        var recoveryVerifyHash = UserEncryptionRecovery.ComputeVerifyHash(
+            recoverySeed);
 
         return new EncryptionSetupArtifacts(
             PublicKey: keypair.PublicKey,

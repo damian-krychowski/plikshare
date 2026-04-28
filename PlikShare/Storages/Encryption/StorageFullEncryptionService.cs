@@ -9,7 +9,7 @@ namespace PlikShare.Storages.Encryption;
 /// and the recovery verify hash used later to validate a caller-provided recovery code.
 /// The caller is responsible for wrapping the DEK to the creator's X25519 public key
 /// (via <see cref="UserKeyPair.SealTo"/>) and inserting it into <c>sek_storage_encryption_keys</c>,
-/// then zeroing the plaintext DEK buffer.
+/// then disposing the result so the plaintext DEK buffer is wiped.
 /// </summary>
 public static class StorageFullEncryptionService
 {
@@ -27,7 +27,7 @@ public static class StorageFullEncryptionService
             // recovery code alone (without the database) is sufficient to reconstruct
             // the DEK for offline file recovery.
             var dek = StorageDekDerivation.DeriveDek(
-                recoveryBytes, 
+                recoveryBytes,
                 version: 0);
 
             var recoveryVerifyHash = RecoveryVerifyHash.Compute(
@@ -52,11 +52,15 @@ public static class StorageFullEncryptionService
     }
 
     /// <summary>
-    /// Output of <see cref="GenerateDetails"/>. The caller MUST zero <see cref="Dek"/>
-    /// after sealing it to the creator's public key.
+    /// Output of <see cref="GenerateDetails"/>. The caller MUST dispose this result
+    /// after sealing <see cref="Dek"/> to the creator's public key — disposal wipes
+    /// the underlying secure buffer.
     /// </summary>
-    public record GenerateDetailsResult(
+    public sealed record GenerateDetailsResult(
         StorageFullEncryptionDetails Details,
-        byte[] Dek,
-        string RecoveryCode);
+        SecureBytes Dek,
+        string RecoveryCode) : IDisposable
+    {
+        public void Dispose() => Dek.Dispose();
+    }
 }

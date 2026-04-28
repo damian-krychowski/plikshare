@@ -48,7 +48,10 @@ public static class UserKeyPair
     {
         using var key = Key.Create(
             KeyAgreement,
-            new KeyCreationParameters { ExportPolicy = KeyExportPolicies.AllowPlaintextExport });
+            new KeyCreationParameters 
+            { 
+                ExportPolicy = KeyExportPolicies.AllowPlaintextExport 
+            });
 
         var publicKey = key.PublicKey.Export(KeyBlobFormat.RawPublicKey);
 
