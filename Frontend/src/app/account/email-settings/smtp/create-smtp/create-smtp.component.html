@@ -107,36 +107,54 @@
             </mat-form-field>
        </div>
 
-       <mat-form-field class="questionaire__form-field">
-            <mat-label>Email / Username</mat-label>
+       <div class="questionaire__section-title">
+            Authentication:
+        </div>
 
-            <input 
-                id="username"
-                type="text" 
-                matInput 
-                appTrim
-                formControlName="username">
+        <mat-checkbox formControlName="anonymousAuthentication">
+            Use anonymous authentication <br>
+            <div class="anonymous-subtitle">(no username/password)</div>
+        </mat-checkbox>
 
-            @if ((username.touched || wasSubmitted()) && username.hasError('required')) {
-                <mat-error>Username is <strong>required</strong></mat-error>
-            }    
-        </mat-form-field>
+        @if (anonymousAuthentication.value) {
+            <div class="questionaire__info">
+                Only use this with trusted internal relays (intranet servers, local sidecars, IP-allowlisted submission endpoints).
+                Public providers like Gmail, Outlook or SendGrid require authentication and will reject anonymous submissions.
+            </div>
+        }
 
-        <mat-form-field class="questionaire__form-field">
-            <mat-label>Password</mat-label>
+        @if (!anonymousAuthentication.value) {
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>Email / Username</mat-label>
 
-            <input 
-                id="password"
-                type="text" 
-                matInput 
-                appSecureInput
-                appTrim
-                formControlName="password">
+                <input
+                    id="username"
+                    type="text"
+                    matInput
+                    appTrim
+                    formControlName="username">
 
-            @if ((password.touched || wasSubmitted()) && password.hasError('required')) {
-                <mat-error>Password is <strong>required</strong></mat-error>
-            }    
-        </mat-form-field>
+                @if ((username.touched || wasSubmitted()) && username.hasError('required')) {
+                    <mat-error>Username is <strong>required</strong></mat-error>
+                }
+            </mat-form-field>
+
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>Password</mat-label>
+
+                <input
+                    id="password"
+                    type="text"
+                    matInput
+                    appSecureInput
+                    appTrim
+                    formControlName="password">
+
+                @if ((password.touched || wasSubmitted()) && password.hasError('required')) {
+                    <mat-error>Password is <strong>required</strong></mat-error>
+                }
+            </mat-form-field>
+        }
 
         @if(couldNotConnect()){
             <mat-error>Email Provider configuration is incorrect - sending confirmation email has failed.</mat-error>        

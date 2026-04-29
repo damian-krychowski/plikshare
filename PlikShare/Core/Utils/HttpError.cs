@@ -672,6 +672,13 @@ public static class HttpErrors
                 Message = $"Could not send test email with {providerType} with given credentials",
                 InnerError = innerError
             });
+
+        public static BadRequest<HttpError> CredentialsRequired() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "email-provider-credentials-required",
+                Message = "Username and password are required when authentication is enabled"
+            });
     }
 
     public static class BulkDownload

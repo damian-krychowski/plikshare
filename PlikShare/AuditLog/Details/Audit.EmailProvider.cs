@@ -10,6 +10,7 @@ public static partial class Audit
         {
             public required EmailProviderRef EmailProvider { get; init; }
             public required string EmailFrom { get; init; }
+            public required bool IsAnonymous { get; init; }
         }
 
         public class Deleted
@@ -35,7 +36,8 @@ public static partial class Audit
         public static AuditLogEntry CreatedEntry(
             AuditLogActorContext actor,
             EmailProviderRef emailProvider,
-            string emailFrom) => new()
+            string emailFrom,
+            bool isAnonymous) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -46,7 +48,8 @@ public static partial class Audit
             Severity = AuditLogSeverities.Info,
             DetailsJson = Json.Serialize(new Created {
                 EmailProvider = emailProvider,
-                EmailFrom = emailFrom })
+                EmailFrom = emailFrom,
+                IsAnonymous = isAnonymous })
         };
 
         public static AuditLogEntry DeletedEntry(

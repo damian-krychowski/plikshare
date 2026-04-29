@@ -7,30 +7,16 @@ using Serilog;
 
 namespace PlikShare.EmailProviders.ExternalProviders.Smtp;
 
-public class SmtpEmailSender : IEmailSender
+public class SmtpEmailSender(
+    string emailFrom,
+    string hostname,
+    int port,
+    SslMode sslMode,
+    bool requiresAuthentication,
+    string username,
+    string password) : IEmailSender
 {
-    private readonly string _emailFrom;
-    private readonly string _hostname;
-    private readonly int _port;
-    private readonly SecureSocketOptions _secureSocketOptions;
-    private readonly string _username;
-    private readonly string _password;
-
-    public SmtpEmailSender(
-        string emailFrom,
-        string hostname,
-        int port,
-        SslMode sslMode,
-        string username,
-        string password)
-    {
-        _emailFrom = emailFrom;
-        _hostname = hostname;
-        _port = port;
-        _secureSocketOptions = GetSecureSocketOptions(sslMode);
-        _username = username;
-        _password = password;
-    }
+    private readonly SecureSocketOptions _secureSocketOptions = GetSecureSocketOptions(sslMode);
 
     public async Task SendEmail(
         string to,
@@ -39,7 +25,7 @@ public class SmtpEmailSender : IEmailSender
         CancellationToken cancellationToken = default)
     {
         var message = new MimeMessage(
-            from: [MailboxAddress.Parse(_emailFrom)],
+            from: [MailboxAddress.Parse(emailFrom)],
             to: [MailboxAddress.Parse(to)],
             subject: subject,
             body: new TextPart(TextFormat.Html)
@@ -52,16 +38,19 @@ public class SmtpEmailSender : IEmailSender
             using var client = new SmtpClient();
             
             await client.ConnectAsync(
-                host: _hostname,
-                port: _port, 
+                host: hostname,
+                port: port, 
                 options: _secureSocketOptions, 
                 cancellationToken: cancellationToken);
     
-            await client.AuthenticateAsync(
-                _username,
-                _password,
-                cancellationToken);
-    
+            if (requiresAuthentication)
+            {
+                await client.AuthenticateAsync(
+                    username,
+                    password,
+                    cancellationToken);
+            }
+
             await client.SendAsync(
                 message,
                 cancellationToken);
@@ -75,8 +64,8 @@ public class SmtpEmailSender : IEmailSender
             Log.Error(e, "Cannot send email '{Subject}' to '{Recipient}' with SMTP {Hostname}:{Port}", 
                 subject, 
                 to,
-                _hostname,
-                _port);
+                hostname,
+                port);
             
             throw;
         }

@@ -405,7 +405,8 @@ public static class EmailProvidersEndpoints
                             Name = request.Name,
                             Type = EmailProviderType.AwsSes.Value
                         },
-                        emailFrom: request.EmailFrom),
+                        emailFrom: request.EmailFrom,
+                        isAnonymous: false),
                     cancellationToken);
                 return TypedResults.Ok(new CreateAwsSesEmailProviderResponseDto(
                     ExternalId: result.EmailProviderExternalId!.Value));
@@ -455,7 +456,8 @@ public static class EmailProvidersEndpoints
                             Name = request.Name,
                             Type = EmailProviderType.Resend.Value
                         },
-                        emailFrom: request.EmailFrom),
+                        emailFrom: request.EmailFrom,
+                        isAnonymous: false),
                     cancellationToken);
                 return TypedResults.Ok(new CreateAwsSesEmailProviderResponseDto(
                     ExternalId: result.EmailProviderExternalId!.Value));
@@ -483,6 +485,12 @@ public static class EmailProvidersEndpoints
             AuditLogService auditLogService,
             CancellationToken cancellationToken)
     {
+        if (request.RequiresAuthentication
+            && (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password)))
+        {
+            return HttpErrors.EmailProvider.CredentialsRequired();
+        }
+
         var result = await createEmailProviderOperation.Execute(
             name: request.Name,
             type: EmailProviderType.Smtp,
@@ -492,8 +500,9 @@ public static class EmailProvidersEndpoints
                     Hostname: request.Hostname,
                     Port: request.Port,
                     SslMode: request.SslMode,
-                    Username: request.Username,
-                    Password: request.Password)),
+                    Username: request.RequiresAuthentication ? request.Username : string.Empty,
+                    Password: request.RequiresAuthentication ? request.Password : string.Empty,
+                    RequiresAuthentication: request.RequiresAuthentication)),
             userEmail: httpContext.User.GetEmail(),
             cancellationToken: cancellationToken);
 
@@ -509,7 +518,8 @@ public static class EmailProvidersEndpoints
                             Name = request.Name,
                             Type = EmailProviderType.Smtp.Value
                         },
-                        emailFrom: request.EmailFrom),
+                        emailFrom: request.EmailFrom,
+                        isAnonymous: !request.RequiresAuthentication),
                     cancellationToken);
                 return TypedResults.Ok(new CreateAwsSesEmailProviderResponseDto(
                     ExternalId: result.EmailProviderExternalId!.Value));

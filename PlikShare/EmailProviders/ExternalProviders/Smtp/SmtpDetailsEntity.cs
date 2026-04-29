@@ -5,7 +5,8 @@ public record SmtpDetailsEntity(
     int Port,
     SslMode SslMode,
     string Username,
-    string Password);
+    string Password,
+    bool RequiresAuthentication = true);
 
 public enum SslMode
 {

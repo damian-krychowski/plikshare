@@ -46,6 +46,7 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
 
     public ResendEmailServer ResendEmailServer { get; }
     public MockOidcServer MockOidcServer { get; }
+    public SmtpTestServer SmtpTestServer { get; }
 
     public EmailTemplates EmailTemplates { get; }
 
@@ -57,12 +58,16 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
     {
         var resendPort = PortNumber + 1000;
         var oidcPort = PortNumber + 2000;
+        var smtpPort = PortNumber + 3000;
 
         ResendEmailServer = new ResendEmailServer(
             portNumber: resendPort);
 
         MockOidcServer = new MockOidcServer(
             portNumber: oidcPort);
+
+        SmtpTestServer = new SmtpTestServer(
+            portNumber: smtpPort);
         
         var builder = WebApplication.CreateBuilder(
             new WebApplicationOptions() 
@@ -140,6 +145,7 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
         
         try
         {
+            await SmtpTestServer.DisposeAsync();
             await MockOidcServer.DisposeAsync();
             await ResendEmailServer.DisposeAsync();
             await App.StopAsync();

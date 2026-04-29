@@ -21,6 +21,7 @@ export interface CreateSmtpEmailProviderRequest {
     hostname: string;
     port: number;
     sslMode: SmtpSslMode;
+    requiresAuthentication: boolean;
     username: string;
     password: string;
 }

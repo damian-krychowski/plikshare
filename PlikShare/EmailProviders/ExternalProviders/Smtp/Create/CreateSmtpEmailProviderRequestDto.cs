@@ -6,5 +6,6 @@ public record CreateSmtpEmailProviderRequestDto(
     string Hostname,
     int Port,
     SslMode SslMode,
+    bool RequiresAuthentication,
     string Username,
     string Password);

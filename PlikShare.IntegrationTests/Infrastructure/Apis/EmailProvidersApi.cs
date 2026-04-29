@@ -1,6 +1,8 @@
 using Flurl.Http;
 using PlikShare.EmailProviders.Confirm.Contracts;
+using PlikShare.EmailProviders.ExternalProviders.AwsSes.Create.Contracts;
 using PlikShare.EmailProviders.ExternalProviders.Resend.Create;
+using PlikShare.EmailProviders.ExternalProviders.Smtp.Create;
 using PlikShare.EmailProviders.Id;
 using PlikShare.EmailProviders.List.Contracts;
 using PlikShare.EmailProviders.UpdateName.Contracts;
@@ -26,6 +28,19 @@ public class EmailProvidersApi(IFlurlClient flurlClient, string appUrl)
         return await flurlClient.ExecutePost<CreateResendEmailProviderResponseDto, CreateResendEmailProviderRequestDto>(
             appUrl: appUrl,
             apiPath: "api/email-providers/resend",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task<CreateAwsSesEmailProviderResponseDto> CreateSmtp(
+        CreateSmtpEmailProviderRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        return await flurlClient.ExecutePost<CreateAwsSesEmailProviderResponseDto, CreateSmtpEmailProviderRequestDto>(
+            appUrl: appUrl,
+            apiPath: "api/email-providers/smtp",
             request: request,
             cookie: cookie,
             antiforgery: antiforgery);

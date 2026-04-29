@@ -54,6 +54,7 @@ public class TestFixture: IAsyncLifetime
     protected OneTimeInvitationCodeMock OneTimeInvitationCode { get; }
     protected ResendEmailServer ResendEmailServer { get; }
     protected MockOidcServer MockOidcServer { get; }
+    protected SmtpTestServer SmtpTestServer { get; }
     protected AppSettings AppSettings { get; }
 
     protected EmailTemplates EmailTemplates { get; }
@@ -71,6 +72,7 @@ public class TestFixture: IAsyncLifetime
         OneTimeInvitationCode = hostFixture.OneTimeInvitationCode;
         ResendEmailServer = hostFixture.ResendEmailServer;
         MockOidcServer = hostFixture.MockOidcServer;
+        SmtpTestServer = hostFixture.SmtpTestServer;
         EmailTemplates = hostFixture.EmailTemplates;
         AppSettings = hostFixture.AppSettings;
         
