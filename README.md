@@ -57,15 +57,37 @@ PlikShare supports Single Sign-On via OIDC providers like Google or Keycloak. Yo
 
 <img width="1558" height="1702" alt="image" src="https://github.com/user-attachments/assets/22d1489d-8e0f-4070-b821-f1291f17a76a" />
 
-## Full Encryption
+## Encryption modes
 
-PlikShare supports a **full-encryption** mode where workspaces, file contents, file/folder names, and audit log details are encrypted at rest with keys derived from each user's encryption-password. The server stores only ciphertext, wrapped keys, and public keys — an attacker with full access to the database and file storage cannot read user data without a user's encryption-password or recovery code.
+PlikShare offers three encryption modes, configured per storage at creation time. Different storages in the same installation can use different modes — pick the one that matches the threat model of the data being stored.
+
+### No encryption
+
+Files are written to storage as plaintext. There is no key material, no recovery code, no per-storage setup. Suitable for non-sensitive content, internal sharing, or when the underlying storage backend already provides the confidentiality guarantees you need.
+
+### Managed encryption
+
+File contents are encrypted at rest with AES-256-GCM. The encryption keys are held server-side, wrapped under the server's master password (provided as the `PlikShare_EncryptionPasswords` environment variable). The server can read files at any time without user action; an attacker who only obtains the file storage cannot.
+
+Key properties:
+- **Server-managed keys.** No per-user setup; the server decrypts on the user's behalf.
+- **Per-storage IKM** stored in the database wrapped by the server master password.
+- **24-word BIP-39 recovery code** returned at storage creation: re-derives the IKM offline if the database or the master password is ever lost.
+- **Threat coverage:** file-storage compromise alone leaks no plaintext. A combined DB + master-password compromise does — for that threat, use full encryption.
+
+For the full design — server master password, IKM hierarchy, file frame format, recovery flow — see [docs/managed-encryption.md](docs/managed-encryption.md).
+
+### Full encryption
+
+File contents, file/folder names, and the sensitive fields of audit log entries are encrypted at rest with keys derived from each user's encryption-password. The server stores only ciphertext, wrapped keys, and public keys — an attacker with full access to the database and file storage cannot read user data without a user's encryption-password or recovery code.
 
 Key properties:
 - **Per-user X25519 keypair** unlocked by an encryption password (Argon2id-derived KEK).
 - **Per-workspace DEK** sealed to each member's public key — sharing a workspace doesn't require the recipient to be online.
 - **24-word BIP-39 recovery code** as the disaster-recovery root: even if the database is lost, files left in storage stay decryptable.
 - **Scoped keys**: a phished password unlocks only what that specific user had access to — no global decryption.
+
+Out of scope: an attacker with **live access to the running server process** capable of dumping memory while a user is actively decrypting data. Any in-process cryptography requires keys in plaintext at the moment of use; full-encryption mitigates this by keeping unwrapped keys in pinned/mlocked memory, scoping them to the request that needed them, and zeroing them as soon as the response is flushed — but it cannot protect against an attacker who can observe that memory.
 
 For the full design — key hierarchy, file frame format, metadata envelope, recovery flows, invitation/revocation, and DEK rotation — see [docs/full-encryption.md](docs/full-encryption.md).
 

@@ -143,7 +143,7 @@
                 <div class="page-form__radio-option">
                     <mat-radio-button value="full">Full encryption</mat-radio-button>
                     <div class="page-form__info">
-                        Files are encrypted end-to-end using keys that are never stored in plain text. Even if an attacker gains access to the PlikShare database, they cannot decrypt your files. Decryption keys only exist in server memory during active sessions — an attacker would need to capture a memory dump of the running server while a user is actively accessing encrypted files.
+                        Files, file names, and metadata are encrypted with keys derived from your encryption password and never stored in plain text. An attacker who obtains the database, the file storage, or both cannot decrypt your data — the keys are unwrapped in server memory only for the duration of a request and zeroed afterwards. The remaining attack surface is a live memory dump of the server while a user is actively accessing encrypted resources.
                     </div>
                 </div>
                 </mat-radio-group>
