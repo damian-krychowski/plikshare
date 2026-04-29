@@ -25,7 +25,6 @@ public static class BulkDownloadEndpoints
     {
         var group = app.MapGroup("/api/bulk-download")
             .WithTags("Bulk Download")
-            .RequireAuthorization(policyNames: AuthPolicy.InternalOrBoxLink)
             .RequireCors(CorsPolicies.PreSignedLink);
 
         group.MapGet("/{protectedPayload}", BulkDownload)

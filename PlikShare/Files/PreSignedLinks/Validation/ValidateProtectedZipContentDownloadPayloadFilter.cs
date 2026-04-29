@@ -42,20 +42,6 @@ public class ValidateProtectedZipContentDownloadPayloadFilter : IEndpointFilter
 
             return HttpErrors.ProtectedPayload.Invalid();
         }
-
-        var userIdentities = context
-            .HttpContext
-            .User
-            .GetUserIdentities();
-
-        if (!userIdentities.ContainsIdentity(payload!.PreSignedBy))
-        {
-            Log.Warning("An attempt to execute zip content download with pre-signed url by someone who is not the owner of the url. " +
-                        "Url Owner: {UrlOwner}, current user identities: {UserIdentities}", payload.PreSignedBy, userIdentities.ToList());
-            
-            return TypedResults.StatusCode(
-                StatusCodes.Status403Forbidden);
-        }
         
         if (extractionResult != PreSignedUrlsService.ExtractionResult.Ok)
             throw new InvalidOperationException(
@@ -63,7 +49,7 @@ public class ValidateProtectedZipContentDownloadPayloadFilter : IEndpointFilter
 
         WorkspaceEncryptionSession? session = null;
 
-        if (payload.WorkspaceDeks is {Length: >0})
+        if (payload!.WorkspaceDeks is {Length: >0})
         {
             var masterDataEncryption = context
                 .HttpContext

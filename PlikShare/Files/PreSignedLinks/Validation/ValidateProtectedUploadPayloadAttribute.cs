@@ -61,20 +61,6 @@ public class ValidateProtectedUploadPayloadFilter : IEndpointFilter
             return HttpErrors.ProtectedPayload.Invalid();
         }
 
-        var userIdentities = context
-            .HttpContext
-            .User
-            .GetUserIdentities();
-
-        if (!userIdentities.ContainsIdentity(payload!.PreSignedBy))
-        {
-            Log.Warning("An attempt to execute file part upload with pre-signed url by someone who is not the owner of the url. " +
-                        "Url Owner: {UrlOwner}, current user identities: {UserIdentities}", payload.PreSignedBy, userIdentities.ToList());
-
-            return TypedResults.StatusCode(
-                StatusCodes.Status403Forbidden);
-        }
-
         if (extractionResult != PreSignedUrlsService.ExtractionResult.Ok)
             throw new InvalidOperationException(
                 $"Unrecognized ExtractionResul value: '{extractionResult}'");
@@ -86,7 +72,7 @@ public class ValidateProtectedUploadPayloadFilter : IEndpointFilter
             .GetRequiredService<FileUploadCache>();
 
         var fileUpload = await fileUploadCache.GetFileUpload(
-            uploadExternalId: payload.FileUploadExternalId,
+            uploadExternalId: payload!.FileUploadExternalId,
             cancellationToken: context.HttpContext.RequestAborted);
 
         if (fileUpload is null)

@@ -52,20 +52,6 @@ public class ValidateProtectedMultiFileDirectUploadPayloadFilter : IEndpointFilt
             return HttpErrors.ProtectedPayload.Invalid();
         }
 
-        var userIdentities = context
-            .HttpContext
-            .User
-            .GetUserIdentities();
-
-        if (!userIdentities.ContainsIdentity(payload!.PreSignedBy))
-        {
-            Log.Warning("An attempt to execute multi-file-direct-upload with pre-signed url by someone who is not the owner of the url. " +
-                        "Url Owner: {UrlOwner}, current user identities: {UserIdentities}", payload.PreSignedBy, userIdentities.ToList());
-
-            return TypedResults.StatusCode(
-                StatusCodes.Status403Forbidden);
-        }
-
         if (extractionResult != PreSignedUrlsService.ExtractionResult.Ok)
             throw new InvalidOperationException(
                 $"Unrecognized ExtractionResul value: '{extractionResult}'");
@@ -76,7 +62,7 @@ public class ValidateProtectedMultiFileDirectUploadPayloadFilter : IEndpointFilt
             .GetRequiredService<WorkspaceCache>();
 
         var workspace = await workspaceCache.TryGetWorkspace(
-            payload.WorkspaceId,
+            payload!.WorkspaceId,
             context.HttpContext.RequestAborted);
 
         if (workspace is null)

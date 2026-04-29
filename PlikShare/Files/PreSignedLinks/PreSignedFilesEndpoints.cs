@@ -44,7 +44,6 @@ public static class PreSignedFilesEndpoints
     {
         var group = app.MapGroup("/api/files")
             .WithTags("PreSignedFiles")
-            .RequireAuthorization(policyNames: AuthPolicy.InternalOrBoxLink)
             .RequireCors(CorsPolicies.PreSignedLink);
         
         group.MapGet("/{protectedPayload}", DownloadFile)
@@ -70,7 +69,6 @@ public static class PreSignedFilesEndpoints
     {
         var group = app.MapGroup("/api/zip-files")
             .WithTags("PreSignedZipFiles")
-            .RequireAuthorization(policyNames: AuthPolicy.InternalOrBoxLink)
             .RequireCors(CorsPolicies.PreSignedLink);
 
         group.MapGet("/{protectedPayload}", DownloadZipFileContent)
