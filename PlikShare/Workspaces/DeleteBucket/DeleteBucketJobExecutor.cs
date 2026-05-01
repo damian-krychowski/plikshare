@@ -1,3 +1,4 @@
+using Amazon.S3;
 using PlikShare.Core.Queue;
 using PlikShare.Core.Utils;
 using PlikShare.Storages;
@@ -12,7 +13,7 @@ public class DeleteBucketJobExecutor(
     public int Priority => QueueJobPriority.ExtremelyLow;
 
     public async Task<QueueJobResult> Execute(
-        string definitionJson, 
+        string definitionJson,
         Guid correlationId,
         CancellationToken cancellationToken)
     {
@@ -34,14 +35,27 @@ public class DeleteBucketJobExecutor(
             return QueueJobResult.Success;
         }
 
-        await storage.DeleteBucket(
-            bucketName: definition.BucketName,
-            cancellationToken: cancellationToken);
-        
+        try
+        {
+            await storage.DeleteBucket(
+                bucketName: definition.BucketName,
+                cancellationToken: cancellationToken);
+        }
+        catch (AmazonS3Exception e) when (e.ErrorCode == "BucketNotEmpty")
+        {
+            Log.Warning("Bucket '{BucketName}' in Storage#{StorageId} is not yet empty (eventual consistency). Scheduling soft retry.",
+                definition.BucketName,
+                definition.StorageId);
+
+            return QueueJobResult.NeedsRetry(
+                maxAttempts: 3,
+                delay: TimeSpan.FromDays(1));
+        }
+
         Log.Information("Bucket '{BucketName}' in Storage#{StorageId} was deleted.",
             definition.BucketName,
             definition.StorageId);
-        
+
         return QueueJobResult.Success;
     }
 }

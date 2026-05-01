@@ -300,7 +300,8 @@ public sealed class QueueProducer : BackgroundService
                 DefinitionJson: reader.GetString(3),
                 EnqueuedAt: reader.GetFieldValue<DateTimeOffset>(4),
                 ExecuteAfterDate: reader.GetFieldValue<DateTimeOffset>(5),
-                FailedRetriesCount: reader.GetInt32(6)));
+                FailedRetriesCount: reader.GetInt32(6),
+                SoftRetriesLeft: reader.GetInt32OrNull(7)));
         }
         catch (Exception e)
         {
@@ -355,7 +356,8 @@ public sealed class QueueProducer : BackgroundService
                 q_definition,
                 q_enqueued_at,
                 q_execute_after_date,
-                q_failed_retries_count
+                q_failed_retries_count,
+                q_soft_retries_left
             ";
 
         return command;

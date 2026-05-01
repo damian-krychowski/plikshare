@@ -55,7 +55,8 @@ public enum QueueJobResultCode
 
 public readonly record struct QueueJobResult(
     QueueJobResultCode Code,
-    TimeSpan RetryDelay = default)
+    TimeSpan RetryDelay = default,
+    int SoftRetryMaxAttempts = 0)
 {
     public static QueueJobResult Success => new(
         QueueJobResultCode.Success);
@@ -63,9 +64,18 @@ public readonly record struct QueueJobResult(
     public static QueueJobResult Blocked => new(
         QueueJobResultCode.Blocked);
 
-    public static QueueJobResult NeedsRetry(TimeSpan delay) => new(
+    /// <summary>
+    /// Schedule the job to run again after <paramref name="delay"/>. The queue tracks how
+    /// many soft retries are left in <c>q_soft_retries_left</c>: on the first <c>NeedsRetry</c>
+    /// the column is seeded to <paramref name="maxAttempts"/> - 1, and decremented on each
+    /// subsequent soft retry. When the budget is exhausted the job falls through to the
+    /// hard-retry mechanism (<see cref="QueueJobResultCode"/>) — i.e. it is treated as a
+    /// real failure with the standard back-off and final <c>Failed</c> status.
+    /// </summary>
+    public static QueueJobResult NeedsRetry(int maxAttempts, TimeSpan delay) => new(
         QueueJobResultCode.NeedsRetry,
-        delay);
+        delay,
+        maxAttempts);
 };
 
 public static class QueueJobPriority

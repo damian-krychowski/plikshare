@@ -27,7 +27,8 @@ public class S3StorageClient(
     StorageExtId externalId,
     string name,
     PreSignedUrlsService preSignedUrlsService,
-    StorageEncryption encryption) : IStorageClient, IDisposable
+    StorageEncryption encryption,
+    IReadOnlyList<LifecycleRule> lifecycleRules) : IStorageClient, IDisposable
 {
     public const int MicroFileThreshold = 1 * SizeInBytes.Mb; //1MB
 
@@ -409,6 +410,10 @@ public class S3StorageClient(
         await PutBucketCORS(
             bucketName: bucketName,
             cancellationToken: cancellationToken);
+
+        await PutBucketLifecycleConfiguration(
+            bucketName: bucketName, 
+            cancellationToken: cancellationToken);
     }
     
     public async Task CreateBucketIfDoesNotExist(
@@ -436,7 +441,7 @@ public class S3StorageClient(
         }
     }
 
-    public async Task PutBucketCORS(
+    private async Task PutBucketCORS(
         string bucketName,
         CancellationToken cancellationToken = default)
     {
@@ -471,7 +476,42 @@ public class S3StorageClient(
             throw;
         }
     }
-    
+
+    private async Task PutBucketLifecycleConfiguration(
+        string bucketName,
+        CancellationToken cancellationToken = default)
+    {
+        if (lifecycleRules.Count == 0)
+        {
+            Log.Information("[S3] No lifecycle rules configured for Bucket '{BucketName}', skipping.",
+                bucketName);
+
+            return;
+        }
+
+        try
+        {
+            await s3Client.PutLifecycleConfigurationAsync(new PutLifecycleConfigurationRequest
+            {
+                BucketName = bucketName,
+                Configuration = new LifecycleConfiguration
+                {
+                    Rules = lifecycleRules.ToList()
+                }
+            }, cancellationToken);
+
+            Log.Information("[S3] Lifecycle configuration for Bucket '{BucketName}' was set ({RuleCount} rules).",
+                bucketName, lifecycleRules.Count);
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "[S3] Something went wrong while putting lifecycle configuration to a bucket '{BucketName}'",
+                bucketName);
+
+            throw;
+        }
+    }
+
     public async Task DeleteBucket(
         string bucketName,
         CancellationToken cancellationToken = default)

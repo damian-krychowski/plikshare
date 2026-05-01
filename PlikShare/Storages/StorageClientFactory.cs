@@ -1,4 +1,5 @@
 using Amazon.S3;
+using Amazon.S3.Model;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
@@ -58,7 +59,8 @@ public static class StoragePreparationDetailsExtensions
             PreSignedUrlsService preSignedUrlsService,
             IAmazonS3 client,
             TInput input,
-            string storageType)
+            string storageType,
+            LifecycleRule[] lifecycleRules)
         {
             return new StoragePreparationDetails
             {
@@ -73,7 +75,8 @@ public static class StoragePreparationDetailsExtensions
                     externalId: clientDetails.ExternalId,
                     name: clientDetails.Name,
                     preSignedUrlsService: preSignedUrlsService,
-                    encryption: clientDetails.Encryption)
+                    encryption: clientDetails.Encryption,
+                    lifecycleRules: lifecycleRules)
             };
         }
     }

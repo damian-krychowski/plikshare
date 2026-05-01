@@ -496,11 +496,12 @@ public class Queue(
                 break;
 
             case QueueJobResultCode.NeedsRetry:
-                MarkJobAsPendingWithDelay(
-                    jobId: job.Id,
+                HandleSoftRetry(
+                    job: job,
                     delay: result.RetryDelay,
-                    dbWriteContext: dbWriteContext, 
-                    transaction: transaction, 
+                    maxAttempts: result.SoftRetryMaxAttempts,
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction,
                     consumerIdentity: consumerIdentity);
                 break;
 
@@ -542,8 +543,78 @@ public class Queue(
             cancellationToken: cancellationToken);
     }
 
-    private void MarkJobAsPendingWithDelay(
+    private void HandleSoftRetry(
+        QueueJob job,
+        TimeSpan delay,
+        int maxAttempts,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction,
+        string consumerIdentity)
+    {
+        if (job.SoftRetriesLeft is null)
+        {
+            var initialBudget = Math.Max(0, maxAttempts - 1);
+
+            if (initialBudget == 0)
+            {
+                MarkJobAsSoftRetryExhausted(
+                    jobId: job.Id,
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction,
+                    consumerIdentity: consumerIdentity);
+
+                Log.Warning(
+                    "Job '{JobIdentity}' soft-retry budget of {MaxAttempts} exhausted on first attempt — marking as Failed ({ConsumerIdentity}).",
+                    job.Identity, maxAttempts, consumerIdentity);
+                return;
+            }
+
+            ScheduleSoftRetry(
+                jobId: job.Id,
+                softRetriesLeft: initialBudget,
+                delay: delay,
+                dbWriteContext: dbWriteContext,
+                transaction: transaction,
+                consumerIdentity: consumerIdentity);
+
+            Log.Information(
+                "Job '{JobIdentity}' soft-retry seeded to {SoftRetriesLeft} (max {MaxAttempts}), next attempt in {Delay} ({ConsumerIdentity}).",
+                job.Identity, initialBudget, maxAttempts, delay, consumerIdentity);
+            return;
+        }
+
+        if (job.SoftRetriesLeft.Value <= 0)
+        {
+            MarkJobAsSoftRetryExhausted(
+                jobId: job.Id,
+                dbWriteContext: dbWriteContext,
+                transaction: transaction,
+                consumerIdentity: consumerIdentity);
+
+            Log.Warning(
+                "Job '{JobIdentity}' soft-retry budget exhausted — marking as Failed ({ConsumerIdentity}).",
+                job.Identity, consumerIdentity);
+            return;
+        }
+
+        var nextBudget = job.SoftRetriesLeft.Value - 1;
+
+        ScheduleSoftRetry(
+            jobId: job.Id,
+            softRetriesLeft: nextBudget,
+            delay: delay,
+            dbWriteContext: dbWriteContext,
+            transaction: transaction,
+            consumerIdentity: consumerIdentity);
+
+        Log.Information(
+            "Job '{JobIdentity}' soft-retry decremented to {SoftRetriesLeft}, next attempt in {Delay} ({ConsumerIdentity}).",
+            job.Identity, nextBudget, delay, consumerIdentity);
+    }
+
+    private void ScheduleSoftRetry(
         int jobId,
+        int softRetriesLeft,
         TimeSpan delay,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction,
@@ -553,9 +624,11 @@ public class Queue(
             .OneRowCmd(
                 sql: @"
                     UPDATE q_queue
-                    SET 
+                    SET
                         q_status = $pendingStatus,
-                        q_execute_after_date = $executeAfterDate
+                        q_processing_started_at = NULL,
+                        q_execute_after_date = $executeAfterDate,
+                        q_soft_retries_left = $softRetriesLeft
                     WHERE q_id = $jobId
                     RETURNING q_id
                 ",
@@ -564,12 +637,42 @@ public class Queue(
             .WithParameter("$jobId", jobId)
             .WithParameter("$pendingStatus", QueueStatus.Pending)
             .WithParameter("$executeAfterDate", clock.UtcNow.Add(delay))
+            .WithParameter("$softRetriesLeft", softRetriesLeft)
             .Execute();
 
         if (result.IsEmpty)
         {
             throw new InvalidOperationException(
-                $"Could not update QueueJob '{jobId}' status to '{QueueStatus.Pending}' with delay '{delay}' ({consumerIdentity})");
+                $"Could not schedule soft-retry for QueueJob '{jobId}' with delay '{delay}' ({consumerIdentity})");
+        }
+    }
+
+    private void MarkJobAsSoftRetryExhausted(
+        int jobId,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction,
+        string consumerIdentity)
+    {
+        var result = dbWriteContext
+            .OneRowCmd(
+                sql: $@"
+                    UPDATE q_queue
+                    SET
+                        q_status = '{QueueStatus.Failed}',
+                        q_failed_at = $now
+                    WHERE q_id = $jobId
+                    RETURNING q_id
+                ",
+                readRowFunc: reader => reader.GetInt32(0),
+                transaction: transaction)
+            .WithParameter("$jobId", jobId)
+            .WithParameter("$now", clock.UtcNow)
+            .Execute();
+
+        if (result.IsEmpty)
+        {
+            throw new InvalidOperationException(
+                $"Could not mark QueueJob '{jobId}' as Failed after soft-retry exhaustion ({consumerIdentity})");
         }
     }
 

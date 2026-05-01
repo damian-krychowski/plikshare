@@ -40,6 +40,10 @@ public class AwsS3StorageClientFactory(
                 preSignedUrlsService: preSignedUrlsService,
                 client: client,
                 input: input,
-                storageType: StorageType.AwsS3));
+                storageType: StorageType.AwsS3,
+                lifecycleRules:
+                [
+                    S3LifecycleRules.AbortIncompleteMultipartUploadsAfter7Days
+                ]));
     }
 }

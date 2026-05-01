@@ -43,6 +43,10 @@ public class DigitalOceanStorageClientFactory(
                 preSignedUrlsService: preSignedUrlsService,
                 client: client,
                 input: input,
-                storageType: StorageType.DigitalOceanSpaces));
+                storageType: StorageType.DigitalOceanSpaces,
+                lifecycleRules:
+                [
+                    S3LifecycleRules.AbortIncompleteMultipartUploadsAfter7Days
+                ]));
     }
 }

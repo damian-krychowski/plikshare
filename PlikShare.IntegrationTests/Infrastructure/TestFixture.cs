@@ -20,11 +20,16 @@ using PlikShare.Folders.Id;
 using PlikShare.GeneralSettings;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.IntegrationTests.Infrastructure.Mocks;
+using PlikShare.IntegrationTests.Infrastructure.S3;
 using PlikShare.Storages;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Entities;
 using PlikShare.Storages.HardDrive.Create.Contracts;
 using PlikShare.Storages.Id;
+using PlikShare.Storages.S3.AwsS3.Create.Contracts;
+using PlikShare.Storages.S3.BackblazeB2.Create.Contracts;
+using PlikShare.Storages.S3.CloudflareR2.Create.Contracts;
+using PlikShare.Storages.S3.DigitalOcean.Create.Contracts;
 using PlikShare.Uploads.Id;
 using PlikShare.Uploads.Initiate.Contracts;
 using PlikShare.Users.Id;
@@ -361,6 +366,239 @@ public class TestFixture: IAsyncLifetime
             Details: $"{MainVolume.Path}/{hardDriveName}");
     }
 
+    /// <summary>
+    /// Creates a storage backed by a real S3-compatible provider using credentials
+    /// read from environment variables. The create endpoint runs a connectivity probe
+    /// (creates and deletes a test bucket), so a successful return means the credentials
+    /// are valid and the provider is reachable.
+    /// </summary>
+    protected async Task<AppStorage> CreateS3Storage(
+        AppSignedInUser user,
+        S3StorageProvider provider,
+        StorageEncryptionType encryptionType)
+    {
+        Cookie? encryptionCookie = user.EncryptionCookie;
+
+        if (encryptionType == StorageEncryptionType.Full && encryptionCookie is null)
+        {
+            var (updated, _) = await SetupUserEncryptionPassword(user);
+            encryptionCookie = updated.EncryptionCookie;
+        }
+
+        var name = Random.Name($"s3-{provider.ToString().ToLowerInvariant()}");
+
+        StorageExtId externalId;
+        string storageType;
+
+        switch (provider)
+        {
+            case S3StorageProvider.AwsS3:
+                var awsCreds = S3StorageConfig.AwsS3;
+                var awsResponse = await Api.Storages.CreateAwsS3Storage(
+                    request: new CreateAwsS3StorageRequestDto(
+                        Name: name,
+                        AccessKey: awsCreds.AccessKey,
+                        SecretAccessKey: awsCreds.SecretAccessKey,
+                        Region: awsCreds.Region,
+                        EncryptionType: encryptionType),
+                    cookie: user.Cookie,
+                    antiforgery: user.Antiforgery);
+                externalId = awsResponse.ExternalId;
+                storageType = StorageType.AwsS3;
+                break;
+
+            case S3StorageProvider.CloudflareR2:
+                var r2Creds = S3StorageConfig.CloudflareR2;
+                var r2Response = await Api.Storages.CreateCloudflareR2Storage(
+                    request: new CreateCloudflareR2StorageRequestDto(
+                        Name: name,
+                        AccessKeyId: r2Creds.AccessKeyId,
+                        SecretAccessKey: r2Creds.SecretAccessKey,
+                        Url: r2Creds.Url,
+                        EncryptionType: encryptionType),
+                    cookie: user.Cookie,
+                    antiforgery: user.Antiforgery);
+                externalId = r2Response.ExternalId;
+                storageType = StorageType.CloudflareR2;
+                break;
+
+            case S3StorageProvider.BackblazeB2:
+                var b2Creds = S3StorageConfig.BackblazeB2;
+                var b2Response = await Api.Storages.CreateBackblazeB2Storage(
+                    request: new CreateBackblazeB2StorageRequestDto
+                    {
+                        Name = name,
+                        KeyId = b2Creds.KeyId,
+                        ApplicationKey = b2Creds.ApplicationKey,
+                        Url = b2Creds.Url,
+                        EncryptionType = encryptionType
+                    },
+                    cookie: user.Cookie,
+                    antiforgery: user.Antiforgery);
+                externalId = b2Response.ExternalId;
+                storageType = StorageType.BackblazeB2;
+                break;
+
+            case S3StorageProvider.DigitalOceanSpaces:
+                var doCreds = S3StorageConfig.DigitalOceanSpaces;
+                var doResponse = await Api.Storages.CreateDigitalOceanSpacesStorage(
+                    request: new CreateDigitalOceanSpacesStorageRequestDto(
+                        Name: name,
+                        AccessKey: doCreds.AccessKey,
+                        SecretKey: doCreds.SecretKey,
+                        Region: doCreds.Region,
+                        EncryptionType: encryptionType),
+                    cookie: user.Cookie,
+                    antiforgery: user.Antiforgery);
+                externalId = doResponse.ExternalId;
+                storageType = StorageType.DigitalOceanSpaces;
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(provider), provider, null);
+        }
+
+        return new AppStorage(
+            ExternalId: externalId,
+            Name: name,
+            Type: storageType,
+            Details: null,
+            WorkspaceEncryptionSession: encryptionType == StorageEncryptionType.Full
+                ? encryptionCookie
+                : null);
+    }
+
+    /// <summary>
+    /// Tears down an S3-backed workspace and its storage. The happy path is the
+    /// production saga: <c>delete-workspace</c> → <c>delete-bucket</c> queue job →
+    /// <see cref="IStorageClient.DeleteBucket"/>. We wait briefly (~10s) for the
+    /// queue job to complete; for AWS/R2/DO that's plenty. Backblaze B2 buckets
+    /// are versioned, so a plain DeleteBucket fails with <c>BucketNotEmpty</c>
+    /// until lifecycle rules sweep the noncurrent versions/markers (which can
+    /// take a day or more — useless for tests). When the queue job times out we
+    /// fall back to <see cref="S3HardPurge"/>: list every version + delete marker,
+    /// purge them, abort multipart uploads, then DeleteBucket directly. The
+    /// queue job will keep running in the background and eventually log a
+    /// "NoSuchBucket" warning — harmless, the bucket is already gone.
+    /// </summary>
+    protected async Task CleanupS3WorkspaceAndStorage(
+        AppWorkspace workspace,
+        AppStorage storage,
+        S3StorageProvider provider,
+        AppSignedInUser user)
+    {
+        var storageInternalId = GetStorageInternalId(storage.ExternalId);
+        var bucketName = GetWorkspaceBucketName(workspace.ExternalId);
+
+        await Api.Workspaces.Delete(
+            externalId: workspace.ExternalId,
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+
+        var queueJobCompleted = await WaitForDeleteBucketJobCompleted(
+            storageInternalId: storageInternalId,
+            timeout: TimeSpan.FromSeconds(10));
+
+        if (!queueJobCompleted)
+        {
+            Log.Warning("[Cleanup] delete-bucket queue job for storage#{StorageId} did not complete in time — falling back to S3HardPurge for bucket '{BucketName}' on {Provider}.",
+                storageInternalId, bucketName, provider);
+
+            await S3HardPurge.PurgeAndDeleteBucket(
+                provider: provider,
+                bucketName: bucketName);
+        }
+
+        await Api.Storages.DeleteStorage(
+            externalId: storage.ExternalId,
+            cookie: user.Cookie,
+            antiforgery: user.Antiforgery);
+    }
+
+    private int GetStorageInternalId(StorageExtId externalId)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT s_id
+                     FROM s_storages
+                     WHERE s_external_id = $externalId
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$externalId", externalId.Value)
+            .Execute();
+
+        if (rows.Count == 0)
+            throw new InvalidOperationException(
+                $"Storage '{externalId}' was not found in the database.");
+
+        return rows[0];
+    }
+
+    private async Task<bool> WaitForDeleteBucketJobCompleted(
+        int storageInternalId,
+        TimeSpan timeout)
+    {
+        // q_definition is JSON serialized with camelCase property names
+        // (PlikShare.Core.Utils.Json), so the storageId field appears as
+        // "storageId":<id>. We match on a substring rather than parsing JSON.
+        var storageIdMarker = $"\"storageId\":{storageInternalId}";
+        var pollInterval = TimeSpan.FromMilliseconds(100);
+        var attempts = (int)(timeout.TotalMilliseconds / pollInterval.TotalMilliseconds);
+
+        for (var attempt = 0; attempt < attempts; attempt++)
+        {
+            using (var connection = HostFixture.Db.OpenConnection())
+            {
+                var found = connection
+                    .Cmd(
+                        sql: """
+                             SELECT 1
+                             FROM qc_queue_completed
+                             WHERE qc_job_type = 'delete-bucket'
+                               AND qc_definition LIKE $marker
+                             LIMIT 1
+                             """,
+                        readRowFunc: reader => reader.GetInt32(0))
+                    .WithParameter("$marker", $"%{storageIdMarker}%")
+                    .Execute();
+
+                if (found.Count > 0)
+                    return true;
+            }
+
+            await Task.Delay(pollInterval);
+        }
+
+        return false;
+    }
+
+    private string GetWorkspaceBucketName(WorkspaceExtId externalId)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT w_bucket_name
+                     FROM w_workspaces
+                     WHERE w_external_id = $externalId
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => reader.GetString(0))
+            .WithParameter("$externalId", externalId.Value)
+            .Execute();
+
+        if (rows.Count == 0)
+            throw new InvalidOperationException(
+                $"Workspace '{externalId}' was not found in the database.");
+
+        return rows[0];
+    }
+
     protected async Task<AppStorage> CreateHardDriveStorage(
         AppSignedInUser user,
         StorageEncryptionType encryptionType)
@@ -398,7 +636,14 @@ public class TestFixture: IAsyncLifetime
         AppWorkspace workspace,
         AppSignedInUser user)
     {
-        for (var i = 0; i < 100; i++)
+        // Hard-drive bucket = local Directory.Create — finishes immediately.
+        // Live S3 providers are network-bound; Backblaze B2 in particular can
+        // take several seconds to complete PutBucket + PutCORS.
+        var (attempts, delayMs) = workspace.StorageType == StorageType.HardDrive
+            ? (attempts: 100, delayMs: 20)
+            : (attempts: 200, delayMs: 150);
+
+        for (var i = 0; i < attempts; i++)
         {
             var status = await Api.Workspaces.CheckBucketStatus(
                 externalId: workspace.ExternalId,
@@ -407,7 +652,7 @@ public class TestFixture: IAsyncLifetime
             if (status.IsBucketCreated)
                 return;
 
-            await Task.Delay(20);
+            await Task.Delay(delayMs);
         }
 
         throw new InvalidOperationException(
@@ -695,15 +940,16 @@ public class TestFixture: IAsyncLifetime
         return new AppWorkspace(
             ExternalId: result.ExternalId,
             Name: workspaceName,
+            StorageType: storage.Type,
             WorkspaceEncryptionSession: storage.WorkspaceEncryptionSession);
     }
-    
+
     protected async Task<AppWorkspace> CreateWorkspace(
         AppSignedInUser user)
     {
         var storage = await CreateHardDriveStorage(
             user);
-        
+
         var workspaceName = $"workspace-{Guid.NewGuid().ToBase62()}";
 
         var result = await Api.Workspaces.Create(
@@ -715,7 +961,8 @@ public class TestFixture: IAsyncLifetime
 
         return new AppWorkspace(
             ExternalId: result.ExternalId,
-            Name: workspaceName);
+            Name: workspaceName,
+            StorageType: storage.Type);
     }
 
     protected async Task<AppFolder> CreateFolder(
@@ -1374,6 +1621,7 @@ public class TestFixture: IAsyncLifetime
     protected record AppWorkspace(
         WorkspaceExtId ExternalId,
         string Name,
+        string StorageType,
         Cookie? WorkspaceEncryptionSession = null);
     
     public record AppUsers(

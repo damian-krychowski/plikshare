@@ -1,5 +1,6 @@
 using Amazon;
 using Amazon.S3;
+using Amazon.S3.Model;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Configuration;
 using PlikShare.Core.Database.MainDatabase;
@@ -163,7 +164,8 @@ public static class StorageStartupExtensions
         PreSignedUrlsService preSignedUrlsService,
         IConfig config)
     {
-        var s3Client = BuildS3ClientForStorage(storage);
+        var (s3Client, lifecycleRules) = BuildS3ClientForStorage(
+            storage);
 
         var s3StorageClient = new S3StorageClient(
             appUrl: config.AppUrl,
@@ -174,51 +176,69 @@ public static class StorageStartupExtensions
             externalId: storage.ExternalId,
             name: storage.Name,
             preSignedUrlsService: preSignedUrlsService,
-            encryption: storage.Encryption);
+            encryption: storage.Encryption,
+            lifecycleRules: lifecycleRules);
 
         return s3StorageClient;
     }
 
-    private static IAmazonS3 BuildS3ClientForStorage(StorageRow storage)
+    private static (IAmazonS3, LifecycleRule[]) BuildS3ClientForStorage(StorageRow storage)
     {
         if (storage.Type == StorageType.BackblazeB2)
         {
             var details = Json.Deserialize<BackblazeB2DetailsEntity>(storage.DetailsJson)!;
 
-            return S3Client.BuildBackblazeClientOrThrow(
+            var client = S3Client.BuildBackblazeClientOrThrow(
                 keyId: details.KeyId,
                 applicationKey: details.ApplicationKey,
                 url: details.Url);
+
+            return (client, [
+                S3LifecycleRules.AbortIncompleteMultipartUploadsAfter7Days,
+                S3LifecycleRules.DeleteNoncurrentVersionsAfter1Day
+            ]);
         }
 
         if (storage.Type == StorageType.CloudflareR2)
         {
             var details = Json.Deserialize<CloudflareR2DetailsEntity>(storage.DetailsJson)!;
 
-            return S3Client.BuildCloudflareClientOrThrow(
+            var client = S3Client.BuildCloudflareClientOrThrow(
                 accessKeyId: details.AccessKeyId,
                 secretAccessKey: details.SecretAccessKey,
                 url: details.Url);
+
+            return (client, [
+                S3LifecycleRules.AbortIncompleteMultipartUploadsAfter7Days,
+            ]);
         }
 
         if (storage.Type == StorageType.AwsS3)
         {
             var details = Json.Deserialize<AwsS3DetailsEntity>(storage.DetailsJson)!;
 
-            return S3Client.BuildAwsClientOrThrow(
+            var client = S3Client.BuildAwsClientOrThrow(
                 accessKey: details.AccessKey,
                 secretAccessKey: details.SecretAccessKey,
                 region: details.Region);
+
+            return (client, [
+                S3LifecycleRules.AbortIncompleteMultipartUploadsAfter7Days,
+            ]);
         }
 
         if (storage.Type == StorageType.DigitalOceanSpaces)
         {
             var details = Json.Deserialize<DigitalOceanSpacesDetailsEntity>(storage.DetailsJson)!;
 
-            return S3Client.BuildDigitalOceanSpacesClientOrThrow(
+            var client = S3Client.BuildDigitalOceanSpacesClientOrThrow(
                 accessKey: details.AccessKey,
                 secretKey: details.SecretKey,
                 url: details.Url);
+
+            return (client, [
+                S3LifecycleRules.AbortIncompleteMultipartUploadsAfter7Days,
+            ]);
         }
 
         throw new InvalidOperationException(

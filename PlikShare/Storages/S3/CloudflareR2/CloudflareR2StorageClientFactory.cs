@@ -43,6 +43,10 @@ public class CloudflareR2StorageClientFactory(
                 preSignedUrlsService: preSignedUrlsService,
                 client: client,
                 input: input,
-                storageType: StorageType.CloudflareR2));
+                storageType: StorageType.CloudflareR2,
+                lifecycleRules:
+                [
+                    S3LifecycleRules.AbortIncompleteMultipartUploadsAfter7Days
+                ]));
     }
 }

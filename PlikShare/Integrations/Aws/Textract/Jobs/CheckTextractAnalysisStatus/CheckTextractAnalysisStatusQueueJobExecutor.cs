@@ -91,6 +91,7 @@ public class CheckTextractAnalysisStatusQueueJobExecutor(
                     textractJob.Id);
 
                 return QueueJobResult.NeedsRetry(
+                    maxAttempts: 360,
                     delay: TimeSpan.FromSeconds(5));
             }
 

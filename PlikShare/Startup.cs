@@ -308,6 +308,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_27_InvitationCodeHashedAndInvalidated>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_28_EphemeralWorkspaceEncryptionKeysIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_29_FileArtifactContentHashIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_30_QSoftRetriesLeftIntroduced>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 

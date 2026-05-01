@@ -43,6 +43,11 @@ public class BackblazeB2StorageClientFactory(
                 preSignedUrlsService: preSignedUrlsService,
                 client: client,
                 input: input,
-                storageType: StorageType.BackblazeB2));
+                storageType: StorageType.BackblazeB2,
+                lifecycleRules:
+                [
+                    S3LifecycleRules.AbortIncompleteMultipartUploadsAfter7Days,
+                    S3LifecycleRules.DeleteNoncurrentVersionsAfter1Day
+                ]));
     }
 }

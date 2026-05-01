@@ -7,7 +7,8 @@ public readonly record struct QueueJob(
     string DefinitionJson,
     DateTimeOffset EnqueuedAt,
     DateTimeOffset ExecuteAfterDate,
-    int FailedRetriesCount)
+    int FailedRetriesCount,
+    int? SoftRetriesLeft)
 {
     public string Identity => $"{JobType}#{Id}";
 }
