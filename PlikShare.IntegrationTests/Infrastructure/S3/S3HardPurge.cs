@@ -19,7 +19,7 @@ public static class S3HardPurge
         string bucketName,
         CancellationToken cancellationToken = default)
     {
-        var client = BuildClient(provider);
+        var client = S3RawClient.Build(provider);
 
         try
         {
@@ -42,34 +42,6 @@ public static class S3HardPurge
         {
             client.Dispose();
         }
-    }
-
-    private static IAmazonS3 BuildClient(S3StorageProvider provider)
-    {
-        return provider switch
-        {
-            S3StorageProvider.AwsS3 => S3Client.BuildAwsClientOrThrow(
-                accessKey: S3StorageConfig.AwsS3.AccessKey,
-                secretAccessKey: S3StorageConfig.AwsS3.SecretAccessKey,
-                region: S3StorageConfig.AwsS3.Region),
-
-            S3StorageProvider.CloudflareR2 => S3Client.BuildCloudflareClientOrThrow(
-                accessKeyId: S3StorageConfig.CloudflareR2.AccessKeyId,
-                secretAccessKey: S3StorageConfig.CloudflareR2.SecretAccessKey,
-                url: S3StorageConfig.CloudflareR2.Url),
-
-            S3StorageProvider.BackblazeB2 => S3Client.BuildBackblazeClientOrThrow(
-                keyId: S3StorageConfig.BackblazeB2.KeyId,
-                applicationKey: S3StorageConfig.BackblazeB2.ApplicationKey,
-                url: S3StorageConfig.BackblazeB2.Url),
-
-            S3StorageProvider.DigitalOceanSpaces => S3Client.BuildDigitalOceanSpacesClientOrThrow(
-                accessKey: S3StorageConfig.DigitalOceanSpaces.AccessKey,
-                secretKey: S3StorageConfig.DigitalOceanSpaces.SecretKey,
-                url: $"https://{S3StorageConfig.DigitalOceanSpaces.Region}.digitaloceanspaces.com"),
-
-            _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null)
-        };
     }
 
     private static async Task PurgeAllObjectVersions(

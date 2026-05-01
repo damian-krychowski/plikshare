@@ -32,4 +32,24 @@ public static class S3TheoryData
         from provider in AllProviderValues
         from encryption in AllEncryptionTypes
         select new object[] { provider, encryption };
+
+    /// <summary>
+    /// Cross-product over all providers with <see cref="StorageEncryptionType.None"/>
+    /// pinned. For tests that exercise code paths only reachable on unencrypted
+    /// storage (e.g. <c>SingleChunkUpload</c> in <c>S3StorageClient.ResolveUploadAlgorithm</c>,
+    /// which Managed and Full encryption skip).
+    /// </summary>
+    public static IEnumerable<object[]> AllProvidersWithNoEncryption =>
+        AllProviderValues.Select(p => new object[] { p, StorageEncryptionType.None });
+
+    /// <summary>
+    /// Cross-product over all providers, excluding <see cref="StorageEncryptionType.Full"/>.
+    /// Full encryption requires the user's session-bound key for decryption, so flows
+    /// that target unauthenticated external access (box share links) cannot serve
+    /// fully-encrypted files — those are restricted to None / Managed.
+    /// </summary>
+    public static IEnumerable<object[]> AllProvidersWithoutFullEncryption =>
+        from provider in AllProviderValues
+        from encryption in new[] { StorageEncryptionType.None, StorageEncryptionType.Managed }
+        select new object[] { provider, encryption };
 }

@@ -36,5 +36,6 @@ public class Api(IFlurlClient flurlClient, string appUrl)
 
     public UploadsApi Uploads { get; } = new(flurlClient, appUrl);
     public FilesApi Files { get; } = new(flurlClient, appUrl);
+    public LockStatusApi LockStatus { get; } = new(flurlClient, appUrl);
     public PreSignedFilesApi PreSignedFiles { get; } = new(flurlClient);
 }

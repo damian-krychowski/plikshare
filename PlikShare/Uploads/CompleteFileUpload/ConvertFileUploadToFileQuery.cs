@@ -170,6 +170,21 @@ public class ConvertFileUploadToFileQuery(
         Logger.Debug("Successfully inserted file for FileUpload#{FileUploadId}",
             fileUpload.Id);
 
+        // SingleChunkUpload routes through this method too and leaves a row in
+        // fup_file_upload_parts (the part-ETag record). The FK on
+        // fup_file_upload_id → fu_file_uploads(fu_id) blocks the DELETE below
+        // unless we clear the parts first. DirectUpload has no parts so this
+        // is a no-op for that path.
+        dbWriteContext
+            .Connection
+            .NonQueryCmd(
+                sql: @"
+                    DELETE FROM fup_file_upload_parts
+                    WHERE fup_file_upload_id = $fileUploadId",
+                transaction: transaction)
+            .WithParameter("$fileUploadId", fileUpload.Id)
+            .Execute();
+
         var deletedId = dbWriteContext
             .OneRowCmd(
                 sql: @"

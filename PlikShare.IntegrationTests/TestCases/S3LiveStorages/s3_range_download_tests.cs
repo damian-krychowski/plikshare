@@ -1,4 +1,3 @@
-using System.Text;
 using FluentAssertions;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.S3;
@@ -8,12 +7,12 @@ using Xunit.Abstractions;
 namespace PlikShare.IntegrationTests.TestCases.S3LiveStorages;
 
 [Collection(IntegrationTestsCollection.Name)]
-public class s3_upload_download_tests : TestFixture
+public class s3_range_download_tests : TestFixture
 {
     private readonly S3LiveStoragesFixture _liveFixture;
     private AppSignedInUser AppOwner { get; }
 
-    public s3_upload_download_tests(
+    public s3_range_download_tests(
         HostFixture8081 hostFixture,
         S3LiveStoragesFixture liveFixture,
         ITestOutputHelper testOutputHelper) : base(hostFixture, testOutputHelper)
@@ -25,7 +24,7 @@ public class s3_upload_download_tests : TestFixture
     [Theory]
     [MemberData(nameof(S3TheoryData.AllProvidersAndEncryptionTypes),
         MemberType = typeof(S3TheoryData))]
-    public async Task small_file_upload_and_download_should_return_same_content(
+    public async Task range_request_should_return_exact_byte_slice(
         S3StorageProvider provider,
         StorageEncryptionType encryptionType)
     {
@@ -37,23 +36,40 @@ public class s3_upload_download_tests : TestFixture
             workspace: setup.Workspace,
             user: AppOwner);
 
-        var originalContent = Encoding.UTF8.GetBytes("Hello, PlikShare S3 integration test!");
+        var originalContent = new byte[5 * 1024 * 1024];
+        System.Random.Shared.NextBytes(originalContent);
 
-        //when
         var uploadedFile = await UploadFile(
             content: originalContent,
-            fileName: "test-file.txt",
-            contentType: "text/plain",
+            fileName: "range-source.bin",
+            contentType: "application/octet-stream",
             folder: folder,
             workspace: setup.Workspace,
             user: AppOwner);
 
-        var downloadedContent = await DownloadFile(
+        await WaitForFileUnlocked(uploadedFile.ExternalId, AppOwner);
+
+        var downloadLinkResponse = await Api.Files.GetDownloadLink(
+            workspaceExternalId: setup.Workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
-            workspace: setup.Workspace,
-            user: AppOwner);
+            contentDisposition: "attachment",
+            cookie: AppOwner.Cookie,
+            workspaceEncryptionSession: setup.Workspace.WorkspaceEncryptionSession);
+
+        const long rangeStart = 1024;
+        const long rangeEnd = 2047;
+        var expectedSlice = originalContent[(int)rangeStart..((int)rangeEnd + 1)];
+
+        //when
+        var rangeResponse = await Api.PreSignedFiles.DownloadFileRange(
+            preSignedUrl: downloadLinkResponse.DownloadPreSignedUrl,
+            rangeStart: rangeStart,
+            rangeEnd: rangeEnd,
+            cookie: AppOwner.Cookie);
 
         //then
-        downloadedContent.Should().BeEquivalentTo(originalContent);
+        rangeResponse.StatusCode.Should().Be(206);
+        rangeResponse.Content.Should().BeEquivalentTo(expectedSlice);
+        rangeResponse.Content.Length.Should().Be((int)(rangeEnd - rangeStart + 1));
     }
 }

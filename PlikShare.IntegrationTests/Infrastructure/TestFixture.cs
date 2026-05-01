@@ -19,6 +19,7 @@ using PlikShare.Folders.Create.Contracts;
 using PlikShare.Folders.Id;
 using PlikShare.GeneralSettings;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
+using PlikShare.Locks.CheckFileLocks.Contracts;
 using PlikShare.IntegrationTests.Infrastructure.Mocks;
 using PlikShare.IntegrationTests.Infrastructure.S3;
 using PlikShare.Storages;
@@ -372,7 +373,7 @@ public class TestFixture: IAsyncLifetime
     /// (creates and deletes a test bucket), so a successful return means the credentials
     /// are valid and the provider is reachable.
     /// </summary>
-    protected async Task<AppStorage> CreateS3Storage(
+    protected internal async Task<AppStorage> CreateS3Storage(
         AppSignedInUser user,
         S3StorageProvider provider,
         StorageEncryptionType encryptionType)
@@ -576,7 +577,7 @@ public class TestFixture: IAsyncLifetime
         return false;
     }
 
-    private string GetWorkspaceBucketName(WorkspaceExtId externalId)
+    internal string GetWorkspaceBucketName(WorkspaceExtId externalId)
     {
         using var connection = HostFixture.Db.OpenConnection();
 
@@ -632,7 +633,7 @@ public class TestFixture: IAsyncLifetime
                 : null);
     }
 
-    protected async Task WaitForBucketReady(
+    protected internal async Task WaitForBucketReady(
         AppWorkspace workspace,
         AppSignedInUser user)
     {
@@ -657,6 +658,42 @@ public class TestFixture: IAsyncLifetime
 
         throw new InvalidOperationException(
             $"Workspace '{workspace.ExternalId}' bucket was not created in time");
+    }
+
+    protected Task WaitForFileUnlocked(
+        FileExtId fileExternalId,
+        AppSignedInUser user)
+    {
+        return WaitForFilesUnlocked([fileExternalId], user);
+    }
+
+    protected async Task WaitForFilesUnlocked(
+        IReadOnlyCollection<FileExtId> fileExternalIds,
+        AppSignedInUser user)
+    {
+        if (fileExternalIds.Count == 0)
+            return;
+
+        var externalIdValues = fileExternalIds.Select(id => id.Value).ToList();
+
+        for (var attempt = 0; attempt < 200; attempt++)
+        {
+            var response = await Api.LockStatus.CheckFileLocks(
+                request: new CheckFileLocksRequestDto
+                {
+                    ExternalIds = externalIdValues
+                },
+                cookie: user.Cookie,
+                antiforgery: user.Antiforgery);
+
+            if (response.LockedExternalIds.Count == 0)
+                return;
+
+            await Task.Delay(10);
+        }
+
+        throw new InvalidOperationException(
+            $"Files [{string.Join(", ", externalIdValues)}] did not all become unlocked within the timeout.");
     }
 
     protected async Task<AppFile> UploadFile(
@@ -923,7 +960,7 @@ public class TestFixture: IAsyncLifetime
         throw new InvalidOperationException("Unreachable");
     }
 
-    protected async Task<AppWorkspace> CreateWorkspace(
+    protected internal async Task<AppWorkspace> CreateWorkspace(
         AppStorage storage,
         AppSignedInUser user)
     {
@@ -1618,7 +1655,7 @@ public class TestFixture: IAsyncLifetime
         WorkspaceExtId WorkspaceExternalId,
         string Name);
 
-    protected record AppWorkspace(
+    public record AppWorkspace(
         WorkspaceExtId ExternalId,
         string Name,
         string StorageType,
