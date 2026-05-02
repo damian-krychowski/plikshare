@@ -1,7 +1,6 @@
 using System.Text;
 using FluentAssertions;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Core.Encryption;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Storages.Encryption;

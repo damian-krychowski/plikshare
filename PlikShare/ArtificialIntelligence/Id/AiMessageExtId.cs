@@ -1,11 +1,9 @@
-using System.ComponentModel;
 using System.Text.Json.Serialization;
 using PlikShare.Core.ExternalIds;
 using PlikShare.Core.Utils;
 
 namespace PlikShare.ArtificialIntelligence.Id;
 
-[ImmutableObject(true)]
 [JsonConverter(typeof(ExternalIdJsonConverter<AiMessageExtId>))]
 public readonly record struct AiMessageExtId(string Value): IExternalId<AiMessageExtId>
 {

@@ -1,15 +1,11 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using PlikShare.AuditLog;
-using PlikShare.Core.Authorization;
 using PlikShare.Core.Clock;
 using PlikShare.Core.CORS;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Storages.Encryption.Authorization;
-using PlikShare.Storages.Entities;
-using PlikShare.Storages.HardDrive.StorageClient;
-using PlikShare.Storages.S3;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 using Serilog.Events;

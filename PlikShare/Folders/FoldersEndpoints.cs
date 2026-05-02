@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
 using PlikShare.AuditLog.Details;
 using PlikShare.Core.Authorization;
-using PlikShare.Core.Encryption;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;

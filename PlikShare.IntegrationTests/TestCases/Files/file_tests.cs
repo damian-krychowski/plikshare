@@ -1,7 +1,6 @@
 using System.Text;
 using FluentAssertions;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Files.Id;
 using PlikShare.Files.Preview.Comment.CreateComment.Contracts;
 using PlikShare.Files.Preview.Comment.EditComment.Contracts;

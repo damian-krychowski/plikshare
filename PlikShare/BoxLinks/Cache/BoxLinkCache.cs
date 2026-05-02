@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.Boxes.Cache;
 using PlikShare.Boxes.Permissions;
@@ -268,7 +267,6 @@ public class BoxLinkCache(
             new("bl_access_code = $accessCode", "$accessCode", accessCode);
     }
 
-    [ImmutableObject(true)]
     public sealed record BoxLinkCached(
         int Id,
         BoxLinkExtId ExternalId,

@@ -39,7 +39,6 @@ using PlikShare.Workspaces.Create.Contracts;
 using PlikShare.Workspaces.Id;
 using Serilog;
 using Serilog.Events;
-using System.Text.Json;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.Infrastructure;

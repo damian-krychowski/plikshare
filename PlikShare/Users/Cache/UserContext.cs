@@ -1,11 +1,9 @@
 using PlikShare.Core.Encryption;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
-using System.ComponentModel;
 
 namespace PlikShare.Users.Cache;
 
-[ImmutableObject(true)]
 public sealed class UserContext
 {
     public required UserStatus Status { get; init; }
@@ -28,7 +26,6 @@ public sealed class UserContext
     public bool IsEncryptionConfigured => EncryptionMetadata is not null;
 }
 
-[ImmutableObject(true)]
 public sealed class UserWrappedStorageDek
 {
     public required int StorageId { get; init; }
@@ -36,7 +33,6 @@ public sealed class UserWrappedStorageDek
     public required byte[] WrappedStorageDek { get; init; }
 }
 
-[ImmutableObject(true)]
 public sealed class UserWrappedWorkspaceDek
 {
     public required int WorkspaceId { get; init; }
@@ -50,14 +46,12 @@ public enum UserStatus
     Registered
 }
 
-[ImmutableObject(true)]
 public sealed class UserRoles
 {
     public required bool IsAppOwner { get; init; }
     public required bool IsAdmin { get; init; }
 }
 
-[ImmutableObject(true)]
 public sealed class UserPermissions
 {
     public required bool CanAddWorkspace { get; init; }
@@ -70,14 +64,12 @@ public sealed class UserPermissions
     public required bool CanManageAuditLog { get; init; }
 }
 
-[ImmutableObject(true)]
 public sealed class UserSecurityStamps
 {
     public required string Security { get; init; }
     public required string Concurrency { get; init; }
 }
 
-[ImmutableObject(true)]
 public sealed class UserEncryptionMetadata
 {
     public required byte[] PublicKey { get; init; }

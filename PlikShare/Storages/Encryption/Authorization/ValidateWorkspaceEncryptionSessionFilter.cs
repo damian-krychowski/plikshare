@@ -1,9 +1,6 @@
-using PlikShare.Core.Authorization;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
-using PlikShare.Users.Middleware;
 using PlikShare.Workspaces.Validation;
-using Serilog;
 
 namespace PlikShare.Storages.Encryption.Authorization;
 

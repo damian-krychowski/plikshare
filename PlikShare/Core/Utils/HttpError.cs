@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using PlikShare.AuditLog.Id;
 using PlikShare.Boxes.Id;
 using PlikShare.Core.Encryption;
-using PlikShare.Core.ExternalIds;
 using PlikShare.EmailProviders.Id;
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;

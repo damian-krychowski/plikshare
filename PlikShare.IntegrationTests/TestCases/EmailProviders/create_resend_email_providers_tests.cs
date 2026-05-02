@@ -1,13 +1,11 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Core.Emails;
 using PlikShare.Core.Utils;
 using PlikShare.EmailProviders.Confirm.Contracts;
 using PlikShare.EmailProviders.Entities;
 using PlikShare.EmailProviders.ExternalProviders.Resend;
 using PlikShare.EmailProviders.ExternalProviders.Resend.Create;
-using PlikShare.EmailProviders.Id;
 using PlikShare.EmailProviders.List.Contracts;
 using PlikShare.EmailProviders.UpdateName.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;

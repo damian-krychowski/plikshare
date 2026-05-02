@@ -2,7 +2,6 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using PlikShare.ArtificialIntelligence.Id;
 using PlikShare.ArtificialIntelligence.SendFileMessage.Contracts;
-using PlikShare.Files.Artifacts;
 using PlikShare.Files.Id;
 using PlikShare.Integrations.Aws.Textract;
 using PlikShare.Integrations.Aws.Textract.Jobs.StartJob.Contracts;

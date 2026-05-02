@@ -1,10 +1,8 @@
 ﻿using PlikShare.Storages.Encryption;
-using System.ComponentModel;
 using PlikShare.Storages;
 
 namespace PlikShare.Core.Encryption;
 
-[ImmutableObject(true)]
 public sealed class FileEncryptionMetadata
 {
     public required byte FormatVersion { get; init; }

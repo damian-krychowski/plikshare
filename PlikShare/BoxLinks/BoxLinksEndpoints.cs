@@ -15,7 +15,6 @@ using PlikShare.BoxLinks.UpdatePermissions.Contracts;
 using PlikShare.BoxLinks.UpdateWidgetOrigins;
 using PlikShare.BoxLinks.UpdateWidgetOrigins.Contracts;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.BoxLinks.Validation;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Utils;

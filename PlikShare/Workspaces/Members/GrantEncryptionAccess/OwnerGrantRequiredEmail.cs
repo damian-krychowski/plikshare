@@ -1,6 +1,5 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
-using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Emails;
 using PlikShare.Core.Emails.Definitions;
 using PlikShare.Core.Queue;

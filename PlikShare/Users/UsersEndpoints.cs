@@ -1,9 +1,7 @@
-using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Boxes.Cache;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;

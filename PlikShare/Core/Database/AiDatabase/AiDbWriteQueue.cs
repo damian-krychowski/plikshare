@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using Microsoft.Data.Sqlite;
 using PlikShare.Core.SQLite;
 using Serilog;
 

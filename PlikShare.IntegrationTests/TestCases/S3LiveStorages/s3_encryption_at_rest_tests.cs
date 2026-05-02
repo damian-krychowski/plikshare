@@ -41,7 +41,11 @@ public class s3_encryption_at_rest_tests : TestFixture
     {
         //given
         const string Marker = "PLIKSHARE-ENCRYPTION-MARKER-XYZ-9D4E2F";
-        var setup = await _liveFixture.GetOrCreate(this, provider, encryptionType, AppOwner);
+        var setup = await _liveFixture.GetOrCreate(
+            this, 
+            provider, 
+            encryptionType, 
+            AppOwner);
 
         var folder = await CreateFolder(
             parent: null,

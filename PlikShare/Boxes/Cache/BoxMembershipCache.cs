@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.Boxes.Id;
 using PlikShare.Boxes.Permissions;
@@ -224,7 +223,6 @@ public class BoxMembershipCache(
         return result.IsEmpty ? null : result.Value;
     }
 
-    [ImmutableObject(true)]
     public sealed record BoxMembershipCached(
         bool WasInvitationAccepted,
         int InviterId,

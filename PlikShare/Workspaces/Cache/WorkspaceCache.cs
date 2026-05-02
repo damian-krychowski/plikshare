@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
@@ -293,7 +292,6 @@ public class WorkspaceCache(
             new("w_external_id = $workspaceExternalId", "$workspaceExternalId", extId.Value);
     }
 
-    [ImmutableObject(true)]
     public sealed class WorkspaceCached
     {
         public required int Id { get; init; }

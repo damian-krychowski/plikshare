@@ -5,7 +5,6 @@ using System.Text.Json.Serialization;
 using Flurl;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
 using PlikShare.AuditLog;
 using PlikShare.AuditLog.Details;
 using PlikShare.AuthProviders.GetDetails;

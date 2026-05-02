@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.BoxExternalAccess.Authorization;
 using PlikShare.Uploads.Cache;
 using PlikShare.BoxExternalAccess.Contracts;

@@ -1,11 +1,9 @@
-using System.ComponentModel;
 using System.Text.Json.Serialization;
 using PlikShare.Core.ExternalIds;
 using PlikShare.Core.Utils;
 
 namespace PlikShare.Folders.Id;
 
-[ImmutableObject(true)]
 [JsonConverter(typeof(ExternalIdJsonConverter<FolderExtId>))]
 public readonly record struct FolderExtId(string Value): IExternalId<FolderExtId>
 {

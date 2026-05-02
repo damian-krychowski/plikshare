@@ -1,7 +1,6 @@
 using System.Text.Json.Nodes;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
-using PlikShare.Workspaces.Encryption;
 using PlikShare.Workspaces.Id;
 using Serilog;
 

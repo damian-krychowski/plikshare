@@ -1,5 +1,3 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.Antiforgery;
@@ -8,7 +6,6 @@ using PlikShare.AuditLog;
 using PlikShare.BoxExternalAccess.Authorization;
 using PlikShare.BoxExternalAccess.Contracts;
 using PlikShare.BoxExternalAccess.Handler;
-using PlikShare.BoxLinks.Validation;
 using PlikShare.BulkDelete.Contracts;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Configuration;

@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Core.Volumes;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;

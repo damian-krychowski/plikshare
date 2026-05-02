@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Core.Emails;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;

@@ -1,6 +1,5 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.BulkDelete.Contracts;
 using PlikShare.Dashboard.Content.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;

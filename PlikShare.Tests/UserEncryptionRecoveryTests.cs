@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using PlikShare.Core.Encryption;
 
 namespace PlikShare.Tests;

@@ -1,6 +1,5 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Boxes.CreateLink.Contracts;
 using PlikShare.Boxes.Get.Contracts;
 using PlikShare.Boxes.Permissions;

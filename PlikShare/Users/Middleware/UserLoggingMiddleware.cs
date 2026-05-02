@@ -1,6 +1,5 @@
 ﻿using PlikShare.Core.Authorization;
 using PlikShare.Core.Logging;
-using PlikShare.Users.Entities;
 using Serilog.Context;
 
 namespace PlikShare.Users.Middleware;

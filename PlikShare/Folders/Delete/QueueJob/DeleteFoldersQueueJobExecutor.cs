@@ -1,6 +1,5 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Boxes.Cache;
-using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;

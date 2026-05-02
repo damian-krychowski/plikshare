@@ -1,11 +1,9 @@
-using System.ComponentModel;
 using System.Text.Json.Serialization;
 using PlikShare.Core.ExternalIds;
 using PlikShare.Core.Utils;
 
 namespace PlikShare.Uploads.Id;
 
-[ImmutableObject(true)]
 [JsonConverter(typeof(ExternalIdJsonConverter<BulkFileUploadExtId>))]
 public readonly record struct BulkFileUploadExtId(string Value) : IExternalId<BulkFileUploadExtId>
 {

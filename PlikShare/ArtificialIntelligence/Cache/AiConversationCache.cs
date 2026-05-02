@@ -1,5 +1,4 @@
-﻿using System.ComponentModel;
-using Microsoft.Extensions.Caching.Hybrid;
+﻿using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.ArtificialIntelligence.Id;
 using PlikShare.Core.Database.AiDatabase;
 using PlikShare.Core.Encryption;
@@ -82,7 +81,6 @@ public class AiConversationCache(
         return isEmpty ? null : aiConversation;
     }
 
-    [ImmutableObject(true)]
     public sealed class AiConversationCached
     {
         public required int Id { get; init; }

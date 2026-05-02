@@ -1,11 +1,9 @@
-using System.ComponentModel;
 using System.Text.Json.Serialization;
 using PlikShare.Core.ExternalIds;
 using PlikShare.Core.Utils;
 
 namespace PlikShare.Integrations.Aws.Textract.Id;
 
-[ImmutableObject(true)]
 [JsonConverter(typeof(ExternalIdJsonConverter<TextractJobExtId>))]
 public readonly record struct TextractJobExtId(string Value): IExternalId<TextractJobExtId>
 {

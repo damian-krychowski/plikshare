@@ -46,7 +46,6 @@ using PlikShare.Workspaces.UpdateName;
 using PlikShare.Workspaces.UpdateName.Contracts;
 using PlikShare.Workspaces.Validation;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Workspaces;

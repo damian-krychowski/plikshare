@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.Boxes.Id;
 using PlikShare.Core.Database.MainDatabase;
@@ -217,7 +216,6 @@ public class BoxCache(
             new("bo_external_id = $boxExternalId", "$boxExternalId", extId.Value);
     }
 
-    [ImmutableObject(true)]
     public sealed record BoxCached(
         int Id,
         BoxExtId ExternalId,

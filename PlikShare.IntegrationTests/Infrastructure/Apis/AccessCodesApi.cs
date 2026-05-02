@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using Flurl.Http;
-using Microsoft.Extensions.Primitives;
 using PlikShare.BoxExternalAccess.Contracts;
 using PlikShare.Core.Authorization;
 using PlikShare.Files.BulkDownload.Contracts;

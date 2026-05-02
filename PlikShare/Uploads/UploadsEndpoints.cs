@@ -24,7 +24,6 @@ using PlikShare.Uploads.Initiate.Contracts;
 using PlikShare.Uploads.List;
 using PlikShare.Uploads.List.Contracts;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Validation;
 using Audit = PlikShare.AuditLog.Details.Audit;

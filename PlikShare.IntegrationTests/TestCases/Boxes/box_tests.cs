@@ -1,8 +1,5 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
-using PlikShare.Boxes.Get.Contracts;
-using PlikShare.Boxes.List.Contracts;
 using PlikShare.Boxes.UpdateFolder.Contracts;
 using PlikShare.Boxes.UpdateIsEnabled.Contracts;
 using PlikShare.Boxes.UpdateName.Contracts;

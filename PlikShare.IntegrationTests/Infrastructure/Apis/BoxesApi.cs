@@ -15,7 +15,6 @@ using PlikShare.Boxes.UpdateIsEnabled.Contracts;
 using PlikShare.Boxes.UpdateName.Contracts;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Id;
-using static PlikShare.Core.Utils.HttpErrors;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 

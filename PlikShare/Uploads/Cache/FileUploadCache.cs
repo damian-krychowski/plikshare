@@ -1,5 +1,4 @@
-﻿using System.ComponentModel;
-using Microsoft.Extensions.Caching.Hybrid;
+﻿using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
@@ -191,7 +190,6 @@ public class FileUploadCache(
         };
     }
     
-    [ImmutableObject(true)]
     public sealed class FileUploadCached
     {
         public required int Id { get; init; }
@@ -223,7 +221,6 @@ static class CachedFolderAncestorExtensions
     }
 }
 
-[ImmutableObject(true)]
 public sealed class FileUploadContext
 {
     public required int Id { get; init; }
@@ -241,7 +238,6 @@ public sealed class FileUploadContext
     public required WorkspaceContext Workspace { get; init; }
 }
 
-[ImmutableObject(true)]
 public sealed class FileToUploadDetails
 {
     public required S3FileKey S3FileKey { get; init; }

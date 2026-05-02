@@ -1,6 +1,5 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Boxes.Members.CreateInvitation.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using Xunit.Abstractions;

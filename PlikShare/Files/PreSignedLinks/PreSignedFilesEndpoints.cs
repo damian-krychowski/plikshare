@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Net.Http.Headers;
 using PlikShare.Antiforgery;
-using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
 using PlikShare.Core.CORS;
 using PlikShare.Core.Encryption;

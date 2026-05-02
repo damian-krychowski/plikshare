@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;

@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Web;
 using Microsoft.AspNetCore.DataProtection;
 using PlikShare.Core.Clock;
@@ -218,13 +217,11 @@ public class PreSignedUrlsService(
     /// because there is no per-file lookup in this flow — non-encrypted variants would
     /// otherwise have no source for the workspace identifier.
     /// </summary>
-    [ImmutableObject(true)]
     public sealed class MultiFileDirectUploadPayload : PreSignedPayload
     {
         public required int WorkspaceId { get; init; }
     }
 
-    [ImmutableObject(true)]
     public sealed class UploadPayload : PreSignedPayload
     {
         public required FileUploadExtId FileUploadExternalId { get; init; }
@@ -232,7 +229,6 @@ public class PreSignedUrlsService(
         public required string ContentType { get; init; }
     }
 
-    [ImmutableObject(true)]
     public sealed class DownloadPayload : PreSignedPayload
     {
         public required FileExtId FileExternalId { get; init; }
@@ -244,7 +240,6 @@ public class PreSignedUrlsService(
     /// flow operates on selected/excluded folder and file ids — there is no single file
     /// lookup that could supply the workspace identifier in non-encrypted variants.
     /// </summary>
-    [ImmutableObject(true)]
     public sealed class BulkDownloadPayload : PreSignedPayload
     {
         public required int WorkspaceId { get; init; }
@@ -254,22 +249,19 @@ public class PreSignedUrlsService(
         public required int[] ExcludedFolderIds { get; init; }
     }
 
-    [ImmutableObject(true)]
     public sealed class PreSignedUrlOwner : IUserIdentity
     {
         public required string Identity { get; init; }
         public required string IdentityType { get; init; }
     }
 
-    [ImmutableObject(true)]
     public sealed class ZipContentDownloadPayload : PreSignedPayload
     {
         public required FileExtId FileExternalId { get; init; }
         public required ZipEntryPayload ZipEntry { get; init; }
         public required ContentDispositionType ContentDisposition { get; init; }
     }
-
-    [ImmutableObject(true)]
+    
     public sealed class ZipEntryPayload
     {
         public required string FileName { get; init; }

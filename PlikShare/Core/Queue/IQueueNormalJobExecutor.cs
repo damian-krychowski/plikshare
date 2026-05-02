@@ -1,5 +1,4 @@
 using Microsoft.Data.Sqlite;
-using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 
 namespace PlikShare.Core.Queue;

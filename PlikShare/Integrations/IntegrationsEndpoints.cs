@@ -18,7 +18,6 @@ using PlikShare.Integrations.UpdateName;
 using PlikShare.Integrations.UpdateName.Contracts;
 using PlikShare.Users.Middleware;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Integrations;

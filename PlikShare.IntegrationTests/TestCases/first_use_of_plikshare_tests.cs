@@ -1,6 +1,4 @@
 using FluentAssertions;
-using PlikShare.Core.Authorization;
-using PlikShare.Core.ExternalIds;
 using PlikShare.Dashboard.Content.Contracts;
 using PlikShare.EmailProviders.List.Contracts;
 using PlikShare.GeneralSettings;

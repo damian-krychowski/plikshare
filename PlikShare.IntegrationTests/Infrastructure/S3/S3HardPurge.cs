@@ -1,6 +1,5 @@
 using Amazon.S3;
 using Amazon.S3.Model;
-using PlikShare.Storages.S3;
 using Serilog;
 
 namespace PlikShare.IntegrationTests.Infrastructure.S3;

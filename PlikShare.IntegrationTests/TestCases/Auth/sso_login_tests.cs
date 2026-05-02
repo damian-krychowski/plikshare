@@ -1,7 +1,5 @@
-using System.Text.Json;
 using FluentAssertions;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.AuthProviders.Create.Contracts;
 using PlikShare.AuthProviders.Id;
 using PlikShare.GeneralSettings;

@@ -1,10 +1,8 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Integrations;
 using PlikShare.Integrations.Create.Contracts;
-using PlikShare.Integrations.List.Contracts;
 using PlikShare.Integrations.UpdateName.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;

@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
 using PlikShare.Account.Contracts;
 using PlikShare.AuditLog;
 using PlikShare.Auth.Contracts;
@@ -7,8 +6,6 @@ using PlikShare.Core.Emails;
 using PlikShare.EmailProviders.ExternalProviders.Resend;
 using PlikShare.GeneralSettings;
 using System.Text;
-using System.Text.Json;
-using PlikShare.AuditLog.Details;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Invite;

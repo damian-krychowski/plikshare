@@ -1,6 +1,5 @@
 using FluentAssertions;
 using PlikShare.IntegrationTests.Infrastructure;
-using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.Search.Get.Contracts;
 using PlikShare.Storages.Encryption;
 using Xunit.Abstractions;

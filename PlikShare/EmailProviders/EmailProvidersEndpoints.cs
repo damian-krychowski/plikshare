@@ -27,9 +27,7 @@ using PlikShare.EmailProviders.ResendConfirmationEmail.Contracts;
 using PlikShare.EmailProviders.UpdateName;
 using PlikShare.EmailProviders.UpdateName.Contracts;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Users.Entities;
-using PlikShare.Users.Middleware;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.EmailProviders;

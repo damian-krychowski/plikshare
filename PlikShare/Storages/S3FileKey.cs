@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using PlikShare.Core.Utils;
@@ -6,7 +5,6 @@ using PlikShare.Files.Id;
 
 namespace PlikShare.Storages;
 
-[ImmutableObject(true)]
 public sealed class S3FileKey
 {
     public required FileExtId FileExternalId { get; init; }

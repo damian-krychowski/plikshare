@@ -1,11 +1,9 @@
-using System.ComponentModel;
 using System.Text.Json.Serialization;
 using PlikShare.Core.ExternalIds;
 using PlikShare.Core.Utils;
 
 namespace PlikShare.Core.IdentityProvider;
 
-[ImmutableObject(true)]
 [JsonConverter(typeof(ExternalIdJsonConverter<RoleExtId>))]
 public readonly record struct RoleExtId(string Value): IExternalId<RoleExtId>
 {

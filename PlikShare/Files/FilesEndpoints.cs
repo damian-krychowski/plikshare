@@ -34,14 +34,11 @@ using PlikShare.Files.UpdateSize;
 using PlikShare.Files.UploadAttachment;
 using PlikShare.Storages;
 using PlikShare.Storages.Encryption.Authorization;
-using PlikShare.Storages.FileReading;
 using PlikShare.Uploads.Algorithm;
-using PlikShare.Uploads.Cache;
 using PlikShare.Workspaces.Validation;
 using System.Globalization;
 using System.IO.Pipelines;
 using PlikShare.Workspaces.Cache;
-using static PlikShare.Storages.HardDrive.HardDriveStorageClientFactory;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Files;

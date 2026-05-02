@@ -1,7 +1,5 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
-using PlikShare.Boxes.Get.Contracts;
 using PlikShare.BoxLinks.UpdateIsEnabled.Contracts;
 using PlikShare.BoxLinks.UpdateName.Contracts;
 using PlikShare.BoxLinks.UpdateWidgetOrigins.Contracts;

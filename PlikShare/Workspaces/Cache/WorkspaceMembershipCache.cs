@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
@@ -231,7 +230,6 @@ public class WorkspaceMembershipCache(
         return result.IsEmpty ? null : result.Value;
     }
 
-    [ImmutableObject(true)]
     public sealed record WorkspaceMembershipCached(
         int InviterId,
         bool WasInvitationAccepted,

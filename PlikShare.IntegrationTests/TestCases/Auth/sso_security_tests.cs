@@ -1,7 +1,6 @@
 using FluentAssertions;
 using PlikShare.GeneralSettings;
 using PlikShare.IntegrationTests.Infrastructure;
-using PlikShare.IntegrationTests.Infrastructure.Apis;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Auth;

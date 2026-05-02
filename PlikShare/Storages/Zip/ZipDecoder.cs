@@ -2,7 +2,6 @@
 using System.Buffers.Binary;
 using System.IO.Pipelines;
 using System.Text;
-using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Files.Records;

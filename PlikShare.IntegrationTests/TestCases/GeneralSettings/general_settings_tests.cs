@@ -1,8 +1,6 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.GeneralSettings;
-using PlikShare.GeneralSettings.Contracts;
 using PlikShare.GeneralSettings.SignUpCheckboxes.CreateOrUpdate.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Core.Authorization;

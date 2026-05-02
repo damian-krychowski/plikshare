@@ -6,7 +6,6 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
-using PlikShare.Core.Utils;
 using PlikShare.Files.Artifacts;
 using PlikShare.Files.Id;
 using PlikShare.Workspaces.Cache;

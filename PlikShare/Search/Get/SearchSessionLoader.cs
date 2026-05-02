@@ -1,5 +1,4 @@
 using Microsoft.Data.Sqlite;
-using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Storages.Encryption;

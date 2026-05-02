@@ -32,7 +32,6 @@ using PlikShare.Boxes.UpdateIsEnabled.Contracts;
 using PlikShare.Boxes.UpdateName;
 using PlikShare.Boxes.UpdateName.Contracts;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Boxes.Validation;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;

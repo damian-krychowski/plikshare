@@ -1,9 +1,7 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
-using PlikShare.AuditLog.Details;
 using PlikShare.Folders.Create.Contracts;
 using PlikShare.Folders.Id;
-using PlikShare.Folders.List.Contracts;
 using PlikShare.Folders.MoveToFolder.Contracts;
 using PlikShare.Folders.Rename.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;

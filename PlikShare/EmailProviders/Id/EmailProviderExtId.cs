@@ -1,11 +1,9 @@
-using System.ComponentModel;
 using System.Text.Json.Serialization;
 using PlikShare.Core.ExternalIds;
 using PlikShare.Core.Utils;
 
 namespace PlikShare.EmailProviders.Id;
 
-[ImmutableObject(true)]
 [JsonConverter(typeof(ExternalIdJsonConverter<EmailProviderExtId>))]
 public readonly record struct EmailProviderExtId(string Value): IExternalId<EmailProviderExtId>
 {
