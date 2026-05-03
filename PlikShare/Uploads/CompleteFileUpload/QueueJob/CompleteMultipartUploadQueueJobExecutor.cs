@@ -8,13 +8,13 @@ using Serilog;
 
 namespace PlikShare.Uploads.CompleteFileUpload.QueueJob;
 
-public class CompleteS3UploadQueueJobExecutor(
+public class CompleteMultipartUploadQueueJobExecutor(
     StorageClientStore storageClientStore,
     PlikShareDb plikShareDb,
     MarkFileAsUploadedAndDeleteUploadQuery markFileAsUploadedAndDeleteUploadQuery) : IQueueNormalJobExecutor
 {
-    private readonly Serilog.ILogger _logger = Log.ForContext<CompleteS3UploadQueueJobExecutor>();
-    public string JobType => CompleteS3UploadQueueJobType.Value;
+    private readonly Serilog.ILogger _logger = Log.ForContext<CompleteMultipartUploadQueueJobExecutor>();
+    public string JobType => CompleteMultipartUploadQueueJobType.Value;
     public int Priority => QueueJobPriority.High;
 
     public async Task<QueueJobResult> Execute(
@@ -23,7 +23,7 @@ public class CompleteS3UploadQueueJobExecutor(
         CancellationToken cancellationToken)
     {
         _logger.Debug(
-            "Starting S3 upload completion job. Definition: {@Definition}",
+            "Starting multipart upload completion job. Definition: {@Definition}",
             definitionJson);
 
         var definition = Json.Deserialize<CompleteFileUploadQueueJobDefinition>(
@@ -56,10 +56,10 @@ public class CompleteS3UploadQueueJobExecutor(
             fileUpload.Id,
             fileUpload.FileExternalId,
             parts.Count);
-        
+
         if (!storageClientStore.TryGetClient(fileUpload.StorageId, out var storage))
         {
-            Log.Warning("Could not complete multi-part upload of file '{FileExternalId}' because Storage#{StorageId} was not found. Marking the queue job as completed.",
+            Log.Warning("Could not complete multipart upload of file '{FileExternalId}' because Storage#{StorageId} was not found. Marking the queue job as completed.",
                 fileUpload.FileExternalId,
                 fileUpload.StorageId);
 
@@ -70,17 +70,17 @@ public class CompleteS3UploadQueueJobExecutor(
         {
             await storage.CompleteMultiPartUpload(
                 bucketName: fileUpload.BucketName,
-                key: new S3FileKey
+                key: new FileKey
                 {
                     FileExternalId = fileUpload.FileExternalId,
-                    S3KeySecretPart = fileUpload.S3KeySecretPart
+                    KeySecretPart = fileUpload.KeySecretPart
                 },
-                uploadId: fileUpload.S3UploadId,
+                uploadId: fileUpload.MultipartUploadId,
                 partETags: parts,
                 cancellationToken: cancellationToken);
 
             _logger.Information(
-                "Successfully completed S3 multipart upload. FileUploadId: {FileUploadId}, BucketName: {BucketName}",
+                "Successfully completed multipart upload. FileUploadId: {FileUploadId}, BucketName: {BucketName}",
                 fileUpload.Id,
                 fileUpload.BucketName);
 
@@ -99,9 +99,10 @@ public class CompleteS3UploadQueueJobExecutor(
         {
             _logger.Error(
                 ex,
-                "Failed to complete S3 multipart upload. FileUploadId: {FileUploadId}, BucketName: {BucketName}",
+                "Failed to complete multipart upload. CorrelationId: {CorrelationId}, FileUploadId: {FileUploadId}, BucketName: {BucketName}",
                 correlationId,
-                fileUpload.Id);
+                fileUpload.Id,
+                fileUpload.BucketName);
 
             throw;
         }
@@ -117,24 +118,24 @@ public class CompleteS3UploadQueueJobExecutor(
         var result = connection
             .OneRowCmd(
                 sql: """
-                     SELECT 
+                     SELECT
                          fu_file_external_id,
-                         fu_file_s3_key_secret_part,
-                         fu_s3_upload_id,
+                         fu_file_key_secret_part,
+                         fu_multipart_upload_id,
                          w_bucket_name,
                          w_storage_id
                      FROM fu_file_uploads
                      INNER JOIN w_workspaces
                          ON w_id = fu_workspace_id
-                     WHERE 
+                     WHERE
                          fu_id = $fileUploadId
-                     LIMIT 1                    
+                     LIMIT 1
                      """,
                 readRowFunc: reader => new FileUploadDetails(
                     Id: fileUploadId,
                     FileExternalId: reader.GetExtId<FileExtId>(0),
-                    S3KeySecretPart: reader.GetString(1),
-                    S3UploadId: reader.GetString(2),
+                    KeySecretPart: reader.GetString(1),
+                    MultipartUploadId: reader.GetString(2),
                     BucketName: reader.GetString(3),
                     StorageId: reader.GetInt32(4)))
             .WithParameter("$fileUploadId", fileUploadId)
@@ -172,8 +173,8 @@ public class CompleteS3UploadQueueJobExecutor(
     private record FileUploadDetails(
         int Id,
         FileExtId FileExternalId,
-        string S3KeySecretPart,
-        string S3UploadId,
+        string KeySecretPart,
+        string MultipartUploadId,
         string BucketName,
         int StorageId);
 }

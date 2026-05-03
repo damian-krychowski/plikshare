@@ -309,6 +309,8 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_29_FileArtifactContentHashIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_30_QSoftRetriesLeftIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_31_DigitalOceanSpacesStorageTypeRenamed>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_32_StorageQueueJobsRenamedToBackendNeutralNames>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_33_StorageDbColumnsRenamedToBackendNeutralNames>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 
@@ -488,7 +490,7 @@ public class Startup
         builder.Services.AddScoped<IValidator<UpdateFolderNameRequestDto>, UpdateFolderNameRequestValidator>();
 
         builder.Services.AddSingleton<ConvertFileUploadToFileOperation>();
-        builder.Services.AddSingleton<IQueueNormalJobExecutor, CompleteS3UploadQueueJobExecutor>();
+        builder.Services.AddSingleton<IQueueNormalJobExecutor, CompleteMultipartUploadQueueJobExecutor>();
 
         builder.Services.AddSingleton<FileUploadCache>();
         builder.Services.AddSingleton<CompleteFilePartUploadQuery>();
@@ -516,9 +518,9 @@ public class Startup
         builder.Services.AddSingleton<IQueueDbOnlyJobExecutor, DeleteFoldersQueueJobExecutor>();
 
         builder.Services.AddSingleton<GetUploadsListQuery>();
-        builder.Services.AddSingleton<IQueueNormalJobExecutor, AbortS3UploadQueueJobExecutor>();
-        builder.Services.AddSingleton<IQueueNormalJobExecutor, DeleteS3FileQueueJobExecutor>();
-        builder.Services.AddSingleton<IQueueLongRunningJobExecutor, BulkDeleteS3FileQueueJobExecutor>();
+        builder.Services.AddSingleton<IQueueNormalJobExecutor, AbortMultipartUploadQueueJobExecutor>();
+        builder.Services.AddSingleton<IQueueNormalJobExecutor, DeleteFileQueueJobExecutor>();
+        builder.Services.AddSingleton<IQueueLongRunningJobExecutor, BulkDeleteFilesQueueJobExecutor>();
         builder.Services.AddSingleton<MoveItemsToFolderQuery>();
         builder.Services.AddSingleton<GetBoxQuery>();
         builder.Services.AddSingleton<DeleteFilesSubQuery>();

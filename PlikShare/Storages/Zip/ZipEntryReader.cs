@@ -114,7 +114,7 @@ public static class ZipEntryReader
             @try: () => workspace.ReadRange(
                 details: new DownloadFileRangeDetails(
                     Range: reasonableFileRange,
-                    S3FileKey: file.S3FileKey,
+                    FileKey: file.FileKey,
                     FileSizeInBytes: file.SizeInBytes,
                     EncryptionMode: file.EncryptionMode),
                 output: pipe.Writer,
@@ -153,7 +153,7 @@ public static class ZipEntryReader
                     continuationFunction: () => workspace.ReadRange(
                         details: new DownloadFileRangeDetails(
                             Range: missingBytesRange,
-                            S3FileKey: file.S3FileKey,
+                            FileKey: file.FileKey,
                             FileSizeInBytes: file.SizeInBytes,
                             EncryptionMode: file.EncryptionMode),
                         output: pipe.Writer,

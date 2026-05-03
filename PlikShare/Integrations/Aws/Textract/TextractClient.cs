@@ -21,7 +21,7 @@ public class TextractClient(
     public string Name { get; } = name;
 
     public async Task<StartDocumentAnalysisResponse> InitiateAnalysis(
-        S3FileKey fileKey,
+        FileKey fileKey,
         int fileWorkspaceId,
         TextractFeature[] features,
         CancellationToken cancellationToken)

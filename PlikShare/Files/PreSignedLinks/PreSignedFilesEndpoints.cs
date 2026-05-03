@@ -170,7 +170,7 @@ public static class PreSignedFilesEndpoints
             var results = processedFileUploads
                 .Select(upload => new MultiFileDirectUploadItemResponseDto
                 {
-                    FileExternalId = upload!.FileToUpload.S3FileKey.FileExternalId,
+                    FileExternalId = upload!.FileToUpload.FileKey.FileExternalId,
                     UploadExternalId = upload.ExternalId
                 })
                 .ToList();
@@ -184,7 +184,7 @@ public static class PreSignedFilesEndpoints
                         fileUploads: processedFileUploads.Select(u => new Audit.FileUploadRef
                         {
                             ExternalId = u!.ExternalId,
-                            FileExternalId = u.FileToUpload.S3FileKey.FileExternalId,
+                            FileExternalId = u.FileToUpload.FileKey.FileExternalId,
                             Name = u.FileName,
                             Extension = u.FileExtension,
                             SizeInBytes = u.FileToUpload.SizeInBytes,
@@ -262,8 +262,8 @@ public static class PreSignedFilesEndpoints
                 storageClient: storageClient);
 
             var uploadDetails = new UploadFilePartDetails(
-                S3FileKey: fileUpload.FileToUpload.S3FileKey,
-                S3UploadId: fileUpload.FileToUpload.S3UploadId,
+                FileKey: fileUpload.FileToUpload.FileKey,
+                MultipartUploadId: fileUpload.FileToUpload.MultipartUploadId,
                 FileSizeInBytes: fileUpload.FileToUpload.SizeInBytes,
                 Part: FilePart.First((int) fileUpload.FileToUpload.SizeInBytes),
                 UploadAlgorithm: UploadAlgorithm.DirectUpload,
@@ -311,8 +311,8 @@ public static class PreSignedFilesEndpoints
                 storageClient: fileUpload.Workspace.Storage);
 
             var uploadDetails = new UploadFilePartDetails(
-                S3FileKey: fileUpload.FileToUpload.S3FileKey,
-                S3UploadId: fileUpload.FileToUpload.S3UploadId,
+                FileKey: fileUpload.FileToUpload.FileKey,
+                MultipartUploadId: fileUpload.FileToUpload.MultipartUploadId,
                 FileSizeInBytes: fileUpload.FileToUpload.SizeInBytes,
                 Part: new FilePart(payload.PartNumber, partSizeInBytes),
                 UploadAlgorithm: fileUpload.UploadAlgorithm,
@@ -439,9 +439,9 @@ public static class PreSignedFilesEndpoints
             await using var storageFileRange = await workspace.DownloadFileRange(
                 fileDetails: new DownloadFileRangeDetails(
                     Range: rangeRequest.Range,
-                    S3FileKey: new S3FileKey
+                    FileKey: new FileKey
                     {
-                        S3KeySecretPart = file.S3KeySecretPart,
+                        KeySecretPart = file.KeySecretPart,
                         FileExternalId = file.ExternalId,
                     },
                     FileSizeInBytes: file.SizeInBytes,
@@ -514,9 +514,9 @@ public static class PreSignedFilesEndpoints
 
             await using var storageFile = await workspace.DownloadFile(
                 fileDetails: new DownloadFileDetails(
-                    S3FileKey: new S3FileKey
+                    FileKey: new FileKey
                     {
-                        S3KeySecretPart = file.S3KeySecretPart,
+                        KeySecretPart = file.KeySecretPart,
                         FileExternalId = file.ExternalId,
                     },
                     FileSizeInBytes: file.SizeInBytes,

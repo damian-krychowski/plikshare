@@ -19,7 +19,7 @@ public class AwsTextractClient(
         Amazon.RegionEndpoint.GetBySystemName(region));
     
     public async Task<StartDocumentAnalysisResponse> InitiateAnalysis(
-        S3FileKey fileKey,
+        FileKey fileKey,
         string bucketName,
         TextractFeature[] features,
         CancellationToken cancellationToken)

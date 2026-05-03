@@ -5,7 +5,7 @@ namespace PlikShare.IntegrationTests.Infrastructure.Storage;
 /// <summary>
 /// <see cref="IRawStorageClient"/> for the local hard-drive backend. Files live at
 /// <c>{storageRoot}/{bucketName}/{fileExternalId}</c> — there is no secret-part suffix
-/// because <see cref="PlikShare.Storages.HardDrive.StorageClient.HardDriveStorageClient.GenerateFileS3KeySecretPart"/>
+/// because <see cref="PlikShare.Storages.HardDrive.StorageClient.HardDriveStorageClient.GenerateFileKeySecretPart"/>
 /// returns an empty string for hard-drive storages.
 /// </summary>
 public sealed class HardDriveRawStorageClient : IRawStorageClient

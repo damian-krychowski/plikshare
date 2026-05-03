@@ -328,9 +328,9 @@ public class SendAiMessageQueueJobExecutor(
 
             await using var storageFile = await storage.DownloadFile(
                 fileDetails: new DownloadFileDetails(
-                    S3FileKey: new S3FileKey
+                    FileKey: new FileKey
                     {
-                        S3KeySecretPart = file.S3KeySecretPart,
+                        KeySecretPart = file.KeySecretPart,
                         FileExternalId = file.ExternalId
                     },
                     FileSizeInBytes: file.SizeInBytes,

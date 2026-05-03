@@ -76,14 +76,14 @@ public class BulkInitiateCopyFileUploadOperation(
             {
                 var initiatedUpload = await objectStorageClient.InitiateMultiPartUpload(
                     bucketName: bucketName,
-                    key: new S3FileKey
+                    key: new FileKey
                     {
                         FileExternalId = fileToCopy.NewFileExternalId,
-                        S3KeySecretPart = fileToCopy.NewFileS3KeySecretPart
+                        KeySecretPart = fileToCopy.NewFileKeySecretPart
                     },
                     cancellationToken: cancellationToken);
 
-                fileToCopy.S3UploadId = initiatedUpload.S3UploadId;
+                fileToCopy.MultipartUploadId = initiatedUpload.MultipartUploadId;
             });
 
             await Task.WhenAll(tasks);
@@ -134,10 +134,10 @@ public class BulkInitiateCopyFileUploadOperation(
                         FileUploadExternalId = FileUploadExtId.NewId(),
                         UploadAlgorithm = algorithm,
                         FilePartsCount = filePartsCount,
-                        S3UploadId = string.Empty,
+                        MultipartUploadId = string.Empty,
 
                         NewFileExternalId = FileExtId.NewId(),
-                        NewFileS3KeySecretPart = storageClient.GenerateFileS3KeySecretPart(),
+                        NewFileKeySecretPart = storageClient.GenerateFileKeySecretPart(),
 
                         NewFileEncryptionKeyVersion = encryptionDetails?.KeyVersion,
                         NewFileEncryptionSalt = encryptionDetails?.Salt,
@@ -184,7 +184,7 @@ public class BulkInitiateCopyFileUploadOperation(
                             fu_external_id,
                             fu_workspace_id,
                             fu_folder_id,
-                            fu_s3_upload_id,
+                            fu_multipart_upload_id,
                             fu_owner_identity_type,
                             fu_owner_identity,
                             fu_file_name,
@@ -192,7 +192,7 @@ public class BulkInitiateCopyFileUploadOperation(
                             fu_file_content_type,
                             fu_file_size_in_bytes,
                             fu_file_external_id,
-                            fu_file_s3_key_secret_part,
+                            fu_file_key_secret_part,
                             fu_encryption_key_version,
                             fu_encryption_salt,
                             fu_encryption_nonce_prefix,
@@ -206,7 +206,7 @@ public class BulkInitiateCopyFileUploadOperation(
                             json_extract(value, '$.fileUploadExternalId'),
                             $workspaceId,
                             NULL,
-                            json_extract(value, '$.s3UploadId'),
+                            json_extract(value, '$.multipartUploadId'),
                             $ownerIdentityType,
                             $ownerIdentity,
                             json_extract(value, '$.name'),
@@ -214,7 +214,7 @@ public class BulkInitiateCopyFileUploadOperation(
                             json_extract(value, '$.contentType'),
                             json_extract(value, '$.sizeInBytes'),
                             json_extract(value, '$.newFileExternalId'),
-                            json_extract(value, '$.newFileS3KeySecretPart'),
+                            json_extract(value, '$.newFileKeySecretPart'),
                             json_extract(value, '$.newFileEncryptionKeyVersion'),
                             app_json_array_to_blob(json_extract(value, '$.newFileEncryptionSalt')),
                             app_json_array_to_blob(json_extract(value, '$.newFileEncryptionNoncePrefix')),
@@ -346,10 +346,10 @@ public class BulkInitiateCopyFileUploadOperation(
         public required int FilePartsCount { get; init; }
 
         //that one is mutable not to allocate memory when it can be avoided
-        public required string S3UploadId { get; set; }
+        public required string MultipartUploadId { get; set; }
 
         public required FileExtId NewFileExternalId { get; init; }
-        public required string NewFileS3KeySecretPart { get; init; }
+        public required string NewFileKeySecretPart { get; init; }
 
         public byte? NewFileEncryptionKeyVersion { get; init; }
         public byte[]? NewFileEncryptionSalt { get; init; }

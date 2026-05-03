@@ -11,7 +11,7 @@ public class FileRecord
     public required string Name { get; init; }
     public required string ContentType { get; init; }
     public required string Extension { get; init; }
-    public required string S3KeySecretPart { get; init; }
+    public required string KeySecretPart { get; init; }
     public required long SizeInBytes { get; init; }
     public required int WorkspaceId { get; init; }
     public required FileRecordFolderAncestor[] FolderAncestors { get; init; }
@@ -21,7 +21,7 @@ public class FileRecord
 
 public class ResolvedFileRecord
 {
-    public required S3FileKey S3FileKey { get; init; }
+    public required FileKey FileKey { get; init; }
     public required string Name { get; init; }
     public required string ContentType { get; init; }
     public required string Extension { get; init; }
@@ -40,9 +40,9 @@ static class FileRecordExtensions
 
         public List<string>? FolderPath => file.FolderAncestors.ToFolderPath();
 
-        public S3FileKey S3FileKey => new()
+        public FileKey FileKey => new()
         {
-            S3KeySecretPart = file.S3KeySecretPart,
+            KeySecretPart = file.KeySecretPart,
             FileExternalId = file.ExternalId,
         };
 
@@ -51,9 +51,9 @@ static class FileRecordExtensions
             IStorageClient storageClient) =>
             new()
             {
-                S3FileKey = new S3FileKey
+                FileKey = new FileKey
                 {
-                    S3KeySecretPart = file.S3KeySecretPart,
+                    KeySecretPart = file.KeySecretPart,
                     FileExternalId = file.ExternalId,
                 },
                 Name = file.Name,
@@ -74,7 +74,7 @@ static class FileRecordExtensions
 
         public List<string>? FolderPath => file.FolderAncestors.ToFolderPath();
 
-        public FileExtId ExternalId => file.S3FileKey.FileExternalId;
+        public FileExtId ExternalId => file.FileKey.FileExternalId;
     }
 
     extension(FileRecordFolderAncestor[] ancestors)

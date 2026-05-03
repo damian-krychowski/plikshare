@@ -5,29 +5,29 @@ using Serilog;
 
 namespace PlikShare.Files.BulkDelete.QueueJob;
 
-public class BulkDeleteS3FileQueueJobExecutor(StorageClientStore storageClientStore) : IQueueLongRunningJobExecutor
+public class BulkDeleteFilesQueueJobExecutor(StorageClientStore storageClientStore) : IQueueLongRunningJobExecutor
 {
-    public string JobType => BulkDeleteS3FileQueueJobType.Value;
+    public string JobType => BulkDeleteFilesQueueJobType.Value;
     public int Priority => QueueJobPriority.Low;
 
     public async Task<QueueJobResult> Execute(
-        string definitionJson, 
+        string definitionJson,
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        var definition = Json.Deserialize<BulkDeleteS3FileQueueJobDefinition>(
+        var definition = Json.Deserialize<BulkDeleteFilesQueueJobDefinition>(
             definitionJson);
 
         if (definition is null)
         {
             throw new ArgumentException(
-                $"Job '{definitionJson}' cannot be parsed to correct '{nameof(BulkDeleteS3FileQueueJobDefinition)}'");
+                $"Job '{definitionJson}' cannot be parsed to correct '{nameof(BulkDeleteFilesQueueJobDefinition)}'");
         }
 
         if (!storageClientStore.TryGetClient(definition.StorageId, out var storage))
         {
             Log.Warning("Could not delete files (count: {FilesToDeleteCount}) because Storage#{StorageId} was not found. Marking the queue job as completed.",
-                definition.S3FileKeys.Length,
+                definition.FileKeys.Length,
                 definition.StorageId);
 
             return QueueJobResult.Success;
@@ -35,7 +35,7 @@ public class BulkDeleteS3FileQueueJobExecutor(StorageClientStore storageClientSt
 
         await storage.DeleteFiles(
             bucketName: definition.BucketName,
-            keys: definition.S3FileKeys,
+            keys: definition.FileKeys,
             cancellationToken: cancellationToken);
 
         return QueueJobResult.Success;

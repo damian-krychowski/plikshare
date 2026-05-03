@@ -204,8 +204,8 @@ public class InitiateFilePartUploadOperation(
         {
             var url = await objectStorageClient.GetPreSignedUploadFilePartLink(
                 bucketName,
-                fileUpload.FileToUpload.S3FileKey,
-                fileUpload.FileToUpload.S3UploadId,
+                fileUpload.FileToUpload.FileKey,
+                fileUpload.FileToUpload.MultipartUploadId,
                 partNumber,
                 contentType,
                 clock.UtcNow.AddMinutes(15));

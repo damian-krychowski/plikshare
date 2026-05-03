@@ -58,7 +58,7 @@ public class InsertFileAttachmentQuery(
                             fi_external_id,
                             fi_workspace_id,
                             fi_folder_id,
-                            fi_s3_key_secret_part,
+                            fi_key_secret_part,
                             fi_name,
                             fi_extension,
                             fi_content_type,
@@ -79,7 +79,7 @@ public class InsertFileAttachmentQuery(
                             $externalId,
                             $workspaceId,
                             (SELECT fi_folder_id FROM parent),
-                            $s3KeySecretPart,
+                            $keySecretPart,
                             $name,
                             $extension,
                             $contentType,
@@ -109,7 +109,7 @@ public class InsertFileAttachmentQuery(
                 .WithParameter("$parentExternalId", parentFileExternalId.Value)
                 .WithParameter("$workspaceId", workspace.Id)
                 .WithParameter("$externalId", attachment.ExternalId.Value)
-                .WithParameter("$s3KeySecretPart", attachment.S3KeySecretPart)
+                .WithParameter("$keySecretPart", attachment.KeySecretPart)
                 .WithParameter("$name", attachment.Name)
                 .WithParameter("$extension", attachment.Extension)
                 .WithParameter("$contentType", attachment.ContentType)
@@ -186,7 +186,7 @@ public class InsertFileAttachmentQuery(
         public required string Name { get; init; }
         public required string Extension { get; init; }
         public required string ContentType { get; init; }
-        public required string S3KeySecretPart { get; init; }
+        public required string KeySecretPart { get; init; }
         public required long SizeInBytes { get; init; }
         public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
     }

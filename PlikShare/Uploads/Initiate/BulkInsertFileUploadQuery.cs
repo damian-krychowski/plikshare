@@ -101,7 +101,7 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
                         fu_external_id,
                         fu_workspace_id,
                         fu_folder_id,
-                        fu_s3_upload_id,
+                        fu_multipart_upload_id,
                         fu_owner_identity_type,
                         fu_owner_identity,
                         fu_file_name,
@@ -109,7 +109,7 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
                         fu_file_content_type,
                         fu_file_size_in_bytes,
                         fu_file_external_id,
-                        fu_file_s3_key_secret_part,
+                        fu_file_key_secret_part,
                         fu_encryption_key_version,
                         fu_encryption_salt,
                         fu_encryption_nonce_prefix,
@@ -123,7 +123,7 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
                         json_extract(value, '$.fileUploadExternalId'),
                         $workspaceId,
                         json_extract(value, '$.folderId'),
-                        json_extract(value, '$.s3UploadId'),
+                        json_extract(value, '$.multipartUploadId'),
                         $ownerIdentityType,
                         $ownerIdentity,
                         json_extract(value, '$.fileName'),
@@ -131,7 +131,7 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
                         json_extract(value, '$.fileContentType'),
                         json_extract(value, '$.fileSizeInBytes'),
                         json_extract(value, '$.fileExternalId'),
-                        json_extract(value, '$.s3KeySecretPart'),
+                        json_extract(value, '$.keySecretPart'),
                         json_extract(value, '$.encryptionKeyVersion'),
                         app_json_array_to_blob(json_extract(value, '$.encryptionSalt')),
                         app_json_array_to_blob(json_extract(value, '$.encryptionNoncePrefix')),
@@ -189,8 +189,8 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
     {
         public required string FileUploadExternalId { get; init; }
         public required string FileExternalId { get; init; }
-        public required string S3UploadId { get; init; }
-        public required string S3KeySecretPart { get; init; }
+        public required string MultipartUploadId { get; init; }
+        public required string KeySecretPart { get; init; }
         public required int? FolderId { get; init; }
         public required EncryptableMetadata FileName { get; init; }
         public required EncryptableMetadata FileExtension { get; init; }

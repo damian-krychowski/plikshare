@@ -43,7 +43,7 @@ public class TestTextractConfigurationOperation(
                 bucketName: bucketName,
                 cancellationToken: cancellationToken);
 
-            var imageFileKey = S3FileKey.NewKey();
+            var imageFileKey = FileKey.NewKey();
 
             await UploadTestImageToS3(
                 imageFileKey, 
@@ -80,7 +80,7 @@ public class TestTextractConfigurationOperation(
         string accessKey, 
         string secretAccessKey, 
         string region,
-        S3FileKey imageFileKey, 
+        FileKey imageFileKey, 
         string bucketName, 
         CancellationToken cancellationToken)
     {
@@ -208,7 +208,7 @@ public class TestTextractConfigurationOperation(
     }
 
     private static async Task UploadTestImageToS3(
-        S3FileKey imageFileKey,
+        FileKey imageFileKey,
         string bucketName, 
         S3StorageClient s3StorageClient, 
         CancellationToken cancellationToken)
@@ -218,8 +218,8 @@ public class TestTextractConfigurationOperation(
         _ = await s3StorageClient.UploadFilePart(
             input: imageBytes.AsMemory(),
             uploadDetails: new UploadFilePartDetails(
-                S3FileKey: imageFileKey,
-                S3UploadId: null,
+                FileKey: imageFileKey,
+                MultipartUploadId: null,
                 FileSizeInBytes: imageBytes.Length,
                 Part: FilePart.First(imageBytes.Length),
                 UploadAlgorithm: UploadAlgorithm.DirectUpload,
@@ -231,7 +231,7 @@ public class TestTextractConfigurationOperation(
 
     private Task ScheduleDeleteTaskAndBucket(
         string bucketName,
-        S3FileKey fileKey,
+        FileKey fileKey,
         int storageId,
         Guid correlationId,
         CancellationToken cancellationToken)
@@ -256,13 +256,13 @@ public class TestTextractConfigurationOperation(
 
                     var queueJobId = queue.EnqueueOrThrow(
                         correlationId: correlationId,
-                        jobType: DeleteS3FileQueueJobType.Value,
-                        definition: new DeleteS3FileQueueJobDefinition
+                        jobType: DeleteFileQueueJobType.Value,
+                        definition: new DeleteFileQueueJobDefinition
                         {
                             StorageId = storageId,
                             BucketName = bucketName,
                             FileExternalId = fileKey.FileExternalId,
-                            S3KeySecretPart = fileKey.S3KeySecretPart
+                            KeySecretPart = fileKey.KeySecretPart
                         },
                         executeAfterDate: clock.UtcNow,
                         debounceId: null,

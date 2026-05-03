@@ -37,10 +37,10 @@ public class GetFileDownloadLinkOperation(
         if (fileQueryResult.IsEmpty)
             return new Result(Code: ResultCode.FileNotFound);
 
-        var key = new S3FileKey
+        var key = new FileKey
         {
             FileExternalId = fileExternalId,
-            S3KeySecretPart = fileQueryResult.Value.S3KeySecretPart
+            KeySecretPart = fileQueryResult.Value.KeySecretPart
         };
 
         var preSignedUrl = workspace.Storage switch
@@ -74,7 +74,7 @@ public class GetFileDownloadLinkOperation(
     }
 
     private string HandleHardDrivePreSignedDownloadFileLink(
-        S3FileKey key,
+        FileKey key,
         ContentDispositionType contentDisposition,
         int? boxLinkId,
         IUserIdentity userIdentity,
@@ -99,7 +99,7 @@ public class GetFileDownloadLinkOperation(
     public async ValueTask<string> HandleObjectStoragePreSignedDownloadFileLink(
         IObjectStorageClient objectStorageClient,
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         string contentType,
         string fileName,
         ContentDispositionType contentDisposition,

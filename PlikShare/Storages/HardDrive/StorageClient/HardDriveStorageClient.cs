@@ -37,7 +37,7 @@ public class HardDriveStorageClient(
 
     public ValueTask DeleteFile(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         CancellationToken cancellationToken = default)
     {
         var bucketPath = GetBucketPath(bucketName);
@@ -78,7 +78,7 @@ public class HardDriveStorageClient(
 
     public ValueTask DeleteFiles(
         string bucketName,
-        S3FileKey[] keys,
+        FileKey[] keys,
         CancellationToken cancellationToken = default)
     {
         var bucketPath = GetBucketPath(bucketName);
@@ -123,7 +123,7 @@ public class HardDriveStorageClient(
 
     public async Task CompleteMultiPartUpload(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         string uploadId,
         List<UploadedFilePart> partETags,
         CancellationToken cancellationToken = default)
@@ -236,15 +236,24 @@ public class HardDriveStorageClient(
             cancellationToken);
     }
     
-    public Task AbortMultiPartUpload(
-        string bucketName,
-        S3FileKey key,
+    public MultipartUploadAbortHandle BuildAbortHandle(
         string uploadId,
-        List<string> partETags,
+        IReadOnlyList<string> partTokens) =>
+        new HardDriveMultipartUploadAbortHandle([..partTokens]);
+
+    public Task AbortMultipartUpload(
+        string bucketName,
+        FileKey key,
+        MultipartUploadAbortHandle handle,
         CancellationToken cancellationToken = default)
     {
-        //no parts were created, there is nothing to delete
-        if (partETags.Count == 0)
+        if (handle is not HardDriveMultipartUploadAbortHandle hdHandle)
+            throw new InvalidOperationException(
+                $"{nameof(HardDriveStorageClient)} received abort handle of type " +
+                $"'{handle.GetType().Name}' but expects " +
+                $"'{nameof(HardDriveMultipartUploadAbortHandle)}'.");
+
+        if (hdHandle.PartTokens.Count == 0)
         {
             Log.Information("Successfully aborted MultiPartUpload for '{FileExternalId}' in '{BucketName}' of Storage '{StorageId}'",
                 key.FileExternalId,
@@ -264,14 +273,14 @@ public class HardDriveStorageClient(
             return Task.CompletedTask;
         }
 
-        foreach (var partETag in partETags)
+        foreach (var partToken in hdHandle.PartTokens)
         {
             if (cancellationToken.IsCancellationRequested)
                 return Task.CompletedTask;
 
             var file = Path.Combine(
                 bucketPath,
-                GetPartFileName(key.FileExternalId, partETag));
+                GetPartFileName(key.FileExternalId, partToken));
 
             try
             {
@@ -291,10 +300,11 @@ public class HardDriveStorageClient(
             key.FileExternalId,
             bucketName,
             StorageId,
-            partETags.Count);
+            hdHandle.PartTokens.Count);
 
         return Task.CompletedTask;
     }
+
 
     public Task CreateBucketIfDoesntExist(
         string bucketName,
@@ -342,7 +352,7 @@ public class HardDriveStorageClient(
         return ResolveUploadAlgorithm(fileSizeInBytes, ikmChainStepsCount);
     }
 
-    public string GenerateFileS3KeySecretPart()
+    public string GenerateFileKeySecretPart()
     {
         return string.Empty;
     }
@@ -370,7 +380,7 @@ public class HardDriveStorageClient(
 
             PreSignedUploadLink = null,
             PreSignedUploadLinkRequiredHeaders = [],
-            S3UploadId = string.Empty,
+            MultipartUploadId = string.Empty,
             WasMultiPartUploadInitiated = false,
         };
     }
@@ -382,22 +392,22 @@ public class HardDriveStorageClient(
     {
         var filePath = GetFilePath(
             bucketName, 
-            details.S3FileKey.FileExternalId);
+            details.FileKey.FileExternalId);
 
         if (!File.Exists(filePath))
         {
             Log.Warning(
                 "File not found: {FileExternalId} at path: {FilePath}",
-                details.S3FileKey.FileExternalId,
+                details.FileKey.FileExternalId,
                 filePath);
 
             throw new FileNotFoundInStorageException(
-                $"File '{details.S3FileKey.FileExternalId}' was not found in Storage '{ExternalId}'");
+                $"File '{details.FileKey.FileExternalId}' was not found in Storage '{ExternalId}'");
         }
 
         Log.Debug(
             "Reading file {FileExternalId} ({FileSize:N0} bytes)",
-            details.S3FileKey.FileExternalId,
+            details.FileKey.FileExternalId,
             details.FileSizeInBytes);
 
         var fileStream = new FileStream(
@@ -413,7 +423,7 @@ public class HardDriveStorageClient(
             encryptionMode: details.EncryptionMode,
             stream: fileStream,
             enrichLogs: logger => logger
-                .ForContext("FileExternalId", details.S3FileKey.FileExternalId)
+                .ForContext("FileExternalId", details.FileKey.FileExternalId)
                 .ForContext("FilePath", filePath));
 
         return ValueTask.FromResult(file);
@@ -426,22 +436,22 @@ public class HardDriveStorageClient(
     {
         var filePath = GetFilePath(
             bucketName, 
-            details.S3FileKey.FileExternalId);
+            details.FileKey.FileExternalId);
 
         if (!File.Exists(filePath))
         {
             Log.Warning(
                 "File not found: {FileExternalId} at path: {FilePath}",
-                details.S3FileKey.FileExternalId,
+                details.FileKey.FileExternalId,
                 filePath);
 
             throw new FileNotFoundInStorageException(
-                $"File '{details.S3FileKey.FileExternalId}' was not found in Storage '{ExternalId}'");
+                $"File '{details.FileKey.FileExternalId}' was not found in Storage '{ExternalId}'");
         }
 
         Log.Debug(
             "Reading file {FileExternalId} ({FileSize:N0} bytes)",
-            details.S3FileKey.FileExternalId,
+            details.FileKey.FileExternalId,
             details.FileSizeInBytes);
 
         var readPlan = FileEncryption.CalculateRangeReadPlan(
@@ -467,7 +477,7 @@ public class HardDriveStorageClient(
             encryptionMode: details.EncryptionMode,
             stream: rangedFileStream,
             enrichLogs: logger => logger
-                .ForContext("FileExternalId", details.S3FileKey.FileExternalId)
+                .ForContext("FileExternalId", details.FileKey.FileExternalId)
                 .ForContext("FilePath", filePath));
 
         return ValueTask.FromResult(file);
@@ -482,7 +492,7 @@ public class HardDriveStorageClient(
         var etag = Guid.NewGuid().ToBase62();
 
         var filePath = GetUploadFilePath(
-            fileExternalId: uploadDetails.S3FileKey.FileExternalId,
+            fileExternalId: uploadDetails.FileKey.FileExternalId,
             uploadAlgorithm: uploadDetails.UploadAlgorithm,
             bucketName: bucketName,
             etag: etag);
@@ -507,7 +517,7 @@ public class HardDriveStorageClient(
                 cancellationToken);
 
             Log.Debug("FilePart '{FileExternalId} - {PartNumber} was saved to HardDrive to location {FilePath}'",
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 uploadDetails.Part.Number,
                 filePath);
 
@@ -518,7 +528,7 @@ public class HardDriveStorageClient(
         {
             Log.Error(e,
                 "Something went wrong while saving file '{FileExternalId} - {PartNumber} to location {FilePath}'",
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 uploadDetails.Part.Number,
                 filePath);
 
@@ -535,7 +545,7 @@ public class HardDriveStorageClient(
         var etag = Guid.NewGuid().ToBase62();
 
         var filePath = GetUploadFilePath(
-            fileExternalId: uploadDetails.S3FileKey.FileExternalId,
+            fileExternalId: uploadDetails.FileKey.FileExternalId,
             uploadAlgorithm: uploadDetails.UploadAlgorithm,
             bucketName: bucketName,
             etag: etag);
@@ -560,7 +570,7 @@ public class HardDriveStorageClient(
                 cancellationToken);
             
             Log.Debug("FilePart '{FileExternalId} - {PartNumber} was saved to HardDrive to location {FilePath}'",
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 uploadDetails.Part.Number,
                 filePath);
 
@@ -571,7 +581,7 @@ public class HardDriveStorageClient(
         {
             Log.Error(e,
                 "Something went wrong while saving file '{FileExternalId} - {PartNumber} to location {FilePath}'",
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 uploadDetails.Part.Number,
                 filePath);
 

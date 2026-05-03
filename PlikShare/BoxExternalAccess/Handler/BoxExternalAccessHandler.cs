@@ -805,7 +805,7 @@ public class BoxExternalAccessHandler(
                         fileUpload: new Audit.FileUploadRef
                         {
                             ExternalId = fileUpload.ExternalId,
-                            FileExternalId = fileUpload.FileToUpload.S3FileKey.FileExternalId,
+                            FileExternalId = fileUpload.FileToUpload.FileKey.FileExternalId,
                             Name = fileUpload.FileName,
                             Extension = fileUpload.FileExtension,
                             SizeInBytes = fileUpload.FileToUpload.SizeInBytes,
@@ -816,7 +816,7 @@ public class BoxExternalAccessHandler(
 
                 return TypedResults.Ok(
                     new CompleteBoxFileUploadResponseDto(
-                        FileExternalId: fileUpload.FileToUpload.S3FileKey.FileExternalId));
+                        FileExternalId: fileUpload.FileToUpload.FileKey.FileExternalId));
 
             case ConvertFileUploadToFileOperation.ResultCode.FileUploadNotFound:
                 return HttpErrors.Upload.NotFound(fileUploadExternalId);

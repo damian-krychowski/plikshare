@@ -283,7 +283,7 @@ public class storage_abort_multipart_upload_tests : TestFixture
         TimeSpan timeout)
     {
         // q_definition is JSON serialized with camelCase property names (see
-        // PlikShare.Core.Utils.Json), so AbortS3UploadQueueJobDefinition.FileExternalId
+        // PlikShare.Core.Utils.Json), so AbortMultipartUploadQueueJobDefinition.FileExternalId
         // appears as "fileExternalId":"fi_..." in storage. We match on a substring
         // rather than parsing JSON.
         var marker = $"\"fileExternalId\":\"{fileExternalId.Value}\"";
@@ -299,7 +299,7 @@ public class storage_abort_multipart_upload_tests : TestFixture
                         sql: """
                              SELECT 1
                              FROM qc_queue_completed
-                             WHERE qc_job_type = 'abort-s3-upload'
+                             WHERE qc_job_type = 'abort-multipart-upload'
                                AND qc_definition LIKE $marker
                              LIMIT 1
                              """,

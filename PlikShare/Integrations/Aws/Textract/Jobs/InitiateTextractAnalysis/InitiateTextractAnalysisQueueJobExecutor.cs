@@ -65,10 +65,10 @@ public class InitiateTextractAnalysisQueueJobExecutor(
         {
             var startDocumentAnalysisResponse = await textractClient.InitiateAnalysis(
                 fileWorkspaceId: textractJob.TextractWorkspaceId,
-                fileKey: new S3FileKey
+                fileKey: new FileKey
                 {
                     FileExternalId = textractJob.FileExternalId,
-                    S3KeySecretPart = textractJob.S3KeySecretPart
+                    KeySecretPart = textractJob.KeySecretPart
                 },
                 features: textractJob.Definition.Features,
                 cancellationToken: cancellationToken);
@@ -123,7 +123,7 @@ public class InitiateTextractAnalysisQueueJobExecutor(
                          itj_textract_integration_id,
                          itj_definition,
                          fi_external_id,
-                         fi_s3_key_secret_part
+                         fi_key_secret_part
                      FROM itj_integrations_textract_jobs
                      INNER JOIN fi_files
                          ON fi_id = itj_textract_file_id
@@ -138,7 +138,7 @@ public class InitiateTextractAnalysisQueueJobExecutor(
                     TextractIntegrationId = reader.GetInt32(1),
                     Definition = reader.GetFromJson<TextractJobDefinitionEntity>(2),
                     FileExternalId = reader.GetExtId<FileExtId>(3),
-                    S3KeySecretPart = reader.GetString(4)
+                    KeySecretPart = reader.GetString(4)
                 })
             .WithParameter("$itjId", textractJobId)
             .WithEnumParameter("$pendingStatus", TextractJobStatus.Pending)
@@ -221,7 +221,7 @@ public class InitiateTextractAnalysisQueueJobExecutor(
         public required int TextractIntegrationId { get; init; }
         public required TextractJobDefinitionEntity Definition { get; init; }
         public required FileExtId FileExternalId { get; init; }
-        public required string S3KeySecretPart { get; init; }
+        public required string KeySecretPart { get; init; }
     }
 
     private enum UpdateResultCode

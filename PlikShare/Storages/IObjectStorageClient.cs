@@ -7,18 +7,18 @@ public interface IObjectStorageClient : IStorageClient
 {
     ValueTask<InitiatedUpload> InitiateMultiPartUpload(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         CancellationToken cancellationToken);
 
     ValueTask<PreSignedUploadFullFileLink> GetPreSignedUploadFullFileLink(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         string contentType,
         DateTimeOffset expiresAt);
     
     ValueTask<string> GetPreSignedUploadFilePartLink(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         string uploadId,
         int partNumber,
         string contentType,
@@ -26,7 +26,7 @@ public interface IObjectStorageClient : IStorageClient
 
     ValueTask<string> GetPreSignedDownloadFileLink(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         string contentType,
         ContentDispositionType contentDisposition,
         string fileName,
@@ -48,4 +48,4 @@ public class RequiredHeader
 }
 
 public readonly record struct InitiatedUpload(
-    string S3UploadId);
+    string MultipartUploadId);

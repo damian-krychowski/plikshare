@@ -179,8 +179,8 @@ public class CopyFileQueueJobExecutor(
 
         await destinationWorkspace.Storage.CompleteMultiPartUpload(
             bucketName: destinationWorkspace.BucketName,
-            key: copyFileQueueJob.NewS3FileKey,
-            uploadId: copyFileQueueJob.S3UploadId,
+            key: copyFileQueueJob.NewFileKey,
+            uploadId: copyFileQueueJob.MultipartUploadId,
             partETags: writeFileTask.Result,
             cancellationToken: cancellationToken);
     }
@@ -203,7 +203,7 @@ public class CopyFileQueueJobExecutor(
 
                         fi_size_in_bytes,
                         fi_external_id,
-                        fi_s3_key_secret_part,
+                        fi_key_secret_part,
                         fi_encryption_key_version,
                         fi_encryption_salt,
                         fi_encryption_nonce_prefix,
@@ -211,8 +211,8 @@ public class CopyFileQueueJobExecutor(
                         fi_encryption_format_version,
 
                         fu_file_external_id,
-                        fu_file_s3_key_secret_part,
-                        fu_s3_upload_id,
+                        fu_file_key_secret_part,
+                        fu_multipart_upload_id,
                         fu_encryption_key_version,
                         fu_encryption_salt,
                         fu_encryption_nonce_prefix,
@@ -240,10 +240,10 @@ public class CopyFileQueueJobExecutor(
                         UploadAlgorithm = reader.GetEnum<UploadAlgorithm>(4),
                         FileSizeInBytes = reader.GetInt64(5),
 
-                        SourceS3FileKey = new S3FileKey
+                        SourceFileKey = new FileKey
                         {
                             FileExternalId = reader.GetExtId<FileExtId>(6),
-                            S3KeySecretPart = reader.GetString(7),
+                            KeySecretPart = reader.GetString(7),
                         },
 
                         SourceFileEncryptionMetadata = sourceEncryptionKeyVersion is null
@@ -258,13 +258,13 @@ public class CopyFileQueueJobExecutor(
                                 FormatVersion = reader.GetByteOrNull(12) ?? 1
                             },
 
-                        NewS3FileKey = new S3FileKey
+                        NewFileKey = new FileKey
                         {
                             FileExternalId = reader.GetExtId<FileExtId>(13),
-                            S3KeySecretPart = reader.GetString(14),
+                            KeySecretPart = reader.GetString(14),
                         },
 
-                        S3UploadId = reader.GetString(15),
+                        MultipartUploadId = reader.GetString(15),
 
                         NewFileEncryptionMetadata = newEncryptionKeyVersion is null
                             ? null
@@ -328,7 +328,7 @@ public class CopyFileQueueJobExecutor(
 
             await using var storageFile = await sourceWorkspace.DownloadFile(
                 fileDetails: new DownloadFileDetails(
-                    S3FileKey: job.SourceS3FileKey,
+                    FileKey: job.SourceFileKey,
                     FileSizeInBytes: job.FileSizeInBytes,
                     EncryptionMode: encryptionMode),
                 cancellationToken: stoppingToken);
@@ -356,8 +356,8 @@ public class CopyFileQueueJobExecutor(
                 storageClient: destinationWorkspace.Storage);
 
             var uploadDetails = new UploadFilePartDetails(
-                S3FileKey: job.NewS3FileKey,
-                S3UploadId: job.S3UploadId,
+                FileKey: job.NewFileKey,
+                MultipartUploadId: job.MultipartUploadId,
                 FileSizeInBytes: job.FileSizeInBytes,
                 Part: FilePart.First((int) job.FileSizeInBytes),
                 UploadAlgorithm: UploadAlgorithm.DirectUpload,
@@ -406,8 +406,8 @@ public class CopyFileQueueJobExecutor(
                     storageClient: destinationWorkspace.Storage);
 
                 var uploadDetails = new UploadFilePartDetails(
-                    S3FileKey: job.NewS3FileKey,
-                    S3UploadId: job.S3UploadId,
+                    FileKey: job.NewFileKey,
+                    MultipartUploadId: job.MultipartUploadId,
                     FileSizeInBytes: job.FileSizeInBytes,
                     Part: new FilePart(partNumber, partSizeInBytes),
                     UploadAlgorithm: UploadAlgorithm.MultiStepChunkUpload,

@@ -76,7 +76,7 @@ public class storage_file_delete_tests : TestFixture
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
-        //then — bulk-delete is async (queue job: bulk-delete-s3-files). Poll the
+        //then — bulk-delete is async (queue job: bulk-delete-files). Poll the
         // folder listing until the file is gone, with a budget large enough for
         // slow S3 providers (B2 in particular).
         await WaitForFileToDisappear(

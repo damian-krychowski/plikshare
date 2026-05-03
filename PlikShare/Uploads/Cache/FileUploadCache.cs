@@ -108,8 +108,8 @@ public class FileUploadCache(
                          fu.fu_file_external_id,
                          fu.fu_file_content_type,
                          fu.fu_file_size_in_bytes,
-                         fu.fu_file_s3_key_secret_part,
-                         fu.fu_s3_upload_id,
+                         fu.fu_file_key_secret_part,
+                         fu.fu_multipart_upload_id,
                          fu.fu_encryption_key_version,
                          fu.fu_encryption_salt,
                          fu.fu_encryption_nonce_prefix,
@@ -148,10 +148,10 @@ public class FileUploadCache(
                         ExternalId = externalId,
                         FileToUpload = new FileToUploadDetails
                         {
-                            S3FileKey = new S3FileKey
+                            FileKey = new FileKey
                             {
                                 FileExternalId = reader.GetExtId<FileExtId>(1),
-                                S3KeySecretPart = reader.GetString(4),
+                                KeySecretPart = reader.GetString(4),
                             },
                             EncryptionMetadata = encryptionKeyVersion is null
                                 ? null
@@ -165,7 +165,7 @@ public class FileUploadCache(
                                     FormatVersion = reader.GetByteOrNull(10) ?? 1
                                 },
                             SizeInBytes = reader.GetInt64(3),
-                            S3UploadId = reader.GetString(5),
+                            MultipartUploadId = reader.GetString(5),
                         },
                         ContentType = reader.GetEncodedMetadata(2),
                         WorkspaceId = reader.GetInt32(11),
@@ -242,9 +242,9 @@ public sealed class FileUploadContext
 
 public sealed class FileToUploadDetails
 {
-    public required S3FileKey S3FileKey { get; init; }
+    public required FileKey FileKey { get; init; }
     public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
-    public required string S3UploadId { get; init; }
+    public required string MultipartUploadId { get; init; }
     public required long SizeInBytes { get; init; }
 }
 

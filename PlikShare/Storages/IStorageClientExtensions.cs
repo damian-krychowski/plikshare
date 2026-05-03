@@ -99,10 +99,10 @@ public static class IStorageClientExtensions
 
                     var fileStartTime = DateTime.UtcNow;
 
-                    var s3FileKey = new S3FileKey
+                    var s3FileKey = new FileKey
                     {
                         FileExternalId = file.ExternalId,
-                        S3KeySecretPart = file.S3KeySecretPart
+                        KeySecretPart = file.KeySecretPart
                     };
 
                     var folderPath = folderSubtree.GetPath(
@@ -133,14 +133,14 @@ public static class IStorageClientExtensions
                             CompressionLevel.NoCompression);
 
                         Log.Debug(
-                            "Downloading file {FileExternalId} from {BucketName}/{S3FileKey}",
+                            "Downloading file {FileExternalId} from {BucketName}/{FileKey}",
                             file.ExternalId,
                             bucketName,
                             s3FileKey.Value);
 
                         await using var storageFile = await client.DownloadFile(
                             fileDetails: new DownloadFileDetails(
-                                S3FileKey: s3FileKey,
+                                FileKey: s3FileKey,
                                 FileSizeInBytes: file.SizeInBytes,
                                 EncryptionMode: file.EncryptionMode),
                             bucketName: bucketName,
@@ -185,7 +185,7 @@ public static class IStorageClientExtensions
 
                         Log.Warning(
                             e,
-                            "Failed to process file {FileName} ({FileExternalId}) from {BucketName}/{S3FileKey}",
+                            "Failed to process file {FileName} ({FileExternalId}) from {BucketName}/{FileKey}",
                             file.FullName,
                             file.ExternalId,
                             bucketName,

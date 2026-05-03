@@ -1,22 +1,22 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using FluentAssertions;
 using PlikShare.Files.Id;
 using PlikShare.Storages;
 
 namespace PlikShare.Tests;
 
-public class S3FileKeyJsonConverterTests
+public class FileKeyJsonConverterTests
 {
     private readonly JsonSerializerOptions _options = new()
     {
-        Converters = { new S3FileKeyJsonConverter() }
+        Converters = { new FileKeyJsonConverter() }
     };
 
     [Fact]
     public void serialize_null_value_writes_null()
     {
         //given
-        S3FileKey? key = null;
+        FileKey? key = null;
         //when
         string json = JsonSerializer.Serialize(key, _options);
         //then
@@ -29,7 +29,7 @@ public class S3FileKeyJsonConverterTests
         //given
         string json = "null";
         //when
-        var key = JsonSerializer.Deserialize<S3FileKey>(json, _options);
+        var key = JsonSerializer.Deserialize<FileKey>(json, _options);
         //then
         key.Should().BeNull();
     }
@@ -38,10 +38,10 @@ public class S3FileKeyJsonConverterTests
     public void serialize_valid_key_writes_correct_string()
     {
         //given
-        var key = new S3FileKey
+        var key = new FileKey
         {
             FileExternalId = FileExtId.NewId(),
-            S3KeySecretPart = "abc"
+            KeySecretPart = "abc"
         };
         //when
         string json = JsonSerializer.Serialize(key, _options);
@@ -60,21 +60,21 @@ public class S3FileKeyJsonConverterTests
                        "{fileId.Value}_abc"
                        """;
         //when
-        var key = JsonSerializer.Deserialize<S3FileKey>(json, _options);
+        var key = JsonSerializer.Deserialize<FileKey>(json, _options);
         //then
         key.Should().NotBeNull();
         key!.FileExternalId.Value.Should().Be(fileId.Value);
-        key.S3KeySecretPart.Should().Be("abc");
+        key.KeySecretPart.Should().Be("abc");
     }
 
     [Fact]
     public void serialize_empty_secret_part_writes_with_trailing_underscore()
     {
         //given
-        var key = new S3FileKey
+        var key = new FileKey
         {
             FileExternalId = FileExtId.NewId(),
-            S3KeySecretPart = ""
+            KeySecretPart = ""
         };
         //when
         string json = JsonSerializer.Serialize(key, _options);
@@ -93,11 +93,11 @@ public class S3FileKeyJsonConverterTests
                        "{fileId.Value}_"
                        """;
         //when
-        var key = JsonSerializer.Deserialize<S3FileKey>(json, _options);
+        var key = JsonSerializer.Deserialize<FileKey>(json, _options);
         //then
         key.Should().NotBeNull();
         key!.FileExternalId.Value.Should().Be(fileId.Value);
-        key.S3KeySecretPart.Should().Be("");
+        key.KeySecretPart.Should().Be("");
     }
 
     [Fact]
@@ -106,10 +106,10 @@ public class S3FileKeyJsonConverterTests
         //given
         string json = "123";
         //when
-        Action action = () => JsonSerializer.Deserialize<S3FileKey>(json, _options);
+        Action action = () => JsonSerializer.Deserialize<FileKey>(json, _options);
         //then
         action.Should().Throw<JsonException>()
-            .WithMessage("Unexpected token type when parsing S3FileKey");
+            .WithMessage("Unexpected token type when parsing FileKey");
     }
 
     [Fact]
@@ -120,25 +120,25 @@ public class S3FileKeyJsonConverterTests
                       "invalid-format"
                       """;
         //when
-        Action action = () => JsonSerializer.Deserialize<S3FileKey>(json, _options);
+        Action action = () => JsonSerializer.Deserialize<FileKey>(json, _options);
         //then
         action.Should().Throw<JsonException>()
-            .WithMessage("Invalid S3FileKey format");
+            .WithMessage("Invalid FileKey format");
     }
 
     [Fact]
     public void round_trip_complex_key_preserves_all_data()
     {
         //given
-        var originalKey = S3FileKey.NewKey();
+        var originalKey = FileKey.NewKey();
 
         //when
         string json = JsonSerializer.Serialize(originalKey, _options);
-        var deserializedKey = JsonSerializer.Deserialize<S3FileKey>(json, _options);
+        var deserializedKey = JsonSerializer.Deserialize<FileKey>(json, _options);
         //then
         deserializedKey.Should().NotBeNull();
         deserializedKey!.Value.Should().Be(originalKey.Value);
         deserializedKey.FileExternalId.Value.Should().Be(originalKey.FileExternalId.Value);
-        deserializedKey.S3KeySecretPart.Should().Be(originalKey.S3KeySecretPart);
+        deserializedKey.KeySecretPart.Should().Be(originalKey.KeySecretPart);
     }
 }

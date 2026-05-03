@@ -294,7 +294,7 @@ public class BulkInitiateFileUploadOperation(
                         userIdentity: userIdentity,
                         workspaceEncryption: workspaceEncryption),
 
-                    S3Key = S3FileKey.NewKey(
+                    S3Key = FileKey.NewKey(
                         secretPart: string.Empty),
                 };
             })
@@ -336,7 +336,7 @@ public class BulkInitiateFileUploadOperation(
                     ContentType = workspaceEncryptionSession.ToEncryptableMetadata(fileDetails.FileContentType),
                     SizeInBytes = fileDetails.FileSizeInBytes,
                     FolderExternalId = fileDetails.FolderExternalId,
-                    S3Key = S3FileKey.NewKey(),
+                    S3Key = FileKey.NewKey(),
 
                     StorageUploadDetails = new StorageUploadDetails
                     {
@@ -346,7 +346,7 @@ public class BulkInitiateFileUploadOperation(
 
                         PreSignedUploadLink = null,
                         PreSignedUploadLinkRequiredHeaders = [],
-                        S3UploadId = string.Empty,
+                        MultipartUploadId = string.Empty,
                         WasMultiPartUploadInitiated = false
                     }
                 });
@@ -365,7 +365,7 @@ public class BulkInitiateFileUploadOperation(
             {
                 var tasks = batch.Select(async fileDetails =>
                 {
-                    var s3Key = S3FileKey.NewKey();
+                    var s3Key = FileKey.NewKey();
                     var fileEncryptionMetadata = objectStorageClient.GenerateFileEncryptionMetadata(
                         workspace.EncryptionMetadata);
 
@@ -375,7 +375,7 @@ public class BulkInitiateFileUploadOperation(
 
                     string? preSignedUploadLink = null;
                     List<RequiredHeader> preSignedUploadLinkRequiredHeaders = [];
-                    var s3UploadId = string.Empty;
+                    var multipartUploadId = string.Empty;
                     var wasMultiPartUploadInitiated = false;
 
                     if (algorithm == UploadAlgorithm.SingleChunkUpload)
@@ -396,7 +396,7 @@ public class BulkInitiateFileUploadOperation(
                             key: s3Key,
                             cancellationToken: cancellationToken);
 
-                        s3UploadId = initiatedUpload.S3UploadId;
+                        multipartUploadId = initiatedUpload.MultipartUploadId;
                         wasMultiPartUploadInitiated = true;
                     }
                     else
@@ -429,7 +429,7 @@ public class BulkInitiateFileUploadOperation(
 
                             PreSignedUploadLink = preSignedUploadLink,
                             PreSignedUploadLinkRequiredHeaders = preSignedUploadLinkRequiredHeaders,
-                            S3UploadId = s3UploadId,
+                            MultipartUploadId = multipartUploadId,
                             WasMultiPartUploadInitiated = wasMultiPartUploadInitiated
                         }
                     };
@@ -464,9 +464,9 @@ public class BulkInitiateFileUploadOperation(
                 FileContentType = bu.ContentType,
                 FileExtension = bu.Extension,
                 FileSizeInBytes = bu.SizeInBytes,
-                S3KeySecretPart = bu.S3Key.S3KeySecretPart,
+                KeySecretPart = bu.S3Key.KeySecretPart,
 
-                S3UploadId = bu.StorageUploadDetails.S3UploadId,
+                MultipartUploadId = bu.StorageUploadDetails.MultipartUploadId,
 
                 EncryptionKeyVersion = bu.StorageUploadDetails.FileEncryptionMetadata?.KeyVersion,
                 EncryptionSalt = bu.StorageUploadDetails.FileEncryptionMetadata?.Salt,
@@ -501,11 +501,12 @@ public class BulkInitiateFileUploadOperation(
 
         if (multiPartUploads.Any())
         {
-            var abortMultiPartUploadTasks = multiPartUploads.Select(mpu => workspace.Storage.AbortMultiPartUpload(
+            var abortMultiPartUploadTasks = multiPartUploads.Select(mpu => workspace.Storage.AbortMultipartUpload(
                 bucketName: workspace.BucketName,
                 key: mpu.S3Key,
-                uploadId: mpu.StorageUploadDetails.S3UploadId,
-                partETags: [],
+                handle: workspace.Storage.BuildAbortHandle(
+                    uploadId: mpu.StorageUploadDetails.MultipartUploadId,
+                    partTokens: []),
                 cancellationToken: cancellationToken));
 
             await Task.WhenAll(abortMultiPartUploadTasks);
@@ -541,8 +542,8 @@ public class BulkInitiateFileUploadOperation(
                     {
                         SizeInBytes = upload.SizeInBytes,
                         EncryptionMetadata = upload.StorageUploadDetails.FileEncryptionMetadata,
-                        S3FileKey = upload.S3Key,
-                        S3UploadId = upload.StorageUploadDetails.S3UploadId,
+                        FileKey = upload.S3Key,
+                        MultipartUploadId = upload.StorageUploadDetails.MultipartUploadId,
                     },
                     ContentType = upload.ContentType.Encode(),
                     WorkspaceId = workspace.Id,
@@ -788,7 +789,7 @@ public class BulkInitiateFileUploadOperation(
         public required long SizeInBytes { get; init; }
         public required EncryptableMetadata ContentType { get; init; }
         public required string? FolderExternalId { get; init; }
-        public required S3FileKey S3Key { get; init; }
+        public required FileKey S3Key { get; init; }
         public required StorageUploadDetails StorageUploadDetails { get; init; }
     }
 

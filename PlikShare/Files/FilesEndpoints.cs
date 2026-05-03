@@ -140,7 +140,7 @@ public static class FilesEndpoints
             Name = fileName.Name,
             Extension = fileName.Extension,
             SizeInBytes = file.Length,
-            S3KeySecretPart = workspace.Storage.GenerateFileS3KeySecretPart(),
+            KeySecretPart = workspace.Storage.GenerateFileKeySecretPart(),
             EncryptionMetadata = workspace.Storage.GenerateFileEncryptionMetadata(
                 workspace.EncryptionMetadata)
         };
@@ -161,12 +161,12 @@ public static class FilesEndpoints
             storageClient: workspace.Storage);
 
         var uploadDetails = new UploadFilePartDetails(
-            S3FileKey: new S3FileKey
+            FileKey: new FileKey
             {
-                S3KeySecretPart = attachment.S3KeySecretPart,
+                KeySecretPart = attachment.KeySecretPart,
                 FileExternalId = attachment.ExternalId
             },
-            S3UploadId: null,
+            MultipartUploadId: null,
             FileSizeInBytes: attachment.SizeInBytes,
             Part: FilePart.First((int)attachment.SizeInBytes),
             UploadAlgorithm: UploadAlgorithm.DirectUpload,
@@ -238,12 +238,12 @@ public static class FilesEndpoints
             storageClient: workspaceMembership.Workspace.Storage);
 
         var uploadDetails = new UploadFilePartDetails(
-            S3FileKey: new S3FileKey
+            FileKey: new FileKey
             {
-                S3KeySecretPart = file.Details.S3KeySecretPart,
+                KeySecretPart = file.Details.KeySecretPart,
                 FileExternalId = file.Details.ExternalId
             },
-            S3UploadId: null,
+            MultipartUploadId: null,
             FileSizeInBytes: newSizeInBytes,
             Part: FilePart.First(newSizeInBytes),
             UploadAlgorithm: UploadAlgorithm.DirectUpload,

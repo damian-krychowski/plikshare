@@ -45,7 +45,7 @@ public class AzureBlobStorageClient(
 
     public async ValueTask DeleteFile(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         CancellationToken cancellationToken = default)
     {
         try
@@ -69,7 +69,7 @@ public class AzureBlobStorageClient(
 
     public async ValueTask DeleteFiles(
         string bucketName,
-        S3FileKey[] keys,
+        FileKey[] keys,
         CancellationToken cancellationToken = default)
     {
         if (keys.Length == 0)
@@ -116,7 +116,7 @@ public class AzureBlobStorageClient(
 
     public async Task CompleteMultiPartUpload(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         string uploadId,
         List<UploadedFilePart> partETags,
         CancellationToken cancellationToken = default)
@@ -157,7 +157,7 @@ public class AzureBlobStorageClient(
 
     public ValueTask<PreSignedUploadFullFileLink> GetPreSignedUploadFullFileLink(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         string contentType,
         DateTimeOffset expiresAt)
     {
@@ -185,13 +185,23 @@ public class AzureBlobStorageClient(
         return ValueTask.FromResult(link);
     }
     
-    public async Task AbortMultiPartUpload(
-        string bucketName,
-        S3FileKey key,
+    public MultipartUploadAbortHandle BuildAbortHandle(
         string uploadId,
-        List<string> partETags,
+        IReadOnlyList<string> partTokens) =>
+        new AzureMultipartUploadAbortHandle();
+
+    public async Task AbortMultipartUpload(
+        string bucketName,
+        FileKey key,
+        MultipartUploadAbortHandle handle,
         CancellationToken cancellationToken = default)
     {
+        if (handle is not AzureMultipartUploadAbortHandle)
+            throw new InvalidOperationException(
+                $"{nameof(AzureBlobStorageClient)} received abort handle of type " +
+                $"'{handle.GetType().Name}' but expects " +
+                $"'{nameof(AzureMultipartUploadAbortHandle)}'.");
+
         // Azure auto-expires uncommitted blocks after 7 days, so technically a no-op
         // would be safe. We delete defensively to free the blob name immediately and
         // mirror S3's AbortMultipartUpload semantics (no committed blob remains).
@@ -201,13 +211,14 @@ public class AzureBlobStorageClient(
             cancellationToken: cancellationToken);
     }
 
+
     public ValueTask<InitiatedUpload> InitiateMultiPartUpload(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         CancellationToken cancellationToken = default)
     {
         // Azure has no "initiate" call — block IDs serve as the join key.
-        return ValueTask.FromResult(new InitiatedUpload(S3UploadId: string.Empty));
+        return ValueTask.FromResult(new InitiatedUpload(MultipartUploadId: string.Empty));
     }
 
     public async Task CreateBucketIfDoesntExist(
@@ -280,7 +291,7 @@ public class AzureBlobStorageClient(
             : (UploadAlgorithm.MultiStepChunkUpload, filePartsCount);
     }
 
-    public string GenerateFileS3KeySecretPart()
+    public string GenerateFileKeySecretPart()
     {
         return Guid.NewGuid().ToBase62();
     }
@@ -292,12 +303,12 @@ public class AzureBlobStorageClient(
     {
         Log.Debug(
             "Requesting file stream from Azure Blob for {FileExternalId} at {Key}",
-            details.S3FileKey.FileExternalId,
-            details.S3FileKey.Value);
+            details.FileKey.FileExternalId,
+            details.FileKey.Value);
 
         var stream = await GetFile(
             bucketName: bucketName,
-            key: details.S3FileKey,
+            key: details.FileKey,
             cancellationToken: cancellationToken);
 
         return FileEncryption.ReadFile(
@@ -305,9 +316,9 @@ public class AzureBlobStorageClient(
             encryptionMode: details.EncryptionMode,
             stream: stream,
             enrichLogs: logger => logger
-                .ForContext("FileExternalId", details.S3FileKey.FileExternalId)
+                .ForContext("FileExternalId", details.FileKey.FileExternalId)
                 .ForContext("BucketName", bucketName)
-                .ForContext("BlobName", details.S3FileKey.Value));
+                .ForContext("BlobName", details.FileKey.Value));
     }
 
     public async ValueTask<IStorageFile> DownloadFileRange(
@@ -318,8 +329,8 @@ public class AzureBlobStorageClient(
         Log.Debug(
             "Requesting ranged ({Range}) file stream from Azure Blob for {FileExternalId} at {Key}",
             details.Range,
-            details.S3FileKey.FileExternalId,
-            details.S3FileKey.Value);
+            details.FileKey.FileExternalId,
+            details.FileKey.Value);
 
         var readPlan = FileEncryption.CalculateRangeReadPlan(
             encryptionMode: details.EncryptionMode,
@@ -328,7 +339,7 @@ public class AzureBlobStorageClient(
 
         var stream = await GetFileRange(
             bucketName: bucketName,
-            key: details.S3FileKey,
+            key: details.FileKey,
             range: readPlan.StorageRange,
             cancellationToken: cancellationToken);
 
@@ -338,9 +349,9 @@ public class AzureBlobStorageClient(
             encryptionMode: details.EncryptionMode,
             stream: stream,
             enrichLogs: logger => logger
-                .ForContext("FileExternalId", details.S3FileKey.FileExternalId)
+                .ForContext("FileExternalId", details.FileKey.FileExternalId)
                 .ForContext("BucketName", bucketName)
-                .ForContext("BlobName", details.S3FileKey.Value));
+                .ForContext("BlobName", details.FileKey.Value));
     }
 
     public async ValueTask<FilePartUploadResult> UploadFilePart(
@@ -353,7 +364,7 @@ public class AzureBlobStorageClient(
 
         Log.Debug(
             "Starting Azure upload for file {FileExternalId} part {PartNumber} to container {ContainerName} with format version {FormatVersion}",
-            uploadDetails.S3FileKey.FileExternalId,
+            uploadDetails.FileKey.FileExternalId,
             uploadDetails.Part.Number,
             bucketName,
             uploadDetails.EncryptionMode.FormatVersion);
@@ -369,7 +380,7 @@ public class AzureBlobStorageClient(
 
             var etag = await UploadToAzure(
                 partNumber: uploadDetails.Part.Number,
-                key: uploadDetails.S3FileKey,
+                key: uploadDetails.FileKey,
                 bucketName: bucketName,
                 fileBytes: filePart.Memory,
                 uploadAlgorithm: uploadDetails.UploadAlgorithm,
@@ -380,7 +391,7 @@ public class AzureBlobStorageClient(
             Log.Debug(
                 "Successfully uploaded part {PartNumber} of file {FileExternalId} container {ContainerName} in {DurationMs}ms (ETag: {ETag})",
                 uploadDetails.Part.Number,
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 bucketName,
                 duration.TotalMilliseconds,
                 etag);
@@ -391,7 +402,7 @@ public class AzureBlobStorageClient(
         {
             Log.Warning(
                 "Azure upload cancelled for file {FileExternalId} part {PartNumber} container {ContainerName}",
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 uploadDetails.Part.Number,
                 bucketName);
 
@@ -403,7 +414,7 @@ public class AzureBlobStorageClient(
                 e,
                 "Failed Azure upload of part {PartNumber} of file {FileExternalId} container {ContainerName}. Error: {ErrorMessage}",
                 uploadDetails.Part.Number,
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 bucketName,
                 e.Message);
 
@@ -421,7 +432,7 @@ public class AzureBlobStorageClient(
 
         Log.Debug(
             "Starting Azure upload for file {FileExternalId} part {PartNumber} to container {ContainerName} with format version {FormatVersion}",
-            uploadDetails.S3FileKey.FileExternalId,
+            uploadDetails.FileKey.FileExternalId,
             uploadDetails.Part.Number,
             bucketName,
             uploadDetails.EncryptionMode.FormatVersion);
@@ -437,7 +448,7 @@ public class AzureBlobStorageClient(
 
             var etag = await UploadToAzure(
                 partNumber: uploadDetails.Part.Number,
-                key: uploadDetails.S3FileKey,
+                key: uploadDetails.FileKey,
                 bucketName: bucketName,
                 fileBytes: filePart.Memory,
                 uploadAlgorithm: uploadDetails.UploadAlgorithm,
@@ -448,7 +459,7 @@ public class AzureBlobStorageClient(
             Log.Debug(
                 "Successfully uploaded part {PartNumber} of file {FileExternalId} container {ContainerName} in {DurationMs}ms (ETag: {ETag})",
                 uploadDetails.Part.Number,
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 bucketName,
                 duration.TotalMilliseconds,
                 etag);
@@ -459,7 +470,7 @@ public class AzureBlobStorageClient(
         {
             Log.Warning(
                 "Azure upload cancelled for file {FileExternalId} part {PartNumber} container {ContainerName}",
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 uploadDetails.Part.Number,
                 bucketName);
 
@@ -471,7 +482,7 @@ public class AzureBlobStorageClient(
                 e,
                 "Failed Azure upload of part {PartNumber} of file {FileExternalId} container {ContainerName}. Error: {ErrorMessage}",
                 uploadDetails.Part.Number,
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 bucketName,
                 e.Message);
 
@@ -481,7 +492,7 @@ public class AzureBlobStorageClient(
 
     private async Task<string> UploadToAzure(
         int partNumber,
-        S3FileKey key,
+        FileKey key,
         string bucketName,
         ReadOnlyMemory<byte> fileBytes,
         UploadAlgorithm uploadAlgorithm,
@@ -514,7 +525,7 @@ public class AzureBlobStorageClient(
 
     private async Task<string> StageBlock(
         int partNumber,
-        S3FileKey key,
+        FileKey key,
         string bucketName,
         ReadOnlyMemory<byte> fileBytes,
         CancellationToken cancellationToken)
@@ -540,7 +551,7 @@ public class AzureBlobStorageClient(
     }
 
     private async Task<string> UploadWholeFile(
-        S3FileKey key,
+        FileKey key,
         string bucketName,
         ReadOnlyMemory<byte> fileBytes,
         CancellationToken cancellationToken)
@@ -561,7 +572,7 @@ public class AzureBlobStorageClient(
 
     private async Task<Stream> GetFile(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         CancellationToken cancellationToken)
     {
         var blobClient = blobServiceClient
@@ -574,7 +585,7 @@ public class AzureBlobStorageClient(
 
     private async Task<Stream> GetFileRange(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         BytesRange range,
         CancellationToken cancellationToken)
     {
@@ -596,7 +607,7 @@ public class AzureBlobStorageClient(
 
     public ValueTask<string> GetPreSignedUploadFilePartLink(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         string uploadId,
         int partNumber,
         string contentType,
@@ -628,7 +639,7 @@ public class AzureBlobStorageClient(
     
     public ValueTask<string> GetPreSignedDownloadFileLink(
         string bucketName, 
-        S3FileKey key, 
+        FileKey key, 
         string contentType,
         ContentDispositionType contentDisposition, 
         string fileName,

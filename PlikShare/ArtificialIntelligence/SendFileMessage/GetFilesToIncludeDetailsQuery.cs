@@ -21,7 +21,7 @@ public class GetFilesToIncludeDetailsQuery(PlikShareDb plikShareDb)
                         fi_name,
                         fi_extension,
                         fi_size_in_bytes,
-                        fi_s3_key_secret_part,
+                        fi_key_secret_part,
                         fi_encryption_key_version,
                         fi_encryption_salt,
                         fi_encryption_nonce_prefix,
@@ -46,7 +46,7 @@ public class GetFilesToIncludeDetailsQuery(PlikShareDb plikShareDb)
                         Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
                         Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
                         SizeInBytes = reader.GetInt64(3),
-                        S3KeySecretPart = reader.GetString(4),
+                        KeySecretPart = reader.GetString(4),
                         EncryptionMetadata = encryptionKeyVersion is null
                             ? null
                             : new FileEncryptionMetadata
@@ -74,7 +74,7 @@ public class FileToInclude
     public required string Name { get; init; }
     public required string Extension { get; init; }
     public required long SizeInBytes { get; init; }
-    public required string S3KeySecretPart { get; init; }
+    public required string KeySecretPart { get; init; }
     public required int StorageId { get; init; }
     public required string BucketName { get; init; }
     public required FileEncryptionMetadata? EncryptionMetadata { get; init; }

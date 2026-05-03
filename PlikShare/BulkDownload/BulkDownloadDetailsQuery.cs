@@ -77,7 +77,7 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                          fi_external_id,
                          fi_name,
                          fi_extension,
-                         fi_s3_key_secret_part,
+                         fi_key_secret_part,
                          fi_size_in_bytes,
                          fi_folder_id,
                          fi_encryption_key_version,
@@ -113,7 +113,7 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                         ExternalId = reader.GetExtId<FileExtId>(0),
                         Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
                         Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
-                        S3KeySecretPart = reader.GetString(3),
+                        KeySecretPart = reader.GetString(3),
                         SizeInBytes = reader.GetInt64(4),
                         FolderId = reader.GetInt32OrNull(5),
                         EncryptionMode = fileEncryptionMetadata.ToEncryptionMode(
@@ -144,7 +144,7 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                          fi_external_id,
                          fi_name,
                          fi_extension,
-                         fi_s3_key_secret_part,
+                         fi_key_secret_part,
                          fi_folder_id,
                          fi_size_in_bytes,
                          fi_encryption_key_version,
@@ -183,7 +183,7 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                         ExternalId = reader.GetExtId<FileExtId>(0),
                         Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
                         Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
-                        S3KeySecretPart = reader.GetString(3),
+                        KeySecretPart = reader.GetString(3),
                         FolderId = reader.GetInt32(4),
                         SizeInBytes = reader.GetInt64(5),
                         EncryptionMode = fileEncryptionMetadata.ToEncryptionMode(
@@ -330,7 +330,7 @@ public class ResolvedBulkDownloadFile
     public required FileExtId ExternalId {get;init;}
     public required string Name { get; init; }
     public required string Extension { get; init; }
-    public required string S3KeySecretPart {get; init;}
+    public required string KeySecretPart {get; init;}
     public required long SizeInBytes {get; init;}
     public required int? FolderId { get; init; }
     public required FileEncryptionMode EncryptionMode { get; init; }

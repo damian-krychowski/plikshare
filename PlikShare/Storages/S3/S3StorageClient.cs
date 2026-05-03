@@ -37,7 +37,7 @@ public class S3StorageClient(
 
     public async ValueTask DeleteFile(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         CancellationToken cancellationToken = default)
     {
         try
@@ -64,7 +64,7 @@ public class S3StorageClient(
 
     public async ValueTask DeleteFiles(
         string bucketName,
-        S3FileKey[] keys,
+        FileKey[] keys,
         CancellationToken cancellationToken = default)
     {
         if (keys.Length > 1000)
@@ -102,7 +102,7 @@ public class S3StorageClient(
 
     public async Task CompleteMultiPartUpload(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         string uploadId,
         List<UploadedFilePart> partETags,
         CancellationToken cancellationToken = default)
@@ -123,7 +123,7 @@ public class S3StorageClient(
                 request: request,
                 cancellationToken: cancellationToken);
 
-            Log.Information("[S3] MultiPartFileUpload '{BucketName}/{Key}' uploadId: {S3UploadId} was completed",
+            Log.Information("[S3] MultiPartFileUpload '{BucketName}/{Key}' uploadId: {MultipartUploadId} was completed",
                 bucketName,
                 key,
                 uploadId);
@@ -131,7 +131,7 @@ public class S3StorageClient(
         catch (Exception e)
         {
             Log.Error(e, 
-                "[S3] Something went wrong while completing a MultiPartFileUpload '{BucketName}/{Key}' uploadId: '{S3UploadId}'",
+                "[S3] Something went wrong while completing a MultiPartFileUpload '{BucketName}/{Key}' uploadId: '{MultipartUploadId}'",
                 bucketName, key, uploadId);
             
             throw;
@@ -140,7 +140,7 @@ public class S3StorageClient(
 
     public async ValueTask<string> GetPreSignedUploadFilePartLink(
         string bucketName, 
-        S3FileKey key, 
+        FileKey key, 
         string uploadId,
         int partNumber, 
         string contentType,
@@ -167,7 +167,7 @@ public class S3StorageClient(
         catch (Exception e)
         {
             Log.Error(e, 
-                "[S3] Something went wrong while getting pre-signed url for an upload of a multi part file '{BucketName}/{Key}' number: '{PartNumber}', uploadId: '{S3UploadId}'",
+                "[S3] Something went wrong while getting pre-signed url for an upload of a multi part file '{BucketName}/{Key}' number: '{PartNumber}', uploadId: '{MultipartUploadId}'",
                 bucketName, key, partNumber, uploadId);
             throw;
         }
@@ -175,7 +175,7 @@ public class S3StorageClient(
     
     public async ValueTask<PreSignedUploadFullFileLink> GetPreSignedUploadFullFileLink(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         string contentType,
         DateTimeOffset expiresAt)
     {
@@ -208,7 +208,7 @@ public class S3StorageClient(
 
     public async ValueTask<string> GetPreSignedDownloadFileLink(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         string contentType,
         ContentDispositionType contentDisposition,
         string fileName,
@@ -244,13 +244,26 @@ public class S3StorageClient(
         }
     }
 
-    public async Task AbortMultiPartUpload(
-        string bucketName,
-        S3FileKey key,
+    public MultipartUploadAbortHandle BuildAbortHandle(
         string uploadId,
-        List<string> partETags,
+        IReadOnlyList<string> partTokens) =>
+        new S3MultipartUploadAbortHandle(uploadId);
+
+    public async Task AbortMultipartUpload(
+        string bucketName,
+        FileKey key,
+        MultipartUploadAbortHandle handle,
         CancellationToken cancellationToken = default)
     {
+        if (handle is not S3MultipartUploadAbortHandle s3Handle)
+            throw new InvalidOperationException(
+                $"{nameof(S3StorageClient)} received abort handle of type " +
+                $"'{handle.GetType().Name}' but expects " +
+                $"'{nameof(S3MultipartUploadAbortHandle)}'.");
+
+        if (string.IsNullOrEmpty(s3Handle.UploadId))
+            return;
+
         try
         {
             await s3Client.AbortMultipartUploadAsync(
@@ -258,23 +271,32 @@ public class S3StorageClient(
                 {
                     BucketName = bucketName,
                     Key = key.Value,
-                    UploadId = uploadId
+                    UploadId = s3Handle.UploadId
                 },
                 cancellationToken: cancellationToken);
+        }
+        catch (AmazonS3Exception e) when (e.ErrorCode == "NoSuchUpload")
+        {
+            // Upload already aborted or never started — idempotent, no work left.
+            Log.Warning(
+                "[S3] Multi part upload '{BucketName}/{Key}' uploadId: '{MultipartUploadId}' " +
+                "was not found at abort time; treating as already aborted.",
+                bucketName, key, s3Handle.UploadId);
         }
         catch (Exception e)
         {
             Log.Error(e,
-                "[S3] Something went wrong while aborting a multi part upload '{BucketName}/{Key}', uploadId: '{S3UploadId}'",
-                bucketName, key, uploadId);
+                "[S3] Something went wrong while aborting a multi part upload '{BucketName}/{Key}', uploadId: '{MultipartUploadId}'",
+                bucketName, key, s3Handle.UploadId);
 
             throw;
         }
     }
 
+
     public async ValueTask<InitiatedUpload> InitiateMultiPartUpload(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         CancellationToken cancellationToken = default)
     {
         try
@@ -290,7 +312,7 @@ public class S3StorageClient(
                 cancellationToken: cancellationToken);
 
             return new InitiatedUpload(
-                S3UploadId: result.UploadId);
+                MultipartUploadId: result.UploadId);
         }
         catch (Exception e)
         {
@@ -450,7 +472,7 @@ public class S3StorageClient(
             : (UploadAlgorithm.MultiStepChunkUpload, filePartsCount);
     }
 
-    public string GenerateFileS3KeySecretPart()
+    public string GenerateFileKeySecretPart()
     {
         return Guid.NewGuid().ToBase62();
     }
@@ -483,7 +505,7 @@ public class S3StorageClient(
 
     public async Task<Stream> GetFile(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         CancellationToken cancellationToken = default)
     {
         try
@@ -512,7 +534,7 @@ public class S3StorageClient(
 
     public async Task<Stream> GetFileRange(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         BytesRange range,
         CancellationToken cancellationToken = default)
     {
@@ -551,12 +573,12 @@ public class S3StorageClient(
     {
         Log.Debug(
             "Requesting file stream from S3 for {FileExternalId} at {S3Key}",
-            details.S3FileKey.FileExternalId,
-            details.S3FileKey.Value);
+            details.FileKey.FileExternalId,
+            details.FileKey.Value);
 
         var stream = await GetFile(
             bucketName: bucketName,
-            key: details.S3FileKey,
+            key: details.FileKey,
             cancellationToken: cancellationToken);
 
         return FileEncryption.ReadFile(
@@ -564,9 +586,9 @@ public class S3StorageClient(
             encryptionMode: details.EncryptionMode,
             stream: stream,
             enrichLogs: logger => logger
-                .ForContext("FileExternalId", details.S3FileKey.FileExternalId)
+                .ForContext("FileExternalId", details.FileKey.FileExternalId)
                 .ForContext("BucketName", bucketName)
-                .ForContext("S3Key", details.S3FileKey.Value));
+                .ForContext("S3Key", details.FileKey.Value));
     }
 
     public async ValueTask<IStorageFile> DownloadFileRange(
@@ -577,8 +599,8 @@ public class S3StorageClient(
         Log.Debug(
             "Requesting ranged ({Range}) file stream from S3 for {FileExternalId} at {S3Key}",
             details.Range,
-            details.S3FileKey.FileExternalId,
-            details.S3FileKey.Value);
+            details.FileKey.FileExternalId,
+            details.FileKey.Value);
 
         var readPlan = FileEncryption.CalculateRangeReadPlan(
             encryptionMode: details.EncryptionMode,
@@ -587,7 +609,7 @@ public class S3StorageClient(
 
         var stream = await GetFileRange(
             bucketName: bucketName,
-            key: details.S3FileKey,
+            key: details.FileKey,
             range: readPlan.StorageRange,
             cancellationToken: cancellationToken);
 
@@ -597,9 +619,9 @@ public class S3StorageClient(
             encryptionMode: details.EncryptionMode,
             stream: stream,
             enrichLogs: logger => logger
-                .ForContext("FileExternalId", details.S3FileKey.FileExternalId)
+                .ForContext("FileExternalId", details.FileKey.FileExternalId)
                 .ForContext("BucketName", bucketName)
-                .ForContext("S3Key", details.S3FileKey.Value));
+                .ForContext("S3Key", details.FileKey.Value));
     }
 
     public async ValueTask<FilePartUploadResult> UploadFilePart(
@@ -612,7 +634,7 @@ public class S3StorageClient(
 
         Log.Debug(
             "Starting upload operation for file {FileExternalId} part {PartNumber} to bucket {BucketName} with format version {FormatVersion}",
-            uploadDetails.S3FileKey.FileExternalId,
+            uploadDetails.FileKey.FileExternalId,
             uploadDetails.Part.Number,
             bucketName,
             uploadDetails.EncryptionMode.FormatVersion);
@@ -628,8 +650,8 @@ public class S3StorageClient(
 
             var etag = await UploadToS3(
                 partNumber: uploadDetails.Part.Number,
-                s3FileKey: uploadDetails.S3FileKey,
-                s3UploadId: uploadDetails.S3UploadId,
+                s3FileKey: uploadDetails.FileKey,
+                multipartUploadId: uploadDetails.MultipartUploadId,
                 bucketName: bucketName,
                 fileBytes: filePart.Memory,
                 uploadAlgorithm: uploadDetails.UploadAlgorithm,
@@ -640,7 +662,7 @@ public class S3StorageClient(
             Log.Debug(
                 "Successfully uploaded part {PartNumber} of file {FileExternalId} bucket {BucketName} in {DurationMs}ms (ETag: {ETag})",
                 uploadDetails.Part.Number,
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 bucketName,
                 duration.TotalMilliseconds,
                 etag);
@@ -651,7 +673,7 @@ public class S3StorageClient(
         {
             Log.Warning(
                 "Upload operation cancelled for file {FileExternalId} part {PartNumber} bucket {BucketName}",
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 uploadDetails.Part.Number,
                 bucketName);
 
@@ -663,7 +685,7 @@ public class S3StorageClient(
                 e,
                 "Failed to upload part {PartNumber} of file {FileExternalId} bucket {BucketName}. Error: {ErrorMessage}",
                 uploadDetails.Part.Number,
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 bucketName,
                 e.Message);
 
@@ -681,7 +703,7 @@ public class S3StorageClient(
 
         Log.Debug(
             "Starting upload operation for file {FileExternalId} part {PartNumber} to bucket {BucketName} with format version {FormatVersion}",
-            uploadDetails.S3FileKey.FileExternalId,
+            uploadDetails.FileKey.FileExternalId,
             uploadDetails.Part.Number,
             bucketName,
             uploadDetails.EncryptionMode.FormatVersion);
@@ -697,8 +719,8 @@ public class S3StorageClient(
 
             var etag = await UploadToS3(
                 partNumber: uploadDetails.Part.Number,
-                s3FileKey: uploadDetails.S3FileKey,
-                s3UploadId: uploadDetails.S3UploadId,
+                s3FileKey: uploadDetails.FileKey,
+                multipartUploadId: uploadDetails.MultipartUploadId,
                 bucketName: bucketName,
                 fileBytes: filePart.Memory,
                 uploadAlgorithm: uploadDetails.UploadAlgorithm,
@@ -709,7 +731,7 @@ public class S3StorageClient(
             Log.Debug(
                 "Successfully uploaded part {PartNumber} of file {FileExternalId} bucket {BucketName} in {DurationMs}ms (ETag: {ETag})",
                 uploadDetails.Part.Number,
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 bucketName,
                 duration.TotalMilliseconds,
                 etag);
@@ -720,7 +742,7 @@ public class S3StorageClient(
         {
             Log.Warning(
                 "Upload operation cancelled for file {FileExternalId} part {PartNumber} bucket {BucketName}",
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 uploadDetails.Part.Number,
                 bucketName);
 
@@ -732,7 +754,7 @@ public class S3StorageClient(
                 e,
                 "Failed to upload part {PartNumber} of file {FileExternalId} bucket {BucketName}. Error: {ErrorMessage}",
                 uploadDetails.Part.Number,
-                uploadDetails.S3FileKey.FileExternalId,
+                uploadDetails.FileKey.FileExternalId,
                 bucketName,
                 e.Message);
 
@@ -742,8 +764,8 @@ public class S3StorageClient(
 
     private async Task<string> UploadToS3(
         int partNumber,
-        S3FileKey s3FileKey,
-        string? s3UploadId,
+        FileKey s3FileKey,
+        string? multipartUploadId,
         string bucketName,
         ReadOnlyMemory<byte> fileBytes,
         UploadAlgorithm uploadAlgorithm,
@@ -762,7 +784,7 @@ public class S3StorageClient(
                 UploadAlgorithm.MultiStepChunkUpload => await UploadPart(
                     partNumber: partNumber,
                     s3FileKey: s3FileKey,
-                    s3UploadId: s3UploadId,
+                    multipartUploadId: multipartUploadId,
                     bucketName: bucketName,
                     fileBytes: fileBytes,
                     cancellationToken: cancellationToken),
@@ -803,8 +825,8 @@ public class S3StorageClient(
 
     private async Task<string> UploadPart(
         int partNumber,
-        S3FileKey s3FileKey,
-        string? s3UploadId,
+        FileKey s3FileKey,
+        string? multipartUploadId,
         string bucketName,
         ReadOnlyMemory<byte> fileBytes,
         CancellationToken cancellationToken)
@@ -816,13 +838,13 @@ public class S3StorageClient(
             s3FileKey.FileExternalId,
             partNumber,
             fileBytes.Length,
-            s3UploadId);
+            multipartUploadId);
 
         var etag = await ExecuteUploadPartRequest(
             fileBytes: fileBytes,
             bucketName: bucketName,
             key: s3FileKey,
-            uploadId: s3UploadId,
+            uploadId: multipartUploadId,
             partNumber: partNumber,
             cancellationToken: cancellationToken);
 
@@ -840,7 +862,7 @@ public class S3StorageClient(
     }
 
     private async Task<string> UploadWholeFile(
-        S3FileKey s3FileKey,
+        FileKey s3FileKey,
         string bucketName,
         ReadOnlyMemory<byte> fileBytes,
         CancellationToken cancellationToken)
@@ -873,14 +895,14 @@ public class S3StorageClient(
     private async Task<string> ExecuteUploadPartRequest(
         ReadOnlyMemory<byte> fileBytes,
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         string? uploadId,
         int partNumber,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(uploadId))
             throw new InvalidOperationException(
-                $"Cannot upload file part: S3UploadId is null for file " +
+                $"Cannot upload file part: MultipartUploadId is null for file " +
                 $"'{key.FileExternalId}' part {partNumber}.");
 
         try
@@ -921,7 +943,7 @@ public class S3StorageClient(
     private async Task<string> ExecutePutObjectRequest(
         ReadOnlyMemory<byte> fileBytes,
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         CancellationToken cancellationToken = default)
     {
         try

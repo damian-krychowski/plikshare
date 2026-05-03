@@ -209,7 +209,7 @@ public static class ZipDecoder
             @try: () => workspace.ReadRange(
                 details: new DownloadFileRangeDetails(
                     Range: zipFinalEocd.CentralDirectoryBytesRange,
-                    S3FileKey: file.S3FileKey,
+                    FileKey: file.FileKey,
                     FileSizeInBytes: file.SizeInBytes,
                     EncryptionMode: file.EncryptionMode),
                 output: pipe.Writer,
@@ -245,7 +245,7 @@ public static class ZipDecoder
                     Range: new BytesRange(
                         zip64Locator.Zip64EocdOffset,
                         zip64Locator.Zip64EocdOffset + Zip64EocdRecord.MinimumSize - 1),
-                    S3FileKey: file.S3FileKey,
+                    FileKey: file.FileKey,
                     FileSizeInBytes: file.SizeInBytes,
                     EncryptionMode: file.EncryptionMode),
                 output: pipe.Writer,
@@ -284,7 +284,7 @@ public static class ZipDecoder
                         Math.Max(0, file.SizeInBytes - EocdMinimumSize),
                         file.SizeInBytes - 1),
                     FileSizeInBytes: file.SizeInBytes,
-                    S3FileKey: file.S3FileKey,
+                    FileKey: file.FileKey,
                     EncryptionMode: file.EncryptionMode),
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
@@ -322,7 +322,7 @@ public static class ZipDecoder
                     Range: new BytesRange(
                         eocdPossibleStartPosition,
                         file.SizeInBytes - 1),
-                    S3FileKey: file.S3FileKey,
+                    FileKey: file.FileKey,
                     FileSizeInBytes: file.SizeInBytes,
                     EncryptionMode: file.EncryptionMode),
                 output: pipe.Writer,

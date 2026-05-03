@@ -29,19 +29,19 @@ namespace PlikShare.Files.Delete
             
             var jobsToEnqueue = new List<BulkQueueJobEntity>();
 
-            foreach (var deletedFilesChunk in deletedFiles.Chunk(BulkDeleteS3FileQueueJobType.MaxChunkSize))
+            foreach (var deletedFilesChunk in deletedFiles.Chunk(BulkDeleteFilesQueueJobType.MaxChunkSize))
             {
                 var job = queue.CreateBulkEntity(
-                    jobType: BulkDeleteS3FileQueueJobType.Value,
-                    definition: new BulkDeleteS3FileQueueJobDefinition
+                    jobType: BulkDeleteFilesQueueJobType.Value,
+                    definition: new BulkDeleteFilesQueueJobDefinition
                     {
                         BucketName = workspace.BucketName,
                         StorageId = workspace.StorageId,
-                        S3FileKeys = deletedFilesChunk
-                            .Select(df => new S3FileKey
+                        FileKeys = deletedFilesChunk
+                            .Select(df => new FileKey
                             {
                                 FileExternalId = df.ExternalId,
-                                S3KeySecretPart = df.S3KeySecretPart
+                                KeySecretPart = df.KeySecretPart
                             })
                             .ToArray()
                     },
@@ -76,13 +76,13 @@ namespace PlikShare.Files.Delete
                         RETURNING 
                             fi_id,
                             fi_external_id,
-                            fi_s3_key_secret_part
+                            fi_key_secret_part
                     ",
                     readRowFunc: reader => new DeletedFile
                     {
                         Id = reader.GetInt32(0),
                         ExternalId = reader.GetExtId<FileExtId>(1),
-                        S3KeySecretPart = reader.GetString(2)
+                        KeySecretPart = reader.GetString(2)
                     },
                     transaction: transaction)
                 .WithParameter("$workspaceId", workspaceId)
@@ -101,13 +101,13 @@ namespace PlikShare.Files.Delete
                     RETURNING 
                         fi_id,
                         fi_external_id,
-                        fi_s3_key_secret_part
+                        fi_key_secret_part
                 ",
                     readRowFunc: reader => new DeletedFile
                     {
                         Id = reader.GetInt32(0),
                         ExternalId = reader.GetExtId<FileExtId>(1),
-                        S3KeySecretPart = reader.GetString(2)
+                        KeySecretPart = reader.GetString(2)
                     },
                     transaction: transaction)
                 .WithParameter("$workspaceId", workspaceId)
@@ -149,7 +149,7 @@ namespace PlikShare.Files.Delete
         {
             public required int Id { get; init; }
             public required FileExtId ExternalId { get; init; }
-            public required string S3KeySecretPart { get; init; }
+            public required string KeySecretPart { get; init; }
         }
         
         public readonly record struct Result(

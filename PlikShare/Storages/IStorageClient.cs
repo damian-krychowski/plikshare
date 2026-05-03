@@ -43,26 +43,35 @@ public interface IStorageClient
 
     ValueTask DeleteFile(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         CancellationToken cancellationToken);
 
     ValueTask DeleteFiles(
         string bucketName,
-        S3FileKey[] keys,
+        FileKey[] keys,
         CancellationToken cancellationToken);
 
     Task CompleteMultiPartUpload(
         string bucketName,
-        S3FileKey key,
+        FileKey key,
         string uploadId,
         List<UploadedFilePart> partETags,
         CancellationToken cancellationToken);
-    
-    Task AbortMultiPartUpload(
-        string bucketName,
-        S3FileKey key,
+
+    /// <summary>
+    /// Builds the backend-specific abort payload from the primitive state PlikShare
+    /// keeps in DB (multipart upload id from <c>fu_file_uploads</c>, part tokens
+    /// from <c>fup_file_upload_parts</c>). Producers call this at the point of
+    /// enqueueing an abort job; backends ignore whichever inputs they don't need.
+    /// </summary>
+    MultipartUploadAbortHandle BuildAbortHandle(
         string uploadId,
-        List<string> partETags,
+        IReadOnlyList<string> partTokens);
+
+    Task AbortMultipartUpload(
+        string bucketName,
+        FileKey key,
+        MultipartUploadAbortHandle handle,
         CancellationToken cancellationToken);
     
     Task CreateBucketIfDoesntExist(
@@ -81,7 +90,7 @@ public interface IStorageClient
         long fileSizeInBytes,
         int ikmChainStepsCount);
 
-    string GenerateFileS3KeySecretPart();
+    string GenerateFileKeySecretPart();
 }
 
 public class PreSignedUploadLinkResult
@@ -91,21 +100,21 @@ public class PreSignedUploadLinkResult
 }
 
 public record UploadFilePartDetails(
-    S3FileKey S3FileKey,
-    string? S3UploadId,
+    FileKey FileKey,
+    string? MultipartUploadId,
     long FileSizeInBytes,
     FilePart Part,
     FileEncryptionMode EncryptionMode,
     UploadAlgorithm UploadAlgorithm);
 
 public record DownloadFileDetails(
-    S3FileKey S3FileKey,
+    FileKey FileKey,
     long FileSizeInBytes,
     FileEncryptionMode EncryptionMode);
 
 public record DownloadFileRangeDetails(
     BytesRange Range,
-    S3FileKey S3FileKey,
+    FileKey FileKey,
     long FileSizeInBytes,
     FileEncryptionMode EncryptionMode);
 

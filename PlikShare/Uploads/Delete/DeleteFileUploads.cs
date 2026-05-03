@@ -3,11 +3,14 @@ using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
+using PlikShare.Storages;
 using PlikShare.Uploads.Abort.QueueJob;
 
 namespace PlikShare.Uploads.Delete;
 
-public class DeleteFileUploadsSubQuery(IQueue queue)
+public class DeleteFileUploadsSubQuery(
+    IQueue queue,
+    StorageClientStore storageClientStore)
 {
     public Result Execute(
         List<int> fileUploadIds,
@@ -46,24 +49,29 @@ public class DeleteFileUploadsSubQuery(IQueue queue)
             var workspace = workspaces
                 .First(w => w.Id == deletedFileUpload.WorkspaceId);
 
-            var partETags = deletedFileUploadParts
+            var partTokens = deletedFileUploadParts
                 .Where(p => p.FileUploadId == deletedFileUpload.Id)
                 .Select(p => p.ETag)
                 .ToList();
 
-            var job = queue.CreateBulkEntity(
-                jobType: AbortS3UploadQueueJobType.Value,
-                definition: new AbortS3UploadQueueJobDefinition
-                {
-                    FileExternalId = deletedFileUpload.FileExternalId,
-                    FileSizeInBytes = deletedFileUpload.FileSizeInBytes,
-                    S3KeySecretPart = deletedFileUpload.FileS3KeySecretPart,
-                    S3UploadId = deletedFileUpload.S3UploadId,
-                    FileEncryptionMetadata = deletedFileUpload.FileEncryptionMetadata,
+            if (!storageClientStore.TryGetClient(workspace.StorageId, out var storage))
+                throw new InvalidOperationException(
+                    $"Cannot enqueue multipart-upload abort for File '{deletedFileUpload.FileExternalId}': " +
+                    $"Storage#{workspace.StorageId} is not registered in StorageClientStore.");
 
-                    BucketName = workspace.BucketName,
+            var abortHandle = storage.BuildAbortHandle(
+                uploadId: deletedFileUpload.MultipartUploadId,
+                partTokens: partTokens);
+
+            var job = queue.CreateBulkEntity(
+                jobType: AbortMultipartUploadQueueJobType.Value,
+                definition: new AbortMultipartUploadQueueJobDefinition
+                {
                     StorageId = workspace.StorageId,
-                    PartETags = partETags
+                    BucketName = workspace.BucketName,
+                    FileExternalId = deletedFileUpload.FileExternalId,
+                    KeySecretPart = deletedFileUpload.FileKeySecretPart,
+                    AbortHandle = abortHandle
                 },
                 sagaId: sagaId);
 
@@ -127,8 +135,8 @@ public class DeleteFileUploadsSubQuery(IQueue queue)
                     RETURNING
                         fu_id,
                         fu_file_external_id,
-                        fu_file_s3_key_secret_part,
-                        fu_s3_upload_id,
+                        fu_file_key_secret_part,
+                        fu_multipart_upload_id,
                         fu_file_size_in_bytes,
                         fu_workspace_id,
                         fu_encryption_key_version,
@@ -145,8 +153,8 @@ public class DeleteFileUploadsSubQuery(IQueue queue)
                     {
                         Id = reader.GetInt32(0),
                         FileExternalId = reader.GetExtId<FileExtId>(1),
-                        FileS3KeySecretPart = reader.GetString(2),
-                        S3UploadId = reader.GetString(3),
+                        FileKeySecretPart = reader.GetString(2),
+                        MultipartUploadId = reader.GetString(3),
                         FileSizeInBytes = reader.GetInt64(4),
                         WorkspaceId = reader.GetInt32(5),
                         FileEncryptionMetadata = encryptionKeyVersion is null
@@ -205,8 +213,8 @@ public class DeleteFileUploadsSubQuery(IQueue queue)
     {
         public required int Id { get; init; }
         public required FileExtId FileExternalId { get; init; }
-        public required string FileS3KeySecretPart { get; init; }
-        public required string S3UploadId { get; init; }
+        public required string FileKeySecretPart { get; init; }
+        public required string MultipartUploadId { get; init; }
         public required long FileSizeInBytes { get; init; }
         public required int WorkspaceId { get; init; }
         public required FileEncryptionMetadata? FileEncryptionMetadata { get; init; }

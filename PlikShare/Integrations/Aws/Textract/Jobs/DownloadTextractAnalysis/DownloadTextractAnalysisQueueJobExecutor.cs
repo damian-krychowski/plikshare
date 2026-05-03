@@ -233,12 +233,12 @@ public class DownloadTextractAnalysisQueueJobExecutor(
             storageClient: originalFileWorkspace.Storage);
         
         var uploadDetails = new UploadFilePartDetails(
-            S3FileKey: new S3FileKey
+            FileKey: new FileKey
             {
                 FileExternalId = FileExtId.Parse(fileInsertEntity.FileExternalId),
-                S3KeySecretPart = fileInsertEntity.S3KeySecretPart
+                KeySecretPart = fileInsertEntity.KeySecretPart
             },
-            S3UploadId: fileInsertEntity.S3UploadId,
+            MultipartUploadId: fileInsertEntity.MultipartUploadId,
             FileSizeInBytes: contentBytes.Length,
             Part: new FilePart(
                 Number: 1,
@@ -405,9 +405,9 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 NoMetadataEncryption.Instance),
 
             FileSizeInBytes = file.SizeInBytes,
-            S3KeySecretPart = storage.GenerateFileS3KeySecretPart(),
+            KeySecretPart = storage.GenerateFileKeySecretPart(),
 
-            S3UploadId = string.Empty,
+            MultipartUploadId = string.Empty,
 
             EncryptionKeyVersion = encryptionMetadata?.KeyVersion,
             EncryptionSalt = encryptionMetadata?.Salt,
@@ -512,7 +512,7 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                                     fi_external_id,
                                     fi_workspace_id,
                                     fi_folder_id,
-                                    fi_s3_key_secret_part,
+                                    fi_key_secret_part,
                                     fi_name,
                                     fi_extension,
                                     fi_content_type,
@@ -531,7 +531,7 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                                     fu_file_external_id,
                                     fu_workspace_id,
                                     fu_folder_id,
-                                    fu_file_s3_key_secret_part,
+                                    fu_file_key_secret_part,
                                     fu_file_name,
                                     fu_file_extension,
                                     fu_file_content_type,
@@ -629,12 +629,12 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                                     WHERE fi_id = $textractFileId
                                     RETURNING
                                         fi_external_id,
-                                        fi_s3_key_secret_part
+                                        fi_key_secret_part
                                 ",
-                                readRowFunc: reader => new S3FileKey
+                                readRowFunc: reader => new FileKey
                                 {
                                     FileExternalId = reader.GetExtId<FileExtId>(0),
-                                    S3KeySecretPart = reader.GetString(1)
+                                    KeySecretPart = reader.GetString(1)
                                 },
                                 transaction: transaction)
                             .WithParameter("$textractFileId", textractJob.TextractFileId)
@@ -688,19 +688,19 @@ public class DownloadTextractAnalysisQueueJobExecutor(
     private QueueJobId EnqueueTextractFileCopyDeleteJob(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext textractWorkspace,
-        S3FileKey fileKey,
+        FileKey fileKey,
         Guid correlationId,
         SqliteTransaction transaction)
     {
         return queue.EnqueueOrThrow(
             correlationId: correlationId,
-            jobType: DeleteS3FileQueueJobType.Value,
-            definition: new DeleteS3FileQueueJobDefinition
+            jobType: DeleteFileQueueJobType.Value,
+            definition: new DeleteFileQueueJobDefinition
             {
                 StorageId = textractWorkspace.Storage.StorageId,
                 BucketName = textractWorkspace.BucketName,
                 FileExternalId = fileKey.FileExternalId,
-                S3KeySecretPart = fileKey.S3KeySecretPart
+                KeySecretPart = fileKey.KeySecretPart
             },
             executeAfterDate: clock.UtcNow.AddSeconds(10),
             debounceId: null,

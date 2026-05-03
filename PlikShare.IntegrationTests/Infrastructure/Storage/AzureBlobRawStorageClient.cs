@@ -1,5 +1,6 @@
 using Azure.Storage;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using PlikShare.Files.Id;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Storage;
@@ -93,6 +94,8 @@ public sealed class AzureBlobRawStorageClient : IRawStorageClient
         var matches = new List<string>();
 
         await foreach (var blob in containerClient.GetBlobsAsync(
+            traits: BlobTraits.None,
+            states: BlobStates.None,
             prefix: blobPrefix,
             cancellationToken: cancellationToken))
         {

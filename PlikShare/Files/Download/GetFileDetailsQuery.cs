@@ -23,7 +23,7 @@ public class GetFileDetailsQuery(PlikShareDb plikShareDb)
                         fi.fi_name,
                         fi.fi_content_type,
                         fi.fi_extension,
-                        fi.fi_s3_key_secret_part,
+                        fi.fi_key_secret_part,
                         fi.fi_size_in_bytes,
                         fi.fi_encryption_key_version,
                         fi.fi_encryption_salt,
@@ -76,7 +76,7 @@ public class GetFileDetailsQuery(PlikShareDb plikShareDb)
                         Name = reader.DecodeEncryptableString(0, workspaceEncryptionSession),
                         ContentType = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
                         Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
-                        S3KeySecretPart = reader.GetString(3),
+                        KeySecretPart = reader.GetString(3),
                         SizeInBytes = reader.GetInt64(4),
                         WorkspaceId = workspaceId,
                         EncryptionMetadata = encryptionKeyVersion is null
