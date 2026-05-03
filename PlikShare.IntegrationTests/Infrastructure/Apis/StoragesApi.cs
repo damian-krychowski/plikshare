@@ -1,4 +1,5 @@
 using Flurl.Http;
+using PlikShare.Storages.AzureBlob.Create.Contracts;
 using PlikShare.Storages.HardDrive.Create.Contracts;
 using PlikShare.Storages.HardDrive.GetVolumes.Contracts;
 using PlikShare.Storages.Id;
@@ -88,7 +89,20 @@ public class StoragesApi(IFlurlClient flurlClient, string appUrl)
     {
         return await flurlClient.ExecutePost<CreateDigitalOceanSpacesStorageResponseDto, CreateDigitalOceanSpacesStorageRequestDto>(
             appUrl: appUrl,
-            apiPath: "api/storages/digitalocean-spaces",
+            apiPath: "api/storages/digital-ocean-spaces",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task<CreateAzureBlobStorageResponseDto> CreateAzureBlobStorage(
+        CreateAzureBlobStorageRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        return await flurlClient.ExecutePost<CreateAzureBlobStorageResponseDto, CreateAzureBlobStorageRequestDto>(
+            appUrl: appUrl,
+            apiPath: "api/storages/azure-blob",
             request: request,
             cookie: cookie,
             antiforgery: antiforgery);

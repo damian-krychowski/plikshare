@@ -3,7 +3,6 @@ using Amazon.S3.Model;
 using CommunityToolkit.HighPerformance;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Encryption;
-using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
@@ -12,7 +11,6 @@ using PlikShare.Storages.FileReading;
 using PlikShare.Storages.Id;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Chunking;
-using PlikShare.Uploads.Id;
 using Serilog;
 using System.IO.Pipelines;
 
@@ -20,15 +18,12 @@ namespace PlikShare.Storages.S3;
 
 public class S3StorageClient(
     string appUrl,
-    IMasterDataEncryption masterDataEncryption,
-    IClock clock,
     IAmazonS3 s3Client,
     int storageId,
     StorageExtId externalId,
     string name,
-    PreSignedUrlsService preSignedUrlsService,
     StorageEncryption encryption,
-    IReadOnlyList<LifecycleRule> lifecycleRules) : IStorageClient, IDisposable
+    IReadOnlyList<LifecycleRule> lifecycleRules) : IObjectStorageClient, IDisposable
 {
     public const int MicroFileThreshold = 1 * SizeInBytes.Mb; //1MB
 
@@ -109,7 +104,7 @@ public class S3StorageClient(
         string bucketName,
         S3FileKey key,
         string uploadId,
-        List<PartETag> partETags,
+        List<UploadedFilePart> partETags,
         CancellationToken cancellationToken = default)
     {
         try
@@ -120,6 +115,8 @@ public class S3StorageClient(
                 Key = key.Value,
                 UploadId = uploadId,
                 PartETags = partETags
+                    .Select(p => new PartETag(partNumber: p.PartNumber, eTag: p.ETag))
+                    .ToList()
             };
 
             await s3Client.CompleteMultipartUploadAsync(
@@ -140,70 +137,14 @@ public class S3StorageClient(
             throw;
         }
     }
-    
-    public async ValueTask<PreSignedUploadLinkResult> GetPreSignedUploadFilePartLink(
-        string bucketName,
-        FileUploadExtId fileUploadExternalId,
-        S3FileKey key,
-        string uploadId,
-        int partNumber,
-        string contentType,
-        int? boxLinkId,
-        IUserIdentity userIdentity,
-        bool enforceInternalPassThrough,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
-        CancellationToken cancellationToken = default)
-    {
-        if (Encryption is ManagedStorageEncryption or FullStorageEncryption || enforceInternalPassThrough)
-        {
-            var url = preSignedUrlsService.GeneratePreSignedUploadUrl(
-                new PreSignedUrlsService.UploadPayload
-                {
-                    FileUploadExternalId = fileUploadExternalId,
-                    PartNumber = partNumber,
-                    ContentType = contentType,
-                    PreSignedBy = new PreSignedUrlsService.PreSignedUrlOwner
-                    {
-                        Identity = userIdentity.Identity,
-                        IdentityType = userIdentity.IdentityType
-                    },
-                    ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
-                    BoxLinkId = boxLinkId,
-                    WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
-                });
 
-            return new PreSignedUploadLinkResult
-            {
-                Url = url,
-                IsCompleteFilePartUploadCallbackRequired = false
-            };
-        }
-
-        if (Encryption is NoStorageEncryption)
-        {
-            var url = await GetDirectS3PreSignedUploadFilePartLink(
-                bucketName,
-                key,
-                uploadId,
-                partNumber,
-                contentType);
-
-            return new PreSignedUploadLinkResult
-            {
-                Url = url,
-                IsCompleteFilePartUploadCallbackRequired = true
-            };
-        }
-
-        throw new NotImplementedException($"Unknown encryption type: '{Encryption.GetType()}'");
-    }
-
-    public async Task<string> GetDirectS3PreSignedUploadFilePartLink(
+    public async ValueTask<string> GetPreSignedUploadFilePartLink(
         string bucketName, 
         S3FileKey key, 
         string uploadId,
         int partNumber, 
-        string contentType)
+        string contentType,
+        DateTimeOffset expiresAt)
     {
         try
         {
@@ -215,7 +156,7 @@ public class S3StorageClient(
                 PartNumber = partNumber,
                 ContentType = contentType,
                 Verb = HttpVerb.PUT,
-                Expires = clock.Now.Add(TimeSpan.FromMinutes(15)),
+                Expires = expiresAt.UtcDateTime,
             };
             
             var response = await s3Client.GetPreSignedURLAsync(
@@ -232,11 +173,11 @@ public class S3StorageClient(
         }
     }
     
-    public async Task<string> GetPreSignedUploadFullFileLink(
+    public async ValueTask<PreSignedUploadFullFileLink> GetPreSignedUploadFullFileLink(
         string bucketName,
         S3FileKey key,
         string contentType,
-        CancellationToken cancellationToken)
+        DateTimeOffset expiresAt)
     {
         try
         {
@@ -246,12 +187,14 @@ public class S3StorageClient(
                 Key = key.Value,
                 ContentType = contentType,
                 Verb = HttpVerb.PUT,
-                Expires = clock.Now.Add(TimeSpan.FromMinutes(15)),
+                Expires = expiresAt.UtcDateTime,
             };
 
             var response = await s3Client.GetPreSignedURLAsync(request);
 
-            return response;
+            return new PreSignedUploadFullFileLink(
+                Url: response,
+                RequiredHeaders: []);
         }
         catch (Exception e)
         {
@@ -267,51 +210,9 @@ public class S3StorageClient(
         string bucketName,
         S3FileKey key,
         string contentType,
+        ContentDispositionType contentDisposition,
         string fileName,
-        ContentDispositionType contentDisposition,
-        int? boxLinkId,
-        IUserIdentity userIdentity,
-        bool enforceInternalPassThrough,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
-        CancellationToken cancellationToken = default)
-    {
-        if (Encryption is ManagedStorageEncryption or FullStorageEncryption || enforceInternalPassThrough)
-        {
-            return preSignedUrlsService.GeneratePreSignedDownloadUrl(
-                new PreSignedUrlsService.DownloadPayload
-                {
-                    FileExternalId = key.FileExternalId,
-                    PreSignedBy = new PreSignedUrlsService.PreSignedUrlOwner
-                    {
-                        Identity = userIdentity.Identity,
-                        IdentityType = userIdentity.IdentityType
-                    },
-                    ContentDisposition = contentDisposition,
-                    ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
-                    BoxLinkId = boxLinkId,
-                    WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
-                });
-        }
-
-        if (Encryption is NoStorageEncryption)
-        {
-            return await GetDirectS3PreSignedDownloadLink(
-                bucketName: bucketName,
-                key: key,
-                contentType: contentType,
-                contentDisposition: contentDisposition,
-                fileName: fileName);
-        }
-        
-        throw new NotImplementedException($"Unknown encryption type: '{Encryption.GetType()}'");
-    }
-
-    private async Task<string> GetDirectS3PreSignedDownloadLink(
-        string bucketName,
-        S3FileKey key,
-        string contentType,
-        ContentDispositionType contentDisposition,
-        string fileName)
+        DateTimeOffset expiresAt)
     {
         try
         {
@@ -320,7 +221,7 @@ public class S3StorageClient(
                 BucketName = bucketName,
                 Key = key.Value,
                 Verb = HttpVerb.GET,
-                Expires = clock.Now.Add(TimeSpan.FromHours(3)),
+                Expires = expiresAt.UtcDateTime,
                 ResponseHeaderOverrides = new ResponseHeaderOverrides
                 {
                     ContentType = contentType,
@@ -1056,6 +957,3 @@ public class S3StorageClient(
         _rateLimiter.Dispose();
     }
 }
-
-public readonly record struct InitiatedUpload(
-    string S3UploadId);

@@ -178,6 +178,7 @@ using PlikShare.Storages.FileCopying.OnCompletedActionHandler;
 using PlikShare.Storages.HardDrive;
 using PlikShare.Storages.HardDrive.GetVolumes;
 using PlikShare.Storages.List;
+using PlikShare.Storages.AzureBlob;
 using PlikShare.Storages.S3.AwsS3;
 using PlikShare.Storages.S3.BackblazeB2;
 using PlikShare.Storages.S3.CloudflareR2;
@@ -307,6 +308,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_28_EphemeralWorkspaceEncryptionKeysIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_29_FileArtifactContentHashIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_30_QSoftRetriesLeftIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_31_DigitalOceanSpacesStorageTypeRenamed>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 
@@ -571,6 +573,7 @@ public class Startup
         builder.Services.AddSingleton<BackblazeB2StorageClientFactory>();
         builder.Services.AddSingleton<AwsS3StorageClientFactory>();
         builder.Services.AddSingleton<DigitalOceanStorageClientFactory>();
+        builder.Services.AddSingleton<AzureBlobStorageClientFactory>();
         builder.Services.AddSingleton<CreateStorageFlow>();
         builder.Services.AddSingleton<UpdateStorageFlow>();
         builder.Services.AddSingleton<GetStoragesQuery>();

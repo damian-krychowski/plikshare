@@ -613,7 +613,8 @@ export class FileUploadManager {
             );
 
             const uploadPromise = fileUpload.upload(
-                args.file.initiateUploadResult.preSignedUploadLink!);
+                args.file.initiateUploadResult.preSignedUploadLink!,
+                args.file.initiateUploadResult.preSignedUploadLinkRequiredHeaders ?? []);
 
             return {fileUpload, uploadPromise};
         }

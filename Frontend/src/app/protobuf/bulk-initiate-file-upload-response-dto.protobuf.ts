@@ -5,9 +5,15 @@ export function getBulkInitiateFileUploadResponseDtoProtobuf() {
         .add(new protobuf.Field("count", 1, "int32"))
         .add(new protobuf.Field("preSignedMultiFileDirectUploadLink", 2, "string"));
 
+    const requiredHeader = new protobuf.Type("RequiredHeader")
+        .add(new protobuf.Field("name", 1, "string"))
+        .add(new protobuf.Field("value", 2, "string"));
+
     const singleChunkUploads = new protobuf.Type("BulkInitiateSingleChunkUploadResponseDto")
+        .add(requiredHeader)
         .add(new protobuf.Field("fileUploadExternalId", 1, "string"))
-        .add(new protobuf.Field("preSignedUploadLink", 2, "string"));
+        .add(new protobuf.Field("preSignedUploadLink", 2, "string"))
+        .add(new protobuf.Field("preSignedUploadLinkRequiredHeaders", 3, "RequiredHeader", "repeated"));
 
     const multiStepChunkUploads = new protobuf.Type("BulkInitiateMultiStepChunkUploadResponseDto")
         .add(new protobuf.Field("fileUploadExternalId", 1, "string"))

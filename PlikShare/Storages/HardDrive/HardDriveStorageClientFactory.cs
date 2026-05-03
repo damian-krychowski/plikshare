@@ -9,10 +9,7 @@ using PlikShare.Storages.HardDrive.StorageClient;
 namespace PlikShare.Storages.HardDrive;
 
 public class HardDriveStorageClientFactory(
-    IMasterDataEncryption masterDataEncryption,
-    PreSignedUrlsService preSignedUrlsService,
-    Volumes volumes,
-    IClock clock) : IStorageClientFactory<HardDriveStorageClientFactory.Input>
+    Volumes volumes) : IStorageClientFactory<HardDriveStorageClientFactory.Input>
 {
     public Task<StorageClientFactoryResult> Prepare(
         Input input,
@@ -36,9 +33,6 @@ public class HardDriveStorageClientFactory(
                 StorageType = StorageType.HardDrive,
                 DetailsJson = Json.Serialize(details),
                 StorageClientFactory = clientDetails => new HardDriveStorageClient(
-                    masterDataEncryption: masterDataEncryption,
-                    preSignedUrlsService: preSignedUrlsService,
-                    clock: clock,
                     details: details,
                     storageId: clientDetails.StorageId,
                     externalId: clientDetails.ExternalId,

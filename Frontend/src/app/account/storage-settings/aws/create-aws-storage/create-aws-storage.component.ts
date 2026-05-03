@@ -1,4 +1,4 @@
-import { Component, ViewEncapsulation, signal, computed } from '@angular/core';
+import { Component, ViewEncapsulation, signal } from '@angular/core';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import {MatInputModule} from '@angular/material/input';
@@ -7,14 +7,10 @@ import { AppStorageEncryptionType, StoragesApi } from '../../../../services/stor
 import { RegionInputComponent } from '../../../../shared/region-input/region-input.component';
 import { AwsRegions } from '../../../../services/aws-regions';
 import { SecureInputDirective } from '../../../../shared/secure-input.directive';
-import { MatRadioModule } from '@angular/material/radio';
 import { Router } from '@angular/router';
 import { DataStore } from '../../../../services/data-store.service';
 import { RecoveryCodeDialogService } from '../../../../shared/recovery-code-display/recovery-code-dialog.service';
-import { AuthService } from '../../../../services/auth.service';
-import { MatDialog } from '@angular/material/dialog';
-import { SetupEncryptionPasswordComponent } from '../../../../shared/setup-encryption-password/setup-encryption-password.component';
-import { firstValueFrom } from 'rxjs';
+import { EncryptionTypeSelectorComponent } from '../../../../shared/encryption-type-selector/encryption-type-selector.component';
 
 @Component({
     selector: 'app-create-aws-storage',
@@ -26,7 +22,7 @@ import { firstValueFrom } from 'rxjs';
         MatButtonModule,
         RegionInputComponent,
         SecureInputDirective,
-        MatRadioModule
+        EncryptionTypeSelectorComponent
     ],
     templateUrl: './create-aws-storage.component.html',
     styleUrl: './create-aws-storage.component.scss',
@@ -38,11 +34,7 @@ export class CreateAwsStorageComponent{
 
     awsRegions = AwsRegions.S3();
 
-    selectedEncryption = signal<string>('none');
-    needsEncryptionSetup = computed(() =>
-        this.selectedEncryption() === 'full' && !this.auth.isEncryptionConfigured());
-
-    encryption = new FormControl('none', Validators.required);
+    encryption = new FormControl<AppStorageEncryptionType>('none', Validators.required);
     name = new FormControl('', [Validators.required]);
     accessKey = new FormControl('', [Validators.required]);
     secretAccessKey = new FormControl('', [Validators.required]);
@@ -55,9 +47,7 @@ export class CreateAwsStorageComponent{
         private _dataStore: DataStore,
         private _storagesApi: StoragesApi,
         private _router: Router,
-        private _recoveryCodeDialog: RecoveryCodeDialogService,
-        private _dialog: MatDialog,
-        public auth: AuthService) {
+        private _recoveryCodeDialog: RecoveryCodeDialogService) {
 
         this.formGroup = new FormGroup({
             name: this.name,
@@ -66,9 +56,6 @@ export class CreateAwsStorageComponent{
             region: this.region,
             encryption: this.encryption
         });
-
-        this.encryption.valueChanges.subscribe(value =>
-            this.selectedEncryption.set(value ?? 'none'));
     }
 
     async onCreateStorage() {
@@ -79,14 +66,13 @@ export class CreateAwsStorageComponent{
 
         try {
             this.isLoading.set(true);
-            const encryptionType = this.encryption.value! as AppStorageEncryptionType;
 
             const response = await this._storagesApi.createAwsS3Storage({
                 name: this.name.value!,
                 accessKey: this.accessKey.value!,
                 secretAccessKey: this.secretAccessKey.value!,
                 region: this.region.value!,
-                encryptionType: encryptionType
+                encryptionType: this.encryption.value!
             });
 
             this._dataStore.clearDashboardData();
@@ -118,15 +104,6 @@ export class CreateAwsStorageComponent{
         } finally {
             this.isLoading.set(false);
         }
-    }
-
-    async openSetupEncryptionPassword() {
-        const ref = this._dialog.open(SetupEncryptionPasswordComponent, {
-            width: '500px',
-            position: { top: '100px' },
-            disableClose: true
-        });
-        await firstValueFrom(ref.afterClosed());
     }
 
     goToStorages() {

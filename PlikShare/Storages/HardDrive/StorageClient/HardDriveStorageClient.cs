@@ -1,5 +1,3 @@
-using Amazon.S3.Model;
-using PlikShare.Core.Clock;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
@@ -18,9 +16,6 @@ using System.IO.Pipelines;
 namespace PlikShare.Storages.HardDrive.StorageClient;
 
 public class HardDriveStorageClient(
-    IMasterDataEncryption masterDataEncryption,
-    PreSignedUrlsService preSignedUrlsService,
-    IClock clock,
     HardDriveDetailsEntity details,
     int storageId,
     StorageExtId externalId,
@@ -130,7 +125,7 @@ public class HardDriveStorageClient(
         string bucketName,
         S3FileKey key,
         string uploadId,
-        List<PartETag> partETags,
+        List<UploadedFilePart> partETags,
         CancellationToken cancellationToken = default)
     {
         var bucketPath = GetBucketPath(bucketName);
@@ -184,7 +179,7 @@ public class HardDriveStorageClient(
         string bucketPath,
         FileExtId fileExternalId,
         string finalFilePath,
-        List<PartETag> sorterPartETags,
+        List<UploadedFilePart> sorterPartETags,
         CancellationToken cancellationToken)
     {
         await using var outputStream = new FileStream(
@@ -240,75 +235,7 @@ public class HardDriveStorageClient(
             outputStream,
             cancellationToken);
     }
-
-    public ValueTask<PreSignedUploadLinkResult> GetPreSignedUploadFilePartLink(
-        string bucketName,
-        FileUploadExtId fileUploadExternalId,
-        S3FileKey key,
-        string uploadId,
-        int partNumber,
-        string contentType,
-        int? boxLinkId,
-        IUserIdentity userIdentity,
-        bool enforceInternalPassThrough,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
-        CancellationToken cancellationToken)
-    {
-        var url = preSignedUrlsService.GeneratePreSignedUploadUrl(
-            payload: new PreSignedUrlsService.UploadPayload
-            {
-                FileUploadExternalId = fileUploadExternalId,
-                PartNumber = partNumber,
-                ContentType = contentType,
-                PreSignedBy = new PreSignedUrlsService.PreSignedUrlOwner
-                {
-                    Identity = userIdentity.Identity,
-                    IdentityType = userIdentity.IdentityType
-                },
-                ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
-                BoxLinkId = boxLinkId,
-                WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption),
-            });
-
-        var result = new PreSignedUploadLinkResult
-        {
-            Url = url,
-            IsCompleteFilePartUploadCallbackRequired = false
-        };
-
-        return ValueTask.FromResult(result);
-    }
-
-    public ValueTask<string> GetPreSignedDownloadFileLink(
-        string bucketName,
-        S3FileKey key,
-        string contentType,
-        string fileName,
-        ContentDispositionType contentDisposition,
-        int? boxLinkId,
-        IUserIdentity userIdentity,
-        bool enforceInternalPassThrough,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
-        CancellationToken cancellationToken)
-    {
-        var result = preSignedUrlsService.GeneratePreSignedDownloadUrl(
-            payload: new PreSignedUrlsService.DownloadPayload
-            {
-                FileExternalId = key.FileExternalId,
-                PreSignedBy = new PreSignedUrlsService.PreSignedUrlOwner
-                {
-                    Identity = userIdentity.Identity,
-                    IdentityType = userIdentity.IdentityType
-                },
-                ContentDisposition = contentDisposition,
-                ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
-                BoxLinkId = boxLinkId,
-                WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
-            });
-
-        return ValueTask.FromResult(result);
-    }
-
+    
     public Task AbortMultiPartUpload(
         string bucketName,
         S3FileKey key,
@@ -442,6 +369,7 @@ public class HardDriveStorageClient(
             FileEncryptionMetadata = fileEncryptionMetadata,
 
             PreSignedUploadLink = null,
+            PreSignedUploadLinkRequiredHeaders = [],
             S3UploadId = string.Empty,
             WasMultiPartUploadInitiated = false,
         };

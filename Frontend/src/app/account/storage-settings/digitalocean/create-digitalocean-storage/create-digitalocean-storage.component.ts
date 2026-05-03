@@ -1,22 +1,16 @@
-import { Component, ViewEncapsulation, signal, computed } from '@angular/core';
-import { MatDialogRef } from '@angular/material/dialog';
+import { Component, ViewEncapsulation, signal } from '@angular/core';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import {MatInputModule} from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { AppStorageEncryptionType, StoragesApi } from '../../../../services/storages.api';
-import { AppStorage } from '../../../../shared/storage-item/storage-item.component';
 import { RegionInputComponent } from '../../../../shared/region-input/region-input.component';
 import { SecureInputDirective } from '../../../../shared/secure-input.directive';
 import { DigitalOceanRegions } from '../../../../services/digitalocean-regions';
-import { MatRadioModule } from '@angular/material/radio';
 import { Router } from '@angular/router';
 import { DataStore } from '../../../../services/data-store.service';
 import { RecoveryCodeDialogService } from '../../../../shared/recovery-code-display/recovery-code-dialog.service';
-import { AuthService } from '../../../../services/auth.service';
-import { MatDialog } from '@angular/material/dialog';
-import { SetupEncryptionPasswordComponent } from '../../../../shared/setup-encryption-password/setup-encryption-password.component';
-import { firstValueFrom } from 'rxjs';
+import { EncryptionTypeSelectorComponent } from '../../../../shared/encryption-type-selector/encryption-type-selector.component';
 
 @Component({
     selector: 'app-create-digitalocean-storage',
@@ -28,7 +22,7 @@ import { firstValueFrom } from 'rxjs';
         MatButtonModule,
         RegionInputComponent,
         SecureInputDirective,
-        MatRadioModule
+        EncryptionTypeSelectorComponent
     ],
     templateUrl: './create-digitalocean-storage.component.html',
     styleUrl: './create-digitalocean-storage.component.scss',
@@ -40,11 +34,7 @@ export class CreateDigitalOceanStorageComponent{
 
     digitaloceanRegions = DigitalOceanRegions.Spaces();
 
-    selectedEncryption = signal<string>('none');
-    needsEncryptionSetup = computed(() =>
-        this.selectedEncryption() === 'full' && !this.auth.isEncryptionConfigured());
-
-    encryption = new FormControl('none', Validators.required);
+    encryption = new FormControl<AppStorageEncryptionType>('none', Validators.required);
     name = new FormControl('', [Validators.required]);
     accessKey = new FormControl('', [Validators.required]);
     secretKey = new FormControl('', [Validators.required]);
@@ -57,9 +47,7 @@ export class CreateDigitalOceanStorageComponent{
         private _dataStore: DataStore,
         private _storagesApi: StoragesApi,
         private _router: Router,
-        private _recoveryCodeDialog: RecoveryCodeDialogService,
-        private _dialog: MatDialog,
-        public auth: AuthService) {
+        private _recoveryCodeDialog: RecoveryCodeDialogService) {
 
         this.formGroup = new FormGroup({
             name: this.name,
@@ -68,9 +56,6 @@ export class CreateDigitalOceanStorageComponent{
             region: this.region,
             encryption: this.encryption
         });
-
-        this.encryption.valueChanges.subscribe(value =>
-            this.selectedEncryption.set(value ?? 'none'));
     }
 
     async onCreateStorage() {
@@ -82,14 +67,12 @@ export class CreateDigitalOceanStorageComponent{
         try {
             this.isLoading.set(true);
 
-            const encryptionType = this.encryption.value! as AppStorageEncryptionType;
-
             const response = await this._storagesApi.createDigitalOceanSpacesStorage({
                 name: this.name.value!,
                 accessKey: this.accessKey.value!,
                 secretKey: this.secretKey.value!,
                 region: this.region.value!,
-                encryptionType: encryptionType
+                encryptionType: this.encryption.value!
             });
 
             this._dataStore.clearDashboardData();
@@ -121,15 +104,6 @@ export class CreateDigitalOceanStorageComponent{
         } finally {
             this.isLoading.set(false);
         }
-    }
-    
-    async openSetupEncryptionPassword() {
-        const ref = this._dialog.open(SetupEncryptionPasswordComponent, {
-            width: '500px',
-            position: { top: '100px' },
-            disableClose: true
-        });
-        await firstValueFrom(ref.afterClosed());
     }
 
     goToStorages() {

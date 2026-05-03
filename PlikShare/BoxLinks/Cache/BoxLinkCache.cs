@@ -4,6 +4,7 @@ using PlikShare.Boxes.Permissions;
 using PlikShare.BoxLinks.Id;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
+using System.ComponentModel;
 
 namespace PlikShare.BoxLinks.Cache;
 
@@ -267,6 +268,7 @@ public class BoxLinkCache(
             new("bl_access_code = $accessCode", "$accessCode", accessCode);
     }
 
+    [ImmutableObject(true)]
     public sealed record BoxLinkCached(
         int Id,
         BoxLinkExtId ExternalId,

@@ -1,16 +1,10 @@
-using PlikShare.Core.Clock;
 using PlikShare.Core.Configuration;
-using PlikShare.Core.Encryption;
-using PlikShare.Files.PreSignedLinks;
 using PlikShare.Storages.Entities;
 
 namespace PlikShare.Storages.S3.BackblazeB2;
 
 public class BackblazeB2StorageClientFactory(
-    IMasterDataEncryption masterDataEncryption,
-    IConfig config,
-    IClock clock,
-    PreSignedUrlsService preSignedUrlsService) : IStorageClientFactory<BackblazeB2DetailsEntity>
+    IConfig config) : IStorageClientFactory<BackblazeB2DetailsEntity>
 {
     public async Task<StorageClientFactoryResult> Prepare(
         BackblazeB2DetailsEntity input,
@@ -38,9 +32,6 @@ public class BackblazeB2StorageClientFactory(
             Code: StorageOperationResultCode.Ok,
             Details: StoragePreparationDetails.Prepare(
                 config: config,
-                masterDataEncryption: masterDataEncryption,
-                clock: clock,
-                preSignedUrlsService: preSignedUrlsService,
                 client: client,
                 input: input,
                 storageType: StorageType.BackblazeB2,

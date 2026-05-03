@@ -6,6 +6,7 @@ using PlikShare.Core.SQLite;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Cache;
+using System.ComponentModel;
 
 namespace PlikShare.Boxes.Cache;
 
@@ -223,6 +224,7 @@ public class BoxMembershipCache(
         return result.IsEmpty ? null : result.Value;
     }
 
+    [ImmutableObject(true)]
     public sealed record BoxMembershipCached(
         bool WasInvitationAccepted,
         int InviterId,

@@ -1,5 +1,6 @@
 using Flurl.Http;
 using PlikShare.Files.PreSignedLinks.Contracts;
+using PlikShare.Storages;
 using PlikShare.Uploads.Id;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -47,12 +48,21 @@ public class PreSignedFilesApi(IFlurlClient flurlClient)
         string preSignedUrl,
         byte[] content,
         string contentType,
-        SessionAuthCookie? cookie)
+        SessionAuthCookie? cookie,
+        IReadOnlyList<RequiredHeader>? requiredHeaders = null)
     {
         var request = flurlClient
             .Request(preSignedUrl)
             .AllowAnyHttpStatus()
             .WithCookie(cookie);
+
+        if (requiredHeaders is not null)
+        {
+            foreach (var header in requiredHeaders)
+            {
+                request = request.WithHeader(header.Name, header.Value);
+            }
+        }
 
         var byteContent = new ByteArrayContent(content);
         byteContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);

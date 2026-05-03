@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
+using PlikShare.Storages.Entities;
 using PlikShare.Storages.Id;
 using Serilog;
 
@@ -38,7 +39,7 @@ public class UpdateStorageNameQuery(DbWriteQueue dbWriteQueue)
                          """,
                     readRowFunc: reader => new {
                         Id = reader.GetInt32(0),
-                        Type = reader.GetString(1)
+                        Type = reader.GetEnum<StorageType>(1)
                     })
                 .WithParameter("$name", name)
                 .WithParameter("$externalId", externalId.Value)
@@ -74,7 +75,7 @@ public class UpdateStorageNameQuery(DbWriteQueue dbWriteQueue)
     public readonly record struct Result(
         ResultCode Code,
         int StorageId = 0,
-        string? Type = null);
+        StorageType? Type = null);
     
     public enum ResultCode
     {

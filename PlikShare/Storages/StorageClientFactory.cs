@@ -4,6 +4,7 @@ using PlikShare.Core.Clock;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Storages.Encryption;
+using PlikShare.Storages.Entities;
 using PlikShare.Storages.Id;
 using PlikShare.Storages.S3;
 using PlikShare.Core.Configuration;
@@ -28,7 +29,7 @@ public record StorageClientFactoryResult(
 
 public class StoragePreparationDetails
 {
-    public required string StorageType { get; init; }
+    public required StorageType StorageType { get; init; }
     public required string DetailsJson { get; init; }
     public required Func<StorageClientDetails, IStorageClient> StorageClientFactory { get; init; }
 }
@@ -53,13 +54,10 @@ public static class StoragePreparationDetailsExtensions
     extension(StoragePreparationDetails)
     {
         public static StoragePreparationDetails Prepare<TInput>(
-            IMasterDataEncryption masterDataEncryption,
             IConfig config,
-            IClock clock,
-            PreSignedUrlsService preSignedUrlsService,
             IAmazonS3 client,
             TInput input,
-            string storageType,
+            StorageType storageType,
             LifecycleRule[] lifecycleRules)
         {
             return new StoragePreparationDetails
@@ -68,13 +66,10 @@ public static class StoragePreparationDetailsExtensions
                 DetailsJson = Json.Serialize(input),
                 StorageClientFactory = clientDetails => new S3StorageClient(
                     appUrl: config.AppUrl,
-                    masterDataEncryption: masterDataEncryption,
-                    clock: clock,
                     s3Client: client,
                     storageId: clientDetails.StorageId,
                     externalId: clientDetails.ExternalId,
                     name: clientDetails.Name,
-                    preSignedUrlsService: preSignedUrlsService,
                     encryption: clientDetails.Encryption,
                     lifecycleRules: lifecycleRules)
             };

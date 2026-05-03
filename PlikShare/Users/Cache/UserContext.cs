@@ -1,9 +1,11 @@
 using PlikShare.Core.Encryption;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
+using System.ComponentModel;
 
 namespace PlikShare.Users.Cache;
 
+[ImmutableObject(true)]
 public sealed class UserContext
 {
     public required UserStatus Status { get; init; }

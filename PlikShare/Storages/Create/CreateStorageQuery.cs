@@ -3,6 +3,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Storages.Encryption;
+using PlikShare.Storages.Entities;
 using PlikShare.Storages.Id;
 using Serilog;
 
@@ -15,7 +16,7 @@ public class CreateStorageQuery(
 {
     public async Task<Result> Execute(
         string name,
-        string storageType,
+        StorageType storageType,
         string detailsJson,
         StorageEncryption encryption,
         OwnerEncryptionKeyData[] ownerKeyDataList,
@@ -39,7 +40,7 @@ public class CreateStorageQuery(
     private Result ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         string name,
-        string storageType,
+        StorageType storageType,
         string detailsJson,
         StorageEncryption encryption,
         OwnerEncryptionKeyData[] ownerKeyDataList,
@@ -74,7 +75,7 @@ public class CreateStorageQuery(
                     readRowFunc: reader => reader.GetInt32(0),
                     transaction: transaction)
                 .WithParameter("$externalId", storageExternalId.Value)
-                .WithParameter("$type", storageType)
+                .WithEnumParameter("$type", storageType)
                 .WithParameter("$name", name)
                 .WithParameter("$details", derivedEncryption.Encrypt(detailsJson))
                 .WithParameter("$encryptionType", encryption.Type.ToDbValue())

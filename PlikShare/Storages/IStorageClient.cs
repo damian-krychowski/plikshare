@@ -1,5 +1,4 @@
 using System.IO.Pipelines;
-using Amazon.S3.Model;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
@@ -10,7 +9,6 @@ using PlikShare.Storages.Encryption;
 using PlikShare.Storages.FileReading;
 using PlikShare.Storages.Id;
 using PlikShare.Uploads.Algorithm;
-using PlikShare.Uploads.Id;
 
 namespace PlikShare.Storages;
 
@@ -57,34 +55,9 @@ public interface IStorageClient
         string bucketName,
         S3FileKey key,
         string uploadId,
-        List<PartETag> partETags,
+        List<UploadedFilePart> partETags,
         CancellationToken cancellationToken);
     
-    ValueTask<PreSignedUploadLinkResult> GetPreSignedUploadFilePartLink(
-        string bucketName,
-        FileUploadExtId fileUploadExternalId,
-        S3FileKey key,
-        string uploadId,
-        int partNumber,
-        string contentType,
-        int? boxLinkId,
-        IUserIdentity userIdentity,
-        bool enforceInternalPassThrough,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
-        CancellationToken cancellationToken);
-
-    ValueTask<string> GetPreSignedDownloadFileLink(
-        string bucketName,
-        S3FileKey key,
-        string contentType,
-        string fileName,
-        ContentDispositionType contentDisposition,
-        int? boxLinkId,
-        IUserIdentity userIdentity,
-        bool enforceInternalPassThrough,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
-        CancellationToken cancellationToken);
-
     Task AbortMultiPartUpload(
         string bucketName,
         S3FileKey key,
@@ -135,3 +108,5 @@ public record DownloadFileRangeDetails(
     S3FileKey S3FileKey,
     long FileSizeInBytes,
     FileEncryptionMode EncryptionMode);
+
+public record UploadedFilePart(int PartNumber, string ETag);

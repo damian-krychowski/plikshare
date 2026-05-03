@@ -1,18 +1,14 @@
-import { Component, OnInit, ViewEncapsulation, computed, signal } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation, signal } from '@angular/core';
 import { AbstractControl, FormControl, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { AppStorageEncryptionType, HardDriveVolumeItem, StoragesApi } from '../../../../services/storages.api';
 import { MatSelectModule } from '@angular/material/select';
-import {MatRadioModule} from '@angular/material/radio';
 import { Router } from '@angular/router';
 import { DataStore } from '../../../../services/data-store.service';
 import { RecoveryCodeDialogService } from '../../../../shared/recovery-code-display/recovery-code-dialog.service';
-import { AuthService } from '../../../../services/auth.service';
-import { MatDialog } from '@angular/material/dialog';
-import { SetupEncryptionPasswordComponent } from '../../../../shared/setup-encryption-password/setup-encryption-password.component';
-import { firstValueFrom } from 'rxjs';
+import { EncryptionTypeSelectorComponent } from '../../../../shared/encryption-type-selector/encryption-type-selector.component';
 
 @Component({
     selector: 'app-create-hard-drive-storage',
@@ -23,7 +19,7 @@ import { firstValueFrom } from 'rxjs';
         MatSelectModule,
         ReactiveFormsModule,
         MatButtonModule,
-        MatRadioModule
+        EncryptionTypeSelectorComponent
     ],
     templateUrl: './create-hard-drive-storage.component.html',
     styleUrl: './create-hard-drive-storage.component.scss',
@@ -33,11 +29,7 @@ export class CreateHardDriveStorageComponent implements OnInit {
     isLoading = signal(true);
     couldNotConnect = signal(false);
 
-    selectedEncryption = signal<string>('none');
-    needsEncryptionSetup = computed(() =>
-        this.selectedEncryption() === 'full' && !this.auth.isEncryptionConfigured());
-
-    encryption = new FormControl('none', Validators.required);
+    encryption = new FormControl<AppStorageEncryptionType>('none', Validators.required);
     name = new FormControl('', [Validators.required]);
     volume = new FormControl(null, [Validators.required]);
     storagePath = new FormControl('', [
@@ -55,9 +47,7 @@ export class CreateHardDriveStorageComponent implements OnInit {
         private _dataStore: DataStore,
         private _storagesApi: StoragesApi,
         private _router: Router,
-        private _recoveryCodeDialog: RecoveryCodeDialogService,
-        private _dialog: MatDialog,
-        public auth: AuthService) {
+        private _recoveryCodeDialog: RecoveryCodeDialogService) {
 
         this.formGroup = new FormGroup({
             name: this.name,
@@ -65,9 +55,6 @@ export class CreateHardDriveStorageComponent implements OnInit {
             storagePath: this.storagePath,
             encryption: this.encryption
         });
-
-        this.encryption.valueChanges.subscribe(value =>
-            this.selectedEncryption.set(value ?? 'none'));
     }
 
     async ngOnInit(): Promise<void> {
@@ -96,15 +83,11 @@ export class CreateHardDriveStorageComponent implements OnInit {
         try {
             this.isLoading.set(true);
 
-            const volumePath = this.volume.value!;
-            const folderPath = this.storagePath.value!
-            const encryptionType = this.encryption.value! as AppStorageEncryptionType;
-
             const response = await this._storagesApi.createHardDriveStorage({
                 name: this.name.value!,
-                volumePath: volumePath,
-                folderPath: folderPath,
-                encryptionType: encryptionType
+                volumePath: this.volume.value!,
+                folderPath: this.storagePath.value!,
+                encryptionType: this.encryption.value!
             });
 
             this._dataStore.clearDashboardData();
@@ -180,16 +163,6 @@ export class CreateHardDriveStorageComponent implements OnInit {
 
     onVolumeChange(){
         this.storagePath.setValue(null);
-    }
-
-    async openSetupEncryptionPassword() {
-        const ref = this._dialog.open(SetupEncryptionPasswordComponent, {
-            width: '500px',
-            position: { top: '100px' },
-            disableClose: true
-        });
-
-        await firstValueFrom(ref.afterClosed());
     }
 
     goToStorages() {

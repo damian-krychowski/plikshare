@@ -7,7 +7,6 @@ using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Storages;
 using PlikShare.Storages.HardDrive.StorageClient;
-using PlikShare.Storages.S3;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.Id;
@@ -198,7 +197,8 @@ public class BulkInitiateFileUploadOperation(
                 singleChunkUploads.Add(new BulkInitiateSingleChunkUploadResponseDto
                 {
                     FileUploadExternalId = upload.FileUploadExternalId,
-                    PreSignedUploadLink = upload.StorageUploadDetails.PreSignedUploadLink!
+                    PreSignedUploadLink = upload.StorageUploadDetails.PreSignedUploadLink!,
+                    PreSignedUploadLinkRequiredHeaders = upload.StorageUploadDetails.PreSignedUploadLinkRequiredHeaders
                 });
             }
             else
@@ -253,8 +253,8 @@ public class BulkInitiateFileUploadOperation(
                 workspaceEncryption: workspace.EncryptionMetadata,
                 workspaceEncryptionSession: workspaceEncryptionSession),
 
-            S3StorageClient s3StorageClient => await HandleMultipleS3Uploads(
-                s3StorageClient: s3StorageClient,
+            IObjectStorageClient objectStorageClient => await HandleMultipleObjectStoreUploads(
+                objectStorageClient: objectStorageClient,
                 workspace: workspace,
                 fileDetailsList: fileDetailsList,
                 workspaceEncryptionSession: workspaceEncryptionSession,
@@ -301,8 +301,8 @@ public class BulkInitiateFileUploadOperation(
             .ToList();
     }
 
-    private async ValueTask<List<UploadDetails>> HandleMultipleS3Uploads(
-        S3StorageClient s3StorageClient,
+    private async ValueTask<List<UploadDetails>> HandleMultipleObjectStoreUploads(
+        IObjectStorageClient objectStorageClient,
         WorkspaceContext workspace,
         BulkInitiateFileUploadItemDto[] fileDetailsList,
         WorkspaceEncryptionSession? workspaceEncryptionSession,
@@ -315,9 +315,9 @@ public class BulkInitiateFileUploadOperation(
         {
             var fileDetails = fileDetailsList[i];
 
-            var fileEncryptionMetadata = s3StorageClient.GenerateFileEncryptionMetadata(workspace.EncryptionMetadata);
+            var fileEncryptionMetadata = objectStorageClient.GenerateFileEncryptionMetadata(workspace.EncryptionMetadata);
 
-            var (algorithm, filePartsCount) = s3StorageClient.ResolveUploadAlgorithm(
+            var (algorithm, filePartsCount) = objectStorageClient.ResolveUploadAlgorithm(
                 fileSizeInBytes: fileDetails.FileSizeInBytes,
                 ikmChainStepsCount: fileEncryptionMetadata?.ChainStepSalts.Count ?? 0);
 
@@ -345,6 +345,7 @@ public class BulkInitiateFileUploadOperation(
                         FileEncryptionMetadata = fileEncryptionMetadata,
 
                         PreSignedUploadLink = null,
+                        PreSignedUploadLinkRequiredHeaders = [],
                         S3UploadId = string.Empty,
                         WasMultiPartUploadInitiated = false
                     }
@@ -365,28 +366,32 @@ public class BulkInitiateFileUploadOperation(
                 var tasks = batch.Select(async fileDetails =>
                 {
                     var s3Key = S3FileKey.NewKey();
-                    var fileEncryptionMetadata = s3StorageClient.GenerateFileEncryptionMetadata(
+                    var fileEncryptionMetadata = objectStorageClient.GenerateFileEncryptionMetadata(
                         workspace.EncryptionMetadata);
 
-                    var (algorithm, filePartsCount) = s3StorageClient.ResolveUploadAlgorithm(
+                    var (algorithm, filePartsCount) = objectStorageClient.ResolveUploadAlgorithm(
                         fileSizeInBytes: fileDetails.FileSizeInBytes,
                         ikmChainStepsCount: fileEncryptionMetadata?.ChainStepSalts.Count ?? 0);
 
                     string? preSignedUploadLink = null;
+                    List<RequiredHeader> preSignedUploadLinkRequiredHeaders = [];
                     var s3UploadId = string.Empty;
                     var wasMultiPartUploadInitiated = false;
 
                     if (algorithm == UploadAlgorithm.SingleChunkUpload)
                     {
-                        preSignedUploadLink = await s3StorageClient.GetPreSignedUploadFullFileLink(
+                        var link = await objectStorageClient.GetPreSignedUploadFullFileLink(
                             bucketName: workspace.BucketName,
                             key: s3Key,
                             contentType: fileDetails.FileContentType,
-                            cancellationToken: cancellationToken);
+                            expiresAt: clock.UtcNow.AddMinutes(15));
+
+                        preSignedUploadLink = link.Url;
+                        preSignedUploadLinkRequiredHeaders = link.RequiredHeaders;
                     }
                     else if (algorithm == UploadAlgorithm.MultiStepChunkUpload)
                     {
-                        var initiatedUpload = await s3StorageClient.InitiateMultiPartUpload(
+                        var initiatedUpload = await objectStorageClient.InitiateMultiPartUpload(
                             bucketName: workspace.BucketName,
                             key: s3Key,
                             cancellationToken: cancellationToken);
@@ -423,6 +428,7 @@ public class BulkInitiateFileUploadOperation(
                             FileEncryptionMetadata = fileEncryptionMetadata,
 
                             PreSignedUploadLink = preSignedUploadLink,
+                            PreSignedUploadLinkRequiredHeaders = preSignedUploadLinkRequiredHeaders,
                             S3UploadId = s3UploadId,
                             WasMultiPartUploadInitiated = wasMultiPartUploadInitiated
                         }

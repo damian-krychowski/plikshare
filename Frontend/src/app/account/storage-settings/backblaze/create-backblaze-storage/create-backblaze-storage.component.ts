@@ -1,18 +1,14 @@
-import { Component, ViewEncapsulation, signal, computed } from '@angular/core';
+import { Component, ViewEncapsulation, signal } from '@angular/core';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { AppStorageEncryptionType, StoragesApi } from '../../../../services/storages.api';
 import { SecureInputDirective } from '../../../../shared/secure-input.directive';
-import { MatRadioModule } from '@angular/material/radio';
 import { Router } from '@angular/router';
 import { DataStore } from '../../../../services/data-store.service';
 import { RecoveryCodeDialogService } from '../../../../shared/recovery-code-display/recovery-code-dialog.service';
-import { AuthService } from '../../../../services/auth.service';
-import { MatDialog } from '@angular/material/dialog';
-import { SetupEncryptionPasswordComponent } from '../../../../shared/setup-encryption-password/setup-encryption-password.component';
-import { firstValueFrom } from 'rxjs';
+import { EncryptionTypeSelectorComponent } from '../../../../shared/encryption-type-selector/encryption-type-selector.component';
 
 @Component({
     selector: 'app-create-backblaze-storage',
@@ -23,7 +19,7 @@ import { firstValueFrom } from 'rxjs';
         ReactiveFormsModule,
         MatButtonModule,
         SecureInputDirective,
-        MatRadioModule
+        EncryptionTypeSelectorComponent
     ],
     templateUrl: './create-backblaze-storage.component.html',
     styleUrl: './create-backblaze-storage.component.scss',
@@ -33,11 +29,7 @@ export class CreateBackblazeStorageComponent {
     isLoading = signal(false);
     couldNotConnect = signal(false);
 
-    selectedEncryption = signal<string>('none');
-    needsEncryptionSetup = computed(() =>
-        this.selectedEncryption() === 'full' && !this.auth.isEncryptionConfigured());
-
-    encryption = new FormControl('none', Validators.required);
+    encryption = new FormControl<AppStorageEncryptionType>('none', Validators.required);
     name = new FormControl('', [Validators.required]);
     keyId = new FormControl('', [Validators.required]);
     applicationKey = new FormControl('', [Validators.required]);
@@ -49,9 +41,7 @@ export class CreateBackblazeStorageComponent {
         private _dataStore: DataStore,
         private _storagesApi: StoragesApi,
         private _router: Router,
-        private _recoveryCodeDialog: RecoveryCodeDialogService,
-        private _dialog: MatDialog,
-        public auth: AuthService) {
+        private _recoveryCodeDialog: RecoveryCodeDialogService) {
 
         this.formGroup = new FormGroup({
             name: this.name,
@@ -60,9 +50,6 @@ export class CreateBackblazeStorageComponent {
             endpointUrl: this.endpointUrl,
             encryption: this.encryption
         });
-
-        this.encryption.valueChanges.subscribe(value =>
-            this.selectedEncryption.set(value ?? 'none'));
     }
 
     async onCreateStorage() {
@@ -74,14 +61,12 @@ export class CreateBackblazeStorageComponent {
         try {
             this.isLoading.set(true);
 
-            const encryptionType = this.encryption.value! as AppStorageEncryptionType;
-
             const response = await this._storagesApi.createBackblazeB2Storage({
                 name: this.name.value!,
                 keyId: this.keyId.value!,
                 applicationKey: this.applicationKey.value!,
                 url: this.endpointUrl.value!,
-                encryptionType: encryptionType
+                encryptionType: this.encryption.value!
             });
 
             this._dataStore.clearDashboardData();
@@ -117,15 +102,6 @@ export class CreateBackblazeStorageComponent {
         } finally {
             this.isLoading.set(false);
         }
-    }
-
-    async openSetupEncryptionPassword() {
-        const ref = this._dialog.open(SetupEncryptionPasswordComponent, {
-            width: '500px',
-            position: { top: '100px' },
-            disableClose: true
-        });
-        await firstValueFrom(ref.afterClosed());
     }
 
     goToStorages() {

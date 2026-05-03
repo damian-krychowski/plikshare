@@ -21,7 +21,9 @@ using PlikShare.Integrations.Aws.Textract.Jobs;
 using PlikShare.Integrations.Aws.Textract.TestConfiguration.Contracts;
 using PlikShare.Integrations.Id;
 using PlikShare.Storages;
+using PlikShare.Storages.AzureBlob;
 using PlikShare.Storages.Encryption;
+using PlikShare.Storages.Entities;
 using PlikShare.Storages.Id;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Id;
@@ -102,6 +104,8 @@ public static class JsonConverters
 
         //I prefer to have enum as kebab-case rather than camelCase because they look better when displayed directly on the frontend
         options.Converters.Add(new JsonStringEnumConverter<StorageEncryptionType>(JsonNamingPolicy.KebabCaseLower));
+        options.Converters.Add(new JsonStringEnumConverter<StorageType>(JsonNamingPolicy.KebabCaseLower));
+        options.Converters.Add(new JsonStringEnumConverter<AzureBlobAuthType>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<ContentDispositionType>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<IntegrationType>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<UploadAlgorithm>(JsonNamingPolicy.KebabCaseLower));

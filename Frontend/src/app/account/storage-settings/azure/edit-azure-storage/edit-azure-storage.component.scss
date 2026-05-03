@@ -1,0 +1,10 @@
+@forward "./../../../../../styles/questionaire.scss";
+@forward "./../../../../../styles/mobile-display.scss";
+
+.email-picker {
+    padding: 2rem;
+}
+
+.mat-mdc-form-field-error-wrapper {
+    padding: 0 !important;
+}

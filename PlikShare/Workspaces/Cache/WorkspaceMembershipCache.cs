@@ -5,6 +5,7 @@ using PlikShare.Users.Cache;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Id;
 using PlikShare.Workspaces.Permissions;
+using System.ComponentModel;
 
 namespace PlikShare.Workspaces.Cache;
 
@@ -230,6 +231,7 @@ public class WorkspaceMembershipCache(
         return result.IsEmpty ? null : result.Value;
     }
 
+    [ImmutableObject(true)]
     public sealed record WorkspaceMembershipCached(
         int InviterId,
         bool WasInvitationAccepted,

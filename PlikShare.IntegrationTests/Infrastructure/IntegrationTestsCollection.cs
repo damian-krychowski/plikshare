@@ -1,11 +1,11 @@
-using PlikShare.IntegrationTests.Infrastructure.S3;
+using PlikShare.IntegrationTests.Infrastructure.Storage;
 
 namespace PlikShare.IntegrationTests.Infrastructure;
 
 [CollectionDefinition(Name)]
 public class IntegrationTestsCollection :
     ICollectionFixture<HostFixture8081>,
-    ICollectionFixture<S3LiveStoragesFixture>
+    ICollectionFixture<LiveStoragesFixture>
 {
     public const string Name = "IntegrationTests";
 }

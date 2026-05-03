@@ -8,6 +8,7 @@ using PlikShare.Storages;
 using PlikShare.Storages.Encryption;
 using PlikShare.Users.Cache;
 using PlikShare.Workspaces.Id;
+using System.ComponentModel;
 
 namespace PlikShare.Workspaces.Cache;
 
@@ -292,6 +293,7 @@ public class WorkspaceCache(
             new("w_external_id = $workspaceExternalId", "$workspaceExternalId", extId.Value);
     }
 
+    [ImmutableObject(true)]
     public sealed class WorkspaceCached
     {
         public required int Id { get; init; }

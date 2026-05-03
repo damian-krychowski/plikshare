@@ -1,10 +1,11 @@
 namespace PlikShare.Storages.Entities;
 
-public class StorageType
+public enum StorageType
 {
-    public const string CloudflareR2 = "cloudflare-r2";
-    public const string AwsS3 = "aws-s3";
-    public const string DigitalOceanSpaces = "digitalocean-spaces";
-    public const string HardDrive = "hard-drive";
-    public const string BackblazeB2 = "backblaze-b2";
+    HardDrive,
+    AwsS3,
+    CloudflareR2,
+    DigitalOceanSpaces,
+    BackblazeB2,
+    AzureBlob
 }

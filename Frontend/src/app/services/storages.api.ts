@@ -83,16 +83,19 @@ export interface GetStoragesResponse {
     items: GetStorageItem[];
 }
 
-export type AppStorageType = 'hard-drive' | 'cloudflare-r2' | 'aws-s3' | 'digitalocean-spaces' | 'backblaze-b2';
+export type AppStorageType = 'hard-drive' | 'cloudflare-r2' | 'aws-s3' | 'digital-ocean-spaces' | 'backblaze-b2' | 'azure-blob';
 
 export type AppStorageEncryptionType = 'none' | 'managed' | 'full';
 
-export type GetStorageItem = 
-    GetHardDriveStorageItem 
-    | GetCloudflareR2StorageItem 
-    | GetAwsS3StorageItem 
+export type AzureBlobAuthType = 'shared-key' | 'sas';
+
+export type GetStorageItem =
+    GetHardDriveStorageItem
+    | GetCloudflareR2StorageItem
+    | GetAwsS3StorageItem
     | GetDigitalOceanSpacesStorageItem
-    | GetBackblazeB2StorageItem;
+    | GetBackblazeB2StorageItem
+    | GetAzureBlobStorageItem;
 
 export type GetHardDriveStorageItem = {
     $type: "hard-drive",
@@ -129,7 +132,7 @@ export type GetAwsS3StorageItem = {
 }
 
 export type GetDigitalOceanSpacesStorageItem = {
-    $type: "digitalocean-spaces",
+    $type: "digital-ocean-spaces",
     externalId: string;
     name: string;
     workspacesCount: number;
@@ -148,6 +151,18 @@ export type GetBackblazeB2StorageItem = {
 
     keyId: string;
     url: string;
+}
+
+export type GetAzureBlobStorageItem = {
+    $type: "azure-blob",
+    externalId: string;
+    name: string;
+    workspacesCount: number;
+    encryptionType: AppStorageEncryptionType;
+
+    authType: AzureBlobAuthType;
+    serviceUrl: string;
+    accountName: string | null;
 }
 
 export interface GetHardDriveVolumesRespone {
@@ -178,6 +193,29 @@ export interface UpdateBackblazeB2StorageDetailsRequest {
     keyId: string;
     applicationKey: string;
     url: string;
+}
+
+export interface CreateAzureBlobStorageRequest {
+    name: string;
+    authType: AzureBlobAuthType;
+    serviceUrl: string;
+    accountName?: string;
+    accountKey?: string;
+    sasToken?: string;
+    encryptionType: AppStorageEncryptionType;
+}
+
+export interface CreateAzureBlobStorageResponse {
+    externalId: string;
+    recoveryCode?: string;
+}
+
+export interface UpdateAzureBlobStorageDetailsRequest {
+    authType: AzureBlobAuthType;
+    serviceUrl: string;
+    accountName?: string;
+    accountKey?: string;
+    sasToken?: string;
 }
 
 @Injectable({
@@ -244,7 +282,7 @@ export class StoragesApi {
         const call = this
             ._http
             .post<CreateDigitalOceanSpacesStorageResponse>(
-                `/api/storages/digitalocean-spaces`, request, {
+                `/api/storages/digital-ocean-spaces`, request, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
                 })
@@ -257,7 +295,7 @@ export class StoragesApi {
         const call = this
             ._http
             .patch(
-                `/api/storages/digitalocean-spaces/${externalId}/details`, request, {
+                `/api/storages/digital-ocean-spaces/${externalId}/details`, request, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
                 })
@@ -350,6 +388,32 @@ export class StoragesApi {
             ._http
             .patch(
                 `/api/storages/backblaze-b2/${externalId}/details`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async createAzureBlobStorage(request: CreateAzureBlobStorageRequest): Promise<CreateAzureBlobStorageResponse> {
+        const call = this
+            ._http
+            .post<CreateAzureBlobStorageResponse>(
+                `/api/storages/azure-blob`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        return await firstValueFrom(call);
+    }
+
+    public async updateAzureBlobStorageDetails(externalId: string, request: UpdateAzureBlobStorageDetailsRequest): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/storages/azure-blob/${externalId}/details`, request, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
                 })

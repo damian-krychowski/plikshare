@@ -10,7 +10,6 @@ using PlikShare.Storages;
 using PlikShare.Storages.FileCopying;
 using PlikShare.Storages.FileCopying.BulkInitiateCopyFiles;
 using PlikShare.Storages.FileCopying.CopyFile;
-using PlikShare.Storages.S3;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Id;
 using PlikShare.Workspaces.Cache;
@@ -42,12 +41,12 @@ public class BulkInitiateCopyFileUploadOperation(
             storageClient: destinationWorkspace.Storage,
             workspaceEncryption: destinationWorkspace.EncryptionMetadata);
 
-        if (destinationWorkspace.Storage is S3StorageClient s3StorageClient)
+        if (destinationWorkspace.Storage is IObjectStorageClient objectStorageClient)
         {
-            await InitiateS3MultiPartFileUploadWhereNeeded(
-                s3StorageClient: s3StorageClient,
+            await InitiateMultiPartFileUploadWhereNeeded(
+                objectStorageClient: objectStorageClient,
                 bucketName: destinationWorkspace.BucketName,
-                filesToCopy: filesToCopy, 
+                filesToCopy: filesToCopy,
                 cancellationToken: cancellationToken);
         }
 
@@ -60,8 +59,8 @@ public class BulkInitiateCopyFileUploadOperation(
         return new Result(Code: ResultCode.Ok);
     }
 
-    private async Task InitiateS3MultiPartFileUploadWhereNeeded(
-        S3StorageClient s3StorageClient,
+    private async Task InitiateMultiPartFileUploadWhereNeeded(
+        IObjectStorageClient objectStorageClient,
         string bucketName,
         List<FileToCopy> filesToCopy,
         CancellationToken cancellationToken)
@@ -75,7 +74,7 @@ public class BulkInitiateCopyFileUploadOperation(
         {
             var tasks = batch.Select(async fileToCopy =>
             {
-                var initiatedUpload = await s3StorageClient.InitiateMultiPartUpload(
+                var initiatedUpload = await objectStorageClient.InitiateMultiPartUpload(
                     bucketName: bucketName,
                     key: new S3FileKey
                     {

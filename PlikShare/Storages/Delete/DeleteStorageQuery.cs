@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
+using PlikShare.Storages.Entities;
 using PlikShare.Storages.Id;
 using Serilog;
 
@@ -35,7 +36,7 @@ public class DeleteStorageQuery(DbWriteQueue dbWriteQueue)
                     readRowFunc: reader => new {
                         Id = reader.GetInt32(0),
                         Name = reader.GetString(1),
-                        Type = reader.GetString(2)
+                        Type = reader.GetEnum<StorageType>(2)
                     })
                 .WithParameter("$externalId", externalId.Value)
                 .Execute();
@@ -76,7 +77,7 @@ public class DeleteStorageQuery(DbWriteQueue dbWriteQueue)
         ResultCode Code,
         int StorageId = 0,
         string? Name = null,
-        string? Type = null);
+        StorageType? Type = null);
     
     public enum ResultCode
     {

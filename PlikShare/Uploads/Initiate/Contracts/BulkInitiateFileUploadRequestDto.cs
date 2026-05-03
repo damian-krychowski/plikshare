@@ -1,4 +1,5 @@
-﻿using ProtoBuf;
+﻿using PlikShare.Storages;
+using ProtoBuf;
 
 namespace PlikShare.Uploads.Initiate.Contracts;
 
@@ -62,6 +63,9 @@ public class BulkInitiateSingleChunkUploadResponseDto
 
     [ProtoMember(2)]
     public required string PreSignedUploadLink { get; init; }
+
+    [ProtoMember(3)]
+    public required List<RequiredHeader> PreSignedUploadLinkRequiredHeaders { get; init; }
 }
 
 [ProtoContract]

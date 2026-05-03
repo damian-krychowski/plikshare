@@ -51,7 +51,7 @@ public static class S3Client
         }
         catch (Exception e)
         {
-            Log.Error(e, "Something went wrong while creating Amazon S3 client '{Region}:{AccessKey}'",
+            Log.Error(e, "[S3:AWS] Something went wrong while creating client '{Region}:{AccessKey}'",
                 region, accessKey);
             
             throw;
@@ -106,7 +106,7 @@ public static class S3Client
                 return new CloudflareResult(Code: CloudflareResultCode.InvalidUrl);
             }
 
-            Log.Error(e, "Something went wrong while creating Cloudflare S3 client '{Url}':'{AccessKeyId}'",
+            Log.Error(e, "[S3:CLOUDFLARE] Something went wrong while creating client '{Url}':'{AccessKeyId}'",
                 url, accessKeyId);
             
             throw;
@@ -160,7 +160,7 @@ public static class S3Client
                 return new DigitalOceanSpacesResult(Code: DigitalOceanSpacesResultCode.InvalidUrl);
             }
 
-            Log.Error(e, "Something went wrong while creating DigitalOcean S3 client '{Url}':'{AccessKeyId}'",
+            Log.Error(e, "[S3:DIGITAL_OCEAN] Something went wrong while creating client '{Url}':'{AccessKeyId}'",
                 url, accessKey);
             
             throw;
@@ -217,7 +217,7 @@ public static class S3Client
                 return new BackblazeResult(Code: BackblazeResultCode.InvalidUrl);
             }
 
-            Log.Error(e, "Something went wrong while creating Backblaze S3 client '{Url}':'{AccessKeyId}'",
+            Log.Error(e, "[S3:BACKBLAZE] Something went wrong while creating client '{Url}':'{AccessKeyId}'",
                 url, keyId);
 
             throw;
@@ -246,7 +246,7 @@ public static class S3Client
         }
         catch (Exception e)
         {
-            Log.Warning(e, "Something went wrong while testing Cloudflare R2 connection");
+            Log.Warning(e, "[S3] Something went wrong while testing connection");
 
             return false;
         }

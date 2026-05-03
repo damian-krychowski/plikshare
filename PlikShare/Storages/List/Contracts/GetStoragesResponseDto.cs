@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using PlikShare.Storages.AzureBlob;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
 
@@ -12,8 +13,9 @@ public class GetStoragesResponseDto
 [JsonDerivedType(derivedType: typeof(GetHardDriveStorageItemResponseDto), typeDiscriminator: "hard-drive")]
 [JsonDerivedType(derivedType: typeof(GetCloudflareR2StorageItemResponseDto), typeDiscriminator: "cloudflare-r2")]
 [JsonDerivedType(derivedType: typeof(GetBackblazeB2StorageItemResponseDto), typeDiscriminator: "backblaze-b2")]
-[JsonDerivedType(derivedType: typeof(GetDigitalOceanSpacesItemResponseDto), typeDiscriminator: "digitalocean-spaces")]
+[JsonDerivedType(derivedType: typeof(GetDigitalOceanSpacesItemResponseDto), typeDiscriminator: "digital-ocean-spaces")]
 [JsonDerivedType(derivedType: typeof(GetAwsS3StorageItemResponseDto), typeDiscriminator: "aws-s3")]
+[JsonDerivedType(derivedType: typeof(GetAzureBlobStorageItemResponseDto), typeDiscriminator: "azure-blob")]
 public abstract class GetStorageItemResponseDto
 {
     public required string Name { get; init; }
@@ -51,4 +53,11 @@ public class GetBackblazeB2StorageItemResponseDto : GetStorageItemResponseDto
 {
     public required string KeyId { get; init; }
     public required string Url { get; init; }
+}
+
+public class GetAzureBlobStorageItemResponseDto : GetStorageItemResponseDto
+{
+    public required AzureBlobAuthType AuthType { get; init; }
+    public required string ServiceUrl { get; init; }
+    public required string? AccountName { get; init; }
 }

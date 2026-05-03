@@ -4,6 +4,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Folders.Id;
 using PlikShare.Workspaces.Cache;
+using System.ComponentModel;
 
 namespace PlikShare.Boxes.Cache;
 
@@ -47,7 +48,7 @@ public class BoxCache(
         CancellationToken cancellationToken)
     {
         // Step 1: resolve ExtId → int Id via pointer
-        var boxId = await cache.GetOrCreateAsync<int?>(
+        var boxId = await cache.GetOrCreateAsync(
             key: BoxExtIdKey(boxExternalId),
             factory: _ => ValueTask.FromResult<int?>(null),
             options: ProbeOptions,
@@ -216,6 +217,7 @@ public class BoxCache(
             new("bo_external_id = $boxExternalId", "$boxExternalId", extId.Value);
     }
 
+    [ImmutableObject(true)]
     public sealed record BoxCached(
         int Id,
         BoxExtId ExternalId,

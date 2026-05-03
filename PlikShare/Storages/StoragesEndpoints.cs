@@ -12,6 +12,9 @@ using PlikShare.Storages.HardDrive.GetVolumes.Contracts;
 using PlikShare.Storages.Id;
 using PlikShare.Storages.List;
 using PlikShare.Storages.List.Contracts;
+using PlikShare.Storages.AzureBlob;
+using PlikShare.Storages.AzureBlob.Create.Contracts;
+using PlikShare.Storages.AzureBlob.UpdateDetails.Contracts;
 using PlikShare.Storages.S3.AwsS3;
 using PlikShare.Storages.S3.AwsS3.Create.Contracts;
 using PlikShare.Storages.S3.AwsS3.UpdateDetails.Contracts;
@@ -72,10 +75,10 @@ public static class StoragesEndpoints
             .WithName("UpdateAwsS3StorageDetails");
 
         // DigitalOcean Spaces
-        group.MapPost("/digitalocean-spaces", CreateDigitalOceanSpacesStorage)
+        group.MapPost("/digital-ocean-spaces", CreateDigitalOceanSpacesStorage)
             .WithName("CreateDigitalOceanSpacesStorage");
 
-        group.MapPatch("/digitalocean-spaces/{storageExternalId}/details", UpdateDigitalOceanStorageDetails)
+        group.MapPatch("/digital-ocean-spaces/{storageExternalId}/details", UpdateDigitalOceanStorageDetails)
             .WithName("UpdateDigitalOceanStorageDetails");
 
         // Hard Drive
@@ -91,6 +94,13 @@ public static class StoragesEndpoints
 
         group.MapPatch("/backblaze-b2/{storageExternalId}/details", UpdateBackblazeB2StorageDetails)
             .WithName("UpdateBackblazeB2StorageDetails");
+
+        // Azure Blob
+        group.MapPost("/azure-blob", CreateAzureBlobStorage)
+            .WithName("CreateAzureBlobStorage");
+
+        group.MapPatch("/azure-blob/{storageExternalId}/details", UpdateAzureBlobStorageDetails)
+            .WithName("UpdateAzureBlobStorageDetails");
     }
 
     // Basic Storage Operations
@@ -129,7 +139,7 @@ public static class StoragesEndpoints
                         {
                             ExternalId = storageExternalId,
                             Name = result.Name!,
-                            Type = result.Type!
+                            Type = result.Type!.Value
                         }),
                     cancellationToken);
 
@@ -173,7 +183,7 @@ public static class StoragesEndpoints
                         {
                             ExternalId = storageExternalId,
                             Name = request.Name,
-                            Type = result.Type!
+                            Type = result.Type!.Value
                         }),
                     cancellationToken);
 
@@ -680,6 +690,117 @@ public static class StoragesEndpoints
 
             case StorageOperationResultCode.InvalidUrl:
                 return HttpErrors.Storage.InvalidUrl(request.Url);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateStorageFlow),
+                    resultValueStr: result.ToString());
+        }
+    }
+
+    // Azure Blob Operations
+    private static async Task<Results<Ok<CreateAzureBlobStorageResponseDto>, BadRequest<HttpError>>> CreateAzureBlobStorage(
+        [FromBody] CreateAzureBlobStorageRequestDto request,
+        AzureBlobStorageClientFactory azureBlobStorageClientFactory,
+        CreateStorageFlow createStorageFlow,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var result = await createStorageFlow.Execute(
+            factory: azureBlobStorageClientFactory,
+            input: new AzureBlobDetailsEntity(
+                AuthType: request.AuthType,
+                ServiceUrl: request.ServiceUrl,
+                AccountName: request.AccountName,
+                AccountKey: request.AccountKey,
+                SasToken: request.SasToken),
+            name: request.Name,
+            encryptionType: request.EncryptionType,
+            creator: await httpContext.GetUserContext(),
+            cancellationToken: cancellationToken);
+
+        switch (result.Code)
+        {
+            case StorageOperationResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.CreatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        storage: new Audit.StorageRef
+                        {
+                            ExternalId = result.StorageExternalId!.Value,
+                            Name = request.Name,
+                            Type = StorageType.AzureBlob
+                        }),
+                    cancellationToken);
+
+                return TypedResults.Ok(new CreateAzureBlobStorageResponseDto(
+                    ExternalId: result.StorageExternalId!.Value,
+                    RecoveryCode: result.RecoveryCode));
+
+            case StorageOperationResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
+
+            case StorageOperationResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(request.Name);
+
+            case StorageOperationResultCode.InvalidUrl:
+                return HttpErrors.Storage.InvalidUrl(request.ServiceUrl);
+
+            case StorageOperationResultCode.CreatorEncryptionNotSetUp:
+                return HttpErrors.Storage.CreatorEncryptionNotSetUp();
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateStorageFlow),
+                    resultValueStr: result.ToString());
+        }
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateAzureBlobStorageDetails(
+        [FromRoute] StorageExtId storageExternalId,
+        [FromBody] UpdateAzureBlobStorageDetailsRequestDto request,
+        AzureBlobStorageClientFactory azureBlobStorageClientFactory,
+        UpdateStorageFlow updateStorageFlow,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var result = await updateStorageFlow.Execute(
+            factory: azureBlobStorageClientFactory,
+            externalId: storageExternalId,
+            input: new AzureBlobDetailsEntity(
+                AuthType: request.AuthType,
+                ServiceUrl: request.ServiceUrl,
+                AccountName: request.AccountName,
+                AccountKey: request.AccountKey,
+                SasToken: request.SasToken),
+            cancellationToken: cancellationToken);
+
+        switch (result.Code)
+        {
+            case StorageOperationResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.DetailsUpdatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        storage: new Audit.StorageRef
+                        {
+                            ExternalId = storageExternalId,
+                            Name = result.Name!,
+                            Type = StorageType.AzureBlob
+                        }),
+                    cancellationToken);
+
+                return TypedResults.Ok();
+
+            case StorageOperationResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
+
+            case StorageOperationResultCode.NotFound:
+                return HttpErrors.Storage.NotFound(storageExternalId);
+
+            case StorageOperationResultCode.InvalidUrl:
+                return HttpErrors.Storage.InvalidUrl(request.ServiceUrl);
 
             default:
                 throw new UnexpectedOperationResultException(

@@ -1,5 +1,8 @@
+using System.ComponentModel;
+
 namespace PlikShare.Auth.Sso;
 
+[ImmutableObject(true)]
 public class OidcDiscoveryDocument
 {
     public required string AuthorizationEndpoint { get; init; }

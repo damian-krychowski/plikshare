@@ -6,6 +6,7 @@ import { AuthService } from "../../services/auth.service";
 import { AppStorage, StorageItemComponent } from "../../shared/storage-item/storage-item.component";
 import { MatDialog } from "@angular/material/dialog";
 import { EditAwsStorageComponent } from "./aws/edit-aws-storage/edit-aws-storage.component";
+import { EditAzureStorageComponent } from "./azure/edit-azure-storage/edit-azure-storage.component";
 import { EditCloudflareStorageComponent } from "./cloudflare/edit-cloudflare-storage/edit-cloudflare-storage.component";
 import { DataStore } from "../../services/data-store.service";
 import { pushItems, removeItems } from "../../shared/signal-utils";
@@ -81,11 +82,16 @@ export class StorageSettingsComponent implements OnInit {
         if(item.$type == 'cloudflare-r2')
             return `AccessKeyId: ${item.accessKeyId} <br> Url: ${item.url}`
 
-        if(item.$type == 'digitalocean-spaces')
+        if(item.$type == 'digital-ocean-spaces')
             return `AccessKey: ${item.accessKey} <br> Url: ${item.url}`;
 
-        if(item.$type == 'backblaze-b2')            
+        if(item.$type == 'backblaze-b2')
             return `KeyId: ${item.keyId} <br> Url: ${item.url}`;
+
+        if(item.$type == 'azure-blob') {
+            const accountInfo = item.accountName ? `Account: ${item.accountName} <br> ` : '';
+            return `${accountInfo}AuthType: ${item.authType} <br> Url: ${item.serviceUrl}`;
+        }
 
         throw new Error("Uknown storage type " + (item as any).$type);
     }
@@ -108,11 +114,15 @@ export class StorageSettingsComponent implements OnInit {
     }
 
     onAddBackblazeB2Storage() {
-        this._router.navigate(['settings/storage/add/backblaze-b2']);   
+        this._router.navigate(['settings/storage/add/backblaze-b2']);
     }
 
-    onStorageEdit(storage: AppStorage) {     
-        if(storage.type == 'cloudflare-r2'){               
+    onAddAzureBlobStorage() {
+        this._router.navigate(['settings/storage/add/azure-blob']);
+    }
+
+    onStorageEdit(storage: AppStorage) {
+        if(storage.type == 'cloudflare-r2'){
             this._dialog.open(EditCloudflareStorageComponent, {
                 width: '500px',
                 data: {
@@ -123,7 +133,7 @@ export class StorageSettingsComponent implements OnInit {
                 },
                 disableClose: true
             });
-        } else if(storage.type == 'aws-s3') {            
+        } else if(storage.type == 'aws-s3') {
             this._dialog.open(EditAwsStorageComponent, {
                 width: '500px',
                 data: {
@@ -134,8 +144,19 @@ export class StorageSettingsComponent implements OnInit {
                 },
                 disableClose: true
             });
-        } else if(storage.type == 'digitalocean-spaces') {            
+        } else if(storage.type == 'digital-ocean-spaces') {
             this._dialog.open(EditDigitalOceanStorageComponent, {
+                width: '500px',
+                data: {
+                    storageExternalId: storage.externalId
+                },
+                position: {
+                    top: '100px'
+                },
+                disableClose: true
+            });
+        } else if(storage.type == 'azure-blob') {
+            this._dialog.open(EditAzureStorageComponent, {
                 width: '500px',
                 data: {
                     storageExternalId: storage.externalId

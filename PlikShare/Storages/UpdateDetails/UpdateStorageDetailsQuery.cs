@@ -2,6 +2,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Storages.Encryption;
+using PlikShare.Storages.Entities;
 using PlikShare.Storages.Id;
 using Serilog;
 
@@ -13,7 +14,7 @@ public class UpdateStorageDetailsQuery(
 {
     public Task<Result> Execute(
         StorageExtId externalId,
-        string storageType,
+        StorageType storageType,
         string detailsJson,
         CancellationToken cancellationToken)
     {
@@ -30,7 +31,7 @@ public class UpdateStorageDetailsQuery(
     private async ValueTask<Result> ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         StorageExtId externalId,
-        string storageType,
+        StorageType storageType,
         string detailsJson,
         CancellationToken cancellationToken)
     {
@@ -68,7 +69,7 @@ public class UpdateStorageDetailsQuery(
                         Name: reader.GetString(3));
                 })
             .WithParameter("$externalId", externalId.Value)
-            .WithParameter("$type", storageType)
+            .WithEnumParameter("$type", storageType)
             .WithParameter("$details", derivedEncryption.Encrypt(detailsJson))
             .Execute();
 

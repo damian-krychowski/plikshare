@@ -1,6 +1,10 @@
+using PlikShare.Core.Clock;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
+using PlikShare.Files.PreSignedLinks;
 using PlikShare.Storages;
+using PlikShare.Storages.Encryption;
+using PlikShare.Storages.HardDrive.StorageClient;
 using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.Chunking;
 using PlikShare.Uploads.Id;
@@ -10,7 +14,10 @@ using Serilog;
 namespace PlikShare.Uploads.FilePartUpload.Initiate;
 
 public class InitiateFilePartUploadOperation(
-    FileUploadCache fileUploadCache)
+    FileUploadCache fileUploadCache,
+    PreSignedUrlsService preSignedUrlsService,
+    IMasterDataEncryption masterDataEncryption,
+    IClock clock)
 {
     public async Task<Result> Execute(
         WorkspaceContext workspace,
@@ -54,20 +61,15 @@ public class InitiateFilePartUploadOperation(
             return new Result(Code: ResultCode.FileUploadPartNumberNotAllowed);
         }
 
-        var preSignedUrlResult = await workspace
-            .Storage
-            .GetPreSignedUploadFilePartLink(
-                bucketName: workspace.BucketName,
-                fileUploadExternalId: fileUploadExternalId,
-                key: fileUpload.FileToUpload.S3FileKey,
-                uploadId: fileUpload.FileToUpload.S3UploadId,
-                partNumber: partNumber,
-                contentType: workspaceEncryptionSession.DecodeEncryptableMetadata(fileUpload.ContentType),
-                boxLinkId: boxLinkId,
-                userIdentity: userIdentity,
-                enforceInternalPassThrough: enforceInternalPassThrough,
-                workspaceEncryptionSession: workspaceEncryptionSession,
-                cancellationToken: cancellationToken);
+        var preSignedUrlResult = await GetPreSignedUploadLink(
+            workspace,
+            fileUploadExternalId,
+            partNumber,
+            boxLinkId,
+            userIdentity,
+            enforceInternalPassThrough,
+            workspaceEncryptionSession,
+            fileUpload);
 
         var (startsAtByte, endsAtByte) = FileParts.GetPartByteRange(
             fileSizeInBytes: fileUpload.FileToUpload.SizeInBytes,
@@ -89,6 +91,133 @@ public class InitiateFilePartUploadOperation(
                 StartsAtByte: startsAtByte,
                 EndsAtByte: endsAtByte,
                 IsCompleteFilePartUploadCallbackRequired: preSignedUrlResult.IsCompleteFilePartUploadCallbackRequired));
+    }
+
+    private async ValueTask<PreSignedUploadLinkResult> GetPreSignedUploadLink(
+        WorkspaceContext workspace, 
+        FileUploadExtId fileUploadExternalId,
+        int partNumber, 
+        int? boxLinkId, 
+        IUserIdentity userIdentity, 
+        bool enforceInternalPassThrough,
+        WorkspaceEncryptionSession? workspaceEncryptionSession, 
+        FileUploadContext fileUpload)
+    {
+        return workspace.Storage switch
+        {
+            HardDriveStorageClient => HandleHardDriveGetPreSignedUploadFilePartLink(
+                fileUploadExternalId: fileUploadExternalId,
+                partNumber: partNumber,
+                contentType: workspaceEncryptionSession.DecodeEncryptableMetadata(fileUpload.ContentType),
+                boxLinkId: boxLinkId, 
+                userIdentity: userIdentity, 
+                workspaceEncryptionSession: workspaceEncryptionSession),
+
+            IObjectStorageClient objectStorageClient => await HandleStorageObjectPreSignedUploadFilePartLink(
+                objectStorageClient: objectStorageClient,
+                bucketName: workspace.BucketName,
+                fileUpload: fileUpload, 
+                fileUploadExternalId: fileUploadExternalId, 
+                partNumber: partNumber, 
+                boxLinkId: boxLinkId, 
+                userIdentity: userIdentity, 
+                enforceInternalPassThrough: enforceInternalPassThrough, 
+                workspaceEncryptionSession: workspaceEncryptionSession),
+
+            _ => throw new ArgumentOutOfRangeException(nameof(workspace.Storage))
+        };
+    }
+
+    private PreSignedUploadLinkResult HandleHardDriveGetPreSignedUploadFilePartLink(
+        FileUploadExtId fileUploadExternalId,
+        int partNumber,
+        string contentType,
+        int? boxLinkId,
+        IUserIdentity userIdentity,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
+    {
+        var url = preSignedUrlsService.GeneratePreSignedUploadUrl(
+            payload: new PreSignedUrlsService.UploadPayload
+            {
+                FileUploadExternalId = fileUploadExternalId,
+                PartNumber = partNumber,
+                ContentType = contentType,
+                PreSignedBy = new PreSignedUrlsService.PreSignedUrlOwner
+                {
+                    Identity = userIdentity.Identity,
+                    IdentityType = userIdentity.IdentityType
+                },
+                ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
+                BoxLinkId = boxLinkId,
+                WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption),
+            });
+
+        var result = new PreSignedUploadLinkResult
+        {
+            Url = url,
+            IsCompleteFilePartUploadCallbackRequired = false
+        };
+
+        return result;
+    }
+
+    private async ValueTask<PreSignedUploadLinkResult> HandleStorageObjectPreSignedUploadFilePartLink(
+        IObjectStorageClient objectStorageClient,
+        string bucketName,
+        FileUploadContext fileUpload,
+        FileUploadExtId fileUploadExternalId,
+        int partNumber,
+        int? boxLinkId,
+        IUserIdentity userIdentity,
+        bool enforceInternalPassThrough,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
+    {
+        var contentType = workspaceEncryptionSession.DecodeEncryptableMetadata(
+            fileUpload.ContentType);
+
+        if (objectStorageClient.Encryption is ManagedStorageEncryption or FullStorageEncryption || enforceInternalPassThrough)
+        {
+            var url = preSignedUrlsService.GeneratePreSignedUploadUrl(
+                new PreSignedUrlsService.UploadPayload
+                {
+                    FileUploadExternalId = fileUploadExternalId,
+                    PartNumber = partNumber,
+                    ContentType = contentType,
+                    PreSignedBy = new PreSignedUrlsService.PreSignedUrlOwner
+                    {
+                        Identity = userIdentity.Identity,
+                        IdentityType = userIdentity.IdentityType
+                    },
+                    ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
+                    BoxLinkId = boxLinkId,
+                    WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
+                });
+
+            return new PreSignedUploadLinkResult
+            {
+                Url = url,
+                IsCompleteFilePartUploadCallbackRequired = false
+            };
+        }
+
+        if (objectStorageClient.Encryption is NoStorageEncryption)
+        {
+            var url = await objectStorageClient.GetPreSignedUploadFilePartLink(
+                bucketName,
+                fileUpload.FileToUpload.S3FileKey,
+                fileUpload.FileToUpload.S3UploadId,
+                partNumber,
+                contentType,
+                clock.UtcNow.AddMinutes(15));
+
+            return new PreSignedUploadLinkResult
+            {
+                Url = url,
+                IsCompleteFilePartUploadCallbackRequired = true
+            };
+        }
+
+        throw new NotImplementedException($"Unknown encryption type: '{objectStorageClient.Encryption.GetType()}'");
     }
 
     private async ValueTask<FileUploadContext?> GetFileUploadFromCache(

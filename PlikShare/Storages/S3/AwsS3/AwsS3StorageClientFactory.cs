@@ -7,10 +7,7 @@ using PlikShare.Storages.Entities;
 namespace PlikShare.Storages.S3.AwsS3;
 
 public class AwsS3StorageClientFactory(
-    IMasterDataEncryption masterDataEncryption,
-    IConfig config,
-    IClock clock,
-    PreSignedUrlsService preSignedUrlsService) : IStorageClientFactory<AwsS3DetailsEntity>
+    IConfig config) : IStorageClientFactory<AwsS3DetailsEntity>
 {
     public async Task<StorageClientFactoryResult> Prepare(
         AwsS3DetailsEntity input,
@@ -35,9 +32,6 @@ public class AwsS3StorageClientFactory(
             Code: StorageOperationResultCode.Ok,
             Details: StoragePreparationDetails.Prepare(
                 config: config,
-                masterDataEncryption: masterDataEncryption,
-                clock: clock,
-                preSignedUrlsService: preSignedUrlsService,
                 client: client,
                 input: input,
                 storageType: StorageType.AwsS3,

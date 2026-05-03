@@ -32,12 +32,18 @@ export interface InitiateFileUploadRequest {
     fileContentType: string;
 }
 
+export interface RequiredHeader {
+    name: string;
+    value: string;
+}
+
 export interface InitiateFileUploadResponse {
     uploadExternalId: string;
     expectedPartsCount: number;
     algorithm: UploadAlgorithm;
     preSignedUploadLink: string | null;
-}   
+    preSignedUploadLinkRequiredHeaders: RequiredHeader[];
+}
 
 export interface BulkInitiateFileUploadRequest {
     items: InitiateFileUploadRequest[];
@@ -58,6 +64,7 @@ export interface BulkInitiateFileUploadResponseRaw {
     singleChunkUploads: {
         fileUploadExternalId: string;
         preSignedUploadLink: string;
+        preSignedUploadLinkRequiredHeaders: RequiredHeader[];
     }[];
 
     multiStepChunkUploads: {        
@@ -78,6 +85,7 @@ export function deserializeBulkUploadResponse(
         results.push({
             uploadExternalId: singleChunkUpload.fileUploadExternalId,
             preSignedUploadLink: singleChunkUpload.preSignedUploadLink,
+            preSignedUploadLinkRequiredHeaders: singleChunkUpload.preSignedUploadLinkRequiredHeaders ?? [],
             algorithm: 'single-chunk-upload',
             expectedPartsCount: 1
         });
@@ -88,6 +96,7 @@ export function deserializeBulkUploadResponse(
             uploadExternalId: multiStepChunkUpload.fileUploadExternalId,
             expectedPartsCount: multiStepChunkUpload.expectedPartsCount,
             preSignedUploadLink: null,
+            preSignedUploadLinkRequiredHeaders: [],
             algorithm: 'multi-step-chunk-upload'
         });
     }
@@ -113,7 +122,8 @@ export function deserializeBulkUploadResponse(
                 uploadExternalId: directUploadId,
                 algorithm: 'direct-upload',
                 expectedPartsCount: 1,
-                preSignedUploadLink: null
+                preSignedUploadLink: null,
+                preSignedUploadLinkRequiredHeaders: []
             });
         }
     }    

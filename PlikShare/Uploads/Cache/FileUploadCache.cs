@@ -9,6 +9,7 @@ using PlikShare.Storages;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Id;
 using PlikShare.Workspaces.Cache;
+using System.ComponentModel;
 
 namespace PlikShare.Uploads.Cache;
 
@@ -189,7 +190,8 @@ public class FileUploadCache(
             LocalCacheExpiration = TimeSpan.FromMinutes(5),
         };
     }
-    
+
+    [ImmutableObject(true)]
     public sealed class FileUploadCached
     {
         public required int Id { get; init; }

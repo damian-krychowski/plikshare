@@ -1,4 +1,3 @@
-using Amazon.S3.Model;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
@@ -108,7 +107,7 @@ public class CompleteS3UploadQueueJobExecutor(
         }
     }
 
-    private (FileUploadDetails? Details, List<PartETag> Parts) TryGetFileUploadDetails(
+    private (FileUploadDetails? Details, List<UploadedFilePart> Parts) TryGetFileUploadDetails(
         int fileUploadId)
     {
         _logger.Debug("Retrieving file upload details. FileUploadId: {FileUploadId}", fileUploadId);
@@ -155,9 +154,9 @@ public class CompleteS3UploadQueueJobExecutor(
                      FROM fup_file_upload_parts
                      WHERE fup_file_upload_id = $fileUploadId
                      """,
-                readRowFunc: reader => new PartETag(
-                    partNumber: reader.GetInt32(0),
-                    eTag: reader.GetString(1)))
+                readRowFunc: reader => new UploadedFilePart(
+                    PartNumber: reader.GetInt32(0),
+                    ETag: reader.GetString(1)))
             .WithParameter("$fileUploadId", fileUploadId)
             .Execute();
 

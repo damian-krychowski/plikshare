@@ -1,5 +1,4 @@
-﻿using Amazon.S3.Model;
-using PlikShare.Core.Database.MainDatabase;
+﻿using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
@@ -375,7 +374,7 @@ public class CopyFileQueueJobExecutor(
         }
     }
 
-    private async Task<List<PartETag>> WriteFileInParts(
+    private async Task<List<UploadedFilePart>> WriteFileInParts(
         CopyFileQueueJob job,
         WorkspaceContext destinationWorkspace,
         PipeReader input,
@@ -392,7 +391,7 @@ public class CopyFileQueueJobExecutor(
 
         try
         {
-            var eTags = new List<PartETag>();
+            var eTags = new List<UploadedFilePart>();
 
             for (partNumber = 1; partNumber <= totalNumberOfParts; partNumber++)
             {
@@ -431,9 +430,9 @@ public class CopyFileQueueJobExecutor(
                         $"FileUploadId#{job.FileUploadId} was not found in DB during upload of Part#{partNumber}");
                 }
 
-                eTags.Add(new PartETag(
-                    partNumber: partNumber,
-                    eTag: result.ETag));
+                eTags.Add(new UploadedFilePart(
+                    PartNumber: partNumber,
+                    ETag: result.ETag));
             }
 
             return eTags;

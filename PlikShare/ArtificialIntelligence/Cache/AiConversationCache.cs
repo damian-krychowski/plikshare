@@ -3,6 +3,7 @@ using PlikShare.ArtificialIntelligence.Id;
 using PlikShare.Core.Database.AiDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
+using System.ComponentModel;
 
 namespace PlikShare.ArtificialIntelligence.Cache;
 
@@ -81,6 +82,7 @@ public class AiConversationCache(
         return isEmpty ? null : aiConversation;
     }
 
+    [ImmutableObject(true)]
     public sealed class AiConversationCached
     {
         public required int Id { get; init; }

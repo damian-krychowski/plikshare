@@ -1,6 +1,7 @@
 using PlikShare.AuditLog.Details;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
+using PlikShare.Storages.Entities;
 using PlikShare.Storages.Id;
 
 namespace PlikShare.AuditLog.Queries;
@@ -26,7 +27,7 @@ public class GetStorageAuditContextQuery(PlikShareDb plikShareDb)
                 {
                     ExternalId = storageExternalId,
                     Name = reader.GetString(0),
-                    Type = reader.GetString(1)
+                    Type = reader.GetEnum<StorageType>(1)
                 })
             .WithParameter("$storageExternalId", storageExternalId.Value)
             .Execute();

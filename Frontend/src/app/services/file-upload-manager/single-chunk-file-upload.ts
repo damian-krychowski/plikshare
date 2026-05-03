@@ -2,6 +2,7 @@ import { WritableSignal, Signal, signal, computed } from "@angular/core";
 import { IFileSlicer, FileUploadApi, IFileUpload } from "./file-upload-manager";
 import { FileUploadDetails, FileUploadUtils, MAXIMUM_PARALLEL_UPLOADS } from "./file-upload-utils";
 import { HttpHeadersFactory } from "../../files-explorer/http-headers-factory";
+import { RequiredHeader } from "../uploads.api";
 
 export class SingleChunkFileUpload implements IFileUpload {
     public type = 'SingleChunkFileUpload';
@@ -41,13 +42,23 @@ export class SingleChunkFileUpload implements IFileUpload {
         }
     }
 
-    public async upload(preSignedUploadLink: string): Promise<{ fileExternalId: string; } | null> {
+    public async upload(
+        preSignedUploadLink: string,
+        preSignedUploadLinkRequiredHeaders: RequiredHeader[]
+    ): Promise<{ fileExternalId: string; } | null> {
         this._abortController = new AbortController();
-        this._uploadPromise = this.uploadFile(this._abortController.signal, preSignedUploadLink);
+        this._uploadPromise = this.uploadFile(
+            this._abortController.signal,
+            preSignedUploadLink,
+            preSignedUploadLinkRequiredHeaders);
         return await this._uploadPromise;
     }
 
-    private async uploadFile(abortSignal: AbortSignal, preSignedUploadLink: string): Promise<{ fileExternalId: string } | null> {
+    private async uploadFile(
+        abortSignal: AbortSignal,
+        preSignedUploadLink: string,
+        preSignedUploadLinkRequiredHeaders: RequiredHeader[]
+    ): Promise<{ fileExternalId: string } | null> {
         let singleChunkUploadPromise: Promise<Response> | null = null;
         let shouldRun = true;
 
@@ -68,13 +79,18 @@ export class SingleChunkFileUpload implements IFileUpload {
                     .details.fileSlicer
                     .takeWhole();
 
+                const additionalHeaders = this._httpHeadersFactory.prepareAdditionalHttpHeaders() ?? {};
+                for (const header of preSignedUploadLinkRequiredHeaders) {
+                    additionalHeaders[header.name] = header.value;
+                }
+
                 singleChunkUploadPromise = FileUploadUtils.uploadBlob({
                     url: preSignedUploadLink,
                     file: wholeBlob,
                     contentType: this.details.contentType,
                     abortSignal: abortSignal,
-                    additionalHeaders: this._httpHeadersFactory.prepareAdditionalHttpHeaders()
-                });                    
+                    additionalHeaders: additionalHeaders
+                });
                    
                 const uploadPromise = singleChunkUploadPromise
                     .then(() => {})

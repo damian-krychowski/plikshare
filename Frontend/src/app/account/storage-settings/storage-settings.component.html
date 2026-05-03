@@ -58,10 +58,16 @@
                 <app-action-btn
                     tooltip="Create Backblaze B2 storage"
                     icon="icon-backblaze-logo"
-                    (clicked)="onAddBackblazeB2Storage()">                        
+                    (clicked)="onAddBackblazeB2Storage()">
+                </app-action-btn>
+
+                <app-action-btn
+                    tooltip="Create Azure Blob storage"
+                    icon="icon-lucide-server"
+                    (clicked)="onAddAzureBlobStorage()">
                 </app-action-btn>
             </div>
-        </div>  
+        </div>
 
         <div class="mt-2"></div>   
 
@@ -108,7 +114,14 @@
                 title="Add Backblaze B2"
                 subtitle="Click here to configure Backblaze B2!"
                 icon="icon-backblaze-logo"
-                (clicked)="onAddBackblazeB2Storage()">                
+                (clicked)="onAddBackblazeB2Storage()">
+            </app-item-btn>
+
+            <app-item-btn
+                title="Add Azure Blob"
+                subtitle="Click here to configure Azure Blob storage!"
+                icon="icon-lucide-server"
+                (clicked)="onAddAzureBlobStorage()">
             </app-item-btn>
         </div>
 

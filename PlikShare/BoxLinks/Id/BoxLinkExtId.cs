@@ -1,9 +1,11 @@
-using System.Text.Json.Serialization;
 using PlikShare.Core.ExternalIds;
 using PlikShare.Core.Utils;
+using System.ComponentModel;
+using System.Text.Json.Serialization;
 
 namespace PlikShare.BoxLinks.Id;
 
+[ImmutableObject(true)]
 [JsonConverter(typeof(ExternalIdJsonConverter<BoxLinkExtId>))]
 public readonly record struct BoxLinkExtId(string Value): IExternalId<BoxLinkExtId>
 {

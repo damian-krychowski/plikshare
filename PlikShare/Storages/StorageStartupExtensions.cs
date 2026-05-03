@@ -6,7 +6,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
-using PlikShare.Files.PreSignedLinks;
+using PlikShare.Storages.AzureBlob;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Entities;
 using PlikShare.Storages.HardDrive;
@@ -27,7 +27,7 @@ public static class StorageStartupExtensions
         int StorageId,
         StorageExtId ExternalId,
         string Name,
-        string Type,
+        StorageType Type,
         string DetailsJson,
         StorageEncryption Encryption);
 
@@ -55,19 +55,11 @@ public static class StorageStartupExtensions
         var masterDataEncryption = app
             .Services
             .GetRequiredService<IMasterDataEncryption>();
-
-        var clock = app
-            .Services
-            .GetRequiredService<IClock>();
-
+        
         var config = app
             .Services
             .GetRequiredService<IConfig>();
-
-        var preSignedUrlsService = app
-            .Services
-            .GetRequiredService<PreSignedUrlsService>();
-
+        
         using var connection = plikShareDb.OpenConnection();
 
         var storages = connection
@@ -88,7 +80,7 @@ public static class StorageStartupExtensions
                     var storageId = reader.GetInt32(0);
                     var externalId = reader.GetExtId<StorageExtId>(1);
                     var name = reader.GetString(2);
-                    var type = reader.GetString(3);
+                    var type = reader.GetEnum<StorageType>(3);
                     var detailsJson = masterDataEncryption.Decrypt(
                         reader.GetFieldValue<byte[]>(4));
 
@@ -116,14 +108,19 @@ public static class StorageStartupExtensions
         {
             var client = storage.Type switch
             {
-                StorageType.HardDrive => (IStorageClient)BuildHardDriveStorageClient(
-                    storage, masterDataEncryption, clock, preSignedUrlsService),
+                StorageType.HardDrive => BuildHardDriveStorageClient(
+                    storage),
 
                 StorageType.BackblazeB2 or
                     StorageType.CloudflareR2 or
                     StorageType.AwsS3 or
                     StorageType.DigitalOceanSpaces => BuildS3StorageClient(
-                        storage, masterDataEncryption, clock, preSignedUrlsService, config),
+                        storage, 
+                        config),
+
+                StorageType.AzureBlob => BuildAzureBlobStorageClient(
+                    storage, 
+                    config),
 
                 _ => throw new InvalidOperationException(
                     $"Unsupported storage type '{storage.Type}'.")
@@ -136,31 +133,40 @@ public static class StorageStartupExtensions
         Log.Information("[INITIALIZATION] S3 Client Store initialization finished.");
     }
 
-    private static HardDriveStorageClient BuildHardDriveStorageClient(
-        StorageRow storage,
-        IMasterDataEncryption masterDataEncryption,
-        IClock clock,
-        PreSignedUrlsService preSignedUrlsService)
+    private static IStorageClient BuildHardDriveStorageClient(
+        StorageRow storage)
     {
         var hdStorageClient = new HardDriveStorageClient(
-            masterDataEncryption: masterDataEncryption,
-            preSignedUrlsService: preSignedUrlsService,
             details: Json.Deserialize<HardDriveDetailsEntity>(
                 storage.DetailsJson)!,
             storageId: storage.StorageId,
             externalId: storage.ExternalId,
             name: storage.Name,
-            clock: clock,
             encryption: storage.Encryption);
 
         return hdStorageClient;
     }
 
-    private static S3StorageClient BuildS3StorageClient(
+    private static IStorageClient BuildAzureBlobStorageClient(
+        StorageRow storage,
+        IConfig config)
+    {
+        var details = Json.Deserialize<AzureBlobDetailsEntity>(storage.DetailsJson)!;
+
+        var blobServiceClient = AzureBlobClient.BuildClientOrThrow(
+            details: details);
+
+        return new AzureBlobStorageClient(
+            appUrl: config.AppUrl,
+            blobServiceClient: blobServiceClient,
+            storageId: storage.StorageId,
+            externalId: storage.ExternalId,
+            name: storage.Name,
+            encryption: storage.Encryption);
+    }
+
+    private static IStorageClient BuildS3StorageClient(
         StorageRow storage, 
-        IMasterDataEncryption masterDataEncryption,
-        IClock clock,
-        PreSignedUrlsService preSignedUrlsService,
         IConfig config)
     {
         var (s3Client, lifecycleRules) = BuildS3ClientForStorage(
@@ -168,13 +174,10 @@ public static class StorageStartupExtensions
 
         var s3StorageClient = new S3StorageClient(
             appUrl: config.AppUrl,
-            masterDataEncryption: masterDataEncryption,
-            clock: clock,
             s3Client: s3Client,
             storageId: storage.StorageId,
             externalId: storage.ExternalId,
             name: storage.Name,
-            preSignedUrlsService: preSignedUrlsService,
             encryption: storage.Encryption,
             lifecycleRules: lifecycleRules);
 
