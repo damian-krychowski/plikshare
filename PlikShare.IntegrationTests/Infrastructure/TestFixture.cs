@@ -33,6 +33,7 @@ using PlikShare.Storages.S3.AwsS3.Create.Contracts;
 using PlikShare.Storages.S3.BackblazeB2.Create.Contracts;
 using PlikShare.Storages.S3.CloudflareR2.Create.Contracts;
 using PlikShare.Storages.S3.DigitalOcean.Create.Contracts;
+using PlikShare.Storages.S3.GoogleCloudStorage.Create.Contracts;
 using PlikShare.Uploads.Id;
 using PlikShare.Uploads.Initiate.Contracts;
 using PlikShare.Users.Id;
@@ -471,6 +472,20 @@ public class TestFixture: IAsyncLifetime
                     antiforgery: user.Antiforgery);
                 externalId = azureResponse.ExternalId;
                 storageType = StorageType.AzureBlob;
+                break;
+
+            case StorageType.GoogleCloudStorage:
+                var gcsCreds = S3StorageConfig.GoogleCloudStorage;
+                var gcsResponse = await Api.Storages.CreateGoogleCloudStorage(
+                    request: new CreateGoogleCloudStorageRequestDto(
+                        Name: name,
+                        AccessKey: gcsCreds.AccessKey,
+                        SecretKey: gcsCreds.SecretKey,
+                        EncryptionType: encryptionType),
+                    cookie: user.Cookie,
+                    antiforgery: user.Antiforgery);
+                externalId = gcsResponse.ExternalId;
+                storageType = StorageType.GoogleCloudStorage;
                 break;
 
             case StorageType.HardDrive:

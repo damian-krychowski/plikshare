@@ -17,6 +17,7 @@ using PlikShare.Storages.S3.AwsS3;
 using PlikShare.Storages.S3.BackblazeB2;
 using PlikShare.Storages.S3.CloudflareR2;
 using PlikShare.Storages.S3.DigitalOcean;
+using PlikShare.Storages.S3.GoogleCloudStorage;
 using Serilog;
 
 namespace PlikShare.Storages;
@@ -114,8 +115,9 @@ public static class StorageStartupExtensions
                 StorageType.BackblazeB2 or
                     StorageType.CloudflareR2 or
                     StorageType.AwsS3 or
-                    StorageType.DigitalOceanSpaces => BuildS3StorageClient(
-                        storage, 
+                    StorageType.DigitalOceanSpaces or
+                    StorageType.GoogleCloudStorage => BuildS3StorageClient(
+                        storage,
                         config),
 
                 StorageType.AzureBlob => BuildAzureBlobStorageClient(
@@ -166,11 +168,12 @@ public static class StorageStartupExtensions
     }
 
     private static IStorageClient BuildS3StorageClient(
-        StorageRow storage, 
+        StorageRow storage,
         IConfig config)
     {
-        var (s3Client, lifecycleRules) = BuildS3ClientForStorage(
-            storage);
+        var (s3Client, lifecycleRules, customCorsConfigurator) = BuildS3ClientForStorage(
+            storage,
+            config);
 
         var s3StorageClient = new S3StorageClient(
             appUrl: config.AppUrl,
@@ -179,12 +182,15 @@ public static class StorageStartupExtensions
             externalId: storage.ExternalId,
             name: storage.Name,
             encryption: storage.Encryption,
-            lifecycleRules: lifecycleRules);
+            lifecycleRules: lifecycleRules,
+            customCorsConfigurator: customCorsConfigurator);
 
         return s3StorageClient;
     }
 
-    private static (IAmazonS3, LifecycleRule[]) BuildS3ClientForStorage(StorageRow storage)
+    private static (IAmazonS3, LifecycleRule[], Func<string, CancellationToken, Task>?) BuildS3ClientForStorage(
+        StorageRow storage,
+        IConfig config)
     {
         if (storage.Type == StorageType.BackblazeB2)
         {
@@ -198,7 +204,7 @@ public static class StorageStartupExtensions
             return (client, [
                 S3LifecycleRules.AbortIncompleteMultipartUploadsAfter7Days,
                 S3LifecycleRules.DeleteNoncurrentVersionsAfter1Day
-            ]);
+            ], null);
         }
 
         if (storage.Type == StorageType.CloudflareR2)
@@ -212,7 +218,7 @@ public static class StorageStartupExtensions
 
             return (client, [
                 S3LifecycleRules.AbortIncompleteMultipartUploadsAfter7Days,
-            ]);
+            ], null);
         }
 
         if (storage.Type == StorageType.AwsS3)
@@ -226,7 +232,7 @@ public static class StorageStartupExtensions
 
             return (client, [
                 S3LifecycleRules.AbortIncompleteMultipartUploadsAfter7Days,
-            ]);
+            ], null);
         }
 
         if (storage.Type == StorageType.DigitalOceanSpaces)
@@ -240,7 +246,29 @@ public static class StorageStartupExtensions
 
             return (client, [
                 S3LifecycleRules.AbortIncompleteMultipartUploadsAfter7Days,
-            ]);
+            ], null);
+        }
+
+        if (storage.Type == StorageType.GoogleCloudStorage)
+        {
+            var details = Json.Deserialize<GoogleCloudStorageDetailsEntity>(storage.DetailsJson)!;
+
+            var client = S3Client.BuildGoogleCloudStorageClientOrThrow(
+                accessKey: details.AccessKey,
+                secretKey: details.SecretKey);
+
+            Func<string, CancellationToken, Task> corsConfigurator =
+                (bucketName, ct) => GcsCorsConfigurer.PutBucketCorsAsync(
+                    accessKey: details.AccessKey,
+                    secretKey: details.SecretKey,
+                    bucketName: bucketName,
+                    allowedOrigin: config.AppUrl,
+                    cancellationToken: ct);
+
+            // No lifecycle rules — GCS XML interop doesn't support
+            // AbortIncompleteMultipartUpload. See GoogleCloudStorageClientFactory
+            // for the gsutil-based operator workaround.
+            return (client, [], corsConfigurator);
         }
 
         throw new InvalidOperationException(

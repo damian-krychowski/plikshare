@@ -23,7 +23,8 @@ public class S3StorageClient(
     StorageExtId externalId,
     string name,
     StorageEncryption encryption,
-    IReadOnlyList<LifecycleRule> lifecycleRules) : IObjectStorageClient, IDisposable
+    IReadOnlyList<LifecycleRule> lifecycleRules,
+    Func<string, CancellationToken, Task>? customCorsConfigurator = null) : IObjectStorageClient, IDisposable
 {
     public const int MicroFileThreshold = 1 * SizeInBytes.Mb; //1MB
 
@@ -368,6 +369,27 @@ public class S3StorageClient(
         string bucketName,
         CancellationToken cancellationToken = default)
     {
+        // Some S3-compatible backends (notably GCS interop) reject the AWSSDK's
+        // CORS XML body because their CORS schema is not S3-compatible. Those
+        // backends supply a custom configurer that bypasses the SDK and writes
+        // the bucket CORS in their native format instead.
+        if (customCorsConfigurator is not null)
+        {
+            try
+            {
+                await customCorsConfigurator(bucketName, cancellationToken);
+            }
+            catch (Exception e)
+            {
+                Log.Error(e,
+                    "[S3] Custom CORS configurator failed for bucket '{BucketName}'",
+                    bucketName);
+                throw;
+            }
+
+            return;
+        }
+
         try
         {
             await s3Client.PutCORSConfigurationAsync(new PutCORSConfigurationRequest

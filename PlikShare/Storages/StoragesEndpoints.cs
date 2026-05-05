@@ -28,6 +28,9 @@ using PlikShare.Storages.UpdateDetails;
 using PlikShare.Storages.S3.DigitalOcean;
 using PlikShare.Storages.S3.DigitalOcean.Create.Contracts;
 using PlikShare.Storages.S3.DigitalOcean.UpdateDetails.Contracts;
+using PlikShare.Storages.S3.GoogleCloudStorage;
+using PlikShare.Storages.S3.GoogleCloudStorage.Create.Contracts;
+using PlikShare.Storages.S3.GoogleCloudStorage.UpdateDetails.Contracts;
 using PlikShare.Storages.UpdateName;
 using PlikShare.Storages.UpdateName.Contracts;
 using PlikShare.AuditLog;
@@ -101,6 +104,13 @@ public static class StoragesEndpoints
 
         group.MapPatch("/azure-blob/{storageExternalId}/details", UpdateAzureBlobStorageDetails)
             .WithName("UpdateAzureBlobStorageDetails");
+
+        // Google Cloud Storage
+        group.MapPost("/google-cloud-storage", CreateGoogleCloudStorage)
+            .WithName("CreateGoogleCloudStorage");
+
+        group.MapPatch("/google-cloud-storage/{storageExternalId}/details", UpdateGoogleCloudStorageDetails)
+            .WithName("UpdateGoogleCloudStorageDetails");
     }
 
     // Basic Storage Operations
@@ -801,6 +811,105 @@ public static class StoragesEndpoints
 
             case StorageOperationResultCode.InvalidUrl:
                 return HttpErrors.Storage.InvalidUrl(request.ServiceUrl);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateStorageFlow),
+                    resultValueStr: result.ToString());
+        }
+    }
+
+    // Google Cloud Storage Operations
+    private static async Task<Results<Ok<CreateGoogleCloudStorageResponseDto>, BadRequest<HttpError>>> CreateGoogleCloudStorage(
+        [FromBody] CreateGoogleCloudStorageRequestDto request,
+        GoogleCloudStorageClientFactory googleCloudStorageClientFactory,
+        CreateStorageFlow createStorageFlow,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var result = await createStorageFlow.Execute(
+            factory: googleCloudStorageClientFactory,
+            input: new GoogleCloudStorageDetailsEntity(
+                AccessKey: request.AccessKey,
+                SecretKey: request.SecretKey),
+            name: request.Name,
+            encryptionType: request.EncryptionType,
+            creator: await httpContext.GetUserContext(),
+            cancellationToken: cancellationToken);
+
+        switch (result.Code)
+        {
+            case StorageOperationResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.CreatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        storage: new Audit.StorageRef
+                        {
+                            ExternalId = result.StorageExternalId!.Value,
+                            Name = request.Name,
+                            Type = StorageType.GoogleCloudStorage
+                        }),
+                    cancellationToken);
+
+                return TypedResults.Ok(new CreateGoogleCloudStorageResponseDto(
+                    ExternalId: result.StorageExternalId!.Value,
+                    RecoveryCode: result.RecoveryCode));
+
+            case StorageOperationResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
+
+            case StorageOperationResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(request.Name);
+
+            case StorageOperationResultCode.CreatorEncryptionNotSetUp:
+                return HttpErrors.Storage.CreatorEncryptionNotSetUp();
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateStorageFlow),
+                    resultValueStr: result.ToString());
+        }
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateGoogleCloudStorageDetails(
+        [FromRoute] StorageExtId storageExternalId,
+        [FromBody] UpdateGoogleCloudStorageDetailsRequestDto request,
+        GoogleCloudStorageClientFactory googleCloudStorageClientFactory,
+        UpdateStorageFlow updateStorageFlow,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var result = await updateStorageFlow.Execute(
+            factory: googleCloudStorageClientFactory,
+            externalId: storageExternalId,
+            input: new GoogleCloudStorageDetailsEntity(
+                AccessKey: request.AccessKey,
+                SecretKey: request.SecretKey),
+            cancellationToken: cancellationToken);
+
+        switch (result.Code)
+        {
+            case StorageOperationResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.DetailsUpdatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        storage: new Audit.StorageRef
+                        {
+                            ExternalId = storageExternalId,
+                            Name = result.Name!,
+                            Type = StorageType.GoogleCloudStorage
+                        }),
+                    cancellationToken);
+
+                return TypedResults.Ok();
+
+            case StorageOperationResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
+
+            case StorageOperationResultCode.NotFound:
+                return HttpErrors.Storage.NotFound(storageExternalId);
 
             default:
                 throw new UnexpectedOperationResultException(

@@ -58,7 +58,8 @@ public static class StoragePreparationDetailsExtensions
             IAmazonS3 client,
             TInput input,
             StorageType storageType,
-            LifecycleRule[] lifecycleRules)
+            LifecycleRule[] lifecycleRules,
+            Func<string, CancellationToken, Task>? customCorsConfigurator = null)
         {
             return new StoragePreparationDetails
             {
@@ -71,7 +72,8 @@ public static class StoragePreparationDetailsExtensions
                     externalId: clientDetails.ExternalId,
                     name: clientDetails.Name,
                     encryption: clientDetails.Encryption,
-                    lifecycleRules: lifecycleRules)
+                    lifecycleRules: lifecycleRules,
+                    customCorsConfigurator: customCorsConfigurator)
             };
         }
     }

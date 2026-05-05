@@ -16,7 +16,8 @@ public static class StorageTheoryData
         StorageType.AwsS3,
         StorageType.CloudflareR2,
         StorageType.BackblazeB2,
-        StorageType.DigitalOceanSpaces
+        StorageType.DigitalOceanSpaces,
+        StorageType.GoogleCloudStorage
     ];
 
     /// <summary>
@@ -33,7 +34,8 @@ public static class StorageTheoryData
         StorageType.BackblazeB2,
         StorageType.DigitalOceanSpaces,
         StorageType.HardDrive,
-        StorageType.AzureBlob
+        StorageType.AzureBlob,
+        StorageType.GoogleCloudStorage
     ];
 
     private static readonly StorageEncryptionType[] AllEncryptionTypes =

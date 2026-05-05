@@ -12,6 +12,7 @@ using PlikShare.Storages.S3.AwsS3;
 using PlikShare.Storages.S3.BackblazeB2;
 using PlikShare.Storages.S3.CloudflareR2;
 using PlikShare.Storages.S3.DigitalOcean;
+using PlikShare.Storages.S3.GoogleCloudStorage;
 
 namespace PlikShare.Storages.List;
 
@@ -149,6 +150,22 @@ public class GetStoragesQuery(
                             AccountName = details.AuthType == AzureBlobAuthType.SharedKey
                                 ? Obfuscate(details.AccountName ?? string.Empty)
                                 : null
+                        };
+                    }
+
+                    if (type == StorageType.GoogleCloudStorage)
+                    {
+                        var details = GetStorageDetails<GoogleCloudStorageDetailsEntity>(
+                            encryptedDetails);
+
+                        return new GetGoogleCloudStorageItemResponseDto
+                        {
+                            ExternalId = externalId,
+                            EncryptionType = encryptionType,
+                            Name = name,
+                            WorkspacesCount = workspacesCount,
+
+                            AccessKey = Obfuscate(details!.AccessKey)
                         };
                     }
 

@@ -7,6 +7,7 @@ import { AppStorage, StorageItemComponent } from "../../shared/storage-item/stor
 import { MatDialog } from "@angular/material/dialog";
 import { EditAwsStorageComponent } from "./aws/edit-aws-storage/edit-aws-storage.component";
 import { EditAzureStorageComponent } from "./azure/edit-azure-storage/edit-azure-storage.component";
+import { EditGoogleCloudStorageComponent } from "./google-cloud/edit-google-cloud-storage/edit-google-cloud-storage.component";
 import { EditCloudflareStorageComponent } from "./cloudflare/edit-cloudflare-storage/edit-cloudflare-storage.component";
 import { DataStore } from "../../services/data-store.service";
 import { pushItems, removeItems } from "../../shared/signal-utils";
@@ -93,6 +94,9 @@ export class StorageSettingsComponent implements OnInit {
             return `${accountInfo}AuthType: ${item.authType} <br> Url: ${item.serviceUrl}`;
         }
 
+        if(item.$type == 'google-cloud-storage')
+            return `AccessKey: ${item.accessKey}`;
+
         throw new Error("Uknown storage type " + (item as any).$type);
     }
 
@@ -119,6 +123,10 @@ export class StorageSettingsComponent implements OnInit {
 
     onAddAzureBlobStorage() {
         this._router.navigate(['settings/storage/add/azure-blob']);
+    }
+
+    onAddGoogleCloudStorage() {
+        this._router.navigate(['settings/storage/add/google-cloud-storage']);
     }
 
     onStorageEdit(storage: AppStorage) {
@@ -157,6 +165,17 @@ export class StorageSettingsComponent implements OnInit {
             });
         } else if(storage.type == 'azure-blob') {
             this._dialog.open(EditAzureStorageComponent, {
+                width: '500px',
+                data: {
+                    storageExternalId: storage.externalId
+                },
+                position: {
+                    top: '100px'
+                },
+                disableClose: true
+            });
+        } else if(storage.type == 'google-cloud-storage') {
+            this._dialog.open(EditGoogleCloudStorageComponent, {
                 width: '500px',
                 data: {
                     storageExternalId: storage.externalId

@@ -83,7 +83,7 @@ export interface GetStoragesResponse {
     items: GetStorageItem[];
 }
 
-export type AppStorageType = 'hard-drive' | 'cloudflare-r2' | 'aws-s3' | 'digital-ocean-spaces' | 'backblaze-b2' | 'azure-blob';
+export type AppStorageType = 'hard-drive' | 'cloudflare-r2' | 'aws-s3' | 'digital-ocean-spaces' | 'backblaze-b2' | 'azure-blob' | 'google-cloud-storage';
 
 export type AppStorageEncryptionType = 'none' | 'managed' | 'full';
 
@@ -95,7 +95,8 @@ export type GetStorageItem =
     | GetAwsS3StorageItem
     | GetDigitalOceanSpacesStorageItem
     | GetBackblazeB2StorageItem
-    | GetAzureBlobStorageItem;
+    | GetAzureBlobStorageItem
+    | GetGoogleCloudStorageItem;
 
 export type GetHardDriveStorageItem = {
     $type: "hard-drive",
@@ -165,6 +166,16 @@ export type GetAzureBlobStorageItem = {
     accountName: string | null;
 }
 
+export type GetGoogleCloudStorageItem = {
+    $type: "google-cloud-storage",
+    externalId: string;
+    name: string;
+    workspacesCount: number;
+    encryptionType: AppStorageEncryptionType;
+
+    accessKey: string;
+}
+
 export interface GetHardDriveVolumesRespone {
     items: HardDriveVolumeItem[];
 }
@@ -216,6 +227,23 @@ export interface UpdateAzureBlobStorageDetailsRequest {
     accountName?: string;
     accountKey?: string;
     sasToken?: string;
+}
+
+export interface CreateGoogleCloudStorageRequest {
+    name: string;
+    accessKey: string;
+    secretKey: string;
+    encryptionType: AppStorageEncryptionType;
+}
+
+export interface CreateGoogleCloudStorageResponse {
+    externalId: string;
+    recoveryCode?: string;
+}
+
+export interface UpdateGoogleCloudStorageDetailsRequest {
+    accessKey: string;
+    secretKey: string;
 }
 
 @Injectable({
@@ -414,6 +442,32 @@ export class StoragesApi {
             ._http
             .patch(
                 `/api/storages/azure-blob/${externalId}/details`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async createGoogleCloudStorage(request: CreateGoogleCloudStorageRequest): Promise<CreateGoogleCloudStorageResponse> {
+        const call = this
+            ._http
+            .post<CreateGoogleCloudStorageResponse>(
+                `/api/storages/google-cloud-storage`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        return await firstValueFrom(call);
+    }
+
+    public async updateGoogleCloudStorageDetails(externalId: string, request: UpdateGoogleCloudStorageDetailsRequest): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/storages/google-cloud-storage/${externalId}/details`, request, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
                 })

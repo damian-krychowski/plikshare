@@ -66,6 +66,12 @@
                     icon="icon-microsoft-logo"
                     (clicked)="onAddAzureBlobStorage()">
                 </app-action-btn>
+
+                <app-action-btn
+                    tooltip="Create Google Cloud Storage"
+                    icon="icon-google-logo"
+                    (clicked)="onAddGoogleCloudStorage()">
+                </app-action-btn>
             </div>
         </div>
 
@@ -122,6 +128,13 @@
                 subtitle="Click here to configure Azure Blob storage!"
                 icon="icon-microsoft-logo"
                 (clicked)="onAddAzureBlobStorage()">
+            </app-item-btn>
+
+            <app-item-btn
+                title="Add Google Cloud Storage"
+                subtitle="Click here to configure Google Cloud Storage!"
+                icon="icon-google-logo"
+                (clicked)="onAddGoogleCloudStorage()">
             </app-item-btn>
         </div>
 

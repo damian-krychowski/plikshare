@@ -23,7 +23,8 @@ public static class RawStorageClient
             StorageType.AwsS3
                 or StorageType.CloudflareR2
                 or StorageType.BackblazeB2
-                or StorageType.DigitalOceanSpaces => new S3RawStorageClient(storage.Type),
+                or StorageType.DigitalOceanSpaces
+                or StorageType.GoogleCloudStorage => new S3RawStorageClient(storage.Type),
 
             _ => throw new ArgumentOutOfRangeException(
                 nameof(storage), storage.Type, "Unsupported storage type for raw access.")

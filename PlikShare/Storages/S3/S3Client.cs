@@ -224,6 +224,58 @@ public static class S3Client
         }
     }
 
+    public static AmazonS3Client BuildGoogleCloudStorageClientOrThrow(
+        string accessKey,
+        string secretKey)
+    {
+        // AWSSDK 4.x defaults to `WHEN_SUPPORTED`, which attaches `x-amz-checksum-*`
+        // headers GCS rejects as `ExcessHeaderValues`. Same workaround as Backblaze.
+        var config = new AmazonS3Config
+        {
+            ServiceURL = "https://storage.googleapis.com",
+            RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED,
+            ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED,
+        };
+
+        return new AmazonS3Client(
+            new BasicAWSCredentials(
+                accessKey: accessKey,
+                secretKey: secretKey),
+            config);
+    }
+
+    public static async Task<GoogleCloudStorageResult> BuildGoogleCloudStorageAndTestConnection(
+        string accessKey,
+        string secretKey,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var client = BuildGoogleCloudStorageClientOrThrow(
+                accessKey: accessKey,
+                secretKey: secretKey);
+
+            var isConnectionOk = await TestConnection(
+                client: client,
+                cancellationToken: cancellationToken);
+
+            if (!isConnectionOk)
+                return new GoogleCloudStorageResult(
+                    Code: GoogleCloudStorageResultCode.CouldNotConnect);
+
+            return new GoogleCloudStorageResult(
+                Code: GoogleCloudStorageResultCode.Ok,
+                Client: client);
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "[S3:GOOGLE_CLOUD_STORAGE] Something went wrong while creating client '{AccessKey}'",
+                accessKey);
+
+            throw;
+        }
+    }
+
     private static async Task<bool> TestConnection(
         IAmazonS3 client,
         CancellationToken cancellationToken = default)
@@ -293,5 +345,15 @@ public static class S3Client
 
     public readonly record struct BackblazeResult(
         BackblazeResultCode Code,
+        IAmazonS3? Client = null);
+
+    public enum GoogleCloudStorageResultCode
+    {
+        Ok,
+        CouldNotConnect,
+    }
+
+    public readonly record struct GoogleCloudStorageResult(
+        GoogleCloudStorageResultCode Code,
         IAmazonS3? Client = null);
 }

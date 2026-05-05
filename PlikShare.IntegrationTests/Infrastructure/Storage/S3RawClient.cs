@@ -36,6 +36,10 @@ public static class S3RawClient
                 secretKey: S3StorageConfig.DigitalOceanSpaces.SecretKey,
                 url: $"https://{S3StorageConfig.DigitalOceanSpaces.Region}.digitaloceanspaces.com"),
 
+            StorageType.GoogleCloudStorage => S3Client.BuildGoogleCloudStorageClientOrThrow(
+                accessKey: S3StorageConfig.GoogleCloudStorage.AccessKey,
+                secretKey: S3StorageConfig.GoogleCloudStorage.SecretKey),
+
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null)
         };
     }

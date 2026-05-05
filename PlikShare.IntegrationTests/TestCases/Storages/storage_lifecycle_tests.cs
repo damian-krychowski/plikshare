@@ -24,6 +24,7 @@ public class storage_lifecycle_tests : TestFixture
     [InlineData(StorageType.BackblazeB2)]
     [InlineData(StorageType.DigitalOceanSpaces)]
     [InlineData(StorageType.AzureBlob)]
+    [InlineData(StorageType.GoogleCloudStorage)]
     [InlineData(StorageType.HardDrive)]
     public async Task storage_can_be_created_and_appears_on_the_list(
         StorageType provider)

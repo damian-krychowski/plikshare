@@ -7,5 +7,6 @@ public enum StorageType
     CloudflareR2,
     DigitalOceanSpaces,
     BackblazeB2,
-    AzureBlob
+    AzureBlob,
+    GoogleCloudStorage
 }

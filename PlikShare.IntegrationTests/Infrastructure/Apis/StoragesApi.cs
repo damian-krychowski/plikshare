@@ -8,6 +8,7 @@ using PlikShare.Storages.S3.AwsS3.Create.Contracts;
 using PlikShare.Storages.S3.BackblazeB2.Create.Contracts;
 using PlikShare.Storages.S3.CloudflareR2.Create.Contracts;
 using PlikShare.Storages.S3.DigitalOcean.Create.Contracts;
+using PlikShare.Storages.S3.GoogleCloudStorage.Create.Contracts;
 using PlikShare.Storages.UpdateName.Contracts;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -103,6 +104,19 @@ public class StoragesApi(IFlurlClient flurlClient, string appUrl)
         return await flurlClient.ExecutePost<CreateAzureBlobStorageResponseDto, CreateAzureBlobStorageRequestDto>(
             appUrl: appUrl,
             apiPath: "api/storages/azure-blob",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task<CreateGoogleCloudStorageResponseDto> CreateGoogleCloudStorage(
+        CreateGoogleCloudStorageRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        return await flurlClient.ExecutePost<CreateGoogleCloudStorageResponseDto, CreateGoogleCloudStorageRequestDto>(
+            appUrl: appUrl,
+            apiPath: "api/storages/google-cloud-storage",
             request: request,
             cookie: cookie,
             antiforgery: antiforgery);

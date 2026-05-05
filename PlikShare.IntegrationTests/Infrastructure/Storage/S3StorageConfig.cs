@@ -32,6 +32,10 @@ public static class S3StorageConfig
         AccountKey: Required("PLIKSHARE_TEST_AZURE_BLOB_ACCOUNT_KEY"),
         ServiceUrl: Required("PLIKSHARE_TEST_AZURE_BLOB_SERVICE_URL"));
 
+    public static GoogleCloudStorageCredentials GoogleCloudStorage => new(
+        AccessKey: Required("PLIKSHARE_TEST_GCS_ACCESS_KEY"),
+        SecretKey: Required("PLIKSHARE_TEST_GCS_SECRET_KEY"));
+
     private static string Required(string name)
     {
         var value = Environment.GetEnvironmentVariable(name);
@@ -72,3 +76,7 @@ public record AzureBlobCredentials(
     string AccountName,
     string AccountKey,
     string ServiceUrl);
+
+public record GoogleCloudStorageCredentials(
+    string AccessKey,
+    string SecretKey);
