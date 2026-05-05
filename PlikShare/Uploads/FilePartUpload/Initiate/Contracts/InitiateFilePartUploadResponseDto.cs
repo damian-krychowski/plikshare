@@ -4,4 +4,4 @@ public record InitiateFilePartUploadResponseDto(
     string UploadPreSignedUrl,
     long StartsAtByte,
     long EndsAtByte,
-    bool IsCompleteFilePartUploadCallbackRequired);
+    CompleteFilePartUploadCallbackDto? CompleteCallback);

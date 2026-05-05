@@ -49,9 +49,9 @@ public class DeleteFileUploadsSubQuery(
             var workspace = workspaces
                 .First(w => w.Id == deletedFileUpload.WorkspaceId);
 
-            var partTokens = deletedFileUploadParts
+            var parts = deletedFileUploadParts
                 .Where(p => p.FileUploadId == deletedFileUpload.Id)
-                .Select(p => p.ETag)
+                .Select(p => new UploadedFilePart(p.PartNumber, p.ETag))
                 .ToList();
 
             if (!storageClientStore.TryGetClient(workspace.StorageId, out var storage))
@@ -61,7 +61,7 @@ public class DeleteFileUploadsSubQuery(
 
             var abortHandle = storage.BuildAbortHandle(
                 uploadId: deletedFileUpload.MultipartUploadId,
-                partTokens: partTokens);
+                parts: parts);
 
             var job = queue.CreateBulkEntity(
                 jobType: AbortMultipartUploadQueueJobType.Value,
@@ -109,7 +109,7 @@ public class DeleteFileUploadsSubQuery(
                 {
                     FileUploadId = reader.GetInt32(0),
                     PartNumber = reader.GetInt32(1),
-                    ETag = reader.GetString(2)
+                    ETag = reader.GetStringOrNull(2)
                 },
                 transaction: transaction)
             .WithJsonParameter("$fileUploadIds", fileUploadIds)
@@ -224,7 +224,7 @@ public class DeleteFileUploadsSubQuery(
     {
         public required int FileUploadId { get; init; }
         public required int PartNumber { get; init; }
-        public required string ETag { get; init; }
+        public required string? ETag { get; init; }
     }
 
     public record Result(

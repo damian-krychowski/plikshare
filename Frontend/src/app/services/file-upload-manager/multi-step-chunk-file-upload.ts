@@ -132,15 +132,21 @@ export class MultiStepChunkFileUpload implements IFileUpload  {
             });           
 
             this.markPartNumberAsUploaded(partNumber);
-            
-            if(initiatePartUploadResult.isCompleteFilePartUploadCallbackRequired) {
-                const etag = partUpload.headers
-                    .get('Etag')
-                    ?.replace(/"/g, "");
 
-                    if (etag == undefined) {
-                        throw new Error('ETag is not defined.');
-                    }    
+            const callback = initiatePartUploadResult.completeCallback;
+
+            if (callback) {
+                let etag: string | null = null;
+
+                if (callback.eTagSourceHeader) {
+                    etag = partUpload.headers
+                        .get(callback.eTagSourceHeader)
+                        ?.replace(/"/g, "") ?? null;
+
+                    if (etag === null) {
+                        throw new Error(`Expected response header '${callback.eTagSourceHeader}' is missing.`);
+                    }
+                }
 
                 await this._uploadsApi.completePartUpload(
                     this.details.uploadExternalId,

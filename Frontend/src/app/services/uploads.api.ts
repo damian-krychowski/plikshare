@@ -142,15 +142,19 @@ export interface GetUploadDetailsResponse {
     expectedPartsCount: number;
 }
 
+export interface CompleteFilePartUploadCallback {
+    eTagSourceHeader: string | null;
+}
+
 export interface InitiateFilePartUploadResponse {
     uploadPreSignedUrl: string;
     startsAtByte: number;
     endsAtByte: number;
-    isCompleteFilePartUploadCallbackRequired: boolean;
+    completeCallback: CompleteFilePartUploadCallback | null;
 }
 
 export interface CompleteFilePartUploadRequest {
-    eTag: string;
+    eTag: string | null;
 }
 
 export interface CompleteFileUploadResponse {

@@ -196,7 +196,8 @@ public class HardDriveStorageClient(
 
             var partName = GetPartFileName(
                 fileExternalId,
-                partETag.ETag);
+                partETag.ETag ?? throw new InvalidOperationException(
+                    $"[HardDrive] Cannot merge parts for '{fileExternalId}': part {partETag.PartNumber} has no ETag."));
 
             var partFilePath = Path.Combine(
                 bucketPath,
@@ -238,8 +239,11 @@ public class HardDriveStorageClient(
     
     public MultipartUploadAbortHandle BuildAbortHandle(
         string uploadId,
-        IReadOnlyList<string> partTokens) =>
-        new HardDriveMultipartUploadAbortHandle([..partTokens]);
+        IReadOnlyList<UploadedFilePart> parts) =>
+        new HardDriveMultipartUploadAbortHandle(parts
+            .Select(p => p.ETag ?? throw new InvalidOperationException(
+                $"[HardDrive] Cannot build abort handle: part {p.PartNumber} has no ETag."))
+            .ToList());
 
     public Task AbortMultipartUpload(
         string bucketName,

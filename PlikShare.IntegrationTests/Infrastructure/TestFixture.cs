@@ -851,14 +851,17 @@ public class TestFixture: IAsyncLifetime
                     contentType: contentType,
                     cookie: user.Cookie);
 
-                if (partInitiate.IsCompleteFilePartUploadCallbackRequired)
+                if (partInitiate.CompleteCallback is not null)
                 {
+                    var callback = partInitiate.CompleteCallback;
+                    var etagToSend = callback.ETagSourceHeader is null ? null : eTag;
+
                     await Api.Uploads.CompletePartUpload(
                         workspaceExternalId: workspace.ExternalId,
                         fileUploadExternalId: uploadExtId,
                         partNumber: partNumber,
                         request: new Uploads.FilePartUpload.Complete.Contracts.CompleteFilePartUploadRequestDto(
-                            ETag: eTag),
+                            ETag: etagToSend),
                         cookie: user.Cookie,
                         antiforgery: user.Antiforgery,
                         workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);

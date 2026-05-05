@@ -238,13 +238,15 @@ public class storage_abort_multipart_upload_tests : TestFixture
                 contentType: contentType,
                 cookie: user.Cookie);
 
-            if (partInitiate.IsCompleteFilePartUploadCallbackRequired)
+            if (partInitiate.CompleteCallback is not null)
             {
+                var etagToSend = partInitiate.CompleteCallback.ETagSourceHeader is null ? null : eTag;
+
                 await Api.Uploads.CompletePartUpload(
                     workspaceExternalId: workspace.ExternalId,
                     fileUploadExternalId: uploadExtId,
                     partNumber: partNumber,
-                    request: new CompleteFilePartUploadRequestDto(ETag: eTag),
+                    request: new CompleteFilePartUploadRequestDto(ETag: etagToSend),
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery,
                     workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);

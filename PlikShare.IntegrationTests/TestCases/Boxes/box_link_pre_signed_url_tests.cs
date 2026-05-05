@@ -336,13 +336,15 @@ public class box_link_pre_signed_url_tests : TestFixture
                 contentType: "application/octet-stream",
                 cookie: null);
 
-            if (partInitiate.IsCompleteFilePartUploadCallbackRequired)
+            if (partInitiate.CompleteCallback is not null)
             {
+                var etagToSend = partInitiate.CompleteCallback.ETagSourceHeader is null ? null : eTag;
+
                 await Api.AccessCodesApi.CompleteFilePartUpload(
                     accessCode: boxLink.AccessCode,
                     fileUploadExternalId: uploadExtId,
                     partNumber: partNumber,
-                    request: new CompleteBoxFilePartUploadRequestDto(ETag: eTag),
+                    request: new CompleteBoxFilePartUploadRequestDto(ETag: etagToSend),
                     boxLinkToken: session.Token);
             }
         }

@@ -116,7 +116,10 @@ public class S3StorageClient(
                 Key = key.Value,
                 UploadId = uploadId,
                 PartETags = partETags
-                    .Select(p => new PartETag(partNumber: p.PartNumber, eTag: p.ETag))
+                    .Select(p => new PartETag(
+                        partNumber: p.PartNumber,
+                        eTag: p.ETag ?? throw new InvalidOperationException(
+                            $"[S3] Cannot complete multipart upload '{bucketName}/{key.Value}': part {p.PartNumber} has no ETag.")))
                     .ToList()
             };
 
@@ -139,11 +142,11 @@ public class S3StorageClient(
         }
     }
 
-    public async ValueTask<string> GetPreSignedUploadFilePartLink(
-        string bucketName, 
-        FileKey key, 
+    public async ValueTask<PreSignedUploadFilePartLink> GetPreSignedUploadFilePartLink(
+        string bucketName,
+        FileKey key,
         string uploadId,
-        int partNumber, 
+        int partNumber,
         string contentType,
         DateTimeOffset expiresAt)
     {
@@ -159,11 +162,15 @@ public class S3StorageClient(
                 Verb = HttpVerb.PUT,
                 Expires = expiresAt.UtcDateTime,
             };
-            
+
             var response = await s3Client.GetPreSignedURLAsync(
                 request: request);
 
-            return response;
+            // S3 UploadPart returns an ETag header on the response; the client must
+            // forward it back so we can pass it to CompleteMultipartUpload.
+            return new PreSignedUploadFilePartLink(
+                Url: response,
+                ETagSourceHeader: "ETag");
         }
         catch (Exception e)
         {
@@ -247,7 +254,7 @@ public class S3StorageClient(
 
     public MultipartUploadAbortHandle BuildAbortHandle(
         string uploadId,
-        IReadOnlyList<string> partTokens) =>
+        IReadOnlyList<UploadedFilePart> parts) =>
         new S3MultipartUploadAbortHandle(uploadId);
 
     public async Task AbortMultipartUpload(

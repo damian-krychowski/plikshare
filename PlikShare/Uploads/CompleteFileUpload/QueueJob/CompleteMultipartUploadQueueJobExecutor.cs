@@ -157,7 +157,7 @@ public class CompleteMultipartUploadQueueJobExecutor(
                      """,
                 readRowFunc: reader => new UploadedFilePart(
                     PartNumber: reader.GetInt32(0),
-                    ETag: reader.GetString(1)))
+                    ETag: reader.GetStringOrNull(1)))
             .WithParameter("$fileUploadId", fileUploadId)
             .Execute();
 

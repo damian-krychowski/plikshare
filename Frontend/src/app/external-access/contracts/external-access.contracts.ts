@@ -63,15 +63,19 @@ export interface BoxGetFileUploadDetailsResponse {
     expectedPartsCount: number;
 }   
 
+export interface BoxCompleteFilePartUploadCallback {
+    eTagSourceHeader: string | null;
+}
+
 export interface BoxInitiateFilePartUploadResponse {
     uploadPreSignedUrl: string;
     startsAtByte: number;
     endsAtByte: number;
-    isCompleteFilePartUploadCallbackRequired: boolean;
+    completeCallback: BoxCompleteFilePartUploadCallback | null;
 }
 
 export interface BoxCompleteFilePartUploadRequest {
-    eTag: string;
+    eTag: string | null;
 }
 
 export interface BoxCompleteFileUploadResponse {

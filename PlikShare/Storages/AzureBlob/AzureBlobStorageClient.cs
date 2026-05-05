@@ -187,7 +187,7 @@ public class AzureBlobStorageClient(
     
     public MultipartUploadAbortHandle BuildAbortHandle(
         string uploadId,
-        IReadOnlyList<string> partTokens) =>
+        IReadOnlyList<UploadedFilePart> parts) =>
         new AzureMultipartUploadAbortHandle();
 
     public async Task AbortMultipartUpload(
@@ -605,7 +605,7 @@ public class AzureBlobStorageClient(
         return response.Value.Content;
     }
 
-    public ValueTask<string> GetPreSignedUploadFilePartLink(
+    public ValueTask<PreSignedUploadFilePartLink> GetPreSignedUploadFilePartLink(
         string bucketName,
         FileKey key,
         string uploadId,
@@ -634,7 +634,12 @@ public class AzureBlobStorageClient(
         var baseUrl = blockBlob.GenerateSasUri(sasBuilder).ToString();
         var blockId = Uri.EscapeDataString(ToBlockId(partNumber));
 
-        return ValueTask.FromResult($"{baseUrl}&comp=block&blockid={blockId}");
+        // Azure's StageBlock response carries no ETag — block IDs are the join key,
+        // and we regenerate them deterministically from the part number at commit
+        // time (see CompleteMultiPartUpload). So no token to capture from the client.
+        return ValueTask.FromResult(new PreSignedUploadFilePartLink(
+            Url: $"{baseUrl}&comp=block&blockid={blockId}",
+            ETagSourceHeader: null));
     }
     
     public ValueTask<string> GetPreSignedDownloadFileLink(

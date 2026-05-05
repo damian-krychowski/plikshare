@@ -36,11 +36,13 @@ export interface FileUploadApi {
         uploadPreSignedUrl: string;
         startsAtByte: number;
         endsAtByte: number;
-        isCompleteFilePartUploadCallbackRequired: boolean;
+        completeCallback: {
+            eTagSourceHeader: string | null;
+        } | null;
     }>;
 
     completePartUpload(externalId: string, partNumber: number, request: {
-        eTag: string;
+        eTag: string | null;
     }): Promise<void>
 
     completeUpload(externalId: string): Promise<{

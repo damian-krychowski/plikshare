@@ -506,7 +506,7 @@ public class BulkInitiateFileUploadOperation(
                 key: mpu.S3Key,
                 handle: workspace.Storage.BuildAbortHandle(
                     uploadId: mpu.StorageUploadDetails.MultipartUploadId,
-                    partTokens: []),
+                    parts: []),
                 cancellationToken: cancellationToken));
 
             await Task.WhenAll(abortMultiPartUploadTasks);

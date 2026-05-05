@@ -188,7 +188,7 @@ public static class UploadsEndpoints
                     UploadPreSignedUrl: result.Details!.UploadPreSignedUrl,
                     StartsAtByte: result.Details.StartsAtByte,
                     EndsAtByte: result.Details.EndsAtByte,
-                    IsCompleteFilePartUploadCallbackRequired: result.Details.IsCompleteFilePartUploadCallbackRequired)),
+                    CompleteCallback: result.Details.CompleteCallback)),
 
             InitiateFilePartUploadOperation.ResultCode.FileUploadNotFound => 
                 HttpErrors.Upload.NotFound(

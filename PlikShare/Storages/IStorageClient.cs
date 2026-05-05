@@ -60,13 +60,13 @@ public interface IStorageClient
 
     /// <summary>
     /// Builds the backend-specific abort payload from the primitive state PlikShare
-    /// keeps in DB (multipart upload id from <c>fu_file_uploads</c>, part tokens
-    /// from <c>fup_file_upload_parts</c>). Producers call this at the point of
+    /// keeps in DB (multipart upload id from <c>fu_file_uploads</c>, parts from
+    /// <c>fup_file_upload_parts</c>). Producers call this at the point of
     /// enqueueing an abort job; backends ignore whichever inputs they don't need.
     /// </summary>
     MultipartUploadAbortHandle BuildAbortHandle(
         string uploadId,
-        IReadOnlyList<string> partTokens);
+        IReadOnlyList<UploadedFilePart> parts);
 
     Task AbortMultipartUpload(
         string bucketName,
@@ -93,12 +93,6 @@ public interface IStorageClient
     string GenerateFileKeySecretPart();
 }
 
-public class PreSignedUploadLinkResult
-{
-    public required string Url { get; init; }
-    public required bool IsCompleteFilePartUploadCallbackRequired { get; init; }
-}
-
 public record UploadFilePartDetails(
     FileKey FileKey,
     string? MultipartUploadId,
@@ -118,4 +112,11 @@ public record DownloadFileRangeDetails(
     long FileSizeInBytes,
     FileEncryptionMode EncryptionMode);
 
-public record UploadedFilePart(int PartNumber, string ETag);
+/// <summary>
+/// A part that finished uploading. <see cref="ETag"/> is non-null for backends that
+/// return an ETag on the part-upload response (S3-compatible APIs, HardDrive); it is
+/// <c>null</c> for backends where the join key is reconstructed server-side from the
+/// part number — Azure Block Blob, where deterministic block IDs are committed via
+/// PutBlockList without needing any client-supplied token.
+/// </summary>
+public record UploadedFilePart(int PartNumber, string? ETag);

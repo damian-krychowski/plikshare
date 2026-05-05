@@ -14,7 +14,7 @@ public class CompleteFilePartUploadQuery(
         WorkspaceContext workspace,
         int partNumber,
         FileUploadExtId fileUploadExternalId,
-        string eTag,
+        string? eTag,
         IUserIdentity userIdentity,
         CancellationToken cancellationToken)
     {

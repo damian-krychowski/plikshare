@@ -7,6 +7,7 @@ using PlikShare.Storages.Encryption;
 using PlikShare.Storages.HardDrive.StorageClient;
 using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.Chunking;
+using PlikShare.Uploads.FilePartUpload.Initiate.Contracts;
 using PlikShare.Uploads.Id;
 using PlikShare.Workspaces.Cache;
 using Serilog;
@@ -90,7 +91,7 @@ public class InitiateFilePartUploadOperation(
                 UploadPreSignedUrl: preSignedUrlResult.Url,
                 StartsAtByte: startsAtByte,
                 EndsAtByte: endsAtByte,
-                IsCompleteFilePartUploadCallbackRequired: preSignedUrlResult.IsCompleteFilePartUploadCallbackRequired));
+                CompleteCallback: preSignedUrlResult.CompleteCallback));
     }
 
     private async ValueTask<PreSignedUploadLinkResult> GetPreSignedUploadLink(
@@ -152,10 +153,12 @@ public class InitiateFilePartUploadOperation(
                 WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption),
             });
 
+        // HardDrive routes the upload through PlikShare's own pre-signed endpoint,
+        // which records the part directly — no follow-up complete-part call needed.
         var result = new PreSignedUploadLinkResult
         {
             Url = url,
-            IsCompleteFilePartUploadCallbackRequired = false
+            CompleteCallback = null
         };
 
         return result;
@@ -193,16 +196,18 @@ public class InitiateFilePartUploadOperation(
                     WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
                 });
 
+            // Encryption proxy: upload routes through PlikShare's own pre-signed
+            // endpoint, which records the part directly.
             return new PreSignedUploadLinkResult
             {
                 Url = url,
-                IsCompleteFilePartUploadCallbackRequired = false
+                CompleteCallback = null
             };
         }
 
         if (objectStorageClient.Encryption is NoStorageEncryption)
         {
-            var url = await objectStorageClient.GetPreSignedUploadFilePartLink(
+            var link = await objectStorageClient.GetPreSignedUploadFilePartLink(
                 bucketName,
                 fileUpload.FileToUpload.FileKey,
                 fileUpload.FileToUpload.MultipartUploadId,
@@ -210,10 +215,14 @@ public class InitiateFilePartUploadOperation(
                 contentType,
                 clock.UtcNow.AddMinutes(15));
 
+            // Direct-to-storage upload: client must call complete-part to record
+            // that the part was uploaded. The backend-specific verification token
+            // (or absence thereof) is captured in ETagSourceHeader.
             return new PreSignedUploadLinkResult
             {
-                Url = url,
-                IsCompleteFilePartUploadCallbackRequired = true
+                Url = link.Url,
+                CompleteCallback = new CompleteFilePartUploadCallbackDto(
+                    ETagSourceHeader: link.ETagSourceHeader)
             };
         }
 
@@ -256,8 +265,14 @@ public class InitiateFilePartUploadOperation(
         string UploadPreSignedUrl,
         long StartsAtByte,
         long EndsAtByte,
-        bool IsCompleteFilePartUploadCallbackRequired);
-    
+        CompleteFilePartUploadCallbackDto? CompleteCallback);
+
+    private sealed class PreSignedUploadLinkResult
+    {
+        public required string Url { get; init; }
+        public required CompleteFilePartUploadCallbackDto? CompleteCallback { get; init; }
+    }
+
     public enum ResultCode
     {
         FilePartUploadInitiated = 0,

@@ -13,14 +13,14 @@ public class InsertFileUploadPartQuery(
     public Task<Result> Execute(
         int fileUploadId,
         int partNumber,
-        string eTag,
+        string? eTag,
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
-                dbWriteContext: context, 
-                fileUploadId: fileUploadId, 
-                partNumber: partNumber, 
+                dbWriteContext: context,
+                fileUploadId: fileUploadId,
+                partNumber: partNumber,
                 eTag: eTag),
             cancellationToken: cancellationToken);
     }
@@ -29,7 +29,7 @@ public class InsertFileUploadPartQuery(
         SqliteWriteContext dbWriteContext,
         int fileUploadId,
         int partNumber,
-        string eTag)
+        string? eTag)
     {
         try
         {
@@ -45,7 +45,7 @@ public class InsertFileUploadPartQuery(
                             $partNumber,
                             $etag
                         )
-                        RETURNING 
+                        RETURNING
                             fup_file_upload_id",
                     readRowFunc: reader => reader.GetInt32(0))
                 .WithParameter("$fileUploadId", fileUploadId)
