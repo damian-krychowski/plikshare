@@ -7,9 +7,10 @@
     [class.action-btn--countdown]="countdown()"
     [class.action-btn--loading]="isLoading()"
     [style.--progress.%]="countdownProgress()"
-    mat-flat-button  
+    mat-flat-button
     [matTooltip]="tooltip()"
     [matTooltipPosition]="tooltipPosition()"
+    [matTooltipClass]="disabled() ? 'action-btn-tooltip--disabled' : ''"
     (click)="onClick()"
     (mouseenter)="isMouseOver.set(true)"
     (mouseleave)="isMouseOver.set(false)">

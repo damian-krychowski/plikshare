@@ -169,8 +169,7 @@ export class ExplorerComponent implements OnInit, OnDestroy {
         if(this._workspaceExternalId == null) {
             throw new Error('Workspace is not set');
         }
-    
-        // Handle null file (preview closed)
+
         if(file === null) {
             this.currentFileExternalIdInPreview.set(null);
             this.setRoute(this.currentFolderExternalId(), undefined);
@@ -178,8 +177,8 @@ export class ExplorerComponent implements OnInit, OnDestroy {
             if(file.externalId == this.currentFileExternalIdInPreview()) {
                 return;
             }
-        
-            this.currentFileExternalIdInPreview.set(file.externalId);        
+
+            this.currentFileExternalIdInPreview.set(file.externalId);
             this.setRoute(file.folderExternalId, { fileId: file.externalId });
         }
     }
@@ -187,12 +186,10 @@ export class ExplorerComponent implements OnInit, OnDestroy {
     private setRoute(folderExternalId: string | null, queryParams: any | undefined) {
         if(folderExternalId == null){
             this._router.navigate([`workspaces/${this._workspaceExternalId}/explorer`], {
-                replaceUrl: true,
                 queryParams
             });
         } else {
             this._router.navigate([`workspaces/${this._workspaceExternalId}/explorer/${folderExternalId}`], {
-                replaceUrl: true,
                 queryParams
             });
         }

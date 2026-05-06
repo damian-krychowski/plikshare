@@ -173,6 +173,12 @@ select {
     color: var(--company-danger) !important;
 }
 
+.action-btn-tooltip--disabled .mdc-tooltip__surface {
+    background-color: white !important;
+    color: var(--company-grey-accent) !important;
+    box-shadow: inset 0 0 0 1px var(--company-grey-accent) !important;
+}
+
 .top-nav-btn .mat-badge-content {
     font-size: var(--company-small-font) !important;
     line-height: 1 !important;
