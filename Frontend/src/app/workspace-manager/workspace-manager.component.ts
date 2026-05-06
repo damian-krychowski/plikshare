@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ViewEncapsulation, computed, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewEncapsulation, computed, effect, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -73,7 +73,7 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
 
     private _uploadsCountChangedSubscription: Subscription | null = null;
 
-    constructor(        
+    constructor(
         public auth: AuthService,
         private _signOutService: SignOutService,
         private _router: Router,
@@ -82,6 +82,14 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
         public context: WorkspaceContextService,
         public dataStore: DataStore
     ) {
+        effect(() => {
+            const workspace = this.context.workspace();
+            const isUnlocked = this.auth.isEncryptionUnlocked();
+
+            if (workspace?.storageEncryptionType === 'full' && !isUnlocked) {
+                this._router.navigate(['workspaces']);
+            }
+        });
     }
 
     private _subscription: Subscription | null = null;

@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit, Signal, WritableSignal, computed, input, 
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { NavigationExtras, Router } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { StorageSizePipe } from '../storage-size.pipe';
 import { WorkspacesApi } from '../../services/workspaces.api';
 import { EditableTxtComponent } from '../editable-txt/editable-txt.component';
@@ -20,6 +21,7 @@ import { UserPickerComponent } from '../user-picker/user-picker.component';
 import { AppUserDetails } from '../user-item/app-user';
 import { observeIsHighlighted } from '../../services/is-highlighted-utils';
 import { AppStorageEncryptionType } from '../../services/storages.api';
+import { UnlockFullEncryptionComponent } from '../unlock-full-encryption/unlock-full-encryption.component';
 
 export type AppWorkspace = {
     type: 'app-workspace';
@@ -143,7 +145,7 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
         }
     }
 
-    public openWorkspace() {
+    public async openWorkspace() {
         const workspace = this.workspace();
 
         if(workspace.isHighlighted())
@@ -151,8 +153,22 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
 
         const externalId = workspace.externalId();
 
-        if(!this.canOpen() || !externalId || workspace.isNameEditing()) 
+        if(!this.canOpen() || !externalId || workspace.isNameEditing())
             return;
+
+        if (this.isFullEncryption() && !this.auth.isEncryptionUnlocked()) {
+            const dialogRef = this._dialog.open<UnlockFullEncryptionComponent, void, boolean>(
+                UnlockFullEncryptionComponent, {
+                    width: '500px',
+                    position: { top: '100px' },
+                    disableClose: true
+                });
+
+            const wasUnlocked = await firstValueFrom(dialogRef.afterClosed()) === true;
+
+            if (!wasUnlocked)
+                return;
+        }
 
         this._router.navigate([`/workspaces/${externalId}/explorer`]);
     }
