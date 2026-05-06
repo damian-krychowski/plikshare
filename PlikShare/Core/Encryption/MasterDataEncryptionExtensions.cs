@@ -22,7 +22,7 @@ public static class MasterDataEncryptionExtensions
                 Span<byte> buffer = stackalloc byte[byteCount];
 
                 Encoding.UTF8.GetBytes(
-                    plainText, 
+                    plainText,
                     buffer);
 
                 return encryption.EncryptBytes(
@@ -35,11 +35,11 @@ public static class MasterDataEncryptionExtensions
             try
             {
                 var span = rented.AsSpan(
-                    0, 
+                    0,
                     byteCount);
 
                 Encoding.UTF8.GetBytes(
-                    plainText, 
+                    plainText,
                     span);
 
                 return encryption.EncryptBytes(
@@ -56,7 +56,7 @@ public static class MasterDataEncryptionExtensions
         }
 
         public string DecryptString(
-            byte[] versionedEncryptedBytes)
+            ReadOnlySpan<byte> versionedEncryptedBytes)
         {
             var plaintextLength = encryption.GetDecryptedLength(
                 versionedEncryptedBytes);
@@ -69,7 +69,7 @@ public static class MasterDataEncryptionExtensions
                 Span<byte> buffer = stackalloc byte[plaintextLength];
 
                 encryption.DecryptBytes(
-                    versionedEncryptedBytes, 
+                    versionedEncryptedBytes,
                     buffer);
 
                 return Encoding.UTF8.GetString(
@@ -82,11 +82,11 @@ public static class MasterDataEncryptionExtensions
             try
             {
                 var span = rented.AsSpan(
-                    0, 
+                    0,
                     plaintextLength);
 
                 encryption.DecryptBytes(
-                    versionedEncryptedBytes, 
+                    versionedEncryptedBytes,
                     span);
 
                 return Encoding.UTF8.GetString(
@@ -109,7 +109,7 @@ public static class MasterDataEncryptionExtensions
         }
 
         public T DecryptJson<T>(
-            byte[] versionedEncryptedBytes)
+            ReadOnlySpan<byte> versionedEncryptedBytes)
         {
             var plainText = encryption.DecryptString(
                 versionedEncryptedBytes);
@@ -118,16 +118,67 @@ public static class MasterDataEncryptionExtensions
                 $"Decryption and deserialization of object into {typeof(T)} failed.");
         }
 
+        /// <summary>
+        /// Encrypts UTF-8 plaintext and encodes the ciphertext frame as Base64. For payloads that
+        /// fit on the stack, both the plaintext UTF-8 buffer and the ciphertext frame are stack-
+        /// allocated — the only heap allocation is the final Base64 string.
+        /// </summary>
         public string EncryptToBase64(
             string plainText)
         {
-            return Convert.ToBase64String(encryption.EncryptString(plainText));
+            var plaintextByteCount = Encoding.UTF8.GetByteCount(
+                plainText);
+
+            var ciphertextLength = encryption.GetEncryptedLength(
+                plaintextByteCount);
+
+            if (plaintextByteCount <= StackallocThreshold && ciphertextLength <= StackallocThreshold)
+            {
+                Span<byte> plaintextBuf = stackalloc byte[plaintextByteCount];
+                Span<byte> ciphertextBuf = stackalloc byte[ciphertextLength];
+
+                Encoding.UTF8.GetBytes(
+                    plainText,
+                    plaintextBuf);
+
+                encryption.EncryptBytes(
+                    plaintextBuf,
+                    ciphertextBuf);
+
+                return Convert.ToBase64String(
+                    ciphertextBuf);
+            }
+
+            return Convert.ToBase64String(
+                encryption.EncryptString(plainText));
         }
 
+        /// <summary>
+        /// Decodes Base64 to the encrypted frame and decrypts it back into a UTF-8 string. For
+        /// payloads that fit on the stack, the Base64-decoded buffer is stack-allocated — the
+        /// only heap allocation is the final plaintext string.
+        /// </summary>
         public string DecryptFromBase64(
             string base64EncryptedText)
         {
-            return encryption.DecryptString(Convert.FromBase64String(base64EncryptedText));
+            // Upper bound: every 4 Base64 chars decode to ≤ 3 bytes; padding only reduces the
+            // actual count. Convert.TryFromBase64Chars writes the real length to bytesWritten.
+            var maxDecodedLength = base64EncryptedText.Length / 4 * 3;
+
+            if (maxDecodedLength <= StackallocThreshold)
+            {
+                Span<byte> decoded = stackalloc byte[maxDecodedLength];
+
+                if (!Convert.TryFromBase64Chars(base64EncryptedText, decoded, out var bytesWritten))
+                    throw new FormatException(
+                        "Provided text is not a valid Base64-encoded payload.");
+
+                return encryption.DecryptString(
+                    decoded[..bytesWritten]);
+            }
+
+            return encryption.DecryptString(
+                Convert.FromBase64String(base64EncryptedText));
         }
     }
 }

@@ -26,20 +26,36 @@ public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
     private const int FastHeaderSize =
         FormatVersionSize + MasterKeyIdSize + NonceSize + TagSize;
 
+    public int GetEncryptedLength(int plaintextLength) =>
+        FastHeaderSize + plaintextLength;
+
     public byte[] EncryptBytes(ReadOnlySpan<byte> plaintext)
     {
+        var output = new byte[GetEncryptedLength(plaintext.Length)];
+        EncryptBytes(plaintext, output);
+        return output;
+    }
+
+    public void EncryptBytes(ReadOnlySpan<byte> plaintext, Span<byte> destination)
+    {
+        var expectedLength = GetEncryptedLength(plaintext.Length);
+
+        if (destination.Length != expectedLength)
+            throw new ArgumentException(
+                $"Destination span length {destination.Length} does not match " +
+                $"the expected ciphertext frame length {expectedLength}. " +
+                $"Use {nameof(GetEncryptedLength)} to size the buffer correctly.",
+                nameof(destination));
+
         var masterKey = masterEncryptionKeyProvider.GetCurrentEncryptionKey();
         var stretchedKey = masterEncryptionKeyProvider.GetStretchedKey(masterKey.Id);
 
-        var output = new byte[FastHeaderSize + plaintext.Length];
-        var outputSpan = output.AsSpan();
+        destination[0] = FastFormatVersionV1;
+        destination[FormatVersionSize] = masterKey.Id;
 
-        outputSpan[0] = FastFormatVersionV1;
-        outputSpan[FormatVersionSize] = masterKey.Id;
-
-        var nonceSpan = outputSpan.Slice(FormatVersionSize + MasterKeyIdSize, NonceSize);
-        var tagSpan = outputSpan.Slice(FormatVersionSize + MasterKeyIdSize + NonceSize, TagSize);
-        var ciphertextSpan = outputSpan.Slice(FastHeaderSize, plaintext.Length);
+        var nonceSpan = destination.Slice(FormatVersionSize + MasterKeyIdSize, NonceSize);
+        var tagSpan = destination.Slice(FormatVersionSize + MasterKeyIdSize + NonceSize, TagSize);
+        var ciphertextSpan = destination.Slice(FastHeaderSize, plaintext.Length);
 
         RandomNumberGenerator.Fill(nonceSpan);
 
@@ -61,11 +77,9 @@ public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
                     ciphertext: s.Ciphertext,
                     tag: s.Tag);
             });
-
-        return output;
     }
 
-    public void DecryptBytes(byte[] versionedEncryptedBytes, Span<byte> destination)
+    public void DecryptBytes(ReadOnlySpan<byte> versionedEncryptedBytes, Span<byte> destination)
     {
         var frame = FastCiphertextFrame.FromBytes(versionedEncryptedBytes);
 
@@ -97,7 +111,7 @@ public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
             });
     }
 
-    public int GetDecryptedLength(byte[] versionedEncryptedBytes)
+    public int GetDecryptedLength(ReadOnlySpan<byte> versionedEncryptedBytes)
     {
         if (versionedEncryptedBytes.Length < FastHeaderSize)
             throw new ArgumentException(
@@ -114,7 +128,7 @@ public class AesGcmMasterDataEncryption(MasterEncryptionKeyProvider masterEncryp
         public ReadOnlySpan<byte> Tag { get; private init; }
         public ReadOnlySpan<byte> Ciphertext { get; private init; }
 
-        public static FastCiphertextFrame FromBytes(Span<byte> versionedEncryptedBytes)
+        public static FastCiphertextFrame FromBytes(ReadOnlySpan<byte> versionedEncryptedBytes)
         {
             if (versionedEncryptedBytes.Length < FastHeaderSize)
                 throw new ArgumentException(
