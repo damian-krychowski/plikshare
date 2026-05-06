@@ -37,9 +37,8 @@ public class SendAiMessageQueueJobExecutor(
                 $"Job '{definitionJson}' cannot be parsed to correct '{nameof(SendAiMessageQueueJobDefinition)}'");
         }
 
-        var (getConversationResultCode, conversation) = await getFullAiConversationQuery.GetFullConversation(
-            lastMessageExternalId: definition.AiMessageExternalId,
-            cancellationToken: cancellationToken);
+        var (getConversationResultCode, conversation) = getFullAiConversationQuery.GetFullConversation(
+            lastMessageExternalId: definition.AiMessageExternalId);
 
         if (getConversationResultCode == GetFullAiConversationQuery.ResultCode.NotFound)
         {

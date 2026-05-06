@@ -1,4 +1,3 @@
-using PlikShare.ArtificialIntelligence.Cache;
 using PlikShare.ArtificialIntelligence.Id;
 using PlikShare.Core.Database.AiDatabase;
 using PlikShare.Core.Queue;
@@ -9,14 +8,13 @@ using Serilog;
 namespace PlikShare.ArtificialIntelligence.DeleteConversation.QueueJob;
 
 public class DeleteAiConversationQueueJobExecutor(
-    AiDbWriteQueue aiDbWriteQueue,
-    AiConversationCache aiConversationCache): IQueueNormalJobExecutor
+    AiDbWriteQueue aiDbWriteQueue): IQueueNormalJobExecutor
 {
     public string JobType => DeleteAiConversationQueueJobType.Value;
     public int Priority => QueueJobPriority.Low;
 
     public async Task<QueueJobResult> Execute(
-        string definitionJson, 
+        string definitionJson,
         Guid correlationId,
         CancellationToken cancellationToken)
     {
@@ -33,10 +31,6 @@ public class DeleteAiConversationQueueJobExecutor(
             operationToEnqueue: context => DeleteAiConversation(
                 dbWriteContext: context,
                 externalId: definition.AiConversationExternalId),
-            cancellationToken: cancellationToken);
-
-        await aiConversationCache.InvalidateEntry(
-            externalId: definition.AiConversationExternalId,
             cancellationToken: cancellationToken);
 
         return QueueJobResult.Success;

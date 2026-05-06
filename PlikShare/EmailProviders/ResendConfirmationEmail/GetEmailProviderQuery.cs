@@ -38,7 +38,7 @@ public class GetEmailProviderQuery(
                     Type: EmailProviderType.Build(reader.GetString(2)),
                     Name: reader.GetString(3),
                     EmailFrom: reader.GetString(4),
-                    DetailsJson: masterDataEncryption.Decrypt(
+                    DetailsJson: masterDataEncryption.DecryptString(
                         reader.GetFieldValue<byte[]>(5)),
                     ConfirmationCode: reader.GetString(6),
                     IsConfirmed: reader.GetBoolean(7)))

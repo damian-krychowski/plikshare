@@ -30,7 +30,7 @@ public class ActivateEmailProviderQuery(
                     Id = resultEncrypted.EmailProvider.Id,
                     EmailFrom = resultEncrypted.EmailProvider.EmailFrom,
                     Type = resultEncrypted.EmailProvider.Type,
-                    DetailsJson = masterDataEncryption.Decrypt(
+                    DetailsJson = masterDataEncryption.DecryptString(
                         resultEncrypted.EmailProvider.DetailsJsonEncrypted),
                     Name = resultEncrypted.EmailProvider.Name
                 });

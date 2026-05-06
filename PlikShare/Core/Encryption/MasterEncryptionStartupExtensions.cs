@@ -20,14 +20,9 @@ public static class MasterEncryptionStartupExtensions
         var masterDataEncryption = new AesGcmMasterDataEncryption(
             masterEncryptionKeyProvider: encryptionKeyProvider);
 
-        var masterDataEncryptionBufferedFactory = new MasterDataEncryptionBufferedFactory(
-            masterDataEncryption: masterDataEncryption,
-            bufferSize: 15);
-
         app.Services.AddSingleton(encryptionKeyProvider);
         app.Services.AddSingleton<IMasterDataEncryption>(masterDataEncryption);
-        app.Services.AddSingleton(masterDataEncryptionBufferedFactory);
-        
+
         Log.Information("[SETUP] Data encryption setup finished.");
     }
 }

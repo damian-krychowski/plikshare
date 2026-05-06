@@ -1,6 +1,5 @@
 ﻿using Microsoft.Data.Sqlite;
 using PlikShare.ArtificialIntelligence.AiIncludes;
-using PlikShare.ArtificialIntelligence.Cache;
 using PlikShare.ArtificialIntelligence.Id;
 using PlikShare.ArtificialIntelligence.SendFileMessage.Contracts;
 using PlikShare.ArtificialIntelligence.SendFileMessage.QueueJob;
@@ -23,13 +22,13 @@ using Serilog;
 namespace PlikShare.ArtificialIntelligence.SendFileMessage;
 
 public class SendAiFileMessageOperation(
-    AiConversationCache aiConversationCache,
     PlikShareDb plikShareDb,
+    PlikShareAiDb plikShareAiDb,
     AiDbWriteQueue aiDbWriteQueue,
     DbWriteQueue dbWriteQueue,
     IClock clock,
     IQueue queue,
-    MasterDataEncryptionBufferedFactory masterDataEncryptionBufferedFactory)
+    IMasterDataEncryption masterDataEncryption)
 {
     public async Task<ResultCode> Execute(
         WorkspaceContext workspace,
@@ -45,14 +44,13 @@ public class SendAiFileMessageOperation(
         if (!HasUserRightsToAllIncludes(workspace, request.Includes))
             return ResultCode.FileNotFound;
 
-        var aiConversationContext = await aiConversationCache.TryGetAiConversation(
-            externalId: request.ConversationExternalId,
-            cancellationToken: cancellationToken);
+        var existingConversationId = TryGetConversationId(
+            externalId: request.ConversationExternalId);
 
         var aiMessage = await SaveAiMessage(
             request,
             userIdentity,
-            aiConversationContext,
+            existingConversationId,
             cancellationToken);
 
         if (aiMessage.WasCounterStale)
@@ -126,34 +124,51 @@ public class SendAiFileMessageOperation(
         return count == fileExternalIds.Count;
     }
     
+    private int? TryGetConversationId(AiConversationExtId externalId)
+    {
+        using var connection = plikShareAiDb.OpenConnection();
+
+        var result = connection
+            .OneRowCmd(
+                sql: """
+                     SELECT aic_id
+                     FROM aic_ai_conversations
+                     WHERE aic_external_id = $externalId
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$externalId", externalId.Value)
+            .Execute();
+
+        return result.IsEmpty ? null : result.Value;
+    }
+
     private Task<AiMessage> SaveAiMessage(
         SendAiFileMessageRequestDto request,
         IUserIdentity userIdentity,
-        AiConversationContext? aiConversationContext,
+        int? existingConversationId,
         CancellationToken cancellationToken)
     {
         return aiDbWriteQueue.Execute(
-            operationToEnqueue: (context, ct) => ExecuteSaveAiMessage(
+            operationToEnqueue: context => ExecuteSaveAiMessage(
                 dbWriteContext: context,
                 userIdentity: userIdentity,
-                aiConversationContext: aiConversationContext,
-                request: request,
-                cancellationToken: ct),
+                existingConversationId: existingConversationId,
+                request: request),
             cancellationToken: cancellationToken);
     }
 
-    private  async ValueTask<AiMessage> ExecuteSaveAiMessage(
+    private AiMessage ExecuteSaveAiMessage(
         SqliteWriteContext dbWriteContext,
         IUserIdentity userIdentity,
-        AiConversationContext? aiConversationContext,
-        SendAiFileMessageRequestDto request,
-        CancellationToken cancellationToken)
+        int? existingConversationId,
+        SendAiFileMessageRequestDto request)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
 
         try
         {
-            var (conversationId, wasConversationCreated) = aiConversationContext is null
+            var (conversationId, wasConversationCreated) = existingConversationId is null
                 ? (
                     Id: InsertConversation(
                         externalId: request.ConversationExternalId,
@@ -165,7 +180,7 @@ public class SendAiFileMessageOperation(
                 )
                 : (
                     Id: UpdateConversation(
-                        conversationId: aiConversationContext.Id,
+                        conversationId: existingConversationId.Value,
                         dbWriteContext: dbWriteContext,
                         transaction: transaction),
 
@@ -197,16 +212,13 @@ public class SendAiFileMessageOperation(
                 return new AiMessage(-1, -1, true);
             }
 
-            var derivedEncryption = aiConversationContext
-                ?.DerivedEncryption ?? await masterDataEncryptionBufferedFactory.Take(cancellationToken);
-
             var messageId = dbWriteContext
                 .OneRowCmd(
                     sql: @"
                         INSERT INTO aim_ai_messages (
                             aim_external_id,
                             aim_ai_conversation_id,
-                            aim_conversation_counter,           
+                            aim_conversation_counter,
                             aim_message_encrypted,
                             aim_includes_encrypted,
                             aim_ai_model,
@@ -233,22 +245,15 @@ public class SendAiFileMessageOperation(
                 .WithParameter("$externalId", request.MessageExternalId.Value)
                 .WithParameter("$conversationId", conversationId)
                 .WithParameter("$conversationCounter", currentCounter)
-                .WithParameter("$messageEncrypted", derivedEncryption.Encrypt(request.Message))
-                .WithParameter("$includesEncrypted", derivedEncryption.EncryptJson(request.Includes))
+                .WithParameter("$messageEncrypted", masterDataEncryption.EncryptString(request.Message))
+                .WithParameter("$includesEncrypted", masterDataEncryption.EncryptJson(request.Includes))
                 .WithParameter("$userIdentityType", userIdentity.IdentityType)
                 .WithParameter("$userIdentity", userIdentity.Identity)
                 .WithParameter("$createdAt", clock.UtcNow)
                 .WithParameter("$aiModel", request.AiModel)
                 .ExecuteOrThrow();
-            
-            transaction.Commit();
 
-            if (wasConversationCreated)
-            {
-                await aiConversationCache.InvalidateEntry(
-                    externalId: request.ConversationExternalId,
-                    cancellationToken: cancellationToken);
-            }
+            transaction.Commit();
 
             Log.Information("AiMessage '{AiMessageExternalId} ({AiMessageId})' with counter {ConversationCounter} was added to AiConversation '{AiConversationExternalId} ({AiConversationId})'.",
                 request.MessageExternalId,
@@ -484,17 +489,15 @@ public class SendAiFileMessageOperation(
         CancellationToken cancellationToken)
     {
         return aiDbWriteQueue.Execute(
-            operationToEnqueue: (context, ct) => ExecuteCleanUpAiMessage(
+            operationToEnqueue: context => ExecuteCleanUpAiMessage(
                 dbWriteContext: context,
-                aiMessage: aiMessage,
-                cancellationToken: ct),
+                aiMessage: aiMessage),
             cancellationToken: cancellationToken);
     }
 
-    private async ValueTask ExecuteCleanUpAiMessage(
+    private void ExecuteCleanUpAiMessage(
         SqliteWriteContext dbWriteContext,
-        AiMessage aiMessage,
-        CancellationToken cancellationToken)
+        AiMessage aiMessage)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
 
@@ -545,15 +548,9 @@ public class SendAiFileMessageOperation(
 
             if (deletedConversationExtId is not null)
             {
-                await aiConversationCache.InvalidateEntry(
-                    externalId: deletedConversationExtId.Value,
-                    cancellationToken: cancellationToken);
-
-
                 Log.Warning("AiMessage#{AiMessageId} and AiConversation{AiConversationId} were deleted to clean up after failed SendAiMessage process.",
-                    aiMessage.MessageId, 
+                    aiMessage.MessageId,
                     deletedMessageConversationId);
-
             }
             else
             {

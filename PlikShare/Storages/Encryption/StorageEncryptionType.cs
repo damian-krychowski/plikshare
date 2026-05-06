@@ -74,15 +74,15 @@ public static class StorageEncryptionExtensions
             }
         }
 
-        public byte[]? EncryptJson(IDerivedMasterDataEncryption derivedEncryption)
+        public byte[]? EncryptJson(IMasterDataEncryption masterEncryption)
         {
             return encryption switch
             {
                 NoStorageEncryption => null,
 
-                ManagedStorageEncryption managed => derivedEncryption.EncryptJson(managed.Details),
+                ManagedStorageEncryption managed => masterEncryption.EncryptJson(managed.Details),
 
-                FullStorageEncryption full => derivedEncryption.EncryptJson(full.Details),
+                FullStorageEncryption full => masterEncryption.EncryptJson(full.Details),
 
                 _ => throw new InvalidOperationException(
                     $"Unsupported storage encryption type '{encryption.GetType().Name}'.")

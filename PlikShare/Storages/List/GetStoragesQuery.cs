@@ -201,7 +201,7 @@ public class GetStoragesQuery(
 
     private TDetails? GetStorageDetails<TDetails>(byte[] encryptedDetails)
     {
-        var decryptedDetails = masterDataEncryption.Decrypt(
+        var decryptedDetails = masterDataEncryption.DecryptString(
             encryptedDetails);
 
         return Json.Deserialize<TDetails>(

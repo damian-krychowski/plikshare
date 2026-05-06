@@ -15,7 +15,7 @@ public static class SecureBytesSerializationExtensions
         {
             return secureBytes.Use(
                 masterEncryption,
-                static (span, enc) => enc.FastEncryptBytes(span));
+                static (span, enc) => enc.EncryptBytes(span));
         }
     }
 
@@ -31,7 +31,7 @@ public static class SecureBytesSerializationExtensions
             byte[] encryptedSecureBytes,
             IMasterDataEncryption masterEncryption)
         {
-            var plaintextLength = masterEncryption.GetFastDecryptedLength(
+            var plaintextLength = masterEncryption.GetDecryptedLength(
                 encryptedSecureBytes);
 
             return SecureBytes.Create(
@@ -41,7 +41,7 @@ public static class SecureBytesSerializationExtensions
                     Encryption = masterEncryption,
                     EncryptedDek = encryptedSecureBytes
                 },
-                initializer: static (output, s) => s.Encryption.FastDecryptBytes(
+                initializer: static (output, s) => s.Encryption.DecryptBytes(
                     s.EncryptedDek, 
                     output));
         }

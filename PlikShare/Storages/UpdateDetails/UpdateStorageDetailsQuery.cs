@@ -9,7 +9,7 @@ using Serilog;
 namespace PlikShare.Storages.UpdateDetails;
 
 public class UpdateStorageDetailsQuery(
-    MasterDataEncryptionBufferedFactory masterDataEncryptionBufferedFactory,
+    IMasterDataEncryption masterDataEncryption,
     DbWriteQueue dbWriteQueue)
 {
     public Task<Result> Execute(
@@ -19,25 +19,20 @@ public class UpdateStorageDetailsQuery(
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
-            operationToEnqueue: (context, ct) => ExecuteOperation(
+            operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
                 externalId: externalId,
                 storageType: storageType,
-                detailsJson: detailsJson,
-                cancellationToken: ct),
+                detailsJson: detailsJson),
             cancellationToken: cancellationToken);
     }
 
-    private async ValueTask<Result> ExecuteOperation(
+    private Result ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         StorageExtId externalId,
         StorageType storageType,
-        string detailsJson,
-        CancellationToken cancellationToken)
+        string detailsJson)
     {
-        var derivedEncryption = await masterDataEncryptionBufferedFactory.Take(
-            cancellationToken);
-
         var storage = dbWriteContext
             .OneRowCmd(
                 sql: """
@@ -70,7 +65,7 @@ public class UpdateStorageDetailsQuery(
                 })
             .WithParameter("$externalId", externalId.Value)
             .WithEnumParameter("$type", storageType)
-            .WithParameter("$details", derivedEncryption.Encrypt(detailsJson))
+            .WithParameter("$details", masterDataEncryption.EncryptString(detailsJson))
             .Execute();
 
         Log.Information("Storage '{StorageExternalId}' details were updated",

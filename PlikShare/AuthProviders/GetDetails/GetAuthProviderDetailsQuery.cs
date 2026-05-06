@@ -36,7 +36,7 @@ public class GetAuthProviderDetailsQuery(
                     Type: reader.GetString(3),
                     IsActive: reader.GetBoolean(4),
                     ClientId: reader.GetString(5),
-                    ClientSecret: masterDataEncryption.Decrypt(
+                    ClientSecret: masterDataEncryption.DecryptString(
                         reader.GetFieldValue<byte[]>(6)),
                     IssuerUrl: reader.GetString(7),
                     AutoDiscoveryUrl: reader.GetString(8)))

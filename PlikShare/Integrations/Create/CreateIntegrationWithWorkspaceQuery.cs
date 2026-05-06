@@ -16,9 +16,9 @@ public class CreateIntegrationWithWorkspaceQuery(
     DbWriteQueue dbWriteQueue,
     CreateWorkspaceQuery createWorkspaceQuery,
     WorkspaceCreationPreparation workspaceCreationPreparation,
-    MasterDataEncryptionBufferedFactory masterDataEncryptionBufferedFactory)
+    IMasterDataEncryption masterDataEncryption)
 {
-    public async Task<Result> Execute<TDetails>(
+    public Task<Result> Execute<TDetails>(
         string name,
         IntegrationType type,
         TDetails details,
@@ -31,27 +31,24 @@ public class CreateIntegrationWithWorkspaceQuery(
         // letting the write queue produce a half-formed workspace with no wrap row.
         var storageContext = workspaceCreationPreparation.ResolveStorageContextForRead(
             details.StorageExternalId);
-            
+
         if (storageContext is null)
-            return new Result(
+            return Task.FromResult(new Result(
                 Code: ResultCode.StorageNotFound,
-                MissingStorageExternalId: details.StorageExternalId);
+                MissingStorageExternalId: details.StorageExternalId));
 
         if (storageContext.Value.EncryptionType == StorageEncryptionType.Full)
-            return new Result(Code: ResultCode.EncryptedStorageNotSupported);
+            return Task.FromResult(new Result(
+                Code: ResultCode.EncryptedStorageNotSupported));
 
-        var derivedEncryption = await masterDataEncryptionBufferedFactory.Take(
-            cancellationToken: cancellationToken);
-
-        return await dbWriteQueue.Execute(
+        return dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
                 type: type,
                 name: name,
                 details: details,
                 ownerId: ownerId,
-                correlationId: correlationId,
-                derivedEncryption: derivedEncryption),
+                correlationId: correlationId),
             cancellationToken: cancellationToken);
     }
 
@@ -61,8 +58,7 @@ public class CreateIntegrationWithWorkspaceQuery(
         IntegrationType type,
         TDetails details,
         int ownerId,
-        Guid correlationId,
-        IDerivedMasterDataEncryption derivedEncryption) where TDetails : IIntegrationWithWorkspace
+        Guid correlationId) where TDetails : IIntegrationWithWorkspace
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
 
@@ -118,7 +114,7 @@ public class CreateIntegrationWithWorkspaceQuery(
                 .WithParameter("$externalId", externalId.Value)
                 .WithEnumParameter("$type", type)
                 .WithParameter("$name", name)
-                .WithParameter("$details", derivedEncryption.EncryptJson(details))
+                .WithParameter("$details", masterDataEncryption.EncryptJson(details))
                 .WithParameter("$workspaceId", workspaceResult.Workspace.Id)
                 .ExecuteOrThrow();
 

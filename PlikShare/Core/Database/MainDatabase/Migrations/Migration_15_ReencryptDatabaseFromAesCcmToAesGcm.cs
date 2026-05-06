@@ -1,33 +1,33 @@
 using Microsoft.Data.Sqlite;
+using PlikShare.Core.Database.Migrations.Legacy;
 using PlikShare.Core.DataProtection;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 
 namespace PlikShare.Core.Database.MainDatabase.Migrations;
 
+/// <summary>
+/// Re-encrypts existing rows from the legacy AES-CCM format to the slow-path AES-GCM format.
+/// Both ciphers live in <see cref="LegacyAesCcm"/> and <see cref="LegacyAesGcm"/> — this migration
+/// only orchestrates the SQL UDFs and the table updates. A later migration (34) carries these
+/// rows from slow-path GCM to fast-path GCM.
+/// </summary>
 public class Migration_15_ReencryptDatabaseFromAesCcmToAesGcm(MasterEncryptionKeyProvider masterEncryptionKeyProvider) : ISQLiteMigration
 {
     public string Name => "reencrypt_database_from_aes_ccm_to_aes_gcm";
     public DateOnly Date { get; } = new(2025, 3, 2);
     public PlikShareDbType Type { get; } = PlikShareDb.Type;
-    
+
     public void Run(SqliteConnection connection, SqliteTransaction transaction)
     {
-#pragma warning disable CS0618 // Type or member is obsolete
-        var aesCcm = new AesCcmMasterDataEncryption(masterEncryptionKeyProvider);
-#pragma warning restore CS0618 // Type or member is obsolete
-        var aesGcm = new AesGcmMasterDataEncryption(masterEncryptionKeyProvider);
-
         connection.CreateFunction("app_reencrypt_from_ccm_to_gcm",
             (byte[]? bytes) =>
             {
                 if (bytes is null)
                     return null;
 
-                var decrypted = aesCcm.Decrypt(bytes);
-                var reencrypted = aesGcm.Encrypt(decrypted);
-
-                return reencrypted;
+                var decrypted = LegacyAesCcm.Decrypt(bytes, masterEncryptionKeyProvider);
+                return LegacyAesGcm.Encrypt(decrypted, masterEncryptionKeyProvider);
             });
 
         connection.CreateFunction("app_reencrypt_from_ccm_to_gcm_base64",
@@ -36,17 +36,17 @@ public class Migration_15_ReencryptDatabaseFromAesCcmToAesGcm(MasterEncryptionKe
                 if (encrypted is null)
                     return null;
 
-                var decrypted = aesCcm.DecryptFromBase64(encrypted);
-                var reencrypted = aesGcm.EncryptToBase64(decrypted);
-
-                return reencrypted;
+                var decryptedBytes = Convert.FromBase64String(encrypted);
+                var decrypted = LegacyAesCcm.Decrypt(decryptedBytes, masterEncryptionKeyProvider);
+                return Convert.ToBase64String(
+                    LegacyAesGcm.Encrypt(decrypted, masterEncryptionKeyProvider));
             });
 
-        var storageIds = connection
+        connection
             .Cmd(
                 sql: """
                      UPDATE s_storages
-                     SET 
+                     SET
                         s_details_encrypted = app_reencrypt_from_ccm_to_gcm(s_details_encrypted),
                         s_encryption_details_encrypted = app_reencrypt_from_ccm_to_gcm(s_encryption_details_encrypted)
                      RETURNING s_id
@@ -55,7 +55,7 @@ public class Migration_15_ReencryptDatabaseFromAesCcmToAesGcm(MasterEncryptionKe
                 transaction: transaction)
             .Execute();
 
-        var emailProviderIds = connection
+        connection
             .Cmd(
                 sql: """
                      UPDATE ep_email_providers
@@ -66,7 +66,7 @@ public class Migration_15_ReencryptDatabaseFromAesCcmToAesGcm(MasterEncryptionKe
                 transaction: transaction)
             .Execute();
 
-        var integrationIds = connection
+        connection
             .Cmd(
                 sql: """
                      UPDATE i_integrations
@@ -76,8 +76,8 @@ public class Migration_15_ReencryptDatabaseFromAesCcmToAesGcm(MasterEncryptionKe
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
             .Execute();
-        
-        var appSettings = connection
+
+        connection
             .Cmd(
                 sql: """
                      UPDATE as_app_settings
@@ -95,7 +95,7 @@ public class Migration_15_ReencryptDatabaseFromAesCcmToAesGcm(MasterEncryptionKe
             })
             .Execute();
 
-        var deletedAppSettings = connection
+        connection
             .Cmd(
                 sql: $"""
                       DELETE FROM as_app_settings

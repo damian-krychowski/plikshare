@@ -33,8 +33,8 @@ public class MasterEncryptionKeyProvider
     /// predictable first-request latency and fail-fast on bad passwords.
     ///
     /// Core performance mechanism for the fast-path AEAD in
-    /// <see cref="IMasterDataEncryption.FastEncryptBytes"/> /
-    /// <see cref="IMasterDataEncryption.FastDecryptBytes"/>: every encrypt/decrypt is
+    /// <see cref="IMasterDataEncryption.EncryptBytes"/> /
+    /// <see cref="IMasterDataEncryption.DecryptBytes"/>: every encrypt/decrypt is
     /// just AES-GCM with the cached stretched key, no PBKDF2.
     /// </summary>
     private readonly Dictionary<byte, SecureBytes> _stretchedKeys;

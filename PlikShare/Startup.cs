@@ -12,7 +12,6 @@ using PlikShare.AuditLog;
 using PlikShare.AuditLog.Decryption;
 using PlikShare.AuditLog.Queries;
 using PlikShare.ArtificialIntelligence;
-using PlikShare.ArtificialIntelligence.Cache;
 using PlikShare.ArtificialIntelligence.CheckConversationStatus;
 using PlikShare.ArtificialIntelligence.DeleteConversation;
 using PlikShare.ArtificialIntelligence.DeleteConversation.QueueJob;
@@ -312,6 +311,8 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_31_DigitalOceanSpacesStorageTypeRenamed>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_32_StorageQueueJobsRenamedToBackendNeutralNames>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_33_StorageDbColumnsRenamedToBackendNeutralNames>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_34_ReencryptDatabaseFromSlowPathToFastPath>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
 
@@ -693,7 +694,6 @@ public class Startup
         builder.Services.AddSingleton<GetFilesToIncludeDetailsQuery>();
         builder.Services.AddSingleton<GetFullAiConversationQuery>();
         builder.Services.AddSingleton<SaveAiChatCompletionQuery>();
-        builder.Services.AddSingleton<AiConversationCache>();
         builder.Services.AddSingleton<InsertFileAttachmentQuery>();
         builder.Services.AddSingleton<MarkFileAsUploadedQuery>();
         builder.Services.AddSingleton<IQueueLongRunningJobExecutor, SendAiMessageQueueJobExecutor>();

@@ -11,27 +11,23 @@ namespace PlikShare.EmailProviders.Create;
 
 public class CreateEmailProviderQuery(
     DbWriteQueue dbWriteQueue,
-    MasterDataEncryptionBufferedFactory masterDataEncryptionBufferedFactory,
+    IMasterDataEncryption masterDataEncryption,
     IOneTimeCode oneTimeCode)
 {
-    public async Task<Result> Execute(
+    public Task<Result> Execute(
         string name,
         EmailProviderType type,
         string emailFrom,
         string detailsJson,
         CancellationToken cancellationToken)
     {
-        var derivedEncryption = await masterDataEncryptionBufferedFactory.Take(
-            cancellationToken: cancellationToken);
-
-        return await dbWriteQueue.Execute(
+        return dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
                 name: name,
                 type: type,
                 emailFrom: emailFrom,
-                detailsJson: detailsJson,
-                derivedEncryption: derivedEncryption),
+                detailsJson: detailsJson),
             cancellationToken: cancellationToken);
     }
 
@@ -40,8 +36,7 @@ public class CreateEmailProviderQuery(
         string name,
         EmailProviderType type,
         string emailFrom,
-        string detailsJson,
-        IDerivedMasterDataEncryption derivedEncryption)
+        string detailsJson)
     {
         try
         {
@@ -77,7 +72,7 @@ public class CreateEmailProviderQuery(
                 .WithParameter("$type", type.Value)
                 .WithParameter("$name", name)
                 .WithParameter("$emailFrom", emailFrom)
-                .WithParameter("$details", derivedEncryption.Encrypt(detailsJson))
+                .WithParameter("$details", masterDataEncryption.EncryptString(detailsJson))
                 .WithParameter("$confirmationCode", confirmationCode)
                 .ExecuteOrThrow();
             

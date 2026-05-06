@@ -36,7 +36,7 @@ public static class EmailProviderStartupExtensions
                     Id = reader.GetInt32(0),
                     Type = EmailProviderType.Build(reader.GetString(1)),
                     EmailFrom = reader.GetString(2),
-                    DetailsJson = dateEncryption.Decrypt(
+                    DetailsJson = dateEncryption.DecryptString(
                         reader.GetFieldValue<byte[]>(3))
                 })
             .Execute();

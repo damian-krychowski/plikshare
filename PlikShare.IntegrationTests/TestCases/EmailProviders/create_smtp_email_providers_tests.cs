@@ -342,7 +342,7 @@ public class create_smtp_email_providers_tests : TestFixture
                 $"Email provider '{externalId}' was not found in the database.");
 
         var masterDataEncryption = HostFixture.App.Services.GetRequiredService<IMasterDataEncryption>();
-        var json = masterDataEncryption.Decrypt(rows[0]);
+        var json = masterDataEncryption.DecryptString(rows[0]);
 
         return Json.Deserialize<SmtpDetailsEntity>(json)
             ?? throw new InvalidOperationException(

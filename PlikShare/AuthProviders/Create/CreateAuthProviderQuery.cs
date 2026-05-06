@@ -11,10 +11,10 @@ namespace PlikShare.AuthProviders.Create;
 
 public class CreateAuthProviderQuery(
     DbWriteQueue dbWriteQueue,
-    MasterDataEncryptionBufferedFactory masterDataEncryptionBufferedFactory,
+    IMasterDataEncryption masterDataEncryption,
     IClock clock)
 {
-    public async Task<Result> Execute(
+    public Task<Result> Execute(
         string name,
         AuthProviderType type,
         string clientId,
@@ -22,12 +22,9 @@ public class CreateAuthProviderQuery(
         string issuerUrl,
         CancellationToken cancellationToken)
     {
-        var derivedEncryption = await masterDataEncryptionBufferedFactory.Take(
-            cancellationToken: cancellationToken);
-
         var autoDiscoveryUrl = OidcUrls.GetDiscoveryUrl(issuerUrl);
 
-        return await dbWriteQueue.Execute(
+        return dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
                 name: name,
@@ -35,8 +32,7 @@ public class CreateAuthProviderQuery(
                 clientId: clientId,
                 clientSecret: clientSecret,
                 issuerUrl: issuerUrl,
-                autoDiscoveryUrl: autoDiscoveryUrl,
-                derivedEncryption: derivedEncryption),
+                autoDiscoveryUrl: autoDiscoveryUrl),
             cancellationToken: cancellationToken);
     }
 
@@ -47,8 +43,7 @@ public class CreateAuthProviderQuery(
         string clientId,
         string clientSecret,
         string issuerUrl,
-        string autoDiscoveryUrl,
-        IDerivedMasterDataEncryption derivedEncryption)
+        string autoDiscoveryUrl)
     {
         try
         {
@@ -85,7 +80,7 @@ public class CreateAuthProviderQuery(
                 .WithParameter("$name", name)
                 .WithParameter("$type", type.Value)
                 .WithParameter("$clientId", clientId)
-                .WithParameter("$clientSecret", derivedEncryption.Encrypt(clientSecret))
+                .WithParameter("$clientSecret", masterDataEncryption.EncryptString(clientSecret))
                 .WithParameter("$issuerUrl", issuerUrl)
                 .WithParameter("$autoDiscoveryUrl", autoDiscoveryUrl)
                 .WithParameter("$createdAt", clock.UtcNow.ToString("o"))

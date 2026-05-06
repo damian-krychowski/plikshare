@@ -82,7 +82,7 @@ public static class StorageStartupExtensions
                     var externalId = reader.GetExtId<StorageExtId>(1);
                     var name = reader.GetString(2);
                     var type = reader.GetEnum<StorageType>(3);
-                    var detailsJson = masterDataEncryption.Decrypt(
+                    var detailsJson = masterDataEncryption.DecryptString(
                         reader.GetFieldValue<byte[]>(4));
 
                     var encryptionType = StorageEncryptionExtensions.FromDbValue(
@@ -90,7 +90,7 @@ public static class StorageStartupExtensions
 
                     var encryptionDetailsJson = encryptionType == StorageEncryptionType.None
                         ? null
-                        : masterDataEncryption.Decrypt(reader.GetFieldValue<byte[]>(6));
+                        : masterDataEncryption.DecryptString(reader.GetFieldValue<byte[]>(6));
 
                     return new StorageRow(
                         StorageId: storageId,

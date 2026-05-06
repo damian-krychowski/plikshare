@@ -1,88 +1,133 @@
+using System.Buffers;
+using System.Security.Cryptography;
+using System.Text;
 using PlikShare.Core.Utils;
 
 namespace PlikShare.Core.Encryption;
 
 public static class MasterDataEncryptionExtensions
 {
-    public static string EncryptToBase64(this IMasterDataEncryption encryption, string plainText)
+    private const int StackallocThreshold = 1024;
+
+    extension(IMasterDataEncryption encryption)
     {
-        var bytes = encryption.Encrypt(
-            plainText);
+        public byte[] EncryptString(
+            string plainText)
+        {
+            var byteCount = Encoding.UTF8.GetByteCount(
+                plainText);
 
-        return Convert.ToBase64String(
-            bytes);
-    }
+            if (byteCount <= StackallocThreshold)
+            {
+                Span<byte> buffer = stackalloc byte[byteCount];
 
-    public static T DecryptJson<T>(this IMasterDataEncryption encryption, byte[] versionedEncryptedBytes)
-    {
-        var plainText = encryption.Decrypt(
-            versionedEncryptedBytes);
+                Encoding.UTF8.GetBytes(
+                    plainText, 
+                    buffer);
 
-        var item = Json.Deserialize<T>(
-            plainText);
+                return encryption.EncryptBytes(
+                    buffer);
+            }
 
-        if (item is null)
-            throw new InvalidOperationException(
+            var rented = ArrayPool<byte>.Shared.Rent(
+                byteCount);
+
+            try
+            {
+                var span = rented.AsSpan(
+                    0, 
+                    byteCount);
+
+                Encoding.UTF8.GetBytes(
+                    plainText, 
+                    span);
+
+                return encryption.EncryptBytes(
+                    span);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(
+                    rented.AsSpan(0, byteCount));
+
+                ArrayPool<byte>.Shared.Return(
+                    rented);
+            }
+        }
+
+        public string DecryptString(
+            byte[] versionedEncryptedBytes)
+        {
+            var plaintextLength = encryption.GetDecryptedLength(
+                versionedEncryptedBytes);
+
+            if (plaintextLength == 0)
+                return string.Empty;
+
+            if (plaintextLength <= StackallocThreshold)
+            {
+                Span<byte> buffer = stackalloc byte[plaintextLength];
+
+                encryption.DecryptBytes(
+                    versionedEncryptedBytes, 
+                    buffer);
+
+                return Encoding.UTF8.GetString(
+                    buffer);
+            }
+
+            var rented = ArrayPool<byte>.Shared.Rent(
+                plaintextLength);
+
+            try
+            {
+                var span = rented.AsSpan(
+                    0, 
+                    plaintextLength);
+
+                encryption.DecryptBytes(
+                    versionedEncryptedBytes, 
+                    span);
+
+                return Encoding.UTF8.GetString(
+                    span);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(
+                    rented.AsSpan(0, plaintextLength));
+
+                ArrayPool<byte>.Shared.Return(
+                    rented);
+            }
+        }
+
+        public byte[] EncryptJson<T>(
+            T item)
+        {
+            return encryption.EncryptString(Json.Serialize(item));
+        }
+
+        public T DecryptJson<T>(
+            byte[] versionedEncryptedBytes)
+        {
+            var plainText = encryption.DecryptString(
+                versionedEncryptedBytes);
+
+            return Json.Deserialize<T>(plainText) ?? throw new InvalidOperationException(
                 $"Decryption and deserialization of object into {typeof(T)} failed.");
+        }
 
-        return item;
-    }
-    
-    public static string DecryptFromBase64(this IMasterDataEncryption encryption, string base64EncryptedText)
-    {
-        var encryptedBytes = Convert.FromBase64String(
-            base64EncryptedText);
+        public string EncryptToBase64(
+            string plainText)
+        {
+            return Convert.ToBase64String(encryption.EncryptString(plainText));
+        }
 
-        return encryption.Decrypt(
-            encryptedBytes);
-    }
-
-    public static byte[] EncryptJson<T>(this IDerivedMasterDataEncryption encryption, T item)
-    {
-        var plainText = Json.Serialize(
-            item);
-
-        return encryption.Encrypt(
-            plainText);
-    }
-
-    public static string EncryptToBase64(this IDerivedMasterDataEncryption encryption, string plainText)
-    {
-        var bytes = encryption.Encrypt(
-            plainText);
-
-        return Convert.ToBase64String(
-            bytes);
-    }
-
-    public static T DecryptJson<T>(this IDerivedMasterDataEncryption encryption, byte[] versionedEncryptedBytes)
-    {
-        var plainText = encryption.Decrypt(
-            versionedEncryptedBytes);
-
-        var item = Json.Deserialize<T>(
-            plainText);
-
-        if (item is null)
-            throw new InvalidOperationException(
-                $"Decryption and deserialization of object into {typeof(T)} failed.");
-
-        return item;
-    }
-
-    public static string DecryptFromBase64(this IDerivedMasterDataEncryption encryption, string base64EncryptedText)
-    {
-        var encryptedBytes = Convert.FromBase64String(
-            base64EncryptedText);
-
-        return encryption.Decrypt(
-            encryptedBytes);
-    }
-
-    public static string? DecryptIfNotNull(this IDerivedMasterDataEncryption encryption, byte[]? versionedEncryptedBytes)
-    {
-        return versionedEncryptedBytes is null
-            ? null
-            : encryption.Decrypt(versionedEncryptedBytes);
+        public string DecryptFromBase64(
+            string base64EncryptedText)
+        {
+            return encryption.DecryptString(Convert.FromBase64String(base64EncryptedText));
+        }
     }
 }

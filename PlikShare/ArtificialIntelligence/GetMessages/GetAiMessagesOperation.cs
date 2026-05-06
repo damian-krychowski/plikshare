@@ -1,5 +1,4 @@
-﻿using PlikShare.ArtificialIntelligence.AiIncludes;
-using PlikShare.ArtificialIntelligence.Cache;
+using PlikShare.ArtificialIntelligence.AiIncludes;
 using PlikShare.ArtificialIntelligence.GetFileArtifact;
 using PlikShare.ArtificialIntelligence.GetMessages.Contracts;
 using PlikShare.ArtificialIntelligence.Id;
@@ -14,17 +13,16 @@ using PlikShare.Workspaces.Cache;
 namespace PlikShare.ArtificialIntelligence.GetMessages;
 
 public class GetAiMessagesOperation(
-    AiConversationCache aiConversationCache,
     PlikShareAiDb plikShareAiDb,
+    IMasterDataEncryption masterDataEncryption,
     UserIdentityResolver userIdentityResolver,
     GetFileArtifactWithAiConversationQuery getFileArtifactWithAiConversationQuery)
 {
-    public async ValueTask<Result> Execute(
+    public Result Execute(
         WorkspaceContext workspace,
         FileExtId fileExternalId,
         FileArtifactExtId fileArtifactExternalId,
-        int fromConversationCounter,
-        CancellationToken cancellationToken)
+        int fromConversationCounter)
     {
         var fileArtifact = getFileArtifactWithAiConversationQuery.Execute(
             workspace,
@@ -39,32 +37,24 @@ public class GetAiMessagesOperation(
             };
         }
 
-        var conversationContext = await aiConversationCache.TryGetAiConversation(
-            externalId: fileArtifact.AiConversationEntity.AiConversationExternalId,
-            cancellationToken: cancellationToken);
-
-        if (conversationContext is null)
-        {
-            return new Result
-            {
-                Code = ResultCode.NotFound
-            };
-        }
-
         using var connection = plikShareAiDb.OpenConnection();
 
-        var conversationName = connection
+        var conversation = connection
             .OneRowCmd(
                 sql: """
-                     SELECT aic_name
+                     SELECT aic_id, aic_name
                      FROM aic_ai_conversations
-                     WHERE aic_id = $id
+                     WHERE aic_external_id = $externalId
                      """,
-                readRowFunc: reader => reader.GetStringOrNull(0))
-            .WithParameter("$id", conversationContext.Id)
+                readRowFunc: reader => new
+                {
+                    Id = reader.GetInt32(0),
+                    Name = reader.GetStringOrNull(1)
+                })
+            .WithParameter("$externalId", fileArtifact.AiConversationEntity.AiConversationExternalId.Value)
             .Execute();
 
-        if (conversationName.IsEmpty)
+        if (conversation.IsEmpty)
             return new Result
             {
                 Code = ResultCode.NotFound
@@ -73,7 +63,7 @@ public class GetAiMessagesOperation(
         var messages = connection
             .Cmd(
                 sql: """
-                     SELECT 
+                     SELECT
                          aim_external_id,
                          aim_conversation_counter,
                          aim_message_encrypted,
@@ -91,9 +81,9 @@ public class GetAiMessagesOperation(
                 {
                     ExternalId = reader.GetExtId<AiMessageExtId>(0),
                     ConversationCounter = reader.GetInt32(1),
-                    Message = conversationContext.DerivedEncryption.Decrypt(
+                    Message = masterDataEncryption.DecryptString(
                         reader.GetFieldValue<byte[]>(2)),
-                    Includes = conversationContext.DerivedEncryption.DecryptJson<List<AiInclude>>(
+                    Includes = masterDataEncryption.DecryptJson<List<AiInclude>>(
                         reader.GetFieldValue<byte[]>(3)),
                     AiModel = reader.GetString(4),
                     User = new GenericUserIdentity(
@@ -101,7 +91,7 @@ public class GetAiMessagesOperation(
                         Identity: reader.GetString(6)),
                     CreatedAt = reader.GetDateTimeOffset(7)
                 })
-            .WithParameter("$aicId", conversationContext.Id)
+            .WithParameter("$aicId", conversation.Value.Id)
             .WithParameter("$fromConversationCounter", fromConversationCounter)
             .Execute();
 
@@ -114,7 +104,7 @@ public class GetAiMessagesOperation(
             Response = new GetAiMessagesResponseDto
             {
                 ConversationExternalId = fileArtifact.AiConversationEntity.AiConversationExternalId,
-                ConversationName = conversationName.Value,
+                ConversationName = conversation.Value.Name,
 
                 Messages = messages
                     .Select(m => new AiMessageDto

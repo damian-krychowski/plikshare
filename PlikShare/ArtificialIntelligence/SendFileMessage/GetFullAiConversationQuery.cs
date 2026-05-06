@@ -1,5 +1,4 @@
-﻿using PlikShare.ArtificialIntelligence.AiIncludes;
-using PlikShare.ArtificialIntelligence.Cache;
+using PlikShare.ArtificialIntelligence.AiIncludes;
 using PlikShare.ArtificialIntelligence.Id;
 using PlikShare.Core.Database.AiDatabase;
 using PlikShare.Core.Encryption;
@@ -11,11 +10,10 @@ namespace PlikShare.ArtificialIntelligence.SendFileMessage;
 
 public class GetFullAiConversationQuery(
     PlikShareAiDb plikShareAiDb,
-    AiConversationCache aiConversationCache)
+    IMasterDataEncryption masterDataEncryption)
 {
-    public async ValueTask<Result> GetFullConversation(
-        AiMessageExtId lastMessageExternalId,
-        CancellationToken cancellationToken)
+    public Result GetFullConversation(
+        AiMessageExtId lastMessageExternalId)
     {
         using var connection = plikShareAiDb.OpenConnection();
 
@@ -23,7 +21,7 @@ public class GetFullAiConversationQuery(
             .OneRowCmd(
                 sql: """
                     SELECT
-                        aic_id,    
+                        aic_id,
                         aic_external_id,
                         aic_integration_external_id,
                         aic_name
@@ -45,13 +43,6 @@ public class GetFullAiConversationQuery(
         if (isEmpty)
             return new Result(Code: ResultCode.NotFound);
 
-        var conversationContext = await aiConversationCache.TryGetAiConversation(
-            externalId: conversation.ExternalId,
-            cancellationToken: cancellationToken);
-
-        if(conversationContext is null)
-            return new Result(Code: ResultCode.NotFound);
-
         var allMessages = connection
             .Cmd(
                 sql: """
@@ -69,9 +60,9 @@ public class GetFullAiConversationQuery(
                 readRowFunc: reader => new AiMessage
                 {
                     ExternalId = reader.GetExtId<AiMessageExtId>(0),
-                    Message = conversationContext.DerivedEncryption.Decrypt(
+                    Message = masterDataEncryption.DecryptString(
                         reader.GetFieldValue<byte[]>(1)),
-                    Includes = conversationContext.DerivedEncryption.DecryptJson<List<AiInclude>>(
+                    Includes = masterDataEncryption.DecryptJson<List<AiInclude>>(
                         reader.GetFieldValue<byte[]>(2)),
                     AiModel = reader.GetString(3),
                     ConversationCounter = reader.GetInt32(4),
@@ -96,8 +87,7 @@ public class GetFullAiConversationQuery(
                 ExternalId = conversation.ExternalId,
                 IntegrationExternalId = conversation.IntegrationExternalId,
                 Name = conversation.Name,
-                Messages = allMessages,
-                DerivedEncryption = conversationContext.DerivedEncryption
+                Messages = allMessages
             });
     }
 
@@ -120,7 +110,6 @@ public class GetFullAiConversationQuery(
         public required string? Name { get; init; }
 
         public required List<AiMessage> Messages { get; init; }
-        public required IDerivedMasterDataEncryption DerivedEncryption { get; init; }
     }
 
     public class AiMessage

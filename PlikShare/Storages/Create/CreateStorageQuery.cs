@@ -10,11 +10,11 @@ using Serilog;
 namespace PlikShare.Storages.Create;
 
 public class CreateStorageQuery(
-    MasterDataEncryptionBufferedFactory masterDataEncryptionBufferedFactory,
+    IMasterDataEncryption masterDataEncryption,
     UpsertStorageEncryptionKeyQuery upsertStorageEncryptionKeyQuery,
     DbWriteQueue dbWriteQueue)
 {
-    public async Task<Result> Execute(
+    public Task<Result> Execute(
         string name,
         StorageType storageType,
         string detailsJson,
@@ -22,18 +22,14 @@ public class CreateStorageQuery(
         OwnerEncryptionKeyData[] ownerKeyDataList,
         CancellationToken cancellationToken)
     {
-        var derivedEncryption = await masterDataEncryptionBufferedFactory.Take(
-            cancellationToken: cancellationToken);
-
-        return await dbWriteQueue.Execute(
+        return dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
                 name,
                 storageType,
                 detailsJson,
                 encryption,
-                ownerKeyDataList,
-                derivedEncryption),
+                ownerKeyDataList),
             cancellationToken: cancellationToken);
     }
 
@@ -43,8 +39,7 @@ public class CreateStorageQuery(
         StorageType storageType,
         string detailsJson,
         StorageEncryption encryption,
-        OwnerEncryptionKeyData[] ownerKeyDataList,
-        IDerivedMasterDataEncryption derivedEncryption)
+        OwnerEncryptionKeyData[] ownerKeyDataList)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
 
@@ -77,9 +72,9 @@ public class CreateStorageQuery(
                 .WithParameter("$externalId", storageExternalId.Value)
                 .WithEnumParameter("$type", storageType)
                 .WithParameter("$name", name)
-                .WithParameter("$details", derivedEncryption.Encrypt(detailsJson))
+                .WithParameter("$details", masterDataEncryption.EncryptString(detailsJson))
                 .WithParameter("$encryptionType", encryption.Type.ToDbValue())
-                .WithParameter("$encryptionDetails", encryption.EncryptJson(derivedEncryption))
+                .WithParameter("$encryptionDetails", encryption.EncryptJson(masterDataEncryption))
                 .ExecuteOrThrow();
 
             foreach (var ownerKeyData in ownerKeyDataList)

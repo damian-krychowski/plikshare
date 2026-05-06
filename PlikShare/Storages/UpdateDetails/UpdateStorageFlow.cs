@@ -41,7 +41,7 @@ public class UpdateStorageFlow(
 
         var encryptionDetailsJson = storageData.EncryptionDetailsEncrypted is null
             ? null
-            : masterDataEncryption.Decrypt(
+            : masterDataEncryption.DecryptString(
                 storageData.EncryptionDetailsEncrypted);
 
         var storageClientDetails = new StorageClientDetails

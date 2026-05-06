@@ -58,22 +58,20 @@ public static class ArtificialIntelligenceEndpoints
         return response;
     }
 
-    private static async ValueTask<Results<Ok<GetAiMessagesResponseDto>, NotFound<HttpError>>> GetAiConversationMessages(
+    private static Results<Ok<GetAiMessagesResponseDto>, NotFound<HttpError>> GetAiConversationMessages(
         [FromRoute] FileExtId fileExternalId,
         [FromRoute] FileArtifactExtId fileArtifactExternalId,
         [FromQuery] int? fromConversationCounter,
         HttpContext httpContext,
-        GetAiMessagesOperation getAiMessagesOperation,
-        CancellationToken cancellationToken)
+        GetAiMessagesOperation getAiMessagesOperation)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
 
-        var result = await getAiMessagesOperation.Execute(
+        var result = getAiMessagesOperation.Execute(
             workspace: workspaceMembership.Workspace,
             fileExternalId: fileExternalId,
             fileArtifactExternalId: fileArtifactExternalId,
-            fromConversationCounter: fromConversationCounter ?? 0,
-            cancellationToken: cancellationToken);
+            fromConversationCounter: fromConversationCounter ?? 0);
 
         return result.Code switch
         {

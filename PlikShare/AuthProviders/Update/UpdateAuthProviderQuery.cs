@@ -10,9 +10,9 @@ namespace PlikShare.AuthProviders.Update;
 
 public class UpdateAuthProviderQuery(
     DbWriteQueue dbWriteQueue,
-    MasterDataEncryptionBufferedFactory masterDataEncryptionBufferedFactory)
+    IMasterDataEncryption masterDataEncryption)
 {
-    public async Task<Result> Execute(
+    public Task<Result> Execute(
         AuthProviderExtId externalId,
         string name,
         string clientId,
@@ -20,12 +20,9 @@ public class UpdateAuthProviderQuery(
         string issuerUrl,
         CancellationToken cancellationToken)
     {
-        var derivedEncryption = await masterDataEncryptionBufferedFactory.Take(
-            cancellationToken: cancellationToken);
-
         var autoDiscoveryUrl = OidcUrls.GetDiscoveryUrl(issuerUrl);
 
-        return await dbWriteQueue.Execute(
+        return dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
                 externalId: externalId,
@@ -33,8 +30,7 @@ public class UpdateAuthProviderQuery(
                 clientId: clientId,
                 clientSecret: clientSecret,
                 issuerUrl: issuerUrl,
-                autoDiscoveryUrl: autoDiscoveryUrl,
-                derivedEncryption: derivedEncryption),
+                autoDiscoveryUrl: autoDiscoveryUrl),
             cancellationToken: cancellationToken);
     }
 
@@ -45,8 +41,7 @@ public class UpdateAuthProviderQuery(
         string clientId,
         string clientSecret,
         string issuerUrl,
-        string autoDiscoveryUrl,
-        IDerivedMasterDataEncryption derivedEncryption)
+        string autoDiscoveryUrl)
     {
         try
         {
@@ -70,7 +65,7 @@ public class UpdateAuthProviderQuery(
                 .WithParameter("$externalId", externalId.Value)
                 .WithParameter("$name", name)
                 .WithParameter("$clientId", clientId)
-                .WithParameter("$clientSecret", derivedEncryption.Encrypt(clientSecret))
+                .WithParameter("$clientSecret", masterDataEncryption.EncryptString(clientSecret))
                 .WithParameter("$issuerUrl", issuerUrl)
                 .WithParameter("$autoDiscoveryUrl", autoDiscoveryUrl)
                 .Execute();

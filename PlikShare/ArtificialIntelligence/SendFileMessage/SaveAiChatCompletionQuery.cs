@@ -12,6 +12,7 @@ namespace PlikShare.ArtificialIntelligence.SendFileMessage;
 
 public class SaveAiChatCompletionQuery(
     AiDbWriteQueue aiDbWriteQueue,
+    IMasterDataEncryption masterDataEncryption,
     IClock clock)
 {
     public Task<Result?> Execute(
@@ -78,8 +79,8 @@ public class SaveAiChatCompletionQuery(
                 .WithParameter("$externalId", aiMessageExternalId.Value)
                 .WithParameter("$aicId", conversation.Id)
                 .WithParameter("$conversationCounter", conversationCounter)
-                .WithParameter("$message", conversation.DerivedEncryption.Encrypt(completion.Text))
-                .WithParameter("$includes", conversation.DerivedEncryption.EncryptJson(new List<AiInclude>()))
+                .WithParameter("$message", masterDataEncryption.EncryptString(completion.Text))
+                .WithParameter("$includes", masterDataEncryption.EncryptJson(new List<AiInclude>()))
                 .WithParameter("$aiModel", queryMessage.AiModel)
                 .WithParameter("$userIdentityType", IntegrationUserIdentity.Type)
                 .WithParameter("$userIdentity", conversation.IntegrationExternalId.Value)
