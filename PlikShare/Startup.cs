@@ -130,6 +130,7 @@ using PlikShare.Folders.List;
 using PlikShare.Folders.MoveToFolder;
 using PlikShare.Folders.Rename;
 using PlikShare.Folders.Rename.Contracts;
+using PlikShare.Folders.UpdatePositions;
 using PlikShare.GeneralSettings;
 using PlikShare.GeneralSettings.GetStatus;
 using PlikShare.GeneralSettings.LegalFiles;
@@ -312,6 +313,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_32_StorageQueueJobsRenamedToBackendNeutralNames>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_33_StorageDbColumnsRenamedToBackendNeutralNames>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_34_ReencryptDatabaseFromSlowPathToFastPath>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_35_FolderAndFilePositionIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -524,6 +526,7 @@ public class Startup
         builder.Services.AddSingleton<IQueueNormalJobExecutor, DeleteFileQueueJobExecutor>();
         builder.Services.AddSingleton<IQueueLongRunningJobExecutor, BulkDeleteFilesQueueJobExecutor>();
         builder.Services.AddSingleton<MoveItemsToFolderQuery>();
+        builder.Services.AddSingleton<UpdatePositionsQuery>();
         builder.Services.AddSingleton<GetBoxQuery>();
         builder.Services.AddSingleton<DeleteFilesSubQuery>();
 

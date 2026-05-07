@@ -15,6 +15,8 @@ using PlikShare.Folders.MoveToFolder;
 using PlikShare.Folders.MoveToFolder.Contracts;
 using PlikShare.Folders.Rename;
 using PlikShare.Folders.Rename.Contracts;
+using PlikShare.Folders.UpdatePositions;
+using PlikShare.Folders.UpdatePositions.Contracts;
 using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Workspaces.Validation;
 
@@ -50,6 +52,9 @@ public static class FoldersEndpoints
 
         group.MapPatch("/move-items", MoveItemsToFolder)
             .WithName("MoveItemsToFolder");
+
+        group.MapPatch("/update-positions", UpdatePositions)
+            .WithName("UpdatePositions");
     }
 
     private static async Task<Results<Ok<BulkCreateFolderResponseDto>, BadRequest<HttpError>, NotFound<HttpError>>> BulkCreateFolder(
@@ -184,7 +189,8 @@ public static class FoldersEndpoints
                 GetCurrentFolder: true,
                 GetSubfolders: true,
                 GetFiles: GetFolderContentQuery.FilesExecutionFlag.All,
-                GetUploads: true),
+                GetUploads: true,
+                ExposeCreatedAt: true),
             workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
         return response switch
@@ -295,6 +301,44 @@ public static class FoldersEndpoints
             default:
                 throw new UnexpectedOperationResultException(
                     operationName: nameof(MoveItemsToFolderQuery),
+                    resultValueStr: resultCode.ToString());
+        }
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>>> UpdatePositions(
+        [FromBody] UpdatePositionsRequestDto request,
+        HttpContext httpContext,
+        UpdatePositionsQuery updatePositionsQuery,
+        CancellationToken cancellationToken)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+
+        var resultCode = await updatePositionsQuery.Execute(
+            workspace: workspaceMembership.Workspace,
+            parentFolderExternalId: request.ParentFolderExternalId,
+            boxFolderId: null,
+            folders: request.Folders,
+            files: request.Files,
+            cancellationToken: cancellationToken);
+
+        switch (resultCode)
+        {
+            case UpdatePositionsQuery.ResultCode.Ok:
+                return TypedResults.Ok();
+
+            case UpdatePositionsQuery.ResultCode.ParentFolderNotFound:
+                return HttpErrors.Folder.NotFound(
+                    request.ParentFolderExternalId!.Value);
+
+            case UpdatePositionsQuery.ResultCode.SomeFoldersNotFound:
+                return HttpErrors.Folder.SomeFolderNotFound();
+
+            case UpdatePositionsQuery.ResultCode.SomeFilesNotFound:
+                return HttpErrors.Folder.SomeFileNotFound();
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdatePositionsQuery),
                     resultValueStr: resultCode.ToString());
         }
     }

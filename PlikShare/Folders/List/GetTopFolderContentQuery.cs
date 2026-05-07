@@ -96,6 +96,8 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
         SqliteConnection connection,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
+        long maxPosition = 0;
+
 	    return connection
 		    .Cmd(
 			    sql: @"
@@ -105,26 +107,39 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
 		                fi_extension,
 		                fi_size_in_bytes,
                         (
-							fi_uploader_identity_type = $uploaderIdentityType 
+							fi_uploader_identity_type = $uploaderIdentityType
 							AND fi_uploader_identity =  $uploaderIdentity
 						) AS fi_was_uploaded_by_user,
-                        NOT fi_is_upload_completed 
+                        NOT fi_is_upload_completed,
+                        fi_position,
+                        fi_created_at
 		            FROM fi_files
 		            WHERE
 		                fi_workspace_id = $workspaceId
 		                AND fi_folder_id IS NULL
                         AND fi_parent_file_id IS NULL
 					ORDER BY
+					    (fi_position IS NULL),
+					    fi_position,
 					    fi_id DESC
 				",
-                readRowFunc: reader => new FileDto
+                readRowFunc: reader =>
                 {
-                    ExternalId = reader.GetString(0),
-					Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
-					Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
-					SizeInBytes = reader.GetInt64(3),
-					WasUploadedByUser = reader.GetBoolean(4),
-					IsLocked = reader.GetBoolean(5)
+                    (var position, maxPosition) = ItemPosition.Calculate(
+                        storedPosition: reader.GetInt64OrNull(6),
+                        maxPosition: maxPosition);
+
+                    return new FileDto
+                    {
+                        ExternalId = reader.GetString(0),
+                        Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                        Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
+                        SizeInBytes = reader.GetInt64(3),
+                        WasUploadedByUser = reader.GetBoolean(4),
+                        IsLocked = reader.GetBoolean(5),
+                        CreatedAt = reader.GetDateTimeOffsetOrNull(7)?.UtcDateTime,
+                        Position = position
+                    };
                 })
 		    .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
@@ -138,35 +153,46 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
         WorkspaceEncryptionSession? workspaceEncryptionSession,
         SqliteConnection connection)
     {
+        long maxPosition = 0;
+
 	    return connection
 		    .Cmd(
 			    sql: @"
-					SELECT 
+					SELECT
 		                fo_external_id,
 		                fo_name,
-                        CASE 
+                        CASE
 	                        WHEN fo_creator_identity_type = $creatorIdentityType AND fo_creator_identity = $creatorIdentity THEN TRUE
 							ELSE FALSE
 	                    END AS fo_was_created_by_user,
-			            CASE 
-	                        WHEN fo_creator_identity_type = $creatorIdentityType AND fo_creator_identity = $creatorIdentity THEN fo_created_at
-	                    END AS fo_created_at
+			            fo_created_at,
+			            fo_position
 		            FROM
 		                fo_folders
 		            WHERE
 		                fo_workspace_id = $workspaceId
 		                AND fo_parent_folder_id IS NULL
 		                AND fo_is_being_deleted = FALSE
-		            ORDER BY 
+		            ORDER BY
+		                (fo_position IS NULL),
+		                fo_position,
 		                fo_id
 				",
-                readRowFunc: reader => new SubfolderDto
+                readRowFunc: reader =>
                 {
-                    ExternalId = reader.GetString(0),
-					Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
-					WasCreatedByUser = reader.GetBoolean(2),
-					CreatedAt = reader.GetDateTimeOffsetOrNull(3)?.DateTime
-				})
+                    (var position, maxPosition) = ItemPosition.Calculate(
+                        storedPosition: reader.GetInt64OrNull(4),
+                        maxPosition: maxPosition);
+
+                    return new SubfolderDto
+                    {
+                        ExternalId = reader.GetString(0),
+                        Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                        WasCreatedByUser = reader.GetBoolean(2),
+                        CreatedAt = reader.GetDateTimeOffsetOrNull(3)?.UtcDateTime,
+                        Position = position
+                    };
+                })
 		    .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$creatorIdentityType", userIdentity.IdentityType)
             .WithParameter("$creatorIdentity", userIdentity.Identity)

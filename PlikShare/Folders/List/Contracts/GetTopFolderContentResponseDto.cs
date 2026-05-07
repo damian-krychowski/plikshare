@@ -31,6 +31,9 @@ public class SubfolderDto
 
     [ProtoMember(4)]
     public required DateTime? CreatedAt { get; init; }
+
+    [ProtoMember(5)]
+    public required long Position { get; init; }
 }
 
 [ProtoContract]
@@ -53,6 +56,12 @@ public class FileDto
 
     [ProtoMember(6)]
     public required bool WasUploadedByUser { get; init; }
+
+    [ProtoMember(7)]
+    public required DateTime? CreatedAt { get; init; }
+
+    [ProtoMember(8)]
+    public required long Position { get; init; }
 }
 
 [ProtoContract]

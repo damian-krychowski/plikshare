@@ -153,8 +153,6 @@ public static class PreSignedFilesEndpoints
             
             var conversionResult = await bulkConvertDirectFileUploadsToFilesQuery.Execute(
                 fileUploadIds: processedFileUploads.Select(upload => upload!.Id).ToArray(),
-                workspaceId: workspace.Id,
-                correlationId: httpContext.GetCorrelationId(),
                 cancellationToken: cancellationToken);
 
             if (conversionResult == BulkConvertDirectFileUploadsToFilesQuery.ResultCode.Ok)

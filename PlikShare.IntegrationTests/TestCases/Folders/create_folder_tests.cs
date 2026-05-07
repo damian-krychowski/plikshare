@@ -1,6 +1,7 @@
 using FluentAssertions;
 using PlikShare.Folders.Create.Contracts;
 using PlikShare.Folders.Id;
+using PlikShare.Folders.List;
 using PlikShare.Folders.List.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Storages.Encryption;
@@ -56,7 +57,8 @@ public class create_folder_tests: TestFixture
                     ExternalId = folderResponse.ExternalId.Value,
                     Name = "my first folder",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 1 * ItemPosition.Step
                 }
             ],
 
@@ -64,7 +66,7 @@ public class create_folder_tests: TestFixture
             Uploads = null
         });
     }
-    
+
     [Fact]
     public async Task can_create_many_folders_directly_in_the_workspace()
     {
@@ -130,21 +132,24 @@ public class create_folder_tests: TestFixture
                     ExternalId = folder1Response.ExternalId.Value,
                     Name = "my first folder",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 1 * ItemPosition.Step
                 },
                 new SubfolderDto
                 {
                     ExternalId = folder2Response.ExternalId.Value,
                     Name = "my second folder",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 2 * ItemPosition.Step
                 },
                 new SubfolderDto
                 {
                     ExternalId = folder3Response.ExternalId.Value,
                     Name = "my third folder",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 3 * ItemPosition.Step
                 }
             ],
 
@@ -254,13 +259,14 @@ public class create_folder_tests: TestFixture
                 ExternalId = subfolder.ExternalId.Value,
                 Name = "my subfolder",
                 WasCreatedByUser = true,
-                CreatedAt = Clock.UtcNow.DateTime
+                CreatedAt = Clock.UtcNow.DateTime,
+                Position = 1 * ItemPosition.Step
             }],
             Uploads = null,
             Files = null
         });
     }
-    
+
     [Fact]
     public async Task when_subfolder_is_created_its_content_should_be_empty()
     {
@@ -361,7 +367,8 @@ public class create_folder_tests: TestFixture
                     ExternalId = folderResponse.ExternalId.Value,
                     Name = "my first folder",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 1 * ItemPosition.Step
                 }
             ],
 
@@ -439,7 +446,8 @@ public class create_folder_tests: TestFixture
                     ExternalId = originalFolderResponse.ExternalId.Value,
                     Name = "my first folder",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 1 * ItemPosition.Step
                 }
             ],
 
@@ -500,7 +508,8 @@ public class create_folder_tests: TestFixture
                 ExternalId = subfolder.ExternalId.Value,
                 Name = "my subfolder",
                 WasCreatedByUser = true,
-                CreatedAt = Clock.UtcNow.DateTime
+                CreatedAt = Clock.UtcNow.DateTime,
+                Position = 1 * ItemPosition.Step
             }],
             Uploads = null,
             Files = null
@@ -586,7 +595,8 @@ public class create_folder_tests: TestFixture
                 ExternalId = originalSubfolder.ExternalId.Value,
                 Name = "my subfolder",
                 WasCreatedByUser = true,
-                CreatedAt = Clock.UtcNow.DateTime
+                CreatedAt = Clock.UtcNow.DateTime,
+                Position = 1 * ItemPosition.Step
             }],
             Uploads = null,
             Files = null
@@ -721,14 +731,16 @@ public class create_folder_tests: TestFixture
                     ExternalId = folderIdMap[1],
                     Name = "Folder A",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 1 * ItemPosition.Step
                 },
                 new SubfolderDto
                 {
                     ExternalId = folderIdMap[8],
                     Name = "Folder B",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 2 * ItemPosition.Step
                 }
             ],
             Files = null,
@@ -756,21 +768,24 @@ public class create_folder_tests: TestFixture
                     ExternalId = folderIdMap[2],
                     Name = "Folder A_A",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 1 * ItemPosition.Step
                 },
                 new SubfolderDto
                 {
                     ExternalId = folderIdMap[3],
                     Name = "Folder A_B",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 2 * ItemPosition.Step
                 },
                 new SubfolderDto
                 {
                     ExternalId = folderIdMap[7],
                     Name = "Folder A_C",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 3 * ItemPosition.Step
                 }
             ],
             Files = null,
@@ -805,21 +820,24 @@ public class create_folder_tests: TestFixture
                     ExternalId = folderIdMap[4],
                     Name = "Folder A_B_A",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 1 * ItemPosition.Step
                 },
                 new SubfolderDto
                 {
                     ExternalId = folderIdMap[5],
                     Name = "Folder A_B_B",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 2 * ItemPosition.Step
                 },
                 new SubfolderDto
                 {
                     ExternalId = folderIdMap[6],
                     Name = "Folder A_B_C",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 3 * ItemPosition.Step
                 }
             ],
             Files = null,
@@ -847,21 +865,24 @@ public class create_folder_tests: TestFixture
                     ExternalId = folderIdMap[9],
                     Name = "Folder B_A",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 1 * ItemPosition.Step
                 },
                 new SubfolderDto
                 {
                     ExternalId = folderIdMap[10],
                     Name = "Folder B_B",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 2 * ItemPosition.Step
                 },
                 new SubfolderDto
                 {
                     ExternalId = folderIdMap[11],
                     Name = "Folder B_C",
                     WasCreatedByUser = true,
-                    CreatedAt = Clock.UtcNow.DateTime
+                    CreatedAt = Clock.UtcNow.DateTime,
+                    Position = 3 * ItemPosition.Step
                 }
             ],
             Files = null,

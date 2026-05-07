@@ -93,8 +93,8 @@ public class CreateFolderQuery(
                         fo_is_being_deleted,
                         fo_creator_identity_type,
                         fo_creator_identity,
-                        fo_created_at                    
-                    ) 
+                        fo_created_at
+                    )
                     VALUES (
                         $externalId,
                         $workspaceId,
@@ -104,8 +104,8 @@ public class CreateFolderQuery(
                         FALSE,
                         $creatorIdentityType,
                         $creatorIdentity,
-                        $createdAt    
-                    ) 
+                        $createdAt
+                    )
                     RETURNING
                         fo_id
                 ",
@@ -210,8 +210,8 @@ public class CreateFolderQuery(
                             fo_is_being_deleted,
                             fo_creator_identity_type,
                             fo_creator_identity,
-                            fo_created_at    
-                        ) 
+                            fo_created_at
+                        )
                         VALUES (
                             $externalId,
                             $workspaceId,
@@ -222,7 +222,7 @@ public class CreateFolderQuery(
                             $creatorIdentityType,
                             $creatorIdentity,
                             $createdAt
-                        ) 
+                        )
                         RETURNING
                             fo_id
                     ",

@@ -14,24 +14,18 @@ public class BulkConvertDirectFileUploadsToFilesQuery(
 
     public Task<ResultCode> Execute(
         int[] fileUploadIds,
-        int workspaceId,
-        Guid correlationId,
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
-                fileUploadIds: fileUploadIds,
-                workspaceId: workspaceId,
-                correlationId: correlationId),
+                fileUploadIds: fileUploadIds),
             cancellationToken: cancellationToken);
     }
 
     private ResultCode ExecuteOperation(
         SqliteWriteContext dbWriteContext,
-        int[] fileUploadIds,
-        int workspaceId,
-        Guid correlationId)
+        int[] fileUploadIds)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
 

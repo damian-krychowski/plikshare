@@ -107,12 +107,14 @@ public class GetBoxContentHandler(
                 GetCurrentFolder: true,
                 GetSubfolders: true,
                 GetFiles: GetFolderContentQuery.FilesExecutionFlag.All,
-                GetUploads: true)
+                GetUploads: true,
+                ExposeCreatedAt: false)
             : new GetFolderContentQuery.ExecutionFlags(
                 GetCurrentFolder: true,
                 GetSubfolders: false,
                 GetFiles: GetFolderContentQuery.FilesExecutionFlag.UploadedByUserOnly,
-                GetUploads: true);
+                GetUploads: true,
+                ExposeCreatedAt: false);
 
         return getFolderContentQuery.Execute(
             workspace: boxAccess.Box.Workspace,

@@ -4,6 +4,7 @@ using PlikShare.BoxExternalAccess.Contracts;
 using PlikShare.BoxLinks.UpdatePermissions.Contracts;
 using PlikShare.Folders.Create.Contracts;
 using PlikShare.Folders.Id;
+using PlikShare.Folders.List;
 using PlikShare.Folders.List.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -91,21 +92,24 @@ public class box_link_external_access_tests: TestFixture
                     ExternalId = subFolderA.ExternalId.Value,
                     Name = subFolderA.Name,
                     WasCreatedByUser = false,
-                    CreatedAt = null
+                    CreatedAt = null,
+                    Position = 1 * ItemPosition.Step
                 },
                 new SubfolderDto
                 {
                     ExternalId = subFolderB.ExternalId.Value,
                     Name = subFolderB.Name,
                     WasCreatedByUser = false,
-                    CreatedAt = null
+                    CreatedAt = null,
+                    Position = 2 * ItemPosition.Step
                 },
                 new SubfolderDto
                 {
                     ExternalId = subFolderC.ExternalId.Value,
                     Name = subFolderC.Name,
                     WasCreatedByUser = false,
-                    CreatedAt = null
+                    CreatedAt = null,
+                    Position = 3 * ItemPosition.Step
                 },
             ]
         });
@@ -181,7 +185,8 @@ public class box_link_external_access_tests: TestFixture
                     ExternalId = folder.ExternalId.Value,
                     Name = "my new box folder",
                     WasCreatedByUser = true,
-                    CreatedAt = now.DateTime
+                    CreatedAt = now.DateTime,
+                    Position = 1 * ItemPosition.Step
                 }
             ]
         });
@@ -239,7 +244,8 @@ public class box_link_external_access_tests: TestFixture
                 ExternalId = folder.ExternalId.Value,
                 Name = "new name for my box folder",
                 WasCreatedByUser = true,
-                CreatedAt = createdAtTime.DateTime
+                CreatedAt = createdAtTime.DateTime,
+                Position = 1 * ItemPosition.Step
             }
         ]);
     }

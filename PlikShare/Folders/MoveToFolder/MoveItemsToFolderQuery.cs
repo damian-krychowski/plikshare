@@ -273,7 +273,9 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
             .Cmd(
                 sql: """
                      UPDATE fi_files
-                     SET fi_folder_id = $destinationFolderId
+                     SET
+                         fi_folder_id = $destinationFolderId,
+                         fi_position = NULL
                      WHERE
                          fi_external_id IN (
                              SELECT value FROM json_each($fileExternalIds)
@@ -284,7 +286,7 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
                              OR EXISTS (
                                  SELECT 1
                                  FROM fo_folders
-                                 WHERE 
+                                 WHERE
                                      fo_id = fi_folder_id
                                      AND fo_workspace_id = $workspaceId
                                      AND fo_is_being_deleted = FALSE
@@ -415,13 +417,17 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
                              WHEN fo_id = $folderToMoveId THEN $destinationFolderId
                              ELSE fo_parent_folder_id
                          END),
+                         fo_position = (CASE
+                             WHEN fo_id = $folderToMoveId THEN NULL
+                             ELSE fo_position
+                         END),
                          fo_ancestor_folder_ids = (
                              SELECT json_group_array(value)
                              FROM (
-                                 SELECT value 
+                                 SELECT value
                                  FROM json_each($destinationFolderPath)
-                                 UNION ALL 
-                                 SELECT value 
+                                 UNION ALL
+                                 SELECT value
                                  FROM json_each(fo_ancestor_folder_ids)
                                  WHERE json_each.key >= $folderToMovePathLength
                              )

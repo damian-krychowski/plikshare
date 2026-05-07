@@ -4,6 +4,7 @@ using PlikShare.Folders.Id;
 using PlikShare.Folders.List.Contracts;
 using PlikShare.Folders.MoveToFolder.Contracts;
 using PlikShare.Folders.Rename.Contracts;
+using PlikShare.Folders.UpdatePositions.Contracts;
 using PlikShare.Workspaces.Id;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -98,6 +99,22 @@ public class FoldersApi(IFlurlClient flurlClient, string appUrl)
         await flurlClient.ExecutePatch(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/folders/move-items",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery,
+            extraCookie: workspaceEncryptionSession);
+    }
+
+    public async Task UpdatePositions(
+        WorkspaceExtId workspaceExternalId,
+        UpdatePositionsRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery,
+        Cookie? workspaceEncryptionSession = null)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/folders/update-positions",
             request: request,
             cookie: cookie,
             antiforgery: antiforgery,

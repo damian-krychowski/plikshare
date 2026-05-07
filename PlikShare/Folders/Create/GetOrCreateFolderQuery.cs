@@ -593,9 +593,9 @@ public class GetOrCreateFolderQuery(
                          fo_is_being_deleted,
                          fo_creator_identity_type,
                          fo_creator_identity,
-                         fo_created_at    
-                     ) 
-                     SELECT 
+                         fo_created_at
+                     )
+                     SELECT
                          json_extract(value, '$.externalId'),
                          $workspaceId,
                          json_extract(value, '$.parentId'),
@@ -606,7 +606,7 @@ public class GetOrCreateFolderQuery(
                          $creatorIdentity,
                          $createdAt
                      FROM json_each($foldersToCreate)
-                     RETURNING 
+                     RETURNING
                          fo_id,
                          fo_external_id
                      """,

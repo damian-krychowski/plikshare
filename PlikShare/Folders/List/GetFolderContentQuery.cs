@@ -15,7 +15,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 		bool GetCurrentFolder,
 		bool GetSubfolders,
 		FilesExecutionFlag GetFiles,
-		bool GetUploads);
+		bool GetUploads,
+		bool ExposeCreatedAt);
 
 	public enum FilesExecutionFlag
 	{
@@ -56,14 +57,16 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
             userIdentity,
             connection,
             executionFlags.GetSubfolders,
+            executionFlags.ExposeCreatedAt,
             workspaceEncryptionSession);
-        
+
         var allFiles = GetAllFiles(
             workspace,
             userIdentity,
             currentFolderId,
             connection,
             executionFlags.GetFiles == FilesExecutionFlag.All,
+            executionFlags.ExposeCreatedAt,
             workspaceEncryptionSession);
 
         var filesUploadedByUser = GetFilesUploadedByUser(
@@ -72,6 +75,7 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
             currentFolderId,
             connection,
             executionFlags.GetFiles == FilesExecutionFlag.UploadedByUserOnly,
+            executionFlags.ExposeCreatedAt,
             workspaceEncryptionSession);
         
         var uploads = GetUploads(
@@ -150,10 +154,13 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 	    int currentFolderId,
 	    SqliteConnection connection,
         bool shouldGetFilesUploadedByUser,
+        bool exposeCreatedAt,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         if (!shouldGetFilesUploadedByUser)
             return [];
+
+        long maxPosition = 0;
 
 	    return connection
 		    .Cmd(
@@ -164,29 +171,43 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 				            fi_extension,
 				            fi_size_in_bytes,
 							TRUE AS fi_was_uploaded_by_user,
-                            NOT fi_is_upload_completed 
+                            NOT fi_is_upload_completed,
+                            fi_position,
+                            CASE WHEN $exposeCreatedAt THEN fi_created_at END AS fi_created_at
 				        FROM fi_files
 				        WHERE
 				            fi_workspace_id = $workspaceId
-							AND fi_uploader_identity_type = $uploaderIdentityType 
+							AND fi_uploader_identity_type = $uploaderIdentityType
 							AND fi_uploader_identity =  $uploaderIdentity
 				            AND fi_folder_id = $folderId
 						ORDER BY
+						    (fi_position IS NULL),
+						    fi_position,
 						    fi_id DESC
 					",
-                readRowFunc: reader => new FileDto
+                readRowFunc: reader =>
                 {
-                    ExternalId = reader.GetString(0),
-                    Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
-                    Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
-                    SizeInBytes = reader.GetInt64(3),
-                    WasUploadedByUser = reader.GetBoolean(4),
-                    IsLocked = reader.GetBoolean(5)
+                    (var position, maxPosition) = ItemPosition.Calculate(
+                        storedPosition: reader.GetInt64OrNull(6), 
+                        maxPosition: maxPosition);
+
+                    return new FileDto
+                    {
+                        ExternalId = reader.GetString(0),
+                        Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                        Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
+                        SizeInBytes = reader.GetInt64(3),
+                        WasUploadedByUser = reader.GetBoolean(4),
+                        IsLocked = reader.GetBoolean(5),
+                        CreatedAt = reader.GetDateTimeOffsetOrNull(7)?.UtcDateTime,
+                        Position = position
+                    };
                 })
 		    .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
 		    .WithParameter("$uploaderIdentity", userIdentity.Identity)
 		    .WithParameter("$workspaceId", workspace.Id)
 		    .WithParameter("$folderId", currentFolderId)
+		    .WithParameter("$exposeCreatedAt", exposeCreatedAt)
 		    .Execute();
     }
 
@@ -196,10 +217,13 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 	    int currentFolderId,
 	    SqliteConnection connection,
         bool shouldGetAllFiles,
+        bool exposeCreatedAt,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         if (!shouldGetAllFiles)
             return [];
+
+        long maxPosition = 0;
 
 	    return connection
 		    .Cmd(
@@ -210,31 +234,45 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 				        fi_extension,
 				        fi_size_in_bytes,
 						(
-							fi_uploader_identity_type = $uploaderIdentityType 
+							fi_uploader_identity_type = $uploaderIdentityType
 							AND fi_uploader_identity =  $uploaderIdentity
 						) AS fi_was_uploaded_by_user,
-                        NOT fi_is_upload_completed 
+                        NOT fi_is_upload_completed,
+                        fi_position,
+                        CASE WHEN $exposeCreatedAt THEN fi_created_at END AS fi_created_at
 				    FROM fi_files
 				    WHERE
 				        fi_workspace_id = $workspaceId
 				        AND fi_folder_id = $folderId
                         AND fi_parent_file_id IS NULL
 					 ORDER BY
+						(fi_position IS NULL),
+						fi_position,
 						fi_id DESC
 				",
-                readRowFunc: reader => new FileDto
+                readRowFunc: reader =>
                 {
-                    ExternalId = reader.GetString(0),
-                    Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
-                    Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
-                    SizeInBytes = reader.GetInt64(3),
-                    WasUploadedByUser = reader.GetBoolean(4),
-                    IsLocked = reader.GetBoolean(5)
+                    (var position, maxPosition) = ItemPosition.Calculate(
+                        storedPosition: reader.GetInt64OrNull(6),
+                        maxPosition: maxPosition);
+
+                    return new FileDto
+                    {
+                        ExternalId = reader.GetString(0),
+                        Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                        Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
+                        SizeInBytes = reader.GetInt64(3),
+                        WasUploadedByUser = reader.GetBoolean(4),
+                        IsLocked = reader.GetBoolean(5),
+                        CreatedAt = reader.GetDateTimeOffsetOrNull(7)?.UtcDateTime,
+                        Position = position
+                    };
                 })
 		    .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
 		    .WithParameter("$uploaderIdentity", userIdentity.Identity)
 		    .WithParameter("$workspaceId", workspace.Id)
 		    .WithParameter("$folderId", currentFolderId)
+		    .WithParameter("$exposeCreatedAt", exposeCreatedAt)
 		    .Execute();
     }
 
@@ -309,10 +347,13 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 	    IUserIdentity userIdentity,
 	    SqliteConnection connection,
         bool shouldGetSubfolders,
+        bool exposeCreatedAt,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         if (!shouldGetSubfolders)
             return [];
+
+        long maxPosition = 0;
 
 	    return connection
 		    .Cmd(
@@ -325,25 +366,37 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 							ELSE FALSE
 	                    END AS fo_was_created_by_user,
 			            CASE
-	                        WHEN fo_creator_identity_type = $creatorIdentityType AND fo_creator_identity = $creatorIdentity THEN fo_created_at
-	                    END AS fo_created_at
+			                WHEN $exposeCreatedAt OR (fo_creator_identity_type = $creatorIdentityType AND fo_creator_identity = $creatorIdentity) THEN fo_created_at
+			            END AS fo_created_at,
+			            fo_position
 			        FROM fo_folders
 			        WHERE
 			            fo_parent_folder_id = $parentFolderId
 			            AND fo_is_being_deleted = FALSE
 			        ORDER BY
+			            (fo_position IS NULL),
+			            fo_position,
 			            fo_id
 				",
-                readRowFunc: reader => new SubfolderDto
+                readRowFunc: reader =>
                 {
-                    ExternalId = reader.GetString(0),
-                    Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
-                    WasCreatedByUser = reader.GetBoolean(2),
-					CreatedAt = reader.GetDateTimeOffsetOrNull(3)?.DateTime
-				})
+                    (var position, maxPosition) = ItemPosition.Calculate(
+                        storedPosition: reader.GetInt64OrNull(4),
+                        maxPosition: maxPosition);
+
+                    return new SubfolderDto
+                    {
+                        ExternalId = reader.GetString(0),
+                        Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
+                        WasCreatedByUser = reader.GetBoolean(2),
+                        CreatedAt = reader.GetDateTimeOffsetOrNull(3)?.UtcDateTime,
+                        Position = position
+                    };
+                })
 		    .WithParameter("$parentFolderId", currentFolderId)
 		    .WithParameter("$creatorIdentityType", userIdentity.IdentityType)
 		    .WithParameter("$creatorIdentity", userIdentity.Identity)
+		    .WithParameter("$exposeCreatedAt", exposeCreatedAt)
 		    .Execute();
     }
 
