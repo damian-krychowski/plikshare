@@ -78,8 +78,20 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
     });
 
     canAddWorkspace = computed(() => this.auth.canAddWorkspace() && this.hasAnyStorage() && !this.hasReachedMaxWorkspaceNumber());
-    
+
     showWorkspacesSection = computed(() => this.hasAnyWorkspace() || this.canAddWorkspace() );
+
+    showEmptyDashboard = computed(() =>
+        !this.isLoading()
+        && !this.canAddWorkspace()
+        && !this.hasAnyWorkspace()
+        && !this.hasAnySharedWorkspace()
+        && !this.hasAnyIntegrationWorkspace()
+        && !this.hasAnySharedBox()
+        && !this.hasAnyInvitation()
+        && !this.hasAnyOtherWorkspace()
+        && !(this.auth.isAdmin() && !this.hasAnyStorage())
+    );
 
     isAnyNameEditing = computed(() => 
         this.workspaces().some((b) => b.isNameEditing()) 

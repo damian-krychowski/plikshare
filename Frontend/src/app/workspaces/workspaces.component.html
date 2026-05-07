@@ -11,7 +11,7 @@
                         Dashboard
                     </div>
     
-                    <div class="top-bar__subtitle">
+                    <div class="top-bar__subtitle top-bar__email">
                          {{ auth.userEmail() }}
                     </div>
                 </div>
@@ -37,53 +37,73 @@
         <app-search></app-search>
     </div>
 
-    <div class="content" [class.covered]="searchInput.isSearchActive()"> 
-        @if(!isLoading() && !hasAnyStorage()) {
+    <div class="content" [class.covered]="searchInput.isSearchActive()">
+        @if(!isLoading() && !hasAnyStorage() && auth.isAdmin()) {
             <div class="mt-3"></div>
 
-            <div class="title-header">  
+            <div class="title-header">
                 <div>
                     Welcome to PlikShare!
                 </div>
-            </div>  
+            </div>
 
             <div class="mt-2"></div>
 
-            @if(auth.isAdmin()) {
-                <div class="setup-explanation">
-                    <p>Before you can start using PlikShare, you need to complete the configuration. Please follow these steps:</p>
-                    
-                    <div class="step">
-                        <p><span class="step__number">Step 1:</span> Go to the settings page
-                           <br>(Look for the red cog icon  <i class="icon icon-sm icon-nucleo-settings icon--danger"></i> in the top right corner)
-                        </p>
-                    </div>
-                    
-                    <div class="step">
-                        <p><span class="step__number">Step 2:</span> Configure Storage
-                           <br>Set up access to disk space for PlikShare
-                        </p>
-                    </div>
-                    
-                    <div class="step">
-                        <p><span class="step__number">Step 3:</span> Set Up Email
-                           <br>Enable PlikShare to send application messages (invitations, confirmations, etc.)
-                        </p>
-                    </div>
+            <div class="setup-explanation">
+                <p>Before you can start using PlikShare, you need to complete the configuration. Please follow these steps:</p>
 
-                    <p>When that is done you can start creating your workspaces and invite some users. Good luck!</p>
+                <div class="step">
+                    <p><span class="step__number">Step 1:</span> Go to the settings page
+                       <br>(Look for the red cog icon  <i class="icon icon-sm icon-nucleo-settings icon--danger"></i> in the top right corner)
+                    </p>
                 </div>
-            } @else {
-                <div class="setup-explanation">
-                    <p>Before you can start using PlikShare, application configuration needs to be completed. Please contact the administrator to learn when it is planned</p>
+
+                <div class="step">
+                    <p><span class="step__number">Step 2:</span> Configure Storage
+                       <br>Set up access to disk space for PlikShare
+                    </p>
                 </div>
-            }
+
+                <div class="step">
+                    <p><span class="step__number">Step 3:</span> Set Up Email
+                       <br>Enable PlikShare to send application messages (invitations, confirmations, etc.)
+                    </p>
+                </div>
+
+                <p>When that is done you can start creating your workspaces and invite some users. Good luck!</p>
+            </div>
 
             <div class="mt-2"></div>
         }
 
+        @if(showEmptyDashboard()) {
+            <div class="empty-dashboard">
+                <div class="empty-dashboard__icon-wrap">
+                    <i class="icon icon-nucleo-mailbox empty-dashboard__icon"></i>
+                </div>
+
+                <div class="empty-dashboard__title">
+                    Welcome to PlikShare!
+                </div>
+
+                <div class="empty-dashboard__subtitle">
+                    Hi {{ auth.userEmail() }} — your dashboard is empty for now.
+                </div>
+
+                <div class="empty-dashboard__description">
+                    <p>
+                        Workspaces and shared boxes will appear here as soon as someone shares them with you, or invites you to collaborate.
+                    </p>
+
+                    <p class="empty-dashboard__hint">
+                        Need access to a specific resource? Reach out to your administrator.
+                    </p>
+                </div>
+            </div>
+        }
+
         @if(showWorkspacesSection()) {
-            <div class="mt-3"></div>
+            <div class="mt-3 hide-on-mobile"></div>
 
             <div class="title-header">  
                 <div>

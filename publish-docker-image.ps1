@@ -1,4 +1,4 @@
-#to run this script: .\publish-docker-image.ps1 -version "1.1.21"
+#to run this script: .\publish-docker-image.ps1 -version "1.1.22"
 
 param (
     [Parameter(Mandatory=$true)]

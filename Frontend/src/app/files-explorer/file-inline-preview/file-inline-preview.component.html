@@ -468,7 +468,9 @@
 @if(allowNotesVal || allowCommentsVal) { 
     <div class="preview-bottom-section">
         <div>            
-            @if(allowNotesVal) {            
+            @if(allowNotesVal) {
+                @let isNotesExpandedVal = isNotesExpanded();
+
                 <div class="subtitle-header">
                     <div class="item">
                         <div class="item__details">
@@ -477,26 +479,36 @@
                             </div>
                         </div>
                     </div>
-                
-                    @if(noteJsonVal) {
-                        <div class="flex-row ml-auto">
-                            <div class="note-header">           
+
+                    <div class="flex-row flex-gap-05 ml-auto">
+                        @if(noteJsonVal) {
+                            <div class="note-header">
                                 Last change: {{noteChangedBy()}} | {{noteChangedWhen()}}
                             </div>
-                        </div>
-                    }
+                        }
+
+                        <app-action-btn
+                            [tooltip]="isNotesExpandedVal ? 'Collapse' : 'Expand'"
+                            [icon]="isNotesExpandedVal ? 'icon-lucide-chevron-up' : 'icon-lucide-chevron-down'"
+                            (clicked)="isNotesExpanded.set(!isNotesExpandedVal)">
+                        </app-action-btn>
+                    </div>
                 </div>
-                
-                <div class="mt-2"></div>
-                
-                <app-rich-text-editor
-                    [placeholder]="'Add notes...'"
-                    [json]="noteJsonVal"
-                    [updateOperation]="fileNoteUpdateOperation()">    
-                </app-rich-text-editor>
+
+                @if(isNotesExpandedVal) {
+                    <div class="mt-2"></div>
+
+                    <app-rich-text-editor
+                        [placeholder]="'Add notes...'"
+                        [json]="noteJsonVal"
+                        [updateOperation]="fileNoteUpdateOperation()">
+                    </app-rich-text-editor>
+                }
             }
-            
+
             @if(allowCommentsVal) {
+                @let isCommentsExpandedVal = isCommentsExpanded();
+
                 <div class="subtitle-header">
                     <div class="item">
                         <div class="item__details">
@@ -505,26 +517,33 @@
                             </div>
                         </div>
                     </div>
-                
-                    <div class="flex-row ml-auto">
+
+                    <div class="flex-row flex-gap-05 ml-auto">
+                        <app-action-btn
+                            [tooltip]="isCommentsExpandedVal ? 'Collapse' : 'Expand'"
+                            [icon]="isCommentsExpandedVal ? 'icon-lucide-chevron-up' : 'icon-lucide-chevron-down'"
+                            (clicked)="isCommentsExpanded.set(!isCommentsExpandedVal)">
+                        </app-action-btn>
                     </div>
                 </div>
-                
-                <div class="mt-2"></div>
-                
-                @for (comment of comments(); track comment.externalId) {
-                    <app-comment
-                        [comment]="comment"
-                        (edited)="commentEdited(comment)"
-                        (deleted)="commentDeleted(comment)">    
-                    </app-comment>
-                
+
+                @if(isCommentsExpandedVal) {
                     <div class="mt-2"></div>
+
+                    @for (comment of comments(); track comment.externalId) {
+                        <app-comment
+                            [comment]="comment"
+                            (edited)="commentEdited(comment)"
+                            (deleted)="commentDeleted(comment)">
+                        </app-comment>
+
+                        <div class="mt-2"></div>
+                    }
+
+                    <app-comment
+                        (sent)="commentSent($event)">
+                    </app-comment>
                 }
-                
-                <app-comment
-                    (sent)="commentSent($event)">    
-                </app-comment>
             }
         </div>
     </div>

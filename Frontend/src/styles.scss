@@ -281,3 +281,9 @@ select {
 .app-search-container.app-search-active {
     display: block;
 }
+
+.hide-on-mobile {
+     @media (max-width: variables.$mobile-breakpoint) {
+        display: none;
+     }
+}

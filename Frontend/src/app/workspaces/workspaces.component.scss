@@ -3,6 +3,7 @@
 @forward "./../../styles/top-bar.scss";
 @forward "./../../styles/covered.scss";
 @forward "./../../styles/top-nav-btn.scss";
+@use './../../styles/variables.scss' as variables;
 
 .setup-explanation {
     font-size: 1rem;
@@ -15,5 +16,96 @@
 
     &__number {
         font-weight: 600;
+    }
+}
+
+.top-bar {
+    &__email{
+        @media (max-width: variables.$mobile-breakpoint) {
+            display: none;
+        }
+    }
+}
+
+.empty-dashboard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 3.5rem 1.5rem;
+    margin-top: 2rem;
+    border: 1px solid var(--company-grey-accent-light);
+    color: var(--company-grey-font);
+    background: white;
+
+    &__icon-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 7rem;
+        height: 7rem;
+        border-radius: 50%;
+        background-color: var(--company-grey-accent-light);
+        border: 1px dashed var(--company-grey-accent);
+        margin-bottom: 1.75rem;
+    }
+
+    &__icon {
+        font-size: 3.5rem;
+        opacity: 0.55;
+    }
+
+    &__title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--company-font);
+        margin-bottom: 0.5rem;
+    }
+
+    &__subtitle {
+        font-size: 1rem;
+        opacity: 0.85;
+        margin-bottom: 1.5rem;
+        word-break: break-word;
+        max-width: 540px;
+    }
+
+    &__description {
+        font-size: var(--company-medium-font);
+        line-height: 1.55;
+        max-width: 540px;
+
+        p {
+            margin: 0 0 0.75rem 0;
+
+            &:last-child {
+                margin-bottom: 0;
+            }
+        }
+    }
+
+    &__hint {
+        opacity: 0.75;
+        font-style: italic;
+    }
+
+    @media (max-width: variables.$mobile-breakpoint) {
+        padding: 2.25rem 1rem;
+        margin-top: 1rem;
+        border-radius: 10px;
+
+        &__icon-wrap {
+            width: 5.5rem;
+            height: 5.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        &__icon {
+            font-size: 2.75rem;
+        }
+
+        &__title {
+            font-size: 1.25rem;
+        }
     }
 }

@@ -372,6 +372,9 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
     //comments
     comments = signal<AppComment[]>([]);
 
+    isNotesExpanded = signal(false);
+    isCommentsExpanded = signal(false);
+
     constructor(
         private _auth: AuthService,
         private _aiConversationsStatusService: AiConversationsStatusService,
@@ -465,6 +468,11 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
         this.noteChangedAt.set(null);
         this.noteChangedBy.set(null);
         this.comments.set([]);
+
+        // keep mobile breakpoint in sync with $mobile-breakpoint in styles/variables.scss
+        const expandedByDefault = !window.matchMedia('(max-width: 500px)').matches;
+        this.isNotesExpanded.set(expandedByDefault);
+        this.isCommentsExpanded.set(expandedByDefault);
     }
 
     private async loadFilePreviewDetails() {
