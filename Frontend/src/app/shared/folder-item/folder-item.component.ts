@@ -11,6 +11,8 @@ import { FormsModule } from "@angular/forms";
 import { ActionButtonComponent, CountdownTime } from "../buttons/action-btn/action-btn.component";
 import { TimeService } from "../../services/time.service";
 import { observeIsHighlighted } from "../../services/is-highlighted-utils";
+import { CdkDragHandle } from "@angular/cdk/drag-drop";
+import { DragStateService } from "../../services/drag-state.service";
 
 type PermissionState = {
     isOn: boolean;
@@ -23,7 +25,7 @@ export type AppFolderItem = {
     externalId: string;
     name: WritableSignal<string>;
     ancestors: AppFolderAncestor[];
-    
+
     isNameEditing: WritableSignal<boolean>;
     isSelected: WritableSignal<boolean>;
     isCut: WritableSignal<boolean>;
@@ -31,6 +33,7 @@ export type AppFolderItem = {
 
     wasCreatedByUser: boolean;
     createdAt: Date | null;
+    position: WritableSignal<number>;
 }
 
 export type AppFolderAncestor = {
@@ -57,7 +60,8 @@ const TIME_TO_RENAME_FOLDER_WITHOUT_PERMISSION_MS = 5 * 60 * 1000;
         ConfirmOperationDirective,
         PrefetchDirective,
         CtrlClickDirective,
-        ActionButtonComponent
+        ActionButtonComponent,
+        CdkDragHandle
     ],
     templateUrl: './folder-item.component.html',
     styleUrl: './folder-item.component.scss'
@@ -71,6 +75,7 @@ export class FolderItemComponent{
     canLocate = input(false);
     showPath = input(false);
     hideActions = input(false);
+    canReorder = input(false);
 
     allowShare = input(false);
     allowMoveItems = input(false);
@@ -154,7 +159,8 @@ export class FolderItemComponent{
 
     constructor(
         private _inAppSharing: InAppSharing,
-        private _time: TimeService
+        private _time: TimeService,
+        public dragState: DragStateService
     ) {}
 
 

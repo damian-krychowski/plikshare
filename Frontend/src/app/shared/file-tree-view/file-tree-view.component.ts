@@ -1242,6 +1242,8 @@ export class FileTreeViewComponent implements OnChanges {
                 isLocked: signal(file.isLocked),
                 sizeInBytes: file.sizeInBytes,
                 wasUploadedByUser: file.wasUploadedByUser,
+                createdAt: null,
+                position: signal(0),
 
                 isCut: signal(false),
                 isHighlighted: signal(false),
@@ -1251,7 +1253,7 @@ export class FileTreeViewComponent implements OnChanges {
         }
 
         function prepareNewFolderItem(args: {
-            externalId: string, 
+            externalId: string,
             folder: SearchFilesTreeFolderItem;
             ancestors: AppFolderAncestor[]
         }): AppFolderItem {
@@ -1266,6 +1268,7 @@ export class FileTreeViewComponent implements OnChanges {
                 createdAt: args.folder.createdAt == null
                     ? null
                     : new Date(args.folder.createdAt),
+                position: signal(0),
 
                 isCut: signal(false),
                 isHighlighted: signal(false),

@@ -31,6 +31,8 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
     filesApi: Signal<FilesExplorerApi>;
     uploadsApi: Signal<FileUploadApi>;
 
+    sortScopeKey = computed(() => this.url() ? `box-widget:${this.url()}` : null);
+
     isTurnedOn = computed(() => this.details()?.isTurnedOn ?? false);
     
     allowList = computed(() => this.details()?.allowList ?? false);
@@ -178,8 +180,10 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
                 request),
 
             moveItems: (request: {fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[], destinationFolderExternalId: string | null}) => this._boxWidgetApi.moveItems(
-                this.url(), 
+                this.url(),
                 request),
+
+            updatePositions: null,
 
             updateFileName: (fileExternalId: string, request: {name: string}) => this._boxWidgetApi.updateFileName(
                 this.url(), 

@@ -60,9 +60,10 @@
                         <app-files-explorer #filesExplorer
                             [filesApi]="filesApiValue"
                             [uploadsApi]="uploadsApi()"
+                            [workspaceExternalId]="sortScopeKey()"
 
                             [initialContent]="initialBoxContent()"
-    
+
                             [allowList]="allowList()"
                             [allowCreateFolder]="allowCreateFolder()"
                             [allowUpload]="allowUpload()"

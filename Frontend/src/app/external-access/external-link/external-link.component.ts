@@ -35,6 +35,8 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
         return this._accessCode;
     }
 
+    sortScopeKey: WritableSignal<string | null> = signal(null);
+
     currentFolderExternalId: WritableSignal<string | null> = signal(null);
     currentFileExternalIdInPreview: WritableSignal<string | null> = signal(null);
     details: WritableSignal<GetBoxDetails | null> = signal(null);
@@ -92,6 +94,7 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
 
         const oldAccessCode = this._accessCode;
         this._accessCode = accessCode;
+        this.sortScopeKey.set(accessCode ? `external-link:${accessCode}` : null);
 
         await Promise.all([
             this.loadBox(oldAccessCode, accessCode, folderExternalId, fileExternalId),
@@ -283,8 +286,10 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
                 request),
 
             moveItems: (request: {fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[], destinationFolderExternalId: string | null}) => this._accessCodesApi.moveItems(
-                this._accessCodeValue, 
+                this._accessCodeValue,
                 request),
+
+            updatePositions: null,
 
             updateFileName: (fileExternalId: string, request: {name: string}) => this._accessCodesApi.updateFileName(
                 this._accessCodeValue, 

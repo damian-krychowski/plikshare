@@ -282,6 +282,17 @@ select {
     display: block;
 }
 
+// Compact tooltip for inline metadata (e.g. file dates).
+.plk-date-tooltip {
+    .mdc-tooltip__surface {
+        font-size: 0.75rem;
+        line-height: 1rem;
+        padding: 0.35rem 0.5rem;
+        white-space: nowrap;
+        max-width: none;
+    }
+}
+
 .hide-on-mobile {
      @media (max-width: variables.$mobile-breakpoint) {
         display: none;

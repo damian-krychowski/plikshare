@@ -33,6 +33,7 @@ export class ExplorerComponent implements OnInit, OnDestroy {
 
     areBoxesSupported = computed(() => this.context.workspace()?.storageEncryptionType !== 'full');
 
+    workspaceExternalId: WritableSignal<string | null> = signal(null);
     private _workspaceExternalId: string | null = null;
 
     constructor(
@@ -81,6 +82,7 @@ export class ExplorerComponent implements OnInit, OnDestroy {
         }
 
         this._workspaceExternalId = workspaceExternalId;
+        this.workspaceExternalId.set(workspaceExternalId);
         this.currentFolderExternalId.set(folderExternalId);
 
         this.filesApi.set(new WorkspaceFilesExplorerApi(

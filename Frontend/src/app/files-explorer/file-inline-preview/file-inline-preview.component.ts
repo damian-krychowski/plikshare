@@ -563,6 +563,8 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
                     isLocked: signal(false),
                     isNameEditing: signal(false),
                     isSelected: signal(false),
+                    createdAt: null,
+                    position: signal(0)
                 };
 
                 return file;
@@ -594,6 +596,8 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
                     isLocked: signal(false),
                     isNameEditing: signal(false),
                     isSelected: signal(false),
+                    createdAt: null,
+                    position: signal(0)
                 };
 
                 return file;
@@ -1005,7 +1009,7 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
     onAiResponseAttachmentCreated(attachment: AttachmentCreatedEvent) {
         const file: AppFileItem = {
             type: 'file',
-        
+
             externalId: attachment.externalId,
             extension: attachment.extension,
             name: signal(attachment.name),
@@ -1013,13 +1017,15 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
 
             folderExternalId: null,
             folderPath: null,
-        
+
             isCut: signal(false),
             isHighlighted: signal(false),
             isLocked: signal(false),
             isNameEditing: signal(false),
             isSelected: signal(false),
-            wasUploadedByUser: true
+            wasUploadedByUser: true,
+            createdAt: null,
+            position: signal(0)
         };
 
         this.attachments.update(attachments => [...attachments, file]);

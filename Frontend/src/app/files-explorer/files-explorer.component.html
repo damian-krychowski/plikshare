@@ -264,23 +264,63 @@
         @if(!hideContextBar()) {            
             <div class="context-bar">        
                 @if(allowList()) {
-                    <div>
-                        <span class="context-item view-mode context-item--clickable" 
-                            [class.view-mode--active]="viewModeVal == 'list-view'"
-                            (click)="setViewMode('list-view')"> 
-                            List view
-                            <i class="icon icon-lucide-check"></i>
-                        </span>
-    
-                        |
-                        
-                        <span class="context-item view-mode context-item--clickable" 
-                            [class.view-mode--active]="viewModeVal == 'tree-view'"
-                            (click)="setViewMode('tree-view')">
-                            <i class="icon icon-lucide-check"></i>
-                            Tree view
-                        </span>
-                    </div>   
+                    @let sortModeVal = sortMode();
+                    @let sortDirectionVal = sortDirection();
+
+                    <div class="context-stack">
+                        <span class="context-label">Order:</span>
+                        <div class="context-row">
+                            <span class="context-item view-mode context-item--clickable"
+                                [class.view-mode--active]="sortModeVal == 'custom'"
+                                (click)="setSortMode('custom')">
+                                Custom
+                                <i class="icon icon-lucide-check"></i>
+                            </span>
+
+                            |
+
+                            <span class="context-item view-mode context-item--clickable"
+                                [class.view-mode--active]="sortModeVal == 'name'"
+                                (click)="setSortMode('name')">
+                                Name
+                                <i class="icon"
+                                    [class.icon-lucide-chevron-up]="sortModeVal != 'name' || sortDirectionVal == 'asc'"
+                                    [class.icon-lucide-chevron-down]="sortModeVal == 'name' && sortDirectionVal == 'desc'"></i>
+                            </span>
+
+                            @if(allowDateSort()) {
+                                |
+
+                                <span class="context-item view-mode context-item--clickable"
+                                    [class.view-mode--active]="sortModeVal == 'date'"
+                                    (click)="setSortMode('date')">
+                                    Date
+                                    <i class="icon"
+                                        [class.icon-lucide-chevron-up]="sortModeVal != 'date' || sortDirectionVal == 'asc'"
+                                        [class.icon-lucide-chevron-down]="sortModeVal == 'date' && sortDirectionVal == 'desc'"></i>
+                                </span>
+                            }
+                        </div>
+
+                        <span class="context-label">View:</span>
+                        <div class="context-row">
+                            <span class="context-item view-mode context-item--clickable"
+                                [class.view-mode--active]="viewModeVal == 'list-view'"
+                                (click)="setViewMode('list-view')">
+                                List
+                                <i class="icon icon-lucide-check"></i>
+                            </span>
+
+                            |
+
+                            <span class="context-item view-mode context-item--clickable"
+                                [class.view-mode--active]="viewModeVal == 'tree-view'"
+                                (click)="setViewMode('tree-view')">
+                                <i class="icon icon-lucide-check"></i>
+                                Tree
+                            </span>
+                        </div>
+                    </div>
                 }
 
                 <div class="ml-auto">
@@ -358,8 +398,7 @@
                             </div>
                         }           
                     }
-                </div>
-                
+                </div>                
             </div>
         }
     }
@@ -400,56 +439,72 @@
     }
 
     <div [style.display]="(fileInPreviewVal || pendingBulkUploadVal || !isListViewMode) ? 'none' : 'unset'">
-        @for(folder of folders(); track folder.externalId) {
-            <app-folder-item     
-                (appDragOverStay)="operations.openFolderFunc(folder.externalId, null)"    
-                [folder]="folder"
-                [operations]="operations"
-                [showPath]="false"
-                [hideActions]="hideItemsActions()"
-                [allowDelete]="allowFolderDelete()"
-                [allowRename]="allowFolderRename()"
-                [allowShare]="allowFolderShare()"
-                [allowMoveItems]="allowMoveItems()"
-                [allowDownload]="allowDownload()"
-                [canOpen]="!isAnyNameEditPending()"
-                (deleted)="onFolderDeleted(folder)"
-                (boxCreated)="createBoxFromFolder(folder)">            
-            </app-folder-item>
-        }   
-    
+        <div cdkDropList
+            [cdkDropListDisabled]="!canReorder()"
+            (cdkDropListDropped)="onFolderDrop($event)">
+            @for(folder of sortedFolders(); track folder.externalId) {
+                <app-folder-item cdkDrag
+                    [cdkDragDisabled]="!canReorder()"
+                    (cdkDragStarted)="onCdkDragStarted()"
+                    (cdkDragEnded)="onCdkDragEnded()"
+                    (appDragOverStay)="operations.openFolderFunc(folder.externalId, null)"
+                    [folder]="folder"
+                    [canReorder]="canReorder()"
+                    [operations]="operations"
+                    [showPath]="false"
+                    [hideActions]="hideItemsActions()"
+                    [allowDelete]="allowFolderDelete()"
+                    [allowRename]="allowFolderRename()"
+                    [allowShare]="allowFolderShare()"
+                    [allowMoveItems]="allowMoveItems()"
+                    [allowDownload]="allowDownload()"
+                    [canOpen]="!isAnyNameEditPending()"
+                    (deleted)="onFolderDeleted(folder)"
+                    (boxCreated)="createBoxFromFolder(folder)">
+                </app-folder-item>
+            }
+        </div>
+
         <div [class.drop-area__anchor]="allowUpload()">
             <div>
                 <div class="mt-2"></div>
-            
+
                 @if(allowCreateFolder()){
                     <app-item-btn
                         title="Add new folder"
                         subtitle="Click here to create an empty folder!"
                         icon="icon-nucleo-folder-plus"
-                        (clicked)="createNewFolder()">                    
+                        (clicked)="createNewFolder()">
                     </app-item-btn>
                 }
             </div>
-    
+
             @if(hasFiles()) {
                 <div class="mt-2"></div>
             }
-        
-            @for(file of files(); track file.externalId) {
-                <app-file-item
-                    [file]="file"
-                    [operations]="operations"
-                    [hideActions]="hideItemsActions()"
-                    [allowDelete]="allowFileDelete()"
-                    [allowRename]="allowFileRename()"
-                    [allowDownload]="allowDownload()"
-                    [allowMoveItems]="allowMoveItems()"
-                    [canOpen]="!isAnyNameEditPending()"
-                    (deleted)="onFileDeleted(file)"
-                    (previewed)="onFilePreviewed(file)">
-                </app-file-item>    
-            }
+
+            <div cdkDropList
+                [cdkDropListDisabled]="!canReorder()"
+                (cdkDropListDropped)="onFileDrop($event)">
+                @for(file of sortedFiles(); track file.externalId) {
+                    <app-file-item cdkDrag
+                        [cdkDragDisabled]="!canReorder()"
+                        (cdkDragStarted)="onCdkDragStarted()"
+                        (cdkDragEnded)="onCdkDragEnded()"
+                        [file]="file"
+                        [canReorder]="canReorder()"
+                        [operations]="operations"
+                        [hideActions]="hideItemsActions()"
+                        [allowDelete]="allowFileDelete()"
+                        [allowRename]="allowFileRename()"
+                        [allowDownload]="allowDownload()"
+                        [allowMoveItems]="allowMoveItems()"
+                        [canOpen]="!isAnyNameEditPending()"
+                        (deleted)="onFileDeleted(file)"
+                        (previewed)="onFilePreviewed(file)">
+                    </app-file-item>
+                }
+            </div>
             
             @if(hasUploads()) {
                 <div class="mt-2"></div>

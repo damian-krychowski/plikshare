@@ -1,4 +1,5 @@
 import { signal, Component, WritableSignal, input, computed, output, OnInit, OnDestroy } from "@angular/core";
+import { DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatTooltipModule } from "@angular/material/tooltip";
@@ -14,6 +15,8 @@ import { NavigationExtras } from "@angular/router";
 import { ActionButtonComponent } from "../buttons/action-btn/action-btn.component";
 import { observeIsHighlighted } from "../../services/is-highlighted-utils";
 import { ContentDisposition } from "../../services/folders-and-files.api";
+import { CdkDragHandle } from "@angular/cdk/drag-drop";
+import { DragStateService } from "../../services/drag-state.service";
 
 export type AppFileItem = {
     type: 'file';
@@ -28,6 +31,8 @@ export type AppFileItem = {
     sizeInBytes: number;
     wasUploadedByUser: boolean;
     isLocked: WritableSignal<boolean>;
+    createdAt: Date | null;
+    position: WritableSignal<number>;
 
     isNameEditing: WritableSignal<boolean>;
     isSelected: WritableSignal<boolean>;
@@ -57,7 +62,9 @@ export interface FileOperations {
         PrefetchDirective,
         CtrlClickDirective,
         FileIconPipe,
-        ActionButtonComponent
+        ActionButtonComponent,
+        CdkDragHandle,
+        DatePipe
     ],
     templateUrl: './file-item.component.html',
     styleUrl: './file-item.component.scss'
@@ -73,6 +80,7 @@ export class FileItemComponent implements OnInit, OnDestroy {
     canLocate = input(false);
     showPath = input(false);
     hideActions = input(false);
+    canReorder = input(false);
 
     allowDownload = input(false);
     allowMoveItems = input(false);
@@ -105,7 +113,8 @@ export class FileItemComponent implements OnInit, OnDestroy {
         || this.file().wasUploadedByUser));
 
     constructor(
-        private _inAppSharing: InAppSharing
+        private _inAppSharing: InAppSharing,
+        public dragState: DragStateService
     ){}
    
     ngOnInit(): void {

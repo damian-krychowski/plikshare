@@ -77,6 +77,7 @@ export interface SubfolderDto {
     name: string;
     wasCreatedByUser: boolean;
     createdAt: string | null;
+    position: number;
 }
 
 export interface FileDto {
@@ -86,7 +87,25 @@ export interface FileDto {
     sizeInBytes: number;
     wasUploadedByUser: boolean;
     isLocked: boolean;
+    createdAt: string | null;
+    position: number;
 }
+
+export interface UpdatePositionsRequest {
+    parentFolderExternalId: string | null;
+    folders: UpdatePositionItem[];
+    files: UpdatePositionItem[];
+}
+
+export interface UpdatePositionItem {
+    externalId: string;
+    position: number;
+}
+
+export type SortMode = 'custom' | 'name' | 'date';
+export type SortDirection = 'asc' | 'desc';
+
+export const ITEM_POSITION_STEP = 1024;
 
 export interface UploadDto {
     externalId: string;
@@ -487,6 +506,23 @@ export class FoldersAndFilesSetApi {
         return result;
     }
 
+    public async updatePositions(workspaceExternalId: string, request: UpdatePositionsRequest): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/workspaces/${workspaceExternalId}/folders/update-positions`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+
+        this._dataStore.invalidateEntries(
+            key => key.startsWith(this._dataStore.topFolderKey(workspaceExternalId))
+        );
+    }
+
     public async updateFolderName(workspaceExternalId: string, externalId: string, request: UpdateFolderName): Promise<void> {
         const call = this
             ._http
@@ -786,6 +822,8 @@ export function mapFileDtosToItems(files: FileDto[], folderExternalId: string | 
             wasUploadedByUser: f.wasUploadedByUser ?? false,
             folderPath: null,
             isLocked: signal(f.isLocked),
+            createdAt: f.createdAt == null ? null : new Date(f.createdAt),
+            position: signal(f.position),
 
             isSelected: signal(false),
             isNameEditing: signal(false),
@@ -828,7 +866,8 @@ export function mapFolderDtoToItem(
         externalId: string,
         name: string,
         wasCreatedByUser?: boolean,
-        createdAt?: string | null
+        createdAt?: string | null,
+        position?: number
     }, ancestors: {
         externalId: string,
         name: string
@@ -846,7 +885,8 @@ export function mapFolderDtoToItem(
         wasCreatedByUser: folder.wasCreatedByUser ?? false,
         createdAt: folder.createdAt == null
             ? null
-            : new Date(folder.createdAt)
+            : new Date(folder.createdAt),
+        position: signal(folder.position ?? 0)
     };
 }
 

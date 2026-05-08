@@ -40,12 +40,25 @@ a.drag-over {
     gap: 0.5rem;
 }
 
+.context-stack {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    column-gap: 0.5rem;
+    row-gap: 0.25rem;
+}
+
+.context-label {
+    display: inline-block;
+}
+
 .context-item {
     padding: 0 0.5rem;
     display: inline-block;
 
     &--clickable {
         cursor: pointer;
+        user-select: none;
     }
 
     &:hover {
@@ -94,4 +107,25 @@ a.drag-over {
             display: inline;
         }
     }
+}
+
+::ng-deep .cdk-drag-preview {
+    box-sizing: border-box;
+    box-shadow: 0 5px 5px -3px rgba(0, 0, 0, 0.2),
+                0 8px 10px 1px rgba(0, 0, 0, 0.14),
+                0 3px 14px 2px rgba(0, 0, 0, 0.12);
+    background-color: rgb(252, 252, 252);
+    opacity: 0.95;
+}
+
+::ng-deep .cdk-drag-placeholder {
+    opacity: 0.3;
+}
+
+::ng-deep .cdk-drag-animating {
+    transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
+    transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
 }

@@ -7,5 +7,6 @@ export function getSubfolderDtoProtobuf() {
         .add(new protobuf.Field("name", 2, "string"))
         .add(new protobuf.Field("wasCreatedByUser", 3, "bool"))
         .add(new protobuf.Field("createdAt", 4, "appDateTime"))
+        .add(new protobuf.Field("position", 5, "int64"))
         .add(getDateTimeProtobuf());
 }

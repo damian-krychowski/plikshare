@@ -1,4 +1,5 @@
 import * as protobuf from "protobufjs";
+import { getDateTimeProtobuf } from "./datetime.protobuf";
 
 export function getFileDtoProtobuf() {
     return new protobuf.Type("FileDto")
@@ -7,5 +8,8 @@ export function getFileDtoProtobuf() {
         .add(new protobuf.Field("extension", 3, "string"))
         .add(new protobuf.Field("sizeInBytes", 4, "int64"))
         .add(new protobuf.Field("isLocked", 5, "bool"))
-        .add(new protobuf.Field("wasUploadedByUser", 6, "bool"));
+        .add(new protobuf.Field("wasUploadedByUser", 6, "bool"))
+        .add(new protobuf.Field("createdAt", 7, "appDateTime"))
+        .add(new protobuf.Field("position", 8, "int64"))
+        .add(getDateTimeProtobuf());
 }

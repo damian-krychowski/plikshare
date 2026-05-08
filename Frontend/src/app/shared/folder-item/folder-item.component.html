@@ -8,9 +8,19 @@
     
     @let canEditNamePermission = canEditName();
     
-    <div class="item"  
+    <div class="item"
         [class.item--highlighted]="isHighlighted()"
         [class.item--in-background]="areActionsVisible()"  >
+        
+        @if(canReorder()) {
+            <i cdkDragHandle
+                class="icon icon-xl icon-lucide-menu drag-handle"
+                matTooltip="Drag to reorder"
+                [matTooltipShowDelay]="800"
+                [matTooltipDisabled]="dragState.isDragging()"
+                (click)="$event.stopPropagation()"></i>
+        }
+
         <i class="icon icon-xl icon-nucleo-folder hide-on-hover"></i>
         <i class="icon icon-xl icon-nucleo-folder-open show-on-hover"></i>
 

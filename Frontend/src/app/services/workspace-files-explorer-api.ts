@@ -2,7 +2,7 @@ import { FilesExplorerApi } from "../files-explorer/files-explorer.component";
 import { AppFileItem } from "../shared/file-item/file-item.component";
 import { DataStore } from "./data-store.service";
 import { FileLockService } from "./file-lock.service";
-import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, FilePreviewDetailsField, FoldersAndFilesGetApi, FoldersAndFilesSetApi, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFilesTreeResponseDto, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from "./folders-and-files.api";
+import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, FilePreviewDetailsField, FoldersAndFilesGetApi, FoldersAndFilesSetApi, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFilesTreeResponseDto, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadFileAttachmentRequest } from "./folders-and-files.api";
 import { ZipEntry } from "./zip";
 
 export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
@@ -70,7 +70,13 @@ export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
 
     moveItems(request: {fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[], destinationFolderExternalId: string | null}){
         return this._setApi.moveItems(
-            this._workspaceExternalId, 
+            this._workspaceExternalId,
+            request);
+    }
+
+    updatePositions(request: UpdatePositionsRequest){
+        return this._setApi.updatePositions(
+            this._workspaceExternalId,
             request);
     }
 

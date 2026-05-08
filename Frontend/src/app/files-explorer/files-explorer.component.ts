@@ -1,4 +1,4 @@
-import { Component, InputSignal, OnChanges, OnDestroy, OnInit, Renderer2, Signal, SimpleChanges, ViewChild, WritableSignal, computed, input, output, signal } from '@angular/core';
+import { Component, InputSignal, OnChanges, OnDestroy, OnInit, Renderer2, Signal, SimpleChanges, ViewChild, WritableSignal, computed, effect, input, output, signal } from '@angular/core';
 import { FileToUpload, FileUploadApi, FileUploadManager, UploadsAbortedEvent, UploadCompletedEvent, UploadsInitiatedEvent } from '../services/file-upload-manager/file-upload-manager';
 import { AppUploadItem, UploadItemComponent } from './upload-item/upload-item.component';
 import { ConfirmOperationDirective } from '../shared/operation-confirm/confirm-operation.directive';
@@ -17,7 +17,7 @@ import { FileInlinePreviewComponent, FilePreviewOperations, ZipPreviewDetails } 
 import { StorageSizePipe } from '../shared/storage-size.pipe';
 import { EditableTxtComponent } from '../shared/editable-txt/editable-txt.component';
 import { BulkUploadPreviewComponent, BulkFileUpload, SingleBulkFileUpload, CreatedFolder } from './bulk-upload-preview/bulk-upload-preview.component';
-import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFilesTreeResponseDto, GetFolderResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, UpdateAiConversationNameRequest, UploadDto, UploadFileAttachmentRequest } from '../services/folders-and-files.api';
+import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFilesTreeResponseDto, GetFolderResponse, ITEM_POSITION_STEP, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest } from '../services/folders-and-files.api';
 import { ZipEntry } from '../services/zip';
 import { FileSlicer } from '../services/file-upload-manager/file-slicer';
 import { TextractJobStatusService } from '../services/textract-job-status.service';
@@ -29,6 +29,8 @@ import { TreeViewMode } from '../shared/file-tree-view/tree-item';
 import { FileInlinePreviewCommandsPipeline } from './file-inline-preview/file-inline-preview-commands-pipeline';
 import { WorkspaceIntegrations } from '../services/workspaces.api';
 import { HttpHeaders } from '@angular/common/http';
+import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
+import { DragStateService } from '../services/drag-state.service';
 
 export interface FilesExplorerApi {
     invalidatePrefetchedFolderDependentEntries: (folderExternalId: string) => void;
@@ -49,6 +51,7 @@ export interface FilesExplorerApi {
         fileUploadExternalIds: string[],
         destinationFolderExternalId: string | null
     }) => Promise<void>;
+    updatePositions: ((request: UpdatePositionsRequest) => Promise<void>) | null;
     updateFileName: (fileExternalId: string, request: { name: string }) => Promise<void>;
     getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => Promise<GetFileDownloadLinkResponse>;
     getFilePreviewDetails: (fileExternalId: string, fields: FilePreviewDetailsField[] | null) => Promise<GetFilePreviewDetailsResponse>;
@@ -122,7 +125,9 @@ type ViewMode = 'list-view' | 'tree-view';
         EditableTxtComponent,
         BulkUploadPreviewComponent,
         FileTreeViewComponent,
-        ItemSearchComponent
+        ItemSearchComponent,
+        CdkDropList,
+        CdkDrag
     ],
     templateUrl: './files-explorer.component.html',
     styleUrl: './files-explorer.component.scss'
@@ -164,6 +169,14 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     showEmptyFolderMessaage = input(false);
 
     itemToHighlight = input<ItemToHighlight | null>();
+
+    workspaceExternalId = input<string | null>(null);
+    allowDateSort = input(false);
+
+    sortMode = signal<SortMode>('custom');
+    sortDirection = signal<SortDirection>('asc');
+
+    private static readonly SORT_MODE_STORAGE_PREFIX = 'plikshare:sort-mode:';
 
     folderSelected = output<AppFolderItem | null>();
     boxCreated = output<AppFolderItem>();
@@ -278,6 +291,11 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     files: WritableSignal<AppFileItem[]> = signal([]);
     uploads: WritableSignal<AppUploadItem[]> = signal([]);
     cutItems: WritableSignal<ExplorerItem[]> = signal([]);
+
+    sortedFolders = computed(() => this.sortFolders(this.folders(), this.sortMode(), this.sortDirection()));
+    sortedFiles = computed(() => this.sortFiles(this.files(), this.sortMode(), this.sortDirection()));
+
+    canReorder = computed(() => this.sortMode() === 'custom' && this.filesApi().updatePositions != null);
 
     explorerTreeItems = computed(() => [...this.folders(), ...this.files()]);
     
@@ -445,7 +463,156 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
     constructor(
         public fileUploadManager: FileUploadManager,
-        private _renderer: Renderer2) {
+        private _renderer: Renderer2,
+        private _dragState: DragStateService) {
+
+        effect(() => {
+            const key = this.sortModeStorageKey();
+            if (!key) {
+                this.sortMode.set('custom');
+                this.sortDirection.set('asc');
+                return;
+            }
+
+            const stored = localStorage.getItem(key);
+            const parsed = this.parseStoredSortMode(stored);
+
+            if (parsed.mode === 'date' && !this.allowDateSort()) {
+                this.sortMode.set('custom');
+                this.sortDirection.set('asc');
+                return;
+            }
+
+            this.sortMode.set(parsed.mode);
+            this.sortDirection.set(parsed.direction);
+        });
+    }
+
+    private parseStoredSortMode(stored: string | null): { mode: SortMode, direction: SortDirection } {
+        if (stored === 'custom') return { mode: 'custom', direction: 'asc' };
+        if (stored === 'name-asc')  return { mode: 'name', direction: 'asc' };
+        if (stored === 'name-desc') return { mode: 'name', direction: 'desc' };
+        if (stored === 'date-asc')  return { mode: 'date', direction: 'asc' };
+        if (stored === 'date-desc') return { mode: 'date', direction: 'desc' };
+        return { mode: 'custom', direction: 'asc' };
+    }
+
+    private sortModeStorageKey(): string | null {
+        const wsId = this.workspaceExternalId();
+        if (!wsId) return null;
+        return `${FilesExplorerComponent.SORT_MODE_STORAGE_PREFIX}${wsId}`;
+    }
+
+    setSortMode(mode: SortMode) {
+        if (mode === 'date' && !this.allowDateSort()) return;
+
+        if (mode !== 'custom' && mode === this.sortMode()) {
+            this.sortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
+        } else {
+            this.sortMode.set(mode);
+            this.sortDirection.set('asc');
+        }
+
+        const key = this.sortModeStorageKey();
+        if (key) {
+            const value = mode === 'custom' ? 'custom' : `${this.sortMode()}-${this.sortDirection()}`;
+            localStorage.setItem(key, value);
+        }
+    }
+
+    private sortFolders(folders: AppFolderItem[], mode: SortMode, direction: SortDirection): AppFolderItem[] {
+        const sorted = [...folders];
+        const sign = direction === 'asc' ? 1 : -1;
+
+        if (mode === 'name') {
+            sorted.sort((a, b) => sign * a.name().localeCompare(b.name(), undefined, { sensitivity: 'base' }));
+        } else if (mode === 'date') {
+            sorted.sort((a, b) => sign * ((a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0)));
+        } else {
+            sorted.sort((a, b) => a.position() - b.position());
+        }
+
+        return sorted;
+    }
+
+    onCdkDragStarted() {
+        this._dragState.isDragging.set(true);
+    }
+
+    onCdkDragEnded() {
+        this._dragState.isDragging.set(false);
+    }
+
+    onFolderDrop(event: CdkDragDrop<AppFolderItem[]>) {
+        if (!this.canReorder()) return;
+        if (event.previousIndex === event.currentIndex) return;
+
+        const sorted = [...this.sortedFolders()];
+        moveItemInArray(sorted, event.previousIndex, event.currentIndex);
+
+        const moved = sorted[event.currentIndex];
+        const newPosition = this.computeNewPosition(sorted, event.currentIndex, item => item.position());
+        moved.position.set(newPosition);
+
+        this.persistPositions([{ externalId: moved.externalId, position: newPosition }], []);
+    }
+
+    onFileDrop(event: CdkDragDrop<AppFileItem[]>) {
+        if (!this.canReorder()) return;
+        if (event.previousIndex === event.currentIndex) return;
+
+        const sorted = [...this.sortedFiles()];
+        moveItemInArray(sorted, event.previousIndex, event.currentIndex);
+
+        const moved = sorted[event.currentIndex];
+        const newPosition = this.computeNewPosition(sorted, event.currentIndex, item => item.position());
+        moved.position.set(newPosition);
+
+        this.persistPositions([], [{ externalId: moved.externalId, position: newPosition }]);
+    }
+
+    private computeNewPosition<T>(sorted: T[], index: number, getPosition: (item: T) => number): number {
+        const before = index > 0 ? getPosition(sorted[index - 1]) : null;
+        const after = index < sorted.length - 1 ? getPosition(sorted[index + 1]) : null;
+
+        if (before !== null && after !== null) {
+            const midpoint = Math.floor((before + after) / 2);
+            return midpoint === before ? before + 1 : midpoint;
+        }
+
+        if (before !== null) return before + ITEM_POSITION_STEP;
+        if (after !== null) return Math.max(1, after - ITEM_POSITION_STEP);
+        return ITEM_POSITION_STEP;
+    }
+
+    private async persistPositions(folders: { externalId: string, position: number }[], files: { externalId: string, position: number }[]) {
+        const api = this.filesApi();
+        if (!api.updatePositions) return;
+
+        try {
+            await api.updatePositions({
+                parentFolderExternalId: this.selectedFolder()?.externalId ?? null,
+                folders: folders,
+                files: files
+            });
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    private sortFiles(files: AppFileItem[], mode: SortMode, direction: SortDirection): AppFileItem[] {
+        const sorted = [...files];
+        const sign = direction === 'asc' ? 1 : -1;
+
+        if (mode === 'name') {
+            sorted.sort((a, b) => sign * a.name().localeCompare(b.name(), undefined, { sensitivity: 'base' }));
+        } else if (mode === 'date') {
+            sorted.sort((a, b) => sign * ((a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0)));
+        } else {
+            sorted.sort((a, b) => a.position() - b.position());
+        }
+
+        return sorted;
     }
 
     ngOnInit(): void {
@@ -702,7 +869,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
                 isCut: signal(false),
                 isHighlighted: signal(false),
                 wasCreatedByUser: true,
-                createdAt: new Date()
+                createdAt: new Date(),
+                position: signal(0)
             };
 
             this.folders.update(values => [...values, newFolder]);
@@ -755,11 +923,11 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         this.setFileInPreview(file);
     }
 
-    getNextFileForPreview(current: AppFileItem | null) {        
-        if(!current) 
+    getNextFileForPreview(current: AppFileItem | null) {
+        if(!current)
             return null;
 
-        const files = this.files();
+        const files = this.sortedFiles();
         const index = files.indexOf(current);
 
         for(let i = index + 1; i < files.length; i++) {
@@ -770,7 +938,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
             }
         }
 
-        return null;    
+        return null;
     }
 
     showNextInPreview() {
@@ -779,11 +947,11 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         }
     }
 
-    getPreviousFileForPreview(current: AppFileItem | null) {        
-        if(!current) 
+    getPreviousFileForPreview(current: AppFileItem | null) {
+        if(!current)
             return null;
 
-        const files = this.files();
+        const files = this.sortedFiles();
 
         const index = files.indexOf(current);
 
@@ -795,7 +963,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
             }
         }
 
-        return null;    
+        return null;
     }
 
     showPreviousInPreview() {
@@ -986,6 +1154,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
             wasUploadedByUser: true,
             folderPath: null,
             isLocked: signal(true),
+            createdAt: new Date(),
+            position: signal(0),
 
             isSelected: signal(false),
             isNameEditing: signal(false),
@@ -1334,7 +1504,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
                 isHighlighted: signal(false),
                 isNameEditing: signal(false),
                 isSelected: signal(false),
-                wasCreatedByUser: true
+                wasCreatedByUser: true,
+                position: signal(0)
             });
         }
 

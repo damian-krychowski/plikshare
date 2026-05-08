@@ -53,6 +53,8 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
     itemToHighlight: WritableSignal<ItemToHighlight | null> = signal(null);
     initialBoxContent: WritableSignal<GetFolderResponse | null> = signal(null);
 
+    sortScopeKey: WritableSignal<string | null> = signal(null);
+
     filesApi: WritableSignal<FilesExplorerApi | null> = signal(null);
     uploadsApi: WritableSignal<FileUploadApi | null> = signal(null);
 
@@ -110,6 +112,7 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
 
         const oldBoxExternalId = this._boxExternalId;
         this._boxExternalId = boxExternalId;
+        this.sortScopeKey.set(boxExternalId ? `external-box:${boxExternalId}` : null);
 
         await Promise.all([
             this.load(oldBoxExternalId, boxExternalId, folderExternalId, fileExternalId),
@@ -344,8 +347,10 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
                 request),
 
             moveItems: (request: {fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[], destinationFolderExternalId: string | null}) => this._externalBoxesSetApi.moveItems(
-                this._boxExternalIdValue, 
+                this._boxExternalIdValue,
                 request),
+
+            updatePositions: null,
 
             updateFileName: (fileExternalId: string, request: {name: string}) => this._externalBoxesSetApi.updateFileName(
                 this._boxExternalIdValue, 

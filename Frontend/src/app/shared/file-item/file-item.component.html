@@ -8,8 +8,18 @@
     [class.item-bar--locked]="fileVal.isLocked()"
     (click)="!($event.ctrlKey || $event.metaKey) && canPreview() && showPreview()">
     <div class="item flex-grow"
-        [class.item--highlighted]="isHighlighted()"  
-        [class.item--in-background]="areActionsVisible()">                
+        [class.item--highlighted]="isHighlighted()"
+        [class.item--in-background]="areActionsVisible()">
+        
+        @if(canReorder()) {
+            <i cdkDragHandle
+                class="icon icon-xl icon-lucide-menu drag-handle"
+                matTooltip="Drag to reorder"
+                [matTooltipShowDelay]="800"
+                [matTooltipDisabled]="dragState.isDragging()"
+                (click)="$event.stopPropagation()"></i>
+        }
+        
         <i class="icon icon-xl icon-{{ fileVal.extension| fileIcon }}"></i>
     
         <div class="item__details">                   
@@ -26,12 +36,20 @@
                 @if(showPath()) {
                     <div>{{ filePath() || 'All files'}}</div>
                 }
-                @if(fileVal.extension) {
-                    <div> {{ fileVal.extension }} | {{ fileVal.sizeInBytes | storageSize }}</div>
-                } @else {
-                    <div> {{ fileVal.sizeInBytes | storageSize }}</div>
-                }
-            </div>    
+                <div>
+                    @if(fileVal.extension) {
+                        {{ fileVal.extension }} | {{ fileVal.sizeInBytes | storageSize }}
+                    } @else {
+                        {{ fileVal.sizeInBytes | storageSize }}
+                    }
+                    @let formattedDate = (fileVal.createdAt | date: 'mediumDate') ?? '';
+                    @if(formattedDate) {
+                        | <span [matTooltip]="(fileVal.createdAt | date: 'medium') ?? ''"
+                                [matTooltipShowDelay]="500"
+                                matTooltipClass="plk-date-tooltip">{{ formattedDate }}</span>
+                    }
+                </div>
+            </div>
         </div>
     </div>
 

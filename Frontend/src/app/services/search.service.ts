@@ -363,6 +363,8 @@ export class SearchService {
             wasUploadedByUser: true,
             folderPath: folderPath,
             isLocked: signal(false), //todo: should not be hardcoded
+            createdAt: null,
+            position: signal(0),
 
             isNameEditing: signal(false),
             isSelected: signal(false),
@@ -397,6 +399,8 @@ export class SearchService {
             wasUploadedByUser: item.wasUploadedByUser,
             folderPath: folderPath,
             isLocked: signal(false), //todo: should not be hardcoded
+            createdAt: null,
+            position: signal(0),
 
             isNameEditing: signal(false),
             isSelected: signal(false),
@@ -425,7 +429,8 @@ export class SearchService {
             isCut: signal(false),
             isHighlighted: signal(false),
             wasCreatedByUser: false,
-            createdAt: null
+            createdAt: null,
+            position: signal(0)
         };
 
         return {
@@ -450,7 +455,8 @@ export class SearchService {
             isCut: signal(false),
             isHighlighted: signal(false),
             wasCreatedByUser: false,
-            createdAt: null
+            createdAt: null,
+            position: signal(0)
         };
 
         return {

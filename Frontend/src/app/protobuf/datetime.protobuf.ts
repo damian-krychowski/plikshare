@@ -85,6 +85,13 @@ export function getDateTimeProtobuf() {
         .add(timeSpanScaleEnum)
         .add(dateTimeKindEnum);
 
+    // Force protobufjs to JIT-compile the decoder NOW. Without this, the first decode call
+    // would trigger Type.prototype.decode -> setup(), which reassigns dateTimeType.decode
+    // to the JIT version — overwriting our instance-level override after the first call.
+    // Result: only the first decoded appDateTime would be transformed to an ISO string;
+    // subsequent ones would return raw {value, scale, kind} objects.
+    dateTimeType.setup();
+
     // Add custom decode method
     const originalDecode = dateTimeType.decode.bind(dateTimeType);
     (dateTimeType.decode as any) = function(reader: protobuf.Reader | Uint8Array, length?: number) {
