@@ -8,6 +8,7 @@ export function getSearchFilesTreeResponseDtoProtobuf() {
         .add(new protobuf.Field("parentIdIndex", 3, "int32"))
         .add(new protobuf.Field("wasCreatedByUser", 4, "bool"))
         .add(new protobuf.Field("createdAt", 5, "appDateTime"))
+        .add(new protobuf.Field("position", 6, "int64"))
         .add(getDateTimeProtobuf());
 
     const file = new protobuf.Type("SearchFilesTreeFileItemDto")
@@ -17,7 +18,10 @@ export function getSearchFilesTreeResponseDtoProtobuf() {
         .add(new protobuf.Field("sizeInBytes", 4, "int64"))
         .add(new protobuf.Field("isLocked", 5, "bool"))
         .add(new protobuf.Field("wasUploadedByUser", 6, "bool"))
-        .add(new protobuf.Field("folderIdIndex", 7, "int32"));
+        .add(new protobuf.Field("folderIdIndex", 7, "int32"))
+        .add(new protobuf.Field("createdAt", 8, "appDateTime"))
+        .add(new protobuf.Field("position", 9, "int64"))
+        .add(getDateTimeProtobuf());
 
     return new protobuf.Type("SearchFilesTreeResponseDto")
         .add(folder)

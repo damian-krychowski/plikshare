@@ -45,6 +45,9 @@ public class SearchFilesTreeFolderItemDto
 
     [ProtoMember(5)]
     public required DateTime? CreatedAt { get; init; }
+
+    [ProtoMember(6)]
+    public required long Position { get; init; }
 }
 
 [ProtoContract]
@@ -67,7 +70,13 @@ public class SearchFilesTreeFileItemDto
 
     [ProtoMember(6)]
     public required bool WasUploadedByUser { get; init; }
-    
+
     [ProtoMember(7)]
     public required int FolderIdIndex { get; init; } //-1 if does not have a parent (to simplify on the js side when null in proto is translated to 0)
+
+    [ProtoMember(8)]
+    public required DateTime? CreatedAt { get; init; }
+
+    [ProtoMember(9)]
+    public required long Position { get; init; }
 }

@@ -140,7 +140,8 @@ public static class WorkspacesEndpoints
             workspace: workspaceMembership.Workspace,
             request: request,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
-            boxFolderId: null);
+            boxFolderId: null,
+            exposeCreatedAt: true);
 
         return response;
     }

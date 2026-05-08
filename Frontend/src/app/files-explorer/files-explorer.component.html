@@ -579,6 +579,8 @@
             [isActive]="isFileTreeViewActive"
             [viewMode]="treeViewMode()"
             [searchPhrase]="treeSearchPhrase()"
+            [sortMode]="sortMode()"
+            [sortDirection]="sortDirection()"
             (fileClicked)="onFilePreviewed($event)"
             (fileDownloadClicked)="onDownloadFile($event)"
             (folderPrefetchRequested)="onFolderTreePrefetchRequested($event)"

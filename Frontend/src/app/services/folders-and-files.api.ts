@@ -297,6 +297,7 @@ export interface SearchFilesTreeFolderItem {
     parentIdIndex: number;
     wasCreatedByUser: boolean;
     createdAt: string | null;
+    position: number;
 }
 
 export interface SearchFilesTreeFileItem {
@@ -307,6 +308,8 @@ export interface SearchFilesTreeFileItem {
     isLocked: boolean;
     wasUploadedByUser: boolean;
     folderIdIndex: number;
+    createdAt: string | null;
+    position: number;
 }
 
 export interface SendAiFileMessageRequest {

@@ -31,6 +31,7 @@ import { WorkspaceIntegrations } from '../services/workspaces.api';
 import { HttpHeaders } from '@angular/common/http';
 import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DragStateService } from '../services/drag-state.service';
+import { sortFiles, sortFolders } from '../services/sort-items';
 
 export interface FilesExplorerApi {
     invalidatePrefetchedFolderDependentEntries: (folderExternalId: string) => void;
@@ -292,12 +293,12 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     uploads: WritableSignal<AppUploadItem[]> = signal([]);
     cutItems: WritableSignal<ExplorerItem[]> = signal([]);
 
-    sortedFolders = computed(() => this.sortFolders(this.folders(), this.sortMode(), this.sortDirection()));
-    sortedFiles = computed(() => this.sortFiles(this.files(), this.sortMode(), this.sortDirection()));
+    sortedFolders = computed(() => sortFolders(this.folders(), this.sortMode(), this.sortDirection()));
+    sortedFiles = computed(() => sortFiles(this.files(), this.sortMode(), this.sortDirection()));
 
     canReorder = computed(() => this.sortMode() === 'custom' && this.filesApi().updatePositions != null);
 
-    explorerTreeItems = computed(() => [...this.folders(), ...this.files()]);
+    explorerTreeItems = computed(() => [...this.sortedFolders(), ...this.sortedFiles()]);
     
     treeSelectionState = signal<FileTreeSelectionState>({
         excludedFileExternalIds: [],
@@ -520,20 +521,6 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         }
     }
 
-    private sortFolders(folders: AppFolderItem[], mode: SortMode, direction: SortDirection): AppFolderItem[] {
-        const sorted = [...folders];
-        const sign = direction === 'asc' ? 1 : -1;
-
-        if (mode === 'name') {
-            sorted.sort((a, b) => sign * a.name().localeCompare(b.name(), undefined, { sensitivity: 'base' }));
-        } else if (mode === 'date') {
-            sorted.sort((a, b) => sign * ((a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0)));
-        } else {
-            sorted.sort((a, b) => a.position() - b.position());
-        }
-
-        return sorted;
-    }
 
     onCdkDragStarted() {
         this._dragState.isDragging.set(true);
@@ -600,20 +587,6 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         }
     }
 
-    private sortFiles(files: AppFileItem[], mode: SortMode, direction: SortDirection): AppFileItem[] {
-        const sorted = [...files];
-        const sign = direction === 'asc' ? 1 : -1;
-
-        if (mode === 'name') {
-            sorted.sort((a, b) => sign * a.name().localeCompare(b.name(), undefined, { sensitivity: 'base' }));
-        } else if (mode === 'date') {
-            sorted.sort((a, b) => sign * ((a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0)));
-        } else {
-            sorted.sort((a, b) => a.position() - b.position());
-        }
-
-        return sorted;
-    }
 
     ngOnInit(): void {
         this._renderer.listen('window', 'dragenter', this.onDragEnter.bind(this));

@@ -1,6 +1,7 @@
 using Flurl.Http;
 using PlikShare.Boxes.Id;
 using PlikShare.BoxExternalAccess.Contracts;
+using PlikShare.Workspaces.SearchFilesTree.Contracts;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
@@ -52,5 +53,20 @@ public class BoxExternalAccessApi(IFlurlClient flurlClient, string appUrl)
             apiPath: $"api/boxes/{boxExternalId}",
             cookie: cookie,
             antiforgery: antiforgery);
+    }
+
+    public async Task<SearchFilesTreeResponseDto> SearchFilesTree(
+        BoxExtId boxExternalId,
+        SearchFilesTreeRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        return await flurlClient.ExecutePost<SearchFilesTreeResponseDto, SearchFilesTreeRequestDto>(
+            appUrl: appUrl,
+            apiPath: $"api/boxes/{boxExternalId}/search-files-tree",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery,
+            isResponseInProtobuf: true);
     }
 }

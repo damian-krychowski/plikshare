@@ -9,6 +9,7 @@ using PlikShare.Folders.Create.Contracts;
 using PlikShare.Folders.Id;
 using PlikShare.Uploads.Id;
 using PlikShare.Uploads.Initiate.Contracts;
+using PlikShare.Workspaces.SearchFilesTree.Contracts;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
@@ -48,6 +49,24 @@ public class AccessCodesApi(IFlurlClient flurlClient, string appUrl)
             appUrl: appUrl,
             apiPath: $"api/access-codes/{accessCode}",
             cookie: null,
+            isResponseInProtobuf: true,
+            headers: boxLinkToken is null
+                ? null
+                : [boxLinkToken]);
+    }
+
+    public async Task<SearchFilesTreeResponseDto> SearchFilesTree(
+        string accessCode,
+        SearchFilesTreeRequestDto request,
+        BoxLinkToken? boxLinkToken,
+        AntiforgeryCookies? antiforgery = null)
+    {
+        return await flurlClient.ExecutePost<SearchFilesTreeResponseDto, SearchFilesTreeRequestDto>(
+            appUrl: appUrl,
+            apiPath: $"api/access-codes/{accessCode}/search-files-tree",
+            request: request,
+            cookie: null,
+            antiforgery: antiforgery,
             isResponseInProtobuf: true,
             headers: boxLinkToken is null
                 ? null

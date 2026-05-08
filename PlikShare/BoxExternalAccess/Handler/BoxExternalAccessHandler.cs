@@ -870,7 +870,8 @@ public class BoxExternalAccessHandler(
             workspace: boxAccess.Box.Workspace,
             request: request,
             userIdentity: boxAccess.UserIdentity,
-            boxFolderId: boxAccess.Box.Folder.Id);
+            boxFolderId: boxAccess.Box.Folder.Id,
+            exposeCreatedAt: false);
 
         return TypedResults.Ok(response);
     }

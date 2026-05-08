@@ -1,4 +1,4 @@
-import { Component, computed, input, OnChanges, output, signal, SimpleChanges, ViewEncapsulation } from '@angular/core';
+import { Component, computed, effect, input, OnChanges, output, signal, SimpleChanges, untracked, ViewEncapsulation } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 
@@ -6,12 +6,13 @@ import { toggle } from '../signal-utils';
 import { AppFolderAncestor, AppFolderItem } from '../folder-item/folder-item.component';
 import { AppFileItem, AppFileItems } from '../file-item/file-item.component';
 import { FormsModule } from '@angular/forms';
-import { SearchFilesTreeFileItem, SearchFilesTreeFolderItem, SearchFilesTreeResponse } from '../../services/folders-and-files.api';
+import { SearchFilesTreeFileItem, SearchFilesTreeFolderItem, SearchFilesTreeResponse, SortDirection, SortMode } from '../../services/folders-and-files.api';
 import { getNameWithHighlight } from '../name-with-highlight';
 import { TreeItem, AppTreeItem, FolderTreeItem, FileTreeItem, TreeViewMode } from './tree-item';
 import { FileTreeNodeComponent } from './file-tree-node/file-tree-node.component';
 import { FolderTreeNodeComponent } from './folder-tree-node/folder-tree-node.component';
 import { Debouncer } from '../../services/debouncer';
+import { sortFiles, sortFolders } from '../../services/sort-items';
 
 
 export type FileTreeDeleteSelectionState = {
@@ -115,6 +116,8 @@ export class FileTreeViewComponent implements OnChanges {
     isActive = input.required<boolean>();
     viewMode = input.required<TreeViewMode>();
     searchPhrase = input<string>('');
+    sortMode = input<SortMode>('custom');
+    sortDirection = input<SortDirection>('asc');
 
     allowDownload = input(false);
     
@@ -204,7 +207,40 @@ export class FileTreeViewComponent implements OnChanges {
     dataSource = signal<TreeItem[]>([]);
 
     constructor(){
+        // Re-sort already loaded tree levels when the user toggles sort mode/direction.
+        // The mutation pass is wrapped in `untracked` so that reading `_foldersMap()` and
+        // each folder's `children()` does not register them as effect dependencies — without
+        // this guard, calling `children.set(...)` would re-trigger the effect → infinite loop.
+        effect(() => {
+            const mode = this.sortMode();
+            const direction = this.sortDirection();
+            untracked(() => this.resortTree(mode, direction));
+        });
+    }
+
+    private resortTree(mode: SortMode, direction: SortDirection) {
+        for (const folder of this._foldersMap().values()) {
+            const current = folder.children();
+            if (current.length === 0) continue;
+            folder.children.set(this.sortMixed(current, mode, direction));
         }
+    }
+
+    private sortMixed(items: TreeItem[], mode: SortMode, direction: SortDirection): TreeItem[] {
+        const folders = items.filter((i): i is FolderTreeItem => i.type === 'folder');
+        const files = items.filter((i): i is FileTreeItem => i.type === 'file');
+
+        const sortedFolders = sortFolders(folders.map(f => f.item), mode, direction);
+        const sortedFiles = sortFiles(files.map(f => f.item), mode, direction);
+
+        const folderByItem = new Map(folders.map(f => [f.item.externalId, f]));
+        const fileByItem = new Map(files.map(f => [f.item.externalId, f]));
+
+        return [
+            ...sortedFolders.map(item => folderByItem.get(item.externalId)!),
+            ...sortedFiles.map(item => fileByItem.get(item.externalId)!)
+        ];
+    }
 
     ngOnChanges(changes: SimpleChanges) {
         let shouldReevaluateSelectionState = false;
@@ -450,24 +486,24 @@ export class FileTreeViewComponent implements OnChanges {
     private convertItemsToFolderChildren(folder: FolderTreeItem, items: AppTreeItem[]) {
         const newFolders: FolderTreeItem[] = [];
         const newChildren: TreeItem[] = [];
-        
+
         const currentChildren = folder.children();
 
         for (const item of items) {
             const existingItem = currentChildren.find(c => c.item.externalId == item.externalId);
 
             if(existingItem) {
-                newChildren.push(existingItem);                
+                newChildren.push(existingItem);
             } else {
                 if(item.type == 'file') {
                     const fileNode: FileTreeItem = this.mapFileItem(
                         item);
-    
+
                     newChildren.push(fileNode);
-                } else if(item.type == 'folder') {                      
+                } else if(item.type == 'folder') {
                     const folderNode: FolderTreeItem = this.mapFolderItem(
                         item);
-    
+
                     newChildren.push(folderNode);
                     newFolders.push(folderNode);
                 } else {
@@ -486,7 +522,7 @@ export class FileTreeViewComponent implements OnChanges {
             });
         }
 
-        folder.children.set(newChildren);
+        folder.children.set(this.sortMixed(newChildren, this.sortMode(), this.sortDirection()));
     }
 
     private getTreeStructures(topLevelItems: AppTreeItem[]) {
@@ -1216,7 +1252,8 @@ export class FileTreeViewComponent implements OnChanges {
                 correspondingFileNode.isSearched.set(true);
             }
 
-            levelToProcess.parentNode.children.update(children => [...children, ...childrenToAdd]);
+            levelToProcess.parentNode.children.update(children =>
+                this.sortMixed([...children, ...childrenToAdd], this.sortMode(), this.sortDirection()));
         }
 
         this.calcualteAndUpdateSearchedFilesSelectionState();
@@ -1231,7 +1268,7 @@ export class FileTreeViewComponent implements OnChanges {
             const folderExternalId = file.folderIdIndex == null
                 ? null
                 : response.folderExternalIds[file.folderIdIndex];
-            
+
             return {
                 type: 'file',
                 externalId: file.externalId,
@@ -1242,8 +1279,8 @@ export class FileTreeViewComponent implements OnChanges {
                 isLocked: signal(file.isLocked),
                 sizeInBytes: file.sizeInBytes,
                 wasUploadedByUser: file.wasUploadedByUser,
-                createdAt: null,
-                position: signal(0),
+                createdAt: file.createdAt == null ? null : new Date(file.createdAt),
+                position: signal(file.position),
 
                 isCut: signal(false),
                 isHighlighted: signal(false),
@@ -1268,7 +1305,7 @@ export class FileTreeViewComponent implements OnChanges {
                 createdAt: args.folder.createdAt == null
                     ? null
                     : new Date(args.folder.createdAt),
-                position: signal(0),
+                position: signal(args.folder.position),
 
                 isCut: signal(false),
                 isHighlighted: signal(false),

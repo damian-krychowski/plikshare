@@ -9,6 +9,7 @@ using PlikShare.Workspaces.Members.AcceptInvitation.Contracts;
 using PlikShare.Workspaces.Members.CreateInvitation.Contracts;
 using PlikShare.Workspaces.Members.List.Contracts;
 using PlikShare.Workspaces.Members.UpdatePermissions.Contracts;
+using PlikShare.Workspaces.SearchFilesTree.Contracts;
 using PlikShare.Workspaces.UpdateName.Contracts;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -197,5 +198,20 @@ public class WorkspacesApi(IFlurlClient flurlClient, string appUrl)
             request: request,
             cookie: cookie,
             antiforgery: antiforgery);
+    }
+
+    public async Task<SearchFilesTreeResponseDto> SearchFilesTree(
+        WorkspaceExtId externalId,
+        SearchFilesTreeRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        return await flurlClient.ExecutePost<SearchFilesTreeResponseDto, SearchFilesTreeRequestDto>(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{externalId.Value}/search-files-tree",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery,
+            isResponseInProtobuf: true);
     }
 }

@@ -3,6 +3,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Folders.Id;
+using PlikShare.Folders.List;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.SearchFilesTree.Contracts;
 
@@ -16,7 +17,8 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
         WorkspaceContext workspace,
         SearchFilesTreeRequestDto request,
         IUserIdentity userIdentity,
-        int? boxFolderId)
+        int? boxFolderId,
+        bool exposeCreatedAt)
     {
         using var connection = plikShareDb.OpenConnection();
 
@@ -44,6 +46,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
             parentFolderId: parentFolderId,
             phrase: request.Phrase,
             userIdentity,
+            exposeCreatedAt,
             connection);
 
         if (matchingFiles.Count > TooManyResultsThreshold)
@@ -67,6 +70,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
             folderIds: folderIds,
             parentFolderId: parentFolderId,
             userIdentity: userIdentity,
+            exposeCreatedAt: exposeCreatedAt,
             connection: connection);
 
         var response = BuildResponse(
@@ -102,7 +106,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
             var folder = allFolders[i];
             var idIndex = folderIdFolderIndexMap[folder.Id];
             var parentIdIndex = GetParentIdIndex(
-                parentId: folder.ParentId, 
+                parentId: folder.ParentId,
                 folderIdFolderIndexMap: folderIdFolderIndexMap);
 
             response.Folders.Add(new SearchFilesTreeFolderItemDto
@@ -112,6 +116,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                 Name = folder.Name,
                 WasCreatedByUser = folder.WasCreatedByUser,
                 CreatedAt = folder.CreatedAt?.DateTime,
+                Position = folder.Position
             });
         }
 
@@ -130,7 +135,9 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                 IsLocked = file.IsLocked,
                 SizeInBytes = file.SizeInBytes,
                 WasUploadedByUser = file.WasUploadedByUser,
-                FolderIdIndex = folderIdIndex ?? -1
+                FolderIdIndex = folderIdIndex ?? -1,
+                CreatedAt = file.CreatedAt?.DateTime,
+                Position = file.Position
             });
         }
 
@@ -205,6 +212,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
         int? parentFolderId,
         string phrase,
         IUserIdentity userIdentity,
+        bool exposeCreatedAt,
         SqliteConnection connection)
     {
         return connection
@@ -217,10 +225,12 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
 				        fi_extension,
 				        fi_size_in_bytes,
 						(
-							fi_uploader_identity_type = $uploaderIdentityType 
+							fi_uploader_identity_type = $uploaderIdentityType
 							AND fi_uploader_identity =  $uploaderIdentity
 						) AS fi_was_uploaded_by_user,
-                        NOT fi_is_upload_completed 
+                        NOT fi_is_upload_completed,
+                        CASE WHEN $exposeCreatedAt THEN fi_created_at END AS fi_created_at,
+                        COALESCE(fi_position, 0) AS fi_position
 				    FROM fi_files
                     LEFT JOIN fo_folders
                         ON fo_id = fi_folder_id
@@ -229,7 +239,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                         AND fi_parent_file_id IS NULL
                         AND (fi_name || fi_extension) LIKE $query
                         AND (
-                            fi_folder_id IS NULL 
+                            fi_folder_id IS NULL
                             OR fo_is_being_deleted = FALSE
                         )
                         AND (
@@ -241,7 +251,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                                     OR $parentFolderId IN (
                                         SELECT value FROM json_each(fo_ancestor_folder_ids)
                                     )
-                                )                                
+                                )
                             )
                         )
 					 ORDER BY
@@ -255,13 +265,16 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                     Extension = reader.GetString(3),
                     SizeInBytes = reader.GetInt64(4),
                     WasUploadedByUser = reader.GetBoolean(5),
-                    IsLocked = reader.GetBoolean(6)
+                    IsLocked = reader.GetBoolean(6),
+                    CreatedAt = reader.GetDateTimeOffsetOrNull(7),
+                    Position = reader.GetInt64(8)
                 })
             .WithParameter("$workspaceId", workspaceId)
             .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
             .WithParameter("$uploaderIdentity", userIdentity.Identity)
             .WithParameter("$query", $"%{phrase}%")
             .WithParameter("$parentFolderId", parentFolderId)
+            .WithParameter("$exposeCreatedAt", exposeCreatedAt)
             .Execute();
     }
 
@@ -269,6 +282,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
         List<int> folderIds,
         int? parentFolderId,
         IUserIdentity userIdentity,
+        bool exposeCreatedAt,
         SqliteConnection connection)
     {
 
@@ -278,9 +292,9 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                     WITH all_folder_ids AS (
                         SELECT value AS fo_id
                         FROM json_each($folderIds)
-                        
+
                         UNION
-    
+
                         SELECT
                             ancestor.value AS fo_id
                         FROM fo_folders, json_each(fo_ancestor_folder_ids) AS ancestor
@@ -288,18 +302,19 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                             SELECT value FROM json_each($folderIds)
                         )
                     )
-                    SELECT 
+                    SELECT
                         fo_id,
                         fo_external_id,
                         fo_parent_folder_id,
 			            fo_name,
-						CASE 
+						CASE
 	                        WHEN fo_creator_identity_type = $creatorIdentityType AND fo_creator_identity = $creatorIdentity THEN TRUE
 							ELSE FALSE
 	                    END AS fo_was_created_by_user,
-			            CASE 
-	                        WHEN fo_creator_identity_type = $creatorIdentityType AND fo_creator_identity = $creatorIdentity THEN fo_created_at
-	                    END AS fo_created_at
+			            CASE
+	                        WHEN $exposeCreatedAt OR (fo_creator_identity_type = $creatorIdentityType AND fo_creator_identity = $creatorIdentity) THEN fo_created_at
+	                    END AS fo_created_at,
+                        COALESCE(fo_position, 0) AS fo_position
                     FROM fo_folders
                     WHERE
                         fo_id IN (
@@ -320,15 +335,17 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                     ParentId = reader.GetInt32OrNull(2),
                     Name = reader.GetString(3),
                     WasCreatedByUser = reader.GetBoolean(4),
-                    CreatedAt = reader.GetDateTimeOffsetOrNull(5)
+                    CreatedAt = reader.GetDateTimeOffsetOrNull(5),
+                    Position = reader.GetInt64(6)
                 })
             .WithJsonParameter("$folderIds", folderIds)
             .WithParameter("$parentFolderId", parentFolderId)
             .WithParameter("$creatorIdentityType", userIdentity.IdentityType)
             .WithParameter("$creatorIdentity", userIdentity.Identity)
+            .WithParameter("$exposeCreatedAt", exposeCreatedAt)
             .Execute();
     }
-    
+
     private class Folder
     {
         public required int Id { get; init; }
@@ -337,6 +354,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
         public required string Name { get; init; }
         public required bool WasCreatedByUser { get; init; }
         public required DateTimeOffset? CreatedAt { get; init; }
+        public required long Position { get; init; }
     }
 
     public class File
@@ -348,5 +366,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
         public required bool IsLocked { get; init; }
         public required bool WasUploadedByUser { get; init; }
         public required int? FolderId { get; init; }
+        public required DateTimeOffset? CreatedAt { get; init; }
+        public required long Position { get; init; }
     }
 }
