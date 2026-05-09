@@ -223,6 +223,15 @@
                         </app-action-btn>             
                     }          
 
+                    @if(allowList()) {
+                        <app-item-search
+                            [phrase]="searchPhrase()"
+                            [debounce]="50"
+                            [minimalLength]="1"
+                            (searched)="searchPhrase.set($event)">
+                        </app-item-search>
+                    }
+
                     @if(canSelectAll()) {
                         <mat-checkbox 
                             [matTooltip]="isAnyItemNotSelected() ? 'Select all' : 'Unselect all'"
@@ -250,15 +259,15 @@
                             (confirmedClick)="triggerSelectedTreeItemsDelete()">
                         </app-action-btn>
                     }
-                }
 
-                @if(allowList()) {
-                    <app-item-search
-                        [phrase]="searchPhrase()"
-                        [debounce]="50"
-                        [minimalLength]="1"
-                        (searched)="searchPhrase.set($event)">
-                    </app-item-search>
+                    @if(allowList()) {
+                        <app-item-search
+                            [phrase]="searchPhrase()"
+                            [debounce]="50"
+                            [minimalLength]="1"
+                            (searched)="searchPhrase.set($event)">
+                        </app-item-search>
+                    }
                 }
             </div>
         </div>
@@ -272,7 +281,7 @@
                     <div class="context-stack">
                         <span class="context-label">Order:</span>
                         <div class="context-row">
-                            <span class="context-item view-mode context-item--clickable"
+                            <span class="context-item view-mode context-item--switch"
                                 [class.view-mode--active]="sortModeVal == 'custom'"
                                 (click)="setSortMode('custom')">
                                 Custom
@@ -281,7 +290,7 @@
 
                             |
 
-                            <span class="context-item view-mode context-item--clickable"
+                            <span class="context-item view-mode context-item--switch"
                                 [class.view-mode--active]="sortModeVal == 'name'"
                                 (click)="setSortMode('name')">
                                 Name
@@ -293,7 +302,7 @@
                             @if(allowDateSort()) {
                                 |
 
-                                <span class="context-item view-mode context-item--clickable"
+                                <span class="context-item view-mode context-item--switch"
                                     [class.view-mode--active]="sortModeVal == 'date'"
                                     (click)="setSortMode('date')">
                                     Date
@@ -306,7 +315,7 @@
 
                         <span class="context-label">View:</span>
                         <div class="context-row">
-                            <span class="context-item view-mode context-item--clickable"
+                            <span class="context-item view-mode context-item--switch"
                                 [class.view-mode--active]="viewModeVal == 'list-view'"
                                 (click)="setViewMode('list-view')">
                                 List
@@ -315,11 +324,11 @@
 
                             |
 
-                            <span class="context-item view-mode context-item--clickable"
+                            <span class="context-item view-mode context-item--switch"
                                 [class.view-mode--active]="viewModeVal == 'tree-view'"
                                 (click)="setViewMode('tree-view')">
-                                <i class="icon icon-lucide-check"></i>
                                 Tree
+                                <i class="icon icon-lucide-check"></i>
                             </span>
                         </div>
                     </div>
@@ -333,7 +342,7 @@
                             </span> | 
                         }
 
-                        <span class="context-item context-item--clickable" (click)="toggleAllFolders()">
+                        <span class="context-item context-item--btn" (click)="toggleAllFolders()">
                             @if(isAnyItemSelected()) {
                                 Folders: {{selectedFoldersCount()}}/{{foldersCount()}}
                             } @else {
@@ -341,7 +350,7 @@
                             }
                         </span> | 
 
-                        <span class="context-item context-item--clickable" (click)="toggleAllFiles()">
+                        <span class="context-item context-item--btn" (click)="toggleAllFiles()">
                             @if(isAnyItemSelected()) {
                                 Files: {{selectedFilesCount()}}/{{filesCount()}}
                             } @else {
@@ -349,7 +358,7 @@
                             }
                         </span> | 
 
-                        <span class="context-item context-item--clickable" (click)="toggleAllUploads()">            
+                        <span class="context-item context-item--btn" (click)="toggleAllUploads()">            
                             @if(isAnyItemSelected()) {
                                 Uploads: {{selectedUploadsCount()}}/{{uploadsCount()}}
                             } @else {
@@ -364,7 +373,7 @@
                                 Selection: {{selectionSummary.selectedFilesCount}} {{selectionSummary.selectedFilesCount == 1 ? 'file' : 'files'}} ({{selectionSummary.totalSizeInBytes | storageSize}})
                             </span> 
 
-                            <div class="context-item context-item--short context-item--clickable" 
+                            <div class="context-item context-item--short context-item--btn" 
                                 [matTooltip]="'Cancel selection'"
                                 (click)="cancelTreeSelection()">
                                 <i class="icon icon-lg icon-lucide-xmark"></i>
@@ -375,7 +384,7 @@
                         @let searchedFilesSelection = treeSearchedFilesSelection();
 
                         @if(searchedFilesSelection) {
-                            <span class="context-item context-item--clickable" (click)="toggleTreeSearchedFilesSelection()">            
+                            <span class="context-item context-item--btn" (click)="toggleTreeSearchedFilesSelection()">            
                                 @if(searchedFilesSelection.selectedFiles > 0) {
                                     Matching files: {{searchedFilesSelection.selectedFiles}}/{{searchedFilesSelection.matchingFiles}}
                                 } @else {
@@ -387,13 +396,13 @@
                         @let treeViewModeVal = treeViewMode();
 
                         @if(treeViewModeVal=='show-all') {
-                            <div class="context-item context-item--clickable" 
+                            <div class="context-item context-item--btn" 
                                 [matTooltip]="'Show only selected'"
                                 (click)="treeViewMode.set('show-only-selected')">
                                 <i class="icon icon-xl icon-nucleo-selected-and-not"></i>
                             </div>
                         } @else {
-                            <div class="context-item context-item--clickable"
+                            <div class="context-item context-item--btn"
                                 [matTooltip]="'Show all'"
                                 (click)="treeViewMode.set('show-all')">                                    
                                 <i class="icon icon-xl icon-nucleo-only-selected"></i>

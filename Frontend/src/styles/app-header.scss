@@ -8,7 +8,8 @@
 
 .title-header {
     @extend .app-header;
-    min-height: 3.5rem;
+    box-sizing: content-box;
+    min-height: 2.5rem;
     border-bottom: 1px solid var(--company-grey-accent);
 
     &--danger {

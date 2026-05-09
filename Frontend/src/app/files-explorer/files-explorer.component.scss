@@ -44,10 +44,15 @@ a.drag-over {
 
 .context-stack {
     display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: baseline;
+    grid-template-columns: auto auto auto auto auto auto;
+    align-items: center;
+    justify-content: start;
     column-gap: 0.5rem;
     row-gap: 0.25rem;
+}
+
+.context-row {
+    display: contents;
 }
 
 .context-label {
@@ -58,7 +63,13 @@ a.drag-over {
     padding: 0 0.5rem;
     display: inline-block;
 
-    &--clickable {
+    &--btn {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    &--switch {
+        padding-right: 0.25rem;
         cursor: pointer;
         user-select: none;
     }
@@ -97,16 +108,20 @@ a.drag-over {
 
 .view-mode {
     opacity: 0.5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
 
     i {
-        display: none;
+        visibility: hidden;
     }
 
     &--active {
         opacity: 1;
 
         i {
-            display: inline;
+            visibility: visible;
         }
     }
 }
