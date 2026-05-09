@@ -2,8 +2,8 @@ import { Component, InputSignal, OnChanges, OnDestroy, OnInit, Renderer2, Signal
 import { FileToUpload, FileUploadApi, FileUploadManager, UploadsAbortedEvent, UploadCompletedEvent, UploadsInitiatedEvent } from '../services/file-upload-manager/file-upload-manager';
 import { AppUploadItem, UploadItemComponent } from './upload-item/upload-item.component';
 import { ConfirmOperationDirective } from '../shared/operation-confirm/confirm-operation.directive';
-import { AppFolderItem, FolderItemComponent, FolderOperations } from '../shared/folder-item/folder-item.component';
-import { AppFileItem, AppFileItems, FileItemComponent, FileOperations } from '../shared/file-item/file-item.component';
+import { AppFolderItem, AppFolderPermissions, FolderItemComponent, FolderOperations } from '../shared/folder-item/folder-item.component';
+import { AppFileItem, AppFileItems, AppFilePermissions, FileItemComponent, FileOperations } from '../shared/file-item/file-item.component';
 import { DropFilesDirective } from './directives/drop-files.directive';
 import { DragOverStayDirective } from './directives/drag-over-stay.directive';
 import { FolderPathComponent } from './folder-path/folder-path.component';
@@ -157,7 +157,22 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     allowFileEdit = input(false);
     allowPreviewNotes = input(false);
     allowPreviewComment = input(false);
+
+    folderPermissions = computed<AppFolderPermissions>(() =>({
+        allowDelete: this.allowFolderDelete(),
+        allowDownload: this.allowDownload(),
+        allowMoveItems: this.allowMoveItems(),
+        allowRename: this.allowFolderRename(),
+        allowShare: this.allowFolderShare()
+    }));
     
+    filePermissions = computed<AppFilePermissions>(() => ({
+        allowDelete: this.allowFileDelete(),
+        allowDownload: this.allowDownload(),
+        allowMoveItems: this.allowMoveItems(),
+        allowRename: this.allowFileRename()
+    }));
+
     hideContextBar = input(false);
     hideSelectAll = input(false);
     hideItemsActions = input(false);
@@ -296,7 +311,27 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     sortedFolders = computed(() => sortFolders(this.folders(), this.sortMode(), this.sortDirection()));
     sortedFiles = computed(() => sortFiles(this.files(), this.sortMode(), this.sortDirection()));
 
-    canReorder = computed(() => this.sortMode() === 'custom' && this.filesApi().updatePositions != null);
+    filteredFolders = computed(() => {
+        const phrase = this.searchPhrase().toLowerCase();
+        if (!phrase) return this.sortedFolders();
+        return this.sortedFolders().filter(f => f.name().toLowerCase().includes(phrase));
+    });
+
+    filteredFiles = computed(() => {
+        const phrase = this.searchPhrase().toLowerCase();
+        if (!phrase) return this.sortedFiles();
+        return this.sortedFiles().filter(f => (f.name() + f.extension).toLowerCase().includes(phrase));
+    });
+
+    isSearchActive = computed(() => this.searchPhrase().length > 0);
+    
+    hasNoListSearchMatches = computed(() =>
+        this.isSearchActive()
+        && this.filteredFolders().length === 0
+        && this.filteredFiles().length === 0
+        && (this.folders().length > 0 || this.files().length > 0));
+
+    canReorder = computed(() => this.sortMode() === 'custom' && this.filesApi().updatePositions != null && !this.isSearchActive());
 
     explorerTreeItems = computed(() => [...this.sortedFolders(), ...this.sortedFiles()]);
     
@@ -315,7 +350,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         totalSizeInBytes: 0
     });
 
-    treeSearchPhrase = signal<string>('');
+    searchPhrase = signal<string>('');
     treeSearchedFilesSelection = signal<SearchedFilesSelection | null>(null);
 
     fileInPreview: WritableSignal<AppFileItem | null> = signal(null);
@@ -586,7 +621,6 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
             console.error(error);
         }
     }
-
 
     ngOnInit(): void {
         this._renderer.listen('window', 'dragenter', this.onDragEnter.bind(this));
@@ -869,9 +903,13 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
             return;
         }
 
-        if (folderExternalId === null && this.wasTopFolderLoaded){            
+        if (folderExternalId === null && this.wasTopFolderLoaded){
             return;
         }
+
+        // Reset the search phrase when navigating to a different folder so the user
+        // does not see a filtered/highlighted view from a previous context.
+        this.searchPhrase.set('');
 
         if (!folderExternalId) {
             await this.loadTopFoldersAndFiles();
@@ -1613,7 +1651,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         this.treeSearchedFilesSelection.set(event);
 
         if(event == null) {
-            this.treeSearchPhrase.set('');
+            this.searchPhrase.set('');
         }
     }
 

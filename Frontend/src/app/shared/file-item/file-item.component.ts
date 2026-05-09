@@ -40,6 +40,13 @@ export type AppFileItem = {
     isHighlighted: WritableSignal<boolean>;
 }
 
+export type AppFilePermissions = {
+    allowMoveItems: boolean;
+    allowRename: boolean;
+    allowDelete: boolean;
+    allowDownload: boolean;
+}
+
 export interface FileOperations {
     saveFileNameFunc: (fileExternalId: string, newName: string) => Promise<void>;
     deleteFileFunc: (fileExternalId: string) => Promise<void>;
@@ -81,11 +88,14 @@ export class FileItemComponent implements OnInit, OnDestroy {
     showPath = input(false);
     hideActions = input(false);
     canReorder = input(false);
+    highlightPhrase = input<string>('');
 
-    allowDownload = input(false);
-    allowMoveItems = input(false);
-    allowRename = input(false);
-    allowDelete = input(false);
+    permissions = input<AppFilePermissions>({
+        allowDelete: false,
+        allowDownload: false,
+        allowMoveItems: false,
+        allowRename: false
+    });
 
     deleted = output<void>();
     previewed = output<void>();
@@ -99,18 +109,38 @@ export class FileItemComponent implements OnInit, OnDestroy {
 
     isHighlighted = observeIsHighlighted(this.file);
     
-    canEditFileName = computed(() => this.file().wasUploadedByUser || this.allowRename());
-    canDeleteFile = computed(() => this.file().wasUploadedByUser || this.allowDelete());
-    canToggleActions = computed(() => this.file().wasUploadedByUser || this.allowDelete() || this.allowRename() || this.canLocate() || this.allowDownload());
+    canEditFileName = computed(() => this.file().wasUploadedByUser || this.permissions().allowRename);
+    canDeleteFile = computed(() => this.file().wasUploadedByUser || this.permissions().allowDelete);
+    canToggleActions = computed(() => {
+        if (this.file().wasUploadedByUser)
+            return true;
+
+        if (this.canLocate())
+            return true;
+
+        const permissions = this.permissions();
+
+        return permissions.allowDelete 
+            || permissions.allowRename 
+            || permissions.allowDownload;
+    });
         
     areActionsVisible = signal(false);
-    canPreview = computed(() => AppFileItems.canPreview(this.file(), this.allowDownload(), this.canOpen()));
+    canPreview = computed(() => AppFileItems.canPreview(this.file(), this.permissions().allowDownload, this.canOpen()));
     
-    isSelectCheckboxVisible = computed(() => this.canSelect() && (
-        this.allowMoveItems() 
-        || this.allowDownload() 
-        || this.allowDelete()
-        || this.file().wasUploadedByUser));
+    isSelectCheckboxVisible = computed(() => {
+        if (!this.canSelect())
+            return false;
+
+        if (this.file().wasUploadedByUser)
+            return true;
+
+        const permissions = this.permissions();
+
+        return permissions.allowMoveItems
+            || permissions.allowDownload
+            || permissions.allowDelete;
+    });
 
     constructor(
         private _inAppSharing: InAppSharing,

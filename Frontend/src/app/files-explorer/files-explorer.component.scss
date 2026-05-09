@@ -33,11 +33,13 @@ a.drag-over {
 .context-bar {
     font-size: var(--company-small-font);
     color: var(--company-grey-font);
-    padding: 0.5rem 0.5rem 0 0.5rem;
+    padding: 0.5rem;
 
     display: flex;
     flex-direction: row;
     gap: 0.5rem;
+
+    border-bottom: 1px solid var(--company-grey-accent);
 }
 
 .context-stack {

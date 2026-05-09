@@ -41,6 +41,14 @@ export type AppFolderAncestor = {
     name: string;
 }
 
+export type AppFolderPermissions = {
+    allowShare: boolean;
+    allowMoveItems: boolean;
+    allowRename: boolean;
+    allowDelete: boolean;
+    allowDownload: boolean;
+}
+
 export interface FolderOperations {
     saveFolderNameFunc: (folderExternalId: string | null, newName: string) => Promise<void>;
     prefetchFolderFunc: (folderExternalId: string | null) => void;
@@ -76,12 +84,15 @@ export class FolderItemComponent{
     showPath = input(false);
     hideActions = input(false);
     canReorder = input(false);
+    highlightPhrase = input<string>('');
 
-    allowShare = input(false);
-    allowMoveItems = input(false);
-    allowRename = input(false);
-    allowDelete = input(false);
-    allowDownload = input(false);
+    permissions = input<AppFolderPermissions>({
+        allowShare: false,
+        allowMoveItems: false,
+        allowRename: false,
+        allowDelete: false,
+        allowDownload: false
+    });
 
     deleted = output<void>();
     boxCreated = output<void>();
@@ -94,39 +105,55 @@ export class FolderItemComponent{
     isCut = computed(() => this.folder().isCut());
     isSelected = computed(() => this.folder().isSelected());
     isHighlighted = observeIsHighlighted(this.folder);
-    canToggleActions = computed(() => this.allowDelete() || this.allowShare() || this.allowRename() || this.canLocate());
 
-    isSelectCheckboxVisible = computed(() => this.canSelect() && (
-        this.allowMoveItems() 
-        || this.allowDownload() 
-        || this.allowDelete()));
+    canToggleActions = computed(() => {
+        if(this.canLocate())
+            return true;
+
+        const permissions = this.permissions();
+
+        return permissions.allowDelete 
+            || permissions.allowShare 
+            || permissions.allowRename;
+    });
+
+    isSelectCheckboxVisible = computed(() => {
+        if (!this.canSelect())
+            return false;
+
+        const permissions = this.permissions();
+
+        return permissions.allowMoveItems
+            || permissions.allowDownload
+            || permissions.allowDelete;
+    });
 
     canEditName: Signal<PermissionState> = computed(() => {
-        if (this.allowRename()) {
+        const permissions = this.permissions();
+
+        if (permissions.allowRename) {
             return {
                 isOn: true,
                 timeLeft: null
             };
         }
 
-        const wasCreatedByUser = this.folder().wasCreatedByUser;
+        const folder = this.folder();
 
-        if(!wasCreatedByUser)
+        if(!folder.wasCreatedByUser)
             return {
                 isOn: false,
                 timeLeft: null
             };
     
-        const createdAt = this.folder().createdAt;
-
-        if(createdAt == null)
+        if(folder.createdAt == null)
             return {
                 isOn: false,
                 timeLeft: null
             };
 
         const currentTime = this._time.currentTime();
-        const createdAtTime = createdAt.getTime();
+        const createdAtTime = folder.createdAt.getTime();
         const elapsedTime = currentTime - createdAtTime;
 
         if(elapsedTime > TIME_TO_RENAME_FOLDER_WITHOUT_PERMISSION_MS)

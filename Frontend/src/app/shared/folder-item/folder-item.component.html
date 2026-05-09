@@ -29,9 +29,10 @@
                 [text]="folderName()"
                 [isEditing]="isNameEditing()"
                 [canEdit]="canEditNamePermission.isOn"
+                [highlightPhrase]="highlightPhrase()"
                 (valueChange)="saveFolderName($event)"
                 (editingStarted)="folder().isNameEditing.set(true)"
-                (editingStopped)="folder().isNameEditing.set(false)">                    
+                (editingStopped)="folder().isNameEditing.set(false)">
             </app-editable-txt>
 
             @if(showPath()) {
@@ -52,7 +53,9 @@
                     icon="icon-lucide-check"
                     (clicked)="nameTxt.save()">                    
                 </app-action-btn>
-            } @else {        
+            } @else {      
+                @let permissionsValue = permissions();
+                
                 @if(canLocate()) {
                     <app-action-btn
                         tooltip="Locate"
@@ -73,7 +76,7 @@
                     </app-action-btn>
                 }
             
-                @if(allowShare()) {
+                @if(permissionsValue.allowShare) {
                     <app-action-btn
                         tooltip="Share with box"
                         icon="icon-nucleo-box"
@@ -82,7 +85,7 @@
                     </app-action-btn>
                 } 
             
-                @if(allowDelete()) {
+                @if(permissionsValue.allowDelete) {
                     <app-action-btn
                         tooltip="Delete"
                         icon="icon-nucleo-remove"

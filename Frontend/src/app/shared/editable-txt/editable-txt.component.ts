@@ -1,6 +1,8 @@
-import { Component, ElementRef, ViewChild, computed, effect, input, output, signal } from "@angular/core";
+import { Component, ElementRef, Signal, ViewChild, computed, effect, input, output, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
+import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
 import { SelectAllTextDirective } from "../select-all-text.directive";
+import { getNameWithHighlight } from "../name-with-highlight";
 
 @Component({
     selector: 'app-editable-txt',
@@ -11,13 +13,21 @@ import { SelectAllTextDirective } from "../select-all-text.directive";
     templateUrl: './editable-txt.component.html',
     styleUrl: './editable-txt.component.scss'
 })
-export class EditableTxtComponent {   
+export class EditableTxtComponent {
     isEditing = input.required<boolean>();
     text = input.required<string>();
     textToDisplay = input<string>();
     canEdit = input(true);
+    highlightPhrase = input<string>('');
 
     visibleText = computed(() => this.textToDisplay() ?? this.text());
+
+    displayHtml: Signal<SafeHtml> = computed(() => {
+        const text = this.visibleText();
+        const phrase = this.highlightPhrase().toLowerCase();
+        const html = getNameWithHighlight(text, phrase);
+        return this._sanitizer.bypassSecurityTrustHtml(html);
+    });
 
     valueChange = output<string>();
     editingStopped = output<void>();
@@ -28,7 +38,7 @@ export class EditableTxtComponent {
     @ViewChild('mirrorSpan') mirrorSpan!: ElementRef<HTMLSpanElement>;
     inputWidth = signal(50);
 
-    constructor() {
+    constructor(private _sanitizer: DomSanitizer) {
         effect(() => {
             if(this.isEditing()) {
                 this.newValue = this.text();

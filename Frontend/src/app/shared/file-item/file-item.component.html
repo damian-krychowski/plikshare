@@ -25,11 +25,12 @@
         <div class="item__details">                   
             <app-editable-txt #nameTxt
                 [text]="fileVal.name()"
-                [isEditing]="fileVal.isNameEditing()"                
+                [isEditing]="fileVal.isNameEditing()"
                 [canEdit]="canEditFileName()"
+                [highlightPhrase]="highlightPhrase()"
                 (valueChange)="saveFileName($event)"
                 (editingStarted)="file().isNameEditing.set(true)"
-                (editingStopped)="file().isNameEditing.set(false)">                    
+                (editingStopped)="file().isNameEditing.set(false)">
             </app-editable-txt>
 
             <div class="item__subtitle">
@@ -64,6 +65,8 @@
                     (clicked)="nameTxt.save()">                    
                 </app-action-btn>
             } @else {        
+                @let permissionsValue = permissions();
+
                 @if(canLocate()) {
                     <app-action-btn
                         tooltip="Locate"
@@ -74,7 +77,7 @@
                     </app-action-btn>
                 }
             
-                @if(allowDownload()) {
+                @if(permissionsValue.allowDownload) {
                     <app-action-btn
                         tooltip="Download"
                         icon="icon-nucleo-download"

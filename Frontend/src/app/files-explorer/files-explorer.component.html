@@ -230,32 +230,34 @@
                             (change)="toggleAllItemsSelection()">
                         </mat-checkbox>
                     }
-                } @else {     
+                } @else {
                     @if(canBulkTreeDownload()) {
                         <app-action-btn
                             tooltip="Bulk Download"
                             icon="icon-nucleo-download"
                             (clicked)="downloadSelectedTreeItems()">
                         </app-action-btn>
-                    }                    
+                    }
 
                     @if(canBulkTreeDelete()) {
                         <app-action-btn
                             tooltip="Delete"
                             icon="icon-nucleo-remove"
-                            appConfirmOperation 
+                            appConfirmOperation
                             [operationItem]="'selected items'"
                             [verb]="'delete'"
                             [isOperationDanger]="true"
                             (confirmedClick)="triggerSelectedTreeItemsDelete()">
                         </app-action-btn>
                     }
+                }
 
+                @if(allowList()) {
                     <app-item-search
-                        [phrase]="treeSearchPhrase()"
-                        [debounce]="0"
-                        [minimalLength]="3"
-                        (searched)="treeSearchPhrase.set($event)">                    
+                        [phrase]="searchPhrase()"
+                        [debounce]="50"
+                        [minimalLength]="1"
+                        (searched)="searchPhrase.set($event)">
                     </app-item-search>
                 }
             </div>
@@ -442,22 +444,19 @@
         <div cdkDropList
             [cdkDropListDisabled]="!canReorder()"
             (cdkDropListDropped)="onFolderDrop($event)">
-            @for(folder of sortedFolders(); track folder.externalId) {
+            @for(folder of filteredFolders(); track folder.externalId) {
                 <app-folder-item cdkDrag
                     [cdkDragDisabled]="!canReorder()"
                     (cdkDragStarted)="onCdkDragStarted()"
                     (cdkDragEnded)="onCdkDragEnded()"
                     (appDragOverStay)="operations.openFolderFunc(folder.externalId, null)"
                     [folder]="folder"
+                    [highlightPhrase]="searchPhrase()"
                     [canReorder]="canReorder()"
                     [operations]="operations"
                     [showPath]="false"
                     [hideActions]="hideItemsActions()"
-                    [allowDelete]="allowFolderDelete()"
-                    [allowRename]="allowFolderRename()"
-                    [allowShare]="allowFolderShare()"
-                    [allowMoveItems]="allowMoveItems()"
-                    [allowDownload]="allowDownload()"
+                    [permissions]="folderPermissions()"
                     [canOpen]="!isAnyNameEditPending()"
                     (deleted)="onFolderDeleted(folder)"
                     (boxCreated)="createBoxFromFolder(folder)">
@@ -486,19 +485,17 @@
             <div cdkDropList
                 [cdkDropListDisabled]="!canReorder()"
                 (cdkDropListDropped)="onFileDrop($event)">
-                @for(file of sortedFiles(); track file.externalId) {
+                @for(file of filteredFiles(); track file.externalId) {
                     <app-file-item cdkDrag
                         [cdkDragDisabled]="!canReorder()"
                         (cdkDragStarted)="onCdkDragStarted()"
                         (cdkDragEnded)="onCdkDragEnded()"
                         [file]="file"
+                        [highlightPhrase]="searchPhrase()"
                         [canReorder]="canReorder()"
                         [operations]="operations"
                         [hideActions]="hideItemsActions()"
-                        [allowDelete]="allowFileDelete()"
-                        [allowRename]="allowFileRename()"
-                        [allowDownload]="allowDownload()"
-                        [allowMoveItems]="allowMoveItems()"
+                        [permissions]="filePermissions()"
                         [canOpen]="!isAnyNameEditPending()"
                         (deleted)="onFileDeleted(file)"
                         (previewed)="onFilePreviewed(file)">
@@ -563,10 +560,20 @@
                         This folder is empty
                     </div>
                 </div>
-            
+
                 <div class="mt-2"></div>
             }
-        </div>   
+
+            @if(hasNoListSearchMatches()) {
+                <div class="nothing-to-show">
+                    <div class="nothing-to-show__label">
+                        No items match your search
+                    </div>
+                </div>
+
+                <div class="mt-2"></div>
+            }
+        </div>
     </div>
 
     @let isFileTreeViewActive = !(fileInPreviewVal || pendingBulkUploadVal || isListViewMode);
@@ -578,7 +585,7 @@
             [allowDownload]="allowDownload()"
             [isActive]="isFileTreeViewActive"
             [viewMode]="treeViewMode()"
-            [searchPhrase]="treeSearchPhrase()"
+            [searchPhrase]="searchPhrase()"
             [sortMode]="sortMode()"
             [sortDirection]="sortDirection()"
             (fileClicked)="onFilePreviewed($event)"

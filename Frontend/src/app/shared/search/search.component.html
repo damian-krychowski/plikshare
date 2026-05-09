@@ -60,6 +60,21 @@
                 <div class="mt-2"></div>
     
                 <div class="search-results">
+                    @let folderPermissions = {
+                        allowShare: true,
+                        allowRename: true,
+                        allowDelete: true,
+                        allowMoveItems: false,
+                        allowDownload: false
+                    };
+
+                    @let filePermissions = {
+                        allowDelete: true,
+                        allowRename: true,
+                        allowDownload: true,
+                        allowMoveItems: false
+                    };
+
                     @for (item of group.items; track item.externalId) {
                         @if (item.type === 'workspace-box') {
                             <app-box-item 
@@ -70,9 +85,7 @@
                             </app-box-item>
                         } @else if (item.type === 'workspace-folder') {
                             <app-folder-item 
-                                [allowDelete]="true"
-                                [allowRename]="true"
-                                [allowShare]="true"
+                                [permissions]="folderPermissions"
                                 [folder]="item.folder"
                                 [canOpen]="true"
                                 [canLocate]="true"
@@ -86,9 +99,7 @@
                                 [file]="item.file"
                                 [operations]="item.operations"
                                 [showPath]="true"
-                                [allowDelete]="true"
-                                [allowRename]="true"
-                                [allowDownload]="true"
+                                [permissions]="filePermissions"
                                 [canOpen]="true"
                                 [canLocate]="true"
                                 [canSelect]="false"
@@ -119,11 +130,24 @@
     
                 <div class="search-results">
                     @for (item of group.items; track item.externalId) {
+                        @let folderPermissions = {
+                            allowRename: group.permissions.allowRenameFolder,
+                            allowDelete: group.permissions.allowDeleteFolder,
+                            allowMoveItems: false,
+                            allowDownload: false,
+                            allowShare: false,
+                        };
+
+                        @let filePermissions = {
+                            allowDelete: group.permissions.allowDeleteFile,
+                            allowRename: group.permissions.allowRenameFile,
+                            allowDownload: group.permissions.allowDownload,
+                            allowMoveItems: false
+                        };
+
                         @if (item.type === 'external-box-folder') {
                             <app-folder-item 
-                                [allowDelete]="group.permissions.allowDeleteFolder"
-                                [allowRename]="group.permissions.allowRenameFolder"
-                                [allowShare]="false"
+                                [permissions]="folderPermissions"
                                 [folder]="item.folder"
                                 [canOpen]="true"
                                 [canLocate]="true"
@@ -135,9 +159,7 @@
                                 [file]="item.file"
                                 [operations]="item.operations"
                                 [showPath]="true"
-                                [allowDelete]="group.permissions.allowDeleteFile"
-                                [allowRename]="group.permissions.allowRenameFile"
-                                [allowDownload]="group.permissions.allowDownload"
+                                [permissions]="filePermissions"
                                 [canOpen]="true"
                                 [canLocate]="true"
                                 (previewed)="boxFilePreview(item, group)">

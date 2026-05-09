@@ -446,13 +446,17 @@
             </div>
 
             <div class="flex-column mt-1">
+                @let filePermissions = {
+                    allowDelete: true,
+                    allowRename: true,
+                    allowDownload: true,
+                    allowMoveItems: false
+                };
+
                 @for (file of allAttachmentFilesVal; track file.externalId) {
                     <app-file-item
                         [file]="file"
-                        [allowDelete]="true"
-                        [allowDownload]="true"
-                        [allowMoveItems]="false"
-                        [allowRename]="true"
+                        [permissions]="filePermissions"
                         [canOpen]="true"
                         [canSelect]="false"
                         [operations]="fileOperations()"

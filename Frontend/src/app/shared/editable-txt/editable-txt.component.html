@@ -24,18 +24,16 @@
                 </span>
         </div>
     } @else {
-        <div class="text text--desktop text--editable" 
-            (dblclick)="startEditing(); $event.stopPropagation()" 
-            (click)="$event.stopPropagation()">
-            {{ visibleText() }}
+        <div class="text text--desktop text--editable"
+            (dblclick)="startEditing(); $event.stopPropagation()"
+            (click)="$event.stopPropagation()"
+            [innerHTML]="displayHtml()">
         </div>
 
-        <div class="text text--mobile">
-            {{ visibleText() }}
+        <div class="text text--mobile" [innerHTML]="displayHtml()">
         </div>
     }
 } @else {
-    <div class="text">
-        {{ visibleText() }}
+    <div class="text" [innerHTML]="displayHtml()">
     </div>
 }
