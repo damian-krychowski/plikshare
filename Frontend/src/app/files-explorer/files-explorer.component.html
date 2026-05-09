@@ -450,139 +450,185 @@
     }
 
     <div [style.display]="(fileInPreviewVal || pendingBulkUploadVal || !isListViewMode) ? 'none' : 'unset'">
-        <div cdkDropList
-            [cdkDropListDisabled]="!canReorder()"
-            (cdkDropListDropped)="onFolderDrop($event)">
-            @for(folder of filteredFolders(); track folder.externalId) {
-                <app-folder-item cdkDrag
-                    [cdkDragDisabled]="!canReorder()"
-                    (cdkDragStarted)="onCdkDragStarted()"
-                    (cdkDragEnded)="onCdkDragEnded()"
-                    (appDragOverStay)="operations.openFolderFunc(folder.externalId, null)"
-                    [folder]="folder"
-                    [highlightPhrase]="searchPhrase()"
-                    [canReorder]="canReorder()"
-                    [operations]="operations"
-                    [showPath]="false"
-                    [hideActions]="hideItemsActions()"
-                    [permissions]="folderPermissions()"
-                    [canOpen]="!isAnyNameEditPending()"
-                    (deleted)="onFolderDeleted(folder)"
-                    (boxCreated)="createBoxFromFolder(folder)">
-                </app-folder-item>
-            }
-        </div>
+        @if(showFoldersSection()) {
+            @let isFoldersExpandedVal = isFoldersExpanded();
+            <section class="files-section">
+                <button type="button" class="files-section__header"
+                    [attr.aria-expanded]="isFoldersExpandedVal"
+                    (click)="toggleFoldersExpanded()"
+                    appDragOverStay
+                    (appDragOverStay)="expandFoldersSection()">
+                    <span class="files-section__title">Folders</span>
+                    <span class="files-section__count">
+                        @if(isSearchActive()) {
+                            {{filteredFolders().length}}/{{foldersCount()}}
+                        } @else if(isAnyItemSelected() && hasFolders()) {
+                            {{selectedFoldersCount()}}/{{foldersCount()}}
+                        } @else {
+                            {{foldersCount()}}
+                        }
+                    </span>
+                    <i class="files-section__chevron icon"
+                        [class.icon-lucide-chevron-down]="isFoldersExpandedVal"
+                        [class.icon-lucide-chevron-right]="!isFoldersExpandedVal"></i>
+                </button>
 
-        <div [class.drop-area__anchor]="allowUpload()">
-            <div>
-                <div class="mt-2"></div>
-
-                @if(allowCreateFolder()){
-                    <app-item-btn
-                        title="Add new folder"
-                        subtitle="Click here to create an empty folder!"
-                        icon="icon-nucleo-folder-plus"
-                        (clicked)="createNewFolder()">
-                    </app-item-btn>
-                }
-            </div>
-
-            @if(hasFiles()) {
-                <div class="mt-2"></div>
-            }
-
-            <div cdkDropList
-                [cdkDropListDisabled]="!canReorder()"
-                (cdkDropListDropped)="onFileDrop($event)">
-                @for(file of filteredFiles(); track file.externalId) {
-                    <app-file-item cdkDrag
-                        [cdkDragDisabled]="!canReorder()"
-                        (cdkDragStarted)="onCdkDragStarted()"
-                        (cdkDragEnded)="onCdkDragEnded()"
-                        [file]="file"
-                        [highlightPhrase]="searchPhrase()"
-                        [canReorder]="canReorder()"
-                        [operations]="operations"
-                        [hideActions]="hideItemsActions()"
-                        [permissions]="filePermissions()"
-                        [canOpen]="!isAnyNameEditPending()"
-                        (deleted)="onFileDeleted(file)"
-                        (previewed)="onFilePreviewed(file)">
-                    </app-file-item>
-                }
-            </div>
-            
-            @if(hasUploads()) {
-                <div class="mt-2"></div>
-            }
-        
-            @if(canUpload()) {       
-                @for(upload of uploads(); track upload.externalId) {
-                    <app-upload-item 
-                        [fileUploadApi]="uploadApiVal"
-                        [httpHeadersFactory]="operations"
-                        [upload]="upload"   
-                        [hideActions]="hideItemsActions()"
-                        (aborted)="onUploadAborted(upload)"
-                        (isSelectedChange)="upload.isSelected.set($event)">
-                    </app-upload-item>
-                }
-        
-                <div>
-                    <div class="mt-2"></div>
-        
-                    <app-item-btn
-                        title="Upload some files"
-                        subtitle="Click here to upload more files!"
-                        icon="icon-nucleo-upload-2"
-                        (clicked)="startUpload(fileUpload)">                    
-                    </app-item-btn>
-
-                    @if(uploadApiVal && allowCreateFolder()) {
-                        <div class="mt-2"></div>
-                               
-                        <app-item-btn
-                            title="Bulk zip upload"
-                            subtitle="Click here to upload files in bulk!"
-                            icon="icon-nucleo-file-zip"
-                            (clicked)="startBulkUpload()">                    
-                        </app-item-btn>
-                    }
-                </div>
-        
-                @if(isDragging()) {
-                    <div class="drop-area" 
-                        appDropFiles 
-                        (filesDropped)="onFilesDropped($event)">
-                        <i class="icon icon-nucleo-upload-2"></i>   
-            
-                        <div class="drop-area__message">
-                            Drop files here!
+                @if(isFoldersExpandedVal) {
+                    <div class="files-section__content">
+                        <div cdkDropList
+                            [cdkDropListDisabled]="!canReorder()"
+                            (cdkDropListDropped)="onFolderDrop($event)">
+                            @for(folder of filteredFolders(); track folder.externalId) {
+                                <app-folder-item cdkDrag
+                                    [cdkDragDisabled]="!canReorder()"
+                                    (cdkDragStarted)="onCdkDragStarted()"
+                                    (cdkDragEnded)="onCdkDragEnded()"
+                                    (appDragOverStay)="operations.openFolderFunc(folder.externalId, null)"
+                                    [folder]="folder"
+                                    [highlightPhrase]="searchPhrase()"
+                                    [canReorder]="canReorder()"
+                                    [operations]="operations"
+                                    [showPath]="false"
+                                    [hideActions]="hideItemsActions()"
+                                    [permissions]="folderPermissions()"
+                                    [canOpen]="!isAnyNameEditPending()"
+                                    (deleted)="onFolderDeleted(folder)"
+                                    (boxCreated)="createBoxFromFolder(folder)">
+                                </app-folder-item>
+                            }
                         </div>
+
+                        @if(allowCreateFolder()){
+                            <div class="mt-2"></div>
+                            <app-item-btn
+                                title="Add new folder"
+                                subtitle="Click here to create an empty folder!"
+                                icon="icon-nucleo-folder-plus"
+                                (clicked)="createNewFolder()">
+                            </app-item-btn>
+                        }
                     </div>
                 }
-            }
-    
-            @if(isEmptyMessageVisible()){
-                <div class="nothing-to-show">
-                    <div class="nothing-to-show__label">
-                        This folder is empty
+            </section>
+        }
+
+        @if(showFilesSection()) {
+            @let isFilesExpandedVal = isFilesExpanded();
+            <section class="files-section" [class.drop-area__anchor]="allowUpload() && isFilesExpandedVal">
+                <button type="button" class="files-section__header"
+                    [attr.aria-expanded]="isFilesExpandedVal"
+                    (click)="toggleFilesExpanded()"
+                    appDragOverStay
+                    (appDragOverStay)="expandFilesSection()">
+                    <span class="files-section__title">Files</span>
+                    <span class="files-section__count">
+                        @if(isSearchActive()) {
+                            {{filteredFiles().length}}/{{filesCount()}}
+                        } @else if(isAnyItemSelected() && hasFiles()) {
+                            {{selectedFilesCount()}}/{{filesCount()}}
+                        } @else {
+                            {{filesCount()}}
+                        }
+                        @if(hasUploads()) {
+                            <span class="files-section__count-extra">+{{uploadsCount()}} uploading</span>
+                        }
+                    </span>
+                    <i class="files-section__chevron icon"
+                        [class.icon-lucide-chevron-down]="isFilesExpandedVal"
+                        [class.icon-lucide-chevron-right]="!isFilesExpandedVal"></i>
+                </button>
+
+                @if(isFilesExpandedVal) {
+                    <div class="files-section__content">
+                        <div cdkDropList
+                            [cdkDropListDisabled]="!canReorder()"
+                            (cdkDropListDropped)="onFileDrop($event)">
+                            @for(file of filteredFiles(); track file.externalId) {
+                                <app-file-item cdkDrag
+                                    [cdkDragDisabled]="!canReorder()"
+                                    (cdkDragStarted)="onCdkDragStarted()"
+                                    (cdkDragEnded)="onCdkDragEnded()"
+                                    [file]="file"
+                                    [highlightPhrase]="searchPhrase()"
+                                    [canReorder]="canReorder()"
+                                    [operations]="operations"
+                                    [hideActions]="hideItemsActions()"
+                                    [permissions]="filePermissions()"
+                                    [canOpen]="!isAnyNameEditPending()"
+                                    (deleted)="onFileDeleted(file)"
+                                    (previewed)="onFilePreviewed(file)">
+                                </app-file-item>
+                            }
+                        </div>
+
+                        @if(canUpload()) {
+                            @for(upload of uploads(); track upload.externalId) {
+                                <app-upload-item
+                                    [fileUploadApi]="uploadApiVal"
+                                    [httpHeadersFactory]="operations"
+                                    [upload]="upload"
+                                    [hideActions]="hideItemsActions()"
+                                    (aborted)="onUploadAborted(upload)"
+                                    (isSelectedChange)="upload.isSelected.set($event)">
+                                </app-upload-item>
+                            }
+
+                            <div class="mt-2"></div>
+
+                            <app-item-btn
+                                title="Upload some files"
+                                subtitle="Click here to upload more files!"
+                                icon="icon-nucleo-upload-2"
+                                (clicked)="startUpload(fileUpload)">
+                            </app-item-btn>
+
+                            @if(uploadApiVal && allowCreateFolder()) {
+                                <div class="mt-2"></div>
+
+                                <app-item-btn
+                                    title="Bulk zip upload"
+                                    subtitle="Click here to upload files in bulk!"
+                                    icon="icon-nucleo-file-zip"
+                                    (clicked)="startBulkUpload()">
+                                </app-item-btn>
+                            }
+
+                            @if(isDragging()) {
+                                <div class="drop-area"
+                                    appDropFiles
+                                    (filesDropped)="onFilesDropped($event)">
+                                    <i class="icon icon-nucleo-upload-2"></i>
+
+                                    <div class="drop-area__message">
+                                        Drop files here!
+                                    </div>
+                                </div>
+                            }
+                        }
                     </div>
+                }
+            </section>
+        }
+
+        @if(isEmptyMessageVisible()){
+            <div class="nothing-to-show">
+                <div class="nothing-to-show__label">
+                    This folder is empty
                 </div>
+            </div>
 
-                <div class="mt-2"></div>
-            }
+            <div class="mt-2"></div>
+        }
 
-            @if(hasNoListSearchMatches()) {
-                <div class="nothing-to-show">
-                    <div class="nothing-to-show__label">
-                        No items match your search
-                    </div>
+        @if(hasNoListSearchMatches()) {
+            <div class="nothing-to-show">
+                <div class="nothing-to-show__label">
+                    No items match your search
                 </div>
+            </div>
 
-                <div class="mt-2"></div>
-            }
-        </div>
+            <div class="mt-2"></div>
+        }
     </div>
 
     @let isFileTreeViewActive = !(fileInPreviewVal || pendingBulkUploadVal || isListViewMode);

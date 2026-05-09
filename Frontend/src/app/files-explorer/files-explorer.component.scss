@@ -38,8 +38,6 @@ a.drag-over {
     display: flex;
     flex-direction: row;
     gap: 0.5rem;
-
-    border-bottom: 1px solid var(--company-grey-accent);
 }
 
 .context-stack {
@@ -91,6 +89,74 @@ a.drag-over {
 
     &--short {
         padding: 0 0.2rem;
+    }
+}
+
+.files-section {
+    display: block;
+
+    & + & {
+        margin-top: 1rem;
+    }
+
+    &__header {
+        all: unset;
+        box-sizing: border-box;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.5rem;
+        font-size: var(--company-small-font);
+        color: var(--company-grey-font);
+        border-bottom: 1px solid var(--company-grey-accent-light);
+        cursor: pointer;
+        user-select: none;
+
+        &:hover,
+        &:focus-visible {
+            background: var(--company-grey-accent-light);
+            color: var(--company-font);
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--company-blue-hover);
+            outline-offset: -2px;
+        }
+
+        &.drag-over {
+            background: var(--company-blue-hover);
+            color: var(--company-font);
+        }
+    }
+
+    &__chevron {
+        font-size: 1rem;
+        width: 1rem;
+        text-align: center;
+        flex-shrink: 0;
+        margin-left: auto;
+    }
+
+    &__title {
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+
+    &__count {
+        color: var(--company-grey-font);
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__count-extra {
+        margin-left: 0.5rem;
+        font-style: italic;
+        opacity: 0.75;
+    }
+
+    &__content {
+        padding-top: 0.25rem;
     }
 }
 

@@ -296,6 +296,17 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     hasFolders = computed(() => this.foldersCount() > 0);
     hasAnyItem = computed(() => this.itemsCount() > 0);
 
+    isFoldersExpanded = signal(true);
+    isFilesExpanded = signal(true);
+
+    toggleFoldersExpanded = () => this.isFoldersExpanded.update(v => !v);
+    toggleFilesExpanded = () => this.isFilesExpanded.update(v => !v);
+    expandFoldersSection = () => this.isFoldersExpanded.set(true);
+    expandFilesSection = () => this.isFilesExpanded.set(true);
+
+    showFoldersSection = computed(() => this.hasFolders() || this.allowCreateFolder());
+    showFilesSection = computed(() => this.hasFiles() || this.hasUploads() || this.canUpload());
+
     isEmptyMessageVisible = computed(() => this.showEmptyFolderMessaage() && this.itemsCount() == 0);
 
     dragCounter = 0;
@@ -521,6 +532,18 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
             this.sortMode.set(parsed.mode);
             this.sortDirection.set(parsed.direction);
+        });
+
+        effect(() => {
+            if (this.isDragging() && this.canUpload()) {
+                this.expandFilesSection();
+            }
+        });
+
+        effect(() => {
+            if (!this.isSearchActive()) return;
+            if (this.filteredFolders().length > 0) this.expandFoldersSection();
+            if (this.filteredFiles().length > 0) this.expandFilesSection();
         });
     }
 
