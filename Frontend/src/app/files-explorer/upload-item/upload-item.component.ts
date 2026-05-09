@@ -57,6 +57,8 @@ export class UploadItemComponent {
 
     aborted = output<void>();
     isSelectedChange = output<boolean>();
+    ctrlClicked = output<void>();
+    shiftClicked = output<void>();
 
     fileNameWithExtension = computed(() => {
         const upload = this.upload();

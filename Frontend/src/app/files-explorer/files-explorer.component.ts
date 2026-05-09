@@ -32,6 +32,7 @@ import { HttpHeaders } from '@angular/common/http';
 import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DragStateService } from '../services/drag-state.service';
 import { sortFiles, sortFolders } from '../services/sort-items';
+import { SortChange, SortMenuComponent } from './sort-menu/sort-menu.component';
 
 export interface FilesExplorerApi {
     invalidatePrefetchedFolderDependentEntries: (folderExternalId: string) => void;
@@ -127,6 +128,7 @@ type ViewMode = 'list-view' | 'tree-view';
         BulkUploadPreviewComponent,
         FileTreeViewComponent,
         ItemSearchComponent,
+        SortMenuComponent,
         CdkDropList,
         CdkDrag
     ],
@@ -298,6 +300,60 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
     isFoldersExpanded = signal(true);
     isFilesExpanded = signal(true);
+
+    private selectionAnchor: { section: 'folders' | 'files' | 'uploads', externalId: string } | null = null;
+
+    onFolderCtrlClicked(folder: AppFolderItem) {
+        this.selectionAnchor = { section: 'folders', externalId: folder.externalId };
+    }
+
+    onFolderShiftClicked(folder: AppFolderItem) {
+        if (!this.selectionAnchor || this.selectionAnchor.section !== 'folders') {
+            folder.isSelected.update(v => !v);
+            this.selectionAnchor = { section: 'folders', externalId: folder.externalId };
+            return;
+        }
+        this.applyRangeSelection(this.filteredFolders(), this.selectionAnchor.externalId, folder.externalId);
+    }
+
+    onFileCtrlClicked(file: AppFileItem) {
+        this.selectionAnchor = { section: 'files', externalId: file.externalId };
+    }
+
+    onFileShiftClicked(file: AppFileItem) {
+        if (!this.selectionAnchor || this.selectionAnchor.section !== 'files') {
+            file.isSelected.update(v => !v);
+            this.selectionAnchor = { section: 'files', externalId: file.externalId };
+            return;
+        }
+        this.applyRangeSelection(this.filteredFiles(), this.selectionAnchor.externalId, file.externalId);
+    }
+
+    onUploadCtrlClicked(upload: AppUploadItem) {
+        this.selectionAnchor = { section: 'uploads', externalId: upload.externalId };
+    }
+
+    onUploadShiftClicked(upload: AppUploadItem) {
+        if (!this.selectionAnchor || this.selectionAnchor.section !== 'uploads') {
+            upload.isSelected.update(v => !v);
+            this.selectionAnchor = { section: 'uploads', externalId: upload.externalId };
+            return;
+        }
+        this.applyRangeSelection(this.uploads(), this.selectionAnchor.externalId, upload.externalId);
+    }
+
+    private applyRangeSelection<T extends { externalId: string, isSelected: WritableSignal<boolean> }>(
+        list: T[], anchorExternalId: string, targetExternalId: string
+    ) {
+        const anchorIdx = list.findIndex(i => i.externalId === anchorExternalId);
+        const targetIdx = list.findIndex(i => i.externalId === targetExternalId);
+        if (anchorIdx === -1 || targetIdx === -1) return;
+        const [from, to] = anchorIdx <= targetIdx ? [anchorIdx, targetIdx] : [targetIdx, anchorIdx];
+        list.forEach((item, idx) => {
+            const inRange = idx >= from && idx <= to;
+            if (item.isSelected() !== inRange) item.isSelected.set(inRange);
+        });
+    }
 
     toggleFoldersExpanded = () => this.isFoldersExpanded.update(v => !v);
     toggleFilesExpanded = () => this.isFilesExpanded.update(v => !v);
@@ -514,24 +570,13 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         private _dragState: DragStateService) {
 
         effect(() => {
-            const key = this.sortModeStorageKey();
-            if (!key) {
-                this.sortMode.set('custom');
-                this.sortDirection.set('asc');
-                return;
-            }
-
-            const stored = localStorage.getItem(key);
-            const parsed = this.parseStoredSortMode(stored);
-
-            if (parsed.mode === 'date' && !this.allowDateSort()) {
-                this.sortMode.set('custom');
-                this.sortDirection.set('asc');
-                return;
-            }
-
-            this.sortMode.set(parsed.mode);
-            this.sortDirection.set(parsed.direction);
+            const key = this.sortStorageKey();
+            const parsed = this.parseStoredSortMode(key ? localStorage.getItem(key) : null);
+            const dateAllowed = this.allowDateSort();
+            const mode = (parsed.mode === 'date' && !dateAllowed) ? 'custom' : parsed.mode;
+            const dir = (parsed.mode === 'date' && !dateAllowed) ? 'asc' : parsed.direction;
+            this.sortMode.set(mode);
+            this.sortDirection.set(dir);
         });
 
         effect(() => {
@@ -556,27 +601,24 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         return { mode: 'custom', direction: 'asc' };
     }
 
-    private sortModeStorageKey(): string | null {
+    private sortStorageKey(): string | null {
         const wsId = this.workspaceExternalId();
         if (!wsId) return null;
         return `${FilesExplorerComponent.SORT_MODE_STORAGE_PREFIX}${wsId}`;
     }
 
-    setSortMode(mode: SortMode) {
-        if (mode === 'date' && !this.allowDateSort()) return;
+    onSortChanged(change: SortChange) {
+        if (change.mode === 'date' && !this.allowDateSort()) return;
+        this.sortMode.set(change.mode);
+        this.sortDirection.set(change.direction);
+        this.persistSort(change.mode, change.direction);
+    }
 
-        if (mode !== 'custom' && mode === this.sortMode()) {
-            this.sortDirection.update(d => d === 'asc' ? 'desc' : 'asc');
-        } else {
-            this.sortMode.set(mode);
-            this.sortDirection.set('asc');
-        }
-
-        const key = this.sortModeStorageKey();
-        if (key) {
-            const value = mode === 'custom' ? 'custom' : `${this.sortMode()}-${this.sortDirection()}`;
-            localStorage.setItem(key, value);
-        }
+    private persistSort(mode: SortMode, direction: SortDirection) {
+        const key = this.sortStorageKey();
+        if (!key) return;
+        const value = mode === 'custom' ? 'custom' : `${mode}-${direction}`;
+        localStorage.setItem(key, value);
     }
 
 

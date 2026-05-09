@@ -272,74 +272,45 @@
             </div>
         </div>
 
-        @if(!hideContextBar()) {            
-            <div class="context-bar">        
+        @if(!hideContextBar()) {
+            <div class="context-bar">
                 @if(allowList()) {
-                    @let sortModeVal = sortMode();
-                    @let sortDirectionVal = sortDirection();
-
-                    <div class="context-stack">
-                        <span class="context-label">Order:</span>
-                        <div class="context-row">
-                            <span class="context-item view-mode context-item--switch"
-                                [class.view-mode--active]="sortModeVal == 'custom'"
-                                (click)="setSortMode('custom')">
-                                Custom
-                                <i class="icon icon-lucide-check"></i>
-                            </span>
-
-                            |
-
-                            <span class="context-item view-mode context-item--switch"
-                                [class.view-mode--active]="sortModeVal == 'name'"
-                                (click)="setSortMode('name')">
-                                Name
-                                <i class="icon"
-                                    [class.icon-lucide-chevron-up]="sortModeVal != 'name' || sortDirectionVal == 'asc'"
-                                    [class.icon-lucide-chevron-down]="sortModeVal == 'name' && sortDirectionVal == 'desc'"></i>
-                            </span>
-
-                            @if(allowDateSort()) {
-                                |
-
-                                <span class="context-item view-mode context-item--switch"
-                                    [class.view-mode--active]="sortModeVal == 'date'"
-                                    (click)="setSortMode('date')">
-                                    Date
-                                    <i class="icon"
-                                        [class.icon-lucide-chevron-up]="sortModeVal != 'date' || sortDirectionVal == 'asc'"
-                                        [class.icon-lucide-chevron-down]="sortModeVal == 'date' && sortDirectionVal == 'desc'"></i>
-                                </span>
-                            }
-                        </div>
-
+                    <div class="context-row">
                         <span class="context-label">View:</span>
-                        <div class="context-row">
-                            <span class="context-item view-mode context-item--switch"
-                                [class.view-mode--active]="viewModeVal == 'list-view'"
-                                (click)="setViewMode('list-view')">
-                                List
-                                <i class="icon icon-lucide-check"></i>
-                            </span>
 
-                            |
+                        <span class="context-item view-mode context-item--switch"
+                            [class.view-mode--active]="viewModeVal == 'list-view'"
+                            (click)="setViewMode('list-view')">
+                            List
+                            <i class="icon icon-lucide-check"></i>
+                        </span>
 
-                            <span class="context-item view-mode context-item--switch"
-                                [class.view-mode--active]="viewModeVal == 'tree-view'"
-                                (click)="setViewMode('tree-view')">
-                                Tree
-                                <i class="icon icon-lucide-check"></i>
-                            </span>
-                        </div>
+                        |
+
+                        <span class="context-item view-mode context-item--switch"
+                            [class.view-mode--active]="viewModeVal == 'tree-view'"
+                            (click)="setViewMode('tree-view')">
+                            Tree
+                            <i class="icon icon-lucide-check"></i>
+                        </span>
+
+                        <span class="context-label context-label--gap">Order:</span>
+                        
+                        <app-sort-menu
+                            [mode]="sortMode()"
+                            [direction]="sortDirection()"
+                            [allowDateSort]="allowDateSort()"
+                            (sortChanged)="onSortChanged($event)">
+                        </app-sort-menu>
                     </div>
                 }
 
                 <div class="ml-auto">
-                    @if(isListViewMode) {                        
+                    @if(isListViewMode) {
                         @if(fileUploadManager.pendingQueueSize() > 0) {
                             <span class="context-item">
-                                Queued Uploads: {{fileUploadManager.pendingQueueSize()}} 
-                            </span> | 
+                                Queued Uploads: {{fileUploadManager.pendingQueueSize()}}
+                            </span> |
                         }
 
                         <span class="context-item context-item--btn" (click)="toggleAllFolders()">
@@ -348,7 +319,7 @@
                             } @else {
                                 Folders: {{foldersCount()}}
                             }
-                        </span> | 
+                        </span> |
 
                         <span class="context-item context-item--btn" (click)="toggleAllFiles()">
                             @if(isAnyItemSelected()) {
@@ -356,9 +327,9 @@
                             } @else {
                                 Files: {{filesCount()}}
                             }
-                        </span> | 
+                        </span> |
 
-                        <span class="context-item context-item--btn" (click)="toggleAllUploads()">            
+                        <span class="context-item context-item--btn" (click)="toggleAllUploads()">
                             @if(isAnyItemSelected()) {
                                 Uploads: {{selectedUploadsCount()}}/{{uploadsCount()}}
                             } @else {
@@ -371,20 +342,20 @@
                         @if(selectionSummary.selectedFilesCount > 0 || selectionSummary.selectedFoldersCount > 0) {
                             <span class="context-item">
                                 Selection: {{selectionSummary.selectedFilesCount}} {{selectionSummary.selectedFilesCount == 1 ? 'file' : 'files'}} ({{selectionSummary.totalSizeInBytes | storageSize}})
-                            </span> 
+                            </span>
 
-                            <div class="context-item context-item--short context-item--btn" 
+                            <div class="context-item context-item--short context-item--btn"
                                 [matTooltip]="'Cancel selection'"
                                 (click)="cancelTreeSelection()">
                                 <i class="icon icon-lg icon-lucide-xmark"></i>
                             </div>
                             |
-                        }       
+                        }
 
                         @let searchedFilesSelection = treeSearchedFilesSelection();
 
                         @if(searchedFilesSelection) {
-                            <span class="context-item context-item--btn" (click)="toggleTreeSearchedFilesSelection()">            
+                            <span class="context-item context-item--btn" (click)="toggleTreeSearchedFilesSelection()">
                                 @if(searchedFilesSelection.selectedFiles > 0) {
                                     Matching files: {{searchedFilesSelection.selectedFiles}}/{{searchedFilesSelection.matchingFiles}}
                                 } @else {
@@ -396,7 +367,7 @@
                         @let treeViewModeVal = treeViewMode();
 
                         @if(treeViewModeVal=='show-all') {
-                            <div class="context-item context-item--btn" 
+                            <div class="context-item context-item--btn"
                                 [matTooltip]="'Show only selected'"
                                 (click)="treeViewMode.set('show-only-selected')">
                                 <i class="icon icon-xl icon-nucleo-selected-and-not"></i>
@@ -404,12 +375,12 @@
                         } @else {
                             <div class="context-item context-item--btn"
                                 [matTooltip]="'Show all'"
-                                (click)="treeViewMode.set('show-all')">                                    
+                                (click)="treeViewMode.set('show-all')">
                                 <i class="icon icon-xl icon-nucleo-only-selected"></i>
                             </div>
-                        }           
+                        }
                     }
-                </div>                
+                </div>
             </div>
         }
     }
@@ -453,25 +424,35 @@
         @if(showFoldersSection()) {
             @let isFoldersExpandedVal = isFoldersExpanded();
             <section class="files-section">
-                <button type="button" class="files-section__header"
+                <div class="files-section__header" role="button" tabindex="0"
                     [attr.aria-expanded]="isFoldersExpandedVal"
                     (click)="toggleFoldersExpanded()"
+                    (keydown.enter)="toggleFoldersExpanded()"
+                    (keydown.space)="$event.preventDefault(); toggleFoldersExpanded()"
                     appDragOverStay
                     (appDragOverStay)="expandFoldersSection()">
                     <span class="files-section__title">Folders</span>
-                    <span class="files-section__count">
+                    <span class="files-section__count files-section__count--clickable"
+                        [matTooltip]="hasFolders() ? 'Select all folders' : ''"
+                        (click)="$event.stopPropagation(); hasFolders() && toggleAllFolders()">
                         @if(isSearchActive()) {
                             {{filteredFolders().length}}/{{foldersCount()}}
-                        } @else if(isAnyItemSelected() && hasFolders()) {
-                            {{selectedFoldersCount()}}/{{foldersCount()}}
                         } @else {
                             {{foldersCount()}}
                         }
                     </span>
+                    @if(selectedFoldersCount() > 0) {
+                        <span class="files-section__selected"
+                            [matTooltip]="'Clear folders selection'"
+                            (click)="$event.stopPropagation(); toggleAllFolders()">
+                            <i class="icon icon-lucide-check"></i>{{selectedFoldersCount()}}
+                        </span>
+                    }
+
                     <i class="files-section__chevron icon"
                         [class.icon-lucide-chevron-down]="isFoldersExpandedVal"
                         [class.icon-lucide-chevron-right]="!isFoldersExpandedVal"></i>
-                </button>
+                </div>
 
                 @if(isFoldersExpandedVal) {
                     <div class="files-section__content">
@@ -493,7 +474,9 @@
                                     [permissions]="folderPermissions()"
                                     [canOpen]="!isAnyNameEditPending()"
                                     (deleted)="onFolderDeleted(folder)"
-                                    (boxCreated)="createBoxFromFolder(folder)">
+                                    (boxCreated)="createBoxFromFolder(folder)"
+                                    (ctrlClicked)="onFolderCtrlClicked(folder)"
+                                    (shiftClicked)="onFolderShiftClicked(folder)">
                                 </app-folder-item>
                             }
                         </div>
@@ -515,28 +498,49 @@
         @if(showFilesSection()) {
             @let isFilesExpandedVal = isFilesExpanded();
             <section class="files-section" [class.drop-area__anchor]="allowUpload() && isFilesExpandedVal">
-                <button type="button" class="files-section__header"
+                <div class="files-section__header" role="button" tabindex="0"
                     [attr.aria-expanded]="isFilesExpandedVal"
                     (click)="toggleFilesExpanded()"
+                    (keydown.enter)="toggleFilesExpanded()"
+                    (keydown.space)="$event.preventDefault(); toggleFilesExpanded()"
                     appDragOverStay
                     (appDragOverStay)="expandFilesSection()">
                     <span class="files-section__title">Files</span>
-                    <span class="files-section__count">
+                    <span class="files-section__count files-section__count--clickable"
+                        [matTooltip]="hasFiles() ? 'Select all files' : ''"
+                        (click)="$event.stopPropagation(); hasFiles() && toggleAllFiles()">
                         @if(isSearchActive()) {
                             {{filteredFiles().length}}/{{filesCount()}}
-                        } @else if(isAnyItemSelected() && hasFiles()) {
-                            {{selectedFilesCount()}}/{{filesCount()}}
                         } @else {
                             {{filesCount()}}
                         }
-                        @if(hasUploads()) {
-                            <span class="files-section__count-extra">+{{uploadsCount()}} uploading</span>
-                        }
                     </span>
+                    @if(selectedFilesCount() > 0) {
+                        <span class="files-section__selected"
+                            [matTooltip]="'Clear files selection'"
+                            (click)="$event.stopPropagation(); toggleAllFiles()">
+                            <i class="icon icon-lucide-check"></i>{{selectedFilesCount()}}
+                        </span>
+                    }
+                    @if(hasUploads()) {
+                        <span class="files-section__count-extra files-section__count--clickable"
+                            [matTooltip]="'Select all uploads'"
+                            (click)="$event.stopPropagation(); toggleAllUploads()">
+                            +{{uploadsCount()}} uploading
+                        </span>
+                        @if(selectedUploadsCount() > 0) {
+                            <span class="files-section__selected"
+                                [matTooltip]="'Clear uploads selection'"
+                                (click)="$event.stopPropagation(); toggleAllUploads()">
+                                <i class="icon icon-lucide-check"></i>{{selectedUploadsCount()}}
+                            </span>
+                        }
+                    }
+
                     <i class="files-section__chevron icon"
                         [class.icon-lucide-chevron-down]="isFilesExpandedVal"
                         [class.icon-lucide-chevron-right]="!isFilesExpandedVal"></i>
-                </button>
+                </div>
 
                 @if(isFilesExpandedVal) {
                     <div class="files-section__content">
@@ -556,7 +560,9 @@
                                     [permissions]="filePermissions()"
                                     [canOpen]="!isAnyNameEditPending()"
                                     (deleted)="onFileDeleted(file)"
-                                    (previewed)="onFilePreviewed(file)">
+                                    (previewed)="onFilePreviewed(file)"
+                                    (ctrlClicked)="onFileCtrlClicked(file)"
+                                    (shiftClicked)="onFileShiftClicked(file)">
                                 </app-file-item>
                             }
                         </div>
@@ -568,8 +574,9 @@
                                     [httpHeadersFactory]="operations"
                                     [upload]="upload"
                                     [hideActions]="hideItemsActions()"
-                                    (aborted)="onUploadAborted(upload)"
-                                    (isSelectedChange)="upload.isSelected.set($event)">
+                                    (isSelectedChange)="upload.isSelected.set($event)"
+                                    (ctrlClicked)="onUploadCtrlClicked(upload)"
+                                    (shiftClicked)="onUploadShiftClicked(upload)">
                                 </app-upload-item>
                             }
 

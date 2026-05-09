@@ -1,12 +1,14 @@
 @let fileVal = file();
 
-<div class="item-bar flex-row"    
-    appCtrlClick (ctrlClick)="toggleSelection()"
+<div class="item-bar flex-row"
+    appCtrlClick
+    (ctrlClick)="toggleSelection(); ctrlClicked.emit()"
+    (shiftClick)="shiftClicked.emit()"
     [class.item-bar--selected]="fileVal.isSelected()"
     [class.item-bar--opaque]="fileVal.isCut()"
     [class.item-bar--clickable]="canPreview()"
     [class.item-bar--locked]="fileVal.isLocked()"
-    (click)="!($event.ctrlKey || $event.metaKey) && canPreview() && showPreview()">
+    (click)="!($event.ctrlKey || $event.metaKey || $event.shiftKey) && canPreview() && showPreview()">
     <div class="item flex-grow"
         [class.item--highlighted]="isHighlighted()"
         [class.item--in-background]="areActionsVisible()">

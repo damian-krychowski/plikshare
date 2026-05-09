@@ -2,9 +2,10 @@
 @let fileUploadVal = uploadVal.fileUpload();
 @let isPaused = fileUploadVal?.isPaused() ?? true;
 
-<div class="item-bar flex-row" 
-    appCtrlClick 
-    (ctrlClick)="toggleSelection()"
+<div class="item-bar flex-row"
+    appCtrlClick
+    (ctrlClick)="toggleSelection(); ctrlClicked.emit()"
+    (shiftClick)="shiftClicked.emit()"
     [class.item-bar--selected]="uploadVal.isSelected()"
     [class.item-bar--opaque]="uploadVal.isCut()">
     <div class="item flex-grow" 

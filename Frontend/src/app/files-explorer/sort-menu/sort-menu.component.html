@@ -1,0 +1,41 @@
+<button type="button" class="sort-menu__trigger" (click)="toggle()">
+    {{label()}}
+    <i class="icon icon-lucide-chevron-down"></i>
+</button>
+
+@if(isOpen()) {
+    <div class="sort-menu__panel">
+        <button type="button" class="sort-menu__item"
+            [class.sort-menu__item--active]="isActive('custom', 'asc')"
+            (click)="select('custom', 'asc')">
+            <i class="icon" [class.icon-lucide-check]="isActive('custom', 'asc')"></i>
+            Custom
+        </button>
+        <button type="button" class="sort-menu__item"
+            [class.sort-menu__item--active]="isActive('name', 'asc')"
+            (click)="select('name', 'asc')">
+            <i class="icon" [class.icon-lucide-check]="isActive('name', 'asc')"></i>
+            Name &uarr;
+        </button>
+        <button type="button" class="sort-menu__item"
+            [class.sort-menu__item--active]="isActive('name', 'desc')"
+            (click)="select('name', 'desc')">
+            <i class="icon" [class.icon-lucide-check]="isActive('name', 'desc')"></i>
+            Name &darr;
+        </button>
+        @if(allowDateSort()) {
+            <button type="button" class="sort-menu__item"
+                [class.sort-menu__item--active]="isActive('date', 'asc')"
+                (click)="select('date', 'asc')">
+                <i class="icon" [class.icon-lucide-check]="isActive('date', 'asc')"></i>
+                Date &uarr;
+            </button>
+            <button type="button" class="sort-menu__item"
+                [class.sort-menu__item--active]="isActive('date', 'desc')"
+                (click)="select('date', 'desc')">
+                <i class="icon" [class.icon-lucide-check]="isActive('date', 'desc')"></i>
+                Date &darr;
+            </button>
+        }
+    </div>
+}

@@ -1,21 +1,29 @@
-import { Directive, EventEmitter, HostListener, output, Output } from '@angular/core';
+import { Directive, HostListener, output } from '@angular/core';
 
 @Directive({
-    selector: '[appCtrlClick]', // Use this selector to apply the directive
+    selector: '[appCtrlClick]',
     standalone: true
 })
 export class CtrlClickDirective {
 
     ctrlClick = output<MouseEvent>();
+    shiftClick = output<MouseEvent>();
 
-    constructor() { }
+    @HostListener('mousedown', ['$event'])
+    onMouseDown(event: MouseEvent): void {
+        if (event.shiftKey) {
+            event.preventDefault();
+        }
+    }
 
     @HostListener('click', ['$event'])
     onClick(event: MouseEvent): void {
-        // Check for Ctrl or Meta (Cmd) key
         if (event.ctrlKey || event.metaKey) {
-            event.preventDefault(); // Prevent default if needed
-            this.ctrlClick.emit(event); // Emit the event
+            event.preventDefault();
+            this.ctrlClick.emit(event);
+        } else if (event.shiftKey) {
+            event.preventDefault();
+            this.shiftClick.emit(event);
         }
     }
 }

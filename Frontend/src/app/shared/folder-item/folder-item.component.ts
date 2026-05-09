@@ -96,6 +96,8 @@ export class FolderItemComponent{
 
     deleted = output<void>();
     boxCreated = output<void>();
+    ctrlClicked = output<void>();
+    shiftClicked = output<void>();
 
     folderName = computed(() => this.folder().name());
     folderPath = computed(() => this.buildFolderPath(this.folder()));

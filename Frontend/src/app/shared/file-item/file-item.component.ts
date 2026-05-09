@@ -99,6 +99,8 @@ export class FileItemComponent implements OnInit, OnDestroy {
 
     deleted = output<void>();
     previewed = output<void>();
+    ctrlClicked = output<void>();
+    shiftClicked = output<void>();
 
     filePath = computed(() => {
         if(!this.showPath())

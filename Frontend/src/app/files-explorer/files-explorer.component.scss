@@ -40,21 +40,18 @@ a.drag-over {
     gap: 0.5rem;
 }
 
-.context-stack {
-    display: grid;
-    grid-template-columns: auto auto auto auto auto auto;
-    align-items: center;
-    justify-content: start;
-    column-gap: 0.5rem;
-    row-gap: 0.25rem;
-}
-
 .context-row {
-    display: contents;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
 }
 
 .context-label {
     display: inline-block;
+
+    &--gap {
+        margin-left: 1.25rem;
+    }
 }
 
 .context-item {
@@ -100,7 +97,6 @@ a.drag-over {
     }
 
     &__header {
-        all: unset;
         box-sizing: border-box;
         width: 100%;
         display: flex;
@@ -147,16 +143,91 @@ a.drag-over {
     &__count {
         color: var(--company-grey-font);
         font-variant-numeric: tabular-nums;
+        padding: 0 0.25rem;
+        border-radius: 3px;
+
+        &--clickable {
+            cursor: pointer;
+
+            &:hover {
+                background: var(--company-grey-accent);
+                color: var(--company-font);
+            }
+        }
     }
 
     &__count-extra {
-        margin-left: 0.5rem;
         font-style: italic;
         opacity: 0.75;
     }
 
+    &__selected {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.1rem;
+        padding: 0 0.35rem;
+        border-radius: 3px;
+        cursor: pointer;
+        color: var(--company-blue-selected-font, var(--company-font));
+        background: var(--company-blue-selected);
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+
+        i {
+            font-size: 0.85rem;
+        }
+
+        &:hover {
+            filter: brightness(0.95);
+        }
+    }
+
     &__content {
         padding-top: 0.25rem;
+    }
+}
+
+.view-toggle {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--company-grey-accent);
+    border-radius: 4px;
+    overflow: hidden;
+    height: 36px;
+
+    &__option {
+        all: unset;
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 0.6rem;
+        height: 100%;
+        cursor: pointer;
+        color: var(--company-grey-font);
+
+        & + & {
+            border-left: 1px solid var(--company-grey-accent);
+        }
+
+        &:hover {
+            background: var(--company-grey-accent-light);
+            color: var(--company-font);
+        }
+
+        &--active {
+            background: var(--company-blue-selected);
+            color: var(--company-font);
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--company-blue-hover);
+            outline-offset: -2px;
+        }
+
+        .icon {
+            font-size: 1rem;
+        }
     }
 }
 

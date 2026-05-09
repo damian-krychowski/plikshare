@@ -1,10 +1,11 @@
 <div class="item-bar item-bar--clickable flex-row hover-switch"
-    appCtrlClick 
-    (ctrlClick)="toggleSelection()"   
+    appCtrlClick
+    (ctrlClick)="toggleSelection(); ctrlClicked.emit()"
+    (shiftClick)="shiftClicked.emit()"
     [class.item-bar--selected]="isSelected()"
     [class.item-bar--opaque]="isCut()"
     (prefetch)="operations().prefetchFolderFunc(folderExternalId())"
-    (click)="!($event.ctrlKey || $event.metaKey) && openFolder()">
+    (click)="!($event.ctrlKey || $event.metaKey || $event.shiftKey) && openFolder()">
     
     @let canEditNamePermission = canEditName();
     
