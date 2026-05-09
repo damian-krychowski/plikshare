@@ -122,6 +122,7 @@ export interface MoveItemsToFolderRequest {
     folderExternalIds: string[];
     fileUploadExternalIds: string[];
     destinationFolderExternalId: string | null;
+    destinationPosition?: number | null;
 }
 
 export interface UpdateFileName {

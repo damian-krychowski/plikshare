@@ -285,7 +285,7 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
                 folderExternalId, 
                 request),
 
-            moveItems: (request: {fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[], destinationFolderExternalId: string | null}) => this._accessCodesApi.moveItems(
+            moveItems: (request: {fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[], destinationFolderExternalId: string | null, destinationPosition?: number | null}) => this._accessCodesApi.moveItems(
                 this._accessCodeValue,
                 request),
 

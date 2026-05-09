@@ -5,15 +5,3 @@
     display: block;
 }
 
-.drag-handle {
-    cursor: grab;
-    opacity: 0.6;
-
-    &:hover {
-        opacity: 1;
-    }
-
-    &:active {
-        cursor: grabbing;
-    }
-}

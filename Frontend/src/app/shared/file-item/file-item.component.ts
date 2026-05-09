@@ -15,7 +15,6 @@ import { NavigationExtras } from "@angular/router";
 import { ActionButtonComponent } from "../buttons/action-btn/action-btn.component";
 import { observeIsHighlighted } from "../../services/is-highlighted-utils";
 import { ContentDisposition } from "../../services/folders-and-files.api";
-import { CdkDragHandle } from "@angular/cdk/drag-drop";
 import { DragStateService } from "../../services/drag-state.service";
 
 export type AppFileItem = {
@@ -70,7 +69,6 @@ export interface FileOperations {
         CtrlClickDirective,
         FileIconPipe,
         ActionButtonComponent,
-        CdkDragHandle,
         DatePipe
     ],
     templateUrl: './file-item.component.html',
@@ -78,10 +76,10 @@ export interface FileOperations {
 })
 export class FileItemComponent implements OnInit, OnDestroy {
     toggle = toggle;
-    
+
     operations = input.required<FileOperations>();
     file = input.required<AppFileItem>();
-    
+
     canOpen = input(false);
     canSelect = input(true); //this by default is enabled
     canLocate = input(false);
@@ -110,7 +108,7 @@ export class FileItemComponent implements OnInit, OnDestroy {
     });
 
     isHighlighted = observeIsHighlighted(this.file);
-    
+
     canEditFileName = computed(() => this.file().wasUploadedByUser || this.permissions().allowRename);
     canDeleteFile = computed(() => this.file().wasUploadedByUser || this.permissions().allowDelete);
     canToggleActions = computed(() => {
@@ -122,14 +120,14 @@ export class FileItemComponent implements OnInit, OnDestroy {
 
         const permissions = this.permissions();
 
-        return permissions.allowDelete 
-            || permissions.allowRename 
+        return permissions.allowDelete
+            || permissions.allowRename
             || permissions.allowDownload;
     });
-        
+
     areActionsVisible = signal(false);
     canPreview = computed(() => AppFileItems.canPreview(this.file(), this.permissions().allowDownload, this.canOpen()));
-    
+
     isSelectCheckboxVisible = computed(() => {
         if (!this.canSelect())
             return false;
@@ -148,11 +146,11 @@ export class FileItemComponent implements OnInit, OnDestroy {
         private _inAppSharing: InAppSharing,
         public dragState: DragStateService
     ){}
-   
+
     ngOnInit(): void {
         this.operations().subscribeToLockStatus(this.file());
     }
-    
+
     ngOnDestroy(): void {
         this.operations().unsubscribeFromLockStatus(this.file().externalId);
     }
@@ -171,9 +169,9 @@ export class FileItemComponent implements OnInit, OnDestroy {
     async saveFileName(newName: string) {
         const file = this.file();
         file.name.set(newName);
-        
+
         await this.operations().saveFileNameFunc(
-            file.externalId, 
+            file.externalId,
             newName);
     }
 
@@ -206,7 +204,7 @@ export class FileItemComponent implements OnInit, OnDestroy {
         link.remove();
     }
 
-    locate() {        
+    locate() {
         const file = this.file();
 
         if(file.isLocked())
@@ -224,8 +222,8 @@ export class FileItemComponent implements OnInit, OnDestroy {
         this.operations().openFolderFunc(
             file.folderExternalId,
             navigationExtras);
-    }    
-    
+    }
+
     editName(){
         const file = this.file();
 
@@ -235,7 +233,7 @@ export class FileItemComponent implements OnInit, OnDestroy {
         file.isNameEditing.set(true);
         this.areActionsVisible.set(false);
     }
-        
+
     toggleActions() {
         this.areActionsVisible.set(!this.areActionsVisible());
     }
@@ -259,7 +257,7 @@ export class AppFileItems {
     public static canPreview(item: AppFileItem, allowDownload: boolean, canOpen: boolean = true) {
         return  canOpen && allowDownload && !item.isLocked();
     }
-    
+
     public static canEdit(item: AppFileItem, allowFileEdit: boolean, canOpen: boolean = true) {
         return  canOpen && allowFileEdit && !item.isLocked() && item.extension === '.md';
     }

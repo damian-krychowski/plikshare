@@ -11,7 +11,6 @@ import { FormsModule } from "@angular/forms";
 import { ActionButtonComponent, CountdownTime } from "../buttons/action-btn/action-btn.component";
 import { TimeService } from "../../services/time.service";
 import { observeIsHighlighted } from "../../services/is-highlighted-utils";
-import { CdkDragHandle } from "@angular/cdk/drag-drop";
 import { DragStateService } from "../../services/drag-state.service";
 
 type PermissionState = {
@@ -68,16 +67,15 @@ const TIME_TO_RENAME_FOLDER_WITHOUT_PERMISSION_MS = 5 * 60 * 1000;
         ConfirmOperationDirective,
         PrefetchDirective,
         CtrlClickDirective,
-        ActionButtonComponent,
-        CdkDragHandle
+        ActionButtonComponent
     ],
     templateUrl: './folder-item.component.html',
     styleUrl: './folder-item.component.scss'
 })
-export class FolderItemComponent{    
+export class FolderItemComponent {
     operations = input.required<FolderOperations>();
     folder = input.required<AppFolderItem>();
-    
+
     canSelect = input(true);
     canOpen = input(false);
     canLocate = input(false);
@@ -114,8 +112,8 @@ export class FolderItemComponent{
 
         const permissions = this.permissions();
 
-        return permissions.allowDelete 
-            || permissions.allowShare 
+        return permissions.allowDelete
+            || permissions.allowShare
             || permissions.allowRename;
     });
 
@@ -147,7 +145,7 @@ export class FolderItemComponent{
                 isOn: false,
                 timeLeft: null
             };
-    
+
         if(folder.createdAt == null)
             return {
                 isOn: false,
@@ -176,7 +174,7 @@ export class FolderItemComponent{
     });
 
     folderExternalId = computed(() => this.folder().externalId);
-    
+
     parentFolderExternalId = computed(() => {
         const ancestors = this.folder().ancestors;
 
@@ -192,7 +190,6 @@ export class FolderItemComponent{
         public dragState: DragStateService
     ) {}
 
-
     buildFolderPath(folder: AppFolderItem) {
         const ancestors = folder.ancestors;
 
@@ -201,9 +198,9 @@ export class FolderItemComponent{
 
     async saveFolderName(newName: string) {
         this.folder().name.set(newName);
-        
+
         await this.operations().saveFolderNameFunc(
-            this.folderExternalId(), 
+            this.folderExternalId(),
             newName);
     }
 
@@ -219,7 +216,7 @@ export class FolderItemComponent{
     }
 
     openFolder() {
-        if(!this.canOpen() || this.isNameEditing()) 
+        if(!this.canOpen() || this.isNameEditing())
             return;
 
         this.operations().openFolderFunc(
@@ -227,12 +224,11 @@ export class FolderItemComponent{
             null);
     }
 
-
     locate() {
         if(this.isNameEditing())
             return;
 
-        const temporaryKey = this._inAppSharing.set(            
+        const temporaryKey = this._inAppSharing.set(
             this.folderExternalId());
 
         const navigationExtras: NavigationExtras = {
@@ -242,7 +238,7 @@ export class FolderItemComponent{
         };
 
         this.operations().openFolderFunc(
-            this.parentFolderExternalId(), 
+            this.parentFolderExternalId(),
             navigationExtras);
     }
 
@@ -250,7 +246,7 @@ export class FolderItemComponent{
         this.folder().isNameEditing.set(true);
         this.areActionsVisible.set(false);
     }
-    
+
     toggleActions() {
         this.areActionsVisible.set(!this.areActionsVisible());
     }

@@ -420,7 +420,9 @@
         </app-bulk-upload-preview>
     }
 
-    <div [style.display]="(fileInPreviewVal || pendingBulkUploadVal || !isListViewMode) ? 'none' : 'unset'">
+    <div [style.display]="(fileInPreviewVal || pendingBulkUploadVal || !isListViewMode) ? 'none' : 'unset'"
+        (dragover)="onListDragOver($event)"
+        (drop)="onDropOnCurrentFolder($event)">
         @if(showFoldersSection()) {
             @let isFoldersExpandedVal = isFoldersExpanded();
             <section class="files-section">
@@ -456,15 +458,23 @@
 
                 @if(isFoldersExpandedVal) {
                     <div class="files-section__content">
-                        <div cdkDropList
-                            [cdkDropListDisabled]="!canReorder()"
-                            (cdkDropListDropped)="onFolderDrop($event)">
+                        <div class="folders-list" appFlipAnimation #foldersFlip="appFlipAnimation">
                             @for(folder of filteredFolders(); track folder.externalId) {
-                                <app-folder-item cdkDrag
-                                    [cdkDragDisabled]="!canReorder()"
-                                    (cdkDragStarted)="onCdkDragStarted()"
-                                    (cdkDragEnded)="onCdkDragEnded()"
-                                    (appDragOverStay)="operations.openFolderFunc(folder.externalId, null)"
+                                <app-folder-item
+                                    appDraggableItem
+                                    [draggableType]="'folder'"
+                                    [draggableExternalId]="folder.externalId"
+                                    [draggableDisabled]="folder.isNameEditing() || !canReorder()"
+                                    appDropTarget
+                                    [dropMode]="'three-zone'"
+                                    [dropSelfType]="'folder'"
+                                    [dropSelfExternalId]="folder.externalId"
+                                    [dragOverStayMs]="500"
+                                    (dragStarted)="onItemDragStarted('folder', folder.externalId)"
+                                    (dragEnded)="onItemDragEnded()"
+                                    (dragOverItem)="onFolderDragOverItem(folder, $event)"
+                                    (droppedAt)="onFolderDroppedAt(folder, $event)"
+                                    (dragOverStay)="onFolderDragOverStay(folder)"
                                     [folder]="folder"
                                     [highlightPhrase]="searchPhrase()"
                                     [canReorder]="canReorder()"
@@ -544,14 +554,21 @@
 
                 @if(isFilesExpandedVal) {
                     <div class="files-section__content">
-                        <div cdkDropList
-                            [cdkDropListDisabled]="!canReorder()"
-                            (cdkDropListDropped)="onFileDrop($event)">
+                        <div class="files-list" appFlipAnimation #filesFlip="appFlipAnimation">
                             @for(file of filteredFiles(); track file.externalId) {
-                                <app-file-item cdkDrag
-                                    [cdkDragDisabled]="!canReorder()"
-                                    (cdkDragStarted)="onCdkDragStarted()"
-                                    (cdkDragEnded)="onCdkDragEnded()"
+                                <app-file-item
+                                    appDraggableItem
+                                    [draggableType]="'file'"
+                                    [draggableExternalId]="file.externalId"
+                                    [draggableDisabled]="file.isNameEditing() || !canReorder()"
+                                    appDropTarget
+                                    [dropMode]="'two-zone'"
+                                    [dropSelfType]="'file'"
+                                    [dropSelfExternalId]="file.externalId"
+                                    (dragStarted)="onItemDragStarted('file', file.externalId)"
+                                    (dragEnded)="onItemDragEnded()"
+                                    (dragOverItem)="onFileDragOverItem(file, $event)"
+                                    (droppedAt)="onFileDroppedAt(file, $event)"
                                     [file]="file"
                                     [highlightPhrase]="searchPhrase()"
                                     [canReorder]="canReorder()"

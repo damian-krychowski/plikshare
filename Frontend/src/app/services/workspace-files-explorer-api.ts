@@ -68,7 +68,7 @@ export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
             request);
     }
 
-    moveItems(request: {fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[], destinationFolderExternalId: string | null}){
+    moveItems(request: {fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[], destinationFolderExternalId: string | null, destinationPosition?: number | null}){
         return this._setApi.moveItems(
             this._workspaceExternalId,
             request);

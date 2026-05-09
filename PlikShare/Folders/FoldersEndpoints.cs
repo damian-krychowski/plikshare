@@ -264,6 +264,7 @@ public static class FoldersEndpoints
             fileExternalIds: request.FileExternalIds,
             fileUploadExternalIds: request.FileUploadExternalIds,
             destinationFolderExternalId: request.DestinationFolderExternalId,
+            destinationPosition: request.DestinationPosition,
             boxFolderId: null,
             cancellationToken: cancellationToken);
 

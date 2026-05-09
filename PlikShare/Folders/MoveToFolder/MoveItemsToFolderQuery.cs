@@ -19,17 +19,19 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
         FileExtId[] fileExternalIds,
         FileUploadExtId[] fileUploadExternalIds,
         FolderExtId? destinationFolderExternalId,
+        int? destinationPosition,
         int? boxFolderId,
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
-                dbWriteContext: context, 
-                workspace: workspace, 
-                folderExternalIds: folderExternalIds, 
-                fileExternalIds: fileExternalIds, 
+                dbWriteContext: context,
+                workspace: workspace,
+                folderExternalIds: folderExternalIds,
+                fileExternalIds: fileExternalIds,
                 fileUploadExternalIds: fileUploadExternalIds,
-                destinationFolderExternalId: destinationFolderExternalId, 
+                destinationFolderExternalId: destinationFolderExternalId,
+                destinationPosition: destinationPosition,
                 boxFolderId: boxFolderId),
             cancellationToken: cancellationToken);
     }
@@ -42,6 +44,7 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
         FileExtId[] fileExternalIds,
         FileUploadExtId[] fileUploadExternalIds,
         FolderExtId? destinationFolderExternalId,
+        int? destinationPosition,
         int? boxFolderId)
     {
 
@@ -171,6 +174,32 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
                     allMovedFolders);
 
                 return ResultCode.FoldersMovedToOwnSubfolder;
+            }
+
+            if (destinationPosition is not null)
+            {
+                var totalItemsMoved = movedFiles.Count + folderExternalIds.Length + movedFileUploads.Count;
+                if (totalItemsMoved == 1)
+                {
+                    if (movedFiles.Count == 1)
+                    {
+                        SetMovedFilePosition(
+                            fileExternalIds[0],
+                            destinationPosition.Value,
+                            workspace,
+                            dbWriteContext,
+                            transaction);
+                    }
+                    else if (folderExternalIds.Length == 1)
+                    {
+                        SetMovedFolderPosition(
+                            folderExternalIds[0],
+                            destinationPosition.Value,
+                            workspace,
+                            dbWriteContext,
+                            transaction);
+                    }
+                }
             }
 
             transaction.Commit();
@@ -453,6 +482,54 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
             .WithParameter("$destinationFolderId", destinationFolder.Id)
             .WithJsonParameter("$destinationFolderPath", destinationFolder.Path)
             .WithParameter("$folderToMovePathLength", folderToMove.AncestorFolderIds.Length)
+            .Execute();
+    }
+
+    private static void SetMovedFilePosition(
+        FileExtId fileExternalId,
+        int position,
+        WorkspaceContext workspace,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction)
+    {
+        dbWriteContext
+            .Connection
+            .NonQueryCmd(
+                sql: """
+                     UPDATE fi_files
+                     SET fi_position = $position
+                     WHERE
+                         fi_external_id = $fileExternalId
+                         AND fi_workspace_id = $workspaceId
+                     """,
+                transaction: transaction)
+            .WithParameter("$position", position)
+            .WithParameter("$fileExternalId", fileExternalId.Value)
+            .WithParameter("$workspaceId", workspace.Id)
+            .Execute();
+    }
+
+    private static void SetMovedFolderPosition(
+        FolderExtId folderExternalId,
+        int position,
+        WorkspaceContext workspace,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction)
+    {
+        dbWriteContext
+            .Connection
+            .NonQueryCmd(
+                sql: """
+                     UPDATE fo_folders
+                     SET fo_position = $position
+                     WHERE
+                         fo_external_id = $folderExternalId
+                         AND fo_workspace_id = $workspaceId
+                     """,
+                transaction: transaction)
+            .WithParameter("$position", position)
+            .WithParameter("$folderExternalId", folderExternalId.Value)
+            .WithParameter("$workspaceId", workspace.Id)
             .Execute();
     }
 

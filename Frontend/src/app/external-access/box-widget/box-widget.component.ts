@@ -179,7 +179,7 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
                 folderExternalId, 
                 request),
 
-            moveItems: (request: {fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[], destinationFolderExternalId: string | null}) => this._boxWidgetApi.moveItems(
+            moveItems: (request: {fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[], destinationFolderExternalId: string | null, destinationPosition?: number | null}) => this._boxWidgetApi.moveItems(
                 this.url(),
                 request),
 

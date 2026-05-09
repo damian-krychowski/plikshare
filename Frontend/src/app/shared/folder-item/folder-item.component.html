@@ -14,8 +14,7 @@
         [class.item--in-background]="areActionsVisible()"  >
         
         @if(canReorder()) {
-            <i cdkDragHandle
-                class="icon icon-xl icon-lucide-menu drag-handle"
+            <i class="icon icon-xl icon-lucide-menu drag-handle"
                 matTooltip="Drag to reorder"
                 [matTooltipShowDelay]="800"
                 [matTooltipDisabled]="dragState.isDragging()"

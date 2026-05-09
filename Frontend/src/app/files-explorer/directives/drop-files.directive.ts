@@ -16,22 +16,40 @@ import {
     @HostBinding('class.drop-area--drag-over') fileOver: boolean = false;
 
     filesDropped = output<any>();
-  
-    @HostListener('dragenter', ['$event']) onDragOver(evt: any) {
+
+    private isOsFileDrag(evt: DragEvent): boolean {
+      const types = evt.dataTransfer?.types;
+      if (!types) return false;
+      for (let i = 0; i < types.length; i++) {
+        if (types[i] === 'Files') return true;
+      }
+      return false;
+    }
+
+    @HostListener('dragenter', ['$event']) onDragEnter(evt: DragEvent) {
+      if (!this.isOsFileDrag(evt)) return;
       evt.preventDefault();
       this.fileOver = true;
     }
-  
-    @HostListener('dragleave', ['$event']) public onDragLeave(evt: any) {
+
+    @HostListener('dragover', ['$event']) onDragOver(evt: DragEvent) {
+      if (!this.isOsFileDrag(evt)) return;
+      evt.preventDefault();
+      this.fileOver = true;
+    }
+
+    @HostListener('dragleave', ['$event']) public onDragLeave(evt: DragEvent) {
+      if (!this.isOsFileDrag(evt)) return;
       evt.preventDefault();
       this.fileOver = false;
     }
-  
-    @HostListener('drop', ['$event']) public ondrop(evt:any) {
-      evt.preventDefault();    
+
+    @HostListener('drop', ['$event']) public ondrop(evt: DragEvent) {
+      if (!this.isOsFileDrag(evt)) return;
+      evt.preventDefault();
       this.fileOver = false;
-      let files = evt.dataTransfer.files;
-      if (files.length > 0) {
+      const files = evt.dataTransfer?.files;
+      if (files && files.length > 0) {
         this.filesDropped.emit(files);
       }
     }

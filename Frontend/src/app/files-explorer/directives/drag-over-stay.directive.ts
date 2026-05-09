@@ -33,12 +33,24 @@ export class DragOverStayDirective implements OnDestroy {
     }
 
     @HostListener('dragover', ['$event'])
-    onDragOver(event: Event): void {                
+    onDragOver(event: Event): void {
         event.preventDefault();
         if (!this.isDraggingOver) {
             this.isDraggingOver = true;
             this.startTimer();
         }
+    }
+
+    @HostListener('drop')
+    onDrop(): void {
+        this.clearTimer();
+        this.isDraggingOver = false;
+    }
+
+    @HostListener('document:dragend')
+    onDocumentDragEnd(): void {
+        this.clearTimer();
+        this.isDraggingOver = false;
     }
 
     private startTimer(): void {

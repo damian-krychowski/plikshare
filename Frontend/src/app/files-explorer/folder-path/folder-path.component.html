@@ -3,7 +3,7 @@
 <div class="folder-path">
     @if(lastHiddenSegmentVal) {
         <a>
-            <i class="icon icon-lg icon-lucide-dots" 
+            <i class="icon icon-lg icon-lucide-dots"
                 (prefetch)="onFolderPrefetch(lastHiddenSegmentVal.externalId)"
                 (click)="onFolderClick(lastHiddenSegmentVal.externalId)"
                 (appDragOverStay)="onFolderDragOver(lastHiddenSegmentVal.externalId)"></i>
@@ -13,7 +13,7 @@
     }
 
     @for(segment of visiblePathSegments(); track segment.externalId) {
-        <div class="folder-path__item"> 
+        <div class="folder-path__item">
             <a  (prefetch)="onFolderPrefetch(segment.externalId)"
                 (click)="onFolderClick(segment.externalId)"
                 (appDragOverStay)="onFolderDragOver(segment.externalId)">

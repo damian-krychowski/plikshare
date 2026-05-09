@@ -346,7 +346,7 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
                 folderExternalId,
                 request),
 
-            moveItems: (request: {fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[], destinationFolderExternalId: string | null}) => this._externalBoxesSetApi.moveItems(
+            moveItems: (request: {fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[], destinationFolderExternalId: string | null, destinationPosition?: number | null}) => this._externalBoxesSetApi.moveItems(
                 this._boxExternalIdValue,
                 request),
 

@@ -37,7 +37,8 @@ export interface BoxMoveItemsToFolderRequest {
     fileExternalIds: string[];
     folderExternalIds: string[];
     fileUploadExternalIds: string[];
-    destinationFolderExternalId: string | null
+    destinationFolderExternalId: string | null;
+    destinationPosition?: number | null;
 }
 
 export interface BoxGetUploadListResponse {

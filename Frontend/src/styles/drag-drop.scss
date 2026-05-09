@@ -1,0 +1,22 @@
+.is-dragging-source {
+    opacity: 0.3;
+}
+
+.drop-into-target > .item-bar {
+    background-color: var(--company-blue-hover) !important;
+    outline: 2px dashed var(--company-blue-selected);
+    outline-offset: -2px;
+}
+
+.drag-handle {
+    cursor: grab;
+    opacity: 0.6;
+
+    &:hover {
+        opacity: 1;
+    }
+
+    &:active {
+        cursor: grabbing;
+    }
+}

@@ -570,6 +570,7 @@ public class BoxExternalAccessHandler(
             fileExternalIds: request.FileExternalIds,
             fileUploadExternalIds: request.FileUploadExternalIds,
             destinationFolderExternalId: destinationFolderExternalId,
+            destinationPosition: request.DestinationPosition,
             boxFolderId: boxAccess.Box.Folder.Id,
             cancellationToken: cancellationToken);
 
