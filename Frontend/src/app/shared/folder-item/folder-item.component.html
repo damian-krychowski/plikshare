@@ -1,6 +1,6 @@
 <div class="item-bar item-bar--clickable flex-row hover-switch"
     appCtrlClick
-    (ctrlClick)="toggleSelection(); ctrlClicked.emit()"
+    (ctrlClick)="toggleSelection()"
     (shiftClick)="shiftClicked.emit()"
     [class.item-bar--selected]="isSelected()"
     [class.item-bar--opaque]="isCut()"
@@ -109,8 +109,8 @@
                 
                 @if(isSelectCheckboxVisible()) {
                     <div (click)="$event.stopPropagation()">
-                        <mat-checkbox  
-                            [class.d-none-on-mobile]="!areActionsVisible()"                       
+                        <mat-checkbox
+                            [class.d-none-on-mobile]="!areActionsVisible()"
                             [ngModel]="isSelected()"
                             (change)="toggleSelection()">
                         </mat-checkbox>

@@ -12,7 +12,7 @@
                 [draggableDisabled]="folder.isNameEditing() || !canReorder()"
                 appDropTarget
                 [dropMode]="'three-zone'"
-                [dragOverStayMs]="500"
+                [dragOverStayMs]="800"
                 (dragStarted)="onFolderDragStarted(folder.externalId)"
                 (dragEnded)="onFolderDragEnded()"
                 (dragOverItem)="onFolderDragOverItem(folder, $event)"
@@ -28,7 +28,7 @@
                 [canOpen]="!isAnyNameEditPending()"
                 (deleted)="deleted.emit(folder)"
                 (boxCreated)="boxCreated.emit(folder)"
-                (ctrlClicked)="onFolderCtrlClicked(folder)"
+                (selectionToggled)="onFolderSelectionToggled(folder)"
                 (shiftClicked)="onFolderShiftClicked(folder)">
             </app-folder-item>
         }

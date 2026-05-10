@@ -1,4 +1,4 @@
-import { signal, Component, WritableSignal, input, computed, output, OnInit, OnDestroy } from "@angular/core";
+import { signal, Component, WritableSignal, input, computed, output, OnInit, OnDestroy, HostListener } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { MatCheckboxModule } from "@angular/material/checkbox";
@@ -97,7 +97,7 @@ export class FileItemComponent implements OnInit, OnDestroy {
 
     deleted = output<void>();
     previewed = output<void>();
-    ctrlClicked = output<void>();
+    selectionToggled = output<void>();
     shiftClicked = output<void>();
 
     filePath = computed(() => {
@@ -238,9 +238,25 @@ export class FileItemComponent implements OnInit, OnDestroy {
         this.areActionsVisible.set(!this.areActionsVisible());
     }
 
-    toggleSelection(){
+    private _lastMouseDownShift = false;
+
+    @HostListener('mousedown', ['$event'])
+    onHostMouseDown(event: MouseEvent) {
+        // Capture shift state at the start of any interaction. The most
+        // recent mousedown's shift wins; toggleSelection consumes it.
+        this._lastMouseDownShift = event.shiftKey;
+    }
+
+    toggleSelection() {
+        if (this._lastMouseDownShift) {
+            this._lastMouseDownShift = false;
+            this.shiftClicked.emit();
+            return;
+        }
+
         this.file().isSelected.update(value => !value);
         this.areActionsVisible.set(false);
+        this.selectionToggled.emit();
     }
 
     showPreview() {

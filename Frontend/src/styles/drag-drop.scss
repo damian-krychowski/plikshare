@@ -8,6 +8,27 @@
     outline-offset: -2px;
 }
 
+.drop-stay-pending > .item-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 2px;
+    width: 0;
+    background-color: var(--company-grey-font);
+    border-radius: 0 1px 1px 0;
+    // 150ms delay then 650ms fill — matches dragOverStayMs of 800.
+    // The delay swallows quick fly-bys without flashing the bar.
+    animation: drop-stay-progress 650ms cubic-bezier(0.4, 0, 0.2, 1) 150ms forwards;
+    pointer-events: none;
+    z-index: 10;
+}
+
+@keyframes drop-stay-progress {
+    from { width: 0; }
+    to   { width: 100%; }
+}
+
 .drag-handle {
     cursor: grab;
     opacity: 0.6;

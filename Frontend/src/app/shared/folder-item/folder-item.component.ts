@@ -1,4 +1,4 @@
-import { Component, Signal, WritableSignal, computed, input, output, signal } from "@angular/core";
+import { Component, HostListener, Signal, WritableSignal, computed, input, output, signal } from "@angular/core";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { ConfirmOperationDirective } from "../operation-confirm/confirm-operation.directive";
 import { EditableTxtComponent } from "../editable-txt/editable-txt.component";
@@ -94,7 +94,7 @@ export class FolderItemComponent {
 
     deleted = output<void>();
     boxCreated = output<void>();
-    ctrlClicked = output<void>();
+    selectionToggled = output<void>();
     shiftClicked = output<void>();
 
     folderName = computed(() => this.folder().name());
@@ -251,8 +251,24 @@ export class FolderItemComponent {
         this.areActionsVisible.set(!this.areActionsVisible());
     }
 
+    private _lastMouseDownShift = false;
+
+    @HostListener('mousedown', ['$event'])
+    onHostMouseDown(event: MouseEvent) {
+        // Capture shift state at the start of any interaction. The most
+        // recent mousedown's shift wins; toggleSelection consumes it.
+        this._lastMouseDownShift = event.shiftKey;
+    }
+
     toggleSelection() {
+        if (this._lastMouseDownShift) {
+            this._lastMouseDownShift = false;
+            this.shiftClicked.emit();
+            return;
+        }
+
         this.folder().isSelected.update(value => !value);
         this.areActionsVisible.set(false);
+        this.selectionToggled.emit();
     }
 }

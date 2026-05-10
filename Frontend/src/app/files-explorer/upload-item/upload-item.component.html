@@ -4,7 +4,7 @@
 
 <div class="item-bar flex-row"
     appCtrlClick
-    (ctrlClick)="toggleSelection(); ctrlClicked.emit()"
+    (ctrlClick)="toggleSelection()"
     (shiftClick)="shiftClicked.emit()"
     [class.item-bar--selected]="uploadVal.isSelected()"
     [class.item-bar--opaque]="uploadVal.isCut()">
@@ -82,7 +82,7 @@
             </app-action-btn>
     
             <div (click)="$event.stopPropagation()">
-                <mat-checkbox 
+                <mat-checkbox
                     [class.d-none-on-mobile]="!areActionsVisible()"
                     [ngModel]="uploadVal.isSelected()"
                     (change)="toggleSelection()">

@@ -134,9 +134,11 @@ export class FilesListComponent implements OnDestroy {
                 const phantomIdx = localFiles
                     .findIndex(f => f.externalId === draggedItem.file.externalId);
 
-                if (phantomIdx === -1) {
-                    localFiles.unshift(draggedItem.file);
+                if (phantomIdx !== -1) {
+                    localFiles.splice(phantomIdx, 1);
                 }
+                
+                localFiles.unshift(draggedItem.file);
             }
 
             this.localFiles.set(localFiles);
@@ -200,31 +202,34 @@ export class FilesListComponent implements OnDestroy {
         return result;
     }
 
-    onFileCtrlClicked(file: AppFileItem) {
-        this.selectionAnchorExternalId = file.externalId;
-    }
-
-    onFileShiftClicked(file: AppFileItem) {
-        if (!this.selectionAnchorExternalId) {
-            file.isSelected.update(v => !v);
+    onFileSelectionToggled(file: AppFileItem) {
+        if (file.isSelected()) {
             this.selectionAnchorExternalId = file.externalId;
             return;
         }
 
+        const firstSelected = this.localFiles().find(f => f.isSelected());
+        this.selectionAnchorExternalId = firstSelected?.externalId ?? null;
+    }
+
+    onFileShiftClicked(file: AppFileItem) {
+        const anchorId = this.selectionAnchorExternalId;
+
+        if (!anchorId) {
+            file.isSelected.update(v => !v);
+            this.onFileSelectionToggled(file);
+            return;
+        }
+
         const files = this.localFiles();
-
-        const anchorIdx = files.findIndex(
-            i => i.externalId === this.selectionAnchorExternalId);
-
-        const targetIdx = files.findIndex(
-            i => i.externalId === file.externalId);
+        const anchorIdx = files.findIndex(i => i.externalId === anchorId);
+        const targetIdx = files.findIndex(i => i.externalId === file.externalId);
 
         if (anchorIdx === -1 || targetIdx === -1)
             return;
 
-        const [from, to] = anchorIdx <= targetIdx
-            ? [anchorIdx, targetIdx]
-            : [targetIdx, anchorIdx];
+        const from = Math.min(anchorIdx, targetIdx);
+        const to = Math.max(anchorIdx, targetIdx);
 
         files.forEach((item, idx) => {
             const inRange = idx >= from && idx <= to;

@@ -82,9 +82,11 @@ export class FoldersListComponent {
                 const phantomIdx = localFolders
                     .findIndex(f => f.externalId === draggedItem.folder.externalId);
 
-                if(phantomIdx === -1) {
-                    localFolders.unshift(draggedItem.folder);
+                if (phantomIdx !== -1) {
+                    localFolders.splice(phantomIdx, 1);
                 }
+                
+                localFolders.unshift(draggedItem.folder);
             }
 
             this.localFolders.set(localFolders);
@@ -148,31 +150,34 @@ export class FoldersListComponent {
         return result;
     }
 
-    onFolderCtrlClicked(folder: AppFolderItem) {
-        this.selectionAnchorExternalId = folder.externalId;
-    }
-
-    onFolderShiftClicked(folder: AppFolderItem) {
-        if (!this.selectionAnchorExternalId) {
-            folder.isSelected.update(v => !v);
+    onFolderSelectionToggled(folder: AppFolderItem) {
+        if (folder.isSelected()) {
             this.selectionAnchorExternalId = folder.externalId;
             return;
         }
 
+        const firstSelected = this.localFolders().find(f => f.isSelected());
+        this.selectionAnchorExternalId = firstSelected?.externalId ?? null;
+    }
+
+    onFolderShiftClicked(folder: AppFolderItem) {
+        const anchorId = this.selectionAnchorExternalId;
+
+        if (!anchorId) {
+            folder.isSelected.update(v => !v);
+            this.onFolderSelectionToggled(folder);
+            return;
+        }
+
         const folders = this.localFolders();
-
-        const anchorIdx = folders.findIndex(
-            i => i.externalId === this.selectionAnchorExternalId);
-
-        const targetIdx = folders.findIndex(
-            i => i.externalId === folder.externalId);
+        const anchorIdx = folders.findIndex(i => i.externalId === anchorId);
+        const targetIdx = folders.findIndex(i => i.externalId === folder.externalId);
 
         if (anchorIdx === -1 || targetIdx === -1)
             return;
 
-        const [from, to] = anchorIdx <= targetIdx
-            ? [anchorIdx, targetIdx]
-            : [targetIdx, anchorIdx];
+        const from = Math.min(anchorIdx, targetIdx);
+        const to = Math.max(anchorIdx, targetIdx);
 
         folders.forEach((item, idx) => {
             const inRange = idx >= from && idx <= to;

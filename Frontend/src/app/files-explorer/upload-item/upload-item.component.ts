@@ -1,4 +1,4 @@
-import { Component, computed, input, output, Signal, signal, WritableSignal } from '@angular/core';
+import { Component, HostListener, computed, input, output, Signal, signal, WritableSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { FileIconPipe } from '../file-icon-pipe/file-icon.pipe';
@@ -57,7 +57,7 @@ export class UploadItemComponent {
 
     aborted = output<void>();
     isSelectedChange = output<boolean>();
-    ctrlClicked = output<void>();
+    selectionToggled = output<void>();
     shiftClicked = output<void>();
 
     fileNameWithExtension = computed(() => {
@@ -178,10 +178,26 @@ export class UploadItemComponent {
         this.areActionsVisible.set(!this.areActionsVisible());
     }
 
+    private _lastMouseDownShift = false;
+
+    @HostListener('mousedown', ['$event'])
+    onHostMouseDown(event: MouseEvent) {
+        // Capture shift state at the start of any interaction. The most
+        // recent mousedown's shift wins; toggleSelection consumes it.
+        this._lastMouseDownShift = event.shiftKey;
+    }
+
     toggleSelection() {
+        if (this._lastMouseDownShift) {
+            this._lastMouseDownShift = false;
+            this.shiftClicked.emit();
+            return;
+        }
+
         const upload = this.upload();
         const isSelected = toggle(upload.isSelected);
         this.isSelectedChange.emit(isSelected);
         this.areActionsVisible.set(false);
+        this.selectionToggled.emit();
     }
 }

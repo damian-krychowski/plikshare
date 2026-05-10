@@ -1,5 +1,5 @@
 import { Directive, ElementRef, HostBinding, HostListener, inject, input, output, signal } from '@angular/core';
-import { DragStateService } from '../../services/drag-state.service';
+import { DragStateService, getDraggedExternalId } from '../../services/drag-state.service';
 import { DraggableItemDirective } from './draggable-item.directive';
 
 export type DropZonePosition = 'before' | 'into' | 'after';
@@ -26,10 +26,15 @@ export class DropTargetDirective {
     dragOverStay = output<void>();
 
     private _dropIntoActive = signal(false);
+    private _stayPending = signal(false);
     private _stayTimer: any = null;
 
     @HostBinding('class.drop-into-target') get hostDropIntoTarget(): boolean {
         return this._dropIntoActive();
+    }
+
+    @HostBinding('class.drop-stay-pending') get hostDropStayPending(): boolean {
+        return this._stayPending();
     }
 
     @HostListener('dragover', ['$event']) onDragOver(event: DragEvent) {
@@ -45,12 +50,16 @@ export class DropTargetDirective {
         const y = event.clientY - rect.top;
         const h = rect.height;
         const position = this.computePosition(y, h);
-        this._dropIntoActive.set(position === 'into');
+        const overSelf = this.isOverSelf();
+
+        this._dropIntoActive.set(position === 'into' && !overSelf);
 
         const stayMs = this.dragOverStayMs();
         if (stayMs != null) {
-            const inMiddle = y >= h * THREE_MIN_FACTOR && y <= h * THREE_MAX_FACTOR;
-            if (inMiddle) this.startStayTimer(stayMs);
+            // Trigger drill-in countdown whenever we're in an 'into' zone —
+            // this covers both same-type drag (middle 20%) and foreign drag (full item).
+            // Suppressed when hovering over the dragged item itself.
+            if (position === 'into' && !overSelf) this.startStayTimer(stayMs);
             else this.clearStayTimer();
         }
 
@@ -83,18 +92,49 @@ export class DropTargetDirective {
     }
 
     private computePosition(y: number, h: number): DropZonePosition {
-        if (this.mode() === 'two-zone') {
+        const mode = this.mode();
+
+        // Foreign drag onto a three-zone target — the host can only accept it
+        // as 'into' (no reorder semantics for cross-type drops). Whole item
+        // becomes the drop zone, with full highlight via drop-into-target.
+        if (mode === 'three-zone' && this.isForeignDrag()) {
+            return 'into';
+        }
+
+        if (mode === 'two-zone') {
             return y < h / 2 ? 'before' : 'after';
         }
+
         if (y < h * THREE_MIN_FACTOR) return 'before';
         if (y > h * THREE_MAX_FACTOR) return 'after';
         return 'into';
     }
 
+    private isForeignDrag(): boolean {
+        const dragged = this.dragState.draggedItem();
+
+        if (dragged == null || this.dragSource == null)
+            return false;
+
+        return dragged.type !== this.dragSource.type();
+    }
+
+    private isOverSelf(): boolean {
+        const dragged = this.dragState.draggedItem();
+
+        if (dragged == null || this.dragSource == null)
+            return false;
+
+        return dragged.type === this.dragSource.type()
+            && getDraggedExternalId(dragged) === this.dragSource.externalId();
+    }
+
     private startStayTimer(ms: number) {
         if (this._stayTimer != null) return;
+        this._stayPending.set(true);
         this._stayTimer = setTimeout(() => {
             this._stayTimer = null;
+            this._stayPending.set(false);
             this.dragOverStay.emit();
         }, ms);
     }
@@ -104,5 +144,6 @@ export class DropTargetDirective {
             clearTimeout(this._stayTimer);
             this._stayTimer = null;
         }
+        this._stayPending.set(false);
     }
 }

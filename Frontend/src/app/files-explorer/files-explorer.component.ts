@@ -302,14 +302,34 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
     private uploadSelectionAnchorExternalId: string | null = null;
 
-    onUploadCtrlClicked(upload: AppUploadItem) {
-        this.uploadSelectionAnchorExternalId = upload.externalId;
+    onUploadSelectionToggled(upload: AppUploadItem) {
+        if (upload.isSelected()) {
+            const current = this.uploadSelectionAnchorExternalId;
+
+            if (current == null) {
+                this.uploadSelectionAnchorExternalId = upload.externalId;
+                return;
+            }
+
+            const currentAnchor = this.uploads().find(u => u.externalId === current);
+
+            if (currentAnchor == null || !currentAnchor.isSelected()) {
+                this.uploadSelectionAnchorExternalId = upload.externalId;
+            }
+            return;
+        }
+
+        if (this.uploadSelectionAnchorExternalId !== upload.externalId)
+            return;
+
+        const firstSelected = this.uploads().find(u => u.isSelected());
+        this.uploadSelectionAnchorExternalId = firstSelected?.externalId ?? null;
     }
 
     onUploadShiftClicked(upload: AppUploadItem) {
         if (!this.uploadSelectionAnchorExternalId) {
             upload.isSelected.update(v => !v);
-            this.uploadSelectionAnchorExternalId = upload.externalId;
+            this.onUploadSelectionToggled(upload);
             return;
         }
         this.applyRangeSelection(this.uploads(), this.uploadSelectionAnchorExternalId, upload.externalId);

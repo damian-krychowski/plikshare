@@ -24,7 +24,7 @@
                 [canOpen]="!isAnyNameEditPending()"
                 (deleted)="deleted.emit(file)"
                 (previewed)="previewed.emit(file)"
-                (ctrlClicked)="onFileCtrlClicked(file)"
+                (selectionToggled)="onFileSelectionToggled(file)"
                 (shiftClicked)="onFileShiftClicked(file)">
             </app-file-item>
         }

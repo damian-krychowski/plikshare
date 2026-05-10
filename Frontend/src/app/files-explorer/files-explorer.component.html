@@ -560,7 +560,7 @@
                                     [upload]="upload"
                                     [hideActions]="hideItemsActions()"
                                     (isSelectedChange)="upload.isSelected.set($event)"
-                                    (ctrlClicked)="onUploadCtrlClicked(upload)"
+                                    (selectionToggled)="onUploadSelectionToggled(upload)"
                                     (shiftClicked)="onUploadShiftClicked(upload)">
                                 </app-upload-item>
                             }
