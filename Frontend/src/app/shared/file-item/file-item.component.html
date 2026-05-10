@@ -18,7 +18,7 @@
                 matTooltip="Drag to reorder"
                 [matTooltipShowDelay]="800"
                 [matTooltipDisabled]="dragState.isDragging()"
-                (click)="$event.stopPropagation()"></i>
+                (click)="!($event.ctrlKey || $event.metaKey || $event.shiftKey) && $event.stopPropagation()"></i>
         }
         
         <i class="icon icon-xl icon-{{ fileVal.extension| fileIcon }}"></i>

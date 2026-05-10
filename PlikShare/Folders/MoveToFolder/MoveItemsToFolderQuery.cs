@@ -4,6 +4,8 @@ using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
+using PlikShare.Folders.UpdatePositions;
+using PlikShare.Folders.UpdatePositions.Contracts;
 using PlikShare.Uploads.Id;
 using PlikShare.Workspaces.Cache;
 using Serilog;
@@ -176,29 +178,52 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
                 return ResultCode.FoldersMovedToOwnSubfolder;
             }
 
-            if (destinationPosition is not null)
+            if (destinationPosition is not null && (folderExternalIds.Length > 0 || fileExternalIds.Length > 0))
             {
-                var totalItemsMoved = movedFiles.Count + folderExternalIds.Length + movedFileUploads.Count;
-                if (totalItemsMoved == 1)
+                var basePosition = (long)destinationPosition.Value;
+
+                var folderPositionUpdates = folderExternalIds
+                    .Select((id, i) => new UpdatePositionItemDto
+                    {
+                        ExternalId = id.Value,
+                        Position = basePosition + i
+                    })
+                    .ToList();
+
+                var filePositionUpdates = fileExternalIds
+                    .Select((id, i) => new UpdatePositionItemDto
+                    {
+                        ExternalId = id.Value,
+                        Position = basePosition + i
+                    })
+                    .ToList();
+
+                var positionsResult = ApplyItemPositionsOperation.Execute(
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction,
+                    workspaceId: workspace.Id,
+                    parentFolderId: destinationFolder.Id,
+                    folders: folderPositionUpdates,
+                    files: filePositionUpdates);
+
+                if (positionsResult != ApplyItemPositionsOperation.ResultCode.Ok)
                 {
-                    if (movedFiles.Count == 1)
+                    transaction.Rollback();
+
+                    Log.Warning(
+                        "Could not apply positions after moving items to destination folder '{DestinationFolderExternalId}'. " +
+                        "Result: '{PositionsResult}'",
+                        destinationFolderExternalId,
+                        positionsResult);
+
+                    return positionsResult switch
                     {
-                        SetMovedFilePosition(
-                            fileExternalIds[0],
-                            destinationPosition.Value,
-                            workspace,
-                            dbWriteContext,
-                            transaction);
-                    }
-                    else if (folderExternalIds.Length == 1)
-                    {
-                        SetMovedFolderPosition(
-                            folderExternalIds[0],
-                            destinationPosition.Value,
-                            workspace,
-                            dbWriteContext,
-                            transaction);
-                    }
+                        ApplyItemPositionsOperation.ResultCode.SomeFoldersNotFound => ResultCode.FoldersNotFound,
+                        ApplyItemPositionsOperation.ResultCode.SomeFilesNotFound => ResultCode.FilesNotFound,
+                        _ => throw new UnexpectedOperationResultException(
+                            operationName: nameof(ApplyItemPositionsOperation),
+                            resultValueStr: positionsResult.ToString())
+                    };
                 }
             }
 
@@ -482,54 +507,6 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
             .WithParameter("$destinationFolderId", destinationFolder.Id)
             .WithJsonParameter("$destinationFolderPath", destinationFolder.Path)
             .WithParameter("$folderToMovePathLength", folderToMove.AncestorFolderIds.Length)
-            .Execute();
-    }
-
-    private static void SetMovedFilePosition(
-        FileExtId fileExternalId,
-        int position,
-        WorkspaceContext workspace,
-        SqliteWriteContext dbWriteContext,
-        SqliteTransaction transaction)
-    {
-        dbWriteContext
-            .Connection
-            .NonQueryCmd(
-                sql: """
-                     UPDATE fi_files
-                     SET fi_position = $position
-                     WHERE
-                         fi_external_id = $fileExternalId
-                         AND fi_workspace_id = $workspaceId
-                     """,
-                transaction: transaction)
-            .WithParameter("$position", position)
-            .WithParameter("$fileExternalId", fileExternalId.Value)
-            .WithParameter("$workspaceId", workspace.Id)
-            .Execute();
-    }
-
-    private static void SetMovedFolderPosition(
-        FolderExtId folderExternalId,
-        int position,
-        WorkspaceContext workspace,
-        SqliteWriteContext dbWriteContext,
-        SqliteTransaction transaction)
-    {
-        dbWriteContext
-            .Connection
-            .NonQueryCmd(
-                sql: """
-                     UPDATE fo_folders
-                     SET fo_position = $position
-                     WHERE
-                         fo_external_id = $folderExternalId
-                         AND fo_workspace_id = $workspaceId
-                     """,
-                transaction: transaction)
-            .WithParameter("$position", position)
-            .WithParameter("$folderExternalId", folderExternalId.Value)
-            .WithParameter("$workspaceId", workspace.Id)
             .Execute();
     }
 

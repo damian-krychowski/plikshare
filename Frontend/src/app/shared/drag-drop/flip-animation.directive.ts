@@ -1,5 +1,5 @@
 import { Directive, ElementRef, inject } from '@angular/core';
-import { DragStateService } from '../../services/drag-state.service';
+import { DragStateService, getDraggedExternalId } from '../../services/drag-state.service';
 
 @Directive({
     selector: '[appFlipAnimation]',
@@ -37,7 +37,8 @@ export class FlipAnimationDirective {
 
     private play(): void {
         const container = this.host.nativeElement;
-        const draggedKey = this.dragState.draggedItem()?.externalId ?? null;
+        const dragged = this.dragState.draggedItem();
+        const draggedKey = dragged ? getDraggedExternalId(dragged) : null;
 
         for (const child of Array.from(container.children) as HTMLElement[]) {
             const key = child.getAttribute(FlipAnimationDirective.FLIP_KEY_ATTR);

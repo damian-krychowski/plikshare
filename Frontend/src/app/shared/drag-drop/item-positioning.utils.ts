@@ -5,8 +5,9 @@ export function computePositionForInsertion<T>(
     insertionIndex: number,
     getPosition: (item: T) => number
 ): number {
-    const before = insertionIndex > 0 ? getPosition(sorted[insertionIndex - 1]) : null;
-    const after = insertionIndex < sorted.length ? getPosition(sorted[insertionIndex]) : null;
+    const idx = Math.max(0, Math.min(insertionIndex, sorted.length));
+    const before = idx > 0 ? getPosition(sorted[idx - 1]) : null;
+    const after = idx < sorted.length ? getPosition(sorted[idx]) : null;
 
     if (before !== null && after !== null) {
         const midpoint = Math.floor((before + after) / 2);

@@ -438,7 +438,7 @@
                         [matTooltip]="hasFolders() ? 'Select all folders' : ''"
                         (click)="$event.stopPropagation(); hasFolders() && toggleAllFolders()">
                         @if(isSearchActive()) {
-                            {{filteredFolders().length}}/{{foldersCount()}}
+                            {{filteredFoldersCount()}}/{{foldersCount()}}
                         } @else {
                             {{foldersCount()}}
                         }
@@ -458,41 +458,25 @@
 
                 @if(isFoldersExpandedVal) {
                     <div class="files-section__content">
-                        <div class="folders-list" appFlipAnimation #foldersFlip="appFlipAnimation">
-                            @for(folder of filteredFolders(); track folder.externalId) {
-                                <app-folder-item
-                                    appDraggableItem
-                                    [draggableType]="'folder'"
-                                    [draggableExternalId]="folder.externalId"
-                                    [draggableDisabled]="folder.isNameEditing() || !canReorder()"
-                                    appDropTarget
-                                    [dropMode]="'three-zone'"
-                                    [dropSelfType]="'folder'"
-                                    [dropSelfExternalId]="folder.externalId"
-                                    [dragOverStayMs]="500"
-                                    (dragStarted)="onItemDragStarted('folder', folder.externalId)"
-                                    (dragEnded)="onItemDragEnded()"
-                                    (dragOverItem)="onFolderDragOverItem(folder, $event)"
-                                    (droppedAt)="onFolderDroppedAt(folder, $event)"
-                                    (dragOverStay)="onFolderDragOverStay(folder)"
-                                    [folder]="folder"
-                                    [highlightPhrase]="searchPhrase()"
-                                    [canReorder]="canReorder()"
-                                    [operations]="operations"
-                                    [showPath]="false"
-                                    [hideActions]="hideItemsActions()"
-                                    [permissions]="folderPermissions()"
-                                    [canOpen]="!isAnyNameEditPending()"
-                                    (deleted)="onFolderDeleted(folder)"
-                                    (boxCreated)="createBoxFromFolder(folder)"
-                                    (ctrlClicked)="onFolderCtrlClicked(folder)"
-                                    (shiftClicked)="onFolderShiftClicked(folder)">
-                                </app-folder-item>
-                            }
-                        </div>
+                        <app-folders-list
+                            [folders]="folders()"
+                            [sortMode]="sortMode()"
+                            [sortDirection]="sortDirection()"
+                            [searchPhrase]="searchPhrase()"
+                            [currentFolderExternalId]="selectedFolder()?.externalId ?? null"
+                            [canReorder]="canReorder()"
+                            [operations]="operations"
+                            [hideActions]="hideItemsActions()"
+                            [permissions]="folderPermissions()"
+                            [isAnyNameEditPending]="isAnyNameEditPending()"
+                            [filesApi]="filesApi()"
+                            (deleted)="onFolderDeleted($event)"
+                            (boxCreated)="createBoxFromFolder($event)">
+                        </app-folders-list>
 
                         @if(allowCreateFolder()){
                             <div class="mt-2"></div>
+
                             <app-item-btn
                                 title="Add new folder"
                                 subtitle="Click here to create an empty folder!"
@@ -555,7 +539,7 @@
                 @if(isFilesExpandedVal) {
                     <div class="files-section__content">
                         <div class="files-list" appFlipAnimation #filesFlip="appFlipAnimation">
-                            @for(file of filteredFiles(); track file.externalId) {
+                            @for(file of displayedFiles(); track file.externalId) {
                                 <app-file-item
                                     appDraggableItem
                                     [draggableType]="'file'"
@@ -565,7 +549,7 @@
                                     [dropMode]="'two-zone'"
                                     [dropSelfType]="'file'"
                                     [dropSelfExternalId]="file.externalId"
-                                    (dragStarted)="onItemDragStarted('file', file.externalId)"
+                                    (dragStarted)="onItemDragStarted(file.externalId)"
                                     (dragEnded)="onItemDragEnded()"
                                     (dragOverItem)="onFileDragOverItem(file, $event)"
                                     (droppedAt)="onFileDroppedAt(file, $event)"
@@ -647,7 +631,7 @@
         @if(hasNoListSearchMatches()) {
             <div class="nothing-to-show">
                 <div class="nothing-to-show__label">
-                    No items match your search
+                    No files match your search
                 </div>
             </div>
 

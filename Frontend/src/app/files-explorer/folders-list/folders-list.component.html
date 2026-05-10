@@ -1,0 +1,51 @@
+@let filteredOut = filteredOutFolders();
+
+<div class="folders-list"
+    appFlipAnimation #foldersFlip="appFlipAnimation">
+
+    @for(folder of localFolders(); track folder.externalId) {
+        @if(!isSearchActive() || !filteredOut.includes(folder.externalId)) {
+            <app-folder-item
+                appDraggableItem
+                [draggableType]="'folder'"
+                [draggableExternalId]="folder.externalId"
+                [draggableDisabled]="folder.isNameEditing() || !canReorder()"
+                appDropTarget
+                [dropMode]="'three-zone'"
+                [dropSelfType]="'folder'"
+                [dropSelfExternalId]="folder.externalId"
+                [dropAllowSelf]="true"
+                [dragOverStayMs]="500"
+                (dragStarted)="onFolderDragStarted(folder.externalId)"
+                (dragEnded)="onFolderDragEnded()"
+                (dragOverItem)="onFolderDragOverItem(folder, $event)"
+                (droppedAt)="onFolderDroppedAt(folder, $event)"
+                (dragOverStay)="onFolderDragOverStay(folder)"
+                [folder]="folder"
+                [highlightPhrase]="searchPhrase()"
+                [canReorder]="canReorder()"
+                [operations]="operations()"
+                [showPath]="false"
+                [hideActions]="hideActions()"
+                [permissions]="permissions()"
+                [canOpen]="!isAnyNameEditPending()"
+                (deleted)="deleted.emit(folder)"
+                (boxCreated)="boxCreated.emit(folder)"
+                (ctrlClicked)="onFolderCtrlClicked(folder)"
+                (shiftClicked)="onFolderShiftClicked(folder)">
+            </app-folder-item>
+        }
+    }
+</div>
+
+@if(hasNoListSearchMatches()) {
+    <div class="mt-1"></div>
+
+    <div class="nothing-to-show">
+        <div class="nothing-to-show__label">
+            No folders match your search
+        </div>
+    </div>
+
+    <div class="mt-2"></div>
+}

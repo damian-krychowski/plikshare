@@ -1,8 +1,5 @@
 import {
     Directive,
-    Output,
-    Input,
-    EventEmitter,
     HostBinding,
     HostListener,
     output

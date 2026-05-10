@@ -4,17 +4,22 @@ import { SortDirection, SortMode } from './folders-and-files.api';
 
 export function sortFolders(folders: AppFolderItem[], mode: SortMode, direction: SortDirection): AppFolderItem[] {
     const sorted = [...folders];
+    
+    sortFoldersInPlace(sorted, mode, direction);
+
+    return sorted;
+}
+
+export function sortFoldersInPlace(folders: AppFolderItem[], mode: SortMode, direction: SortDirection): void {
     const sign = direction === 'asc' ? 1 : -1;
 
     if (mode === 'name') {
-        sorted.sort((a, b) => sign * a.name().localeCompare(b.name(), undefined, { sensitivity: 'base' }));
+        folders.sort((a, b) => sign * a.name().localeCompare(b.name(), undefined, { sensitivity: 'base' }));
     } else if (mode === 'date') {
-        sorted.sort((a, b) => sign * ((a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0)));
+        folders.sort((a, b) => sign * ((a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0)));
     } else {
-        sorted.sort((a, b) => a.position() - b.position());
+        folders.sort((a, b) => a.position() - b.position());
     }
-
-    return sorted;
 }
 
 export function sortFiles(files: AppFileItem[], mode: SortMode, direction: SortDirection): AppFileItem[] {

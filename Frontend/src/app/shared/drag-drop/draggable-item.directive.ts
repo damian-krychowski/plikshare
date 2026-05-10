@@ -1,5 +1,5 @@
 import { DestroyRef, Directive, ElementRef, HostBinding, HostListener, inject, input, output } from '@angular/core';
-import { DragStateService } from '../../services/drag-state.service';
+import { DragStateService, getDraggedExternalId } from '../../services/drag-state.service';
 
 export type DraggableItemType = 'folder' | 'file';
 
@@ -23,6 +23,7 @@ export class DraggableItemDirective {
 
     private _suppressClickAfterDrop = false;
     private _mouseDownOnHandle = false;
+    private _draggableEnabled = false;
 
     constructor() {
         const handler = (event: MouseEvent) => {
@@ -37,7 +38,7 @@ export class DraggableItemDirective {
     }
 
     @HostBinding('attr.draggable') get hostDraggable(): string | null {
-        return this.disabled() ? null : 'true';
+        return this._draggableEnabled && !this.disabled() ? 'true' : null;
     }
 
     @HostBinding('attr.data-flip-key') get hostDataFlipKey(): string {
@@ -48,7 +49,16 @@ export class DraggableItemDirective {
         const d = this.dragState.draggedItem();
         return d != null
             && d.type === this.type()
-            && d.externalId === this.externalId();
+            && getDraggedExternalId(d) === this.externalId();
+    }
+
+    @HostListener('mouseover', ['$event']) onMouseOver(event: MouseEvent) {
+        const target = event.target as HTMLElement | null;
+        this._draggableEnabled = !!target?.closest('.drag-handle');
+    }
+
+    @HostListener('mouseleave') onMouseLeave() {
+        this._draggableEnabled = false;
     }
 
     @HostListener('mousedown', ['$event']) onMouseDown(event: MouseEvent) {

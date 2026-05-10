@@ -1,9 +1,12 @@
 import { Directive, ElementRef, HostBinding, HostListener, inject, input, output, signal } from '@angular/core';
-import { DragStateService } from '../../services/drag-state.service';
+import { DragStateService, getDraggedExternalId } from '../../services/drag-state.service';
 import { DraggableItemDirective, DraggableItemType } from './draggable-item.directive';
 
 export type DropZonePosition = 'before' | 'into' | 'after';
 export type DropTargetMode = 'three-zone' | 'two-zone';
+
+const THREE_MIN_FACTOR = 0.40;
+const THREE_MAX_FACTOR = 0.60;
 
 @Directive({
     selector: '[appDropTarget]',
@@ -18,6 +21,7 @@ export class DropTargetDirective {
     mode = input<DropTargetMode>('three-zone', { alias: 'dropMode' });
     selfType = input<DraggableItemType | null>(null, { alias: 'dropSelfType' });
     selfExternalId = input<string | null>(null, { alias: 'dropSelfExternalId' });
+    allowSelf = input<boolean>(false, { alias: 'dropAllowSelf' });
     dragOverStayMs = input<number | null>(null);
 
     dragOverItem = output<{ position: DropZonePosition }>();
@@ -33,8 +37,11 @@ export class DropTargetDirective {
 
     @HostListener('dragover', ['$event']) onDragOver(event: DragEvent) {
         const dragged = this.dragState.draggedItem();
-        if (!dragged) return;
-        if (dragged.type === this.selfType() && dragged.externalId === this.selfExternalId()) return;
+        if (!dragged) 
+            return;
+
+        if (!this.allowSelf() && dragged.type === this.selfType() && getDraggedExternalId(dragged) === this.selfExternalId())
+            return;
 
         event.preventDefault();
         event.stopPropagation();
@@ -48,7 +55,7 @@ export class DropTargetDirective {
 
         const stayMs = this.dragOverStayMs();
         if (stayMs != null) {
-            const inMiddle = y >= h * 0.25 && y <= h * 0.75;
+            const inMiddle = y >= h * THREE_MIN_FACTOR && y <= h * THREE_MAX_FACTOR;
             if (inMiddle) this.startStayTimer(stayMs);
             else this.clearStayTimer();
         }
@@ -85,8 +92,8 @@ export class DropTargetDirective {
         if (this.mode() === 'two-zone') {
             return y < h / 2 ? 'before' : 'after';
         }
-        if (y < h * 0.25) return 'before';
-        if (y > h * 0.75) return 'after';
+        if (y < h * THREE_MIN_FACTOR) return 'before';
+        if (y > h * THREE_MAX_FACTOR) return 'after';
         return 'into';
     }
 

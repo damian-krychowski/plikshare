@@ -8,4 +8,5 @@ public record MoveBoxItemsToFolderRequestDto(
     FileExtId[] FileExternalIds,
     FolderExtId[] FolderExternalIds,
     FileUploadExtId[] FileUploadExternalIds,
-    FolderExtId? DestinationFolderExternalId);
+    FolderExtId? DestinationFolderExternalId,
+    int? DestinationPosition);
