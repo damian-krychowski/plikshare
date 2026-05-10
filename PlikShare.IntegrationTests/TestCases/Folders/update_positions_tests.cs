@@ -332,7 +332,8 @@ public class update_positions_tests : TestFixture
                 FileExternalIds: [],
                 FolderExternalIds: [subInA.ExternalId],
                 FileUploadExternalIds: [],
-                DestinationFolderExternalId: folderB.ExternalId),
+                DestinationFolderExternalId: folderB.ExternalId,
+                DestinationPosition: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -464,5 +465,312 @@ public class update_positions_tests : TestFixture
         content.Subfolders[1].Position.Should().Be(1 * ItemPosition.Step);
         content.Subfolders[2].ExternalId.Should().Be(folderB.ExternalId.Value);
         content.Subfolders[2].Position.Should().Be(2 * ItemPosition.Step);
+    }
+
+    [Fact]
+    public async Task move_folder_with_destination_position_lands_between_existing_items()
+    {
+        // given - destFolder with two pinned subfolders at 1024 and 3072 (gap at 2048)
+        var workspace = await CreateWorkspace(storage: Storage, user: AppOwner);
+        var destFolder = await CreateFolder(workspace: workspace, user: AppOwner);
+        var existingA = await CreateFolder(parent: destFolder, workspace: workspace, user: AppOwner);
+        var existingB = await CreateFolder(parent: destFolder, workspace: workspace, user: AppOwner);
+
+        await Api.Folders.UpdatePositions(
+            workspaceExternalId: workspace.ExternalId,
+            request: new UpdatePositionsRequestDto
+            {
+                ParentFolderExternalId = destFolder.ExternalId,
+                Folders = [
+                    new UpdatePositionItemDto { ExternalId = existingA.ExternalId.Value, Position = 1 * ItemPosition.Step },
+                    new UpdatePositionItemDto { ExternalId = existingB.ExternalId.Value, Position = 3 * ItemPosition.Step }
+                ],
+                Files = []
+            },
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        var folderToMove = await CreateFolder(workspace: workspace, user: AppOwner);
+
+        // when - move folderToMove into the gap at position 2048
+        await Api.Folders.MoveItems(
+            workspaceExternalId: workspace.ExternalId,
+            request: new MoveItemsToFolderRequestDto(
+                FileExternalIds: [],
+                FolderExternalIds: [folderToMove.ExternalId],
+                FileUploadExternalIds: [],
+                DestinationFolderExternalId: destFolder.ExternalId,
+                DestinationPosition: (int)(2 * ItemPosition.Step)),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        // then
+        var content = await Api.Folders.Get(
+            workspaceExternalId: workspace.ExternalId,
+            folderExternalId: destFolder.ExternalId,
+            cookie: AppOwner.Cookie);
+
+        content.Subfolders.Should().HaveCount(3);
+        content.Subfolders[0].ExternalId.Should().Be(existingA.ExternalId.Value);
+        content.Subfolders[0].Position.Should().Be(1 * ItemPosition.Step);
+        content.Subfolders[1].ExternalId.Should().Be(folderToMove.ExternalId.Value);
+        content.Subfolders[1].Position.Should().Be(2 * ItemPosition.Step);
+        content.Subfolders[2].ExternalId.Should().Be(existingB.ExternalId.Value);
+        content.Subfolders[2].Position.Should().Be(3 * ItemPosition.Step);
+    }
+
+    [Fact]
+    public async Task move_multiple_folders_with_destination_position_get_sequential_positions()
+    {
+        // given - empty destFolder + 3 folders to move
+        var workspace = await CreateWorkspace(storage: Storage, user: AppOwner);
+        var destFolder = await CreateFolder(workspace: workspace, user: AppOwner);
+        var folderA = await CreateFolder(workspace: workspace, user: AppOwner);
+        var folderB = await CreateFolder(workspace: workspace, user: AppOwner);
+        var folderC = await CreateFolder(workspace: workspace, user: AppOwner);
+
+        // when - move all three with DestinationPosition=5000
+        await Api.Folders.MoveItems(
+            workspaceExternalId: workspace.ExternalId,
+            request: new MoveItemsToFolderRequestDto(
+                FileExternalIds: [],
+                FolderExternalIds: [folderA.ExternalId, folderB.ExternalId, folderC.ExternalId],
+                FileUploadExternalIds: [],
+                DestinationFolderExternalId: destFolder.ExternalId,
+                DestinationPosition: 5000),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        // then - each moved folder gets basePosition + index, preserving the requested order
+        var content = await Api.Folders.Get(
+            workspaceExternalId: workspace.ExternalId,
+            folderExternalId: destFolder.ExternalId,
+            cookie: AppOwner.Cookie);
+
+        content.Subfolders.Should().HaveCount(3);
+        content.Subfolders[0].ExternalId.Should().Be(folderA.ExternalId.Value);
+        content.Subfolders[0].Position.Should().Be(5000);
+        content.Subfolders[1].ExternalId.Should().Be(folderB.ExternalId.Value);
+        content.Subfolders[1].Position.Should().Be(5001);
+        content.Subfolders[2].ExternalId.Should().Be(folderC.ExternalId.Value);
+        content.Subfolders[2].Position.Should().Be(5002);
+    }
+
+    [Fact]
+    public async Task move_file_with_destination_position_lands_between_existing_files()
+    {
+        // given - destFolder with two pinned files at 1024 and 3072 (gap at 2048)
+        var workspace = await CreateWorkspace(storage: Storage, user: AppOwner);
+        var destFolder = await CreateFolder(workspace: workspace, user: AppOwner);
+
+        var existingA = await UploadFile(
+            content: "a"u8.ToArray(),
+            fileName: "a.txt",
+            contentType: "text/plain",
+            folder: destFolder,
+            workspace: workspace,
+            user: AppOwner);
+
+        var existingB = await UploadFile(
+            content: "b"u8.ToArray(),
+            fileName: "b.txt",
+            contentType: "text/plain",
+            folder: destFolder,
+            workspace: workspace,
+            user: AppOwner);
+
+        await Api.Folders.UpdatePositions(
+            workspaceExternalId: workspace.ExternalId,
+            request: new UpdatePositionsRequestDto
+            {
+                ParentFolderExternalId = destFolder.ExternalId,
+                Folders = [],
+                Files = [
+                    new UpdatePositionItemDto { ExternalId = existingA.ExternalId.Value, Position = 1 * ItemPosition.Step },
+                    new UpdatePositionItemDto { ExternalId = existingB.ExternalId.Value, Position = 3 * ItemPosition.Step }
+                ]
+            },
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        var sourceFolder = await CreateFolder(workspace: workspace, user: AppOwner);
+        var fileToMove = await UploadFile(
+            content: "moved"u8.ToArray(),
+            fileName: "moved.txt",
+            contentType: "text/plain",
+            folder: sourceFolder,
+            workspace: workspace,
+            user: AppOwner);
+
+        // when - move fileToMove into the gap at position 2048
+        await Api.Folders.MoveItems(
+            workspaceExternalId: workspace.ExternalId,
+            request: new MoveItemsToFolderRequestDto(
+                FileExternalIds: [fileToMove.ExternalId],
+                FolderExternalIds: [],
+                FileUploadExternalIds: [],
+                DestinationFolderExternalId: destFolder.ExternalId,
+                DestinationPosition: (int)(2 * ItemPosition.Step)),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        // then
+        var content = await Api.Folders.Get(
+            workspaceExternalId: workspace.ExternalId,
+            folderExternalId: destFolder.ExternalId,
+            cookie: AppOwner.Cookie);
+
+        content.Files.Should().HaveCount(3);
+        content.Files[0].ExternalId.Should().Be(existingA.ExternalId.Value);
+        content.Files[0].Position.Should().Be(1 * ItemPosition.Step);
+        content.Files[1].ExternalId.Should().Be(fileToMove.ExternalId.Value);
+        content.Files[1].Position.Should().Be(2 * ItemPosition.Step);
+        content.Files[2].ExternalId.Should().Be(existingB.ExternalId.Value);
+        content.Files[2].Position.Should().Be(3 * ItemPosition.Step);
+    }
+
+    [Fact]
+    public async Task move_with_destination_position_collision_triggers_rebalance()
+    {
+        // given - destFolder with one pinned subfolder at 2048
+        var workspace = await CreateWorkspace(storage: Storage, user: AppOwner);
+        var destFolder = await CreateFolder(workspace: workspace, user: AppOwner);
+        var existingFolder = await CreateFolder(parent: destFolder, workspace: workspace, user: AppOwner);
+
+        await Api.Folders.UpdatePositions(
+            workspaceExternalId: workspace.ExternalId,
+            request: new UpdatePositionsRequestDto
+            {
+                ParentFolderExternalId = destFolder.ExternalId,
+                Folders = [
+                    new UpdatePositionItemDto { ExternalId = existingFolder.ExternalId.Value, Position = 2 * ItemPosition.Step }
+                ],
+                Files = []
+            },
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        var folderToMove = await CreateFolder(workspace: workspace, user: AppOwner);
+
+        // when - move folderToMove with a DestinationPosition that collides with existingFolder
+        await Api.Folders.MoveItems(
+            workspaceExternalId: workspace.ExternalId,
+            request: new MoveItemsToFolderRequestDto(
+                FileExternalIds: [],
+                FolderExternalIds: [folderToMove.ExternalId],
+                FileUploadExternalIds: [],
+                DestinationFolderExternalId: destFolder.ExternalId,
+                DestinationPosition: (int)(2 * ItemPosition.Step)),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        // then - rebalance produces clean sequential positions; existingFolder (smaller id)
+        // breaks the tie and lands at 1024, folderToMove at 2048.
+        var content = await Api.Folders.Get(
+            workspaceExternalId: workspace.ExternalId,
+            folderExternalId: destFolder.ExternalId,
+            cookie: AppOwner.Cookie);
+
+        content.Subfolders.Should().HaveCount(2);
+        content.Subfolders[0].ExternalId.Should().Be(existingFolder.ExternalId.Value);
+        content.Subfolders[0].Position.Should().Be(1 * ItemPosition.Step);
+        content.Subfolders[1].ExternalId.Should().Be(folderToMove.ExternalId.Value);
+        content.Subfolders[1].Position.Should().Be(2 * ItemPosition.Step);
+
+        var positions = content.Subfolders.Select(s => s.Position).ToList();
+        positions.Distinct().Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task move_to_top_level_with_destination_position_lands_between_existing_items()
+    {
+        // given - two pinned top-level folders at 1024 and 3072, plus a child to move up
+        var workspace = await CreateWorkspace(storage: Storage, user: AppOwner);
+        var topPinned = await CreateFolder(workspace: workspace, user: AppOwner);
+        var parent = await CreateFolder(workspace: workspace, user: AppOwner);
+        var child = await CreateFolder(parent: parent, workspace: workspace, user: AppOwner);
+
+        await Api.Folders.UpdatePositions(
+            workspaceExternalId: workspace.ExternalId,
+            request: new UpdatePositionsRequestDto
+            {
+                ParentFolderExternalId = null,
+                Folders = [
+                    new UpdatePositionItemDto { ExternalId = topPinned.ExternalId.Value, Position = 1 * ItemPosition.Step },
+                    new UpdatePositionItemDto { ExternalId = parent.ExternalId.Value, Position = 3 * ItemPosition.Step }
+                ],
+                Files = []
+            },
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        // when - move child to top-level into the gap at position 2048
+        await Api.Folders.MoveItems(
+            workspaceExternalId: workspace.ExternalId,
+            request: new MoveItemsToFolderRequestDto(
+                FileExternalIds: [],
+                FolderExternalIds: [child.ExternalId],
+                FileUploadExternalIds: [],
+                DestinationFolderExternalId: null,
+                DestinationPosition: (int)(2 * ItemPosition.Step)),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        // then
+        var content = await Api.Folders.GetTop(
+            workspaceExternalId: workspace.ExternalId,
+            cookie: AppOwner.Cookie);
+
+        content.Subfolders.Should().HaveCount(3);
+        content.Subfolders[0].ExternalId.Should().Be(topPinned.ExternalId.Value);
+        content.Subfolders[0].Position.Should().Be(1 * ItemPosition.Step);
+        content.Subfolders[1].ExternalId.Should().Be(child.ExternalId.Value);
+        content.Subfolders[1].Position.Should().Be(2 * ItemPosition.Step);
+        content.Subfolders[2].ExternalId.Should().Be(parent.ExternalId.Value);
+        content.Subfolders[2].Position.Should().Be(3 * ItemPosition.Step);
+    }
+
+    [Fact]
+    public async Task move_folders_and_files_together_with_destination_position_uses_independent_position_tracks()
+    {
+        // given - empty destFolder + a folder and a file located under sourceFolder
+        var workspace = await CreateWorkspace(storage: Storage, user: AppOwner);
+        var destFolder = await CreateFolder(workspace: workspace, user: AppOwner);
+        var sourceFolder = await CreateFolder(workspace: workspace, user: AppOwner);
+        var folderToMove = await CreateFolder(parent: sourceFolder, workspace: workspace, user: AppOwner);
+        var fileToMove = await UploadFile(
+            content: "moved"u8.ToArray(),
+            fileName: "moved.txt",
+            contentType: "text/plain",
+            folder: sourceFolder,
+            workspace: workspace,
+            user: AppOwner);
+
+        // when - move both with DestinationPosition=2048
+        await Api.Folders.MoveItems(
+            workspaceExternalId: workspace.ExternalId,
+            request: new MoveItemsToFolderRequestDto(
+                FileExternalIds: [fileToMove.ExternalId],
+                FolderExternalIds: [folderToMove.ExternalId],
+                FileUploadExternalIds: [],
+                DestinationFolderExternalId: destFolder.ExternalId,
+                DestinationPosition: (int)(2 * ItemPosition.Step)),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        // then - folder and file share basePosition because they live in independent
+        // position tracks (separate tables, sorted separately in the UI)
+        var content = await Api.Folders.Get(
+            workspaceExternalId: workspace.ExternalId,
+            folderExternalId: destFolder.ExternalId,
+            cookie: AppOwner.Cookie);
+
+        content.Subfolders.Should().HaveCount(1);
+        content.Subfolders[0].ExternalId.Should().Be(folderToMove.ExternalId.Value);
+        content.Subfolders[0].Position.Should().Be(2 * ItemPosition.Step);
+
+        content.Files.Should().HaveCount(1);
+        content.Files[0].ExternalId.Should().Be(fileToMove.ExternalId.Value);
+        content.Files[0].Position.Should().Be(2 * ItemPosition.Step);
     }
 }

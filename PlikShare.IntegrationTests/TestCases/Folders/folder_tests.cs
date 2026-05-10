@@ -86,7 +86,8 @@ public class folder_tests : TestFixture
                 FileExternalIds: [],
                 FolderExternalIds: [folderA.ExternalId],
                 FileUploadExternalIds: [],
-                DestinationFolderExternalId: folderB.ExternalId),
+                DestinationFolderExternalId: folderB.ExternalId,
+                DestinationPosition: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -131,7 +132,8 @@ public class folder_tests : TestFixture
                 FileExternalIds: [],
                 FolderExternalIds: [childFolder.ExternalId],
                 FileUploadExternalIds: [],
-                DestinationFolderExternalId: null),
+                DestinationFolderExternalId: null,
+                DestinationPosition: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -311,7 +313,8 @@ public class folder_tests : TestFixture
                 FileExternalIds: [],
                 FolderExternalIds: [folderA.ExternalId],
                 FileUploadExternalIds: [],
-                DestinationFolderExternalId: folderB.ExternalId),
+                DestinationFolderExternalId: folderB.ExternalId,
+                DestinationPosition: null),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
