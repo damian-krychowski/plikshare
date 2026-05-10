@@ -24,15 +24,20 @@ export function sortFoldersInPlace(folders: AppFolderItem[], mode: SortMode, dir
 
 export function sortFiles(files: AppFileItem[], mode: SortMode, direction: SortDirection): AppFileItem[] {
     const sorted = [...files];
+
+    sortFilesInPlace(sorted, mode, direction);
+
+    return sorted;
+}
+
+export function sortFilesInPlace(files: AppFileItem[], mode: SortMode, direction: SortDirection): void {
     const sign = direction === 'asc' ? 1 : -1;
 
     if (mode === 'name') {
-        sorted.sort((a, b) => sign * a.name().localeCompare(b.name(), undefined, { sensitivity: 'base' }));
+        files.sort((a, b) => sign * a.name().localeCompare(b.name(), undefined, { sensitivity: 'base' }));
     } else if (mode === 'date') {
-        sorted.sort((a, b) => sign * ((a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0)));
+        files.sort((a, b) => sign * ((a.createdAt?.getTime() ?? 0) - (b.createdAt?.getTime() ?? 0)));
     } else {
-        sorted.sort((a, b) => a.position() - b.position());
+        files.sort((a, b) => a.position() - b.position());
     }
-
-    return sorted;
 }

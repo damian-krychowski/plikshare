@@ -1,6 +1,6 @@
 import { Directive, ElementRef, HostBinding, HostListener, inject, input, output, signal } from '@angular/core';
-import { DragStateService, getDraggedExternalId } from '../../services/drag-state.service';
-import { DraggableItemDirective, DraggableItemType } from './draggable-item.directive';
+import { DragStateService } from '../../services/drag-state.service';
+import { DraggableItemDirective } from './draggable-item.directive';
 
 export type DropZonePosition = 'before' | 'into' | 'after';
 export type DropTargetMode = 'three-zone' | 'two-zone';
@@ -19,9 +19,6 @@ export class DropTargetDirective {
     private dragSource = inject(DraggableItemDirective, { self: true, optional: true });
 
     mode = input<DropTargetMode>('three-zone', { alias: 'dropMode' });
-    selfType = input<DraggableItemType | null>(null, { alias: 'dropSelfType' });
-    selfExternalId = input<string | null>(null, { alias: 'dropSelfExternalId' });
-    allowSelf = input<boolean>(false, { alias: 'dropAllowSelf' });
     dragOverStayMs = input<number | null>(null);
 
     dragOverItem = output<{ position: DropZonePosition }>();
@@ -37,10 +34,7 @@ export class DropTargetDirective {
 
     @HostListener('dragover', ['$event']) onDragOver(event: DragEvent) {
         const dragged = this.dragState.draggedItem();
-        if (!dragged) 
-            return;
-
-        if (!this.allowSelf() && dragged.type === this.selfType() && getDraggedExternalId(dragged) === this.selfExternalId())
+        if (!dragged)
             return;
 
         event.preventDefault();

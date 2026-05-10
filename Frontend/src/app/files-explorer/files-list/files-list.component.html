@@ -1,0 +1,44 @@
+@let filteredOut = filteredOutFiles();
+
+<div class="files-list"
+    appFlipAnimation #filesFlip="appFlipAnimation">
+
+    @for(file of localFiles(); track file.externalId) {
+        @if(!isSearchActive() || !filteredOut.includes(file.externalId)) {
+            <app-file-item
+                appDraggableItem
+                [draggableType]="'file'"
+                [draggableExternalId]="file.externalId"
+                [draggableDisabled]="file.isNameEditing() || !canReorder()"
+                appDropTarget
+                [dropMode]="'two-zone'"
+                (dragStarted)="onFileDragStarted(file.externalId)"
+                (dragOverItem)="onFileDragOverItem(file, $event)"
+                (droppedAt)="onFileDroppedAt(file, $event)"
+                [file]="file"
+                [highlightPhrase]="searchPhrase()"
+                [canReorder]="canReorder()"
+                [operations]="operations()"
+                [hideActions]="hideActions()"
+                [permissions]="permissions()"
+                [canOpen]="!isAnyNameEditPending()"
+                (deleted)="deleted.emit(file)"
+                (previewed)="previewed.emit(file)"
+                (ctrlClicked)="onFileCtrlClicked(file)"
+                (shiftClicked)="onFileShiftClicked(file)">
+            </app-file-item>
+        }
+    }
+</div>
+
+@if(hasNoListSearchMatches()) {
+    <div class="mt-1"></div>
+
+    <div class="nothing-to-show">
+        <div class="nothing-to-show__label">
+            No files match your search
+        </div>
+    </div>
+
+    <div class="mt-2"></div>
+}

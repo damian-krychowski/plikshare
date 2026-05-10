@@ -192,7 +192,7 @@ export class FoldersListComponent {
         if (draggedIdx == -1)
             return;
 
-        this._dragState.draggedItem.set({
+        this._dragState.startDragging({
             type: 'folder',
             folder: folders[draggedIdx],
             parentFolderExternalId: this.currentFolderExternalId() ?? null,
@@ -203,9 +203,8 @@ export class FoldersListComponent {
     onFolderDragEnded() {
         const dragged = this._dragState.draggedItem();
 
-        if(dragged == null || dragged.type !== 'folder') {
-            throw new Error("Item drag ended but phantom is null");
-        }
+        if (dragged == null || dragged.type !== 'folder')
+            return;
 
         const folder = dragged.folder;
         const folders = this.localFolders();
@@ -230,8 +229,8 @@ export class FoldersListComponent {
         } else {
             this.localFolders.set(withoutDragged);
         }
-    
-        this._dragState.draggedItem.set(null);       
+
+        this._dragState.stopDragging({ reason: 'canceled' });
     }
 
     onFolderDragOverStay(folder: AppFolderItem) {
@@ -294,63 +293,91 @@ export class FoldersListComponent {
 
         if (!dragged)
             return;
-        
-        this._dragState.draggedItem.set(null);
 
         if (dragged.type === 'file') {
-            if(event.position === 'into'){                                
+            if (event.position === 'into') {
+                this._dragState.stopDragging({ 
+                    reason: 'success', 
+                    destinationFolderExternalId: folder.externalId 
+                });
+
                 await this.executeMove(
-                    dragged.type, 
-                    dragged.file.externalId, 
-                    folder.externalId, 
+                    dragged.type,
+                    dragged.file.externalId,
+                    folder.externalId,
                     null);
+            } else {
+                // File dropped on a folder's before/after zone — no-op.
+                this._dragState.stopDragging({ 
+                    reason: 'canceled' 
+                });
             }
-        } else if(dragged.type === 'folder') {            
+            return;
+        }
+
+        if (dragged.type === 'folder') {
             const folders = this.localFolders();
-            
+
             const draggedIdx = folders
                 .findIndex(f => f.externalId === dragged.folder.externalId);
-            
-            if (draggedIdx === -1)
+
+            if (draggedIdx === -1) {
+                this._dragState.stopDragging({ 
+                    reason: 'canceled' 
+                });
+
                 return;
+            }
 
             const isTargetSelf = dragged.folder.externalId === folder.externalId;
 
             if (event.position === 'into' && !isTargetSelf) {
                 const withoutDragged = [
-                    ...folders.slice(0, draggedIdx), 
+                    ...folders.slice(0, draggedIdx),
                     ...folders.slice(draggedIdx + 1)];
 
                 this.localFolders.set(withoutDragged);
 
+                this._dragState.stopDragging({ 
+                    reason: 'success', 
+                    destinationFolderExternalId: folder.externalId 
+                });
+
                 await this.executeMove(
-                    dragged.type, 
-                    dragged.folder.externalId, 
-                    folder.externalId, 
+                    dragged.type,
+                    dragged.folder.externalId,
+                    folder.externalId,
                     null);
             } else {
-                const isSameParentFolder = dragged.parentFolderExternalId === this.currentFolderExternalId();
+                const currentFolder = this.currentFolderExternalId() ?? null;
+                const isSameParentFolder = dragged.parentFolderExternalId === currentFolder;
 
                 const newPosition = this.computePhantomDropPosition(
                     dragged.folder.externalId);
-                
+
                 dragged.folder.position.set(newPosition);
 
-                if(isSameParentFolder){
+                this._dragState.stopDragging({ 
+                    reason: 'success',
+                     destinationFolderExternalId: currentFolder 
+                });
+
+                if (isSameParentFolder) {
                     await this.persistPosition(
-                        dragged.folder.externalId, 
-                        newPosition);     
+                        dragged.folder.externalId,
+                        newPosition);
                 } else {
                     await this.executeMove(
-                        dragged.type, 
-                        dragged.folder.externalId, 
-                        this.currentFolderExternalId(), 
+                        dragged.type,
+                        dragged.folder.externalId,
+                        currentFolder,
                         newPosition);
                 }
-            }            
-        } else {
-            throw new Error(`Unrecognized dragged item type ${(dragged as any).type}`)
+            }
+            return;
         }
+
+        throw new Error(`Unrecognized dragged item type ${(dragged as any).type}`);
     }
 
     private computePhantomDropPosition(

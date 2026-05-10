@@ -4,7 +4,7 @@ import { AppUploadItem, UploadItemComponent } from './upload-item/upload-item.co
 import { ConfirmOperationDirective } from '../shared/operation-confirm/confirm-operation.directive';
 import { AppFolderItem, AppFolderPermissions, FolderOperations } from '../shared/folder-item/folder-item.component';
 import { FoldersListComponent } from './folders-list/folders-list.component';
-import { AppFileItem, AppFileItems, AppFilePermissions, FileItemComponent, FileOperations } from '../shared/file-item/file-item.component';
+import { AppFileItem, AppFileItems, AppFilePermissions, FileOperations } from '../shared/file-item/file-item.component';
 import { DropFilesDirective } from './directives/drop-files.directive';
 import { DragOverStayDirective } from './directives/drag-over-stay.directive';
 import { FolderPathComponent } from './folder-path/folder-path.component';
@@ -30,12 +30,9 @@ import { TreeViewMode } from '../shared/file-tree-view/tree-item';
 import { FileInlinePreviewCommandsPipeline } from './file-inline-preview/file-inline-preview-commands-pipeline';
 import { WorkspaceIntegrations } from '../services/workspaces.api';
 import { DragStateService, getDraggedExternalId } from '../services/drag-state.service';
-import { sortFiles } from '../services/sort-items';
 import { SortChange, SortMenuComponent } from './sort-menu/sort-menu.component';
-import { FlipAnimationDirective } from '../shared/drag-drop/flip-animation.directive';
-import { DraggableItemDirective } from '../shared/drag-drop/draggable-item.directive';
-import { DropTargetDirective } from '../shared/drag-drop/drop-target.directive';
 import { computePositionForInsertion } from '../shared/drag-drop/item-positioning.utils';
+import { FilesListComponent } from './files-list/files-list.component';
 
 export interface FilesExplorerApi {
     invalidatePrefetchedFolderDependentEntries: (folderExternalId: string) => void;
@@ -116,8 +113,8 @@ type ViewMode = 'list-view' | 'tree-view';
         FormsModule,
         UploadItemComponent,
         ConfirmOperationDirective,
-        FileItemComponent,
         FoldersListComponent,
+        FilesListComponent,
         DropFilesDirective,
         DragOverStayDirective,
         ConfirmOperationDirective,
@@ -132,10 +129,7 @@ type ViewMode = 'list-view' | 'tree-view';
         BulkUploadPreviewComponent,
         FileTreeViewComponent,
         ItemSearchComponent,
-        SortMenuComponent,
-        FlipAnimationDirective,
-        DraggableItemDirective,
-        DropTargetDirective
+        SortMenuComponent
     ],
     templateUrl: './files-explorer.component.html',
     styleUrl: './files-explorer.component.scss'
@@ -306,33 +300,19 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     isFoldersExpanded = signal(true);
     isFilesExpanded = signal(true);
 
-    private selectionAnchor: { section: 'folders' | 'files' | 'uploads', externalId: string } | null = null;
-
-
-    onFileCtrlClicked(file: AppFileItem) {
-        this.selectionAnchor = { section: 'files', externalId: file.externalId };
-    }
-
-    onFileShiftClicked(file: AppFileItem) {
-        if (!this.selectionAnchor || this.selectionAnchor.section !== 'files') {
-            file.isSelected.update(v => !v);
-            this.selectionAnchor = { section: 'files', externalId: file.externalId };
-            return;
-        }
-        this.applyRangeSelection(this.filteredFiles(), this.selectionAnchor.externalId, file.externalId);
-    }
+    private uploadSelectionAnchorExternalId: string | null = null;
 
     onUploadCtrlClicked(upload: AppUploadItem) {
-        this.selectionAnchor = { section: 'uploads', externalId: upload.externalId };
+        this.uploadSelectionAnchorExternalId = upload.externalId;
     }
 
     onUploadShiftClicked(upload: AppUploadItem) {
-        if (!this.selectionAnchor || this.selectionAnchor.section !== 'uploads') {
+        if (!this.uploadSelectionAnchorExternalId) {
             upload.isSelected.update(v => !v);
-            this.selectionAnchor = { section: 'uploads', externalId: upload.externalId };
+            this.uploadSelectionAnchorExternalId = upload.externalId;
             return;
         }
-        this.applyRangeSelection(this.uploads(), this.selectionAnchor.externalId, upload.externalId);
+        this.applyRangeSelection(this.uploads(), this.uploadSelectionAnchorExternalId, upload.externalId);
     }
 
     private applyRangeSelection<T extends { externalId: string, isSelected: WritableSignal<boolean> }>(
@@ -374,44 +354,23 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     uploads: WritableSignal<AppUploadItem[]> = signal([]);
     cutItems: WritableSignal<ExplorerItem[]> = signal([]);  
         
-    sortedFiles = computed(() => sortFiles(
-        this.files(),
-        this.sortMode(),
-        this.sortDirection()));
-
     filteredFoldersCount = computed(() => {
         const phrase = this.searchPhrase().toLowerCase();
         if (!phrase) return this.folders().length;
         return this.folders().filter(f => f.name().toLowerCase().includes(phrase)).length;
     });
 
-    filteredFiles = computed(() => {
+    filteredFilesCount = computed(() => {
         const phrase = this.searchPhrase().toLowerCase();
-        if (!phrase) return this.sortedFiles();
-        return this.sortedFiles().filter(f => (f.name() + f.extension).toLowerCase().includes(phrase));
-    });
-
-    phantomFile = signal<AppFileItem | null>(null);
-    phantomFileIndex = signal<number>(0);
-
-    displayedFiles = computed(() => {
-        const filtered = this.filteredFiles();
-        const phantom = this.phantomFile();
-        if (!phantom) return filtered;
-        const idx = Math.max(0, Math.min(this.phantomFileIndex(), filtered.length));
-        return [...filtered.slice(0, idx), phantom, ...filtered.slice(idx)];
+        if (!phrase) return this.files().length;
+        return this.files().filter(f => (f.name() + f.extension).toLowerCase().includes(phrase)).length;
     });
 
     isSearchActive = computed(() => this.searchPhrase().length > 0);
-    
-    hasNoListSearchMatches = computed(() =>
-        this.isSearchActive()
-        && this.filteredFiles().length === 0
-        && this.files().length > 0);
 
     canReorder = computed(() => this.sortMode() === 'custom' && this.filesApi().updatePositions != null && !this.isSearchActive());
 
-    explorerTreeItems = computed(() => [...this.folders(), ...this.sortedFiles()]);
+    explorerTreeItems = computed(() => [...this.folders(), ...this.files()]);
     
     treeSelectionState = signal<FileTreeSelectionState>({
         excludedFileExternalIds: [],
@@ -574,7 +533,6 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
     @ViewChild(BulkUploadPreviewComponent) bulkUploadPreview!: BulkUploadPreviewComponent;
     @ViewChild(FileTreeViewComponent) fileTreeView!: FileTreeViewComponent;
-    @ViewChild('filesFlip') filesFlip?: FlipAnimationDirective;
 
     constructor(
         public fileUploadManager: FileUploadManager,
@@ -599,26 +557,16 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
         effect(() => {
             if (!this.isSearchActive()) return;
-            if (this.filteredFiles().length > 0) this.expandFilesSection();
+            if (this.filteredFilesCount() > 0) this.expandFilesSection();
         });
 
         effect(() => {
             const dragged = this._dragState.draggedItem();
             const currentFolder = this.selectedFolder()?.externalId ?? null;
 
-            if (!dragged || dragged.type !== 'file' || dragged.parentFolderExternalId === currentFolder) {
-                untracked(() => {
-                    if (this.phantomFile() !== null) this.phantomFile.set(null);
-                });
-                return;
+            if (dragged?.type === 'file' && dragged.parentFolderExternalId !== currentFolder) {
+                untracked(() => this.expandFilesSection());
             }
-
-            untracked(() => {
-                const phantom: AppFileItem = { ...dragged.file, position: signal(0) };
-                this.phantomFile.set(phantom);
-                this.phantomFileIndex.set(Number.MAX_SAFE_INTEGER);
-                this.expandFilesSection();
-            });
         });
     }
 
@@ -652,174 +600,11 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     }
 
 
-    onItemDragStarted(externalId: string) {
-        const file = this
-            .files()
-            .find(f => f.externalId === externalId);
-
-        if (!file) 
-            return;
-
-        this._dragState.draggedItem.set({
-            type: 'file',
-            file,
-            parentFolderExternalId: this.selectedFolder()?.externalId ?? null
-        });
-    }
-
-    onItemDragEnded() {
-        this._dragState.draggedItem.set(null);
-    }
-
     @HostListener('document:dragend')
     onDocumentDragEnd() {
-        if (this._dragState.draggedItem() != null) this.onItemDragEnded();
-    }
-
-    onListDragOver(event: DragEvent) {
-        const dragged = this._dragState.draggedItem();
-        if (!dragged) 
-            return;
-
-        const currentFolder = this.selectedFolder()?.externalId ?? null;
-
-        if (dragged.parentFolderExternalId === currentFolder) 
-            return;
-
-        event.preventDefault();
-
-        if (event.dataTransfer) 
-            event.dataTransfer.dropEffect = 'move';
-    }
-
-    onDropOnCurrentFolder(event: DragEvent) {
-        event.preventDefault();
-        const dragged = this._dragState.draggedItem();
-        if (!dragged) return;
-
-        const currentFolder = this.selectedFolder()?.externalId ?? null;
-        if (dragged.parentFolderExternalId === currentFolder) return;
-
-        let destinationPosition: number | null = null;
-        if (dragged.type === 'file' && this.phantomFile()) {
-            destinationPosition = computePositionForInsertion(
-                this.filteredFiles(), this.phantomFileIndex(), item => item.position());
-        }
-
-        this.executeMove(dragged.type, getDraggedExternalId(dragged), currentFolder, destinationPosition);
-    }
-
-    onFileDragOverItem(file: AppFileItem, event: { position: 'before' | 'into' | 'after' }) {
-        if (event.position === 'into') return;
-        const dragged = this._dragState.draggedItem();
-        if (!dragged || dragged.type !== 'file') return;
-
-        const currentFolder = this.selectedFolder()?.externalId ?? null;
-        const isSameFolder = dragged.parentFolderExternalId === currentFolder;
-        const draggedId = dragged.file.externalId;
-
-        if (isSameFolder) {
-            const sorted = this.sortedFiles();
-            const draggedIdx = sorted.findIndex(f => f.externalId === draggedId);
-            const targetIdx = sorted.findIndex(f => f.externalId === file.externalId);
-            if (draggedIdx === -1 || targetIdx === -1) return;
-            let desiredIdx = event.position === 'before' ? targetIdx : targetIdx + 1;
-            if (desiredIdx > draggedIdx) desiredIdx -= 1;
-            if (desiredIdx === draggedIdx) return;
-
-            const filtered = sorted.filter(f => f.externalId !== draggedId);
-            const newPosition = computePositionForInsertion(filtered, desiredIdx, item => item.position());
-            const draggedFile = sorted.find(f => f.externalId === draggedId);
-            if (!draggedFile) return;
-
-            this.filesFlip?.capture();
-            draggedFile.position.set(newPosition);
-            this.filesFlip?.schedule();
-        } else {
-            if (!this.phantomFile()) return;
-            const filtered = this.filteredFiles();
-            const targetIdx = filtered.findIndex(f => f.externalId === file.externalId);
-            if (targetIdx === -1) return;
-            const newIdx = event.position === 'before' ? targetIdx : targetIdx + 1;
-            if (this.phantomFileIndex() === newIdx) return;
-
-            this.filesFlip?.capture();
-            this.phantomFileIndex.set(newIdx);
-            this.filesFlip?.schedule();
-        }
-    }
-
-    onFileDroppedAt(file: AppFileItem, event: { position: 'before' | 'into' | 'after' }) {
-        if (event.position === 'into') return;
-        const dragged = this._dragState.draggedItem();
-        if (!dragged) return;
-        if (dragged.type !== 'file') return;
-
-        const currentFolder = this.selectedFolder()?.externalId ?? null;
-        const isSameFolder = dragged.parentFolderExternalId === currentFolder;
-        const draggedId = dragged.file.externalId;
-        const isTargetSelf = draggedId === file.externalId;
-
-        if (isTargetSelf && isSameFolder) return;
-
-        if (isSameFolder) {
-            const sorted = this.sortedFiles();
-            const filtered = sorted.filter(f => f.externalId !== draggedId);
-            const targetIdx = filtered.findIndex(f => f.externalId === file.externalId);
-            if (targetIdx === -1) return;
-            const insertionIdx = event.position === 'before' ? targetIdx : targetIdx + 1;
-            const newPosition = computePositionForInsertion(filtered, insertionIdx, item => item.position());
-            const draggedFile = sorted.find(f => f.externalId === draggedId);
-            if (draggedFile) draggedFile.position.set(newPosition);
-            this.persistPositions([], [{ externalId: draggedId, position: newPosition }]);
-            this._dragState.draggedItem.set(null);
-            return;
-        }
-
-        // Cross-folder: always commit at phantom position
-        const filtered = this.filteredFiles();
-        const newPosition = computePositionForInsertion(filtered, this.phantomFileIndex(), item => item.position());
-        this.executeMove('file', draggedId, currentFolder, newPosition);
-    }
-
-    private async executeMove(type: 'folder' | 'file', externalId: string, destinationFolderExternalId: string | null, destinationPosition: number | null) {
-        this._dragState.draggedItem.set(null);
-        try {
-            this.isMoving.set(true);
-            await this.filesApi().moveItems({
-                fileExternalIds: type === 'file' ? [externalId] : [],
-                folderExternalIds: type === 'folder' ? [externalId] : [],
-                fileUploadExternalIds: [],
-                destinationFolderExternalId,
-                destinationPosition
-            });
-            this.filesApi().invalidatePrefetchedEntries();
-            const currentFolder = this.selectedFolder()?.externalId;
-            if (currentFolder) {
-                await this.loadFolderAndFiles(currentFolder);
-            } else {
-                await this.loadTopFoldersAndFiles();
-            }
-        } catch (error) {
-            console.error(error);
-        } finally {
-            this.isMoving.set(false);
-        }
-    }
-
-    private async persistPositions(folders: { externalId: string, position: number }[], files: { externalId: string, position: number }[]) {
-        const api = this.filesApi();
-        if (!api.updatePositions) return;
-
-        try {
-            await api.updatePositions({
-                parentFolderExternalId: this.selectedFolder()?.externalId ?? null,
-                folders: folders,
-                files: files
-            });
-        } catch (error) {
-            console.error(error);
-        }
+        // Drop handlers stop the drag with 'success' and clear state first;
+        // anything still set here means the drag ended without a drop.
+        this._dragState.stopDragging({ reason: 'canceled' });
     }
 
     ngOnInit(): void {
@@ -1162,7 +947,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         if(!current)
             return null;
 
-        const files = this.sortedFiles();
+        const files = this.files();
         const index = files.indexOf(current);
 
         for(let i = index + 1; i < files.length; i++) {
@@ -1186,7 +971,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         if(!current)
             return null;
 
-        const files = this.sortedFiles();
+        const files = this.files();
 
         const index = files.indexOf(current);
 

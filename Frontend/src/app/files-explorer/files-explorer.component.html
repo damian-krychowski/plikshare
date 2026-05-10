@@ -420,9 +420,7 @@
         </app-bulk-upload-preview>
     }
 
-    <div [style.display]="(fileInPreviewVal || pendingBulkUploadVal || !isListViewMode) ? 'none' : 'unset'"
-        (dragover)="onListDragOver($event)"
-        (drop)="onDropOnCurrentFolder($event)">
+    <div [style.display]="(fileInPreviewVal || pendingBulkUploadVal || !isListViewMode) ? 'none' : 'unset'">
         @if(showFoldersSection()) {
             @let isFoldersExpandedVal = isFoldersExpanded();
             <section class="files-section">
@@ -504,7 +502,7 @@
                         [matTooltip]="hasFiles() ? 'Select all files' : ''"
                         (click)="$event.stopPropagation(); hasFiles() && toggleAllFiles()">
                         @if(isSearchActive()) {
-                            {{filteredFiles().length}}/{{filesCount()}}
+                            {{filteredFilesCount()}}/{{filesCount()}}
                         } @else {
                             {{filesCount()}}
                         }
@@ -538,35 +536,21 @@
 
                 @if(isFilesExpandedVal) {
                     <div class="files-section__content">
-                        <div class="files-list" appFlipAnimation #filesFlip="appFlipAnimation">
-                            @for(file of displayedFiles(); track file.externalId) {
-                                <app-file-item
-                                    appDraggableItem
-                                    [draggableType]="'file'"
-                                    [draggableExternalId]="file.externalId"
-                                    [draggableDisabled]="file.isNameEditing() || !canReorder()"
-                                    appDropTarget
-                                    [dropMode]="'two-zone'"
-                                    [dropSelfType]="'file'"
-                                    [dropSelfExternalId]="file.externalId"
-                                    (dragStarted)="onItemDragStarted(file.externalId)"
-                                    (dragEnded)="onItemDragEnded()"
-                                    (dragOverItem)="onFileDragOverItem(file, $event)"
-                                    (droppedAt)="onFileDroppedAt(file, $event)"
-                                    [file]="file"
-                                    [highlightPhrase]="searchPhrase()"
-                                    [canReorder]="canReorder()"
-                                    [operations]="operations"
-                                    [hideActions]="hideItemsActions()"
-                                    [permissions]="filePermissions()"
-                                    [canOpen]="!isAnyNameEditPending()"
-                                    (deleted)="onFileDeleted(file)"
-                                    (previewed)="onFilePreviewed(file)"
-                                    (ctrlClicked)="onFileCtrlClicked(file)"
-                                    (shiftClicked)="onFileShiftClicked(file)">
-                                </app-file-item>
-                            }
-                        </div>
+                        <app-files-list
+                            [files]="files()"
+                            [sortMode]="sortMode()"
+                            [sortDirection]="sortDirection()"
+                            [searchPhrase]="searchPhrase()"
+                            [currentFolderExternalId]="selectedFolder()?.externalId ?? null"
+                            [canReorder]="canReorder()"
+                            [operations]="operations"
+                            [hideActions]="hideItemsActions()"
+                            [permissions]="filePermissions()"
+                            [isAnyNameEditPending]="isAnyNameEditPending()"
+                            [filesApi]="filesApi()"
+                            (deleted)="onFileDeleted($event)"
+                            (previewed)="onFilePreviewed($event)">
+                        </app-files-list>
 
                         @if(canUpload()) {
                             @for(upload of uploads(); track upload.externalId) {
@@ -628,15 +612,6 @@
             <div class="mt-2"></div>
         }
 
-        @if(hasNoListSearchMatches()) {
-            <div class="nothing-to-show">
-                <div class="nothing-to-show__label">
-                    No files match your search
-                </div>
-            </div>
-
-            <div class="mt-2"></div>
-        }
     </div>
 
     @let isFileTreeViewActive = !(fileInPreviewVal || pendingBulkUploadVal || isListViewMode);

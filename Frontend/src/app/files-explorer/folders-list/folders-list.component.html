@@ -12,9 +12,6 @@
                 [draggableDisabled]="folder.isNameEditing() || !canReorder()"
                 appDropTarget
                 [dropMode]="'three-zone'"
-                [dropSelfType]="'folder'"
-                [dropSelfExternalId]="folder.externalId"
-                [dropAllowSelf]="true"
                 [dragOverStayMs]="500"
                 (dragStarted)="onFolderDragStarted(folder.externalId)"
                 (dragEnded)="onFolderDragEnded()"
