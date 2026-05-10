@@ -653,18 +653,21 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
 
     onItemDragStarted(externalId: string) {
-        const file = this.files().find(f => f.externalId === externalId);
-        if (!file) return;
+        const file = this
+            .files()
+            .find(f => f.externalId === externalId);
+
+        if (!file) 
+            return;
+
         this._dragState.draggedItem.set({
             type: 'file',
             file,
             parentFolderExternalId: this.selectedFolder()?.externalId ?? null
         });
-        this._dragState.isDragging.set(true);
     }
 
     onItemDragEnded() {
-        this._dragState.isDragging.set(false);
         this._dragState.draggedItem.set(null);
     }
 
@@ -704,16 +707,6 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         }
 
         this.executeMove(dragged.type, getDraggedExternalId(dragged), currentFolder, destinationPosition);
-    }
-
-    onItemsMoved() {
-        const currentFolder = this.selectedFolder()?.externalId;
-        
-        if (currentFolder) {
-            this.loadFolderAndFiles(currentFolder);
-        } else {
-            this.loadTopFoldersAndFiles();
-        }
     }
 
     onFileDragOverItem(file: AppFileItem, event: { position: 'before' | 'into' | 'after' }) {
@@ -779,7 +772,6 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
             const draggedFile = sorted.find(f => f.externalId === draggedId);
             if (draggedFile) draggedFile.position.set(newPosition);
             this.persistPositions([], [{ externalId: draggedId, position: newPosition }]);
-            this._dragState.isDragging.set(false);
             this._dragState.draggedItem.set(null);
             return;
         }
@@ -791,7 +783,6 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     }
 
     private async executeMove(type: 'folder' | 'file', externalId: string, destinationFolderExternalId: string | null, destinationPosition: number | null) {
-        this._dragState.isDragging.set(false);
         this._dragState.draggedItem.set(null);
         try {
             this.isMoving.set(true);
@@ -1085,12 +1076,19 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         try {
             const selectedFolder = this.selectedFolder();
 
-            const ancestors = selectedFolder 
+            const ancestors = selectedFolder
                 ? [...(selectedFolder.ancestors ?? []), {
                     externalId: selectedFolder.externalId,
                     name: selectedFolder.name()
                 }]
                 : [];
+
+            const currentFolders = this.folders();
+            const newPosition = computePositionForInsertion(
+                currentFolders,
+                currentFolders.length,
+                item => item.position()
+            );
 
             const newFolder: AppFolderItem = {
                 type: 'folder',
@@ -1103,7 +1101,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
                 isHighlighted: signal(false),
                 wasCreatedByUser: true,
                 createdAt: new Date(),
-                position: signal(0)
+                position: signal(newPosition)
             };
 
             this.folders.update(values => [...values, newFolder]);
