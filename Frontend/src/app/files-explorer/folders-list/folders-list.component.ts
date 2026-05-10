@@ -241,10 +241,9 @@ export class FoldersListComponent {
     onFolderDragOverStay(folder: AppFolderItem) {
         const dragged = this._dragState.draggedItem();
 
-        if (!dragged)
-            return;
-
-        if (dragged.type === 'folder' && dragged.folder.externalId === folder.externalId)
+        // Suppress only when hovering an internal drag over its own source
+        // folder. Null dragged == OS-file drag, which should always drill in.
+        if (dragged?.type === 'folder' && dragged.folder.externalId === folder.externalId)
             return;
 
         this.operations()

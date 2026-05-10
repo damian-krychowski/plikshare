@@ -39,8 +39,19 @@ export class DropTargetDirective {
 
     @HostListener('dragover', ['$event']) onDragOver(event: DragEvent) {
         const dragged = this.dragState.draggedItem();
-        if (!dragged)
+
+        if (!dragged) {
+            // OS-file drag (no internal item picked up) — drive drill-in stay
+            // timer + full-item highlight so the user can hover a folder to
+            // enter it. No reorder semantics.
+            if (this.isOsFileDrag(event)) {
+                event.preventDefault();
+                this._dropIntoActive.set(true);
+                const stayMs = this.dragOverStayMs();
+                if (stayMs != null) this.startStayTimer(stayMs);
+            }
             return;
+        }
 
         event.preventDefault();
         event.stopPropagation();
@@ -74,6 +85,13 @@ export class DropTargetDirective {
     }
 
     @HostListener('drop', ['$event']) onDrop(event: DragEvent) {
+        // OS-file drop: directive only drives drill-down on hover. Let the
+        // drop bubble so an outer appDropFiles can pick it up.
+        if (this.dragState.draggedItem() == null) {
+            this.clearStayTimer();
+            return;
+        }
+
         event.preventDefault();
         event.stopPropagation();
         const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
@@ -108,6 +126,15 @@ export class DropTargetDirective {
         if (y < h * THREE_MIN_FACTOR) return 'before';
         if (y > h * THREE_MAX_FACTOR) return 'after';
         return 'into';
+    }
+
+    private isOsFileDrag(event: DragEvent): boolean {
+        const types = event.dataTransfer?.types;
+        if (!types) return false;
+        for (let i = 0; i < types.length; i++) {
+            if (types[i] === 'Files') return true;
+        }
+        return false;
     }
 
     private isForeignDrag(): boolean {
