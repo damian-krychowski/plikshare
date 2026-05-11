@@ -1,5 +1,5 @@
 import { DestroyRef, Directive, ElementRef, HostBinding, HostListener, inject, input, output } from '@angular/core';
-import { DragStateService, getDraggedExternalId } from '../../services/drag-state.service';
+import { DragStateService } from '../../services/drag-state.service';
 
 export type DraggableItemType = 'folder' | 'file';
 
@@ -49,7 +49,7 @@ export class DraggableItemDirective {
         const d = this.dragState.draggedItem();
         return d != null
             && d.type === this.type()
-            && getDraggedExternalId(d) === this.externalId();
+            && this.dragState.draggedExternalIds().has(this.externalId());
     }
 
     @HostListener('mouseover', ['$event']) onMouseOver(event: MouseEvent) {

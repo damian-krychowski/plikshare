@@ -5,7 +5,7 @@ import { sortFoldersInPlace } from "../../services/sort-items";
 import { DraggableItemDirective } from "../../shared/drag-drop/draggable-item.directive";
 import { DropTargetDirective } from "../../shared/drag-drop/drop-target.directive";
 import { FlipAnimationDirective } from "../../shared/drag-drop/flip-animation.directive";
-import { DragStateService } from "../../services/drag-state.service";
+import { DraggedFolderItem, DragStateService, getAllDraggedFiles, getAllDraggedFolders } from "../../services/drag-state.service";
 import { computePositionForInsertion } from "../../shared/drag-drop/item-positioning.utils";
 import { FilesExplorerApi } from "../files-explorer.component";
 
@@ -63,7 +63,6 @@ export class FoldersListComponent {
 
         untracked(() => {
             const draggedItem = this._dragState.draggedItem();
-            const hasPhantom = draggedItem?.type === 'folder';
 
             const localFolders: AppFolderItem[] = [
                 ...incoming
@@ -77,16 +76,25 @@ export class FoldersListComponent {
                 );
             }
 
-            // Inject phantom (if active) so drag&drop survives the sync.
-            if (hasPhantom) {
-                const phantomIdx = localFolders
-                    .findIndex(f => f.externalId === draggedItem.folder.externalId);
+            // Drag survives the input sync. For dragged items that match by
+            // externalId in incoming, swap dragState references to the fresh
+            // instances (and propagate isSelected) so counters/computeds see
+            // the dragged state — those items stay at their natural positions.
+            // Items not present in incoming are unshifted as phantoms so the
+            // user's visual anchor for the dragged set survives a drill-in.
+            if (draggedItem?.type === 'folder') {
+                this._dragState.syncDraggedFolders(localFolders);
 
-                if (phantomIdx !== -1) {
-                    localFolders.splice(phantomIdx, 1);
+                const incomingIds = new Set(localFolders.map(f => f.externalId));
+                const refreshed = this._dragState.draggedItem();
+                if (refreshed?.type === 'folder') {
+                    const phantoms = getAllDraggedFolders(refreshed)
+                        .filter(p => !incomingIds.has(p.externalId));
+
+                    if (phantoms.length > 0) {
+                        localFolders.unshift(...phantoms);
+                    }
                 }
-                
-                localFolders.unshift(draggedItem.folder);
             }
 
             this.localFolders.set(localFolders);
@@ -197,12 +205,35 @@ export class FoldersListComponent {
         if (draggedIdx == -1)
             return;
 
+        const items = this.collectDraggedItems(folders, draggedIdx);
+
         this._dragState.startDragging({
             type: 'folder',
-            folder: folders[draggedIdx],
-            parentFolderExternalId: this.currentFolderExternalId() ?? null,
-            originalIndexInParentFolder: draggedIdx
+            items,
+            parentFolderExternalId: this.currentFolderExternalId() ?? null
         });
+    }
+
+    // Multi-drag only when grabbing an already-selected folder. Grabbing an
+    // unselected folder behaves like single-drag and leaves the current
+    // selection untouched (Finder-style). Mixed-type selections naturally
+    // restrict to same-type siblings — the file selection stays put. Items are
+    // collected in source order so phantom injection on drill-in matches what
+    // the user sees in localFolders.
+    private collectDraggedItems(folders: AppFolderItem[], draggedIdx: number): DraggedFolderItem[] {
+        const leader = folders[draggedIdx];
+
+        if (!leader.isSelected()) {
+            return [{ item: leader, originalIndex: draggedIdx }];
+        }
+
+        const items: DraggedFolderItem[] = [];
+        for (let i = 0; i < folders.length; i++) {
+            if (folders[i].isSelected()) {
+                items.push({ item: folders[i], originalIndex: i });
+            }
+        }
+        return items;
     }
 
     onFolderDragEnded() {
@@ -211,24 +242,22 @@ export class FoldersListComponent {
         if (dragged == null || dragged.type !== 'folder')
             return;
 
-        const folder = dragged.folder;
+        const draggedIds = this._dragState.draggedExternalIds();
         const folders = this.localFolders();
+        const withoutDragged = folders.filter(f => !draggedIds.has(f.externalId));
 
-        const draggedIdx = folders
-            .findIndex(f => f.externalId === folder.externalId);
+        if (dragged.parentFolderExternalId === this.currentFolderExternalId()) {
+            // Restore every dragged folder to its original slot. Insertions in
+            // ascending originalIndex order keep earlier slots stable while
+            // later items are placed.
+            const ascending = [...dragged.items]
+                .sort((a, b) => a.originalIndex - b.originalIndex);
 
-        const withoutDragged = draggedIdx === -1
-            ? [...folders]
-            : [...folders.slice(0, draggedIdx), ...folders.slice(draggedIdx + 1)];
-
-        if(dragged.parentFolderExternalId === this.currentFolderExternalId()){
-            const folderOriginalIdx = dragged.originalIndexInParentFolder;
-
-            const restored = [
-                ...withoutDragged.slice(0, folderOriginalIdx),
-                folder,
-                ...withoutDragged.slice(folderOriginalIdx)
-            ];
+            const restored = [...withoutDragged];
+            for (const { item, originalIndex } of ascending) {
+                const insertAt = Math.min(originalIndex, restored.length);
+                restored.splice(insertAt, 0, item);
+            }
 
             this.localFolders.set(restored);
         } else {
@@ -241,9 +270,10 @@ export class FoldersListComponent {
     onFolderDragOverStay(folder: AppFolderItem) {
         const dragged = this._dragState.draggedItem();
 
-        // Suppress only when hovering an internal drag over its own source
-        // folder. Null dragged == OS-file drag, which should always drill in.
-        if (dragged?.type === 'folder' && dragged.folder.externalId === folder.externalId)
+        // Suppress only when hovering an internal folder drag over one of its
+        // own dragged folders. Null dragged == OS-file drag, which should
+        // always drill in.
+        if (dragged?.type === 'folder' && this._dragState.draggedExternalIds().has(folder.externalId))
             return;
 
         this.operations()
@@ -251,8 +281,6 @@ export class FoldersListComponent {
     }
 
     onFolderDragOverItem(folder: AppFolderItem, event: { position: 'before' | 'into' | 'after' }) {
-        // Called on every mouse move over an item - log only on actual state change
-        // (real reorder or unusual early-return). Repeated no-op invocations are silent.
         if (event.position === 'into')
             return;
 
@@ -261,35 +289,41 @@ export class FoldersListComponent {
         if (!dragged || dragged.type !== 'folder')
             return;
 
-        const draggedFolderExternalId = dragged.folder.externalId;
+        // Hovering over any item in the dragged group: keep the block where it is.
+        const draggedIds = this._dragState.draggedExternalIds();
+        if (draggedIds.has(folder.externalId))
+            return;
+
         const list = this.localFolders();
-        const fromIdx = list.findIndex(f => f.externalId === draggedFolderExternalId);
-        const targetIdx = list.findIndex(f => f.externalId === folder.externalId);
+        const withoutDragged = list.filter(f => !draggedIds.has(f.externalId));
+        const draggedBlock = list.filter(f => draggedIds.has(f.externalId)); // preserves current block order
 
-        if (fromIdx === -1 || targetIdx === -1)
+        const targetIdx = withoutDragged.findIndex(f => f.externalId === folder.externalId);
+        if (targetIdx === -1)
             return;
 
-        let toIdx = event.position === 'before'
-            ? targetIdx
-            : targetIdx + 1;
+        const insertIdx = event.position === 'before' ? targetIdx : targetIdx + 1;
 
-        if (toIdx > fromIdx) 
-            toIdx -= 1;
+        const next = [
+            ...withoutDragged.slice(0, insertIdx),
+            ...draggedBlock,
+            ...withoutDragged.slice(insertIdx)
+        ];
 
-        if (toIdx === fromIdx)
+        if (this.sameExternalIdOrder(list, next))
             return;
-        
+
         this.foldersFlip?.capture();
-
-        const next = [...list];
-
-        const [item] = next.splice(fromIdx, 1);
-
-        next.splice(toIdx, 0, item);
-
         this.localFolders.set(next);
-
         this.foldersFlip?.schedule();
+    }
+
+    private sameExternalIdOrder(a: AppFolderItem[], b: AppFolderItem[]): boolean {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (a[i].externalId !== b[i].externalId) return false;
+        }
+        return true;
     }
 
     async onFolderDroppedAt(folder: AppFolderItem, event: { position: 'before' | 'into' | 'after' }) {
@@ -300,82 +334,86 @@ export class FoldersListComponent {
 
         if (dragged.type === 'file') {
             if (event.position === 'into') {
-                this._dragState.stopDragging({ 
-                    reason: 'success', 
-                    destinationFolderExternalId: folder.externalId 
+                const allDraggedFiles = getAllDraggedFiles(dragged);
+
+                this._dragState.stopDragging({
+                    reason: 'success',
+                    destinationFolderExternalId: folder.externalId
                 });
 
-                await this.executeMove(
-                    dragged.type,
-                    dragged.file.externalId,
+                await this.moveItems(
+                    [],
+                    allDraggedFiles.map(f => f.externalId),
                     folder.externalId,
                     null);
             } else {
                 // File dropped on a folder's before/after zone — no-op.
-                this._dragState.stopDragging({ 
-                    reason: 'canceled' 
+                this._dragState.stopDragging({
+                    reason: 'canceled'
                 });
             }
             return;
         }
 
         if (dragged.type === 'folder') {
+            const draggedIds = this._dragState.draggedExternalIds();
             const folders = this.localFolders();
+            const allDraggedFolders = getAllDraggedFolders(dragged);
 
-            const draggedIdx = folders
-                .findIndex(f => f.externalId === dragged.folder.externalId);
-
-            if (draggedIdx === -1) {
-                this._dragState.stopDragging({ 
-                    reason: 'canceled' 
+            // Drag state is stale if the leader vanished from this list — bail.
+            if (!folders.some(f => f.externalId === dragged.items[0].item.externalId)) {
+                this._dragState.stopDragging({
+                    reason: 'canceled'
                 });
-
                 return;
             }
 
-            const isTargetSelf = dragged.folder.externalId === folder.externalId;
+            const isTargetInDragged = draggedIds.has(folder.externalId);
 
-            if (event.position === 'into' && !isTargetSelf) {
-                const withoutDragged = [
-                    ...folders.slice(0, draggedIdx),
-                    ...folders.slice(draggedIdx + 1)];
+            if (event.position === 'into' && !isTargetInDragged) {
+                const withoutDragged = folders.filter(f => !draggedIds.has(f.externalId));
 
                 this.localFolders.set(withoutDragged);
 
-                this._dragState.stopDragging({ 
-                    reason: 'success', 
-                    destinationFolderExternalId: folder.externalId 
+                this._dragState.stopDragging({
+                    reason: 'success',
+                    destinationFolderExternalId: folder.externalId
                 });
 
-                await this.executeMove(
-                    dragged.type,
-                    dragged.folder.externalId,
+                await this.moveItems(
+                    allDraggedFolders.map(f => f.externalId),
+                    [],
                     folder.externalId,
                     null);
             } else {
                 const currentFolder = this.currentFolderExternalId() ?? null;
                 const isSameParentFolder = dragged.parentFolderExternalId === currentFolder;
 
-                const newPosition = this.computePhantomDropPosition(
-                    dragged.folder.externalId);
+                // Backend (MoveItemsToFolderQuery) distributes positions as
+                // base+0, base+1, … for each item in the request, so one base
+                // position is enough for the whole block — same-parent reorder
+                // takes the same base + a per-item ladder via updatePositions.
+                const basePosition = this.computeBlockBasePosition(draggedIds);
+                allDraggedFolders.forEach((f, i) => f.position.set(basePosition + i));
 
-                dragged.folder.position.set(newPosition);
-
-                this._dragState.stopDragging({ 
+                this._dragState.stopDragging({
                     reason: 'success',
-                     destinationFolderExternalId: currentFolder 
+                    destinationFolderExternalId: currentFolder
                 });
 
                 if (isSameParentFolder) {
-                    await this.persistPosition(
-                        dragged.folder.externalId,
-                        newPosition);
+                    await this.persistPositions(
+                        allDraggedFolders.map((f, i) => ({
+                            externalId: f.externalId,
+                            position: basePosition + i
+                        })),
+                        []);
                 } else {
-                    await this.executeMove(
-                        dragged.type,
-                        dragged.folder.externalId,
+                    await this.moveItems(
+                        allDraggedFolders.map(f => f.externalId),
+                        [],
                         currentFolder,
-                        newPosition);
+                        basePosition);
                 }
             }
             return;
@@ -384,39 +422,31 @@ export class FoldersListComponent {
         throw new Error(`Unrecognized dragged item type ${(dragged as any).type}`);
     }
 
-    private computePhantomDropPosition(
-        phantomExternalId: string
-    ): number {
+    private computeBlockBasePosition(draggedIds: ReadonlySet<string>): number {
         const list = this.localFolders();
+        const firstDraggedIdx = list.findIndex(f => draggedIds.has(f.externalId));
+        const neighbors = list.filter(f => !draggedIds.has(f.externalId));
 
-        const idx = list
-            .findIndex(f => f.externalId === phantomExternalId);
-
-        const neighbors = list
-            .filter(f => f.externalId !== phantomExternalId);
-
-        const insertionIdx = idx === -1
+        const insertionIdx = firstDraggedIdx === -1
             ? neighbors.length
-            : Math.min(idx, neighbors.length);
+            : Math.min(firstDraggedIdx, neighbors.length);
 
-        const result = computePositionForInsertion(
+        return computePositionForInsertion(
             neighbors,
             insertionIdx,
             item => item.position());
-
-        return result;
     }
 
-    private async executeMove(
-        type: 'folder' | 'file',
-        externalId: string,
+    private async moveItems(
+        folderExternalIds: string[],
+        fileExternalIds: string[],
         destinationFolderExternalId: string | null,
         destinationPosition: number | null
     ) {
         try {
             await this.filesApi().moveItems({
-                fileExternalIds: type === 'file' ? [externalId] : [],
-                folderExternalIds: type === 'folder' ? [externalId] : [],
+                fileExternalIds,
+                folderExternalIds,
                 fileUploadExternalIds: [],
                 destinationFolderExternalId,
                 destinationPosition
@@ -428,7 +458,10 @@ export class FoldersListComponent {
         }
     }
 
-    private async persistPosition(externalId: string, position: number) {
+    private async persistPositions(
+        folders: { externalId: string, position: number }[],
+        files: { externalId: string, position: number }[]
+    ) {
         const api = this.filesApi();
 
         if (!api.updatePositions)
@@ -437,11 +470,12 @@ export class FoldersListComponent {
         try {
             await api.updatePositions({
                 parentFolderExternalId: this.currentFolderExternalId() ?? null,
-                folders: [{ externalId, position }],
-                files: []
+                folders,
+                files
             });
         } catch (error) {
             console.error(`Something went wrong, updatePositions API FAILED`, error);
         }
     }
+
 }

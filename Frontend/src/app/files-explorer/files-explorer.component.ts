@@ -29,7 +29,7 @@ import { ItemSearchComponent } from '../shared/item-search/item-search.component
 import { TreeViewMode } from '../shared/file-tree-view/tree-item';
 import { FileInlinePreviewCommandsPipeline } from './file-inline-preview/file-inline-preview-commands-pipeline';
 import { WorkspaceIntegrations } from '../services/workspaces.api';
-import { DragStateService, getDraggedExternalId } from '../services/drag-state.service';
+import { DragStateService } from '../services/drag-state.service';
 import { SortChange, SortMenuComponent } from './sort-menu/sort-menu.component';
 import { computePositionForInsertion } from '../shared/drag-drop/item-positioning.utils';
 import { FilesListComponent } from './files-list/files-list.component';

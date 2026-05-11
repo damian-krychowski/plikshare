@@ -1,5 +1,5 @@
 import { Directive, ElementRef, HostBinding, HostListener, inject, input, output, signal } from '@angular/core';
-import { DragStateService, getDraggedExternalId } from '../../services/drag-state.service';
+import { DragStateService } from '../../services/drag-state.service';
 import { DraggableItemDirective } from './draggable-item.directive';
 
 export type DropZonePosition = 'before' | 'into' | 'after';
@@ -152,8 +152,10 @@ export class DropTargetDirective {
         if (dragged == null || this.dragSource == null)
             return false;
 
+        // Hovering over any item from the dragged group (leader or sibling) counts as "self":
+        // suppresses the drop-into highlight and drill-in stay timer over our own items.
         return dragged.type === this.dragSource.type()
-            && getDraggedExternalId(dragged) === this.dragSource.externalId();
+            && this.dragState.draggedExternalIds().has(this.dragSource.externalId());
     }
 
     private startStayTimer(ms: number) {
