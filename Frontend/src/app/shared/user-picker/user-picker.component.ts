@@ -79,6 +79,8 @@ export class UserPickerComponent implements OnInit  {
                     maxWorkspaceNumber: signal(user.maxWorkspaceNumber),
                     defaultMaxWorkspaceSizeInBytes: signal(user.defaultMaxWorkspaceSizeInBytes),
                     defaultMaxWorkspaceTeamMembers: signal(user.defaultMaxWorkspaceTeamMembers),
+                    storageAccessMode: signal('all'),
+                    storageAccessExternalIds: signal([]),
                     isHighlighted: signal(false)
                 };
 

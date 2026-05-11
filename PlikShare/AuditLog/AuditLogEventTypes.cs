@@ -48,6 +48,7 @@ public static class AuditLogEventTypes
         public const string MaxWorkspaceNumberUpdated = "user.max-workspace-number-updated";
         public const string DefaultMaxWorkspaceSizeUpdated = "user.default-max-workspace-size-updated";
         public const string DefaultMaxWorkspaceTeamMembersUpdated = "user.default-max-workspace-team-members-updated";
+        public const string StorageAccessUpdated = "user.storage-access-updated";
 
         public static readonly string[] All =
         [
@@ -55,7 +56,8 @@ public static class AuditLogEventTypes
             PermissionsAndRolesUpdated,
             MaxWorkspaceNumberUpdated,
             DefaultMaxWorkspaceSizeUpdated,
-            DefaultMaxWorkspaceTeamMembersUpdated
+            DefaultMaxWorkspaceTeamMembersUpdated,
+            StorageAccessUpdated
         ];
     }
 
@@ -75,6 +77,7 @@ public static class AuditLogEventTypes
         public const string SignUpCheckboxCreatedOrUpdated = "settings.sign-up-checkbox-created-or-updated";
         public const string SignUpCheckboxDeleted = "settings.sign-up-checkbox-deleted";
         public const string PasswordLoginToggled = "settings.password-login-toggled";
+        public const string NewUserDefaultStorageAccessUpdated = "settings.new-user-default-storage-access-updated";
 
         public static readonly string[] All =
         [
@@ -85,7 +88,8 @@ public static class AuditLogEventTypes
             TermsOfServiceUploaded, TermsOfServiceDeleted,
             PrivacyPolicyUploaded, PrivacyPolicyDeleted,
             SignUpCheckboxCreatedOrUpdated, SignUpCheckboxDeleted,
-            PasswordLoginToggled
+            PasswordLoginToggled,
+            NewUserDefaultStorageAccessUpdated
         ];
     }
 

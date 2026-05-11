@@ -1,5 +1,6 @@
 using PlikShare.Core.Utils;
 using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Users.StorageAccess;
 
 namespace PlikShare.AuditLog.Details;
 
@@ -129,6 +130,34 @@ public static partial class Audit
             DetailsJson = Json.Serialize(new LimitUpdated {
                 Target = target,
                 Value = value })
+        };
+
+        public class StorageAccessUpdated
+        {
+            public required UserRef Target { get; init; }
+            public required UserStorageAccessMode Mode { get; init; }
+            public required List<string> StorageExternalIds { get; init; }
+        }
+
+        public static AuditLogEntry StorageAccessUpdatedEntry(
+            AuditLogActorContext actor,
+            UserRef target,
+            UserStorageAccessMode mode,
+            List<string> storageExternalIds) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.User,
+            EventType = AuditLogEventTypes.User.StorageAccessUpdated,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new StorageAccessUpdated
+            {
+                Target = target,
+                Mode = mode,
+                StorageExternalIds = storageExternalIds
+            })
         };
     }
 }

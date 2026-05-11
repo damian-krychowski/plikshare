@@ -7,6 +7,7 @@ using PlikShare.Core.SQLite;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
 using PlikShare.Users.Sql;
+using PlikShare.Users.StorageAccess;
 
 namespace PlikShare.Users.Cache;
 
@@ -161,6 +162,7 @@ public class UserCache(
 
         var wrappedStorageDeks = ReadWrappedStorageDeks(connection, row.Id);
         var wrappedWorkspaceDeks = ReadWrappedWorkspaceDeks(connection, row.Id);
+        var storageAccessIds = ReadStorageAccessIds(connection, row.Id);
 
         return new UserContext
         {
@@ -178,7 +180,12 @@ public class UserCache(
             HasPassword = row.HasPassword,
             EncryptionMetadata = row.EncryptionMetadata,
             WrappedStorageDeks = wrappedStorageDeks,
-            WrappedWorkspaceDeks = wrappedWorkspaceDeks
+            WrappedWorkspaceDeks = wrappedWorkspaceDeks,
+            StorageAccess = new UserStorageAccess
+            {
+                Mode = row.StorageAccessMode,
+                StorageIds = storageAccessIds
+            }
         };
     }
 
@@ -214,7 +221,8 @@ public class UserCache(
                     u_encryption_kdf_params,
                     u_encryption_verify_hash,
                     u_encryption_recovery_wrapped_private_key,
-                    u_encryption_recovery_verify_hash
+                    u_encryption_recovery_verify_hash,
+                    u_storage_access_mode
                 FROM u_users
                 WHERE {lookup.WhereClause}
                 LIMIT 1
@@ -268,7 +276,8 @@ public class UserCache(
                                 VerifyHash = reader.GetFieldValue<byte[]>(24),
                                 RecoveryWrappedPrivateKey = reader.GetFieldValue<byte[]>(25),
                                 RecoveryVerifyHash = reader.GetFieldValue<byte[]>(26)
-                            });
+                            },
+                        StorageAccessMode: reader.GetEnum<UserStorageAccessMode>(27));
                 })
             .WithParameter(lookup.ParamName, lookup.ParamValue)
             .Execute();
@@ -292,6 +301,21 @@ public class UserCache(
                     StorageDekVersion = reader.GetInt32(1),
                     WrappedStorageDek = reader.GetFieldValue<byte[]>(2)
                 })
+            .WithParameter("$userId", userId)
+            .Execute()
+            .ToArray();
+    }
+
+    private static int[] ReadStorageAccessIds(SqliteConnection connection, int userId)
+    {
+        return connection
+            .Cmd(
+                sql: """
+                     SELECT usa_storage_id
+                     FROM usa_user_storage_access
+                     WHERE usa_user_id = $userId
+                     """,
+                readRowFunc: reader => reader.GetInt32(0))
             .WithParameter("$userId", userId)
             .Execute()
             .ToArray();
@@ -331,7 +355,8 @@ public class UserCache(
         long? DefaultMaxWorkspaceSizeInBytes,
         int? DefaultMaxWorkspaceTeamMembers,
         bool HasPassword,
-        UserEncryptionMetadata? EncryptionMetadata);
+        UserEncryptionMetadata? EncryptionMetadata,
+        UserStorageAccessMode StorageAccessMode);
 
     private readonly record struct UserLookup(
         string WhereClause,

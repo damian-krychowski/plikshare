@@ -1,5 +1,6 @@
 using PlikShare.Core.Utils;
 using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Users.StorageAccess;
 
 namespace PlikShare.AuditLog.Details;
 
@@ -203,6 +204,31 @@ public static partial class Audit
                 Id = id,
                 Text = text,
                 IsRequired = isRequired })
+        };
+
+        public class NewUserDefaultStorageAccessChanged
+        {
+            public required UserStorageAccessMode Mode { get; init; }
+            public required List<string> StorageExternalIds { get; init; }
+        }
+
+        public static AuditLogEntry NewUserDefaultStorageAccessUpdatedEntry(
+            AuditLogActorContext actor,
+            UserStorageAccessMode mode,
+            List<string> storageExternalIds) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Settings,
+            EventType = AuditLogEventTypes.Settings.NewUserDefaultStorageAccessUpdated,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new NewUserDefaultStorageAccessChanged
+            {
+                Mode = mode,
+                StorageExternalIds = storageExternalIds
+            })
         };
 
         public static AuditLogEntry SignUpCheckboxDeletedEntry(

@@ -246,6 +246,16 @@ export interface UpdateGoogleCloudStorageDetailsRequest {
     secretKey: string;
 }
 
+export interface GetStorageNamesResponse {
+    items: StorageNameItem[];
+}
+
+export interface StorageNameItem {
+    externalId: string;
+    name: string;
+    encryptionType: AppStorageEncryptionType;
+}
+
 @Injectable({
     providedIn: 'root'
 })
@@ -391,6 +401,19 @@ export class StoragesApi {
                 `/api/storages`, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
+                })
+            });
+
+        return await firstValueFrom(call);
+    }
+
+    public async getStorageNames(): Promise<GetStorageNamesResponse> {
+        const call = this
+            ._http
+            .get<GetStorageNamesResponse>(
+                `/api/storages/names`, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
                 })
             });
 

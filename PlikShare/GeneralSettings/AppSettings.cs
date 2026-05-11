@@ -3,6 +3,8 @@ using PlikShare.Core.Authorization;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.IdentityProvider;
 using PlikShare.Core.SQLite;
+using PlikShare.Core.Utils;
+using PlikShare.Users.StorageAccess;
 
 namespace PlikShare.GeneralSettings;
 
@@ -156,6 +158,39 @@ public class AppSettings(PlikShareDb plikShareDb)
         public List<string> GetPermissions() => permissionsAndRoles.Where(Permissions.IsValidPermission).ToList();
     }
 
+    /// <summary>
+    /// Default storage-access policy applied to newly invited users. Stored as two
+    /// <c>as_app_settings</c> rows (mode + CSV of allowed/blocked storage external IDs).
+    /// At invitation time the policy is snapshotted onto the new user (<c>u_storage_access_mode</c>
+    /// + rows in <c>usa_user_storage_access</c>). Per-user override is independent — changing
+    /// the default never retroactively updates existing users.
+    /// </summary>
+    public record NewUserDefaultStorageAccessSetting(
+        UserStorageAccessMode Mode,
+        List<string> StorageExternalIds)
+    {
+        public const string ModeKey = "new-user-default-storage-access-mode";
+        public const string StorageIdsKey = "new-user-default-storage-access-storage-ids";
+
+        public static NewUserDefaultStorageAccessSetting Default => new(UserStorageAccessMode.All, []);
+
+        public static NewUserDefaultStorageAccessSetting FromStrings(string? modeValue, string? idsValue)
+        {
+            var mode = modeValue is null
+                ? UserStorageAccessMode.All
+                : EnumUtils.FromKebabCase<UserStorageAccessMode>(modeValue);
+
+            var ids = string.IsNullOrWhiteSpace(idsValue)
+                ? []
+                : idsValue.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
+
+            return new(mode, ids);
+        }
+
+        public string SerializeMode() => Mode.ToKebabCase();
+        public string SerializeStorageIds() => string.Join(",", StorageExternalIds);
+    }
+
     public record PasswordLoginSetting(bool IsEnabled)
     {
         public const string Key = "password-login-enabled";
@@ -283,7 +318,26 @@ public class AppSettings(PlikShareDb plikShareDb)
     private volatile PasswordLoginSetting _passwordLogin = PasswordLoginSetting.Default;
     public PasswordLoginSetting PasswordLogin => _passwordLogin;
 
+
+    private volatile NewUserDefaultStorageAccessSetting _newUserDefaultStorageAccess = NewUserDefaultStorageAccessSetting.Default;
+    public NewUserDefaultStorageAccessSetting NewUserDefaultStorageAccess => _newUserDefaultStorageAccess;
+
     public int AdminRoleId { get; private set; }
+
+    public void SetNewUserDefaultStorageAccess(UserStorageAccessMode mode, List<string> storageExternalIds)
+    {
+        var setting = new NewUserDefaultStorageAccessSetting(mode, storageExternalIds);
+
+        UpdateSettingInDatabase(
+            key: NewUserDefaultStorageAccessSetting.ModeKey,
+            value: setting.SerializeMode());
+
+        UpdateSettingInDatabase(
+            key: NewUserDefaultStorageAccessSetting.StorageIdsKey,
+            value: setting.SerializeStorageIds());
+
+        _newUserDefaultStorageAccess = setting;
+    }
 
     public void SetPasswordLogin(bool isEnabled)
     {
@@ -412,8 +466,23 @@ public class AppSettings(PlikShareDb plikShareDb)
         _newUserDefaultPermissionsAndRoles = GetNewUserDefaultPermissionsAndRolesOrDefault(settings);
         _alertOnNewUserRegistered = GetAlertOnNewUserRegisteredOrDefault(settings);
         _passwordLogin = GetPasswordLoginOrDefault(settings);
+        _newUserDefaultStorageAccess = GetNewUserDefaultStorageAccessOrDefault(settings);
 
         AdminRoleId = GetOrCreateAdminRole(connection);
+    }
+
+    private NewUserDefaultStorageAccessSetting GetNewUserDefaultStorageAccessOrDefault(IEnumerable<Setting> settings)
+    {
+        var settingsList = settings.ToList();
+        var modeSetting = settingsList.FirstOrDefault(s => s.Key.Equals(NewUserDefaultStorageAccessSetting.ModeKey));
+        var idsSetting = settingsList.FirstOrDefault(s => s.Key.Equals(NewUserDefaultStorageAccessSetting.StorageIdsKey));
+
+        if (modeSetting is null && idsSetting is null)
+            return NewUserDefaultStorageAccessSetting.Default;
+
+        return NewUserDefaultStorageAccessSetting.FromStrings(
+            modeValue: modeSetting?.Value,
+            idsValue: idsSetting?.Value);
     }
     
     private static int GetOrCreateAdminRole(

@@ -1,4 +1,5 @@
 import { Signal, WritableSignal } from "@angular/core";
+import { UserStorageAccessMode } from "../../services/general-settings.api";
 
 export type AppUserDetails = {
     externalId: WritableSignal<string | null>;
@@ -13,6 +14,8 @@ export type AppUserDetails = {
     maxWorkspaceNumber: WritableSignal<number | null>;
     defaultMaxWorkspaceSizeInBytes: WritableSignal<number | null>;
     defaultMaxWorkspaceTeamMembers: WritableSignal<number | null>;
+    storageAccessMode: WritableSignal<UserStorageAccessMode>;
+    storageAccessExternalIds: WritableSignal<string[]>;
 
     isHighlighted: WritableSignal<boolean>;
 }

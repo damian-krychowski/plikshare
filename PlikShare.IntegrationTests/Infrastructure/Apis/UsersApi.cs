@@ -4,6 +4,8 @@ using PlikShare.Users.Id;
 using PlikShare.Users.Invite.Contracts;
 using PlikShare.Users.List.Contracts;
 using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Users.StorageAccess;
+using PlikShare.Users.StorageAccess.Contracts;
 using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes.Contracts;
 using PlikShare.Users.UpdateDefaultMaxWorkspaceTeamMembers.Contracts;
 using PlikShare.Users.UpdateMaxWorkspaceNumber.Contracts;
@@ -95,6 +97,25 @@ public class UsersApi(IFlurlClient flurlClient, string appUrl)
             appUrl: appUrl,
             apiPath: $"api/users/{userExternalId}/default-max-workspace-team-members",
             request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task UpdateStorageAccess(
+        UserExtId userExternalId,
+        UserStorageAccessMode mode,
+        List<string> storageExternalIds,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/users/{userExternalId}/storage-access",
+            request: new UpdateUserStorageAccessRequestDto
+            {
+                Mode = mode,
+                StorageExternalIds = storageExternalIds
+            },
             cookie: cookie,
             antiforgery: antiforgery);
     }

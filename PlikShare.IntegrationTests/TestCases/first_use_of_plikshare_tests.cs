@@ -9,6 +9,7 @@ using PlikShare.Storages.List.Contracts;
 using PlikShare.Users.Cache;
 using PlikShare.Users.List.Contracts;
 using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Users.StorageAccess;
 using Xunit.Abstractions;
 
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
@@ -72,7 +73,12 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
                 CanManageIntegrations = false,
                 CanManageAuditLog = false
             },
-            AlertOnNewUserRegistered = false
+            AlertOnNewUserRegistered = false,
+            NewUserDefaultStorageAccess = new NewUserDefaultStorageAccessDto
+            {
+                Mode = UserStorageAccessMode.All,
+                StorageExternalIds = []
+            }
         });
     }
 

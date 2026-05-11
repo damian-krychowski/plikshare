@@ -4,7 +4,7 @@ import { MatRadioChange, MatRadioModule } from "@angular/material/radio";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { Router } from "@angular/router";
 import { AuthService } from "../../services/auth.service";
-import { ApplicationSingUp, GeneralSettingsApi, SignUpCheckboxDto } from "../../services/general-settings.api";
+import { ApplicationSingUp, GeneralSettingsApi, SignUpCheckboxDto, UserStorageAccessMode } from "../../services/general-settings.api";
 import { Debouncer } from "../../services/debouncer";
 import { DocumentUploadApi, DocumentUploadComponent } from "./document-upload/document-upload.component";
 import { OptimisticOperation } from "../../services/optimistic-operation";
@@ -21,6 +21,8 @@ import { AppUserPermissionsAndRoles, UserPermissionsAndRolesChangedEvent, UserPe
 import { WorkspaceNumberConfigComponent, WorkspaceMaxNumberChangedEvent } from "../../shared/workspace-number-config/workspace-number-config.component";
 import { WorkspaceMaxSizeInBytesChangedEvent, WorkspaceSizeConfigComponent } from "../../shared/workspace-size-config/workspace-size-config.component";
 import { WorkspaceMaxTeamMembersChangedEvent, WorkspaceTeamConfigComponent } from "../../shared/workspace-team-config/workspace-team-config.component";
+import { StorageAccessChangedEvent, StorageAccessConfigComponent } from "../../shared/storage-access-config/storage-access-config.component";
+import { StorageNameItem, StoragesApi } from "../../services/storages.api";
 
 type SignUpCheckbox = {
     id: WritableSignal<number | null>;
@@ -58,7 +60,8 @@ type DefaultUser = {
         UserPermissionsListComponent,
         WorkspaceNumberConfigComponent,
         WorkspaceSizeConfigComponent,
-        WorkspaceTeamConfigComponent
+        WorkspaceTeamConfigComponent,
+        StorageAccessConfigComponent
     ],
     templateUrl: './general-settings.component.html',
     styleUrl: './general-settings.component.scss'
@@ -111,11 +114,16 @@ export class GeneralSettingsComponent implements OnInit {
 
     alertOnNewUserRegistered = model(false);
 
+    storageAccessMode = signal<UserStorageAccessMode>('all');
+    storageAccessExternalIds = signal<string[]>([]);
+    availableStorages = signal<StorageNameItem[]>([]);
+
     constructor(
         private _entryPage: EntryPageService,
         public auth: AuthService,
         private _router: Router,
         private _settingsApi: GeneralSettingsApi,
+        private _storagesApi: StoragesApi,
     ) {
     }
 
@@ -125,15 +133,21 @@ export class GeneralSettingsComponent implements OnInit {
         try {
             const loadings = [
                 this.loadAppSettings(),
+                this.loadStorages()
             ];
 
             await Promise.all(loadings);
         } catch (error) {
-            console.error(error);    
+            console.error(error);
         } finally {
             this.isLoading.set(false);
             this.wasLoaded.set(true);
         }
+    }
+
+    private async loadStorages() {
+        const result = await this._storagesApi.getStorageNames();
+        this.availableStorages.set(result.items);
     }
 
     private async loadAppSettings() {
@@ -162,6 +176,9 @@ export class GeneralSettingsComponent implements OnInit {
         this.defaultUser.permissionsAndRoles.permissions.canManageAuditLog.set(result.newUserDefaultPermissionsAndRoles.canManageAuditLog);
 
         this.alertOnNewUserRegistered.set(result.alertOnNewUserRegistered);
+
+        this.storageAccessMode.set(result.newUserDefaultStorageAccess.mode);
+        this.storageAccessExternalIds.set(result.newUserDefaultStorageAccess.storageExternalIds);
     }
 
     goToAccount() {
@@ -401,12 +418,34 @@ export class GeneralSettingsComponent implements OnInit {
         this._alertOnNewUserRegisteredDebouncer.debounceAsync(() => this.saveAlertOnNewUserRegistered());
     }
 
-    private async saveAlertOnNewUserRegistered(){    
+    private async saveAlertOnNewUserRegistered(){
         try {
             this.isLoading.set(true);
-            
+
             await this._settingsApi.setAlertOnNewUserRegistered({
                 isTurnedOn: this.alertOnNewUserRegistered()
+            });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.isLoading.set(false);
+        }
+    }
+
+    private _storageAccessDebouncer = new Debouncer(500);
+    onStorageAccessChange(event: StorageAccessChangedEvent) {
+        this.storageAccessMode.set(event.mode);
+        this.storageAccessExternalIds.set(event.storageExternalIds);
+        this._storageAccessDebouncer.debounceAsync(() => this.saveStorageAccess());
+    }
+
+    private async saveStorageAccess() {
+        try {
+            this.isLoading.set(true);
+
+            await this._settingsApi.setNewUserDefaultStorageAccess({
+                mode: this.storageAccessMode(),
+                storageExternalIds: this.storageAccessExternalIds()
             });
         } catch (error) {
             console.error(error);

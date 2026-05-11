@@ -3,6 +3,7 @@ using PlikShare.GeneralSettings;
 using PlikShare.GeneralSettings.Contracts;
 using PlikShare.GeneralSettings.SignUpCheckboxes.CreateOrUpdate.Contracts;
 using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Users.StorageAccess;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
@@ -134,6 +135,24 @@ public class GeneralSettingsApi(IFlurlClient flurlClient, string appUrl)
             appUrl: appUrl,
             apiPath: "api/general-settings/sign-up-checkboxes",
             request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task SetNewUserDefaultStorageAccess(
+        UserStorageAccessMode mode,
+        List<string> storageExternalIds,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: "api/general-settings/new-user-default-storage-access",
+            request: new SetNewUserDefaultStorageAccessRequestDto
+            {
+                Mode = mode,
+                StorageExternalIds = storageExternalIds
+            },
             cookie: cookie,
             antiforgery: antiforgery);
     }

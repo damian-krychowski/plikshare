@@ -4,6 +4,7 @@ using PlikShare.Storages.HardDrive.Create.Contracts;
 using PlikShare.Storages.HardDrive.GetVolumes.Contracts;
 using PlikShare.Storages.Id;
 using PlikShare.Storages.List.Contracts;
+using PlikShare.Storages.Names;
 using PlikShare.Storages.S3.AwsS3.Create.Contracts;
 using PlikShare.Storages.S3.BackblazeB2.Create.Contracts;
 using PlikShare.Storages.S3.CloudflareR2.Create.Contracts;
@@ -20,6 +21,14 @@ public class StoragesApi(IFlurlClient flurlClient, string appUrl)
         return await flurlClient.ExecuteGet<GetStoragesResponseDto>(
             appUrl: appUrl,
             apiPath: "api/storages",
+            cookie: cookie);
+    }
+
+    public async Task<GetStorageNamesResponseDto> GetNames(SessionAuthCookie? cookie)
+    {
+        return await flurlClient.ExecuteGet<GetStorageNamesResponseDto>(
+            appUrl: appUrl,
+            apiPath: "api/storages/names",
             cookie: cookie);
     }
 

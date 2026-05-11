@@ -207,6 +207,9 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
         AppSettings.SetNewUserDefaultMaxWorkspaceTeamMembers(AppSettings.NewUserDefaultMaxWorkspaceTeamMembersSetting.Default.Value);
         AppSettings.SetNewUserPermissionsAndRoles(AppSettings.NewUserDefaultPermissionsAndRolesSetting.Default.permissionsAndRoles);
         AppSettings.SetAlertOnNewUserRegistered(AppSettings.AlertOnNewUserRegisteredSetting.Default.IsTurnedOn);
+        AppSettings.SetNewUserDefaultStorageAccess(
+            AppSettings.NewUserDefaultStorageAccessSetting.Default.Mode,
+            AppSettings.NewUserDefaultStorageAccessSetting.Default.StorageExternalIds);
 
         using var connection = Db.OpenConnection();
         connection.NonQueryCmd(sql: "DELETE FROM suc_sign_up_checkboxes").Execute();

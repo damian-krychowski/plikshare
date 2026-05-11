@@ -101,8 +101,10 @@ export class UsersSettingsComponent implements OnInit {
                 maxWorkspaceNumber: signal(u.maxWorkspaceNumber),
                 defaultMaxWorkspaceSizeInBytes: signal(u.defaultMaxWorkspaceSizeInBytes),
                 defaultMaxWorkspaceTeamMembers: signal(u.defaultMaxWorkspaceTeamMembers),
+                storageAccessMode: signal('all'),
+                storageAccessExternalIds: signal([]),
 
-                isHighlighted: signal(false),            
+                isHighlighted: signal(false),
             };
 
             return user;
@@ -164,7 +166,9 @@ export class UsersSettingsComponent implements OnInit {
                 workspacesCount: signal(0),
                 maxWorkspaceNumber: signal(null),
                 defaultMaxWorkspaceSizeInBytes: signal(null),
-                defaultMaxWorkspaceTeamMembers: signal(null)
+                defaultMaxWorkspaceTeamMembers: signal(null),
+                storageAccessMode: signal('all'),
+                storageAccessExternalIds: signal([])
             };
 
             return newUser;

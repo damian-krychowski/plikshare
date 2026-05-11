@@ -11,6 +11,7 @@ using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
 using PlikShare.Users.Invite.Contracts;
 using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Users.StorageAccess;
 using PlikShare.Users.UpdatePermissionsAndRoles;
 using Serilog;
 
@@ -48,6 +49,15 @@ public class InviteUsersQuery(
 
         try
         {
+            var storageAccessSetting = appSettings.NewUserDefaultStorageAccess;
+
+            var snapshottedStorageIds = storageAccessSetting.Mode == UserStorageAccessMode.All
+                ? []
+                : ResolveStorageIds(
+                    externalIds: storageAccessSetting.StorageExternalIds,
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction);
+
             var users = new List<InvitedUserDto>();
 
             foreach (var email in emails)
@@ -56,6 +66,8 @@ public class InviteUsersQuery(
                     email: email,
                     inviter: inviter,
                     correlationId: correlationId,
+                    storageAccessMode: storageAccessSetting.Mode,
+                    storageAccessIds: snapshottedStorageIds,
                     dbWriteContext: dbWriteContext,
                     transaction: transaction);
 
@@ -67,9 +79,9 @@ public class InviteUsersQuery(
 
             transaction.Commit();
 
-            return new InviteUsersResponseDto 
-            { 
-                Users = users 
+            return new InviteUsersResponseDto
+            {
+                Users = users
             };
         }
         catch (Exception e)
@@ -83,10 +95,47 @@ public class InviteUsersQuery(
         }
     }
 
+    private static List<int> ResolveStorageIds(
+        IReadOnlyList<string> externalIds,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction)
+    {
+        var resolved = new List<int>(externalIds.Count);
+
+        foreach (var externalId in externalIds)
+        {
+            var result = dbWriteContext
+                .OneRowCmd(
+                    sql: """
+                         SELECT s_id
+                         FROM s_storages
+                         WHERE s_external_id = $externalId
+                         """,
+                    readRowFunc: reader => reader.GetInt32(0),
+                    transaction: transaction)
+                .WithParameter("$externalId", externalId)
+                .Execute();
+
+            if (result.IsEmpty)
+            {
+                Log.Warning(
+                    "Storage with external id '{ExternalId}' was referenced in default storage access setting but no longer exists; skipping for new invitations.",
+                    externalId);
+                continue;
+            }
+
+            resolved.Add(result.Value);
+        }
+
+        return resolved;
+    }
+
     private InvitedUserDto? TryInsertUserInvitation(
         Email email,
         UserContext inviter,
         Guid correlationId,
+        UserStorageAccessMode storageAccessMode,
+        List<int> storageAccessIds,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
@@ -124,7 +173,8 @@ public class InviteUsersQuery(
                          u_invitation_code_hash,
                          u_max_workspace_number,
                          u_default_max_workspace_size_in_bytes,
-                         u_default_max_workspace_team_members
+                         u_default_max_workspace_team_members,
+                         u_storage_access_mode
                      ) VALUES (
                          $externalId,
                          $userName,
@@ -145,7 +195,8 @@ public class InviteUsersQuery(
                          $invitationCodeHash,
                          $maxWorkspaceNumber,
                          $defaultMaxWorkspaceSizeInBytes,
-                         $defaultMaxWorkspaceTeamMembers
+                         $defaultMaxWorkspaceTeamMembers,
+                         $storageAccessMode
                      )
                      ON CONFLICT(u_normalized_email) DO NOTHING
                      RETURNING
@@ -164,10 +215,33 @@ public class InviteUsersQuery(
             .WithParameter("$maxWorkspaceNumber", maxWorkspaceNumber)
             .WithParameter("$defaultMaxWorkspaceSizeInBytes", defaultMaxWorkspaceSizeInBytes)
             .WithParameter("$defaultMaxWorkspaceTeamMembers", defaultMaxWorkspaceTeamMembers)
+            .WithEnumParameter("$storageAccessMode", storageAccessMode)
             .Execute();
 
         if (userId.IsEmpty)
             return null;
+
+        foreach (var storageId in storageAccessIds)
+        {
+            dbWriteContext
+                .OneRowCmd(
+                    sql: """
+                         INSERT INTO usa_user_storage_access (
+                             usa_user_id,
+                             usa_storage_id
+                         ) VALUES (
+                             $userId,
+                             $storageId
+                         )
+                         ON CONFLICT (usa_user_id, usa_storage_id) DO NOTHING
+                         RETURNING usa_user_id
+                         """,
+                    readRowFunc: reader => reader.GetInt32(0),
+                    transaction: transaction)
+                .WithParameter("$userId", userId.Value)
+                .WithParameter("$storageId", storageId)
+                .Execute();
+        }
 
         var permissionsAndRoles = appSettings
             .NewUserDefaultPermissionsAndRoles;

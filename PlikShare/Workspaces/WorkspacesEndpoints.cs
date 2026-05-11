@@ -196,6 +196,9 @@ public static class WorkspacesEndpoints
             case WorkspaceCreationPreparation.ResultCode.NotAStorageAdmin:
                 return HttpErrors.Storage.NotAStorageAdmin(request.StorageExternalId);
 
+            case WorkspaceCreationPreparation.ResultCode.StorageNotAllowedForUser:
+                return HttpErrors.Storage.NotAllowedForUser(request.StorageExternalId);
+
             case WorkspaceCreationPreparation.ResultCode.Ok:
                 break;
 

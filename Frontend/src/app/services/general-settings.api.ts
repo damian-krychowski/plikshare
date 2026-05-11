@@ -5,6 +5,18 @@ import { UserPermissionsAndRolesDto } from "./users.api";
 
 export type ApplicationSingUp = 'everyone' | 'only-invited-users';
 
+export type UserStorageAccessMode = 'all' | 'allow-only' | 'allow-all-except';
+
+export interface NewUserDefaultStorageAccessDto {
+    mode: UserStorageAccessMode;
+    storageExternalIds: string[];
+}
+
+export interface SetNewUserDefaultStorageAccessRequest {
+    mode: UserStorageAccessMode;
+    storageExternalIds: string[];
+}
+
 export interface GetApplicationSettingsResponse {
     applicationSignUp: ApplicationSingUp;
     termsOfService: string | null;
@@ -26,6 +38,7 @@ export interface GetApplicationSettingsResponse {
         canManageAuditLog: boolean;
     },
     alertOnNewUserRegistered: boolean;
+    newUserDefaultStorageAccess: NewUserDefaultStorageAccessDto;
 }
 
 export interface SignUpCheckboxDto {
@@ -237,7 +250,20 @@ export class GeneralSettingsApi {
                     'Content-Type': 'application/json'
                 })
             });
-    
+
+        await firstValueFrom(call);
+    }
+
+    public async setNewUserDefaultStorageAccess(request: SetNewUserDefaultStorageAccessRequest) {
+        const call = this
+            ._http
+            .patch(
+                `/api/general-settings/new-user-default-storage-access`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
         await firstValueFrom(call);
     }
 }

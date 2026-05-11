@@ -1,0 +1,25 @@
+@forward "./../../../styles/config-row.scss";
+
+.storage-access-config {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    &__list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding-left: 0.25rem;
+    }
+
+    &__item {
+        display: flex;
+        align-items: center;
+    }
+
+    &__empty {
+        color: var(--text-secondary, #888);
+        font-size: 0.875rem;
+        padding-left: 0.25rem;
+    }
+}

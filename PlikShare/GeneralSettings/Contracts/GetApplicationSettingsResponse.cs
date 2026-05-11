@@ -1,4 +1,5 @@
 using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Users.StorageAccess;
 
 namespace PlikShare.GeneralSettings.Contracts;
 
@@ -14,5 +15,12 @@ public class GetApplicationSettingsResponse
     public required int? NewUserDefaultMaxWorkspaceTeamMembers { get; init; }
     public required UserPermissionsAndRolesDto NewUserDefaultPermissionsAndRoles { get; init; }
     public required bool AlertOnNewUserRegistered { get; init; }
+    public required NewUserDefaultStorageAccessDto NewUserDefaultStorageAccess { get; init; }
+}
+
+public class NewUserDefaultStorageAccessDto
+{
+    public required UserStorageAccessMode Mode { get; init; }
+    public required List<string> StorageExternalIds { get; init; }
 }
 

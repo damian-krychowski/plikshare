@@ -3,6 +3,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Dashboard.Content.Contracts;
 using PlikShare.Users.Cache;
+using PlikShare.Users.StorageAccess;
 using static PlikShare.Dashboard.Content.Contracts.GetDashboardContentResponseDto;
 
 namespace PlikShare.Dashboard.Content;
@@ -39,7 +40,9 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
 
     // Full-encrypted storages where the caller has no sek wrap are hidden — workspace
     // creation on those would fail with 403 not-a-storage-admin (see WorkspaceCreationPreparation),
-    // so the UI should not offer them as a choice.
+    // so the UI should not offer them as a choice. Per-user storage access policy
+    // (UserContext.StorageAccess + usa_user_storage_access) further narrows the list;
+    // app-owners bypass that policy entirely.
     private static List<Storage> GetStorages(
         UserContext user,
         SqliteConnection connection)
@@ -62,12 +65,36 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                          END) AS s_encryption_type
                      FROM s_storages
                      WHERE
-                         COALESCE(s_encryption_type, 'none') != 'full'
-                         OR EXISTS (
-                             SELECT 1
-                             FROM sek_storage_encryption_keys
-                             WHERE sek_storage_id = s_id
-                               AND sek_user_id = $userId
+                         (
+                             COALESCE(s_encryption_type, 'none') != 'full'
+                             OR EXISTS (
+                                 SELECT 1
+                                 FROM sek_storage_encryption_keys
+                                 WHERE sek_storage_id = s_id
+                                   AND sek_user_id = $userId
+                             )
+                         )
+                         AND (
+                             $isAppOwner = TRUE
+                             OR $storageAccessMode = $allMode
+                             OR (
+                                 $storageAccessMode = $allowOnlyMode
+                                 AND EXISTS (
+                                     SELECT 1
+                                     FROM usa_user_storage_access
+                                     WHERE usa_user_id = $userId
+                                       AND usa_storage_id = s_id
+                                 )
+                             )
+                             OR (
+                                 $storageAccessMode = $allowAllExceptMode
+                                 AND NOT EXISTS (
+                                     SELECT 1
+                                     FROM usa_user_storage_access
+                                     WHERE usa_user_id = $userId
+                                       AND usa_storage_id = s_id
+                                 )
+                             )
                          )
                      ORDER BY s_id ASC
                      """,
@@ -80,7 +107,12 @@ public class GetDashboardContentQuery(PlikShareDb plikShareDb)
                     EncryptionType = reader.GetString(4)
                 })
             .WithParameter("$isUserAdmin", user.Roles.IsAppOwner)
+            .WithParameter("$isAppOwner", user.Roles.IsAppOwner)
             .WithParameter("$userId", user.Id)
+            .WithEnumParameter("$storageAccessMode", user.StorageAccess.Mode)
+            .WithEnumParameter("$allMode", UserStorageAccessMode.All)
+            .WithEnumParameter("$allowOnlyMode", UserStorageAccessMode.AllowOnly)
+            .WithEnumParameter("$allowAllExceptMode", UserStorageAccessMode.AllowAllExcept)
             .Execute();
     }
     

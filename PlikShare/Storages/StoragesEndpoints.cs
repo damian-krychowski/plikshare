@@ -12,6 +12,7 @@ using PlikShare.Storages.HardDrive.GetVolumes.Contracts;
 using PlikShare.Storages.Id;
 using PlikShare.Storages.List;
 using PlikShare.Storages.List.Contracts;
+using PlikShare.Storages.Names;
 using PlikShare.Storages.AzureBlob;
 using PlikShare.Storages.AzureBlob.Create.Contracts;
 using PlikShare.Storages.AzureBlob.UpdateDetails.Contracts;
@@ -44,6 +45,22 @@ public static class StoragesEndpoints
 {
     public static void MapStoragesEndpoints(this WebApplication app)
     {
+        // Lightweight listing for admins who need to render storage pickers but don't have
+        // ManageStorages (e.g. when editing storage-access policy in general settings or on
+        // user details). Returns only external id + name + encryption type — no credentials.
+        app.MapGet("/api/storages/names", GetStorageNames)
+            .WithTags("Storages")
+            .WithName("GetStorageNames")
+            .RequireAuthorization(new AuthorizeAttribute
+            {
+                Policy = AuthPolicy.Internal,
+                Roles = $"{Roles.Admin}"
+            })
+            .AddEndpointFilter(new RequireAdminAnyPermissionEndpointFilter(
+                Permissions.ManageStorages,
+                Permissions.ManageGeneralSettings,
+                Permissions.ManageUsers));
+
         var group = app.MapGroup("/api/storages")
             .WithTags("Storages")
             .RequireAuthorization(new AuthorizeAttribute
@@ -111,6 +128,16 @@ public static class StoragesEndpoints
 
         group.MapPatch("/google-cloud-storage/{storageExternalId}/details", UpdateGoogleCloudStorageDetails)
             .WithName("UpdateGoogleCloudStorageDetails");
+    }
+
+    private static GetStorageNamesResponseDto GetStorageNames(GetStorageNamesQuery getStorageNamesQuery)
+    {
+        var items = getStorageNamesQuery.Execute();
+
+        return new GetStorageNamesResponseDto
+        {
+            Items = items
+        };
     }
 
     // Basic Storage Operations

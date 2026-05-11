@@ -1,0 +1,35 @@
+<div class="storage-access-config">
+    <div class="config-row">
+        <mat-select
+            class="config-row__select config-row__select--wide"
+            [(ngModel)]="selectedMode"
+            (selectionChange)="onModeChange()">
+
+            @for (option of modeOptions; track option.value) {
+                <mat-option [value]="option.value">
+                    {{ option.label }}
+                </mat-option>
+            }
+        </mat-select>
+    </div>
+
+    @if (selectedMode !== 'all') {
+        @if (availableStorages().length === 0) {
+            <div class="storage-access-config__empty">
+                No storages defined yet. Add a storage on the Storages page first.
+            </div>
+        } @else {
+            <div class="storage-access-config__list">
+                @for (storage of availableStorages(); track storage.externalId) {
+                    <label class="storage-access-config__item">
+                        <mat-checkbox
+                            [checked]="isSelected(storage.externalId)"
+                            (change)="onStorageToggle(storage.externalId, $event.checked)">
+                            {{ storage.name }}
+                        </mat-checkbox>
+                    </label>
+                }
+            </div>
+        }
+    }
+</div>

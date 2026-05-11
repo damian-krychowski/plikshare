@@ -118,13 +118,28 @@
                 <div class="default-user-grid__workspace-config">
                     <app-workspace-size-config
                         [maxSizeInBytes]="defaultUser.maxWorkspaceSizeInBytes()"
-                        (configChanged)="onDefaultMaxWorkspaceSizeInBytesChange($event)">                        
+                        (configChanged)="onDefaultMaxWorkspaceSizeInBytesChange($event)">
                     </app-workspace-size-config>
 
                     <app-workspace-team-config
                         [maxTeamMembers]="defaultUser.maxWorkspaceTeamMembers()"
-                        (configChanged)="onDefaultMaxWorkspaceTeamMembersChange($event)">                        
+                        (configChanged)="onDefaultMaxWorkspaceTeamMembersChange($event)">
                     </app-workspace-team-config>
+                </div>
+            </div>
+
+            <div class="default-user-grid__row">
+                <div>
+                    Storage access:
+                </div>
+
+                <div>
+                    <app-storage-access-config
+                        [mode]="storageAccessMode()"
+                        [storageExternalIds]="storageAccessExternalIds()"
+                        [availableStorages]="availableStorages()"
+                        (configChanged)="onStorageAccessChange($event)">
+                    </app-storage-access-config>
                 </div>
             </div>
         </div>

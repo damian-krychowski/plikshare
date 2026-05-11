@@ -18,6 +18,8 @@ using PlikShare.Users.List;
 using PlikShare.Users.List.Contracts;
 using PlikShare.Users.Middleware;
 using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Users.StorageAccess;
+using PlikShare.Users.StorageAccess.Contracts;
 using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes;
 using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes.Contracts;
 using PlikShare.Users.UpdateDefaultMaxWorkspaceTeamMembers;
@@ -73,6 +75,62 @@ public static class UsersEndpoints
         group.MapPatch("/{userExternalId}/default-max-workspace-team-members", UpdateDefaultMaxWorkspaceTeamMembers)
             .AddEndpointFilter<ValidateUserUpdateFilter>()
             .WithName("UpdateDefaultMaxWorkspaceTeamMembers");
+
+        group.MapPatch("/{userExternalId}/storage-access", UpdateStorageAccess)
+            .AddEndpointFilter<ValidateUserUpdateFilter>()
+            .WithName("UpdateUserStorageAccess");
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateStorageAccess(
+        [FromRoute] UserExtId userExternalId,
+        [FromBody] UpdateUserStorageAccessRequestDto request,
+        HttpContext httpContext,
+        UserCache userCache,
+        UpdateUserStorageAccessQuery updateUserStorageAccessQuery,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var mode = request.Mode;
+
+        var user = await userCache.TryGetUser(
+            userExternalId: userExternalId,
+            cancellationToken: cancellationToken);
+
+        var storageExternalIds = mode == UserStorageAccessMode.All
+            ? []
+            : request.StorageExternalIds.Distinct().ToList();
+
+        var result = await updateUserStorageAccessQuery.Execute(
+            user: user!,
+            mode: mode,
+            storageExternalIds: storageExternalIds,
+            cancellationToken: cancellationToken);
+
+        switch (result.Code)
+        {
+            case UpdateUserStorageAccessQuery.Code.Ok:
+                await userCache.InvalidateEntry(
+                    user!.Id,
+                    cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.User.StorageAccessUpdatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        target: user.ToAuditLogUserRef(),
+                        mode: mode,
+                        storageExternalIds: storageExternalIds),
+                    cancellationToken);
+
+                return TypedResults.Ok();
+
+            case UpdateUserStorageAccessQuery.Code.UnknownStorageExternalIds:
+                return HttpErrors.GeneralSettings.UnknownStorageExternalIds(result.UnknownExternalIds);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateUserStorageAccessQuery),
+                    resultValueStr: result.Code.ToString());
+        }
     }
 
     private static GetUsersResponseDto GetUsers(GetUsersQuery getUsersQuery)

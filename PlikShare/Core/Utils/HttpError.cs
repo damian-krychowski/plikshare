@@ -282,6 +282,14 @@ public static class HttpErrors
             Code = "creator-encryption-not-set-up",
             Message = "Creating a full-encrypted storage requires the creator to have an encryption password set up. Configure your encryption password first."
         });
+
+        public static IResult NotAllowedForUser(StorageExtId storageExternalId) => TypedResults.Json(
+            new HttpError
+            {
+                Code = "storage-not-allowed-for-user",
+                Message = $"You are not allowed to use storage '{storageExternalId}' under your current storage-access policy."
+            },
+            statusCode: StatusCodes.Status403Forbidden);
     }
 
     public static class Folder
@@ -945,6 +953,13 @@ public static class HttpErrors
             {
                 Code = "duplicated-file-name",
                 Message = $"{currentDocument} must have different name than {otherDocument}"
+            });
+
+        public static BadRequest<HttpError> UnknownStorageExternalIds(IEnumerable<string> externalIds) =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "unknown-storage-external-ids",
+                Message = $"The following storage external ids do not exist: {string.Join(", ", externalIds)}"
             });
     }
 }

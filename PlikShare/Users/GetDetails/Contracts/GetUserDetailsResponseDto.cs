@@ -1,6 +1,7 @@
 using PlikShare.Boxes.Id;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Id;
+using PlikShare.Users.StorageAccess;
 using PlikShare.Workspaces.Id;
 
 namespace PlikShare.Users.GetDetails.Contracts;
@@ -28,6 +29,13 @@ public static class GetUserDetails
         public required int? MaxWorkspaceNumber { get; init; }
         public required long? DefaultMaxWorkspaceSizeInBytes { get; init; }
         public required int? DefaultMaxWorkspaceTeamMembers { get; init; }
+        public required StorageAccessDto StorageAccess { get; init; }
+    }
+
+    public class StorageAccessDto
+    {
+        public required UserStorageAccessMode Mode { get; init; }
+        public required List<string> StorageExternalIds { get; init; }
     }
     
 

@@ -1,10 +1,14 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using PlikShare.AuditLog;
 using PlikShare.GeneralSettings;
 using PlikShare.GeneralSettings.SignUpCheckboxes.CreateOrUpdate.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
+using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.Core.Authorization;
+using PlikShare.Storages.Encryption;
 using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Users.StorageAccess;
 using Xunit.Abstractions;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
@@ -364,6 +368,103 @@ public class general_settings_tests : TestFixture, IDisposable
             assertDetails: details => details.Id.Should().Be(response.NewId),
             expectedActorEmail: AppOwner.Email,
             expectedSeverity: AuditLogSeverities.Info);
+    }
+
+    [Fact]
+    public async Task default_storage_access_initially_returns_all_with_no_storages()
+    {
+        //when
+        var settings = await Api.GeneralSettings.Get(cookie: AppOwner.Cookie);
+
+        //then
+        settings.NewUserDefaultStorageAccess.Mode.Should().Be(UserStorageAccessMode.All);
+        settings.NewUserDefaultStorageAccess.StorageExternalIds.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task can_set_default_storage_access_to_allow_only_with_storage_list()
+    {
+        //given
+        var storage = await CreateHardDriveStorage(AppOwner, StorageEncryptionType.None);
+
+        //when
+        await Api.GeneralSettings.SetNewUserDefaultStorageAccess(
+            mode: UserStorageAccessMode.AllowOnly,
+            storageExternalIds: [storage.ExternalId.Value],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then
+        var settings = await Api.GeneralSettings.Get(cookie: AppOwner.Cookie);
+        settings.NewUserDefaultStorageAccess.Mode.Should().Be(UserStorageAccessMode.AllowOnly);
+        settings.NewUserDefaultStorageAccess.StorageExternalIds.Should().BeEquivalentTo([storage.ExternalId.Value]);
+    }
+
+    [Fact]
+    public async Task switching_default_storage_access_back_to_all_clears_storage_list()
+    {
+        //given
+        var storage = await CreateHardDriveStorage(AppOwner, StorageEncryptionType.None);
+
+        await Api.GeneralSettings.SetNewUserDefaultStorageAccess(
+            mode: UserStorageAccessMode.AllowOnly,
+            storageExternalIds: [storage.ExternalId.Value],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //when
+        await Api.GeneralSettings.SetNewUserDefaultStorageAccess(
+            mode: UserStorageAccessMode.All,
+            storageExternalIds: [storage.ExternalId.Value], // server should ignore for All mode
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then
+        var settings = await Api.GeneralSettings.Get(cookie: AppOwner.Cookie);
+        settings.NewUserDefaultStorageAccess.Mode.Should().Be(UserStorageAccessMode.All);
+        settings.NewUserDefaultStorageAccess.StorageExternalIds.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task setting_default_storage_access_with_unknown_storage_external_id_returns_400()
+    {
+        //when
+        var apiError = await Assert.ThrowsAsync<TestApiCallException>(
+            async () => await Api.GeneralSettings.SetNewUserDefaultStorageAccess(
+                mode: UserStorageAccessMode.AllowOnly,
+                storageExternalIds: ["s_does-not-exist"],
+                cookie: AppOwner.Cookie,
+                antiforgery: AppOwner.Antiforgery));
+
+        //then
+        apiError.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        apiError.HttpError.Should().NotBeNull();
+        apiError.HttpError!.Code.Should().Be("unknown-storage-external-ids");
+    }
+
+    [Fact]
+    public async Task changing_default_storage_access_should_produce_audit_log_entry()
+    {
+        //given
+        var storage = await CreateHardDriveStorage(AppOwner, StorageEncryptionType.None);
+
+        //when
+        await Api.GeneralSettings.SetNewUserDefaultStorageAccess(
+            mode: UserStorageAccessMode.AllowOnly,
+            storageExternalIds: [storage.ExternalId.Value],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then
+        await AssertAuditLogContains<Audit.Settings.NewUserDefaultStorageAccessChanged>(
+            expectedEventType: AuditLogEventTypes.Settings.NewUserDefaultStorageAccessUpdated,
+            assertDetails: details =>
+            {
+                details.Mode.Should().Be(UserStorageAccessMode.AllowOnly);
+                details.StorageExternalIds.Should().BeEquivalentTo([storage.ExternalId.Value]);
+            },
+            expectedActorEmail: AppOwner.Email,
+            expectedSeverity: AuditLogSeverities.Warning);
     }
 
     public void Dispose()

@@ -19,7 +19,8 @@ import { AppWorkspaceInvitation, WorkspaceInvitationItemComponent } from "../../
 import { BoxesSetApi } from "../../services/boxes.api";
 import { mapDtoToPermissions, mapPermissionsToDto } from "../../shared/box-permissions/box-permissions-list.component";
 import { AdminWorkspaceListItem, WorkspacesApi } from "../../services/workspaces.api";
-import { AppStorageEncryptionType } from "../../services/storages.api";
+import { AppStorageEncryptionType, StorageNameItem, StoragesApi } from "../../services/storages.api";
+import { StorageAccessChangedEvent, StorageAccessConfigComponent } from "../../shared/storage-access-config/storage-access-config.component";
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
 import { pushItems, removeItems } from "../../shared/signal-utils";
 import { UsersApi } from "../../services/users.api";
@@ -47,7 +48,8 @@ import { WorkspacePickerComponent } from "../../shared/workspace-picker/workspac
         ActionButtonComponent,
         WorkspaceSizeConfigComponent,
         WorkspaceNumberConfigComponent,
-        WorkspaceTeamConfigComponent
+        WorkspaceTeamConfigComponent,
+        StorageAccessConfigComponent
     ],
     templateUrl: './user-details.component.html',
     styleUrl: './user-details.component.scss'
@@ -75,9 +77,13 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
     isAdmin = computed(() => this.user()?.roles.isAdmin() ?? false);
     isLoggedInUser = computed(() => this.user()?.externalId() == this.auth.userExternalId());
 
-    maxWorkspaceNumber  = computed(() => this.user()?.maxWorkspaceNumber() ?? null);    
+    maxWorkspaceNumber  = computed(() => this.user()?.maxWorkspaceNumber() ?? null);
     defaultMaxWorkspaceSizeInBytes  = computed(() => this.user()?.defaultMaxWorkspaceSizeInBytes() ?? null);
     defaultMaxWorkspaceTeamMembers  = computed(() => this.user()?.defaultMaxWorkspaceTeamMembers() ?? null);
+
+    storageAccessMode = computed(() => this.user()?.storageAccessMode() ?? 'all');
+    storageAccessExternalIds = computed(() => this.user()?.storageAccessExternalIds() ?? []);
+    availableStorages = signal<StorageNameItem[]>([]);
 
     hasAnyWorkspaces = computed(() => this.workspaces().length > 0);
     hasAnySharedWorkspace = computed(() => this.sharedWorkspaces().length > 0);
@@ -104,6 +110,7 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
         private _boxesApi: BoxesSetApi,
         private _workspaceApi: WorkspacesApi,
         private _usersApi: UsersApi,
+        private _storagesApi: StoragesApi,
         private _dialog: MatDialog
     ) {
     }
@@ -111,9 +118,21 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
     async ngOnInit() {
         this._subscription = this._activatedRoute.params.subscribe(async (params) => {
             this._userExternalId = params['userExternalId'] || null;
-            
-            await this.loadUserDetails();
+
+            await Promise.all([
+                this.loadUserDetails(),
+                this.loadStorages()
+            ]);
         });
+    }
+
+    private async loadStorages() {
+        try {
+            const result = await this._storagesApi.getStorageNames();
+            this.availableStorages.set(result.items);
+        } catch (error) {
+            console.error(error);
+        }
     }
 
     ngOnDestroy(): void {
@@ -296,6 +315,8 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                 maxWorkspaceNumber: signal(userDetails.user.maxWorkspaceNumber),
                 defaultMaxWorkspaceSizeInBytes: signal(userDetails.user.defaultMaxWorkspaceSizeInBytes),
                 defaultMaxWorkspaceTeamMembers: signal(userDetails.user.defaultMaxWorkspaceTeamMembers),
+                storageAccessMode: signal(userDetails.user.storageAccess.mode),
+                storageAccessExternalIds: signal(userDetails.user.storageAccess.storageExternalIds),
 
                 //that value is computed based on workspaces collection to catch situation when worksapce
                 //is deleted or added on that view directly
@@ -660,6 +681,41 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
             
             await this._usersApi.updateUserDefaultMaxWorkspaceTeamMembers(this._userExternalId, {
                 defaultMaxWorkspaceTeamMembers: user.defaultMaxWorkspaceTeamMembers()
+            });
+        } catch (error) {
+            console.error(error);
+        } finally {
+            this.isLoading.set(false);
+        }
+    }
+
+    private _storageAccessDebouncer = new Debouncer(500);
+    onStorageAccessChange(event: StorageAccessChangedEvent) {
+        const user = this.user();
+
+        if(!user)
+            return;
+
+        user.storageAccessMode.set(event.mode);
+        user.storageAccessExternalIds.set(event.storageExternalIds);
+        this._storageAccessDebouncer.debounceAsync(() => this.saveStorageAccess());
+    }
+
+    private async saveStorageAccess() {
+        if(!this._userExternalId)
+            return;
+
+        const user = this.user();
+
+        if(!user)
+            return;
+
+        try {
+            this.isLoading.set(true);
+
+            await this._usersApi.updateUserStorageAccess(this._userExternalId, {
+                mode: user.storageAccessMode(),
+                storageExternalIds: user.storageAccessExternalIds()
             });
         } catch (error) {
             console.error(error);

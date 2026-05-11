@@ -11,8 +11,10 @@ using PlikShare.GeneralSettings.LegalFiles.UploadLegalFile;
 using PlikShare.GeneralSettings.SignUpCheckboxes.CreateOrUpdate;
 using PlikShare.GeneralSettings.SignUpCheckboxes.CreateOrUpdate.Contracts;
 using PlikShare.GeneralSettings.SignUpCheckboxes.Delete;
+using PlikShare.Storages.Names;
 using PlikShare.Users.Middleware;
 using PlikShare.Users.PermissionsAndRoles;
+using PlikShare.Users.StorageAccess;
 
 namespace PlikShare.GeneralSettings;
 
@@ -70,6 +72,50 @@ public static class GeneralSettingsEndpoints
 
         group.MapPatch("/alert-on-new-user-registered", SetAlertOnNewUserRegistered)
             .WithName("SetAlertOnNewUserRegistered");
+
+        group.MapPatch("/new-user-default-storage-access", SetNewUserDefaultStorageAccess)
+            .WithName("SetNewUserDefaultStorageAccess");
+    }
+
+    private static async Task<Results<Ok, BadRequest<HttpError>>> SetNewUserDefaultStorageAccess(
+        [FromBody] SetNewUserDefaultStorageAccessRequestDto request,
+        AppSettings appSettings,
+        GetStorageNamesQuery getStorageNamesQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var mode = request.Mode;
+
+        var storageExternalIds = mode == UserStorageAccessMode.All
+            ? []
+            : request.StorageExternalIds.Distinct().ToList();
+
+        if (storageExternalIds.Count > 0)
+        {
+            var existingExternalIds = getStorageNamesQuery
+                .Execute()
+                .Select(s => s.ExternalId.Value)
+                .ToHashSet();
+
+            var unknown = storageExternalIds
+                .Where(id => !existingExternalIds.Contains(id))
+                .ToList();
+
+            if (unknown.Count > 0)
+                return HttpErrors.GeneralSettings.UnknownStorageExternalIds(unknown);
+        }
+
+        appSettings.SetNewUserDefaultStorageAccess(mode, storageExternalIds);
+
+        await auditLogService.Log(
+            Audit.Settings.NewUserDefaultStorageAccessUpdatedEntry(
+                actor: httpContext.GetAuditLogActorContext(),
+                mode: mode,
+                storageExternalIds: storageExternalIds),
+            cancellationToken);
+
+        return TypedResults.Ok();
     }
 
     private static async Task<Results<Ok, BadRequest<HttpError>>> SetAlertOnNewUserRegistered(
@@ -245,7 +291,12 @@ public static class GeneralSettingsEndpoints
                 CanManageIntegrations= appSettings.NewUserDefaultPermissionsAndRoles.CanManageIntegrations,
                 CanManageAuditLog = appSettings.NewUserDefaultPermissionsAndRoles.CanManageAuditLog
             },
-            AlertOnNewUserRegistered = appSettings.AlertOnNewUserRegistered.IsTurnedOn
+            AlertOnNewUserRegistered = appSettings.AlertOnNewUserRegistered.IsTurnedOn,
+            NewUserDefaultStorageAccess = new NewUserDefaultStorageAccessDto
+            {
+                Mode = appSettings.NewUserDefaultStorageAccess.Mode,
+                StorageExternalIds = appSettings.NewUserDefaultStorageAccess.StorageExternalIds.ToList()
+            }
         };
     }
 

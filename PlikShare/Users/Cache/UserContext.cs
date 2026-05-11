@@ -1,6 +1,7 @@
 using PlikShare.Core.Encryption;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
+using PlikShare.Users.StorageAccess;
 using System.ComponentModel;
 
 namespace PlikShare.Users.Cache;
@@ -23,9 +24,35 @@ public sealed class UserContext
     public required UserEncryptionMetadata? EncryptionMetadata { get; init; }
     public required UserWrappedStorageDek[] WrappedStorageDeks { get; init; }
     public required UserWrappedWorkspaceDek[] WrappedWorkspaceDeks { get; init; }
+    public required UserStorageAccess StorageAccess { get; init; }
 
     public bool HasAdminRole => Roles.IsAppOwner || Roles.IsAdmin;
     public bool IsEncryptionConfigured => EncryptionMetadata is not null;
+
+    public bool CanAccessStorage(int storageId)
+    {
+        if (Roles.IsAppOwner)
+            return true;
+
+        return StorageAccess.Allows(storageId);
+    }
+}
+
+public sealed class UserStorageAccess
+{
+    public required UserStorageAccessMode Mode { get; init; }
+    public required int[] StorageIds { get; init; }
+
+    public bool Allows(int storageId) => Mode switch
+    {
+        UserStorageAccessMode.All => true,
+        UserStorageAccessMode.AllowOnly => Array.IndexOf(StorageIds, storageId) >= 0,
+        UserStorageAccessMode.AllowAllExcept => Array.IndexOf(StorageIds, storageId) < 0,
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(Mode),
+            Mode,
+            "Unknown user storage access mode.")
+    };
 }
 
 public sealed class UserWrappedStorageDek

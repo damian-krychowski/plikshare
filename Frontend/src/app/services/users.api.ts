@@ -1,6 +1,17 @@
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
+import { UserStorageAccessMode } from "./general-settings.api";
+
+export interface UserStorageAccessDto {
+    mode: UserStorageAccessMode;
+    storageExternalIds: string[];
+}
+
+export interface UpdateUserStorageAccessRequest {
+    mode: UserStorageAccessMode;
+    storageExternalIds: string[];
+}
 
 export interface GetUserDetailsResponse {
     user: {
@@ -27,6 +38,7 @@ export interface GetUserDetailsResponse {
         maxWorkspaceNumber: number | null;
         defaultMaxWorkspaceSizeInBytes: number | null;
         defaultMaxWorkspaceTeamMembers: number | null;
+        storageAccess: UserStorageAccessDto;
     };
 
     workspaces: {
@@ -252,6 +264,19 @@ export class UsersApi {
             ._http
             .patch(
                 `/api/users/${userExternalId}/default-max-workspace-team-members`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async updateUserStorageAccess(userExternalId: string, request: UpdateUserStorageAccessRequest) {
+        const call = this
+            ._http
+            .patch(
+                `/api/users/${userExternalId}/storage-access`, request, {
                 headers: new HttpHeaders({
                     'Content-Type': 'application/json'
                 })

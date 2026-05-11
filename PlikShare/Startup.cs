@@ -178,6 +178,7 @@ using PlikShare.Storages.FileCopying.OnCompletedActionHandler;
 using PlikShare.Storages.HardDrive;
 using PlikShare.Storages.HardDrive.GetVolumes;
 using PlikShare.Storages.List;
+using PlikShare.Storages.Names;
 using PlikShare.Storages.AzureBlob;
 using PlikShare.Storages.S3.AwsS3;
 using PlikShare.Storages.S3.BackblazeB2;
@@ -208,6 +209,7 @@ using PlikShare.Users.Invite;
 using PlikShare.Users.List;
 using PlikShare.Users.UpdateDefaultMaxWorkspaceSizeInBytes;
 using PlikShare.Users.UpdateDefaultMaxWorkspaceTeamMembers;
+using PlikShare.Users.StorageAccess;
 using PlikShare.Users.UpdateMaxWorkspaceNumber;
 using PlikShare.Users.UpdatePermissionsAndRoles;
 using PlikShare.Users.UserIdentityResolver;
@@ -316,6 +318,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_33_StorageDbColumnsRenamedToBackendNeutralNames>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_34_ReencryptDatabaseFromSlowPathToFastPath>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_35_FolderAndFilePositionIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_36_UserStorageAccessIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -492,6 +495,7 @@ public class Startup
         builder.Services.AddSingleton<ResetUserEncryptionPasswordOperation>();
         builder.Services.AddSingleton<UpdateUserDefaultMaxWorkspaceSizeInBytesQuery>();
         builder.Services.AddSingleton<UpdateUserDefaultMaxWorkspaceTeamMembersQuery>();
+        builder.Services.AddSingleton<UpdateUserStorageAccessQuery>();
 
         builder.Services.AddScoped<IValidator<CreateFolderRequestDto>, CreateFolderRequestValidator>();
         builder.Services.AddScoped<IValidator<BulkCreateFolderRequestDto>, BulkCreateFolderRequestValidator>();
@@ -589,6 +593,7 @@ public class Startup
         builder.Services.AddSingleton<CreateStorageFlow>();
         builder.Services.AddSingleton<UpdateStorageFlow>();
         builder.Services.AddSingleton<GetStoragesQuery>();
+        builder.Services.AddSingleton<GetStorageNamesQuery>();
         builder.Services.AddSingleton<DeleteStorageQuery>();
         builder.Services.AddSingleton<UpdateStorageNameQuery>();
         builder.Services.AddSingleton<UpdateStorageDetailsQuery>();

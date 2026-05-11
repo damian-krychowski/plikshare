@@ -41,6 +41,12 @@ public class WorkspaceCreationPreparation(
         if (storageContext is null)
             return new Result(Code: ResultCode.StorageNotFound);
 
+        // Defense-in-depth: even if the dashboard storage picker filters the list, the
+        // creation endpoint must independently enforce the user's storage-access policy.
+        // App-owners bypass it (CanAccessStorage handles that).
+        if (!owner.CanAccessStorage(storageContext.Value.Id))
+            return new Result(Code: ResultCode.StorageNotAllowedForUser);
+
         // None/Managed storages need no pre-flight artifacts — the query inserts the
         // workspace row with NULL encryption salt and no wek row.
         if (storageContext.Value.EncryptionType != StorageEncryptionType.Full)
@@ -146,7 +152,8 @@ public class WorkspaceCreationPreparation(
         StorageNotFound,
         UserEncryptionSessionRequired,
         CreatorEncryptionNotSetUp,
-        NotAStorageAdmin
+        NotAStorageAdmin,
+        StorageNotAllowedForUser
     }
 
     public readonly record struct Result(

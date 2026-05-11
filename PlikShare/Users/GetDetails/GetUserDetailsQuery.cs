@@ -3,9 +3,11 @@ using PlikShare.Boxes.Id;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Integrations;
+using PlikShare.Storages.Id;
 using PlikShare.Users.Cache;
 using PlikShare.Users.GetDetails.Contracts;
 using PlikShare.Users.Id;
+using PlikShare.Users.StorageAccess;
 using PlikShare.Workspaces.Id;
 
 namespace PlikShare.Users.GetDetails;
@@ -33,6 +35,12 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
             user: user,
             connection: connection);
 
+        var storageAccessExternalIds = user.StorageAccess.Mode == UserStorageAccessMode.All
+            ? new List<string>()
+            : GetStorageAccessExternalIds(
+                user: user,
+                connection: connection);
+
         return new GetUserDetails.ResponseDto
         {
             User = new GetUserDetails.UserDetailsDto
@@ -47,7 +55,12 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
                 Permissions = user.Permissions,
                 MaxWorkspaceNumber = user.MaxWorkspaceNumber,
                 DefaultMaxWorkspaceSizeInBytes = user.DefaultMaxWorkspaceSizeInBytes,
-                DefaultMaxWorkspaceTeamMembers = user.DefaultMaxWorkspaceTeamMembers
+                DefaultMaxWorkspaceTeamMembers = user.DefaultMaxWorkspaceTeamMembers,
+                StorageAccess = new GetUserDetails.StorageAccessDto
+                {
+                    Mode = user.StorageAccess.Mode,
+                    StorageExternalIds = storageAccessExternalIds
+                }
             },
             Workspaces = workspaces,
             SharedWorkspaces = sharedWorkspaces,
@@ -254,6 +267,25 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
                      WasInvitationAccepted = reader.GetBoolean(18)
                  }
              )
+             .WithParameter("$userId", user.Id)
+             .Execute();
+     }
+
+     private static List<string> GetStorageAccessExternalIds(
+         UserContext user,
+         SqliteConnection connection)
+     {
+         return connection
+             .Cmd(
+                 sql: """
+                      SELECT s.s_external_id
+                      FROM usa_user_storage_access AS usa
+                      INNER JOIN s_storages AS s
+                          ON s.s_id = usa.usa_storage_id
+                      WHERE usa.usa_user_id = $userId
+                      ORDER BY s.s_id ASC
+                      """,
+                 readRowFunc: reader => reader.GetExtId<StorageExtId>(0).Value)
              .WithParameter("$userId", user.Id)
              .Execute();
      }
