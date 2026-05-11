@@ -1,3 +1,5 @@
+
+
 # Changelog
 
 Release notes for PlikShare.
@@ -8,7 +10,13 @@ Release notes for PlikShare.
 - [FEATURE] Admin can assign a user as a member of an existing workspace from the user-details view
 - [FEATURE] Admin can transfer ownership of an existing workspace to a user from the user-details view
 
-<!-- video: drop your recording here -->
+Multiple items drag&drop:
+
+[Drag and drop of multiple items](https://github.com/user-attachments/assets/6fe1c5af-ce1f-4e59-9aea-ecb953805119)
+
+User settings details: 
+
+[Assign user to workspace as member/owner](https://github.com/user-attachments/assets/0db088e7-1580-46ce-9de6-fb2669d10b36)
 
 ## 1.1.23
 
@@ -17,7 +25,7 @@ Release notes for PlikShare.
 - [FEATURE] Items sorting by name introduced
 - [FEATURE] Items sorting by date introduced
 
-<!-- video: drop your recording here -->
+[Drag and drop for files and folders](https://github.com/user-attachments/assets/08035dd2-02f7-4790-8d00-1eb78d24a8cb)
 
 ---
 
