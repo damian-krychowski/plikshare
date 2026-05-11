@@ -20,10 +20,10 @@ public readonly record struct AiConversationExtId(string Value): IExternalId<AiC
 
     public static bool TryParse(string? s, IFormatProvider? provider, out AiConversationExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new AiConversationExtId();
-            return false;   
+            result = default;
+            return false;
         }
 
         result = new AiConversationExtId(s);

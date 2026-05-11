@@ -22,14 +22,14 @@ public readonly record struct UserExtId(string Value): IExternalId<UserExtId>
 
     public static bool TryParse(string? s, IFormatProvider? provider, out UserExtId result)
     {
-        if (!string.IsNullOrWhiteSpace(s) && s.StartsWith(Prefix))
-        { 
-            result = new UserExtId(s);
-            return true;
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
+        {
+            result = default;
+            return false;
         }
-        
-        result = new UserExtId();
-        return false;   
+
+        result = new UserExtId(s);
+        return true;
     }
     
     public override string ToString() => Value;

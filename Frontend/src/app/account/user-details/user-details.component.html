@@ -193,52 +193,88 @@
             }
         }
 
-        @if(hasAnyWorkspaces()) {
+        @if(hasAnyWorkspaces() || auth.canManageUsers()) {
             <div class="mt-3"></div>
 
-            <div class="title-header">  
+            <div class="title-header">
                 <div>
                     Workspaces owned by User:
                 </div>
-            </div>   
 
-            <div class="mt-2"></div>    
-        
-            @for(workspace of workspaces(); track workspace.externalId()) {
-                <app-workspace-item 
-                    [workspace]="workspace"
-                    [canOpen]="!isAnyNameEditing()"
-                    [isAdminView]="true"
-                    [canLocate]="false"
-                    (deleted)="onWorkspaceDelete(workspace)"
-                    (ownerChanged)="onWorkspaceOwnerChanged(workspace)">
-                </app-workspace-item>
+                @if(auth.canManageUsers()) {
+                    <div class="flex-row flex-gap-05 ml-auto">
+                        <app-action-btn
+                            tooltip="Transfer an existing workspace to this user"
+                            icon="icon-lucide-plus"
+                            (clicked)="onAssignOwnership()">
+                        </app-action-btn>
+                    </div>
+                }
+            </div>
+
+            <div class="mt-2"></div>
+
+            @if(hasAnyWorkspaces()) {
+                @for(workspace of workspaces(); track workspace.externalId()) {
+                    <app-workspace-item
+                        [workspace]="workspace"
+                        [canOpen]="!isAnyNameEditing()"
+                        [isAdminView]="true"
+                        [canLocate]="false"
+                        (deleted)="onWorkspaceDelete(workspace)"
+                        (ownerChanged)="onWorkspaceOwnerChanged(workspace)">
+                    </app-workspace-item>
+                }
+            } @else {
+                <div class="nothing-to-show">
+                    <div class="nothing-to-show__label">
+                        User does not own any workspace
+                    </div>
+                </div>
             }
-        }   
+        }
       
-        @if(hasAnySharedWorkspace()) {
+        @if(hasAnySharedWorkspace() || auth.canManageUsers()) {
             <div class="mt-3"></div>
 
-            <div class="title-header">  
+            <div class="title-header">
                 <div>
                     Shared workspaces:
                 </div>
-            </div>   
 
-            <div class="mt-2"></div>    
-        
-            @for(workspace of sharedWorkspaces(); track workspace.externalId()) {
-                <app-workspace-item 
-                    [workspace]="workspace"
-                    [canOpen]="!isAnyNameEditing()"
-                    [isAdminView]="true"
-                    [canLocate]="false"
-                    (deleted)="onSharedWorkspaceDelete(workspace)"
-                    (accessRevoked)="onWorkspaceAccessRevoked(workspace)"
-                    (ownerChanged)="onSharedWorkspaceOwnerChanged(workspace)">
-                </app-workspace-item>
+                @if(auth.canManageUsers()) {
+                    <div class="flex-row flex-gap-05 ml-auto">
+                        <app-action-btn
+                            tooltip="Assign user to an existing workspace"
+                            icon="icon-lucide-plus"
+                            (clicked)="onAssignToWorkspace()">
+                        </app-action-btn>
+                    </div>
+                }
+            </div>
+
+            <div class="mt-2"></div>
+
+            @if(hasAnySharedWorkspace()) {
+                @for(workspace of sharedWorkspaces(); track workspace.externalId()) {
+                    <app-workspace-item
+                        [workspace]="workspace"
+                        [canOpen]="!isAnyNameEditing()"
+                        [isAdminView]="true"
+                        [canLocate]="false"
+                        (deleted)="onSharedWorkspaceDelete(workspace)"
+                        (accessRevoked)="onWorkspaceAccessRevoked(workspace)"
+                        (ownerChanged)="onSharedWorkspaceOwnerChanged(workspace)">
+                    </app-workspace-item>
+                }
+            } @else {
+                <div class="nothing-to-show">
+                    <div class="nothing-to-show__label">
+                        User is not assigned to any shared workspace
+                    </div>
+                </div>
             }
-        }   
+        }
 
         @if(hasAnyWorkspaceInvitation()) {
             <div class="mt-3"></div>

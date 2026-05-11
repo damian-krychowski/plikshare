@@ -20,10 +20,10 @@ public readonly record struct FolderExtId(string Value): IExternalId<FolderExtId
 
     public static bool TryParse(string? s, IFormatProvider? provider, out FolderExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new FolderExtId();
-            return false;   
+            result = default;
+            return false;
         }
 
         result = new FolderExtId(s);

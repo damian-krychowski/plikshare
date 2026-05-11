@@ -231,6 +231,8 @@ using PlikShare.Workspaces.Members.GrantEncryptionAccess.Cleanup;
 using PlikShare.Workspaces.Members.LeaveWorkspace;
 using PlikShare.Workspaces.Members.List;
 using PlikShare.Workspaces.Members.RejectInvitation;
+using PlikShare.Workspaces.ListAll;
+using PlikShare.Workspaces.Members.AdminAdd;
 using PlikShare.Workspaces.Members.Revoke;
 using PlikShare.Workspaces.Members.UpdatePermissions;
 using PlikShare.Workspaces.SearchFilesTree;
@@ -470,6 +472,8 @@ public class Startup
         builder.Services.AddSingleton<BulkDeleteQuery>();
         builder.Services.AddSingleton<ChangeWorkspaceOwnerQuery>();
         builder.Services.AddSingleton<GetWorkspaceSizeQuery>();
+        builder.Services.AddSingleton<ListAllWorkspacesQuery>();
+        builder.Services.AddSingleton<AdminAddWorkspaceMemberOperation>();
 
         builder.Services.AddSingleton<UserCache>();
         builder.Services.AddSingleton<GetOrCreateUserInvitationQuery>();

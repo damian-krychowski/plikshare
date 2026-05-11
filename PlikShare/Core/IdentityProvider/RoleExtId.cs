@@ -20,10 +20,10 @@ public readonly record struct RoleExtId(string Value): IExternalId<RoleExtId>
 
     public static bool TryParse(string? s, IFormatProvider? provider, out RoleExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new RoleExtId();
-            return false;   
+            result = default;
+            return false;
         }
 
         result = new RoleExtId(s);

@@ -54,6 +54,14 @@ public static partial class Audit
             public required List<UserRef> Members { get; init; }
         }
 
+        public class AdminAssignedMember
+        {
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required UserRef Member { get; init; }
+            public required bool AllowShare { get; init; }
+        }
+
         public class MemberRevoked
         {
             public required StorageRef Storage { get; init; }
@@ -234,6 +242,28 @@ public static partial class Audit
                 Storage = storage,
                 Workspace = workspace,
                 Members = members })
+        };
+
+        public static AuditLogEntry AdminAssignedMemberEntry(
+            AuditLogActorContext actor,
+            StorageRef storage,
+            WorkspaceRef workspace,
+            UserRef member,
+            bool allowShare) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.AdminAssignedMember,
+            Severity = AuditLogSeverities.Warning,
+            WorkspaceExternalId = workspace.ExternalId.Value,
+            DetailsJson = Json.Serialize(new AdminAssignedMember {
+                Storage = storage,
+                Workspace = workspace,
+                Member = member,
+                AllowShare = allowShare })
         };
 
         public static AuditLogEntry MemberRevokedEntry(

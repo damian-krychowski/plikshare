@@ -20,9 +20,9 @@ public readonly record struct AuthProviderExtId(string Value): IExternalId<AuthP
 
     public static bool TryParse(string? s, IFormatProvider? provider, out AuthProviderExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new AuthProviderExtId();
+            result = default;
             return false;
         }
 

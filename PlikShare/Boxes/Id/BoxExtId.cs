@@ -20,10 +20,10 @@ public readonly record struct BoxExtId(string Value): IExternalId<BoxExtId>
 
     public static bool TryParse(string? s, IFormatProvider? provider, out BoxExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new BoxExtId();
-            return false;   
+            result = default;
+            return false;
         }
 
         result = new BoxExtId(s);

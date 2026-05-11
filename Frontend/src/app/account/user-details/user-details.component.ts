@@ -1,6 +1,7 @@
 import { ActivatedRoute, Router } from "@angular/router";
 import { Component, computed, OnDestroy, OnInit, signal, WritableSignal } from "@angular/core";
 import { MatButtonModule } from "@angular/material/button";
+import { MatDialog } from "@angular/material/dialog";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { AuthService } from "../../services/auth.service";
 import { PrefetchDirective } from "../../shared/prefetch.directive";
@@ -17,7 +18,7 @@ import { AppBoxInvitation, BoxInvitationItemComponent } from "../../shared/box-i
 import { AppWorkspaceInvitation, WorkspaceInvitationItemComponent } from "../../shared/workspace-invitation-item/workspace-invitation-item.component";
 import { BoxesSetApi } from "../../services/boxes.api";
 import { mapDtoToPermissions, mapPermissionsToDto } from "../../shared/box-permissions/box-permissions-list.component";
-import { WorkspacesApi } from "../../services/workspaces.api";
+import { AdminWorkspaceListItem, WorkspacesApi } from "../../services/workspaces.api";
 import { AppStorageEncryptionType } from "../../services/storages.api";
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
 import { pushItems, removeItems } from "../../shared/signal-utils";
@@ -26,6 +27,7 @@ import { WorkspaceMaxSizeInBytesChangedEvent, WorkspaceSizeConfigComponent } fro
 import { Debouncer } from "../../services/debouncer";
 import { WorkspaceNumberConfigComponent, WorkspaceMaxNumberChangedEvent } from "../../shared/workspace-number-config/workspace-number-config.component";
 import { WorkspaceMaxTeamMembersChangedEvent, WorkspaceTeamConfigComponent } from "../../shared/workspace-team-config/workspace-team-config.component";
+import { WorkspacePickerComponent } from "../../shared/workspace-picker/workspace-picker.component";
 
 
 
@@ -101,7 +103,8 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
         private _activatedRoute: ActivatedRoute,
         private _boxesApi: BoxesSetApi,
         private _workspaceApi: WorkspacesApi,
-        private _usersApi: UsersApi
+        private _usersApi: UsersApi,
+        private _dialog: MatDialog
     ) {
     }
 
@@ -437,6 +440,151 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
             this.workspaceInvitations.update(values => values.splice(index, 0, item));
         } else {
             throw new Error("Unkown item type");
+        }
+    }
+
+    async onAssignToWorkspace() {
+        const userExternalId = this._userExternalId;
+        const user = this.user();
+
+        if(!userExternalId || !user)
+            return;
+
+        const dialogRef = this._dialog.open(WorkspacePickerComponent, {
+            width: '700px',
+            maxHeight: '80vh',
+            position: { top: '100px' },
+            data: {
+                excludeMemberOrOwnerExternalId: userExternalId,
+                subtitle: 'The selected workspace will gain this user as a member. '
+                    + 'For full-encryption workspaces you must have your encryption password unlocked '
+                    + 'so the workspace key can be re-wrapped for the new member.'
+            }
+        });
+
+        dialogRef.afterClosed().subscribe(async (workspace: AdminWorkspaceListItem | undefined) => {
+            if(!workspace)
+                return;
+
+            await this.assignToWorkspace(workspace, user);
+        });
+    }
+
+    async onAssignOwnership() {
+        const userExternalId = this._userExternalId;
+        const user = this.user();
+
+        if(!userExternalId || !user)
+            return;
+
+        const dialogRef = this._dialog.open(WorkspacePickerComponent, {
+            width: '700px',
+            maxHeight: '80vh',
+            position: { top: '100px' },
+            data: {
+                excludeMemberOrOwnerExternalId: userExternalId,
+                subtitle: 'The selected workspace will be transferred to this user. '
+                    + 'The current owner loses ownership. For full-encryption workspaces, '
+                    + 'the target user must already have an encryption password configured.'
+            }
+        });
+
+        dialogRef.afterClosed().subscribe(async (workspace: AdminWorkspaceListItem | undefined) => {
+            if(!workspace)
+                return;
+
+            await this.assignOwnership(workspace, user);
+        });
+    }
+
+    private async assignOwnership(workspace: AdminWorkspaceListItem, user: AppUserDetails) {
+        const userExternalId = this._userExternalId;
+        if(!userExternalId)
+            return;
+
+        const optimisticOwned: AppWorkspace = {
+            type: 'app-workspace',
+            externalId: signal(workspace.externalId),
+            currentSizeInBytes: signal(workspace.currentSizeInBytes),
+            maxSizeInBytes: signal(workspace.maxSizeInBytes),
+            isHighlighted: signal(false),
+            isNameEditing: signal(false),
+            name: signal(workspace.name),
+            owner: signal({
+                email: signal(user.email()),
+                externalId: userExternalId
+            }),
+            permissions: {
+                allowShare: true
+            },
+            storageName: signal(workspace.storage.name),
+            storageExternalId: '',
+            storageEncryptionType: workspace.storage.encryptionType,
+            wasUserInvited: signal(false),
+            isUsedByIntegration: false,
+            isBucketCreated: signal(workspace.isBucketCreated),
+            isPendingKeyGrant: signal(false)
+        };
+
+        pushItems(this.workspaces, optimisticOwned);
+
+        try {
+            this.isLoading.set(true);
+
+            await this._workspaceApi.updateOwner(workspace.externalId, {
+                newOwnerExternalId: userExternalId
+            });
+        } catch (error) {
+            console.error(error);
+            removeItems(this.workspaces, optimisticOwned);
+        } finally {
+            this.isLoading.set(false);
+        }
+    }
+
+    private async assignToWorkspace(workspace: AdminWorkspaceListItem, user: AppUserDetails) {
+        const userExternalId = this._userExternalId;
+        if(!userExternalId)
+            return;
+
+        const optimisticShared: AppWorkspace = {
+            type: 'app-workspace',
+            externalId: signal(workspace.externalId),
+            currentSizeInBytes: signal(workspace.currentSizeInBytes),
+            maxSizeInBytes: signal(workspace.maxSizeInBytes),
+            isHighlighted: signal(false),
+            isNameEditing: signal(false),
+            name: signal(workspace.name),
+            owner: signal({
+                email: signal(workspace.owner.email),
+                externalId: workspace.owner.externalId
+            }),
+            permissions: {
+                allowShare: false
+            },
+            storageName: signal(workspace.storage.name),
+            storageExternalId: '',
+            storageEncryptionType: workspace.storage.encryptionType,
+            wasUserInvited: signal(true),
+            isUsedByIntegration: false,
+            isBucketCreated: signal(workspace.isBucketCreated),
+            isPendingKeyGrant: signal(workspace.storage.encryptionType === 'full' && !user.isEncryptionConfigured())
+        };
+
+        pushItems(this.sharedWorkspaces, optimisticShared);
+
+        try {
+            this.isLoading.set(true);
+
+            await this._workspaceApi.adminAddWorkspaceMember(workspace.externalId, {
+                memberExternalId: userExternalId,
+                allowShare: false
+            });
+        } catch (error) {
+            console.error(error);
+            removeItems(this.sharedWorkspaces, optimisticShared);
+        } finally {
+            this.isLoading.set(false);
         }
     }
 

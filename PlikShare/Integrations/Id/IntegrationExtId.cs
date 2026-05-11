@@ -20,10 +20,10 @@ public readonly record struct IntegrationExtId(string Value): IExternalId<Integr
 
     public static bool TryParse(string? s, IFormatProvider? provider, out IntegrationExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new IntegrationExtId();
-            return false;   
+            result = default;
+            return false;
         }
 
         result = new IntegrationExtId(s);

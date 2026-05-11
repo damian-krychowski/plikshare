@@ -152,6 +152,13 @@ public static class HttpErrors
                 Message = $"Member with externalId '{userId}' of Workspace '{workspaceExternalId}' was not found."
             });
 
+        public static BadRequest<HttpError> MemberAlreadyAssigned(UserExtId userId, WorkspaceExtId workspaceExternalId) =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "workspace-member-already-assigned",
+                Message = $"User '{userId}' is already owner or member of Workspace '{workspaceExternalId}'."
+            });
+
 
         public static NotFound<HttpError> InvitationNotFound(WorkspaceExtId externalId) =>
             TypedResults.NotFound(new HttpError
@@ -446,6 +453,13 @@ public static class HttpErrors
             {
                 Code = "only-app-owner-can-assign-admin-role",
                 Message = $"Admin role can be assigned only by App Owner"
+            });
+
+        public static BadRequest<HttpError> TargetNotRegistered(UserExtId externalId) =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "user-not-registered",
+                Message = $"User with externalId '{externalId}' has not registered yet and cannot be assigned to a workspace."
             });
 
 

@@ -20,10 +20,10 @@ public readonly record struct EmailProviderExtId(string Value): IExternalId<Emai
 
     public static bool TryParse(string? s, IFormatProvider? provider, out EmailProviderExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new EmailProviderExtId();
-            return false;   
+            result = default;
+            return false;
         }
 
         result = new EmailProviderExtId(s);

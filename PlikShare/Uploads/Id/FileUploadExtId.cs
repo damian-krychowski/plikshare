@@ -20,10 +20,10 @@ public readonly record struct FileUploadExtId(string Value): IExternalId<FileUpl
 
     public static bool TryParse(string? s, IFormatProvider? provider, out FileUploadExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new FileUploadExtId();
-            return false;   
+            result = default;
+            return false;
         }
 
         result = new FileUploadExtId(s);

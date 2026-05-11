@@ -29,10 +29,10 @@ public readonly record struct WorkspaceExtId(string Value): IExternalId<Workspac
 
     public static bool TryParse(string? s, IFormatProvider? provider, out WorkspaceExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new WorkspaceExtId();
-            return false;   
+            result = default;
+            return false;
         }
 
         result = new WorkspaceExtId(s);

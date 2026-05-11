@@ -181,6 +181,11 @@ Having trouble with self-hosting or interested in a managed version with support
 - **Email**: damian.krychowski@hey.com
 
 
+## Changelog
+
+Release notes and per-version highlights live in [CHANGELOG.md](https://github.com/damian-krychowski/plikshare/blob/main/CHANGELOG.md).
+
+
 ## License
 
 PlikShare is developed and maintained by Damian Krychowski.

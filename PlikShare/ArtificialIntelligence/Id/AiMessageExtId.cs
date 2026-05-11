@@ -20,10 +20,10 @@ public readonly record struct AiMessageExtId(string Value): IExternalId<AiMessag
 
     public static bool TryParse(string? s, IFormatProvider? provider, out AiMessageExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new AiMessageExtId();
-            return false;   
+            result = default;
+            return false;
         }
 
         result = new AiMessageExtId(s);

@@ -20,9 +20,9 @@ public readonly record struct FileArtifactExtId(string Value) : IExternalId<File
 
     public static bool TryParse(string? s, IFormatProvider? provider, out FileArtifactExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new FileArtifactExtId();
+            result = default;
             return false;
         }
 

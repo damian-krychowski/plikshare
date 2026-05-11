@@ -22,14 +22,14 @@ public readonly record struct TextractJobExtId(string Value): IExternalId<Textra
 
     public static bool TryParse(string? s, IFormatProvider? provider, out TextractJobExtId result)
     {
-        if (!string.IsNullOrWhiteSpace(s) && s.StartsWith(Prefix))
-        { 
-            result = new TextractJobExtId(s);
-            return true;
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
+        {
+            result = default;
+            return false;
         }
-        
-        result = new TextractJobExtId();
-        return false;   
+
+        result = new TextractJobExtId(s);
+        return true;
     }
     
     public override string ToString() => Value;

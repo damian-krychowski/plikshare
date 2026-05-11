@@ -115,6 +115,37 @@ export interface GetWorkspaceBucketStatusResponse {
     isBucketCreated: boolean;
 }
 
+export interface AdminWorkspaceListItem {
+    externalId: string;
+    name: string;
+    currentSizeInBytes: number;
+    maxSizeInBytes: number | null;
+    isBucketCreated: boolean;
+    storage: {
+        externalId: string;
+        name: string;
+        encryptionType: AppStorageEncryptionType;
+    };
+    owner: {
+        externalId: string;
+        email: string;
+    };
+}
+
+export interface GetAllWorkspacesAdminResponse {
+    items: AdminWorkspaceListItem[];
+}
+
+export interface AdminAddWorkspaceMemberRequest {
+    memberExternalId: string;
+    allowShare: boolean;
+}
+
+export interface AdminAddWorkspaceMemberResponse {
+    email: string;
+    externalId: string;
+}
+
 @Injectable({
     providedIn: 'root'
 })
@@ -289,6 +320,33 @@ export class WorkspacesApi {
             ._http
             .post<void>(
                 `/api/workspaces/${workspaceExternalId}/reject-invitation`, {});
+
+        return await firstValueFrom(call);
+    }
+
+    public async getAllWorkspacesAdmin(excludeMemberOrOwnerExternalId?: string): Promise<GetAllWorkspacesAdminResponse> {
+        let url = `/api/workspaces/admin-list-all`;
+
+        if (excludeMemberOrOwnerExternalId) {
+            url += `?excludeMemberOrOwnerExternalId=${encodeURIComponent(excludeMemberOrOwnerExternalId)}`;
+        }
+
+        const call = this
+            ._http
+            .get<GetAllWorkspacesAdminResponse>(url);
+
+        return await firstValueFrom(call);
+    }
+
+    public async adminAddWorkspaceMember(workspaceExternalId: string, request: AdminAddWorkspaceMemberRequest): Promise<AdminAddWorkspaceMemberResponse> {
+        const call = this
+            ._http
+            .post<AdminAddWorkspaceMemberResponse>(
+                `/api/workspaces/${workspaceExternalId}/members/assign`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
 
         return await firstValueFrom(call);
     }

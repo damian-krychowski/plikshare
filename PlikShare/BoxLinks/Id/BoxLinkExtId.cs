@@ -22,10 +22,10 @@ public readonly record struct BoxLinkExtId(string Value): IExternalId<BoxLinkExt
 
     public static bool TryParse(string? s, IFormatProvider? provider, out BoxLinkExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new BoxLinkExtId();
-            return false;   
+            result = default;
+            return false;
         }
 
         result = new BoxLinkExtId(s);

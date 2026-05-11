@@ -20,9 +20,9 @@ public readonly record struct AuditLogExtId(string Value) : IExternalId<AuditLog
 
     public static bool TryParse(string? s, IFormatProvider? provider, out AuditLogExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new AuditLogExtId();
+            result = default;
             return false;
         }
 

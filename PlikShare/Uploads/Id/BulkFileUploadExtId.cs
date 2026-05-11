@@ -20,9 +20,9 @@ public readonly record struct BulkFileUploadExtId(string Value) : IExternalId<Bu
 
     public static bool TryParse(string? s, IFormatProvider? provider, out BulkFileUploadExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new BulkFileUploadExtId();
+            result = default;
             return false;
         }
 

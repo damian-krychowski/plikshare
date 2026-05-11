@@ -1,0 +1,75 @@
+<div class="questionaire">
+    <div class="questionaire__title flex-row">
+        Choose workspace
+
+        <app-item-search
+            class="ml-auto"
+            [count]="searchCount()"
+            (searched)="performSearch($event)">
+        </app-item-search>
+    </div>
+
+    <div class="questionaire__subtitle">
+        {{ subtitle() }}
+    </div>
+
+    <div class="questionaire__content">
+        @if(isLoading()) {
+            <div class="mt-3">Loading workspaces…</div>
+        } @else {
+            @for(workspace of workspaces(); track workspace.externalId) {
+                <div class="item-bar item-bar--clickable flex-row"
+                    (click)="onWorkspacePicked(workspace)">
+                    <div class="item">
+                        <div class="icon-container">
+                            <i class="icon icon-xl icon-nucleo-workspace"></i>
+
+                            @if(workspace.storage.encryptionType === 'full') {
+                                <i class="icon icon-nucleo-lock icon-container__mini-icon"
+                                    matTooltip="Full encryption"
+                                    matTooltipPosition="above"></i>
+                            }
+                        </div>
+
+                        <div class="item__details">
+                            <div class="item__title">
+                                {{ workspace.name }}
+                            </div>
+
+                            <div class="item__subtitle">
+                                <span>
+                                    Size:
+                                    @if(workspace.maxSizeInBytes == null) {
+                                        {{ workspace.currentSizeInBytes | storageSize }}
+                                    } @else {
+                                        {{ workspace.currentSizeInBytes | storageSize }}
+                                        / {{ workspace.maxSizeInBytes | storageSize }}
+                                    }
+                                </span>
+
+                                <span class="ml-1">Storage: {{ workspace.storage.name }}</span>
+                                <span class="ml-1">Owner: {{ workspace.owner.email }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if(workspaces().length === 0) {
+                <div class="mt-3">No workspaces match the current filter.</div>
+            }
+        }
+
+        <div class="mt-3"></div>
+    </div>
+
+    <div class="questionaire__actions">
+        <button type="button"
+            class="questionaire__btn mr-1"
+            mat-flat-button
+            aria-label="Cancel"
+            (click)="onCancel()">
+            Cancel
+        </button>
+    </div>
+</div>

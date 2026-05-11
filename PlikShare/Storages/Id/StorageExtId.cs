@@ -20,10 +20,10 @@ public readonly record struct StorageExtId(string Value): IExternalId<StorageExt
 
     public static bool TryParse(string? s, IFormatProvider? provider, out StorageExtId result)
     {
-        if (s is null)
+        if (string.IsNullOrWhiteSpace(s) || !s.StartsWith(Prefix))
         {
-            result = new StorageExtId();
-            return false;   
+            result = default;
+            return false;
         }
 
         result = new StorageExtId(s);
