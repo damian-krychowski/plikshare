@@ -221,8 +221,31 @@ export class FileTreeViewComponent implements OnChanges {
     private resortTree(mode: SortMode, direction: SortDirection) {
         for (const folder of this._foldersMap().values()) {
             const current = folder.children();
-            if (current.length === 0) continue;
-            folder.children.set(this.sortMixed(current, mode, direction));
+            
+            if (current.length === 0) 
+                continue;
+
+            folder.children.set(
+                this.sortMixed(
+                    current, 
+                    mode, 
+                    direction));
+        }
+
+        const top = this.nodes();
+        if (top.length > 0) {
+            const sortedTop = this.sortMixed(
+                top, 
+                mode, 
+                direction);
+            
+            this.nodes.set(sortedTop);
+
+            this.dataSource.set(
+                this.viewMode() === 'show-all'
+                    ? sortedTop
+                    : this.buildTreeOfSelectedNodes(sortedTop)
+            );
         }
     }
 
@@ -527,14 +550,14 @@ export class FileTreeViewComponent implements OnChanges {
 
     private getTreeStructures(topLevelItems: AppTreeItem[]) {
         const nodes: TreeItem[] = [];
-        
+
         for (const item of topLevelItems) {
             if(item.type == 'file') {
                 const fileNode: FileTreeItem = this.mapFileItem(
                     item);
 
                 nodes.push(fileNode);
-            } else if(item.type == 'folder') {                      
+            } else if(item.type == 'folder') {
                 const folderNode: FolderTreeItem = this.mapFolderItem(
                     item);
 
@@ -544,7 +567,7 @@ export class FileTreeViewComponent implements OnChanges {
             }
         }
 
-        return nodes;
+        return this.sortMixed(nodes, this.sortMode(), this.sortDirection());
     }
 
     private mapFolderItem(item: AppFolderItem) {
