@@ -4,6 +4,11 @@
 
 Release notes for PlikShare.
 
+## 1.1.26
+
+- [FEATURE] Admin can invite users via a shareable link instead of email — useful when no email provider is configured, or when the admin prefers to deliver the invitation out-of-band
+- [SECURITY] Plaintext invitation code for full-encryption workspace invites no longer persists in queue job payloads — it doubles as the KEK for the invitee's ephemeral private-key wrap. Email is now sent synchronously after DB commit; on failure the staged rows are rolled back. Non-FE flows unchanged.
+
 ## 1.1.25
 
 - [FEATURE] Per-user storage access policy introduced — admins can restrict which storages a user is allowed to create workspaces on
