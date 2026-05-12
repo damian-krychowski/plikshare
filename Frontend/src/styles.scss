@@ -294,6 +294,14 @@ select {
     }
 }
 
+// Wide tooltip for short single-line explanations (e.g. disabled-checkbox hints).
+.plk-wide-tooltip {
+    .mdc-tooltip__surface {
+        max-width: none;
+        white-space: nowrap;
+    }
+}
+
 .hide-on-mobile {
      @media (max-width: variables.$mobile-breakpoint) {
         display: none;

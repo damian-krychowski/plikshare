@@ -1,6 +1,7 @@
 import { Component, OnInit, OnChanges, SimpleChanges, input, output } from "@angular/core";
 import { MatSelectModule } from "@angular/material/select";
 import { MatCheckboxModule } from "@angular/material/checkbox";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { FormsModule } from "@angular/forms";
 import { StorageNameItem } from "../../services/storages.api";
 import { UserStorageAccessMode } from "../../services/general-settings.api";
@@ -12,8 +13,8 @@ export type StorageAccessChangedEvent = {
 
 const MODE_OPTIONS: { value: UserStorageAccessMode; label: string }[] = [
     { value: 'all', label: 'All storages' },
-    { value: 'allow-only', label: 'Only selected storages' },
-    { value: 'allow-all-except', label: 'All except selected storages' }
+    { value: 'allow-only', label: 'Only selected' },
+    { value: 'allow-all-except', label: 'All except selected' }
 ];
 
 @Component({
@@ -22,7 +23,8 @@ const MODE_OPTIONS: { value: UserStorageAccessMode; label: string }[] = [
     imports: [
         FormsModule,
         MatSelectModule,
-        MatCheckboxModule
+        MatCheckboxModule,
+        MatTooltipModule
     ],
     templateUrl: './storage-access-config.component.html',
     styleUrl: './storage-access-config.component.scss'
@@ -72,6 +74,16 @@ export class StorageAccessConfigComponent implements OnInit, OnChanges {
 
     isSelected(externalId: string): boolean {
         return this.selectedIds.has(externalId);
+    }
+
+    /**
+     * Full-encryption storages are not yet supported for per-user sharing — workspace
+     * creation on them would still fail at the backend (no sek wrap for the invited user).
+     * We render them disabled so admins can see the storage exists but can't add it to
+     * any policy until that gap is closed.
+     */
+    isDisabled(storage: StorageNameItem): boolean {
+        return storage.encryptionType === 'full';
     }
 
     private emitChanges() {

@@ -13,8 +13,13 @@
     }
 
     &__item {
-        display: flex;
+        display: inline-flex;
         align-items: center;
+        width: fit-content;
+
+        &--disabled {
+            opacity: 0.6;
+        }
     }
 
     &__empty {

@@ -21,9 +21,14 @@
         } @else {
             <div class="storage-access-config__list">
                 @for (storage of availableStorages(); track storage.externalId) {
-                    <label class="storage-access-config__item">
+                    <label class="storage-access-config__item"
+                        [class.storage-access-config__item--disabled]="isDisabled(storage)"
+                        [matTooltip]="isDisabled(storage) ? 'Full encryption - sharing not supported yet' : ''"
+                        matTooltipPosition="right"
+                        matTooltipClass="plk-wide-tooltip">
                         <mat-checkbox
                             [checked]="isSelected(storage.externalId)"
+                            [disabled]="isDisabled(storage)"
                             (change)="onStorageToggle(storage.externalId, $event.checked)">
                             {{ storage.name }}
                         </mat-checkbox>
