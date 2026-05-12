@@ -10,6 +10,8 @@ using PlikShare.Account.GetKnownUsers;
 using PlikShare.Antiforgery;
 using PlikShare.AuditLog;
 using PlikShare.AuditLog.Decryption;
+using PlikShare.AuditLog.Policy;
+using PlikShare.AuditLog.Policy.Queries;
 using PlikShare.AuditLog.Queries;
 using PlikShare.ArtificialIntelligence;
 using PlikShare.ArtificialIntelligence.CheckConversationStatus;
@@ -319,6 +321,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_34_ReencryptDatabaseFromSlowPathToFastPath>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_35_FolderAndFilePositionIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_36_UserStorageAccessIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_37_WorkspaceAuditLogDisabledEventsIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -334,6 +337,12 @@ public class Startup
         builder.Services.AddSingleton<GetAuditLogFilterOptionsQuery>();
         builder.Services.AddSingleton<GetAuditLogEntryDetailsQuery>();
         builder.Services.AddSingleton<AuditLogDetailsDecryptor>();
+        builder.Services.AddSingleton<WorkspaceAuditLogPolicyCache>();
+        builder.Services.AddSingleton<AuditLogPolicyEvaluator>();
+        builder.Services.AddSingleton<GetWorkspaceAuditLogPolicyQuery>();
+        builder.Services.AddSingleton<UpdateWorkspaceAuditLogPolicyQuery>();
+        builder.Services.AddSingleton<GetAuditLogVolumeStatsQuery>();
+        builder.Services.AddSingleton<GetWorkspacesWithAuditLogPolicyQuery>();
         builder.Services.AddSingleton<DeleteOldAuditLogsQuery>();
         builder.Services.AddSingleton<ArchiveAuditLogsQuery>();
         builder.Services.AddSingleton<GetFileAuditContextQuery>();
@@ -789,6 +798,7 @@ public class Startup
         app.MapAntiforgeryEndpoints();
         app.MapWidgetEndpoints();
         app.MapAuditLogEndpoints();
+        app.MapAuditLogPolicyEndpoints();
         
         //core functionality
         app.InitializeSqLite();

@@ -349,9 +349,13 @@ public static class AuditLogSignInMethods
 
 public static class AuditLogSeverities
 {
+    public const string Verbose = "verbose";
     public const string Info = "info";
     public const string Warning = "warning";
     public const string Critical = "critical";
 
-    public static readonly string[] All = [Info, Warning, Critical];
+    public static readonly string[] All = [Verbose, Info, Warning, Critical];
+
+    public static bool IsValid(string severity) =>
+        severity == Verbose || severity == Info || severity == Warning || severity == Critical;
 }

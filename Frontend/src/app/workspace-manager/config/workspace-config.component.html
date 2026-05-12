@@ -4,7 +4,7 @@
     <div>
         Workspace configuration:
     </div>
-</div>    
+</div>
 
 <div class="mt-2"></div>
 
@@ -13,9 +13,31 @@
         [maxSizeInBytes]="maxSizeInBytes()"
         (configChanged)="onMaxSizeInBytesChange($event)">
     </app-workspace-size-config>
-    
+
     <app-workspace-team-config
         [maxTeamMembers]="maxTeamMembers()"
-        (configChanged)="onMaxTeamMembersChange($event)">    
+        (configChanged)="onMaxTeamMembersChange($event)">
     </app-workspace-team-config>
+
+    @if (canConfigureAuditLog()) {
+        <div class="audit-log-config">
+            <div class="audit-log-config__text">
+                <div class="audit-log-config__title">Audit log</div>
+                <div class="audit-log-config__description">
+                    Choose which audit-log events are recorded for this workspace and override their severities.
+                </div>
+            </div>
+            @if (auditLogSummaryText(); as summary) {
+                <span class="ws-summary-chip"
+                    [class.ws-summary-chip--customized]="isAuditLogCustomized()">
+                    {{ summary }}
+                </span>
+            }
+            <app-action-text-btn
+                tooltip="Open the audit-log policy editor for this workspace"
+                text="Configure audit log"
+                (clicked)="goToAuditLogPolicy()">
+            </app-action-text-btn>
+        </div>
+    }
 </div>

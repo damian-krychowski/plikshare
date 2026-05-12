@@ -69,7 +69,8 @@ public static class S3Client
                 secretKey: secretAccessKey),
             new AmazonS3Config
             {
-                ServiceURL = url
+                ServiceURL = url,
+                AuthenticationRegion = "auto"
             });
     }
     
@@ -280,7 +281,7 @@ public static class S3Client
         IAmazonS3 client,
         CancellationToken cancellationToken = default)
     {
-        var randomBucketName = $"test-bucket-{Guid.NewGuid()}";
+        var randomBucketName = $"test-bucket-{Guid.NewGuid():N}";
 
         try
         {

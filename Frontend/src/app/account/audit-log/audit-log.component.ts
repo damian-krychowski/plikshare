@@ -121,7 +121,7 @@ export class AuditLogComponent implements OnInit, OnDestroy {
         'settings', 'storage', 'upload', 'user', 'workspace'
     ];
 
-    severities = ['critical', 'info', 'warning'];
+    severities = ['critical', 'info', 'verbose', 'warning'];
 
     highlightMatch(text: string, search: string): string {
         return getNameWithHighlight(text, search.toLowerCase());
@@ -176,6 +176,10 @@ export class AuditLogComponent implements OnInit, OnDestroy {
 
     goToAccount() {
         this._router.navigate(['account']);
+    }
+
+    goToPolicy() {
+        this._router.navigate(['settings/audit-log/policy/app']);
     }
 
     private buildFilters(cursor?: number | null): AuditLogFilters {
@@ -352,6 +356,7 @@ export class AuditLogComponent implements OnInit, OnDestroy {
 
     getSeverityClass(severity: string): string {
         switch (severity) {
+            case 'verbose': return 'severity--verbose';
             case 'warning': return 'severity--warning';
             case 'critical': return 'severity--critical';
             default: return 'severity--info';

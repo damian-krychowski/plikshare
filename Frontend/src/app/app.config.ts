@@ -105,6 +105,25 @@ export const routes: Routes = [{
     loadComponent: () => import('./account/audit-log/audit-log.component').then(m => m.AuditLogComponent),
     canActivate: [AdminGuardService]
 }, {
+    path: 'settings/audit-log/policy/app',
+    loadComponent: () => import('./account/audit-log/policy/audit-log-policy.component').then(m => m.AuditLogPolicyComponent),
+    canActivate: [AdminGuardService],
+    data: { mode: 'app' }
+}, {
+    path: 'settings/audit-log/policy/workspace-defaults',
+    loadComponent: () => import('./account/audit-log/policy/audit-log-policy.component').then(m => m.AuditLogPolicyComponent),
+    canActivate: [AdminGuardService],
+    data: { mode: 'workspace-defaults' }
+}, {
+    path: 'settings/audit-log/policy/workspaces',
+    loadComponent: () => import('./account/audit-log/policy/audit-log-policy-workspaces.component').then(m => m.AuditLogPolicyWorkspacesComponent),
+    canActivate: [AdminGuardService]
+}, {
+    path: 'settings/audit-log/policy/workspaces/:workspaceExternalId',
+    loadComponent: () => import('./account/audit-log/policy/audit-log-policy.component').then(m => m.AuditLogPolicyComponent),
+    canActivate: [AdminGuardService],
+    data: { mode: 'workspace' }
+}, {
     path: 'settings/integrations/add/aws-textract',
     loadComponent: () => import('./account/integrations/aws/textract/create/create-aws-textract.component').then(m => m.CreateAwsTextractComponent),
     canActivate: [AdminGuardService]

@@ -105,6 +105,7 @@ public static class JsonConverters
         options.Converters.Add(new JsonStringEnumConverter<SslMode>(JsonNamingPolicy.CamelCase));
 
         //I prefer to have enum as kebab-case rather than camelCase because they look better when displayed directly on the frontend
+        options.Converters.Add(new JsonStringEnumConverter<AuditLog.Policy.AuditLogEventScope>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<StorageEncryptionType>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<StorageType>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<AzureBlobAuthType>(JsonNamingPolicy.KebabCaseLower));

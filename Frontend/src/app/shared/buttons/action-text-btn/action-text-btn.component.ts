@@ -12,7 +12,7 @@ import { MatTooltipModule, TooltipPosition } from "@angular/material/tooltip";
     styleUrl: './action-text-btn.component.scss'
 })
 export class ActionTextButtonComponent {
-    tooltip = input.required<string>();
+    tooltip = input<string>();
     tooltipPosition = input<TooltipPosition>("above");
 
     text = input.required<string>();

@@ -1,0 +1,101 @@
+<div class="app-container">
+    <div class="top-bar">
+        <div class="top-bar__header">
+            <button class="top-nav-btn"
+                aria-label="Audit log"
+                mat-flat-button
+                matTooltip="Back to audit log"
+                matTooltipPosition="below"
+                (click)="goBack()">
+                <div class="icon-merge">
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>
+                    <i class="icon icon-xl icon-nucleo-scroll-text icon-merge--front"></i>
+                </div>
+            </button>
+
+            <div class="flex-column">
+                <div class="top-bar__title">Audit log — per-workspace policies</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="mt-3 hide-on-mobile"></div>
+
+        <!-- Same tab strip as the policy editor for consistent navigation between scopes -->
+        <div class="policy-mode-tabs">
+            <button mat-flat-button class="policy-mode-tab" (click)="switchMode('app')">
+                Application events
+            </button>
+            <button mat-flat-button class="policy-mode-tab" (click)="switchMode('workspace-defaults')">
+                New-workspace defaults
+            </button>
+            <button mat-flat-button
+                class="policy-mode-tab policy-mode-tab--active"
+                (click)="switchMode('workspaces')">
+                Per-workspace
+            </button>
+        </div>
+
+        <div class="mt-2"></div>
+
+        <div class="policy-subtitle">
+            Pick a workspace to view or edit its policy. Workspaces with custom settings are listed first.
+        </div>
+
+        <div class="mt-2"></div>
+
+        @if (isLoading()) {
+            <div class="explanation">Loading workspaces…</div>
+        } @else {
+            <mat-form-field class="ws-search">
+                <mat-label>Search workspaces</mat-label>
+                <input matInput
+                    [ngModel]="searchQuery()"
+                    (ngModelChange)="searchQuery.set($event)"
+                    placeholder="By name or owner email…">
+            </mat-form-field>
+
+            <div class="ws-summary">
+                {{ workspaces().length }} workspaces · {{ customizedCount() }} customized
+            </div>
+
+            <div class="mt-2"></div>
+
+            @if (filteredWorkspaces().length === 0) {
+                <div class="explanation">No workspaces match the search.</div>
+            } @else {
+                @for (w of filteredWorkspaces(); track w.externalId) {
+                    <!-- Reuses dashboard's item-bar visual contract (icon + title + subtitle).
+                         No action buttons here — the whole row is the action: clicking opens the
+                         workspace's audit-log policy editor. The chip sits OUTSIDE .item so the
+                         flex-grow:1 on .item pushes it to the right edge of the bar. -->
+                    <div class="item-bar item-bar--clickable flex-row"
+                        (click)="open(w.externalId)">
+                        <div class="item">
+                            <div class="icon-container">
+                                <i class="icon icon-xl icon-nucleo-workspace"></i>
+                            </div>
+
+                            <div class="item__details">
+                                <div class="item__title" [innerHTML]="highlightMatch(w.name)"></div>
+                                <div class="item__subtitle">
+                                    <span>Owner: </span>
+                                    <span [innerHTML]="highlightMatch(w.ownerEmail)"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (isCustomized(w)) {
+                            <span class="ws-summary-chip ws-summary-chip--customized">
+                                {{ summaryFor(w) }}
+                            </span>
+                        } @else {
+                            <span class="ws-summary-chip">defaults</span>
+                        }
+                    </div>
+                }
+            }
+        }
+    </div>
+</div>

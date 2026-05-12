@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using PlikShare.AuditLog.Policy;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.IdentityProvider;
@@ -191,6 +192,31 @@ public class AppSettings(PlikShareDb plikShareDb)
         public string SerializeStorageIds() => string.Join(",", StorageExternalIds);
     }
 
+    /// <summary>
+    /// Disabled-event-type list for application-scoped audit events (auth, user, settings,
+    /// storage, integrations, providers). Sparse format <c>{"disabled":["event.type", ...]}</c>.
+    /// </summary>
+    public record AuditLogAppPolicySetting(AuditLogPolicy Policy)
+    {
+        public const string Key = "audit-log-app-policy";
+        public static AuditLogAppPolicySetting Default => new(AuditLogPolicy.Empty);
+        public static AuditLogAppPolicySetting FromString(string? value) => new(AuditLogPolicy.Parse(value));
+        public string Serialize() => Policy.Serialize();
+    }
+
+    /// <summary>
+    /// Template policy snapshotted into <c>w_workspaces.w_audit_log_disabled_events_json</c>
+    /// when a new workspace is created. Editing this never retroactively touches existing
+    /// workspaces — they keep their own per-workspace policy.
+    /// </summary>
+    public record AuditLogWorkspaceDefaultPolicySetting(AuditLogPolicy Policy)
+    {
+        public const string Key = "audit-log-workspace-default-policy";
+        public static AuditLogWorkspaceDefaultPolicySetting Default => new(AuditLogPolicy.Empty);
+        public static AuditLogWorkspaceDefaultPolicySetting FromString(string? value) => new(AuditLogPolicy.Parse(value));
+        public string Serialize() => Policy.Serialize();
+    }
+
     public record PasswordLoginSetting(bool IsEnabled)
     {
         public const string Key = "password-login-enabled";
@@ -322,7 +348,37 @@ public class AppSettings(PlikShareDb plikShareDb)
     private volatile NewUserDefaultStorageAccessSetting _newUserDefaultStorageAccess = NewUserDefaultStorageAccessSetting.Default;
     public NewUserDefaultStorageAccessSetting NewUserDefaultStorageAccess => _newUserDefaultStorageAccess;
 
+
+    private volatile AuditLogAppPolicySetting _auditLogAppPolicy = AuditLogAppPolicySetting.Default;
+    public AuditLogPolicy AuditLogAppPolicy => _auditLogAppPolicy.Policy;
+
+
+    private volatile AuditLogWorkspaceDefaultPolicySetting _auditLogWorkspaceDefaultPolicy = AuditLogWorkspaceDefaultPolicySetting.Default;
+    public AuditLogPolicy AuditLogWorkspaceDefaultPolicy => _auditLogWorkspaceDefaultPolicy.Policy;
+
     public int AdminRoleId { get; private set; }
+
+    public void SetAuditLogAppPolicy(AuditLogPolicy policy)
+    {
+        var setting = new AuditLogAppPolicySetting(policy);
+
+        UpdateSettingInDatabase(
+            key: AuditLogAppPolicySetting.Key,
+            value: setting.Serialize());
+
+        _auditLogAppPolicy = setting;
+    }
+
+    public void SetAuditLogWorkspaceDefaultPolicy(AuditLogPolicy policy)
+    {
+        var setting = new AuditLogWorkspaceDefaultPolicySetting(policy);
+
+        UpdateSettingInDatabase(
+            key: AuditLogWorkspaceDefaultPolicySetting.Key,
+            value: setting.Serialize());
+
+        _auditLogWorkspaceDefaultPolicy = setting;
+    }
 
     public void SetNewUserDefaultStorageAccess(UserStorageAccessMode mode, List<string> storageExternalIds)
     {
@@ -467,8 +523,30 @@ public class AppSettings(PlikShareDb plikShareDb)
         _alertOnNewUserRegistered = GetAlertOnNewUserRegisteredOrDefault(settings);
         _passwordLogin = GetPasswordLoginOrDefault(settings);
         _newUserDefaultStorageAccess = GetNewUserDefaultStorageAccessOrDefault(settings);
+        _auditLogAppPolicy = GetAuditLogAppPolicyOrDefault(settings);
+        _auditLogWorkspaceDefaultPolicy = GetAuditLogWorkspaceDefaultPolicyOrDefault(settings);
 
         AdminRoleId = GetOrCreateAdminRole(connection);
+    }
+
+    private AuditLogAppPolicySetting GetAuditLogAppPolicyOrDefault(IEnumerable<Setting> settings)
+    {
+        var setting = settings.FirstOrDefault(
+            s => s.Key.Equals(AuditLogAppPolicySetting.Key));
+
+        return setting is null
+            ? AuditLogAppPolicySetting.Default
+            : AuditLogAppPolicySetting.FromString(setting.Value);
+    }
+
+    private AuditLogWorkspaceDefaultPolicySetting GetAuditLogWorkspaceDefaultPolicyOrDefault(IEnumerable<Setting> settings)
+    {
+        var setting = settings.FirstOrDefault(
+            s => s.Key.Equals(AuditLogWorkspaceDefaultPolicySetting.Key));
+
+        return setting is null
+            ? AuditLogWorkspaceDefaultPolicySetting.Default
+            : AuditLogWorkspaceDefaultPolicySetting.FromString(setting.Value);
     }
 
     private NewUserDefaultStorageAccessSetting GetNewUserDefaultStorageAccessOrDefault(IEnumerable<Setting> settings)

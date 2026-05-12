@@ -4,6 +4,10 @@
 @forward "./../../../styles/item-bar.scss";
 @forward "./../../../styles/icon-merge.scss";
 
+.audit-title-header {
+    padding-right: 0 !important;
+}
+
 .filters-panel {
     padding: 0.5rem 0;
 }
@@ -144,6 +148,11 @@
     font-size: var(--company-small-font);
     font-weight: 500;
     text-transform: uppercase;
+}
+
+.severity--verbose {
+    background: #eceff1;
+    color: #607d8b;
 }
 
 .severity--info {

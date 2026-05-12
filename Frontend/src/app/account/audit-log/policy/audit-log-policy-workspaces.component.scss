@@ -1,0 +1,73 @@
+@forward "./../../../../styles/app-header.scss";
+@forward "./../../../../styles/top-bar.scss";
+@forward "./../../../../styles/top-nav-btn.scss";
+@forward "./../../../../styles/icon-merge.scss";
+@forward "./../../../../styles/item-bar.scss";
+
+:host {
+    display: block;
+}
+
+.policy-mode-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.policy-mode-tab {
+    background: var(--company-grey-bg) !important;
+    color: var(--company-grey-font) !important;
+    border: 1px solid var(--company-grey-accent) !important;
+    border-radius: var(--mdc-filled-button-container-shape) !important;
+
+    &--active {
+        background: var(--company-primary-bg, #e3f2fd) !important;
+        color: var(--company-primary-font, #1565c0) !important;
+        border-color: var(--company-primary-font, #1565c0) !important;
+        font-weight: 600 !important;
+    }
+}
+
+.policy-subtitle {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    max-width: 60rem;
+    line-height: 1.5;
+}
+
+.ws-search {
+    width: 100%;
+    max-width: 480px;
+}
+
+.ws-summary {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+}
+
+// Pill telling admin at-a-glance whether the workspace is on defaults or has overrides.
+// Lives as a flex sibling of .item inside .item-bar, so flex-grow:1 on .item pushes it to the
+// right edge. flex-shrink:0 keeps it intact when the bar is narrow.
+.ws-summary-chip {
+    flex-shrink: 0;
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: var(--mdc-filled-button-container-shape);
+    font-size: var(--company-small-font);
+    font-weight: 500;
+    background: var(--company-grey-bg);
+    color: var(--company-grey-font);
+    font-style: italic;
+
+    &--customized {
+        background: var(--company-primary-bg, #e3f2fd);
+        color: var(--company-primary-font, #1565c0);
+        font-style: normal;
+    }
+}
+
+.explanation {
+    padding: 1.5rem 0.5rem;
+    color: var(--company-grey-font);
+    font-size: var(--company-small-font);
+}

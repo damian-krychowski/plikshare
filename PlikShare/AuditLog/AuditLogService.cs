@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using PlikShare.AuditLog.Details;
+using PlikShare.AuditLog.Policy;
 using PlikShare.AuditLog.Queries;
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
@@ -10,6 +11,7 @@ namespace PlikShare.AuditLog;
 
 public class AuditLogService(
     AuditLogChannel channel,
+    AuditLogPolicyEvaluator policyEvaluator,
     GetFileAuditContextQuery getFileAuditContextQuery,
     GetFolderAuditContextQuery getFolderAuditContextQuery,
     GetFileUploadAuditContextQuery getFileUploadAuditContextQuery,
@@ -151,6 +153,13 @@ public class AuditLogService(
 
     public async ValueTask Log(AuditLogEntry entry, CancellationToken cancellationToken)
     {
+        var evaluation = await policyEvaluator.Evaluate(entry, cancellationToken);
+        if (!evaluation.ShouldLog)
+            return;
+
+        if (evaluation.SeverityOverride is not null)
+            entry = entry with { Severity = evaluation.SeverityOverride };
+
         try
         {
             await channel.WriteAsync(

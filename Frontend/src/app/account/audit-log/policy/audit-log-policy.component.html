@@ -1,0 +1,229 @@
+<div class="app-container">
+    <div class="top-bar">
+        <div class="top-bar__header">
+            <button class="top-nav-btn"
+                aria-label="Audit log"
+                mat-flat-button
+                matTooltip="Back to audit log"
+                matTooltipPosition="below"
+                (click)="goBack()">
+                <div class="icon-merge">
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>
+                    <i class="icon icon-xl icon-nucleo-scroll-text icon-merge--front"></i>
+                </div>
+            </button>
+
+            <div class="flex-column">
+                <div class="top-bar__title">{{ title() }}</div>
+                @if (workspaceSubtitleId(); as id) {
+                    <div class="top-bar__subtitle" matTooltip="Workspace external id">{{ id }}</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="mt-3 hide-on-mobile"></div>
+
+        <!-- Quick navigation between the three policy scopes. On the workspace-detail page the
+             "Per-workspace" tab acts as a back-link to the workspaces list. -->
+        <div class="policy-mode-tabs">
+            <button mat-flat-button
+                class="policy-mode-tab"
+                [class.policy-mode-tab--active]="mode() === 'app'"
+                (click)="switchMode('app')">
+                Application events
+            </button>
+            <button mat-flat-button
+                class="policy-mode-tab"
+                [class.policy-mode-tab--active]="mode() === 'workspace-defaults'"
+                (click)="switchMode('workspace-defaults')">
+                New-workspace defaults
+            </button>
+            <button mat-flat-button
+                class="policy-mode-tab"
+                [class.policy-mode-tab--active]="mode() === 'workspace'"
+                (click)="switchMode('workspaces')">
+                Per-workspace
+            </button>
+        </div>
+
+        <div class="mt-2"></div>
+
+        <div class="policy-subtitle">{{ subtitle() }}</div>
+
+        <div class="mt-2"></div>
+
+        @if (isLoading()) {
+            <div class="explanation">Loading policy…</div>
+        } @else {
+            <!-- Top controls: search + filter chips + summary -->
+            <div class="policy-controls">
+                <mat-form-field class="policy-search">
+                    <mat-label>Search events</mat-label>
+                    <input matInput
+                        [ngModel]="searchQuery()"
+                        (ngModelChange)="setSearch($event)"
+                        placeholder="e.g. download, member, password…">
+                </mat-form-field>
+
+                <div class="filter-chips">
+                    <button mat-flat-button
+                        [class.filter-chip--active]="filterMode() === 'all'"
+                        class="filter-chip"
+                        (click)="setFilterMode('all')">
+                        All ({{ summary().total }})
+                    </button>
+                    <button mat-flat-button
+                        [class.filter-chip--active]="filterMode() === 'enabled'"
+                        class="filter-chip"
+                        (click)="setFilterMode('enabled')">
+                        Enabled ({{ summary().enabled }})
+                    </button>
+                    <button mat-flat-button
+                        [class.filter-chip--active]="filterMode() === 'disabled'"
+                        class="filter-chip"
+                        (click)="setFilterMode('disabled')">
+                        Disabled ({{ summary().disabled }})
+                    </button>
+                </div>
+
+                <div class="policy-expand-controls">
+                    <app-action-text-btn
+                        text="Expand all"
+                        (clicked)="expandAll()">
+                    </app-action-text-btn>
+
+                    <app-action-text-btn
+                        text="Collapse all"
+                        (clicked)="collapseAll()">
+                    </app-action-text-btn>
+                </div>
+            </div>
+
+            <div class="mt-2"></div>
+
+            <!-- Categories -->
+            @if (categoryGroups().length === 0) {
+                <div class="explanation">No events match the current filters.</div>
+            }
+
+            @for (group of categoryGroups(); track group.name) {
+                <div class="policy-category" [class.policy-category--expanded]="group.isExpanded">
+                    <div class="policy-category__header" (click)="toggleExpand(group.name)">
+                        <button class="chevron-btn"
+                            mat-icon-button
+                            type="button"
+                            (click)="$event.stopPropagation(); toggleExpand(group.name)"
+                            [attr.aria-label]="group.isExpanded ? 'Collapse' : 'Expand'">
+                            <i class="icon icon-lg"
+                                [class.icon-lucide-chevron-down]="group.isExpanded"
+                                [class.icon-lucide-chevron-right]="!group.isExpanded"></i>
+                        </button>
+
+                        <div class="policy-category__title">
+                            <span class="policy-category__name" [innerHTML]="highlightMatch(group.name)"></span>
+                            <span class="policy-category__counter">{{ group.enabledCount }}/{{ group.total }} enabled</span>
+                            <span class="policy-category__volume" matTooltip="Events logged in the last 30 days">
+                                {{ formatVolume(group.volumeTotal) }} / 30d
+                            </span>
+                        </div>
+
+                        <mat-checkbox
+                            class="policy-bulk-checkbox"
+                            (click)="$event.stopPropagation()"
+                            [checked]="group.bulkState === 'all-enabled'"
+                            [indeterminate]="group.bulkState === 'mixed'"
+                            (change)="bulkToggleCategory($event, group)">
+                        </mat-checkbox>
+                    </div>
+
+                    @if (group.isExpanded) {
+                        <div class="policy-category__events">
+                            @for (event of group.events; track event.eventType) {
+                                <div class="policy-event">
+                                    <mat-checkbox
+                                        [checked]="isEnabled(event.eventType)"
+                                        (change)="toggleEvent(event.eventType)">
+                                    </mat-checkbox>
+
+                                    <div class="policy-event__body">
+                                        <div class="policy-event__title">
+                                            <span class="policy-event__name" [innerHTML]="highlightMatch(event.eventType)"></span>
+
+                                            <span class="policy-event__volume"
+                                                matTooltip="Events logged in the last 30 days"
+                                                matTooltipPosition="above">
+                                                {{ formatVolume(volumeFor(event.eventType)) }} / 30d
+                                            </span>
+
+                                            <button type="button"
+                                                [class]="'severity-badge severity-badge--clickable ' + getSeverityClass(effectiveSeverity(event.eventType))"
+                                                [matMenuTriggerFor]="severityMenu"
+                                                [matMenuTriggerData]="{ eventType: event.eventType }"
+                                                matTooltip="Click to change severity"
+                                                matTooltipPosition="above">
+                                                {{ effectiveSeverity(event.eventType) }}
+                                                <i class="icon icon-sm icon-lucide-chevron-down"></i>
+                                            </button>
+
+                                            <!-- Always rendered (placeholder when unchanged) so the row height stays
+                                                 stable — toggling the undo affordance never triggers a layout shift. -->
+                                            <button type="button"
+                                                class="severity-undo-btn"
+                                                [class.severity-undo-btn--hidden]="!hasSeverityChanged(event.eventType)"
+                                                [attr.aria-hidden]="!hasSeverityChanged(event.eventType)"
+                                                [attr.tabindex]="hasSeverityChanged(event.eventType) ? 0 : -1"
+                                                (click)="undoSeverity(event.eventType); $event.stopPropagation()"
+                                                matTooltip="Undo — revert to the saved severity"
+                                                matTooltipPosition="above">
+                                                <i class="icon icon-sm icon-lucide-undo"></i>
+                                            </button>
+                                        </div>
+                                        <div class="policy-event__description" [innerHTML]="highlightMatch(event.description)"></div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="mt-4"></div>
+        }
+    </div>
+
+    <!-- Shared severity dropdown — opened from any event's badge via [matMenuTriggerData] -->
+    <mat-menu #severityMenu="matMenu">
+        <ng-template matMenuContent let-eventType="eventType">
+            @for (sev of severities; track sev) {
+                <button mat-menu-item type="button" (click)="setSeverity(eventType, sev)">
+                    <span class="severity-badge" [class]="'severity-badge ' + getSeverityClass(sev)">
+                        {{ sev }}
+                    </span>
+                </button>
+            }
+        </ng-template>
+    </mat-menu>
+
+    @if (isDirty()) {
+        <div class="policy-save-bar">
+            <div class="policy-save-bar__message">
+                {{ changesCount() }} unsaved {{ changesCount() === 1 ? 'change' : 'changes' }}
+            </div>
+            <div class="policy-save-bar__actions">
+                <app-action-text-btn
+                    text="Discard"
+                    [disabled]="isSaving()"
+                    (clicked)="discard()">
+                </app-action-text-btn>
+
+                <app-action-text-btn
+                    text="Save policy"
+                    [disabled]="isSaving()"
+                    (clicked)="save()">
+                </app-action-text-btn>
+            </div>
+        </div>
+    }
+</div>

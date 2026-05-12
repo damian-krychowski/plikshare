@@ -3,6 +3,7 @@ using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
+using PlikShare.GeneralSettings;
 using PlikShare.Storages.Id;
 using PlikShare.Users.Cache;
 using PlikShare.Workspaces.CreateBucket;
@@ -26,6 +27,7 @@ public class CreateWorkspaceQuery(
     IClock clock,
     IQueue queue,
     DbWriteQueue dbWriteQueue,
+    AppSettings appSettings,
     UpsertWorkspaceEncryptionKeyQuery upsertWorkspaceEncryptionKeyQuery)
 {
     public async Task<Result> Execute(
@@ -170,6 +172,10 @@ public class CreateWorkspaceQuery(
         // rejects. Existing buckets keep their stored w_bucket_name and are not affected.
         var finalBucketName = $"workspace-{workspaceGuid:N}";
 
+        // Snapshot the current global workspace-default audit-log policy onto the new row.
+        // Editing the global default later does not retroactively touch existing workspaces.
+        var auditLogPolicyJson = appSettings.AuditLogWorkspaceDefaultPolicy.Serialize();
+
         var insertWorkspaceResult = dbWriteContext
             .OneRowCmd(
                 sql: """
@@ -184,7 +190,8 @@ public class CreateWorkspaceQuery(
                          w_is_being_deleted,
                          w_max_size_in_bytes,
                          w_max_team_members,
-                         w_encryption_salt
+                         w_encryption_salt,
+                         w_audit_log_disabled_events_json
                      ) VALUES (
                          $externalId,
                          $userId,
@@ -196,7 +203,8 @@ public class CreateWorkspaceQuery(
                          FALSE,
                          $maxSizeInBytes,
                          $maxTeamMembers,
-                         $encryptionSalt
+                         $encryptionSalt,
+                         $auditLogPolicyJson
                      )
                      RETURNING
                          w_id,
@@ -216,6 +224,7 @@ public class CreateWorkspaceQuery(
             .WithParameter("$maxSizeInBytes", maxSizeInBytes)
             .WithParameter("$maxTeamMembers", maxTeamMembers)
             .WithParameter("$encryptionSalt", (object?) artifacts?.EncryptionSalt ?? DBNull.Value)
+            .WithParameter("$auditLogPolicyJson", auditLogPolicyJson)
             .Execute();
 
         if (insertWorkspaceResult.IsEmpty)

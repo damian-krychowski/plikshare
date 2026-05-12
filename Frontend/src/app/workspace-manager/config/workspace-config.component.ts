@@ -8,10 +8,13 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { WorkspacesApi } from '../../services/workspaces.api';
 import { DataStore } from '../../services/data-store.service';
+import { AuthService } from '../../services/auth.service';
 import { WorkspaceContextService } from '../workspace-context.service';
 import { WorkspaceMaxSizeInBytesChangedEvent, WorkspaceSizeConfigComponent } from '../../shared/workspace-size-config/workspace-size-config.component';
 import { Debouncer } from '../../services/debouncer';
 import { WorkspaceMaxTeamMembersChangedEvent, WorkspaceTeamConfigComponent } from '../../shared/workspace-team-config/workspace-team-config.component';
+import { ActionTextButtonComponent } from '../../shared/buttons/action-text-btn/action-text-btn.component';
+import { AuditLogPolicyApi } from '../../account/audit-log/policy/audit-log-policy.api';
 
 
 
@@ -24,16 +27,47 @@ import { WorkspaceMaxTeamMembersChangedEvent, WorkspaceTeamConfigComponent } fro
         ReactiveFormsModule,
         MatButtonModule,
         WorkspaceSizeConfigComponent,
-        WorkspaceTeamConfigComponent
+        WorkspaceTeamConfigComponent,
+        ActionTextButtonComponent
     ],
     templateUrl: './workspace-config.component.html',
     styleUrl: './workspace-config.component.scss'
 })
 export class WorkspaceConfigComponent implements OnInit, OnDestroy {
     isLoading = signal(false);
-   
+
     public maxSizeInBytes = signal<number|null>(null);
     public maxTeamMembers = signal<number|null>(null);
+
+    // The audit-log section is admin-only — same authorization as the backend endpoint
+    // (RequireAdminPermissionEndpointFilter(Permissions.ManageAuditLog), which bypasses the
+    // permission check for the app owner).
+    public canConfigureAuditLog = computed(() =>
+        this.auth.isAppOwner() || this.auth.canManageAuditLog());
+
+    // Audit-log policy summary for THIS workspace — shown as a chip so admin sees at a glance
+    // whether the workspace is on global defaults or has been customized. Counts null until the
+    // first load (or hidden entirely when the chip is not authorized).
+    public auditLogDisabledCount = signal<number | null>(null);
+    public auditLogSeverityOverrideCount = signal<number | null>(null);
+
+    public auditLogSummaryText = computed(() => {
+        const disabled = this.auditLogDisabledCount();
+        const overrides = this.auditLogSeverityOverrideCount();
+        if (disabled === null || overrides === null) return null;
+        if (disabled === 0 && overrides === 0) return 'defaults';
+
+        const parts: string[] = [];
+        if (disabled > 0) parts.push(`${disabled} disabled`);
+        if (overrides > 0) parts.push(`${overrides} severity ${overrides === 1 ? 'override' : 'overrides'}`);
+        return parts.join(' · ');
+    });
+
+    public isAuditLogCustomized = computed(() => {
+        const disabled = this.auditLogDisabledCount();
+        const overrides = this.auditLogSeverityOverrideCount();
+        return (disabled ?? 0) > 0 || (overrides ?? 0) > 0;
+    });
 
     private _currentWorkspaceExternalId: string | null = null;
     private _routerSubscription: Subscription | null = null;
@@ -43,8 +77,30 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
         private _workspacesApi: WorkspacesApi,
         private _activatedRoute: ActivatedRoute,
         private _router: Router,
-        private _dataStore: DataStore) 
-    {    
+        private _dataStore: DataStore,
+        public auth: AuthService,
+        private _auditLogPolicyApi: AuditLogPolicyApi)
+    {
+    }
+
+    goToAuditLogPolicy() {
+        const externalId = this._currentWorkspaceExternalId;
+        if (!externalId) return;
+        this._router.navigate(['settings/audit-log/policy/workspaces', externalId]);
+    }
+
+    private async loadAuditLogSummary(workspaceExternalId: string) {
+        // Skip the round-trip when the user can't see the section anyway.
+        if (!this.canConfigureAuditLog()) return;
+
+        try {
+            const policy = await this._auditLogPolicyApi.getWorkspacePolicy(workspaceExternalId);
+            this.auditLogDisabledCount.set(policy.disabledEventTypes.length);
+            this.auditLogSeverityOverrideCount.set(
+                policy.severityOverrides ? Object.keys(policy.severityOverrides).length : 0);
+        } catch (err) {
+            console.error('Failed to load audit-log policy summary', err);
+        }
     }
 
     async ngOnInit() {
@@ -80,6 +136,9 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
 
             this.maxSizeInBytes.set(workspace.maxSizeInBytes);
             this.maxTeamMembers.set(workspace.maxTeamMembers);
+
+            // Fire-and-forget; the chip pops in once it resolves. Errors are logged, not surfaced.
+            this.loadAuditLogSummary(workspaceExternalId);
         } catch (error) {
             console.error('Failed to load workspace configuration', error);
         } finally {

@@ -1,0 +1,317 @@
+@forward "./../../../../styles/app-header.scss";
+@forward "./../../../../styles/top-bar.scss";
+@forward "./../../../../styles/top-nav-btn.scss";
+@forward "./../../../../styles/icon-merge.scss";
+
+:host {
+    display: block;
+    padding-bottom: 5rem;
+}
+
+// Small muted line under the title — shows the workspace external id without making it dominate.
+.top-bar__subtitle {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    font-family: monospace;
+    line-height: 1.2;
+}
+
+.policy-mode-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.policy-mode-tab {
+    background: var(--company-grey-bg) !important;
+    color: var(--company-grey-font) !important;
+    border: 1px solid var(--company-grey-accent) !important;
+    border-radius: var(--mdc-filled-button-container-shape) !important;
+
+    &--active {
+        background: var(--company-primary-bg, #e3f2fd) !important;
+        color: var(--company-primary-font, #1565c0) !important;
+        border-color: var(--company-primary-font, #1565c0) !important;
+        font-weight: 600 !important;
+    }
+}
+
+.policy-subtitle {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    max-width: 60rem;
+    line-height: 1.5;
+}
+
+.policy-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+}
+
+.policy-search {
+    flex: 1 1 280px;
+    min-width: 240px;
+}
+
+.filter-chips {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.filter-chip {
+    background: var(--company-grey-bg) !important;
+    color: var(--company-grey-font) !important;
+    border: 1px solid var(--company-grey-accent) !important;
+    font-size: var(--company-small-font) !important;
+    border-radius: var(--mdc-filled-button-container-shape) !important;
+
+    &--active {
+        background: var(--company-primary-bg, #e3f2fd) !important;
+        color: var(--company-primary-font, #1565c0) !important;
+        border-color: var(--company-primary-font, #1565c0) !important;
+        font-weight: 600 !important;
+    }
+}
+
+.policy-expand-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.policy-category {
+    border: 1px solid var(--company-grey-accent);
+    border-radius: var(--mdc-filled-button-container-shape);
+    background: white;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+
+    &--expanded {
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+}
+
+.policy-category__header {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    gap: 0.5rem;
+    user-select: none;
+
+    &:hover {
+        background: var(--company-grey-bg);
+    }
+}
+
+.chevron-btn {
+    width: 32px !important;
+    height: 32px !important;
+    line-height: 32px !important;
+    padding: 0 !important;
+    flex-shrink: 0;
+}
+
+.policy-category__title {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    flex: 1;
+    flex-wrap: wrap;
+}
+
+.policy-category__name {
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.policy-category__counter {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+}
+
+.policy-category__volume {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    margin-left: auto;
+}
+
+.policy-bulk-checkbox {
+    flex-shrink: 0;
+}
+
+.policy-category__events {
+    border-top: 1px solid var(--company-grey-accent);
+    padding: 0.25rem 0;
+}
+
+.policy-event {
+    display: flex;
+    align-items: flex-start;
+    padding: 0.5rem 0.75rem 0.5rem 2.5rem;
+    gap: 0.75rem;
+    border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    &:hover {
+        background: var(--company-grey-bg);
+    }
+}
+
+.policy-event__body {
+    flex: 1;
+    min-width: 0;
+}
+
+.policy-event__title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.policy-event__name {
+    font-family: monospace;
+    font-size: var(--company-small-font);
+    font-weight: 500;
+}
+
+// margin-left:auto on the first right-rail item pushes the volume + severity + undo cluster
+// to the right edge of the row, leaving the event name aligned left.
+.policy-event__volume {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    margin-left: auto;
+}
+
+.policy-event__description {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    margin-top: 2px;
+}
+
+.severity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 6px;
+    border-radius: var(--mdc-filled-button-container-shape);
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+// Button variant — reset native button defaults so it visually matches the span variant.
+.severity-badge--clickable {
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: filter 0.15s ease;
+
+    &:hover {
+        filter: brightness(0.95);
+    }
+
+    .icon {
+        opacity: 0.7;
+        font-size: 0.75rem;
+    }
+}
+
+// Subtle inline undo affordance — sits right next to the badge. Always rendered to keep row
+// height stable; visually hidden when no change exists.
+.severity-undo-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid var(--company-grey-accent);
+    background: white;
+    border-radius: 50%;
+    cursor: pointer;
+    color: var(--company-grey-font);
+    transition: background-color 0.15s ease, color 0.15s ease;
+
+    &:hover {
+        background: var(--company-grey-bg);
+        color: var(--company-primary-font, #1565c0);
+        border-color: var(--company-primary-font, #1565c0);
+    }
+
+    .icon {
+        font-size: 0.85rem;
+    }
+
+    // Placeholder state — keeps its slot in the flex row but is non-interactive.
+    &--hidden {
+        visibility: hidden;
+        pointer-events: none;
+    }
+}
+
+.severity--verbose {
+    background: #eceff1;
+    color: #607d8b;
+}
+
+.severity--info {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.severity--warning {
+    background: #fff3e0;
+    color: #e65100;
+}
+
+.severity--critical {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.policy-save-bar {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 2.4rem);
+    max-width: 960px;
+    padding: 0.75rem 1.2rem;
+    background: white;
+    border: 1px solid var(--company-grey-accent);
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    z-index: 30;
+}
+
+.content {
+    padding-bottom: 5rem;
+}
+
+.policy-save-bar__message {
+    font-weight: 500;
+}
+
+.policy-save-bar__actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.explanation {
+    padding: 1.5rem 0.5rem;
+    color: var(--company-grey-font);
+    font-size: var(--company-small-font);
+}

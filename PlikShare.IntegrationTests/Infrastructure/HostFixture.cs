@@ -198,6 +198,12 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
         AppSettings.SetPasswordLogin(isEnabled: true);
     }
 
+    public void ResetAuditLogPolicy()
+    {
+        AppSettings.SetAuditLogAppPolicy(AuditLog.Policy.AuditLogPolicy.Empty);
+        AppSettings.SetAuditLogWorkspaceDefaultPolicy(AuditLog.Policy.AuditLogPolicy.Empty);
+    }
+
     public void ResetGeneralSettings()
     {
         AppSettings.SetApplicationName(AppSettings.ApplicationNameSetting.Default.Name);

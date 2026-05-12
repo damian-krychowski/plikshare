@@ -4,6 +4,11 @@
 
 Release notes for PlikShare.
 
+## 1.1.27
+
+- [FEATURE] Configurable audit-log policy — admins can disable individual events and override their severity (verbose/info/warning/critical) at the application level, set defaults for new workspaces, and tune the policy of each workspace individually
+- [FEATURE] Event volume stats (events / 30d) shown next to every entry in the policy editor so admins can spot noisy events worth disabling
+
 ## 1.1.26
 
 - [FEATURE] Admin can invite users via a shareable link instead of email — useful when no email provider is configured, or when the admin prefers to deliver the invitation out-of-band
