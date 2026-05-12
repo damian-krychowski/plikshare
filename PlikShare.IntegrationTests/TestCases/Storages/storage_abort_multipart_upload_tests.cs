@@ -87,8 +87,7 @@ public class storage_abort_multipart_upload_tests : TestFixture
 
         // upload row is removed from DB synchronously by BulkDelete itself, before
         // the abort job runs.
-        var fetchUploadRow = () => GetFileUploadPersistedRow(uploadExtId);
-        fetchUploadRow.Should().Throw<InvalidOperationException>(
+        HasFileUploadPersistedRow(uploadExtId).Should().BeFalse(
             "BulkDelete deletes the fu_file_uploads row in the same transaction that " +
             "enqueues the abort job.");
 
@@ -162,8 +161,7 @@ public class storage_abort_multipart_upload_tests : TestFixture
             fileExternalId: fileExtId,
             timeout: TimeSpan.FromSeconds(60));
 
-        var fetchUploadRow = () => GetFileUploadPersistedRow(uploadExtId);
-        fetchUploadRow.Should().Throw<InvalidOperationException>();
+        HasFileUploadPersistedRow(uploadExtId).Should().BeFalse();
     }
 
     private async Task<(FileUploadExtId UploadExtId, FileExtId FileExtId)> StartPartialMultipartUpload(

@@ -77,11 +77,14 @@ public class TestFixture: IAsyncLifetime
         TestOutputHelper = testOutputHelper;
         AppUrl = HostFixture.AppUrl;
         Clock = hostFixture.Clock;
+        Clock.SetToNow();
         OneTimeCode = hostFixture.OneTimeCode;
         OneTimeInvitationCode = hostFixture.OneTimeInvitationCode;
         ResendEmailServer = hostFixture.ResendEmailServer;
+        ResendEmailServer.ClearReceivedEmails();
         MockOidcServer = hostFixture.MockOidcServer;
         SmtpTestServer = hostFixture.SmtpTestServer;
+        SmtpTestServer.ClearReceivedEmails();
         EmailTemplates = hostFixture.EmailTemplates;
         AppSettings = hostFixture.AppSettings;
         
@@ -1258,6 +1261,35 @@ public class TestFixture: IAsyncLifetime
             EmailFrom: emailFrom);
     }
 
+    protected async Task WaitForEmail(
+        Func<CapturedEmail, bool> match,
+        string description,
+        int expectedCount = 1,
+        TimeSpan? timeout = null,
+        CancellationToken ct = default)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(5));
+        var delay = TimeSpan.FromMilliseconds(10);
+
+        while (true)
+        {
+            var current = ResendEmailServer.AllCapturedEmails().Count(match)
+                          + SmtpTestServer.AllCapturedEmails().Count(match);
+
+            if (current >= expectedCount)
+                return;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException(
+                    $"Expected >= {expectedCount} email(s) matching '{description}'; got {current}.");
+
+            await Task.Delay(delay, ct);
+
+            delay = TimeSpan.FromMilliseconds(
+                Math.Min(delay.TotalMilliseconds * 2, 100));
+        }
+    }
+
     protected async Task<AppInvitedUser> InviteUser(
         AppSignedInUser user)
     {
@@ -1275,6 +1307,21 @@ public class TestFixture: IAsyncLifetime
             cookie: user.Cookie,
             antiforgery: user.Antiforgery);
 
+        var store = HostFixture
+            .App
+            .Services
+            .GetRequiredService<EmailProviderStore>();
+
+        if (store.IsEmailSenderAvailable)
+        {
+            await WaitForEmail(
+                match: captured =>
+                    captured.To.Contains(email, StringComparer.OrdinalIgnoreCase)
+                    && captured.Subject.Contains("you were invited")
+                    && captured.Html.Contains($"invitationCode={invitationCode}"),
+                description: $"user-invitation for {email}");
+        }
+
         return new AppInvitedUser(
             ExternalId: invitationResponse.Users[0].ExternalId,
             Email: email,
@@ -1285,18 +1332,7 @@ public class TestFixture: IAsyncLifetime
         AppSignedInUser user)
     {
         var invitedUser = await InviteUser(user);
-
-        var store = HostFixture.App.Services.GetRequiredService<EmailProviderStore>();
-        if (store.IsEmailSenderAvailable)
-        {
-            await HostFixture.ResendEmailServer.WaitForEmail(
-                match: body =>
-                    body.To.Contains(invitedUser.Email, StringComparer.OrdinalIgnoreCase)
-                    && body.Subject.Contains("you were invited")
-                    && body.Html.Contains($"invitationCode={invitedUser.InvitationCode}"),
-                description: $"user-invitation for {invitedUser.Email}");
-        }
-
+        
         var password = Random.Password();
 
         var anonymousAntiforgeryCookies = await Api
@@ -1639,12 +1675,6 @@ public class TestFixture: IAsyncLifetime
         string ContentType,
         byte[]? Metadata);
 
-    protected record FileUploadPersistedRow(
-        string FileName,
-        string FileExtension,
-        string FileContentType,
-        byte[]? FileMetadata);
-
     protected record FileArtifactPersistedRow(
         byte[] Content,
         byte[] ContentHash);
@@ -1699,31 +1729,22 @@ public class TestFixture: IAsyncLifetime
         return rows[0];
     }
 
-    protected FileUploadPersistedRow GetFileUploadPersistedRow(FileUploadExtId externalId)
+    protected bool HasFileUploadPersistedRow(FileUploadExtId externalId)
     {
         using var connection = HostFixture.Db.OpenConnection();
 
-        var rows = connection
+        return connection
             .Cmd(
                 sql: """
-                     SELECT fu_file_name, fu_file_extension, fu_file_content_type, fu_file_metadata
+                     SELECT 1
                      FROM fu_file_uploads
                      WHERE fu_external_id = $externalId
                      LIMIT 1
                      """,
-                readRowFunc: reader => new FileUploadPersistedRow(
-                    FileName: reader.GetString(0),
-                    FileExtension: reader.GetString(1),
-                    FileContentType: reader.GetString(2),
-                    FileMetadata: reader.IsDBNull(3) ? null : reader.GetFieldValue<byte[]>(3)))
+                readRowFunc: reader => reader.GetInt32(0))
             .WithParameter("$externalId", externalId.Value)
-            .Execute();
-
-        if (rows.Count == 0)
-            throw new InvalidOperationException(
-                $"FileUpload '{externalId}' was not found in the database.");
-
-        return rows[0];
+            .Execute()
+            .Count > 0;
     }
 
     protected FileArtifactPersistedRow GetFileArtifactPersistedRow(FileArtifactExtId externalId)

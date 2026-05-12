@@ -163,7 +163,12 @@ public class CreateWorkspaceQuery(
         SqliteTransaction transaction)
     {
         var (workspaceExternalId, workspaceGuid) = WorkspaceExtId.NewIdWithSourceGuid();
-        var finalBucketName = $"workspace-{workspaceGuid}";
+
+        // "N" (no dashes): AWS S3 SDK pattern-matches dash-separated bucket-name segments
+        // against AWS region naming, sometimes pulling out a pseudo-region like "ca-cadd-492"
+        // from a "D"-formatted GUID and sending it as LocationConstraint — which CloudflareR2
+        // rejects. Existing buckets keep their stored w_bucket_name and are not affected.
+        var finalBucketName = $"workspace-{workspaceGuid:N}";
 
         var insertWorkspaceResult = dbWriteContext
             .OneRowCmd(

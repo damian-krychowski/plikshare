@@ -73,31 +73,11 @@ public class ResendEmailServer : IAsyncDisposable
 
     public void ClearReceivedEmails() => ReceivedEmails.Clear();
 
-    public async Task WaitForEmail(
-        Func<ResendRequestBody, bool> match,
-        string description,
-        int expectedCount = 1,
-        TimeSpan? timeout = null,
-        CancellationToken ct = default)
-    {
-        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(5));
-        var delay = TimeSpan.FromMilliseconds(10);
-
-        while (true)
-        {
-            var current = ReceivedEmails.Count(r => match(r.Body));
-
-            if (current >= expectedCount)
-                return;
-
-            if (DateTime.UtcNow >= deadline)
-                throw new TimeoutException(
-                    $"Expected >= {expectedCount} email(s) matching '{description}'; got {current}.");
-
-            await Task.Delay(delay, ct);
-            delay = TimeSpan.FromMilliseconds(Math.Min(delay.TotalMilliseconds * 2, 100));
-        }
-    }
+    public IEnumerable<CapturedEmail> AllCapturedEmails() =>
+        ReceivedEmails.Select(r => new CapturedEmail(
+            To: r.Body.To,
+            Subject: r.Body.Subject,
+            Html: r.Body.Html));
 
     public async ValueTask DisposeAsync()
     {

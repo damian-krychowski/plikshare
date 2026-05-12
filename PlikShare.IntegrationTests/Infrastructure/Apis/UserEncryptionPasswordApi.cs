@@ -28,7 +28,8 @@ public class UserEncryptionPasswordApi(IFlurlClient flurlClient, string appUrl)
         {
             throw new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
         }
 
         var body = await response.GetJsonAsync<SetupResponseDto>();
@@ -64,7 +65,8 @@ public class UserEncryptionPasswordApi(IFlurlClient flurlClient, string appUrl)
         {
             throw new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
         }
 
         var encryptionCookie = response
@@ -109,7 +111,8 @@ public class UserEncryptionPasswordApi(IFlurlClient flurlClient, string appUrl)
         {
             throw new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
         }
 
         var encryptionCookie = response
@@ -142,7 +145,8 @@ public class UserEncryptionPasswordApi(IFlurlClient flurlClient, string appUrl)
         {
             throw new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
         }
 
         var encryptionCookie = response

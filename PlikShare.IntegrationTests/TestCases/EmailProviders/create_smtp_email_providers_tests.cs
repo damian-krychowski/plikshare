@@ -27,7 +27,6 @@ public class create_smtp_email_providers_tests : TestFixture
         : base(hostFixture, testOutputHelper)
     {
         hostFixture.RemoveAllEmailProviders();
-        hostFixture.SmtpTestServer.ClearReceivedEmails();
     }
 
     [Fact]

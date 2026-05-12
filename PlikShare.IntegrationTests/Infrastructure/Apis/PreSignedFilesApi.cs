@@ -38,7 +38,8 @@ public class PreSignedFilesApi(IFlurlClient flurlClient)
         {
             throw new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
         }
 
         return await response.GetJsonAsync<List<MultiFileDirectUploadItemResponseDto>>();
@@ -74,7 +75,8 @@ public class PreSignedFilesApi(IFlurlClient flurlClient)
         {
             throw new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
         }
 
         var eTag = response.ResponseMessage.Headers.ETag?.Tag ?? string.Empty;
@@ -95,7 +97,8 @@ public class PreSignedFilesApi(IFlurlClient flurlClient)
         {
             throw new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
         }
 
         return await response.GetBytesAsync();
@@ -118,7 +121,8 @@ public class PreSignedFilesApi(IFlurlClient flurlClient)
         {
             throw new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
         }
 
         return new RangeDownloadResult(

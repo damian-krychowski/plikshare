@@ -34,6 +34,12 @@ public class SmtpTestServer : IAsyncDisposable
 
     public void ClearReceivedEmails() => ReceivedEmails.Clear();
 
+    public IEnumerable<CapturedEmail> AllCapturedEmails() =>
+        ReceivedEmails.Select(r => new CapturedEmail(
+            To: r.RcptTo,
+            Subject: r.Subject,
+            Html: r.HtmlBody));
+
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;

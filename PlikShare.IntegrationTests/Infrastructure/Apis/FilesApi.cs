@@ -122,7 +122,8 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
         {
             throw new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
         }
     }
 

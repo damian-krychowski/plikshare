@@ -97,9 +97,12 @@ public static class FlurlRequestExtensions
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
         {
+            var responseBody = await response.GetStringAsync();
+
             var exception = new TestApiCallException(
-                responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                responseBody: responseBody,
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -163,9 +166,12 @@ public static class FlurlRequestExtensions
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
         {
+            var responseBody = await response.GetStringAsync();
+
             var exception = new TestApiCallException(
-                responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                responseBody: responseBody,
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -215,7 +221,8 @@ public static class FlurlRequestExtensions
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -243,7 +250,8 @@ public static class FlurlRequestExtensions
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -281,7 +289,8 @@ public static class FlurlRequestExtensions
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -308,7 +317,8 @@ public static class FlurlRequestExtensions
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -333,9 +343,12 @@ public static class FlurlRequestExtensions
 
         if (!response.ResponseMessage.IsSuccessStatusCode)
         {
+            var responseBody = await response.GetStringAsync();
+
             var exception = new TestApiCallException(
-                responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                responseBody: responseBody,
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }

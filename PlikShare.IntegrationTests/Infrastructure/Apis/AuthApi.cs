@@ -34,7 +34,8 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -83,7 +84,8 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -130,7 +132,8 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -169,7 +172,8 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -204,7 +208,8 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -240,7 +245,8 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -265,7 +271,8 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -285,7 +292,8 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }

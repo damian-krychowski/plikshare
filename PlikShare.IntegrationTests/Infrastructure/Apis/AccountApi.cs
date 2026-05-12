@@ -34,7 +34,8 @@ public class AccountApi(IFlurlClient flurlClient, string appUrl)
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             Log.Error(exception, "Something went wrong. StatusCode: {StatusCode}, ResponseBody: {ResponseBody}", 
                 exception.StatusCode, 
@@ -82,7 +83,8 @@ public class AccountApi(IFlurlClient flurlClient, string appUrl)
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
@@ -124,7 +126,8 @@ public class AccountApi(IFlurlClient flurlClient, string appUrl)
         {
             var exception = new TestApiCallException(
                 responseBody: await response.GetStringAsync(),
-                statusCode: response.StatusCode);
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
 
             throw exception;
         }
