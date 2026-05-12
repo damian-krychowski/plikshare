@@ -1,0 +1,58 @@
+<div class="invitation-links">
+    <div class="invitation-links__title">
+        Invitation links — save them now
+    </div>
+
+    <div class="invitation-links__warning">
+        <strong>This is the only time these links will be shown.</strong>
+        Copy each one and forward it to the invitee through your own channel
+        (chat, signal, in person, etc). If you lose a link, you'll have to
+        delete the user and invite them again.
+    </div>
+
+    <div class="invitation-links__list">
+        @for (row of data.links; track row.email) {
+            <div class="invitation-links__row">
+                <div class="invitation-links__email" [title]="row.email">
+                    {{ row.email }}
+                </div>
+
+                <div class="invitation-links__link" [title]="row.invitationLink">
+                    {{ row.invitationLink }}
+                </div>
+
+                <button mat-stroked-button type="button"
+                    class="invitation-links__copy-btn"
+                    (click)="copyLink(row)"
+                    [attr.aria-label]="'Copy invitation link for ' + row.email">
+                    {{ copiedEmail() === row.email ? 'Copied' : 'Copy' }}
+                </button>
+            </div>
+        }
+    </div>
+
+    @if (data.links.length > 1) {
+        <div class="invitation-links__actions-row">
+            <button mat-stroked-button type="button"
+                (click)="copyAll()"
+                aria-label="Copy all links as a list">
+                Copy all
+            </button>
+        </div>
+    }
+
+    <mat-checkbox class="invitation-links__confirm"
+        [checked]="hasSaved()"
+        (change)="hasSaved.set($event.checked)">
+        I have saved every link in a safe place. I understand they will not be shown again.
+    </mat-checkbox>
+
+    <div class="invitation-links__actions">
+        <button mat-flat-button type="button" color="primary"
+            [disabled]="!hasSaved()"
+            (click)="onDone()"
+            aria-label="Done">
+            Done
+        </button>
+    </div>
+</div>

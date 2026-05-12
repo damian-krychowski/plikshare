@@ -1268,7 +1268,8 @@ public class TestFixture: IAsyncLifetime
         var invitationResponse = await Api.Users.InviteUsers(
             request: new InviteUsersRequestDto
             {
-                Emails = [email]
+                Emails = [email],
+                DeliveryMethod = InvitationDeliveryMethod.Email
             },
             cookie: user.Cookie,
             antiforgery: user.Antiforgery);
@@ -1299,7 +1300,8 @@ public class TestFixture: IAsyncLifetime
             },
             antiforgeryCookies: anonymousAntiforgeryCookies);
 
-        signUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.SingedUpAndSignedIn);
+        signUpResponse.Should().BeEquivalentTo(
+            SignUpUserResponseDto.SignedUpAndSignedIn(hasPendingEphemeralEncryptionKeys: false));
 
         var loggedInAntiforgeryCookies = await Api
             .Antiforgery

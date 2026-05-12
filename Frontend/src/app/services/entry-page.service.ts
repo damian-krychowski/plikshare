@@ -11,6 +11,7 @@ export interface GetEntryPageSettingsResponse {
     privacyPolicyFilePath: string | null;
     signUpCheckboxes: SignUpCheckboxDto[];
     ssoProviders: SsoProviderDto[];
+    isEmailNotificationsEnabled: boolean;
 }
 
 export interface SsoProviderDto {
@@ -33,6 +34,8 @@ export class EntryPageService {
     signUpCheckboxes = signal<SignUpCheckboxDto[]>([]);
 
     isPasswordLoginEnabled = signal<boolean>(true);
+
+    isEmailNotificationsEnabled = signal<boolean>(false);
 
     ssoProviders = signal<SsoProviderDto[]>([]);
     hasSsoProviders = computed(() => this.ssoProviders().length > 0);
@@ -89,6 +92,7 @@ export class EntryPageService {
             this.privacyPolicyFilePath.set(result.privacyPolicyFilePath);
             this.signUpCheckboxes.set(result.signUpCheckboxes);
             this.ssoProviders.set(result.ssoProviders ?? []);
+            this.isEmailNotificationsEnabled.set(result.isEmailNotificationsEnabled ?? false);
             
             this._loaded.next({ success: true });
             

@@ -6,10 +6,13 @@ import { MatInputModule } from '@angular/material/input';
 import { ErrorStateMatcher } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
+import { MatRadioModule } from '@angular/material/radio';
 import { ActionButtonComponent } from '../buttons/action-btn/action-btn.component';
 import { AccountApi, KnownUser } from '../../services/account.api';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { Subscription } from 'rxjs';
+
+export type InvitationDeliveryMethod = 'email' | 'link';
 
 export type EmailPickerDialogData = {
     /**
@@ -19,11 +22,26 @@ export type EmailPickerDialogData = {
      * Only meaningful for full-encryption workspace invitations.
      */
     showEphemeralDekLifetime?: boolean;
+
+    /**
+     * When true, the dialog shows a radio group that lets the inviter pick how the
+     * invitation is delivered: a system-sent email, or a one-shot link the inviter
+     * forwards manually. When false, the dialog defaults to 'email'.
+     */
+    showInvitationDeliveryMethod?: boolean;
+
+    /**
+     * When `showInvitationDeliveryMethod` is true and this flag is false, the
+     * 'email' option is disabled and the dialog forces 'link'. Used when no
+     * email provider is configured server-side.
+     */
+    isEmailDeliveryAvailable?: boolean;
 };
 
 export type EmailPickerResult = {
     emails: string[];
     ephemeralDekLifetimeHours: number | null;
+    deliveryMethod: InvitationDeliveryMethod;
 };
 
 type EphemeralDekLifetimeOption = {
@@ -67,6 +85,7 @@ type EmailUser = {
         MatInputModule,
         MatButtonModule,
         MatSelectModule,
+        MatRadioModule,
         ActionButtonComponent,
         MatAutocompleteModule
     ],
@@ -84,6 +103,10 @@ export class EmailPickerComponent implements OnInit, OnDestroy {
     ephemeralDekLifetimeOptions = EPHEMERAL_DEK_LIFETIME_OPTIONS;
     ephemeralDekLifetimeHours: WritableSignal<number> = signal(DEFAULT_EPHEMERAL_DEK_LIFETIME_HOURS);
 
+    showInvitationDeliveryMethod: boolean;
+    isEmailDeliveryAvailable: boolean;
+    deliveryMethod: WritableSignal<InvitationDeliveryMethod> = signal('email');
+
     matcher = new MyErrorStateMatcher();
 
     private _subscription: Subscription | null = null;
@@ -93,6 +116,12 @@ export class EmailPickerComponent implements OnInit, OnDestroy {
         public dialogRef: MatDialogRef<EmailPickerComponent>,
         @Optional() @Inject(MAT_DIALOG_DATA) data?: EmailPickerDialogData) {
         this.showEphemeralDekLifetime = data?.showEphemeralDekLifetime === true;
+        this.showInvitationDeliveryMethod = data?.showInvitationDeliveryMethod === true;
+        this.isEmailDeliveryAvailable = data?.isEmailDeliveryAvailable !== false;
+
+        if (this.showInvitationDeliveryMethod && !this.isEmailDeliveryAvailable) {
+            this.deliveryMethod.set('link');
+        }
     }
 
     async ngOnInit(): Promise<void> {
@@ -161,7 +190,10 @@ export class EmailPickerComponent implements OnInit, OnDestroy {
             emails: this.emails().map(email => email.value()),
             ephemeralDekLifetimeHours: this.showEphemeralDekLifetime
                 ? this.ephemeralDekLifetimeHours()
-                : null
+                : null,
+            deliveryMethod: this.showInvitationDeliveryMethod
+                ? this.deliveryMethod()
+                : 'email'
         };
         this.dialogRef.close(result);
     }

@@ -4,10 +4,10 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { AuthService } from "../../services/auth.service";
 import { UserItemComponent } from "../../shared/user-item/user-item.component";
-import { UsersApi } from "../../services/users.api";
+import { InvitedUserDto, UsersApi } from "../../services/users.api";
 import { MatRadioModule } from "@angular/material/radio";
 import { MatDialog } from "@angular/material/dialog";
-import { EmailPickerComponent } from "../../shared/email-picker/email-picker.component";
+import { EmailPickerComponent, EmailPickerResult, InvitationDeliveryMethod } from "../../shared/email-picker/email-picker.component";
 import { DataStore } from "../../services/data-store.service";
 import { AppUserDetails } from "../../shared/user-item/app-user";
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
@@ -15,6 +15,8 @@ import { ItemButtonComponent } from "../../shared/buttons/item-btn/item-btn.comp
 import { OptimisticOperation } from "../../services/optimistic-operation";
 import { insertItem, removeItem } from "../../shared/signal-utils";
 import { ItemSearchComponent } from "../../shared/item-search/item-search.component";
+import { EntryPageService } from "../../services/entry-page.service";
+import { InvitationLinksDialogComponent, InvitationLinksDialogData } from "./invitation-links-dialog/invitation-links-dialog.component";
 
 @Component({
     selector: 'app-users-settings',
@@ -49,6 +51,7 @@ export class UsersSettingsComponent implements OnInit {
 
     constructor(
         public auth: AuthService,
+        public entryPage: EntryPageService,
         private _router: Router,
         private _usersApi: UsersApi,
         private _dataStore: DataStore,
@@ -121,18 +124,22 @@ export class UsersSettingsComponent implements OnInit {
             maxHeight: '80vh',
             position: {
                 top: '100px'
+            },
+            data: {
+                showInvitationDeliveryMethod: true,
+                isEmailDeliveryAvailable: this.entryPage.isEmailNotificationsEnabled()
             }
         });
 
-        dialogRef.afterClosed().subscribe((result: { emails: string[]; ephemeralDekLifetimeHours: number | null } | undefined) => {
+        dialogRef.afterClosed().subscribe((result: EmailPickerResult | undefined) => {
             if (!result)
                 return;
 
-            this.inviteMembers(result.emails);
+            this.inviteMembers(result.emails, result.deliveryMethod);
         });
     }
 
-    async inviteMembers(inviteeEmails: string[]) {
+    async inviteMembers(inviteeEmails: string[], deliveryMethod: InvitationDeliveryMethod) {
         if (!inviteeEmails || inviteeEmails.length === 0)
             return;
 
@@ -180,13 +187,14 @@ export class UsersSettingsComponent implements OnInit {
             this.isLoading.set(true);
 
             const response = await this._usersApi.inviteUsers({
-                emails: newEmails
+                emails: newEmails,
+                deliveryMethod: deliveryMethod
             });
 
             for (const userResponse of response.users) {
                 const user = newUsers
                     .find(invitation => invitation.email().toLowerCase() === userResponse.email.toLowerCase());
-                
+
                 if(user) {
                     user.externalId.set(userResponse.externalId);
                     user.maxWorkspaceNumber.set(userResponse.maxWorkspaceNumber);
@@ -204,12 +212,40 @@ export class UsersSettingsComponent implements OnInit {
                     user.permissions.canManageAuditLog.set(userResponse.permissionsAndRoles.canManageAuditLog);
                 }
             }
+
+            if (deliveryMethod === 'link') {
+                this.openInvitationLinksDialog(response.users);
+            }
         } catch (error) {
-            this._allUsers.update(values => values.filter(user => !newUsers.some(newUser => newUser == user)));          
+            this._allUsers.update(values => values.filter(user => !newUsers.some(newUser => newUser == user)));
             console.error(error);
         } finally {
             this.isLoading.set(false);
         }
+    }
+
+    private openInvitationLinksDialog(invitedUsers: InvitedUserDto[]) {
+        const links = invitedUsers
+            .filter(u => !!u.invitationLink)
+            .map(u => ({
+                email: u.email,
+                invitationLink: u.invitationLink as string
+            }));
+
+        if (links.length === 0)
+            return;
+
+        const data: InvitationLinksDialogData = { links };
+
+        this._dialog.open(InvitationLinksDialogComponent, {
+            width: '600px',
+            maxHeight: '85vh',
+            disableClose: true,
+            position: {
+                top: '80px'
+            },
+            data
+        });
     }
 
     goToUserDetails(user: AppUserDetails) {

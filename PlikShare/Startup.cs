@@ -600,6 +600,7 @@ public class Startup
         builder.Services.AddSingleton<CreateStorageQuery>();
 
         builder.Services.AddSingleton<CheckUserInvitationCodeQuery>();
+        builder.Services.AddSingleton<HasPendingEphemeralEncryptionKeysQuery>();
 
         builder.Services.AddSingleton<CreateEmailProviderQuery>();
         builder.Services.AddSingleton<DeleteEmailProviderQuery>();

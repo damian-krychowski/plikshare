@@ -62,3 +62,37 @@
         padding-bottom: 1rem;
     }
 }
+
+.invitation-delivery {
+    padding-left: 2rem;
+    padding-right: 2rem;
+    padding-bottom: 1rem;
+
+    &__label {
+        font-size: var(--company-medium-font);
+        color: var(--company-grey-font);
+        padding-bottom: 0.5rem;
+    }
+
+    &__group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    &__hint {
+        margin-left: 0.5rem;
+        color: var(--company-grey-font);
+        font-size: var(--company-small-font);
+    }
+
+    &__warning {
+        margin-top: 0.75rem;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        background-color: rgba(255, 184, 0, 0.12);
+        border: 1px solid rgba(255, 184, 0, 0.4);
+        font-size: var(--company-medium-font);
+        line-height: 1.4;
+    }
+}

@@ -1,0 +1,100 @@
+.invitation-links {
+    padding: 1.5rem 2rem 1rem;
+
+    &__title {
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    &__warning {
+        background: #fff8e1;
+        border-left: 4px solid #f9a825;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+        line-height: 1.4;
+    }
+
+    &__list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        max-height: 50vh;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        margin-bottom: 1rem;
+    }
+
+    &__row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "email copy"
+            "link  copy";
+        column-gap: 0.75rem;
+        row-gap: 0.25rem;
+        align-items: center;
+        padding: 0.75rem;
+        background: #f5f5f5;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+    }
+
+    &__email {
+        grid-area: email;
+        font-weight: 600;
+        font-size: 0.95rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__link {
+        grid-area: link;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.85rem;
+        color: #555;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        user-select: all;
+    }
+
+    &__copy-btn {
+        grid-area: copy;
+        align-self: center;
+    }
+
+    &__actions-row {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    &__confirm {
+        display: block;
+        margin-bottom: 1.25rem;
+    }
+
+    &__actions {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    @media (max-width: 600px) {
+        padding: 1rem;
+
+        &__row {
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-areas:
+                "email"
+                "link"
+                "copy";
+        }
+
+        &__copy-btn {
+            justify-self: flex-end;
+        }
+    }
+}

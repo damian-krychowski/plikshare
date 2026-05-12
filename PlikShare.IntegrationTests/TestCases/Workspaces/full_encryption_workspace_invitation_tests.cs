@@ -392,7 +392,9 @@ public class full_encryption_workspace_invitation_tests : TestFixture
             },
             antiforgeryCookies: daveAntiforgery);
 
-        daveSignUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.SingedUpAndSignedIn);
+        daveSignUpResponse.Should().BeEquivalentTo(
+            SignUpUserResponseDto.SignedUpAndSignedIn(hasPendingEphemeralEncryptionKeys: true),
+            "Dave was invited to an encrypted workspace as a brand-new user — sign-up must report a pending ephemeral key");
         daveCookie.Should().NotBeNull();
     }
 

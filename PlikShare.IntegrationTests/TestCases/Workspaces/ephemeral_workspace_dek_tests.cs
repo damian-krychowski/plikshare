@@ -491,7 +491,9 @@ public class ephemeral_workspace_dek_tests : TestFixture
             },
             antiforgeryCookies: anonymousAntiforgery);
 
-        signUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.SingedUpAndSignedIn);
+        signUpResponse.Should().BeEquivalentTo(
+            SignUpUserResponseDto.SignedUpAndSignedIn(hasPendingEphemeralEncryptionKeys: true),
+            "the invitee was staged into an encrypted workspace — sign-up must report a pending ephemeral key");
 
         var inviteeAntiforgery = await Api.Antiforgery.GetToken(inviteeCookie);
         var inviteeAccount = await Api.Account.GetDetails(inviteeCookie);
@@ -908,7 +910,9 @@ public class ephemeral_workspace_dek_tests : TestFixture
             },
             antiforgeryCookies: anonymousAntiforgery);
 
-        signUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.SingedUpAndSignedIn);
+        signUpResponse.Should().BeEquivalentTo(
+            SignUpUserResponseDto.SignedUpAndSignedIn(hasPendingEphemeralEncryptionKeys: true),
+            "the invitee was staged into an encrypted workspace — sign-up must report a pending ephemeral key");
 
         var inviteeAntiforgery = await Api.Antiforgery.GetToken(inviteeCookie);
 

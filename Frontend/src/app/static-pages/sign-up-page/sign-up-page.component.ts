@@ -160,9 +160,9 @@ export class SignUpPageComponent implements OnInit, OnDestroy {
             } else if(result.code === 'invitation-required') {
                 this.isInvitationRequired.set(true);
             } else if(result.code === 'signed-up-and-signed-in'){
-                this._authService.initiateSession();
+                await this._authService.initiateSession();
 
-                if (this._invitationCode) {
+                if (this._invitationCode && result.hasPendingEphemeralEncryptionKeys) {
                     await this.promptEncryptionPasswordSetup(this._invitationCode);
                 }
 

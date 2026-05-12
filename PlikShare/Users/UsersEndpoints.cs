@@ -5,6 +5,7 @@ using PlikShare.AuditLog;
 using PlikShare.Boxes.Cache;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
+using PlikShare.Core.Emails;
 using PlikShare.Core.Utils;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Delete;
@@ -140,15 +141,23 @@ public static class UsersEndpoints
         return response;
     }
 
-    private static async Task<InviteUsersResponseDto> InviteUsers(
+    private static async Task<Results<Ok<InviteUsersResponseDto>, BadRequest<HttpError>>> InviteUsers(
         [FromBody] InviteUsersRequestDto request,
         HttpContext httpContext,
         InviteUsersQuery inviteUsersQuery,
+        EmailProviderStore emailProviderStore,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        if (request.DeliveryMethod == InvitationDeliveryMethod.Email
+            && !emailProviderStore.IsEmailSenderAvailable)
+        {
+            return HttpErrors.User.EmailProviderNotConfigured();
+        }
+
         var response = await inviteUsersQuery.Execute(
             emails: request.Emails.Select(x => new Email(x)).ToList(),
+            deliveryMethod: request.DeliveryMethod,
             inviter: await httpContext.GetUserContext(),
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
@@ -163,7 +172,7 @@ public static class UsersEndpoints
                 }).ToList()),
             cancellationToken);
 
-        return response;
+        return TypedResults.Ok(response);
     }
 
     private static async ValueTask<Results<Ok<GetUserDetails.ResponseDto>, NotFound<HttpError>>> GetUserDetails(

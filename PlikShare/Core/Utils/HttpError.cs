@@ -477,6 +477,13 @@ public static class HttpErrors
                 Code = "cannot-assign-admin-permissions-to-non-admin-user",
                 Message = $"Cannot assign admin permissions to non admin user"
             });
+
+        public static BadRequest<HttpError> EmailProviderNotConfigured() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "email-provider-not-configured",
+                Message = "Cannot send invitation email because no email provider is active. Use the link delivery method instead."
+            });
     }
 
     public static class AuthProvider

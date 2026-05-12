@@ -7,6 +7,7 @@ using PlikShare.EmailProviders.ExternalProviders.Resend;
 using PlikShare.GeneralSettings;
 using System.Text;
 using PlikShare.IntegrationTests.Infrastructure;
+using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Invite;
 using PlikShare.Users.Invite.Contracts;
@@ -50,7 +51,8 @@ public class user_invitation_tests : TestFixture
                 [
                     user1Email,
                     user2Email
-                ]
+                ],
+                DeliveryMethod = InvitationDeliveryMethod.Email
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -131,11 +133,12 @@ public class user_invitation_tests : TestFixture
         await Api.Users.InviteUsers(
             request: new InviteUsersRequestDto
             {
-                Emails = 
+                Emails =
                 [
                     user1.Email,
                     user2.Email
-                ]
+                ],
+                DeliveryMethod = InvitationDeliveryMethod.Email
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -199,7 +202,8 @@ public class user_invitation_tests : TestFixture
             antiforgeryCookies: anonymousAntiforgeryCookies);
 
         //then
-        signUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.SingedUpAndSignedIn);
+        signUpResponse.Should().BeEquivalentTo(
+            SignUpUserResponseDto.SignedUpAndSignedIn(hasPendingEphemeralEncryptionKeys: false));
         cookie.Should().NotBeNull();
     }
 
@@ -332,7 +336,8 @@ public class user_invitation_tests : TestFixture
             antiforgeryCookies: anonymousAntiforgeryCookies);
 
         //then
-        signUpResponse.Should().BeEquivalentTo(SignUpUserResponseDto.SingedUpAndSignedIn);
+        signUpResponse.Should().BeEquivalentTo(
+            SignUpUserResponseDto.SignedUpAndSignedIn(hasPendingEphemeralEncryptionKeys: false));
         cookie.Should().NotBeNull();
     }
 
@@ -375,7 +380,8 @@ public class user_invitation_tests : TestFixture
                 Emails =
                 [
                     userEmail
-                ]
+                ],
+                DeliveryMethod = InvitationDeliveryMethod.Email
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -417,7 +423,11 @@ public class user_invitation_tests : TestFixture
 
         //when
         await Api.Users.InviteUsers(
-            request: new InviteUsersRequestDto { Emails = [email] },
+            request: new InviteUsersRequestDto
+            {
+                Emails = [email],
+                DeliveryMethod = InvitationDeliveryMethod.Email
+            },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -431,6 +441,203 @@ public class user_invitation_tests : TestFixture
 
         var expectedHash = InvitationCodeHasher.Hash(predefined);
         storedHash.Should().Equal(expectedHash, "the stored value must be the SHA-256 of the plaintext");
+    }
+
+    [Fact]
+    public async Task inviting_with_link_delivery_method_returns_invitation_link_in_response()
+    {
+        //given
+        var predefinedCode = Random.InvitationCode();
+        OneTimeInvitationCode.AddCode(predefinedCode);
+
+        var email = Random.Email();
+
+        //when
+        var response = await Api.Users.InviteUsers(
+            request: new InviteUsersRequestDto
+            {
+                Emails = [email],
+                DeliveryMethod = InvitationDeliveryMethod.Link
+            },
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then
+        response.Users.Should().HaveCount(1);
+
+        var invitedUser = response.Users[0];
+        invitedUser.Email.Should().Be(email);
+        invitedUser.InvitationLink.Should().NotBeNull(
+            "in link delivery mode the backend must hand the admin a one-shot link to forward");
+        invitedUser.InvitationLink.Should().Be(
+            $"{AppUrl}/sign-up?invitationCode={predefinedCode}",
+            "the link must point at the public sign-up page with the plaintext invitation code as a query param");
+    }
+
+    [Fact]
+    public async Task inviting_with_link_delivery_method_does_not_send_an_invitation_email()
+    {
+        //given
+        var email = Random.Email();
+
+        //when
+        await Api.Users.InviteUsers(
+            request: new InviteUsersRequestDto
+            {
+                Emails = [email],
+                DeliveryMethod = InvitationDeliveryMethod.Link
+            },
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then — the queue processes very quickly; wait a short moment then assert nothing
+        // was delivered to the Resend mock for this address.
+        await Task.Delay(500);
+
+        ResendEmailServer
+            .ReceivedEmails
+            .Where(e => e.Body.To.Contains(email))
+            .Should()
+            .BeEmpty("link delivery must replace the email, not duplicate it");
+    }
+
+    [Fact]
+    public async Task invited_user_with_link_delivery_can_register_using_the_returned_link_code()
+    {
+        //given
+        var predefinedCode = Random.InvitationCode();
+        OneTimeInvitationCode.AddCode(predefinedCode);
+
+        var email = Random.Email();
+
+        var invitationResponse = await Api.Users.InviteUsers(
+            request: new InviteUsersRequestDto
+            {
+                Emails = [email],
+                DeliveryMethod = InvitationDeliveryMethod.Link
+            },
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        invitationResponse.Users[0].InvitationLink.Should().Contain(predefinedCode);
+
+        //when — invitee uses the plaintext code from the link to sign up
+        var anonymousAntiforgeryCookies = await Api.Antiforgery.GetToken();
+
+        var (signUpResponse, cookie) = await Api.Auth.SignUp(
+            request: new SignUpUserRequestDto
+            {
+                Email = email,
+                Password = Random.Password(),
+                InvitationCode = predefinedCode,
+                SelectedCheckboxIds = []
+            },
+            antiforgeryCookies: anonymousAntiforgeryCookies);
+
+        //then
+        signUpResponse.Should().BeEquivalentTo(
+            SignUpUserResponseDto.SignedUpAndSignedIn(hasPendingEphemeralEncryptionKeys: false),
+            "admin-only invite has no ephemeral workspace key staged — the dialog for encryption-password setup must NOT pop on the frontend");
+        cookie.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task inviting_with_email_delivery_when_no_email_provider_is_active_returns_400()
+    {
+        //given — deactivate the active provider for the duration of this test; the next
+        // test instantiation will re-activate via CreateAndActivateEmailProviderIfMissing.
+        await Api.EmailProviders.Deactivate(
+            emailProviderExternalId: EmailProvider.ExternalId,
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        try
+        {
+            //when
+            Func<Task> act = () => Api.Users.InviteUsers(
+                request: new InviteUsersRequestDto
+                {
+                    Emails = [Random.Email()],
+                    DeliveryMethod = InvitationDeliveryMethod.Email
+                },
+                cookie: AppOwner.Cookie,
+                antiforgery: AppOwner.Antiforgery);
+
+            //then
+            var exception = await act.Should().ThrowAsync<TestApiCallException>();
+            exception.Which.StatusCode.Should().Be(400);
+            exception.Which.ResponseBody.Should().Contain(
+                "email-provider-not-configured",
+                "defense in depth — even if the frontend bypasses the disabled radio, the backend must refuse");
+        }
+        finally
+        {
+            // Re-activate so other tests in the shared collection are not affected.
+            await Api.EmailProviders.Activate(
+                emailProviderExternalId: EmailProvider.ExternalId,
+                cookie: AppOwner.Cookie,
+                antiforgery: AppOwner.Antiforgery);
+        }
+    }
+
+    [Fact]
+    public async Task inviting_with_link_delivery_when_no_email_provider_is_active_still_works()
+    {
+        //given
+        await Api.EmailProviders.Deactivate(
+            emailProviderExternalId: EmailProvider.ExternalId,
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        try
+        {
+            var predefinedCode = Random.InvitationCode();
+            OneTimeInvitationCode.AddCode(predefinedCode);
+            var email = Random.Email();
+
+            //when
+            var response = await Api.Users.InviteUsers(
+                request: new InviteUsersRequestDto
+                {
+                    Emails = [email],
+                    DeliveryMethod = InvitationDeliveryMethod.Link
+                },
+                cookie: AppOwner.Cookie,
+                antiforgery: AppOwner.Antiforgery);
+
+            //then — the whole point of the feature: invitations work without any email provider.
+            response.Users[0].InvitationLink.Should().Be(
+                $"{AppUrl}/sign-up?invitationCode={predefinedCode}");
+        }
+        finally
+        {
+            await Api.EmailProviders.Activate(
+                emailProviderExternalId: EmailProvider.ExternalId,
+                cookie: AppOwner.Cookie,
+                antiforgery: AppOwner.Antiforgery);
+        }
+    }
+
+    [Fact]
+    public async Task inviting_with_email_delivery_does_not_leak_invitation_link_in_response()
+    {
+        //given
+        var email = Random.Email();
+
+        //when
+        var response = await Api.Users.InviteUsers(
+            request: new InviteUsersRequestDto
+            {
+                Emails = [email],
+                DeliveryMethod = InvitationDeliveryMethod.Email
+            },
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then — the plaintext code must travel via the email channel only; admin must not
+        // see it as a fallback in the API response.
+        response.Users[0].InvitationLink.Should().BeNull(
+            "in email delivery mode the plaintext code lives only in the email job payload — leaking it back to the inviter defeats the separation");
     }
 
     [Fact]

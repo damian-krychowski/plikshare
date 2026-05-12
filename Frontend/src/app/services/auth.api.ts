@@ -4,6 +4,7 @@ import { firstValueFrom } from "rxjs";
 
 export interface SignUpResponse {
     code: 'confirmation-email-sent' | 'invitation-required' | 'signed-up-and-signed-in';
+    hasPendingEphemeralEncryptionKeys?: boolean;
 }
 
 export interface ResendConfirmationEmailResponse {

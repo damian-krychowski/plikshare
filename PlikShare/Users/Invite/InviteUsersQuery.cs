@@ -1,5 +1,7 @@
+using Flurl;
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
+using PlikShare.Core.Configuration;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Emails;
 using PlikShare.Core.Emails.Definitions;
@@ -22,10 +24,12 @@ public class InviteUsersQuery(
     IQueue queue,
     IClock clock,
     IOneTimeInvitationCode oneTimeInvitationCode,
-    AppSettings appSettings)
+    AppSettings appSettings,
+    IConfig config)
 {
     public Task<InviteUsersResponseDto> Execute(
         List<Email> emails,
+        InvitationDeliveryMethod deliveryMethod,
         UserContext inviter,
         Guid correlationId,
         CancellationToken cancellationToken)
@@ -34,6 +38,7 @@ public class InviteUsersQuery(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
                 emails,
+                deliveryMethod,
                 inviter,
                 correlationId),
             cancellationToken: cancellationToken);
@@ -42,6 +47,7 @@ public class InviteUsersQuery(
     private InviteUsersResponseDto ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         List<Email> emails,
+        InvitationDeliveryMethod deliveryMethod,
         UserContext inviter,
         Guid correlationId)
     {
@@ -64,6 +70,7 @@ public class InviteUsersQuery(
             {
                 var user = TryInsertUserInvitation(
                     email: email,
+                    deliveryMethod: deliveryMethod,
                     inviter: inviter,
                     correlationId: correlationId,
                     storageAccessMode: storageAccessSetting.Mode,
@@ -132,6 +139,7 @@ public class InviteUsersQuery(
 
     private InvitedUserDto? TryInsertUserInvitation(
         Email email,
+        InvitationDeliveryMethod deliveryMethod,
         UserContext inviter,
         Guid correlationId,
         UserStorageAccessMode storageAccessMode,
@@ -268,22 +276,34 @@ public class InviteUsersQuery(
                 transaction: transaction);
         }
 
-        queue.EnqueueOrThrow(
-            correlationId: correlationId,
-            jobType: EmailQueueJobType.Value,
-            definition: new EmailQueueJobDefinition<UserInvitationEmailDefinition>
-            {
-                Email = email.Value,
-                Template = EmailTemplate.UserInvitation,
-                Definition = new UserInvitationEmailDefinition(
-                    InviterEmail: inviter.Email.Value,
-                    InvitationCode: invitationCode)
-            },
-            executeAfterDate: clock.UtcNow,
-            debounceId: null,
-            sagaId: null,
-            dbWriteContext: dbWriteContext,
-            transaction: transaction);
+        string? invitationLink = null;
+
+        if (deliveryMethod == InvitationDeliveryMethod.Email)
+        {
+            queue.EnqueueOrThrow(
+                correlationId: correlationId,
+                jobType: EmailQueueJobType.Value,
+                definition: new EmailQueueJobDefinition<UserInvitationEmailDefinition>
+                {
+                    Email = email.Value,
+                    Template = EmailTemplate.UserInvitation,
+                    Definition = new UserInvitationEmailDefinition(
+                        InviterEmail: inviter.Email.Value,
+                        InvitationCode: invitationCode)
+                },
+                executeAfterDate: clock.UtcNow,
+                debounceId: null,
+                sagaId: null,
+                dbWriteContext: dbWriteContext,
+                transaction: transaction);
+        }
+        else
+        {
+            invitationLink = new Url(config.AppUrl)
+                .AppendPathSegment("sign-up")
+                .AppendQueryParam("invitationCode", invitationCode)
+                .ToString();
+        }
 
         return new InvitedUserDto
         {
@@ -305,7 +325,8 @@ public class InviteUsersQuery(
                 CanManageAuth = permissionsAndRoles.CanManageAuth,
                 CanManageIntegrations = permissionsAndRoles.CanManageIntegrations,
                 CanManageAuditLog = permissionsAndRoles.CanManageAuditLog
-            }
+            },
+            InvitationLink = invitationLink
         };
     }
 }

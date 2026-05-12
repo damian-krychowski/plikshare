@@ -10,6 +10,7 @@ public class GetEntryPageSettingsResponseDto
     public required string? PrivacyPolicyFilePath { get; init; }
     public required List<AppSettings.SignUpCheckbox> SignUpCheckboxes { get; init; }
     public required List<SsoProviderDto> SsoProviders { get; init; }
+    public required bool IsEmailNotificationsEnabled { get; init; }
 }
 
 public class SsoProviderDto

@@ -1,5 +1,6 @@
 using PlikShare.AuthProviders.List;
 using PlikShare.Core.Configuration;
+using PlikShare.Core.Emails;
 using PlikShare.EntryPage.Contracts;
 using PlikShare.GeneralSettings;
 
@@ -20,6 +21,7 @@ public static class EntryPageEndpoints
     private static GetEntryPageSettingsResponseDto GetEntryPageSettings(
         AppSettings appSettings,
         IConfig config,
+        EmailProviderStore emailProviderStore,
         GetActiveAuthProvidersPublicQuery getActiveAuthProvidersPublicQuery)
     {
         var ssoProviders = getActiveAuthProvidersPublicQuery.Execute();
@@ -28,7 +30,7 @@ public static class EntryPageEndpoints
         {
             IsPasswordLoginEnabled = config.ForcePasswordLoginEnabled
                                      || appSettings.PasswordLogin.IsEnabled,
-                                     
+
             ApplicationSignUp = appSettings.ApplicationSignUp.Value,
 
             TermsOfServiceFilePath = appSettings.TermsOfService.FileName is null
@@ -48,7 +50,9 @@ public static class EntryPageEndpoints
                     Name = p.Name,
                     Type = p.Type
                 })
-                .ToList()
+                .ToList(),
+
+            IsEmailNotificationsEnabled = emailProviderStore.IsEmailSenderAvailable
         };
     }
 }

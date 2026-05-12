@@ -60,6 +60,36 @@
             }
         </div>
 
+        @if(showInvitationDeliveryMethod) {
+            <div class="invitation-delivery">
+                <div class="invitation-delivery__label">How should the invitation be delivered?</div>
+
+                <mat-radio-group
+                    name="deliveryMethod"
+                    class="invitation-delivery__group"
+                    [ngModel]="deliveryMethod()"
+                    (ngModelChange)="deliveryMethod.set($event)">
+                    <mat-radio-button value="email" [disabled]="!isEmailDeliveryAvailable">
+                        Send invitation email
+                        @if(!isEmailDeliveryAvailable) {
+                            <span class="invitation-delivery__hint">(no email provider configured)</span>
+                        }
+                    </mat-radio-button>
+                    <mat-radio-button value="link">
+                        Generate link to share manually
+                    </mat-radio-button>
+                </mat-radio-group>
+
+                @if(deliveryMethod() === 'link') {
+                    <div class="invitation-delivery__warning">
+                        <strong>Save the links right away.</strong>
+                        Each invitee's link is shown only once after sending and cannot be retrieved later.
+                        If you lose it, you'll need to delete the user and invite them again.
+                    </div>
+                }
+            </div>
+        }
+
         @if(showEphemeralDekLifetime) {
             <div class="ephemeral-dek-lifetime">
                 <div class="ephemeral-dek-lifetime__info">

@@ -19,4 +19,22 @@
         --mdc-radio-selected-icon-color: black !important;
         --mdc-radio-selected-pressed-icon-color: black !important;
     }
-}  
+}
+
+.email-provider-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    background: #fff8e1;
+    border-left: 4px solid #f9a825;
+    font-size: 0.95rem;
+    line-height: 1.4;
+
+    .icon {
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+}

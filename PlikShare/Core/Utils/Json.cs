@@ -28,6 +28,7 @@ using PlikShare.Storages.Id;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Id;
 using PlikShare.Users.Id;
+using PlikShare.Users.Invite.Contracts;
 using PlikShare.Users.StorageAccess;
 using PlikShare.Workspaces.Id;
 
@@ -118,6 +119,7 @@ public static class JsonConverters
         options.Converters.Add(new JsonStringEnumConverter<AiMessageAuthorType>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<FileType>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<UserStorageAccessMode>(JsonNamingPolicy.KebabCaseLower));
+        options.Converters.Add(new JsonStringEnumConverter<InvitationDeliveryMethod>(JsonNamingPolicy.KebabCaseLower));
 
         options.Converters.Add(new NullableByteArrayJsonConverter());
         options.Converters.Add(new FileKeyJsonConverter());

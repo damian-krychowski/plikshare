@@ -212,7 +212,7 @@ public class AuthApi(IFlurlClient flurlClient, string appUrl)
         var responseBody = await response
             .GetJsonAsync<SignUpUserResponseDto>();
 
-        if (responseBody.Code == SignUpUserResponseDto.SingedUpAndSignedIn.Code)
+        if (responseBody.Code == "signed-up-and-signed-in")
         {
             var sessionAuthCookie = response
                 .Cookies

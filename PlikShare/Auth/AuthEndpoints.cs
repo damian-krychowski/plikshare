@@ -15,6 +15,7 @@ using PlikShare.Core.IdentityProvider;
 using PlikShare.Core.Queue;
 using PlikShare.GeneralSettings;
 using PlikShare.Users.Entities;
+using PlikShare.Users.UserEncryptionPassword;
 using Serilog;
 
 namespace PlikShare.Auth;
@@ -67,6 +68,7 @@ public static class AuthEndpoints
         IClock clock,
         DbWriteQueue dbWriteQueue,
         CheckUserInvitationCodeQuery checkUserInvitationCodeQuery,
+        HasPendingEphemeralEncryptionKeysQuery hasPendingEphemeralEncryptionKeysQuery,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
@@ -214,7 +216,11 @@ public static class AuthEndpoints
                     email: request.Email),
                 cancellationToken);
 
-            return SignUpUserResponseDto.SingedUpAndSignedIn;
+            var hasPendingEphemeralEncryptionKeys = hasPendingEphemeralEncryptionKeysQuery
+                .Execute(userId: user.DatabaseId);
+
+            return SignUpUserResponseDto.SignedUpAndSignedIn(
+                hasPendingEphemeralEncryptionKeys: hasPendingEphemeralEncryptionKeys);
         }
 
         await SendConfirmationLinkEmail(

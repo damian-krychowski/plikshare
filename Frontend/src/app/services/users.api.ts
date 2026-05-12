@@ -145,20 +145,27 @@ export interface UserPermissionsAndRolesDto {
     canManageAuditLog: boolean;
 }
 
+export type InvitationDeliveryMethod = 'email' | 'link';
+
 export interface InviteUsersRequest {
     emails: string[];
+    deliveryMethod: InvitationDeliveryMethod;
 }
 
 export interface InviteUsersResponse {
-    users: {
-        email: string;
-        externalId: string;
+    users: InvitedUserDto[];
+}
 
-        maxWorkspaceNumber: number | null;
-        defaultMaxWorkspaceSizeInBytes: number | null;
-        defaultMaxWorkspaceTeamMembers: number | null;
-        permissionsAndRoles: UserPermissionsAndRolesDto;
-    }[];
+export interface InvitedUserDto {
+    email: string;
+    externalId: string;
+
+    maxWorkspaceNumber: number | null;
+    defaultMaxWorkspaceSizeInBytes: number | null;
+    defaultMaxWorkspaceTeamMembers: number | null;
+    permissionsAndRoles: UserPermissionsAndRolesDto;
+
+    invitationLink: string | null;
 }
 
 export interface UpdateUserDefaultMaxWorkspaceSizeInBytesRequest {

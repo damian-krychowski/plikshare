@@ -22,7 +22,17 @@
     </div>
     
 
-    <div class="content"> 
+    <div class="content">
+        @if(auth.canManageUsers() && !entryPage.isEmailNotificationsEnabled()) {
+            <div class="email-provider-notice">
+                <i class="icon icon-md icon-lucide-info"></i>
+                <span>
+                    No email provider is configured. New invitations will only be available
+                    as one-shot links you forward to invitees yourself.
+                </span>
+            </div>
+        }
+
         @if(loggedInUser(); as loggedInUserValue) {
             <div class="mt-3 hide-on-mobile"></div>
 
