@@ -1,5 +1,3 @@
-
-
 # Changelog
 
 Release notes for PlikShare.
@@ -8,6 +6,8 @@ Release notes for PlikShare.
 
 - [FEATURE] Admin can invite users via a shareable link instead of email — useful when no email provider is configured, or when the admin prefers to deliver the invitation out-of-band
 - [SECURITY] Plaintext invitation code for full-encryption workspace invites no longer persists in queue job payloads — it doubles as the KEK for the invitee's ephemeral private-key wrap. Email is now sent synchronously after DB commit; on failure the staged rows are rolled back. Non-FE flows unchanged.
+
+[Inviate via link](https://github.com/user-attachments/assets/849a7945-9a3e-40e8-b8bd-f435a7fd7774)
 
 ## 1.1.25
 
