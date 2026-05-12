@@ -10,6 +10,8 @@ Release notes for PlikShare.
 - [FEATURE] Default storage access policy for newly invited users configurable from general settings (snapshotted onto each user at invitation time)
 - [IMPROVEMENT] Full-encryption storages are shown as disabled in the storage-access UI — sharing them with other users is not supported yet
 
+[Storage access management](https://github.com/user-attachments/assets/1a0cd4bc-daf0-4cf3-ae18-bcc3324f31f5)
+
 ## 1.1.24
 
 - [FEATURE] Multi-item drag-and-drop introduced
