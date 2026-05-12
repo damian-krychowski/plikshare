@@ -35,7 +35,7 @@ namespace PlikShare.Workspaces.Members.GrantEncryptionAccess;
 /// </summary>
 public class CreateOrGetEphemeralUserKeyPairQuery(IClock clock)
 {
-    public EphemeralUserPublicKey? ExecuteTransaction(
+    public Result ExecuteTransaction(
         SqliteWriteContext dbWriteContext,
         int userId,
         byte[]? invitationCodeBytes,
@@ -43,12 +43,12 @@ public class CreateOrGetEphemeralUserKeyPairQuery(IClock clock)
         SqliteTransaction transaction)
     {
         var existing = TrySelectPublicKey(
-            dbWriteContext: dbWriteContext, 
-            userId: userId, 
+            dbWriteContext: dbWriteContext,
+            userId: userId,
             transaction: transaction);
 
         if (!existing.IsEmpty)
-            return new EphemeralUserPublicKey(existing.Value);
+            return new Result(new EphemeralUserPublicKey(existing.Value), WasJustCreated: false);
 
         if (invitationCodeBytes is null)
         {
@@ -58,7 +58,7 @@ public class CreateOrGetEphemeralUserKeyPairQuery(IClock clock)
                 "grant path.",
                 userId);
 
-            return null;
+            return new Result(PublicKey: null, WasJustCreated: false);
         }
 
         using var keypair = UserKeyPair.Generate();
@@ -82,7 +82,7 @@ public class CreateOrGetEphemeralUserKeyPairQuery(IClock clock)
                 "Ephemeral user keypair was created for User#{UserId} (by User#{CreatedByUserId}).",
                 userId, createdByUserId);
 
-            return new EphemeralUserPublicKey(inserted.Value);
+            return new Result(new EphemeralUserPublicKey(inserted.Value), WasJustCreated: true);
         }
 
         var raced = TrySelectPublicKey(dbWriteContext, userId, transaction);
@@ -92,8 +92,11 @@ public class CreateOrGetEphemeralUserKeyPairQuery(IClock clock)
                 $"Cannot create nor select ephemeral user keypair for User#{userId}.");
         }
 
-        return new EphemeralUserPublicKey(raced.Value);
+        // Lost a race against a concurrent insert — somebody else's row, not ours to delete.
+        return new Result(new EphemeralUserPublicKey(raced.Value), WasJustCreated: false);
     }
+
+    public readonly record struct Result(EphemeralUserPublicKey? PublicKey, bool WasJustCreated);
 
     private static SQLiteOneRowCommandResult<byte[]> TrySelectPublicKey(
         SqliteWriteContext dbWriteContext,

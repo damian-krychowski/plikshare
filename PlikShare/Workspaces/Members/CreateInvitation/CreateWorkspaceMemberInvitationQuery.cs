@@ -4,6 +4,7 @@ using PlikShare.Core.Emails;
 using PlikShare.Core.Emails.Definitions;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
+using PlikShare.Storages.Encryption;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Entities;
 using PlikShare.Workspaces.Cache;
@@ -16,10 +17,17 @@ public class CreateWorkspaceMemberInvitationQuery(
     IQueue queue)
 {
     /// <summary>
-    /// Inserts memberships and enqueues invitation emails inside the caller's transaction.
-    /// Returns the IDs of members that were actually inserted (i.e. not duplicates) — the
-    /// caller needs this to compose follow-up writes (e.g. auto-grant of wek wraps) only
-    /// for new memberships, all atomically with the invitation insert.
+    /// Inserts memberships inside the caller's transaction and decides per-workspace how
+    /// the invitation email is delivered:
+    ///
+    /// - For non full-encryption workspaces: enqueues a queue job per fresh membership
+    ///   inside the same transaction (legacy async path).
+    /// - For full-encryption workspaces: DOES NOT enqueue any email job. Surfaces the
+    ///   pending invitations in <see cref="Result.PendingSyncEmails"/> so the caller can
+    ///   drive synchronous send post-commit and rollback DB state if the SMTP/Resend
+    ///   send fails. This keeps plaintext invitation codes — which double as KEKs for
+    ///   ephemeral DEK wraps — out of <c>q_queue.q_definition</c> (and after success
+    ///   <c>qc_queue_completed.qc_definition</c>) entirely.
     /// </summary>
     public Result ExecuteTransaction(
         SqliteWriteContext dbWriteContext,
@@ -30,8 +38,11 @@ public class CreateWorkspaceMemberInvitationQuery(
         bool allowShare,
         Guid correlationId)
     {
+        var isFullEncryption = workspace.Storage.Encryption.Type == StorageEncryptionType.Full;
+
         var invitedMemberIds = new HashSet<int>();
         var createdQueueJobIds = new List<QueueJobId>();
+        var pendingSyncEmails = new List<PendingSyncEmail>();
 
         foreach (var member in members)
         {
@@ -46,16 +57,27 @@ public class CreateWorkspaceMemberInvitationQuery(
             if (insertInvitationResult.IsEmpty)
                 continue; //member with given id was already invited to that workspace so we ignore and continue
 
-            var queueJob = EnqueueWorkspaceInvitationEmail(
-                correlationId,
-                member,
-                inviter.Email,
-                workspace.Name,
-                dbWriteContext,
-                transaction);
+            if (isFullEncryption)
+            {
+                pendingSyncEmails.Add(new PendingSyncEmail(
+                    MemberId: member.Id,
+                    InviteeEmail: member.Email.Value,
+                    InvitationCode: member.InvitationCode?.Value));
+            }
+            else
+            {
+                var queueJob = EnqueueWorkspaceInvitationEmail(
+                    correlationId,
+                    member,
+                    inviter.Email,
+                    workspace.Name,
+                    dbWriteContext,
+                    transaction);
+
+                createdQueueJobIds.Add(queueJob.Value);
+            }
 
             invitedMemberIds.Add(member.Id);
-            createdQueueJobIds.Add(queueJob.Value);
         }
 
         Log.Information("Members '{MemberIds}' was invited to Workspace#{WorkspaceId} by Inviter '{InviterId}'. " +
@@ -66,11 +88,13 @@ public class CreateWorkspaceMemberInvitationQuery(
             new
             {
                 InvitedMembers = invitedMemberIds,
-                CreatedQueueJobs = createdQueueJobIds
+                CreatedQueueJobs = createdQueueJobIds,
+                PendingSyncEmailCount = pendingSyncEmails.Count
             });
 
         return new Result(
-            NewlyInvitedMemberIds: invitedMemberIds);
+            NewlyInvitedMemberIds: invitedMemberIds,
+            PendingSyncEmails: pendingSyncEmails);
     }
 
     private SQLiteOneRowCommandResult<QueueJobId> EnqueueWorkspaceInvitationEmail(
@@ -144,5 +168,12 @@ public class CreateWorkspaceMemberInvitationQuery(
         Email Email,
         InvitationCode? InvitationCode);
 
-    public readonly record struct Result(HashSet<int> NewlyInvitedMemberIds);
+    public readonly record struct Result(
+        HashSet<int> NewlyInvitedMemberIds,
+        List<PendingSyncEmail> PendingSyncEmails);
+
+    public readonly record struct PendingSyncEmail(
+        int MemberId,
+        string InviteeEmail,
+        string? InvitationCode);
 }

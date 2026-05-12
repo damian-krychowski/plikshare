@@ -453,6 +453,7 @@ public class Startup
         builder.Services.AddSingleton<UpdateWorkspaceMaxTeamMembersQuery>();
         builder.Services.AddSingleton<CreateWorkspaceMemberInvitationQuery>();
         builder.Services.AddSingleton<CreateWorkspaceMemberInvitationOperation>();
+        builder.Services.AddSingleton<RollbackEncryptedInvitationQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceIsBucketCreatedQuery>();
         builder.Services.AddSingleton<GetWorkspaceMembersListQuery>();
         builder.Services.AddSingleton<CountWorkspaceTotalTeamMembersQuery>();

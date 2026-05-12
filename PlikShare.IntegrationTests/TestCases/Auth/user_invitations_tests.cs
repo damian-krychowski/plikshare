@@ -542,10 +542,11 @@ public class user_invitation_tests : TestFixture
     }
 
     [Fact]
-    public async Task inviting_with_email_delivery_when_no_email_provider_is_active_returns_400()
+    public async Task inviting_with_email_delivery_when_no_email_provider_is_active_queues_email_for_later_delivery()
     {
-        //given — deactivate the active provider for the duration of this test; the next
-        // test instantiation will re-activate via CreateAndActivateEmailProviderIfMissing.
+        //given — no active provider; the invite must still succeed and the email job
+        // must sit in q_queue until an admin activates a provider and the queue worker
+        // drains it.
         await Api.EmailProviders.Deactivate(
             emailProviderExternalId: EmailProvider.ExternalId,
             cookie: AppOwner.Cookie,
@@ -553,26 +554,34 @@ public class user_invitation_tests : TestFixture
 
         try
         {
+            var email = Random.Email();
+            OneTimeInvitationCode.AddCode(Random.InvitationCode());
+
             //when
-            Func<Task> act = () => Api.Users.InviteUsers(
+            var response = await Api.Users.InviteUsers(
                 request: new InviteUsersRequestDto
                 {
-                    Emails = [Random.Email()],
+                    Emails = [email],
                     DeliveryMethod = InvitationDeliveryMethod.Email
                 },
                 cookie: AppOwner.Cookie,
                 antiforgery: AppOwner.Antiforgery);
 
-            //then
-            var exception = await act.Should().ThrowAsync<TestApiCallException>();
-            exception.Which.StatusCode.Should().Be(400);
-            exception.Which.ResponseBody.Should().Contain(
-                "email-provider-not-configured",
-                "defense in depth — even if the frontend bypasses the disabled radio, the backend must refuse");
+            //then — invitation row created, link NOT returned (Email mode hides the
+            // plaintext code), job parked in the queue, nothing delivered to the mock.
+            response.Users.Should().HaveCount(1);
+            response.Users[0].InvitationLink.Should().BeNull();
+
+            CountInvitationEmailQueueJobsFor(email, "userInvitation")
+                .Should().BeGreaterThan(0,
+                    "queue-deferred delivery: job stays parked until a provider is activated");
+
+            ResendEmailServer.ReceivedEmails
+                .Should().NotContain(r => r.Body.To.Contains(email, StringComparer.OrdinalIgnoreCase),
+                    "no active provider means nothing has been sent yet");
         }
         finally
         {
-            // Re-activate so other tests in the shared collection are not affected.
             await Api.EmailProviders.Activate(
                 emailProviderExternalId: EmailProvider.ExternalId,
                 cookie: AppOwner.Cookie,

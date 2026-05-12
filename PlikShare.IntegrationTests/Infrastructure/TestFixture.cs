@@ -8,6 +8,7 @@ using PlikShare.Boxes.Id;
 using PlikShare.BoxLinks.Id;
 using PlikShare.BoxLinks.UpdatePermissions.Contracts;
 using PlikShare.Core.Database.AuditLogDatabase;
+using PlikShare.Core.Emails;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.EmailProviders.Confirm.Contracts;
@@ -1284,6 +1285,18 @@ public class TestFixture: IAsyncLifetime
         AppSignedInUser user)
     {
         var invitedUser = await InviteUser(user);
+
+        var store = HostFixture.App.Services.GetRequiredService<EmailProviderStore>();
+        if (store.IsEmailSenderAvailable)
+        {
+            await HostFixture.ResendEmailServer.WaitForEmail(
+                match: body =>
+                    body.To.Contains(invitedUser.Email, StringComparer.OrdinalIgnoreCase)
+                    && body.Subject.Contains("you were invited")
+                    && body.Html.Contains($"invitationCode={invitedUser.InvitationCode}"),
+                description: $"user-invitation for {invitedUser.Email}");
+        }
+
         var password = Random.Password();
 
         var anonymousAntiforgeryCookies = await Api
@@ -1526,6 +1539,73 @@ public class TestFixture: IAsyncLifetime
             .Execute();
 
         return (rows.Count, rows.Count == 0 ? null : rows[0]);
+    }
+
+    protected bool HasWorkspaceMembership(WorkspaceExtId workspaceExternalId, string userEmail)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT 1
+                     FROM wm_workspace_membership wm
+                     JOIN w_workspaces w ON w.w_id = wm.wm_workspace_id
+                     JOIN u_users u ON u.u_id = wm.wm_member_id
+                     WHERE w.w_external_id = $workspaceExternalId
+                       AND u.u_normalized_email = $normalizedEmail
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$workspaceExternalId", workspaceExternalId.Value)
+            .WithParameter("$normalizedEmail", PlikShare.Users.Entities.Email.Normalize(userEmail))
+            .Execute();
+
+        return rows.Count > 0;
+    }
+
+    protected bool HasUserRow(string email)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT 1
+                     FROM u_users
+                     WHERE u_normalized_email = $normalizedEmail
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$normalizedEmail", PlikShare.Users.Entities.Email.Normalize(email))
+            .Execute();
+
+        return rows.Count > 0;
+    }
+
+    /// <summary>
+    /// Counts `q_queue` rows whose JSON definition references the given email template AND
+    /// targets the given recipient. Used to assert that the FE workspace invite path is
+    /// NOT enqueuing invitation emails (the plaintext code would otherwise persist in
+    /// `q_definition` and after success in `qc_queue_completed.qc_definition`).
+    /// </summary>
+    protected int CountInvitationEmailQueueJobsFor(string email, string templateName)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        return connection
+            .Cmd(
+                sql: """
+                     SELECT 1
+                     FROM q_queue
+                     WHERE q_definition LIKE $emailLike
+                       AND q_definition LIKE $templateLike
+                     """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$emailLike", $"%\"email\":\"{email}\"%")
+            .WithParameter("$templateLike", $"%\"template\":\"{templateName}\"%")
+            .Execute()
+            .Count;
     }
 
     protected List<string> GetStorageEncryptionKeyOwnerEmails(StorageExtId storageExternalId)

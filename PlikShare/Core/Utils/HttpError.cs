@@ -209,6 +209,20 @@ public static class HttpErrors
                 Code = "workspace-used-by-integration",
                 Message = $"Workspace with externalId '{externalId}' is used by integration and cannot be deleted."
             });
+
+        public static BadRequest<HttpError> InvitationEmailProviderRequired() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "invitation-email-provider-required",
+                Message = "Inviting members to a full-encryption workspace requires an active email provider — the invitation code is sent synchronously and never persisted in the queue."
+            });
+
+        public static BadRequest<HttpError> InvitationEmailSendFailed() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "invitation-email-send-failed",
+                Message = "Sending the invitation email failed. The whole invitation was rolled back — please retry."
+            });
     }
 
     public static class Storage

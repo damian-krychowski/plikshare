@@ -249,7 +249,7 @@ public abstract class HostFixture: IAsyncDisposable, IDisposable
             ",
                 readRowFunc: reader => reader.GetInt32(0))
             .Execute();
-        
+
         Console.WriteLine($"Deleted email providers count: {result.Count}");
     }
 }

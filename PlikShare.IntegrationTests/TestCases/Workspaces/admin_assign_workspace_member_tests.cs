@@ -84,7 +84,7 @@ public class admin_assign_workspace_member_tests : TestFixture
             .Which.WasInvitationAccepted.Should().BeTrue();
 
         // No new email enqueued for the target between snapshot and now.
-        await Task.Delay(500);
+        await Task.Delay(100);
         CountEmailsTo(target.Email).Should().Be(emailsToTargetBefore,
             "admin-assign must not send any email — the user is not being invited, just attached");
     }

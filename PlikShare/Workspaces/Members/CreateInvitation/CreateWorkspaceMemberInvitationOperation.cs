@@ -1,9 +1,13 @@
 using PlikShare.Core.Clock;
+using PlikShare.Core.Configuration;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Emails;
+using PlikShare.Core.Emails.Templates;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
+using PlikShare.GeneralSettings;
 using PlikShare.Storages.Encryption;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Entities;
@@ -21,12 +25,17 @@ namespace PlikShare.Workspaces.Members.CreateInvitation;
 public class CreateWorkspaceMemberInvitationOperation(
     DbWriteQueue dbWriteQueue,
     IClock clock,
+    IConfig config,
     IQueue queue,
+    AppSettings appSettings,
+    EmailProviderStore emailProviderStore,
+    GenericEmailTemplate genericEmailTemplate,
     CreateWorkspaceMemberInvitationQuery createWorkspaceMemberInvitationQuery,
     GetOrCreateUserInvitationQuery getOrCreateUserInvitationQuery,
     GrantEncryptionAccessOperation grantEncryptionAccessOperation,
     CreateOrGetEphemeralUserKeyPairQuery createOrGetEphemeralUserKeyPairQuery,
-    UpsertEphemeralWorkspaceEncryptionKeyQuery upsertEphemeralWorkspaceEncryptionKeyQuery)
+    UpsertEphemeralWorkspaceEncryptionKeyQuery upsertEphemeralWorkspaceEncryptionKeyQuery,
+    RollbackEncryptedInvitationQuery rollbackEncryptedInvitationQuery)
 {
     /// <summary>
     /// For a full-encryption workspace, three invitee profiles get different treatment:
@@ -43,11 +52,12 @@ public class CreateWorkspaceMemberInvitationOperation(
     ///    When they later set up encryption, <c>NotifyOwnersOfPendingGrantsQuery</c> notifies
     ///    the owner to grant manually.
     ///
-    /// Every DB write the invite path produces — user invitation row (for brand-new emails),
-    /// ephemeral keypair creation, workspace membership insert, invitation email enqueue, wek
-    /// upserts for auto-grant, ewek upserts for the ephemeral path, and the cleanup queue job
-    /// enqueue — runs in a single SQLite transaction. Anything that fails rolls back the whole
-    /// batch.
+    /// Email delivery split: for non-full-encryption workspaces the invitation email is
+    /// enqueued in the same transaction as the membership writes (legacy async path). For
+    /// full-encryption workspaces the email is sent SYNCHRONOUSLY after commit and the
+    /// whole DB state is rolled back if the send fails — the invitation code doubles as
+    /// the KEK that wraps the ephemeral private key, so persisting the plaintext anywhere
+    /// (queue payload, completed-jobs history) is a credential leak.
     /// </summary>
     public static readonly TimeSpan MaxEphemeralDekLifetime = TimeSpan.FromDays(30);
 
@@ -71,9 +81,16 @@ public class CreateWorkspaceMemberInvitationOperation(
                 $"Ephemeral DEK lifetime must be in (0, {MaxEphemeralDekLifetime.TotalDays} days].");
         }
 
+        var isFullEncryption = workspace.Storage.Encryption.Type == StorageEncryptionType.Full;
+
+        // Pre-flight: a full-encryption invite cannot proceed without an active provider, because
+        // synchronous send is the only path that does not leak the plaintext invitation code.
+        if (isFullEncryption && !emailProviderStore.IsEmailSenderAvailable)
+            return new Result(ResultCode.EmailProviderNotConfigured, Members: []);
+
         var emails = memberEmails.ToArray();
 
-        var members = await dbWriteQueue.Execute(
+        var staged = await dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
                 workspace: workspace,
@@ -85,11 +102,110 @@ public class CreateWorkspaceMemberInvitationOperation(
                 correlationId: correlationId),
             cancellationToken: cancellationToken);
 
-        return new Result(
-            Members: members);
+        if (!isFullEncryption || staged.PendingSyncEmails.Count == 0)
+        {
+            // Non-FE workspace, or FE workspace where every invitee was a duplicate (no fresh
+            // memberships → no emails to send). Nothing more to do.
+            return new Result(ResultCode.Ok, staged.Members);
+        }
+
+        var successfullySentUserIds = await TrySendInvitationEmails(
+            inviter: inviter,
+            workspace: workspace,
+            pendingEmails: staged.PendingSyncEmails,
+            cancellationToken: cancellationToken);
+
+        if (successfullySentUserIds.Count == staged.PendingSyncEmails.Count)
+            return new Result(ResultCode.Ok, staged.Members);
+
+        // Compensating delete excluding invitees whose emails actually went out — their
+        // invitation stands and must not be unwound. CancellationToken.None on purpose:
+        // rollback must run even if the inviter's request was cancelled, otherwise we leak
+        // DB state.
+        try
+        {
+            await rollbackEncryptedInvitationQuery.Execute(
+                artifacts: staged.RollbackTracker.BuildRollbackArtifacts(
+                    userIdsToExclude: successfullySentUserIds),
+                cancellationToken: CancellationToken.None);
+        }
+        catch (Exception rollbackException)
+        {
+            Log.Error(rollbackException,
+                "Compensating rollback for Workspace#{WorkspaceId} invitation failed AFTER a " +
+                "send failure. DB state is inconsistent — manual cleanup required.",
+                workspace.Id);
+        }
+
+        return new Result(ResultCode.EmailSendFailed, Members: []);
     }
 
-    private List<GetOrCreateUserInvitationQuery.User> ExecuteOperation(
+    /// <summary>
+    /// Synchronous per-invitee send used by the full-encryption path. Stops at the first
+    /// transport failure and returns the user-ids that did receive their email — the caller
+    /// uses this set to exclude them from the compensating rollback (their invitation has
+    /// already left our control and the code in their inbox must keep validating).
+    /// </summary>
+    private async Task<IReadOnlyList<int>> TrySendInvitationEmails(
+        UserContext inviter,
+        WorkspaceContext workspace,
+        IReadOnlyList<CreateWorkspaceMemberInvitationQuery.PendingSyncEmail> pendingEmails,
+        CancellationToken cancellationToken)
+    {
+        var sentUserIds = new List<int>(pendingEmails.Count);
+        var sender = emailProviderStore.EmailSender;
+
+        if (sender is null)
+        {
+            // Provider was deactivated between the pre-flight check and now — no recipient
+            // has been emailed; the caller will roll back every invitee in the batch.
+            Log.Error(
+                "Email provider became unavailable between commit and synchronous send for " +
+                "Workspace#{WorkspaceId} invitation. Initiating compensating rollback.",
+                workspace.Id);
+            return sentUserIds;
+        }
+
+        foreach (var pending in pendingEmails)
+        {
+            try
+            {
+                var (title, content) = Emails.WorkspaceMembershipInvitation(
+                    applicationName: appSettings.ApplicationName.Name!,
+                    appUrl: config.AppUrl,
+                    inviterEmail: inviter.Email.Value,
+                    workspaceName: workspace.Name,
+                    invitationCode: pending.InvitationCode);
+
+                var html = genericEmailTemplate.Build(
+                    title: title,
+                    content: content);
+
+                await sender.SendEmail(
+                    to: pending.InviteeEmail,
+                    subject: title,
+                    htmlContent: html,
+                    cancellationToken: cancellationToken);
+
+                sentUserIds.Add(pending.MemberId);
+            }
+            catch (Exception e)
+            {
+                Log.Error(e,
+                    "Synchronous invitation email send failed for invitee '{Email}' on " +
+                    "full-encryption Workspace#{WorkspaceId}. Initiating compensating rollback " +
+                    "for the failed invitee and the remaining unsent ones.",
+                    EmailAnonymization.Anonymize(pending.InviteeEmail),
+                    workspace.Id);
+
+                return sentUserIds;
+            }
+        }
+
+        return sentUserIds;
+    }
+
+    private StagedInvitation ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         UserContext inviter,
@@ -103,13 +219,22 @@ public class CreateWorkspaceMemberInvitationOperation(
 
         try
         {
+            var rollbackTracker = new RollbackEncryptedInvitationQuery.ArtifactsTracker(
+                workspaceId: workspace.Id);
+
             var users = memberEmails
                 .Select(email =>
                 {
                     var user = getOrCreateUserInvitationQuery.ExecuteTransaction(
                         dbWriteContext: dbWriteContext,
-                        transaction: transaction, 
+                        transaction: transaction,
                         email: email);
+
+                    // The query only returns a non-null InvitationCode when it inserted a fresh
+                    // u_users row (existing rows go through the SELECT branch which sets it to
+                    // null). That makes InvitationCode our just-created sentinel.
+                    if (user.InvitationCode is not null)
+                        rollbackTracker.TrackNewlyCreatedUser(user.Id);
 
                     return user;
                 })
@@ -128,7 +253,10 @@ public class CreateWorkspaceMemberInvitationOperation(
                     .ToList(),
                 allowShare: allowShare,
                 correlationId: correlationId);
-            
+
+            foreach (var memberId in insertResult.NewlyInvitedMemberIds)
+                rollbackTracker.TrackNewlyInvitedMember(memberId);
+
             var shouldGrantFullEncryptionAccess =
                 workspace.Storage.Encryption.Type == StorageEncryptionType.Full
                 && ownerSession is not null;
@@ -148,8 +276,9 @@ public class CreateWorkspaceMemberInvitationOperation(
                     ephemeralDekLifetime: ephemeralDekLifetime,
                     correlationId: correlationId,
                     newlyInvitedMembers: newlyInvitedUsers,
+                    rollbackTracker: rollbackTracker,
                     transaction: transaction);
-                
+
                 Log.Information(
                     "Workspace#{WorkspaceId} invitation by Inviter '{InviterId}' completed. " +
                     "Inserted {InsertedCount} of {RequestedCount} membership(s); " +
@@ -172,10 +301,13 @@ public class CreateWorkspaceMemberInvitationOperation(
                     insertResult.NewlyInvitedMemberIds.Count,
                     users.Count);
             }
-            
+
             transaction.Commit();
 
-            return users;
+            return new StagedInvitation(
+                Members: users,
+                PendingSyncEmails: insertResult.PendingSyncEmails,
+                RollbackTracker: rollbackTracker);
         }
         catch (Exception e)
         {
@@ -193,19 +325,20 @@ public class CreateWorkspaceMemberInvitationOperation(
     }
 
     private GrantedAccessCounter GrantAccessToFullyEncryptedWorkspace(
-        SqliteWriteContext dbWriteContext, 
+        SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
-        UserContext inviter, 
-        WorkspaceEncryptionSession ownerSession, 
+        UserContext inviter,
+        WorkspaceEncryptionSession ownerSession,
         TimeSpan? ephemeralDekLifetime,
         Guid correlationId,
-        List<GetOrCreateUserInvitationQuery.User> newlyInvitedMembers, 
+        List<GetOrCreateUserInvitationQuery.User> newlyInvitedMembers,
+        RollbackEncryptedInvitationQuery.ArtifactsTracker rollbackTracker,
         SqliteTransaction transaction)
     {
         var autoGrants = BuildAutoGrants(
             ownerSession: ownerSession,
             members: newlyInvitedMembers);
-            
+
         var autoGrantedCount = 0;
         var ephemeralGrantedCount = 0;
 
@@ -224,9 +357,10 @@ public class CreateWorkspaceMemberInvitationOperation(
                 correlationId: correlationId,
                 notifyTarget: false);
 
+            rollbackTracker.TrackWek(grant.Target.Id);
             autoGrantedCount++;
         }
-            
+
         var ephemeralGrants = BuildEphemeralGrants(
             dbWriteContext: dbWriteContext,
             transaction: transaction,
@@ -256,7 +390,8 @@ public class CreateWorkspaceMemberInvitationOperation(
                     ownerSession: ownerSession!,
                     grant: grant,
                     expiresAt: expiresAt,
-                    correlationId: correlationId);
+                    correlationId: correlationId,
+                    rollbackTracker: rollbackTracker);
 
                 if (wasStaged)
                     ephemeralGrantedCount++;
@@ -276,7 +411,8 @@ public class CreateWorkspaceMemberInvitationOperation(
         WorkspaceEncryptionSession ownerSession,
         EphemeralGrant grant,
         DateTimeOffset expiresAt,
-        Guid correlationId)
+        Guid correlationId,
+        RollbackEncryptedInvitationQuery.ArtifactsTracker rollbackTracker)
     {
         var invitationCodeBytes = grant.InvitationCode is null
             ? null
@@ -284,14 +420,14 @@ public class CreateWorkspaceMemberInvitationOperation(
 
         try
         {
-            var ephemeralPublicKey = createOrGetEphemeralUserKeyPairQuery.ExecuteTransaction(
+            var keypairResult = createOrGetEphemeralUserKeyPairQuery.ExecuteTransaction(
                 dbWriteContext: dbWriteContext,
                 userId: grant.Target.Id,
                 invitationCodeBytes: invitationCodeBytes,
                 createdByUserId: inviter.Id,
                 transaction: transaction);
 
-            if (ephemeralPublicKey is null)
+            if (keypairResult.PublicKey is null)
             {
                 Log.Warning(
                     "Workspace#{WorkspaceId} ephemeral DEK staging skipped for User#{UserId}: " +
@@ -302,10 +438,13 @@ public class CreateWorkspaceMemberInvitationOperation(
                 return false;
             }
 
+            if (keypairResult.WasJustCreated)
+                rollbackTracker.TrackNewlyCreatedEuek(grant.Target.Id);
+
             foreach (var entry in ownerSession.Entries)
             {
                 var sealedDek = entry.Dek.Use(
-                    state: ephemeralPublicKey.Value,
+                    state: keypairResult.PublicKey.Value,
                     action: static (dekSpan, pubKey) => UserKeyPair.SealTo(pubKey.Bytes, dekSpan));
 
                 upsertEphemeralWorkspaceEncryptionKeyQuery.ExecuteTransaction(
@@ -318,12 +457,16 @@ public class CreateWorkspaceMemberInvitationOperation(
                     createdByUserId: inviter.Id,
                     transaction: transaction);
             }
+
+            rollbackTracker.TrackEwek(grant.Target.Id);
         }
         finally
         {
             if (invitationCodeBytes is not null)
                 CryptographicOperations.ZeroMemory(invitationCodeBytes);
         }
+
+        var debounceId = $"ewek-cleanup-{workspace.Id}-{grant.Target.Id}";
 
         queue.Enqueue(
             correlationId: correlationId,
@@ -334,10 +477,12 @@ public class CreateWorkspaceMemberInvitationOperation(
                 UserId = grant.Target.Id
             },
             executeAfterDate: expiresAt,
-            debounceId: $"ewek-cleanup-{workspace.Id}-{grant.Target.Id}",
+            debounceId: debounceId,
             sagaId: null,
             dbWriteContext: dbWriteContext,
             transaction: transaction);
+
+        rollbackTracker.TrackCleanupJob(grant.Target.Id, debounceId);
 
         return true;
     }
@@ -352,7 +497,7 @@ public class CreateWorkspaceMemberInvitationOperation(
             {
                 Target = m,
                 Wrapped = GrantEncryptionAccessOperation.BuildWrapped(
-                    ownerSession: ownerSession, 
+                    ownerSession: ownerSession,
                     target: new GrantEncryptionAccessOperation.TargetUser(
                         Id: m.Id,
                         Email: m.Email,
@@ -394,7 +539,7 @@ public class CreateWorkspaceMemberInvitationOperation(
 
         if (eligible.Length == 0)
             return [];
-        
+
         return eligible
             .Select(m => new EphemeralGrant
             {
@@ -450,6 +595,26 @@ public class CreateWorkspaceMemberInvitationOperation(
         public required InvitationCode? InvitationCode { get; init; }
     }
 
+    /// <summary>
+    /// Snapshot of what the DB write step produced: the invited users (returned to the
+    /// caller), the invitations queued for synchronous send (FE-only), and the rollback
+    /// tracker. The tracker is consumed (mutated) by the synchronous send loop — each
+    /// successful send marks the recipient so its artifacts are excluded from the
+    /// compensating delete if the loop later fails on another recipient.
+    /// </summary>
+    private sealed record StagedInvitation(
+        List<GetOrCreateUserInvitationQuery.User> Members,
+        List<CreateWorkspaceMemberInvitationQuery.PendingSyncEmail> PendingSyncEmails,
+        RollbackEncryptedInvitationQuery.ArtifactsTracker RollbackTracker);
+
+    public enum ResultCode
+    {
+        Ok,
+        EmailProviderNotConfigured,
+        EmailSendFailed
+    }
+
     public readonly record struct Result(
+        ResultCode Code,
         List<GetOrCreateUserInvitationQuery.User> Members);
 }

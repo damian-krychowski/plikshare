@@ -586,13 +586,30 @@ public static class WorkspacesEndpoints
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
+        switch (result.Code)
+        {
+            case CreateWorkspaceMemberInvitationOperation.ResultCode.EmailProviderNotConfigured:
+                return HttpErrors.Workspace.InvitationEmailProviderRequired();
+
+            case CreateWorkspaceMemberInvitationOperation.ResultCode.EmailSendFailed:
+                return HttpErrors.Workspace.InvitationEmailSendFailed();
+
+            case CreateWorkspaceMemberInvitationOperation.ResultCode.Ok:
+                break;
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateWorkspaceMemberInvitationOperation),
+                    resultValueStr: result.Code.ToString());
+        }
+
         foreach (var member in result.Members)
         {
             await userCache.InvalidateEntry(
                 member.Id,
                 cancellationToken);
         }
-        
+
         await auditLogService.LogWithStorageContext(
             storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
             buildEntry: storageRef => Audit.Workspace.MemberInvitedEntry(

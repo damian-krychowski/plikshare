@@ -21,10 +21,14 @@ public class ResendEmailServer : IAsyncDisposable
     // Thread-safe collection to store received emails
     public ConcurrentBag<ReceivedRequest> ReceivedEmails { get; } = new();
 
+    // Recipients whose next /emails request must fail with HTTP 500. Tests use this to
+    // exercise the synchronous-send rollback path on the FE workspace invite.
+    private readonly ConcurrentDictionary<string, byte> _addressesToFail = new(StringComparer.OrdinalIgnoreCase);
+
     public ResendEmailServer(int portNumber)
     {
         PortNumber = portNumber;
-        
+
         var builder = WebApplication.CreateBuilder();
         AppUrl = $"https://localhost:{PortNumber}";
         builder.WebHost.UseUrls(AppUrl);
@@ -38,6 +42,16 @@ public class ResendEmailServer : IAsyncDisposable
             var resendRequestBody = Json.Deserialize<ResendRequestBody>(
                 body);
 
+            var shouldFail = resendRequestBody.To
+                .Any(to => _addressesToFail.ContainsKey(to));
+
+            if (shouldFail)
+            {
+                // Do not record failed sends — the production sender treats non-2xx as a
+                // throw, so from PlikShare's perspective the email never went out.
+                return Results.StatusCode(StatusCodes.Status500InternalServerError);
+            }
+
             ReceivedEmails.Add(new ReceivedRequest(
                 Body: resendRequestBody,
                 AuthorizationHeader: context.Request.Headers.Authorization));
@@ -46,6 +60,43 @@ public class ResendEmailServer : IAsyncDisposable
         });
 
         App.Start();
+    }
+
+    /// <summary>
+    /// Causes the next (and any subsequent) /emails request targeting the given recipient
+    /// to fail with HTTP 500. Use <see cref="ClearFailures"/> at the end of the test to
+    /// avoid bleeding into other tests on the shared fixture.
+    /// </summary>
+    public void FailEmailsTo(string emailAddress) => _addressesToFail[emailAddress] = 0;
+
+    public void ClearFailures() => _addressesToFail.Clear();
+
+    public void ClearReceivedEmails() => ReceivedEmails.Clear();
+
+    public async Task WaitForEmail(
+        Func<ResendRequestBody, bool> match,
+        string description,
+        int expectedCount = 1,
+        TimeSpan? timeout = null,
+        CancellationToken ct = default)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(5));
+        var delay = TimeSpan.FromMilliseconds(10);
+
+        while (true)
+        {
+            var current = ReceivedEmails.Count(r => match(r.Body));
+
+            if (current >= expectedCount)
+                return;
+
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException(
+                    $"Expected >= {expectedCount} email(s) matching '{description}'; got {current}.");
+
+            await Task.Delay(delay, ct);
+            delay = TimeSpan.FromMilliseconds(Math.Min(delay.TotalMilliseconds * 2, 100));
+        }
     }
 
     public async ValueTask DisposeAsync()

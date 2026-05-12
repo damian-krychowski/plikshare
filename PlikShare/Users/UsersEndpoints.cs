@@ -149,12 +149,6 @@ public static class UsersEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        if (request.DeliveryMethod == InvitationDeliveryMethod.Email
-            && !emailProviderStore.IsEmailSenderAvailable)
-        {
-            return HttpErrors.User.EmailProviderNotConfigured();
-        }
-
         var response = await inviteUsersQuery.Execute(
             emails: request.Emails.Select(x => new Email(x)).ToList(),
             deliveryMethod: request.DeliveryMethod,

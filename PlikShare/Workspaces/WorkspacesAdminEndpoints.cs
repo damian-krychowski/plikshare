@@ -132,14 +132,14 @@ public static class WorkspacesAdminEndpoints
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
         var workspace = workspaceMembership.Workspace;
 
-        var target = await userCache.TryGetUser(
+        var invitee = await userCache.TryGetUser(
             userExternalId: request.MemberExternalId,
             cancellationToken: cancellationToken);
 
-        if (target is null)
+        if (invitee is null)
             return HttpErrors.User.NotFound(request.MemberExternalId);
 
-        if (target.Id == workspace.Owner.Id)
+        if (invitee.Id == workspace.Owner.Id)
             return HttpErrors.Workspace.MemberAlreadyAssigned(request.MemberExternalId, workspace.ExternalId);
 
         var teamMembersLimitError = ValidateTeamMembersLimit(
@@ -149,21 +149,21 @@ public static class WorkspacesAdminEndpoints
         if (teamMembersLimitError is not null)
             return teamMembersLimitError;
 
-        var actor = await httpContext.GetUserContext();
+        var inviter = await httpContext.GetUserContext();
 
         // Mirrors the ChangeWorkspaceOwnerQuery contract: the admin only needs an unlocked
         // session for full-encryption workspaces; for None/Managed storages the cookie is
         // never touched.
-        using var actorPrivateKey = workspace.Storage.Encryption is FullStorageEncryption
-            ? UserEncryptionSessionCookie.TryReadPrivateKey(httpContext, actor.ExternalId)
+        using var inviterPrivateKey = workspace.Storage.Encryption is FullStorageEncryption
+            ? UserEncryptionSessionCookie.TryReadPrivateKey(httpContext, inviter.ExternalId)
             : null;
 
         var resultCode = await adminAddWorkspaceMemberOperation.Execute(
             workspace: workspace,
-            actor: actor,
-            target: target,
+            inviter: inviter,
+            invitee: invitee,
             allowShare: request.AllowShare,
-            actorPrivateKey: actorPrivateKey,
+            inviterPrivateKey: inviterPrivateKey,
             cancellationToken: cancellationToken);
 
         switch (resultCode)
@@ -177,10 +177,10 @@ public static class WorkspacesAdminEndpoints
             case AdminAddWorkspaceMemberOperation.ResultCode.TargetNotRegistered:
                 return HttpErrors.User.TargetNotRegistered(request.MemberExternalId);
 
-            case AdminAddWorkspaceMemberOperation.ResultCode.ActorEncryptionSessionRequired:
+            case AdminAddWorkspaceMemberOperation.ResultCode.InviterEncryptionSessionRequired:
                 return HttpErrors.Storage.UserEncryptionSessionRequired();
 
-            case AdminAddWorkspaceMemberOperation.ResultCode.ActorCannotDecryptWorkspace:
+            case AdminAddWorkspaceMemberOperation.ResultCode.InviterCannotDecryptWorkspace:
                 return HttpErrors.Storage.NotAStorageAdmin(workspace.Storage.ExternalId);
 
             default:
@@ -191,11 +191,11 @@ public static class WorkspacesAdminEndpoints
 
         await workspaceMembershipCache.InvalidateEntry(
             workspaceId: workspace.Id,
-            memberId: target.Id,
+            memberId: invitee.Id,
             cancellationToken: cancellationToken);
 
         await userCache.InvalidateEntry(
-            userId: target.Id,
+            userId: invitee.Id,
             cancellationToken: cancellationToken);
 
         await auditLogService.LogWithStorageContext(
@@ -204,14 +204,14 @@ public static class WorkspacesAdminEndpoints
                 actor: httpContext.GetAuditLogActorContext(),
                 storage: storageRef,
                 workspace: workspace.ToAuditLogWorkspaceRef(),
-                member: target.ToAuditLogUserRef(),
+                member: invitee.ToAuditLogUserRef(),
                 allowShare: request.AllowShare),
             cancellationToken);
 
         return TypedResults.Ok(new AdminAddWorkspaceMemberResponseDto
         {
-            Email = target.Email.Value,
-            ExternalId = target.ExternalId
+            Email = invitee.Email.Value,
+            ExternalId = invitee.ExternalId
         });
     }
 

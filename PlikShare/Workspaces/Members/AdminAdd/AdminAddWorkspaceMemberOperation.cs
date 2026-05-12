@@ -39,13 +39,13 @@ public class AdminAddWorkspaceMemberOperation(
 {
     public async Task<ResultCode> Execute(
         WorkspaceContext workspace,
-        UserContext actor,
-        UserContext target,
+        UserContext inviter,
+        UserContext invitee,
         bool allowShare,
-        SecureBytes? actorPrivateKey,
+        SecureBytes? inviterPrivateKey,
         CancellationToken cancellationToken)
     {
-        if (target.Status != UserStatus.Registered)
+        if (invitee.Status != UserStatus.Registered)
             return ResultCode.TargetNotRegistered;
 
         if (workspace.Storage.Encryption is not FullStorageEncryption)
@@ -54,44 +54,27 @@ public class AdminAddWorkspaceMemberOperation(
                 operationToEnqueue: context => ExecuteOperation(
                     dbWriteContext: context,
                     workspace: workspace,
-                    actor: actor,
-                    target: target,
+                    inviter: inviter,
+                    invitee: invitee,
                     allowShare: allowShare,
                     autoGrantWrapped: []),
                 cancellationToken: cancellationToken);
         }
 
-        if (actorPrivateKey is null)
-            return ResultCode.ActorEncryptionSessionRequired;
+        if (inviterPrivateKey is null)
+            return ResultCode.InviterEncryptionSessionRequired;
 
         if (workspace.EncryptionMetadata is null)
             throw new InvalidOperationException(
                 $"Workspace#{workspace.Id} is on a full-encryption storage but has no EncryptionMetadata.");
 
-        WorkspaceDekEntry[] entries;
-        try
-        {
-            entries = actor.UnsealWorkspaceDeks(
-                workspace: workspace,
-                privateKey: actorPrivateKey);
-        }
-        catch (WorkspaceDekUnsealException e)
-        {
-            Log.Error(e,
-                "AdminAddWorkspaceMember: failed to unseal workspace DEK v{Version} for actor User#{ActorId} on Workspace#{WorkspaceId}.",
-                e.StorageDekVersion, actor.Id, e.WorkspaceId);
-            return ResultCode.ActorCannotDecryptWorkspace;
-        }
-        catch (StorageDekUnsealException e)
-        {
-            Log.Error(e,
-                "AdminAddWorkspaceMember: failed to unseal storage DEK v{Version} for actor User#{ActorId} on Storage#{StorageId}.",
-                e.StorageDekVersion, actor.Id, e.StorageId);
-            return ResultCode.ActorCannotDecryptWorkspace;
-        }
+        var (workspaceDeks, unsealErrorCode) = UnsealInviterWorkspaceDeks(
+            workspace: workspace,
+            inviter: inviter,
+            inviterPrivateKey: inviterPrivateKey);
 
-        if (entries.Length == 0)
-            return ResultCode.ActorCannotDecryptWorkspace;
+        if (unsealErrorCode is not null)
+            return unsealErrorCode.Value;
 
         try
         {
@@ -101,17 +84,17 @@ public class AdminAddWorkspaceMemberOperation(
             // their encryption password.
             GrantEncryptionAccessOperation.WrappedVersion[] autoGrantWrapped;
 
-            if (target.EncryptionMetadata is null)
+            if (invitee.EncryptionMetadata is null)
             {
                 autoGrantWrapped = [];
             }
             else
             {
-                autoGrantWrapped = entries
+                autoGrantWrapped = workspaceDeks
                     .Select(entry => new GrantEncryptionAccessOperation.WrappedVersion(
                         StorageDekVersion: entry.StorageDekVersion,
                         WrappedDek: entry.Dek.Use(
-                            state: target.EncryptionMetadata.PublicKey,
+                            state: invitee.EncryptionMetadata.PublicKey,
                             (dekSpan, pubKey) => UserKeyPair.SealTo(pubKey, dekSpan))))
                     .ToArray();
             }
@@ -120,24 +103,58 @@ public class AdminAddWorkspaceMemberOperation(
                 operationToEnqueue: context => ExecuteOperation(
                     dbWriteContext: context,
                     workspace: workspace,
-                    actor: actor,
-                    target: target,
+                    inviter: inviter,
+                    invitee: invitee,
                     allowShare: allowShare,
                     autoGrantWrapped: autoGrantWrapped),
                 cancellationToken: cancellationToken);
         }
         finally
         {
-            foreach (var entry in entries)
+            foreach (var entry in workspaceDeks)
                 entry.Dispose();
+        }
+    }
+
+    private (WorkspaceDekEntry[] WorkspaceDeks, ResultCode? ErrorCode) UnsealInviterWorkspaceDeks(
+        WorkspaceContext workspace,
+        UserContext inviter,
+        SecureBytes inviterPrivateKey)
+    {
+        try
+        {
+            var entries = inviter.UnsealWorkspaceDeks(
+                workspace: workspace,
+                privateKey: inviterPrivateKey);
+            
+            if (entries.Length == 0)
+                return ([], ResultCode.InviterCannotDecryptWorkspace);
+
+            return (entries, null);
+        }
+        catch (WorkspaceDekUnsealException e)
+        {
+            Log.Error(e,
+                "AdminAddWorkspaceMember: failed to unseal workspace DEK v{Version} for actor User#{ActorId} on Workspace#{WorkspaceId}.",
+                e.StorageDekVersion, inviter.Id, e.WorkspaceId);
+
+            return ([], ResultCode.InviterCannotDecryptWorkspace);
+        }
+        catch (StorageDekUnsealException e)
+        {
+            Log.Error(e,
+                "AdminAddWorkspaceMember: failed to unseal storage DEK v{Version} for actor User#{ActorId} on Storage#{StorageId}.",
+                e.StorageDekVersion, inviter.Id, e.StorageId);
+
+            return ([], ResultCode.InviterCannotDecryptWorkspace);
         }
     }
 
     private ResultCode ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
-        UserContext actor,
-        UserContext target,
+        UserContext inviter,
+        UserContext invitee,
         bool allowShare,
         GrantEncryptionAccessOperation.WrappedVersion[] autoGrantWrapped)
     {
@@ -149,8 +166,8 @@ public class AdminAddWorkspaceMemberOperation(
                 dbWriteContext: dbWriteContext,
                 transaction: transaction,
                 workspaceId: workspace.Id,
-                memberId: target.Id,
-                inviterId: actor.Id,
+                memberId: invitee.Id,
+                inviterId: inviter.Id,
                 allowShare: allowShare);
 
             if (insertResult.IsEmpty)
@@ -164,10 +181,10 @@ public class AdminAddWorkspaceMemberOperation(
                 upsertWorkspaceEncryptionKeyQuery.ExecuteTransaction(
                     dbWriteContext: dbWriteContext,
                     workspaceId: workspace.Id,
-                    userId: target.Id,
+                    userId: invitee.Id,
                     storageDekVersion: grant.StorageDekVersion,
                     wrappedWorkspaceDek: grant.WrappedDek,
-                    wrappedByUserId: actor.Id,
+                    wrappedByUserId: inviter.Id,
                     transaction: transaction);
             }
 
@@ -176,7 +193,7 @@ public class AdminAddWorkspaceMemberOperation(
             Log.Information(
                 "Workspace#{WorkspaceId}: admin User#{ActorId} assigned User#{TargetId} as accepted member " +
                 "(allowShare={AllowShare}, wek versions wrapped: {AutoGrantedCount}).",
-                workspace.Id, actor.Id, target.Id, allowShare, autoGrantWrapped.Length);
+                workspace.Id, inviter.Id, invitee.Id, allowShare, autoGrantWrapped.Length);
 
             return ResultCode.Ok;
         }
@@ -186,7 +203,7 @@ public class AdminAddWorkspaceMemberOperation(
 
             Log.Error(e,
                 "Failed to admin-assign User#{TargetId} to Workspace#{WorkspaceId} by Actor#{ActorId}.",
-                target.Id, workspace.Id, actor.Id);
+                invitee.Id, workspace.Id, inviter.Id);
 
             throw;
         }
@@ -236,7 +253,7 @@ public class AdminAddWorkspaceMemberOperation(
         Ok = 0,
         TargetNotRegistered,
         AlreadyMember,
-        ActorEncryptionSessionRequired,
-        ActorCannotDecryptWorkspace
+        InviterEncryptionSessionRequired,
+        InviterCannotDecryptWorkspace
     }
 }
