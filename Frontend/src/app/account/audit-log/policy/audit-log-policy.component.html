@@ -122,7 +122,7 @@
                         </button>
 
                         <div class="policy-category__title">
-                            <span class="policy-category__name" [innerHTML]="highlightMatch(group.name)"></span>
+                            <span class="policy-category__name">{{ group.name }}</span>
                             <span class="policy-category__counter">{{ group.enabledCount }}/{{ group.total }} enabled</span>
                             <span class="policy-category__volume" matTooltip="Events logged in the last 30 days">
                                 {{ formatVolume(group.volumeTotal) }} / 30d
