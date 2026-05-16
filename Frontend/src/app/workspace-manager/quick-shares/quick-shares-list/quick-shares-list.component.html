@@ -1,0 +1,24 @@
+<div class="mt-3 hide-on-mobile"></div>
+
+<div class="title-header">
+    <div>
+        Your quick shares:
+    </div>
+</div>
+
+<div class="mt-2"></div>
+
+@if (isLoading()) {
+    <div class="empty-state">Loading…</div>
+} @else if (hasNoShares()) {
+    <div class="empty-state">
+        No quick shares yet. Open the explorer, select files or folders, and use "Quick share selection" to create one.
+    </div>
+} @else {
+    @for (share of quickShares(); track share.externalId) {
+        <app-quick-share-item
+            [quickShare]="share"
+            (deleted)="onShareDeleted(share)">
+        </app-quick-share-item>
+    }
+}

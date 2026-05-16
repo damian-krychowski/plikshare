@@ -1,0 +1,335 @@
+<div class="mt-3 hide-on-mobile"></div>
+
+@if (quickShare(); as qs) {
+    <div class="box-details-header">
+        <div class="item flex-grow"
+            [class.item--in-background]="areActionsVisible()">
+            <button class="nav-btn"
+                aria-label="Back to quick shares"
+                disableRipple
+                mat-flat-button
+                matTooltip="Back to quick shares"
+                matTooltipPosition="above"
+                (click)="goBack()">
+                <div class="icon-merge">
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>
+                    <i class="icon icon-xl icon-nucleo-share icon-merge--front"></i>
+                </div>
+            </button>
+
+            <div class="item__details">
+                <app-editable-txt #nameTxt
+                    [text]="nameValue()"
+                    [isEditing]="isNameEditing()"
+                    (valueChange)="saveName($event)"
+                    (editingStarted)="isNameEditing.set(true)"
+                    (editingStopped)="isNameEditing.set(false)">
+                </app-editable-txt>
+            </div>
+        </div>
+
+        <div class="item-bar__actions">
+            @if (isNameEditing()) {
+                <app-action-btn
+                    tooltip="Save name"
+                    icon="icon-lucide-check"
+                    (clicked)="nameTxt.save()">
+                </app-action-btn>
+            } @else {
+                <app-action-btn
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    tooltip="Edit name"
+                    icon="icon-nucleo-pen"
+                    (clicked)="editName()">
+                </app-action-btn>
+
+                <app-action-btn
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    tooltip="Delete"
+                    icon="icon-nucleo-remove"
+                    appConfirmOperation
+                    [operationItem]="'this quick share'"
+                    [verb]="'delete'"
+                    [isOperationDanger]="true"
+                    (confirmedClick)="deleteShare()">
+                </app-action-btn>
+
+                <app-action-btn
+                    class="d-none-on-desktop"
+                    tooltip="Actions"
+                    icon="icon-lucide-dots"
+                    (clicked)="toggleActions()">
+                </app-action-btn>
+            }
+        </div>
+    </div>
+} @else {
+    <div class="box-details-header">
+        <div class="item flex-grow">
+            <button class="nav-btn"
+                aria-label="Back to quick shares"
+                disableRipple
+                mat-flat-button
+                matTooltip="Back to quick shares"
+                matTooltipPosition="above"
+                (click)="goBack()">
+                <div class="icon-merge">
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>
+                    <i class="icon icon-xl icon-nucleo-share icon-merge--front"></i>
+                </div>
+            </button>
+
+            <div class="item__details">
+                @if (isLoading()) {
+                    Loading…
+                } @else {
+                    Quick share not found
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@if (notFound()) {
+    <div class="mt-3"></div>
+    <div class="empty-state">This quick share could not be loaded.</div>
+} @else if (quickShare(); as qs) {
+
+    <div class="mt-4"></div>
+
+    <!-- Public link -->
+    @if (url(); as linkUrl) {
+        <div class="subtitle-header">
+            <div class="item">
+                <div class="item__details">
+                    <div class="item__title">Public link</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-2"></div>
+
+        <div class="item">
+            <i class="icon icon-xl icon--placeholder icon-nucleo-link"></i>
+            <div class="item__details">
+                <div class="url" (click)="copyLink()"
+                    [matTooltip]="copied() ? 'Copied' : 'Copy to clipboard'"
+                    matTooltipPosition="below">
+                    {{ linkUrl }} <i class="icon icon-sm icon-nucleo-copy"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4"></div>
+    }
+
+    <!-- Mode -->
+    <div class="subtitle-header">
+        <div class="item">
+            <div class="item__details">
+                <div class="item__title">Recipient mode</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-2"></div>
+
+    <div class="item">
+        <i class="icon icon-xl icon--placeholder icon-nucleo-eye"></i>
+        <div class="item__details details-stack">
+            <mat-form-field appearance="outline" class="details-field" subscriptSizing="dynamic">
+                <mat-label>Mode</mat-label>
+                <mat-select [ngModel]="mode()" (selectionChange)="onModeChanged($event.value)">
+                    <mat-option value="browser">Browser preview</mat-option>
+                    <mat-option value="direct">Direct download</mat-option>
+                </mat-select>
+            </mat-form-field>
+
+            @if (mode() === 'browser') {
+                <mat-checkbox
+                    [checked]="allowIndividualFileDownload()"
+                    (change)="onAllowIndividualFileDownloadChanged($event.checked)">
+                    Allow downloading individual files
+                </mat-checkbox>
+            }
+        </div>
+    </div>
+
+    <div class="mt-4"></div>
+
+    <!-- Expiration -->
+    <div class="subtitle-header">
+        <div class="item">
+            <div class="item__details">
+                <div class="item__title">Expiration</div>
+            </div>
+        </div>
+
+        <div class="flex-row ml-auto">
+            <mat-slide-toggle
+                matTooltip="Enable expiration"
+                matTooltipPosition="above"
+                [checked]="hasExpiration()"
+                (change)="onHasExpirationChanged($event.checked)">
+            </mat-slide-toggle>
+        </div>
+    </div>
+
+    <div class="mt-2"></div>
+
+    @if (hasExpiration()) {
+        <div class="item">
+            <i class="icon icon-xl icon--placeholder icon-nucleo-clock"></i>
+            <div class="item__details">
+                <mat-form-field appearance="outline" class="details-field" subscriptSizing="dynamic">
+                    <mat-label>Expires at</mat-label>
+                    <input matInput type="datetime-local"
+                        [ngModel]="expiresAtIso()"
+                        (ngModelChange)="expiresAtIso.set($event)"
+                        (blur)="onExpirationBlur()">
+                </mat-form-field>
+            </div>
+        </div>
+    }
+
+    <div class="mt-4"></div>
+
+    <!-- Password -->
+    <div class="subtitle-header">
+        <div class="item">
+            <div class="item__details">
+                <div class="item__title">
+                    Password protection
+                    @if (qs.hasPassword) {
+                        <span class="item__subtitle">currently set</span>
+                    } @else {
+                        <span class="item__subtitle">not set</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-row ml-auto">
+            <mat-slide-toggle
+                matTooltip="Enable password"
+                matTooltipPosition="above"
+                [checked]="hasPassword()"
+                (change)="onHasPasswordChanged($event.checked)">
+            </mat-slide-toggle>
+        </div>
+    </div>
+
+    <div class="mt-2"></div>
+
+    @if (hasPassword()) {
+        <div class="item">
+            <i class="icon icon-xl icon--placeholder icon-nucleo-lock"></i>
+            <div class="item__details">
+                <mat-form-field appearance="outline" class="details-field" subscriptSizing="dynamic">
+                    <mat-label>{{ qs.hasPassword ? 'New password (press Enter to save)' : 'Password (press Enter to save)' }}</mat-label>
+                    <input matInput type="password"
+                        [ngModel]="passwordValue()"
+                        (ngModelChange)="passwordValue.set($event)"
+                        (keyup.enter)="savePassword()"
+                        (blur)="savePassword()"
+                        autocomplete="new-password">
+                </mat-form-field>
+            </div>
+        </div>
+    }
+
+    <div class="mt-4"></div>
+
+    <!-- Max downloads -->
+    <div class="subtitle-header">
+        <div class="item">
+            <div class="item__details">
+                <div class="item__title">
+                    Download limit
+                    <span class="item__subtitle">used: {{ downloadsCount() }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-row ml-auto">
+            <mat-slide-toggle
+                matTooltip="Limit downloads"
+                matTooltipPosition="above"
+                [checked]="hasMaxDownloads()"
+                (change)="onHasMaxDownloadsChanged($event.checked)">
+            </mat-slide-toggle>
+        </div>
+    </div>
+
+    <div class="mt-2"></div>
+
+    @if (hasMaxDownloads()) {
+        <div class="item">
+            <i class="icon icon-xl icon--placeholder icon-nucleo-download"></i>
+            <div class="item__details">
+                <mat-form-field appearance="outline" class="details-field" subscriptSizing="dynamic">
+                    <mat-label>Max downloads</mat-label>
+                    <input matInput type="number" min="1"
+                        [ngModel]="maxDownloadsValue()"
+                        (ngModelChange)="maxDownloadsValue.set($event)"
+                        (blur)="onMaxDownloadsBlur()">
+                </mat-form-field>
+            </div>
+        </div>
+    }
+
+    <div class="mt-4"></div>
+
+    <!-- Shared items -->
+    <div class="subtitle-header">
+        <div class="item">
+            <div class="item__details">
+                <div class="item__title">Shared items</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-2"></div>
+
+    <div class="item">
+        <i class="icon icon-xl icon--placeholder icon-nucleo-folder"></i>
+        <div class="item__details">
+            <div>
+                {{ qs.items.selectedFiles.length }} file(s), {{ qs.items.selectedFolders.length }} folder(s)
+                @if (qs.items.excludedFiles.length + qs.items.excludedFolders.length > 0) {
+                    · {{ qs.items.excludedFiles.length + qs.items.excludedFolders.length }} excluded
+                }
+            </div>
+            <div class="item__subtitle">Items editor coming next.</div>
+        </div>
+    </div>
+
+    <div class="mt-4"></div>
+
+    <!-- Metadata -->
+    <div class="subtitle-header">
+        <div class="item">
+            <div class="item__details">
+                <div class="item__title">Metadata</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-2"></div>
+
+    <div class="item">
+        <i class="icon icon-xl icon--placeholder icon-nucleo-info"></i>
+        <div class="item__details">
+            @if (createdAt(); as created) {
+                <div>Created: {{ created.toLocaleString() }}</div>
+            }
+            @if (lastAccessedAt(); as last) {
+                <div class="item__subtitle">Last accessed: {{ last.toLocaleString() }}</div>
+            } @else {
+                <div class="item__subtitle">Never accessed</div>
+            }
+        </div>
+    </div>
+
+    <div class="mt-5"></div>
+}

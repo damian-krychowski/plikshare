@@ -1,7 +1,8 @@
 import { Component, computed, OnDestroy, OnInit, signal, WritableSignal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { ActivatedRoute, Navigation, NavigationEnd, NavigationExtras, Router, RouterModule } from '@angular/router';
-import { FilesExplorerApi, FilesExplorerComponent, ItemToHighlight } from '../../files-explorer/files-explorer.component';
+import { FilesExplorerApi, FilesExplorerComponent, ItemToHighlight, QuickShareSelection } from '../../files-explorer/files-explorer.component';
+import { QuickShareCreationService } from '../quick-shares/quick-share-creation.service';
 import { FoldersAndFilesGetApi, FoldersAndFilesSetApi } from '../../services/folders-and-files.api';
 import { BulkInitiateFileUploadRequest, UploadsApi } from '../../services/uploads.api';
 import { Subscription, filter } from 'rxjs';
@@ -32,6 +33,7 @@ export class ExplorerComponent implements OnInit, OnDestroy {
     uploadsApi: WritableSignal<FileUploadApi | null> = signal(null);
 
     areBoxesSupported = computed(() => this.context.workspace()?.storageEncryptionType !== 'full');
+    isQuickShareSupported = computed(() => this.context.workspace()?.storageEncryptionType !== 'full');
 
     workspaceExternalId: WritableSignal<string | null> = signal(null);
     private _workspaceExternalId: string | null = null;
@@ -45,8 +47,9 @@ export class ExplorerComponent implements OnInit, OnDestroy {
         private _getApi: FoldersAndFilesGetApi,
         private _dataStore: DataStore,
         private _fileLockService: FileLockService,
+        private _quickShareCreation: QuickShareCreationService,
         public context: WorkspaceContextService,
-    ) { 
+    ) {
 
     }
 
@@ -246,7 +249,22 @@ export class ExplorerComponent implements OnInit, OnDestroy {
         };
 
         this._router.navigate(
-            [`/workspaces/${this._workspaceExternalId}/boxes`], 
+            [`/workspaces/${this._workspaceExternalId}/boxes`],
             navigationExtras);
+    }
+
+    async onQuickShareRequested(selection: QuickShareSelection) {
+        if (this._workspaceExternalId == null) {
+            throw new Error('Workspace is not set');
+        }
+
+        await this._quickShareCreation.openCreateDialog({
+            workspaceExternalId: this._workspaceExternalId,
+            selectedFiles: selection.selectedFiles,
+            selectedFolders: selection.selectedFolders,
+            excludedFiles: selection.excludedFiles,
+            excludedFolders: selection.excludedFolders,
+            defaultName: selection.defaultName
+        });
     }
 }

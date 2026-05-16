@@ -51,6 +51,7 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
 
     isFullEncryption = computed(() => this.context.workspace()?.storageEncryptionType === 'full');
     areBoxesSupported = computed(() => !this.isFullEncryption());
+    areQuickSharesSupported = computed(() => !this.isFullEncryption());
 
     allowShare = computed(() => this.context.workspace()?.permissions?.allowShare ?? false);
     isTeamVisible = computed(() => {
@@ -148,6 +149,11 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
         this.isMenuOpen.set(false);
     }
 
+    goToQuickShares() {
+        this._router.navigate(['/workspaces/' + this._workspaceExternalId + '/quick-shares']);
+        this.isMenuOpen.set(false);
+    }
+
     goToUploads() {
         this._router.navigate(['/workspaces/' + this._workspaceExternalId + '/uploads']);
         this.isMenuOpen.set(false);
@@ -177,9 +183,14 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
         return this.isUrlActive(explorerUrl);
     }
     
-    isBoxesActive() {        
+    isBoxesActive() {
         const boxesUrl = `/workspaces/${this._workspaceExternalId}/boxes`;
         return this.isUrlActive(boxesUrl);
+    }
+
+    isQuickSharesActive() {
+        const url = `/workspaces/${this._workspaceExternalId}/quick-shares`;
+        return this.isUrlActive(url);
     }
     
     isUploadsActive() {
@@ -218,6 +229,13 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
             return;
 
         this.dataStore.prefetchBoxes(this._workspaceExternalId);
+    }
+
+    prefetchQuickShares() {
+        if(this.isQuickSharesActive())
+            return;
+
+        this.dataStore.prefetchQuickShares(this._workspaceExternalId);
     }
 
     prefetchUploads() {

@@ -8,6 +8,7 @@ using PlikShare.Folders.Id;
 using PlikShare.GeneralSettings;
 using PlikShare.AuthProviders.Id;
 using PlikShare.Integrations.Id;
+using PlikShare.QuickShares.Id;
 using PlikShare.Storages.Id;
 using PlikShare.Uploads.Id;
 using PlikShare.Users.Id;
@@ -823,6 +824,115 @@ public static class HttpErrors
             {
                 Code = "audit-log-entry-doesnt-exist",
                 Message = $"Audit log entry with externalId '{externalId}' was not found."
+            });
+    }
+
+    public static class QuickShare
+    {
+        public static NotFound<HttpError> NotFound(QuickShareExtId externalId) =>
+            TypedResults.NotFound(new HttpError
+            {
+                Code = "quick-share-doesnt-exist",
+                Message = $"Quick share with externalId '{externalId}' was not found."
+            });
+
+        public static BadRequest<HttpError> InvalidExternalId(string actualValue) =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "invalid-quick-share-external-id",
+                Message = $"QuickShareExternalId is invalid: '{actualValue}'"
+            });
+
+        public static BadRequest<HttpError> MissingExternalId() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "missing-quick-share-external-id",
+                Message = "QuickShareExternalId is missing."
+            });
+
+        public static BadRequest<HttpError> InvalidAccessCode() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "invalid-quick-share-access-code",
+                Message = "Provided quick-share access-code is invalid."
+            });
+
+        public static BadRequest<HttpError> FullEncryptionNotSupportedYet() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "quick-share-full-encryption-not-supported-yet",
+                Message = "Quick shares are not available for fully-encrypted workspaces yet. Use a Box link instead."
+            });
+
+        public static BadRequest<HttpError> NoItems() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "quick-share-has-no-items",
+                Message = "A quick share must contain at least one file or folder."
+            });
+
+        public static BadRequest<HttpError> ExpirationInThePast() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "quick-share-expiration-in-the-past",
+                Message = "Quick share expiration date must be in the future."
+            });
+
+        public static NotFound<HttpError> ItemsNotFound() =>
+            TypedResults.NotFound(new HttpError
+            {
+                Code = "quick-share-items-not-found",
+                Message = "Some of the selected files or folders do not exist in this workspace."
+            });
+
+        public static IResult Expired() =>
+            TypedResults.Json(
+                new HttpError
+                {
+                    Code = "quick-share-expired",
+                    Message = "This quick share has expired."
+                },
+                statusCode: StatusCodes.Status410Gone);
+
+        public static IResult Exhausted() =>
+            TypedResults.Json(
+                new HttpError
+                {
+                    Code = "quick-share-download-limit-reached",
+                    Message = "This quick share has reached its download limit."
+                },
+                statusCode: StatusCodes.Status410Gone);
+
+        public static IResult RequiresPassword() =>
+            TypedResults.Json(
+                new HttpError
+                {
+                    Code = "quick-share-requires-password",
+                    Message = "This quick share is password-protected."
+                },
+                statusCode: StatusCodes.Status401Unauthorized);
+
+        public static IResult WrongPassword() =>
+            TypedResults.Json(
+                new HttpError
+                {
+                    Code = "quick-share-wrong-password",
+                    Message = "The password is incorrect."
+                },
+                statusCode: StatusCodes.Status401Unauthorized);
+
+        public static BadRequest<HttpError> IndividualFileDownloadDisabled() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "quick-share-individual-file-download-disabled",
+                Message = "This quick share does not allow downloading individual files."
+            });
+
+        public static NotFound<HttpError> FileNotInShare() =>
+            TypedResults.NotFound(new HttpError
+            {
+                Code = "quick-share-file-not-in-share",
+                Message = "The requested file is not part of this quick share."
             });
     }
 

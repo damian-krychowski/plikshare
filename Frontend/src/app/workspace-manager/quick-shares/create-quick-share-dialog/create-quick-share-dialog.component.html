@@ -1,0 +1,92 @@
+<div class="quick-share-dialog">
+    <div class="quick-share-dialog__title">Create a quick share</div>
+
+    <div class="quick-share-dialog__hint">
+        Selected: {{ data.selectedFiles.length }} file(s), {{ data.selectedFolders.length }} folder(s)
+        @if (data.excludedFiles.length + data.excludedFolders.length > 0) {
+            <span class="quick-share-dialog__exclusions">
+                ({{ data.excludedFiles.length + data.excludedFolders.length }} excluded)
+            </span>
+        }
+    </div>
+
+    <mat-form-field appearance="outline" class="quick-share-dialog__field">
+        <mat-label>Name</mat-label>
+        <input matInput type="text" [ngModel]="name()" (ngModelChange)="name.set($event)" autocomplete="off">
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="quick-share-dialog__field">
+        <mat-label>Recipient mode</mat-label>
+        <mat-select [ngModel]="mode()" (ngModelChange)="mode.set($event)">
+            <mat-option value="browser">Browser preview (recipient can preview files)</mat-option>
+            <mat-option value="direct">Direct download (recipient downloads zip immediately)</mat-option>
+        </mat-select>
+    </mat-form-field>
+
+    @if (mode() === 'browser') {
+        <mat-checkbox class="quick-share-dialog__checkbox"
+            [checked]="allowIndividualFileDownload()"
+            (change)="allowIndividualFileDownload.set($event.checked)">
+            Allow downloading individual files
+        </mat-checkbox>
+    }
+
+    <div class="quick-share-dialog__section-title">Optional protections</div>
+
+    <mat-checkbox class="quick-share-dialog__checkbox"
+        [checked]="hasExpiration()"
+        (change)="hasExpiration.set($event.checked)">
+        Expires at
+    </mat-checkbox>
+
+    @if (hasExpiration()) {
+        <mat-form-field appearance="outline" class="quick-share-dialog__field">
+            <mat-label>Expiration date/time</mat-label>
+            <input matInput type="datetime-local"
+                [ngModel]="expiresAtIso()"
+                (ngModelChange)="expiresAtIso.set($event)">
+        </mat-form-field>
+    }
+
+    <mat-checkbox class="quick-share-dialog__checkbox"
+        [checked]="hasPassword()"
+        (change)="hasPassword.set($event.checked)">
+        Protect with password
+    </mat-checkbox>
+
+    @if (hasPassword()) {
+        <mat-form-field appearance="outline" class="quick-share-dialog__field">
+            <mat-label>Password</mat-label>
+            <input matInput type="password"
+                [ngModel]="password()"
+                (ngModelChange)="password.set($event)"
+                autocomplete="new-password">
+        </mat-form-field>
+    }
+
+    <mat-checkbox class="quick-share-dialog__checkbox"
+        [checked]="hasMaxDownloads()"
+        (change)="hasMaxDownloads.set($event.checked)">
+        Limit number of downloads
+    </mat-checkbox>
+
+    @if (hasMaxDownloads()) {
+        <mat-form-field appearance="outline" class="quick-share-dialog__field">
+            <mat-label>Max downloads</mat-label>
+            <input matInput type="number" min="1"
+                [ngModel]="maxDownloads()"
+                (ngModelChange)="maxDownloads.set($event)">
+        </mat-form-field>
+    }
+
+    <div class="quick-share-dialog__actions">
+        <button mat-stroked-button type="button" (click)="onCancel()" [disabled]="isSubmitting()">
+            Cancel
+        </button>
+        <button mat-flat-button color="primary" type="button"
+            [disabled]="!canSubmit()"
+            (click)="onSubmit()">
+            Create
+        </button>
+    </div>
+</div>

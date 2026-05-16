@@ -69,6 +69,19 @@
                 </button>
             }
 
+            @if(areQuickSharesSupported()) {
+                <button class="top-nav-btn d-none-on-mobile-early"
+                    [class.top-nav-btn--active]="isQuickSharesActive()"
+                    aria-label="Quick shares"
+                    mat-flat-button
+                    matTooltip="Quick shares"
+                    matTooltipPosition="below"
+                    (prefetch)="prefetchQuickShares()"
+                    (click)="goToQuickShares()">
+                    <i class="icon icon-xl icon-nucleo-share"></i>
+                </button>
+            }
+
             @if(isTeamVisible()) {
                 <button
                     class="top-nav-btn d-none-on-mobile-early" 
@@ -139,6 +152,14 @@
                     [class.app-menu__link--active]="isBoxesActive()">
                     Boxes
                     <i class="icon icon-xl icon-nucleo-box"></i>
+                </a>
+            }
+
+            @if(areQuickSharesSupported()) {
+                <a class="app-menu__link" (click)="goToQuickShares()"
+                    [class.app-menu__link--active]="isQuickSharesActive()">
+                    Quick shares
+                    <i class="icon icon-xl icon-nucleo-share"></i>
                 </a>
             }
 

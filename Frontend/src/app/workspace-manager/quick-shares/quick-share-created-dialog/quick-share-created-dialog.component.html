@@ -1,0 +1,21 @@
+<div class="quick-share-created">
+    <div class="quick-share-created__title">Quick share is live</div>
+
+    <div class="quick-share-created__name">"{{ data.name }}"</div>
+
+    <div class="quick-share-created__hint">
+        Forward this link through your own channel. Anyone with the link can download
+        whatever you selected (subject to the password / expiration / limits you set).
+    </div>
+
+    <div class="quick-share-created__link-row">
+        <div class="quick-share-created__url" [title]="data.url">{{ data.url }}</div>
+        <button mat-stroked-button type="button" (click)="copyLink()">
+            {{ copied() ? 'Copied' : 'Copy' }}
+        </button>
+    </div>
+
+    <div class="quick-share-created__actions">
+        <button mat-flat-button color="primary" type="button" (click)="onClose()">Done</button>
+    </div>
+</div>

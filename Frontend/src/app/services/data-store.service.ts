@@ -11,6 +11,7 @@ import { GetUserDetailsResponse, GetUsersResponseDto, UsersApi } from "./users.a
 import { GetStoragesResponse, StoragesApi } from "./storages.api";
 import { EmailProvidersApi, GetEmailProvidersResponse } from "./email-providers.api";
 import { GetIntegrationsResponse, IntegrationsApi } from "./integrations.api";
+import { GetQuickSharesResponse, QuickSharesApi } from "./quick-shares.api";
 
 type dataPrefetch<T> = {
     promise: Promise<T>;
@@ -34,7 +35,8 @@ export class DataStore {
         private _usersApi: UsersApi,
         private _storagesApi: StoragesApi,
         private _emailProvidersApi: EmailProvidersApi,
-        private _integrationsApi: IntegrationsApi
+        private _integrationsApi: IntegrationsApi,
+        private _quickSharesApi: QuickSharesApi
     ) {
 
     }
@@ -77,20 +79,40 @@ export class DataStore {
         return this.get(key, source);
     }
 
-    public prefetchBoxes(workspaceExternalId: string): void {       
+    public prefetchBoxes(workspaceExternalId: string): void {
         this.prefetch<GetBoxListResponse>(
-            this.boxesKey(workspaceExternalId), 
+            this.boxesKey(workspaceExternalId),
             () => this._boxesGetApi.getBoxes(workspaceExternalId));
     }
 
     public getBoxes(workspaceExternalId: string): Promise<GetBoxListResponse> {
         return this.get<GetBoxListResponse>(
-            this.boxesKey(workspaceExternalId), 
-            () => this._boxesGetApi.getBoxes(workspaceExternalId)); 
+            this.boxesKey(workspaceExternalId),
+            () => this._boxesGetApi.getBoxes(workspaceExternalId));
     }
 
     public boxesKey(workspaceExternalId: string): string {
         return `workspaces/${workspaceExternalId}/boxes`;
+    }
+
+    public prefetchQuickShares(workspaceExternalId: string): void {
+        this.prefetch<GetQuickSharesResponse>(
+            this.quickSharesKey(workspaceExternalId),
+            () => this._quickSharesApi.getQuickShares(workspaceExternalId));
+    }
+
+    public getQuickShares(workspaceExternalId: string): Promise<GetQuickSharesResponse> {
+        return this.get<GetQuickSharesResponse>(
+            this.quickSharesKey(workspaceExternalId),
+            () => this._quickSharesApi.getQuickShares(workspaceExternalId));
+    }
+
+    public invalidateQuickShares(workspaceExternalId: string): void {
+        this._data.delete(this.quickSharesKey(workspaceExternalId));
+    }
+
+    public quickSharesKey(workspaceExternalId: string): string {
+        return `workspaces/${workspaceExternalId}/quick-shares`;
     }
 
     public prefetchBox(workspaceExternalId: string, boxExternalId: string | null): void {

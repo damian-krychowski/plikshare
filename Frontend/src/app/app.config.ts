@@ -155,6 +155,12 @@ export const routes: Routes = [{
         path: 'boxes',
         loadComponent: () => import('./workspace-manager/boxes/boxes.component').then(m => m.BoxesComponent)
     }, {
+        path: 'quick-shares',
+        loadComponent: () => import('./workspace-manager/quick-shares/quick-shares-list/quick-shares-list.component').then(m => m.QuickSharesListComponent)
+    }, {
+        path: 'quick-shares/:quickShareExternalId',
+        loadComponent: () => import('./workspace-manager/quick-shares/quick-share-details/quick-share-details.component').then(m => m.QuickShareDetailsComponent)
+    }, {
         path: 'boxes/:boxExternalId/:tab',
         loadComponent: () => import('./workspace-manager/boxes/box-details/box-details.component').then(m => m.BoxDetailsComponent)        
     }, {
@@ -182,6 +188,9 @@ export const routes: Routes = [{
     path: 'box/:boxExternalId',
     redirectTo: 'box/:boxExternalId/',
     pathMatch: 'full'
+}, {
+    path: 'share/:accessCode',
+    loadComponent: () => import('./external-access/quick-share/quick-share.component').then(m => m.QuickShareComponent)
 }];
 
 export const appConfig: ApplicationConfig = {

@@ -279,12 +279,40 @@ public static class AuditLogEventTypes
         public static readonly string[] All = [];
     }
 
+    public static class QuickShare
+    {
+        public const string Created = "quick-share.created";
+        public const string Deleted = "quick-share.deleted";
+        public const string NameUpdated = "quick-share.name-updated";
+        public const string ExpirationUpdated = "quick-share.expiration-updated";
+        public const string PasswordUpdated = "quick-share.password-updated";
+        public const string MaxDownloadsUpdated = "quick-share.max-downloads-updated";
+        public const string ModeUpdated = "quick-share.mode-updated";
+        public const string ItemsUpdated = "quick-share.items-updated";
+        public const string Unlocked = "quick-share.unlocked";
+        public const string UnlockFailed = "quick-share.unlock-failed";
+        public const string BulkDownloadLinkGenerated = "quick-share.bulk-download-link-generated";
+        public const string FileDownloadLinkGenerated = "quick-share.file-download-link-generated";
+        public const string DownloadLimitReached = "quick-share.download-limit-reached";
+
+        public static readonly string[] All =
+        [
+            Created, Deleted, NameUpdated,
+            ExpirationUpdated, PasswordUpdated, MaxDownloadsUpdated,
+            ModeUpdated, ItemsUpdated,
+            Unlocked, UnlockFailed,
+            BulkDownloadLinkGenerated, FileDownloadLinkGenerated,
+            DownloadLimitReached
+        ];
+    }
+
     public static readonly string[] All = [
         ..Auth.All, ..User.All, ..Settings.All,
         ..EmailProvider.All, ..AuthProvider.All,
         ..Storage.All, ..Integration.All,
         ..Workspace.All, ..Folder.All, ..Box.All, ..BoxLink.All,
-        ..File.All, ..Upload.All
+        ..File.All, ..Upload.All,
+        ..QuickShare.All
     ];
 }
 
@@ -303,12 +331,14 @@ public static class AuditLogEventCategories
     public const string AuthProvider = "auth-provider";
     public const string Settings = "settings";
     public const string Upload = "upload";
+    public const string QuickShare = "quick-share";
 
     public static readonly string[] All =
     [
         Auth, User, Workspace, File, Folder,
         Box, BoxLink, Storage, Integration,
-        EmailProvider, AuthProvider, Settings, Upload
+        EmailProvider, AuthProvider, Settings, Upload,
+        QuickShare
     ];
 }
 

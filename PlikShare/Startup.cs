@@ -244,6 +244,25 @@ using PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
 using PlikShare.Workspaces.UpdateMaxSize;
 using PlikShare.Workspaces.UpdateMaxTeamMembers;
 using PlikShare.Workspaces.UpdateName;
+using PlikShare.QuickShares;
+using PlikShare.QuickShares.Cache;
+using PlikShare.QuickShares.Create;
+using PlikShare.QuickShares.Delete;
+using PlikShare.QuickShares.EffectiveSet;
+using PlikShare.QuickShares.Get;
+using PlikShare.QuickShares.List;
+using PlikShare.QuickShares.TrackDownload;
+using PlikShare.QuickShares.UpdateExpiration;
+using PlikShare.QuickShares.UpdateItems;
+using PlikShare.QuickShares.UpdateMaxDownloads;
+using PlikShare.QuickShares.UpdateMode;
+using PlikShare.QuickShares.UpdateName;
+using PlikShare.QuickShares.UpdatePassword;
+using PlikShare.QuickShareExternalAccess;
+using PlikShare.QuickShareExternalAccess.Authorization;
+using PlikShare.QuickShareExternalAccess.GetBulkDownloadLink;
+using PlikShare.QuickShareExternalAccess.GetContent;
+using PlikShare.QuickShareExternalAccess.GetFileDownloadLink;
 using Serilog;
 using Serilog.Events;
 
@@ -322,6 +341,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_35_FolderAndFilePositionIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_36_UserStorageAccessIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_37_WorkspaceAuditLogDisabledEventsIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_38_QuickSharesIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -726,6 +746,26 @@ public class Startup
         builder.Services.AddSingleton<DeleteSignUpCheckboxQuery>();
 
         builder.Services.AddSingleton<CheckFileLocksQuery>();
+
+        builder.Services.AddSingleton<QuickShareCache>();
+        builder.Services.AddSingleton<QuickShareUrlBuilder>();
+        builder.Services.AddSingleton<QuickSharePasswordHasher>();
+        builder.Services.AddSingleton<QuickShareUnlockSession>();
+        builder.Services.AddSingleton<CreateQuickShareQuery>();
+        builder.Services.AddSingleton<DeleteQuickShareQuery>();
+        builder.Services.AddSingleton<GetQuickShareItemsQuery>();
+        builder.Services.AddSingleton<GetQuickSharesQuery>();
+        builder.Services.AddSingleton<UpdateQuickShareNameQuery>();
+        builder.Services.AddSingleton<UpdateQuickShareExpirationQuery>();
+        builder.Services.AddSingleton<UpdateQuickSharePasswordQuery>();
+        builder.Services.AddSingleton<UpdateQuickShareMaxDownloadsQuery>();
+        builder.Services.AddSingleton<UpdateQuickShareModeQuery>();
+        builder.Services.AddSingleton<UpdateQuickShareItemsQuery>();
+        builder.Services.AddSingleton<GetQuickShareItemDbIdsQuery>();
+        builder.Services.AddSingleton<TrackQuickShareDownloadQuery>();
+        builder.Services.AddSingleton<GetQuickShareContentOperation>();
+        builder.Services.AddSingleton<GenerateQuickShareBulkDownloadLinkOperation>();
+        builder.Services.AddSingleton<GenerateQuickShareFileDownloadLinkOperation>();
     }
 
     public static void InitializeWebApp(WebApplication app)
@@ -799,6 +839,8 @@ public class Startup
         app.MapWidgetEndpoints();
         app.MapAuditLogEndpoints();
         app.MapAuditLogPolicyEndpoints();
+        app.MapQuickSharesEndpoints();
+        app.MapQuickShareExternalAccessEndpoints();
         
         //core functionality
         app.InitializeSqLite();

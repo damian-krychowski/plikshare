@@ -98,6 +98,14 @@ export type InitialContent = {
     uploads: UploadDto[];
 }
 
+export type QuickShareSelection = {
+    selectedFiles: string[];
+    selectedFolders: string[];
+    excludedFiles: string[];
+    excludedFolders: string[];
+    defaultName: string;
+}
+
 type ExplorerItem = AppFolderItem | AppFileItem | AppUploadItem;
 
 export type ItemToHighlight = {
@@ -158,6 +166,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     allowFileEdit = input(false);
     allowPreviewNotes = input(false);
     allowPreviewComment = input(false);
+    allowQuickShare = input(false);
 
     folderPermissions = computed<AppFolderPermissions>(() =>({
         allowDelete: this.allowFolderDelete(),
@@ -197,6 +206,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
     folderSelected = output<AppFolderItem | null>();
     boxCreated = output<AppFolderItem>();
+    quickShareRequested = output<QuickShareSelection>();
     filePreviewed = output<AppFileItem | null>();
     workspaceSizeUpdated = output<number>();
 
@@ -238,9 +248,23 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     isAnyItemNotSelected = computed(() => this.selectedItemsCount() < this.itemsCount());
 
     canBulkDownload = computed(() =>
-        !this.isAnyUploadSelected() 
+        !this.isAnyUploadSelected()
         && (this.isAnyFolderSelected() || this.isAnyFileSelected())
         && this.allowDownload());
+
+    canBulkQuickShare = computed(() =>
+        this.allowQuickShare()
+        && !this.isAnyUploadSelected()
+        && (this.isAnyFolderSelected() || this.isAnyFileSelected()));
+
+    canBulkTreeQuickShare = computed(() => {
+        if (!this.allowQuickShare())
+            return false;
+
+        const treeSelectionState = this.treeSelectionState();
+        return treeSelectionState.selectedFileExternalIds.length > 0
+            || treeSelectionState.selectedFolderExternalIds.length > 0;
+    });
 
     canBulkDelete = computed(() => 
         (this.isAnyFolderSelected() && this.allowFolderDelete())
@@ -1304,7 +1328,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         }
     }
 
-    async downloadSelectedItems() {        
+    async downloadSelectedItems() {
         const selectedFiles = this
             .files()
             .filter(f => f.isSelected());
@@ -1322,6 +1346,40 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         link.download = preSignedUrl.downloadName;
         link.click();
         link.remove();
+    }
+
+    shareSelectedItems() {
+        const selectedFiles = this.files().filter(f => f.isSelected());
+        const selectedFolders = this.folders().filter(f => f.isSelected());
+
+        this.quickShareRequested.emit({
+            selectedFiles: selectedFiles.map(f => f.externalId),
+            selectedFolders: selectedFolders.map(f => f.externalId),
+            excludedFiles: [],
+            excludedFolders: [],
+            defaultName: this.buildDefaultShareName(selectedFiles.length, selectedFolders.length)
+        });
+    }
+
+    shareSelectedTreeItems() {
+        const state = this.treeSelectionState();
+
+        this.quickShareRequested.emit({
+            selectedFiles: state.selectedFileExternalIds,
+            selectedFolders: state.selectedFolderExternalIds,
+            excludedFiles: state.excludedFileExternalIds,
+            excludedFolders: state.excludedFolderExternalIds,
+            defaultName: this.buildDefaultShareName(
+                state.selectedFileExternalIds.length,
+                state.selectedFolderExternalIds.length)
+        });
+    }
+
+    private buildDefaultShareName(filesCount: number, foldersCount: number): string {
+        const parts: string[] = [];
+        if (foldersCount > 0) parts.push(`${foldersCount} folder${foldersCount > 1 ? 's' : ''}`);
+        if (filesCount > 0) parts.push(`${filesCount} file${filesCount > 1 ? 's' : ''}`);
+        return parts.length > 0 ? `Quick share — ${parts.join(', ')}` : 'Quick share';
     }
 
     async saveFileName(file: AppFileItem, newName: string) {

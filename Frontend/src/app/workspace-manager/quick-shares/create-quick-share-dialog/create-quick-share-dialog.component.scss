@@ -1,0 +1,48 @@
+.quick-share-dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1.25rem;
+    min-width: 28rem;
+    max-width: 40rem;
+
+    &__title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    &__hint {
+        font-size: 0.875rem;
+        color: var(--app-text-muted, #666);
+    }
+
+    &__exclusions {
+        margin-left: 0.25rem;
+        font-style: italic;
+    }
+
+    &__section-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--app-text-muted, #666);
+    }
+
+    &__field {
+        width: 100%;
+    }
+
+    &__checkbox {
+        margin: 0.25rem 0;
+    }
+
+    &__actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+}

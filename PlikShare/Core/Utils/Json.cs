@@ -20,6 +20,8 @@ using PlikShare.Integrations.Aws.Textract.Id;
 using PlikShare.Integrations.Aws.Textract.Jobs;
 using PlikShare.Integrations.Aws.Textract.TestConfiguration.Contracts;
 using PlikShare.Integrations.Id;
+using PlikShare.QuickShares;
+using PlikShare.QuickShares.Id;
 using PlikShare.Storages;
 using PlikShare.Storages.AzureBlob;
 using PlikShare.Storages.Encryption;
@@ -100,6 +102,7 @@ public static class JsonConverters
         options.Converters.Add(new ExternalIdJsonConverter<TextractJobExtId>());
         options.Converters.Add(new ExternalIdJsonConverter<AiConversationExtId>());
         options.Converters.Add(new ExternalIdJsonConverter<AiMessageExtId>());
+        options.Converters.Add(new ExternalIdJsonConverter<QuickShareExtId>());
         
         options.Converters.Add(new JsonStringEnumConverter<EmailTemplate>(JsonNamingPolicy.CamelCase));
         options.Converters.Add(new JsonStringEnumConverter<SslMode>(JsonNamingPolicy.CamelCase));
@@ -121,6 +124,7 @@ public static class JsonConverters
         options.Converters.Add(new JsonStringEnumConverter<FileType>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<UserStorageAccessMode>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<InvitationDeliveryMethod>(JsonNamingPolicy.KebabCaseLower));
+        options.Converters.Add(new JsonStringEnumConverter<QuickShareMode>(JsonNamingPolicy.KebabCaseLower));
 
         options.Converters.Add(new NullableByteArrayJsonConverter());
         options.Converters.Add(new FileKeyJsonConverter());

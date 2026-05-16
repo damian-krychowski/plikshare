@@ -1,0 +1,77 @@
+<div class="item-bar item-bar--clickable flex-row hover-switch"
+    (click)="openDetails()">
+    @let qs = quickShare();
+
+    <div class="item"
+        [class.item--in-background]="areActionsVisible()">
+        <i class="icon icon-xl icon-nucleo-share"></i>
+
+        <div class="item__details">
+            <app-editable-txt #nameTxt
+                [text]="name()"
+                [isEditing]="isNameEditing()"
+                (valueChange)="saveName($event)"
+                (editingStarted)="qs.isNameEditing.set(true)"
+                (editingStopped)="qs.isNameEditing.set(false)">
+            </app-editable-txt>
+
+            <div class="item__subtitle">
+                {{ selectionSummary() }} · mode: {{ mode() }}
+                @if (hasPassword()) {
+                    · password
+                }
+                @if (maxDownloads() !== null) {
+                    · {{ downloadsCount() }}/{{ maxDownloads() }} downloads
+                } @else {
+                    · {{ downloadsCount() }} downloads
+                }
+                @if (expiresAt(); as exp) {
+                    · expires {{ exp.toLocaleString() }}
+                }
+            </div>
+
+            @if (url(); as linkUrl) {
+                <div class="item__subtitle url" (click)="$event.stopPropagation(); copyLink()"
+                    [matTooltip]="copied() ? 'Copied' : 'Copy to clipboard'"
+                    matTooltipPosition="below">
+                    {{ linkUrl }} <i class="icon icon-sm icon-nucleo-copy"></i>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="item-bar__actions" (click)="$event.stopPropagation()">
+        @if (isNameEditing()) {
+            <app-action-btn
+                tooltip="Save name"
+                icon="icon-lucide-check"
+                (clicked)="nameTxt.save()">
+            </app-action-btn>
+        } @else {
+            <app-action-btn
+                tooltip="Edit quick share name"
+                icon="icon-nucleo-pen"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                (clicked)="editName()">
+            </app-action-btn>
+
+            <app-action-btn
+                tooltip="Delete"
+                icon="icon-nucleo-remove"
+                [class.d-none-on-mobile]="!areActionsVisible()"
+                [isOperationDanger]="true"
+                [verb]="'delete'"
+                [operationItem]="'this quick share'"
+                appConfirmOperation
+                (confirmedClick)="deleteShare()">
+            </app-action-btn>
+
+            <app-action-btn
+                tooltip="Actions"
+                icon="icon-lucide-dots"
+                class="d-none-on-desktop"
+                (clicked)="toggleActions()">
+            </app-action-btn>
+        }
+    </div>
+</div>

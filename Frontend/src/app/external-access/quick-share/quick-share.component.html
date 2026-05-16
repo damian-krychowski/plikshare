@@ -1,0 +1,86 @@
+<div class="quick-share-page">
+    @if (isLoading()) {
+        <div class="quick-share-page__state">Loading…</div>
+    } @else if (notFound()) {
+        <div class="quick-share-page__state quick-share-page__state--error">
+            This quick share link is invalid or has been removed.
+        </div>
+    } @else if (info(); as infoValue) {
+        <div class="quick-share-page__header">
+            <h1 class="quick-share-page__title">{{ name() }}</h1>
+
+            @if (infoValue.expiresAt) {
+                <div class="quick-share-page__meta">
+                    Expires: {{ infoValue.expiresAt | date:'medium' }}
+                </div>
+            }
+
+            @if (infoValue.maxDownloads !== null) {
+                <div class="quick-share-page__meta">
+                    Downloads remaining: {{ infoValue.maxDownloads - infoValue.downloadsCount }}
+                </div>
+            }
+        </div>
+
+        @if (isExpired()) {
+            <div class="quick-share-page__state quick-share-page__state--error">
+                This quick share has expired.
+            </div>
+        } @else if (isExhausted()) {
+            <div class="quick-share-page__state quick-share-page__state--error">
+                The download limit for this quick share has been reached.
+            </div>
+        } @else if (requiresPassword() && !isUnlocked()) {
+            <div class="quick-share-page__password-gate">
+                <p>This quick share is password-protected.</p>
+
+                <mat-form-field appearance="outline" class="quick-share-page__password-field">
+                    <mat-label>Password</mat-label>
+                    <input matInput type="password"
+                        [ngModel]="passwordInput()"
+                        (ngModelChange)="passwordInput.set($event)"
+                        (keyup.enter)="unlock()"
+                        autocomplete="current-password">
+                </mat-form-field>
+
+                <button mat-flat-button color="primary" type="button"
+                    [disabled]="isUnlocking() || !passwordInput().trim()"
+                    (click)="unlock()">
+                    Unlock
+                </button>
+            </div>
+        } @else if (mode() === 'direct') {
+            <div class="quick-share-page__direct">
+                <p>Your download should start shortly. If it doesn't, click below.</p>
+                <button mat-flat-button color="primary" type="button"
+                    [disabled]="isDownloading()"
+                    (click)="downloadAll()">
+                    Download
+                </button>
+            </div>
+        } @else if (content(); as contentValue) {
+            <div class="quick-share-page__toolbar">
+                <div class="quick-share-page__summary">
+                    {{ filesCount() }} file(s) · total {{ totalSizeInBytes() | storageSize }}
+                </div>
+
+                <app-action-btn
+                    tooltip="Download all as zip"
+                    icon="icon-nucleo-download"
+                    [disabled]="isDownloading()"
+                    (clicked)="downloadAll()">
+                </app-action-btn>
+            </div>
+
+            <app-zip-file-tree-view
+                [fileTree]="fileTree()"
+                [canDownload]="allowIndividualFileDownload()"
+                (fileDownloadClicked)="onFileDownloadClicked($event)">
+            </app-zip-file-tree-view>
+        }
+
+        <div class="quick-share-page__powered-by">
+            Powered by <a href="https://plikshare.com" target="_blank">plikshare.com</a>
+        </div>
+    }
+</div>

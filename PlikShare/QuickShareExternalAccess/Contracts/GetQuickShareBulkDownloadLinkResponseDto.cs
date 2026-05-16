@@ -1,0 +1,3 @@
+namespace PlikShare.QuickShareExternalAccess.Contracts;
+
+public record GetQuickShareBulkDownloadLinkResponseDto(string PreSignedUrl);

@@ -170,12 +170,20 @@
             </app-folder-path>
 
             <div class="flex-row flex-gap-05 ml-auto">   
-                @if(isListViewMode) {   
+                @if(isListViewMode) {
                     @if(canBulkDownload()) {
                         <app-action-btn
                             tooltip="Bulk Download"
                             icon="icon-nucleo-download"
                             (clicked)="downloadSelectedItems()">
+                        </app-action-btn>
+                    }
+
+                    @if(canBulkQuickShare()) {
+                        <app-action-btn
+                            tooltip="Quick share selection"
+                            icon="icon-nucleo-share"
+                            (clicked)="shareSelectedItems()">
                         </app-action-btn>
                     }
 
@@ -245,6 +253,14 @@
                             tooltip="Bulk Download"
                             icon="icon-nucleo-download"
                             (clicked)="downloadSelectedTreeItems()">
+                        </app-action-btn>
+                    }
+
+                    @if(canBulkTreeQuickShare()) {
+                        <app-action-btn
+                            tooltip="Quick share selection"
+                            icon="icon-nucleo-share"
+                            (clicked)="shareSelectedTreeItems()">
                         </app-action-btn>
                     }
 

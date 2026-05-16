@@ -17,6 +17,7 @@
         [allowFolderRename]="true"
         [allowFolderDelete]="true"
         [allowFolderShare]="areBoxesSupported()"
+        [allowQuickShare]="isQuickShareSupported()"
 
         [allowFileRename]="true"
         [allowFileDelete]="true"
@@ -37,8 +38,9 @@
         (filePreviewed)="onFilePreviewed($event)"
 
         (boxCreated)="onBoxCreated($event)"
-        (workspaceSizeUpdated)="onWorkspaceSizeUpdated($event)">    
-    </app-files-explorer>    
+        (quickShareRequested)="onQuickShareRequested($event)"
+        (workspaceSizeUpdated)="onWorkspaceSizeUpdated($event)">
+    </app-files-explorer>
 
     <!-- <app-files-processor
         [filesApi]="filesApiValue">            
