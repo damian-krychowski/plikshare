@@ -16,13 +16,13 @@ public class GetQuickShareItemsQuery(PlikShareDb plikShareDb)
             .Cmd(
                 sql: """
                      SELECT
-                         fi.fi_external_id,
-                         qsi.qsi_is_excluded
-                     FROM qsi_quick_share_items qsi
-                     INNER JOIN fi_files fi ON fi.fi_id = qsi.qsi_file_id
+                         fi_external_id,
+                         qshi_is_excluded
+                     FROM qshi_quick_share_items
+                     INNER JOIN fi_files ON fi_id = qshi_file_id
                      WHERE
-                         qsi.qsi_quick_share_id = $quickShareId
-                         AND qsi.qsi_file_id IS NOT NULL
+                         qshi_quick_share_id = $quickShareId
+                         AND qshi_file_id IS NOT NULL
                      """,
                 readRowFunc: reader => new ItemRow<FileExtId>(
                     ExternalId: reader.GetExtId<FileExtId>(0),
@@ -34,14 +34,14 @@ public class GetQuickShareItemsQuery(PlikShareDb plikShareDb)
             .Cmd(
                 sql: """
                      SELECT
-                         fo.fo_external_id,
-                         qsi.qsi_is_excluded
-                     FROM qsi_quick_share_items qsi
-                     INNER JOIN fo_folders fo ON fo.fo_id = qsi.qsi_folder_id
+                         fo_external_id,
+                         qshi_is_excluded
+                     FROM qshi_quick_share_items
+                     INNER JOIN fo_folders ON fo_id = qshi_folder_id
                      WHERE
-                         qsi.qsi_quick_share_id = $quickShareId
-                         AND qsi.qsi_folder_id IS NOT NULL
-                         AND fo.fo_is_being_deleted = FALSE
+                         qshi_quick_share_id = $quickShareId
+                         AND qshi_folder_id IS NOT NULL
+                         AND fo_is_being_deleted = FALSE
                      """,
                 readRowFunc: reader => new ItemRow<FolderExtId>(
                     ExternalId: reader.GetExtId<FolderExtId>(0),

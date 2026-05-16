@@ -25,9 +25,9 @@ public class DeleteQuickShareQuery(DbWriteQueue dbWriteQueue)
         var result = dbWriteContext
             .OneRowCmd(
                 sql: """
-                     DELETE FROM qs_quick_shares
-                     WHERE qs_id = $quickShareId
-                     RETURNING qs_id
+                     DELETE FROM qsh_quick_shares
+                     WHERE qsh_id = $quickShareId
+                     RETURNING qsh_id
                      """,
                 readRowFunc: reader => reader.GetInt32(0))
             .WithParameter("$quickShareId", quickShare.Id)

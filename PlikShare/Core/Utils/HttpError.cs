@@ -850,12 +850,46 @@ public static class HttpErrors
                 Message = "QuickShareExternalId is missing."
             });
 
-        public static BadRequest<HttpError> InvalidAccessCode() =>
+        public static BadRequest<HttpError> InvalidSlug() =>
             TypedResults.BadRequest(new HttpError
             {
-                Code = "invalid-quick-share-access-code",
-                Message = "Provided quick-share access-code is invalid."
+                Code = "invalid-quick-share-slug",
+                Message = "Provided quick-share slug is invalid."
             });
+
+        public static BadRequest<HttpError> SlugFormatInvalid() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "quick-share-slug-format-invalid",
+                Message = $"Slug must be {QuickShares.QuickShareSlug.MinLength}-{QuickShares.QuickShareSlug.MaxLength} characters, lowercase letters, digits or '-' (no leading/trailing '-')."
+            });
+
+        public static IResult SlugTaken() =>
+            TypedResults.Json(
+                new HttpError
+                {
+                    Code = "quick-share-slug-taken",
+                    Message = "This URL is already taken. Pick a different one."
+                },
+                statusCode: StatusCodes.Status409Conflict);
+
+        public static IResult SecretRequired() =>
+            TypedResults.Json(
+                new HttpError
+                {
+                    Code = "quick-share-secret-required",
+                    Message = "This quick share requires a secret token in the URL."
+                },
+                statusCode: StatusCodes.Status401Unauthorized);
+
+        public static IResult InvalidSecret() =>
+            TypedResults.Json(
+                new HttpError
+                {
+                    Code = "quick-share-invalid-secret",
+                    Message = "The provided secret token is invalid."
+                },
+                statusCode: StatusCodes.Status401Unauthorized);
 
         public static BadRequest<HttpError> FullEncryptionNotSupportedYet() =>
             TypedResults.BadRequest(new HttpError

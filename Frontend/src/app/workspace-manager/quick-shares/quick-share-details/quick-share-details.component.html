@@ -98,17 +98,17 @@
     <div class="mt-4"></div>
 
     <!-- Public link -->
-    @if (url(); as linkUrl) {
-        <div class="subtitle-header">
-            <div class="item">
-                <div class="item__details">
-                    <div class="item__title">Public link</div>
-                </div>
+    <div class="subtitle-header">
+        <div class="item">
+            <div class="item__details">
+                <div class="item__title">Public link</div>
             </div>
         </div>
+    </div>
 
-        <div class="mt-2"></div>
+    <div class="mt-2"></div>
 
+    @if (url(); as linkUrl) {
         <div class="item">
             <i class="icon icon-xl icon--placeholder icon-nucleo-link"></i>
             <div class="item__details">
@@ -119,9 +119,48 @@
                 </div>
             </div>
         </div>
-
-        <div class="mt-4"></div>
+    } @else if (qs.hasSecret) {
+        <div class="item">
+            <i class="icon icon-xl icon--placeholder icon-nucleo-lock"></i>
+            <div class="item__details">
+                <div>Full URL was shown only once at creation.</div>
+                <div class="item__subtitle">The secret token is never stored on the server.</div>
+            </div>
+        </div>
     }
+
+    <div class="mt-4"></div>
+
+    <!-- Custom URL -->
+    <div class="subtitle-header">
+        <div class="item">
+            <div class="item__details">
+                <div class="item__title">Custom URL</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-2"></div>
+
+    <div class="item">
+        <i class="icon icon-xl icon--placeholder icon-nucleo-pen"></i>
+        <div class="item__details details-stack">
+            <mat-form-field appearance="outline" class="details-field" subscriptSizing="dynamic">
+                <mat-label>URL slug</mat-label>
+                <input matInput type="text"
+                    [ngModel]="slugValue()"
+                    (ngModelChange)="slugValue.set($event)"
+                    (blur)="onSlugBlur()"
+                    (keyup.enter)="onSlugBlur()"
+                    autocomplete="off">
+                <mat-hint>
+                    Changing this breaks existing links. 3-100 chars: a-z, 0-9, '-'.
+                </mat-hint>
+            </mat-form-field>
+        </div>
+    </div>
+
+    <div class="mt-4"></div>
 
     <!-- Mode -->
     <div class="subtitle-header">

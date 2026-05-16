@@ -34,6 +34,14 @@ public static partial class Audit
             public required QuickShareRef QuickShare { get; init; }
         }
 
+        public class SlugUpdated
+        {
+            public required WorkspaceRef Workspace { get; init; }
+            public required QuickShareRef QuickShare { get; init; }
+            public required string OldSlug { get; init; }
+            public required string NewSlug { get; init; }
+        }
+
         public class ExpirationUpdated
         {
             public required WorkspaceRef Workspace { get; init; }
@@ -181,6 +189,30 @@ public static partial class Audit
             {
                 Workspace = workspace,
                 QuickShare = quickShare
+            })
+        };
+
+        public static AuditLogEntry SlugUpdatedEntry(
+            AuditLogActorContext actor,
+            WorkspaceRef workspace,
+            QuickShareRef quickShare,
+            string oldSlug,
+            string newSlug) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.QuickShare,
+            EventType = AuditLogEventTypes.QuickShare.SlugUpdated,
+            Severity = AuditLogSeverities.Warning,
+            WorkspaceExternalId = workspace.ExternalId.Value,
+            DetailsJson = Json.Serialize(new SlugUpdated
+            {
+                Workspace = workspace,
+                QuickShare = quickShare,
+                OldSlug = oldSlug,
+                NewSlug = newSlug
             })
         };
 

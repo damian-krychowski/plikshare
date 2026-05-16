@@ -22,7 +22,8 @@ export type AppQuickShare = {
     mode: WritableSignal<QuickShareMode>;
     allowIndividualFileDownload: WritableSignal<boolean>;
     lastAccessedAt: WritableSignal<Date | null>;
-    accessCodeStatus: 'available' | 'sealed';
+    slug: WritableSignal<string>;
+    hasSecret: boolean;
     url: WritableSignal<string | null>;
 
     selectedFilesCount: number;

@@ -15,6 +15,7 @@ public record GetQuickShareResponseDto(
     QuickShareMode Mode,
     bool AllowIndividualFileDownload,
     DateTimeOffset? LastAccessedAt,
-    string AccessCodeStatus,
+    string Slug,
+    bool HasSecret,
     string? Url,
     GetQuickShareItemsDto Items);

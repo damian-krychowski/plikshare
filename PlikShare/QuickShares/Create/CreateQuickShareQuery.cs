@@ -2,7 +2,6 @@ using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
-using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
 using PlikShare.QuickShares.Id;
@@ -20,6 +19,7 @@ public class CreateQuickShareQuery(
         WorkspaceContext workspace,
         UserExtId creatorExternalId,
         string name,
+        string? customSlug,
         List<FileExtId> selectedFiles,
         List<FolderExtId> selectedFolders,
         List<FileExtId> excludedFiles,
@@ -38,6 +38,7 @@ public class CreateQuickShareQuery(
                 workspace: workspace,
                 creatorExternalId: creatorExternalId,
                 name: name,
+                customSlug: customSlug,
                 selectedFiles: selectedFiles,
                 selectedFolders: selectedFolders,
                 excludedFiles: excludedFiles,
@@ -56,6 +57,7 @@ public class CreateQuickShareQuery(
         WorkspaceContext workspace,
         UserExtId creatorExternalId,
         string name,
+        string? customSlug,
         List<FileExtId> selectedFiles,
         List<FolderExtId> selectedFolders,
         List<FileExtId> excludedFiles,
@@ -67,6 +69,20 @@ public class CreateQuickShareQuery(
         byte[]? passwordSalt,
         int? maxDownloads)
     {
+        string slug;
+        if (customSlug is null)
+        {
+            slug = QuickShareSlug.GenerateAuto();
+        }
+        else if (!QuickShareSlug.IsValid(customSlug))
+        {
+            return new Result(ResultCode.SlugInvalid);
+        }
+        else
+        {
+            slug = customSlug;
+        }
+
         using var transaction = dbWriteContext.Connection.BeginTransaction();
 
         try
@@ -131,11 +147,10 @@ public class CreateQuickShareQuery(
             }
 
             var externalId = QuickShareExtId.NewId();
-            var accessCode = Guid.NewGuid().ToBase62();
 
             var quickShareId = InsertQuickShare(
                 externalId,
-                accessCode,
+                slug,
                 workspace.Id,
                 creatorId.Value,
                 name,
@@ -172,11 +187,16 @@ public class CreateQuickShareQuery(
             return new Result(
                 Code: ResultCode.Ok,
                 QuickShareExternalId: externalId,
-                AccessCode: accessCode);
+                Slug: slug);
         }
         catch (SqliteException exception)
         {
             transaction.Rollback();
+
+            if (exception.HasUniqueConstraintFailed(tableName: "qsh_quick_shares", columnName: "qsh_slug"))
+            {
+                return new Result(ResultCode.SlugTaken);
+            }
 
             if (exception.SqliteExtendedErrorCode == SQLiteExtendedErrorCode.ConstraintForeignKey)
             {
@@ -205,7 +225,7 @@ public class CreateQuickShareQuery(
 
     private int InsertQuickShare(
         QuickShareExtId externalId,
-        string accessCode,
+        string slug,
         int workspaceId,
         int creatorId,
         string name,
@@ -221,27 +241,27 @@ public class CreateQuickShareQuery(
         return dbWriteContext
             .OneRowCmd(
                 sql: """
-                     INSERT INTO qs_quick_shares (
-                         qs_external_id,
-                         qs_workspace_id,
-                         qs_creator_id,
-                         qs_access_code,
-                         qs_access_code_hash,
-                         qs_name,
-                         qs_created_at,
-                         qs_expires_at,
-                         qs_password_hash,
-                         qs_password_salt,
-                         qs_max_downloads,
-                         qs_downloads_count,
-                         qs_mode,
-                         qs_allow_individual_file_download,
-                         qs_last_accessed_at
+                     INSERT INTO qsh_quick_shares (
+                         qsh_external_id,
+                         qsh_workspace_id,
+                         qsh_creator_id,
+                         qsh_slug,
+                         qsh_secret_hash,
+                         qsh_name,
+                         qsh_created_at,
+                         qsh_expires_at,
+                         qsh_password_hash,
+                         qsh_password_salt,
+                         qsh_max_downloads,
+                         qsh_downloads_count,
+                         qsh_mode,
+                         qsh_allow_individual_file_download,
+                         qsh_last_accessed_at
                      ) VALUES (
                          $externalId,
                          $workspaceId,
                          $creatorId,
-                         $accessCode,
+                         $slug,
                          NULL,
                          $name,
                          $createdAt,
@@ -254,14 +274,14 @@ public class CreateQuickShareQuery(
                          $allowIndividualFileDownload,
                          NULL
                      )
-                     RETURNING qs_id
+                     RETURNING qsh_id
                      """,
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
             .WithParameter("$externalId", externalId.Value)
             .WithParameter("$workspaceId", workspaceId)
             .WithParameter("$creatorId", creatorId)
-            .WithParameter("$accessCode", accessCode)
+            .WithParameter("$slug", slug)
             .WithParameter("$name", name)
             .WithParameter("$createdAt", clock.UtcNow)
             .WithParameter("$expiresAt", expiresAt)
@@ -392,10 +412,10 @@ public class CreateQuickShareQuery(
         dbWriteContext
             .Cmd(
                 sql: """
-                     INSERT INTO qsi_quick_share_items (qsi_quick_share_id, qsi_file_id, qsi_folder_id, qsi_is_excluded)
+                     INSERT INTO qshi_quick_share_items (qshi_quick_share_id, qshi_file_id, qshi_folder_id, qshi_is_excluded)
                      SELECT $quickShareId, value, NULL, $isExcluded
                      FROM json_each($fileIds)
-                     RETURNING qsi_id
+                     RETURNING qshi_id
                      """,
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
@@ -418,10 +438,10 @@ public class CreateQuickShareQuery(
         dbWriteContext
             .Cmd(
                 sql: """
-                     INSERT INTO qsi_quick_share_items (qsi_quick_share_id, qsi_file_id, qsi_folder_id, qsi_is_excluded)
+                     INSERT INTO qshi_quick_share_items (qshi_quick_share_id, qshi_file_id, qshi_folder_id, qshi_is_excluded)
                      SELECT $quickShareId, NULL, value, $isExcluded
                      FROM json_each($folderIds)
-                     RETURNING qsi_id
+                     RETURNING qshi_id
                      """,
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
@@ -434,12 +454,14 @@ public class CreateQuickShareQuery(
     public readonly record struct Result(
         ResultCode Code,
         QuickShareExtId QuickShareExternalId = default,
-        string? AccessCode = null);
+        string? Slug = null);
 
     public enum ResultCode
     {
         Ok = 0,
         CreatorNotFound,
-        ItemsNotFound
+        ItemsNotFound,
+        SlugInvalid,
+        SlugTaken
     }
 }

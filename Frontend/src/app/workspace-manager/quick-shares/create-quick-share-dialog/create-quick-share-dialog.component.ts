@@ -15,7 +15,10 @@ export interface CreateQuickShareDialogData {
     excludedFiles: string[];
     excludedFolders: string[];
     defaultName: string;
+    appUrl: string;
 }
+
+const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{1,98}[a-z0-9]$/;
 
 @Component({
     selector: 'app-create-quick-share-dialog',
@@ -37,6 +40,14 @@ export class CreateQuickShareDialogComponent {
     mode = signal<QuickShareMode>('browser');
     allowIndividualFileDownload = signal(true);
 
+    useCustomSlug = signal(false);
+    customSlug = signal('');
+    isCustomSlugValid = computed(() => {
+        if (!this.useCustomSlug()) return true;
+        const slug = this.customSlug().trim().toLowerCase();
+        return slug.length >= 3 && slug.length <= 100 && SLUG_REGEX.test(slug);
+    });
+
     hasExpiration = signal(false);
     expiresAtIso = signal('');
 
@@ -51,6 +62,7 @@ export class CreateQuickShareDialogComponent {
     canSubmit = computed(() => {
         if (this.isSubmitting()) return false;
         if (!this.name().trim()) return false;
+        if (!this.isCustomSlugValid()) return false;
         if (this.hasPassword() && !this.password().trim()) return false;
         if (this.hasMaxDownloads() && (this.maxDownloads() ?? 0) <= 0) return false;
         if (this.hasExpiration() && !this.expiresAtIso()) return false;
@@ -75,6 +87,7 @@ export class CreateQuickShareDialogComponent {
 
         const request: CreateQuickShareRequest = {
             name: this.name().trim(),
+            customSlug: this.useCustomSlug() ? this.customSlug().trim().toLowerCase() : null,
             selectedFiles: this.data.selectedFiles,
             selectedFolders: this.data.selectedFolders,
             excludedFiles: this.data.excludedFiles,

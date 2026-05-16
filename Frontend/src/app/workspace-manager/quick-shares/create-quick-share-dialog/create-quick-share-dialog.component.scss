@@ -39,6 +39,10 @@
         margin: 0.25rem 0;
     }
 
+    &__hint-error {
+        color: var(--app-error, #c33);
+    }
+
     &__actions {
         display: flex;
         justify-content: flex-end;

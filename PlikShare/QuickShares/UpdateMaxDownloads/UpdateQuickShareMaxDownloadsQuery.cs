@@ -28,10 +28,10 @@ public class UpdateQuickShareMaxDownloadsQuery(DbWriteQueue dbWriteQueue)
         var result = dbWriteContext
             .OneRowCmd(
                 sql: """
-                     UPDATE qs_quick_shares
-                     SET qs_max_downloads = $maxDownloads
-                     WHERE qs_id = $quickShareId
-                     RETURNING qs_id
+                     UPDATE qsh_quick_shares
+                     SET qsh_max_downloads = $maxDownloads
+                     WHERE qsh_id = $quickShareId
+                     RETURNING qsh_id
                      """,
                 readRowFunc: reader => reader.GetInt32(0))
             .WithParameter("$quickShareId", quickShare.Id)

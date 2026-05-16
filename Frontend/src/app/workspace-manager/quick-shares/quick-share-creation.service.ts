@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
+import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { ToastrService } from 'ngx-toastr';
 import { CreateQuickShareDialogComponent, CreateQuickShareDialogData } from './create-quick-share-dialog/create-quick-share-dialog.component';
 import { QuickShareCreatedDialogComponent, QuickShareCreatedDialogData } from './quick-share-created-dialog/quick-share-created-dialog.component';
 import { CreateQuickShareRequest, CreateQuickShareResponse, QuickSharesApi } from '../../services/quick-shares.api';
@@ -13,7 +15,8 @@ export class QuickShareCreationService {
     constructor(
         private _dialog: MatDialog,
         private _api: QuickSharesApi,
-        private _dataStore: DataStore
+        private _dataStore: DataStore,
+        private _toastr: ToastrService
     ) {
     }
 
@@ -30,36 +33,53 @@ export class QuickShareCreationService {
             selectedFolders: args.selectedFolders,
             excludedFiles: args.excludedFiles,
             excludedFolders: args.excludedFolders,
-            defaultName: args.defaultName
+            defaultName: args.defaultName,
+            appUrl: window.location.origin
         };
 
-        const dialogRef = this._dialog.open(CreateQuickShareDialogComponent, {
-            width: '32rem',
-            maxHeight: '90vh',
-            data
-        });
+        // Loop so that on slug-taken we can reopen the dialog with the user's choices.
+        let pending: CreateQuickShareRequest | null = null;
 
-        const request: CreateQuickShareRequest | null | undefined = await firstValueFrom(dialogRef.afterClosed());
+        while (true) {
+            const dialogRef = this._dialog.open(CreateQuickShareDialogComponent, {
+                width: '32rem',
+                maxHeight: '90vh',
+                data
+            });
 
-        if (!request) return null;
+            pending = (await firstValueFrom(dialogRef.afterClosed())) ?? null;
+            if (!pending) return null;
 
-        const response = await this._api.createQuickShare(args.workspaceExternalId, request);
+            try {
+                const response = await this._api.createQuickShare(args.workspaceExternalId, pending);
+                this._dataStore.invalidateQuickShares(args.workspaceExternalId);
 
-        this._dataStore.invalidateQuickShares(args.workspaceExternalId);
+                const createdData: QuickShareCreatedDialogData = {
+                    name: pending.name,
+                    url: response.url,
+                    slug: response.slug
+                };
 
-        const createdData: QuickShareCreatedDialogData = {
-            name: request.name,
-            url: response.url,
-            accessCode: response.accessCode
-        };
+                this._dialog.open(QuickShareCreatedDialogComponent, {
+                    width: '32rem',
+                    maxHeight: '90vh',
+                    data: createdData,
+                    disableClose: true
+                });
 
-        this._dialog.open(QuickShareCreatedDialogComponent, {
-            width: '32rem',
-            maxHeight: '90vh',
-            data: createdData,
-            disableClose: true
-        });
+                return response;
+            } catch (error) {
+                if (error instanceof HttpErrorResponse && error.status === 409) {
+                    this._toastr.error('This URL is already taken. Pick a different one.');
+                    // Pre-fill dialog with user's last choices on reopen
+                    Object.assign(data, { defaultName: pending.name });
+                    continue;
+                }
 
-        return response;
+                console.error(error);
+                this._toastr.error('Failed to create quick share');
+                return null;
+            }
+        }
     }
 }

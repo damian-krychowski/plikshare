@@ -157,9 +157,9 @@ public class UpdateQuickShareItemsQuery(DbWriteQueue dbWriteQueue)
         dbWriteContext
             .Cmd(
                 sql: """
-                     DELETE FROM qsi_quick_share_items
-                     WHERE qsi_quick_share_id = $quickShareId
-                     RETURNING qsi_id
+                     DELETE FROM qshi_quick_share_items
+                     WHERE qshi_quick_share_id = $quickShareId
+                     RETURNING qshi_id
                      """,
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
@@ -232,10 +232,10 @@ public class UpdateQuickShareItemsQuery(DbWriteQueue dbWriteQueue)
         dbWriteContext
             .Cmd(
                 sql: """
-                     INSERT INTO qsi_quick_share_items (qsi_quick_share_id, qsi_file_id, qsi_folder_id, qsi_is_excluded)
+                     INSERT INTO qshi_quick_share_items (qshi_quick_share_id, qshi_file_id, qshi_folder_id, qshi_is_excluded)
                      SELECT $quickShareId, value, NULL, $isExcluded
                      FROM json_each($fileIds)
-                     RETURNING qsi_id
+                     RETURNING qshi_id
                      """,
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
@@ -258,10 +258,10 @@ public class UpdateQuickShareItemsQuery(DbWriteQueue dbWriteQueue)
         dbWriteContext
             .Cmd(
                 sql: """
-                     INSERT INTO qsi_quick_share_items (qsi_quick_share_id, qsi_file_id, qsi_folder_id, qsi_is_excluded)
+                     INSERT INTO qshi_quick_share_items (qshi_quick_share_id, qshi_file_id, qshi_folder_id, qshi_is_excluded)
                      SELECT $quickShareId, NULL, value, $isExcluded
                      FROM json_each($folderIds)
-                     RETURNING qsi_id
+                     RETURNING qshi_id
                      """,
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)

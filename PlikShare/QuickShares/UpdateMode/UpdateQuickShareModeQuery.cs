@@ -31,11 +31,11 @@ public class UpdateQuickShareModeQuery(DbWriteQueue dbWriteQueue)
         var result = dbWriteContext
             .OneRowCmd(
                 sql: """
-                     UPDATE qs_quick_shares
-                     SET qs_mode = $mode,
-                         qs_allow_individual_file_download = $allowIndividualFileDownload
-                     WHERE qs_id = $quickShareId
-                     RETURNING qs_id
+                     UPDATE qsh_quick_shares
+                     SET qsh_mode = $mode,
+                         qsh_allow_individual_file_download = $allowIndividualFileDownload
+                     WHERE qsh_id = $quickShareId
+                     RETURNING qsh_id
                      """,
                 readRowFunc: reader => reader.GetInt32(0))
             .WithParameter("$quickShareId", quickShare.Id)

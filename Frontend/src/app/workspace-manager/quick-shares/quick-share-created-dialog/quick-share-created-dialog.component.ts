@@ -7,7 +7,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 export interface QuickShareCreatedDialogData {
     name: string;
     url: string;
-    accessCode: string;
+    slug: string;
 }
 
 @Component({

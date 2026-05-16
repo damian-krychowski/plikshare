@@ -258,6 +258,7 @@ using PlikShare.QuickShares.UpdateMaxDownloads;
 using PlikShare.QuickShares.UpdateMode;
 using PlikShare.QuickShares.UpdateName;
 using PlikShare.QuickShares.UpdatePassword;
+using PlikShare.QuickShares.UpdateSlug;
 using PlikShare.QuickShareExternalAccess;
 using PlikShare.QuickShareExternalAccess.Authorization;
 using PlikShare.QuickShareExternalAccess.GetBulkDownloadLink;
@@ -756,6 +757,7 @@ public class Startup
         builder.Services.AddSingleton<GetQuickShareItemsQuery>();
         builder.Services.AddSingleton<GetQuickSharesQuery>();
         builder.Services.AddSingleton<UpdateQuickShareNameQuery>();
+        builder.Services.AddSingleton<UpdateQuickShareSlugQuery>();
         builder.Services.AddSingleton<UpdateQuickShareExpirationQuery>();
         builder.Services.AddSingleton<UpdateQuickSharePasswordQuery>();
         builder.Services.AddSingleton<UpdateQuickShareMaxDownloadsQuery>();

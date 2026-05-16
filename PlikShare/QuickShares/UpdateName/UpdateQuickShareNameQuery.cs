@@ -28,10 +28,10 @@ public class UpdateQuickShareNameQuery(DbWriteQueue dbWriteQueue)
         var result = dbWriteContext
             .OneRowCmd(
                 sql: """
-                     UPDATE qs_quick_shares
-                     SET qs_name = $name
-                     WHERE qs_id = $quickShareId
-                     RETURNING qs_id
+                     UPDATE qsh_quick_shares
+                     SET qsh_name = $name
+                     WHERE qsh_id = $quickShareId
+                     RETURNING qsh_id
                      """,
                 readRowFunc: reader => reader.GetInt32(0))
             .WithParameter("$quickShareId", quickShare.Id)

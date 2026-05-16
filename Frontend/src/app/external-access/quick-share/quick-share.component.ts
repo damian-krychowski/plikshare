@@ -28,7 +28,8 @@ import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-bt
     styleUrl: './quick-share.component.scss'
 })
 export class QuickShareComponent implements OnInit {
-    accessCode: string | null = null;
+    slug: string | null = null;
+    token: string | null = null;
 
     isLoading = signal(true);
     notFound = signal(false);
@@ -66,9 +67,10 @@ export class QuickShareComponent implements OnInit {
     }
 
     async ngOnInit() {
-        this.accessCode = this._route.snapshot.params['accessCode'] || null;
+        this.slug = this._route.snapshot.params['slug'] || null;
+        this.token = this._route.snapshot.queryParamMap.get('token');
 
-        if (!this.accessCode) {
+        if (!this.slug) {
             this.notFound.set(true);
             this.isLoading.set(false);
             return;
@@ -86,7 +88,7 @@ export class QuickShareComponent implements OnInit {
     private async loadInfo() {
         try {
             this.isLoading.set(true);
-            const info = await this._api.getInfo(this.accessCode!);
+            const info = await this._api.getInfo(this.slug!, this.token);
             this.info.set(info);
         } catch (error) {
             if (error instanceof HttpErrorResponse && error.status === 404) {
@@ -102,7 +104,7 @@ export class QuickShareComponent implements OnInit {
 
     private async loadContent() {
         try {
-            const content = await this._api.getContent(this.accessCode!);
+            const content = await this._api.getContent(this.slug!, this.token);
             this.content.set(content);
             this.fileTree.set(this.buildTree(content.files));
         } catch (error) {
@@ -116,7 +118,7 @@ export class QuickShareComponent implements OnInit {
 
         try {
             this.isUnlocking.set(true);
-            await this._api.unlock(this.accessCode!, { password: this.passwordInput() });
+            await this._api.unlock(this.slug!, this.token, { password: this.passwordInput() });
             this.passwordInput.set('');
 
             await this.loadInfo();
@@ -143,7 +145,7 @@ export class QuickShareComponent implements OnInit {
 
         try {
             this.isDownloading.set(true);
-            const result = await this._api.getBulkDownloadLink(this.accessCode!);
+            const result = await this._api.getBulkDownloadLink(this.slug!, this.token);
 
             const link = document.createElement('a');
             link.href = result.preSignedUrl;
@@ -169,7 +171,7 @@ export class QuickShareComponent implements OnInit {
 
         try {
             const result = await this._api.getFileDownloadLink(
-                this.accessCode!,
+                this.slug!, this.token,
                 file.id,
                 'attachment');
 

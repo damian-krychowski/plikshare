@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
@@ -26,50 +27,53 @@ public static class QuickShareExternalAccessEndpoints
             .WithTags("QuickShareExternalAccess")
             .AllowAnonymous();
 
-        group.MapGet("/{accessCode}/info", GetInfo)
+        group.MapGet("/{slug}/info", GetInfo)
             .WithName("QuickShareExternalAccess_GetInfo");
 
-        group.MapPost("/{accessCode}/unlock", Unlock)
+        group.MapPost("/{slug}/unlock", Unlock)
             .WithName("QuickShareExternalAccess_Unlock");
 
-        group.MapGet("/{accessCode}/content", GetContent)
+        group.MapGet("/{slug}/content", GetContent)
             .WithName("QuickShareExternalAccess_GetContent")
             .AddEndpointFilter<ValidateQuickShareAccessFilter>();
 
-        group.MapPost("/{accessCode}/bulk-download-link", GetBulkDownloadLink)
+        group.MapPost("/{slug}/bulk-download-link", GetBulkDownloadLink)
             .WithName("QuickShareExternalAccess_GetBulkDownloadLink")
             .AddEndpointFilter<ValidateQuickShareAccessFilter>();
 
-        group.MapGet("/{accessCode}/files/{fileExternalId}/download-link", GetFileDownloadLink)
+        group.MapGet("/{slug}/files/{fileExternalId}/download-link", GetFileDownloadLink)
             .WithName("QuickShareExternalAccess_GetFileDownloadLink")
             .AddEndpointFilter<ValidateQuickShareAccessFilter>();
     }
 
-    private static async Task<Results<Ok<GetQuickShareInfoResponseDto>, NotFound<HttpError>>> GetInfo(
-        [FromRoute] string accessCode,
+    private static async Task<IResult> GetInfo(
+        [FromRoute] string slug,
+        [FromQuery] string? token,
         HttpContext httpContext,
         QuickShareCache quickShareCache,
         QuickShareUnlockSession unlockSession,
         IClock clock,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(accessCode))
-            return TypedResults.NotFound(new HttpError
-            {
-                Code = "invalid-quick-share-access-code",
-                Message = "Provided quick-share access-code is invalid."
-            });
+        if (string.IsNullOrWhiteSpace(slug))
+            return HttpErrors.QuickShare.InvalidSlug();
 
-        var quickShare = await quickShareCache.TryGetQuickShareByAccessCode(
-            accessCode: accessCode,
+        var quickShare = await quickShareCache.TryGetQuickShareBySlug(
+            slug: slug,
             cancellationToken: cancellationToken);
 
         if (quickShare is null || quickShare.Workspace.IsBeingDeleted)
-            return TypedResults.NotFound(new HttpError
-            {
-                Code = "invalid-quick-share-access-code",
-                Message = "Provided quick-share access-code is invalid."
-            });
+            return HttpErrors.QuickShare.InvalidSlug();
+
+        if (quickShare.SecretHash is not null)
+        {
+            if (string.IsNullOrEmpty(token))
+                return HttpErrors.QuickShare.SecretRequired();
+
+            var providedHash = QuickShareCache.HashSecret(token);
+            if (!CryptographicOperations.FixedTimeEquals(providedHash, quickShare.SecretHash))
+                return HttpErrors.QuickShare.InvalidSecret();
+        }
 
         var session = unlockSession.ReadOrCreate(
             httpContext: httpContext,
@@ -81,7 +85,7 @@ public static class QuickShareExternalAccessEndpoints
         var isExpired = quickShare.ExpiresAt is { } expiresAt && expiresAt <= clock.UtcNow;
         var isExhausted = quickShare.MaxDownloads is { } max && quickShare.DownloadsCount >= max;
 
-        return TypedResults.Ok(new GetQuickShareInfoResponseDto(
+        return Results.Ok(new GetQuickShareInfoResponseDto(
             Name: quickShare.Name,
             Mode: quickShare.Mode,
             AllowIndividualFileDownload: quickShare.AllowIndividualFileDownload,
@@ -95,7 +99,8 @@ public static class QuickShareExternalAccessEndpoints
     }
 
     private static async Task<IResult> Unlock(
-        [FromRoute] string accessCode,
+        [FromRoute] string slug,
+        [FromQuery] string? token,
         [FromBody] UnlockQuickShareRequestDto request,
         HttpContext httpContext,
         QuickShareCache quickShareCache,
@@ -105,15 +110,25 @@ public static class QuickShareExternalAccessEndpoints
         IClock clock,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(accessCode))
-            return HttpErrors.QuickShare.InvalidAccessCode();
+        if (string.IsNullOrWhiteSpace(slug))
+            return HttpErrors.QuickShare.InvalidSlug();
 
-        var quickShare = await quickShareCache.TryGetQuickShareByAccessCode(
-            accessCode: accessCode,
+        var quickShare = await quickShareCache.TryGetQuickShareBySlug(
+            slug: slug,
             cancellationToken: cancellationToken);
 
         if (quickShare is null || quickShare.Workspace.IsBeingDeleted)
-            return HttpErrors.QuickShare.InvalidAccessCode();
+            return HttpErrors.QuickShare.InvalidSlug();
+
+        if (quickShare.SecretHash is not null)
+        {
+            if (string.IsNullOrEmpty(token))
+                return HttpErrors.QuickShare.SecretRequired();
+
+            var providedHash = QuickShareCache.HashSecret(token);
+            if (!CryptographicOperations.FixedTimeEquals(providedHash, quickShare.SecretHash))
+                return HttpErrors.QuickShare.InvalidSecret();
+        }
 
         if (quickShare.ExpiresAt is { } expiresAt && expiresAt <= clock.UtcNow)
             return HttpErrors.QuickShare.Expired();

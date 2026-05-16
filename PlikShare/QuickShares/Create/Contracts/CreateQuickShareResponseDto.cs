@@ -4,5 +4,5 @@ namespace PlikShare.QuickShares.Create.Contracts;
 
 public record CreateQuickShareResponseDto(
     QuickShareExtId ExternalId,
-    string AccessCode,
+    string Slug,
     string Url);

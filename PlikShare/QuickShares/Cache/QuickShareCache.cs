@@ -194,24 +194,24 @@ public class QuickShareCache(
         var cmd = connection.OneRowCmd(
             sql: $"""
                  SELECT
-                     qs.qs_id,
-                     qs.qs_external_id,
-                     qs.qs_workspace_id,
-                     u.u_external_id,
-                     qs.qs_slug,
-                     qs.qs_secret_hash,
-                     qs.qs_name,
-                     qs.qs_created_at,
-                     qs.qs_expires_at,
-                     qs.qs_password_hash,
-                     qs.qs_password_salt,
-                     qs.qs_max_downloads,
-                     qs.qs_downloads_count,
-                     qs.qs_mode,
-                     qs.qs_allow_individual_file_download,
-                     qs.qs_last_accessed_at
-                 FROM qs_quick_shares qs
-                 INNER JOIN u_users u ON u.u_id = qs.qs_creator_id
+                     qsh_id,
+                     qsh_external_id,
+                     qsh_workspace_id,
+                     u_external_id,
+                     qsh_slug,
+                     qsh_secret_hash,
+                     qsh_name,
+                     qsh_created_at,
+                     qsh_expires_at,
+                     qsh_password_hash,
+                     qsh_password_salt,
+                     qsh_max_downloads,
+                     qsh_downloads_count,
+                     qsh_mode,
+                     qsh_allow_individual_file_download,
+                     qsh_last_accessed_at
+                 FROM qsh_quick_shares
+                 INNER JOIN u_users ON u_id = qsh_creator_id
                  WHERE {lookup.WhereClause}
                  LIMIT 1
                  """,
@@ -246,15 +246,15 @@ public class QuickShareCache(
         (string Name, object Value)[] Parameters)
     {
         public static QuickShareLookup ByExternalId(QuickShareExtId extId) =>
-            new("qs.qs_external_id = $externalId",
+            new("qsh_external_id = $externalId",
                 [("$externalId", extId.Value)]);
 
         public static QuickShareLookup ById(int id) =>
-            new("qs.qs_id = $id",
+            new("qsh_id = $id",
                 [("$id", id)]);
 
         public static QuickShareLookup BySlug(string slug) =>
-            new("qs.qs_slug = $slug",
+            new("qsh_slug = $slug",
                 [("$slug", slug)]);
     }
 

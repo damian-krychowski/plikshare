@@ -13,6 +13,7 @@ export interface QuickShareItemsDto {
 
 export interface CreateQuickShareRequest {
     name: string;
+    customSlug: string | null;
     selectedFiles: string[];
     selectedFolders: string[];
     excludedFiles: string[];
@@ -26,7 +27,7 @@ export interface CreateQuickShareRequest {
 
 export interface CreateQuickShareResponse {
     externalId: string;
-    accessCode: string;
+    slug: string;
     url: string;
 }
 
@@ -42,7 +43,8 @@ export interface GetQuickShareResponse {
     mode: QuickShareMode;
     allowIndividualFileDownload: boolean;
     lastAccessedAt: string | null;
-    accessCodeStatus: 'available' | 'sealed';
+    slug: string;
+    hasSecret: boolean;
     url: string | null;
     items: QuickShareItemsDto;
 }
@@ -58,7 +60,8 @@ export interface GetQuickSharesItem {
     mode: QuickShareMode;
     allowIndividualFileDownload: boolean;
     lastAccessedAt: string | null;
-    accessCodeStatus: 'available' | 'sealed';
+    slug: string;
+    hasSecret: boolean;
     url: string | null;
     selectedFilesCount: number;
     selectedFoldersCount: number;
@@ -72,6 +75,10 @@ export interface GetQuickSharesResponse {
 
 export interface UpdateQuickShareNameRequest {
     name: string;
+}
+
+export interface UpdateQuickShareSlugRequest {
+    slug: string;
 }
 
 export interface UpdateQuickShareExpirationRequest {
@@ -152,6 +159,18 @@ export class QuickSharesApi {
     ): Promise<void> {
         const call = this._http.patch<void>(
             `/api/workspaces/${workspaceExternalId}/quick-shares/${externalId}/name`,
+            request);
+
+        return await firstValueFrom(call);
+    }
+
+    public async updateQuickShareSlug(
+        workspaceExternalId: string,
+        externalId: string,
+        request: UpdateQuickShareSlugRequest
+    ): Promise<void> {
+        const call = this._http.patch<void>(
+            `/api/workspaces/${workspaceExternalId}/quick-shares/${externalId}/slug`,
             request);
 
         return await firstValueFrom(call);

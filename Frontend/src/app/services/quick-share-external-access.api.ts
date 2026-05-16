@@ -1,4 +1,4 @@
-import { HttpClient } from "@angular/common/http";
+import { HttpClient, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 import { QuickShareMode } from "./quick-shares.api";
@@ -49,47 +49,57 @@ export class QuickShareExternalAccessApi {
     constructor(private _http: HttpClient) {
     }
 
-    public async getInfo(accessCode: string): Promise<GetQuickShareInfoResponse> {
+    public async getInfo(slug: string, token: string | null): Promise<GetQuickShareInfoResponse> {
         const call = this._http.get<GetQuickShareInfoResponse>(
-            `/api/quick-shares/${accessCode}/info`);
+            `/api/quick-shares/${slug}/info`,
+            { params: this.tokenParams(token) });
 
         return await firstValueFrom(call);
     }
 
-    public async unlock(accessCode: string, request: UnlockQuickShareRequest): Promise<void> {
+    public async unlock(slug: string, token: string | null, request: UnlockQuickShareRequest): Promise<void> {
         const call = this._http.post<void>(
-            `/api/quick-shares/${accessCode}/unlock`,
-            request);
+            `/api/quick-shares/${slug}/unlock`,
+            request,
+            { params: this.tokenParams(token) });
 
         return await firstValueFrom(call);
     }
 
-    public async getContent(accessCode: string): Promise<GetQuickShareContentResponse> {
+    public async getContent(slug: string, token: string | null): Promise<GetQuickShareContentResponse> {
         const call = this._http.get<GetQuickShareContentResponse>(
-            `/api/quick-shares/${accessCode}/content`);
+            `/api/quick-shares/${slug}/content`,
+            { params: this.tokenParams(token) });
 
         return await firstValueFrom(call);
     }
 
-    public async getBulkDownloadLink(accessCode: string): Promise<GetQuickShareBulkDownloadLinkResponse> {
+    public async getBulkDownloadLink(slug: string, token: string | null): Promise<GetQuickShareBulkDownloadLinkResponse> {
         const call = this._http.post<GetQuickShareBulkDownloadLinkResponse>(
-            `/api/quick-shares/${accessCode}/bulk-download-link`,
-            {});
+            `/api/quick-shares/${slug}/bulk-download-link`,
+            {},
+            { params: this.tokenParams(token) });
 
         return await firstValueFrom(call);
     }
 
     public async getFileDownloadLink(
-        accessCode: string,
+        slug: string,
+        token: string | null,
         fileExternalId: string,
         contentDisposition: ContentDisposition
     ): Promise<GetQuickShareFileDownloadLinkResponse> {
+        let params = new HttpParams().set('contentDisposition', contentDisposition);
+        if (token) params = params.set('token', token);
+
         const call = this._http.get<GetQuickShareFileDownloadLinkResponse>(
-            `/api/quick-shares/${accessCode}/files/${fileExternalId}/download-link`,
-            {
-                params: { contentDisposition }
-            });
+            `/api/quick-shares/${slug}/files/${fileExternalId}/download-link`,
+            { params });
 
         return await firstValueFrom(call);
+    }
+
+    private tokenParams(token: string | null): HttpParams {
+        return token ? new HttpParams().set('token', token) : new HttpParams();
     }
 }

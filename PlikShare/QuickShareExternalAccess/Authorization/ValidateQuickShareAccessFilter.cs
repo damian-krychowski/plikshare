@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using PlikShare.Core.Clock;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
@@ -11,22 +12,34 @@ public class ValidateQuickShareAccessFilter : IEndpointFilter
         EndpointFilterInvocationContext context,
         EndpointFilterDelegate next)
     {
-        var accessCode = context.HttpContext.Request.RouteValues["accessCode"]?.ToString();
+        var slug = context.HttpContext.Request.RouteValues["slug"]?.ToString();
 
-        if (string.IsNullOrWhiteSpace(accessCode))
-            return HttpErrors.QuickShare.InvalidAccessCode();
+        if (string.IsNullOrWhiteSpace(slug))
+            return HttpErrors.QuickShare.InvalidSlug();
 
         var services = context.HttpContext.RequestServices;
         var cache = services.GetRequiredService<QuickShareCache>();
         var clock = services.GetRequiredService<IClock>();
         var unlockSession = services.GetRequiredService<QuickShareUnlockSession>();
 
-        var quickShare = await cache.TryGetQuickShareByAccessCode(
-            accessCode: accessCode,
+        var quickShare = await cache.TryGetQuickShareBySlug(
+            slug: slug,
             cancellationToken: context.HttpContext.RequestAborted);
 
         if (quickShare is null || quickShare.Workspace.IsBeingDeleted)
-            return HttpErrors.QuickShare.InvalidAccessCode();
+            return HttpErrors.QuickShare.InvalidSlug();
+
+        if (quickShare.SecretHash is not null)
+        {
+            var token = context.HttpContext.Request.Query["token"].ToString();
+
+            if (string.IsNullOrEmpty(token))
+                return HttpErrors.QuickShare.SecretRequired();
+
+            var providedHash = QuickShareCache.HashSecret(token);
+            if (!CryptographicOperations.FixedTimeEquals(providedHash, quickShare.SecretHash))
+                return HttpErrors.QuickShare.InvalidSecret();
+        }
 
         if (quickShare.ExpiresAt is { } expiresAt && expiresAt <= clock.UtcNow)
             return HttpErrors.QuickShare.Expired();

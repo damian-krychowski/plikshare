@@ -26,6 +26,8 @@ using PlikShare.QuickShares.UpdateName;
 using PlikShare.QuickShares.UpdateName.Contracts;
 using PlikShare.QuickShares.UpdatePassword;
 using PlikShare.QuickShares.UpdatePassword.Contracts;
+using PlikShare.QuickShares.UpdateSlug;
+using PlikShare.QuickShares.UpdateSlug.Contracts;
 using PlikShare.QuickShares.Validation;
 using PlikShare.Storages.Encryption;
 using PlikShare.Workspaces.Validation;
@@ -60,6 +62,10 @@ public static class QuickSharesEndpoints
             .WithName("UpdateQuickShareName")
             .AddEndpointFilter<ValidateQuickShareFilter>();
 
+        group.MapPatch("/{quickShareExternalId}/slug", UpdateQuickShareSlug)
+            .WithName("UpdateQuickShareSlug")
+            .AddEndpointFilter<ValidateQuickShareFilter>();
+
         group.MapPatch("/{quickShareExternalId}/expiration", UpdateQuickShareExpiration)
             .WithName("UpdateQuickShareExpiration")
             .AddEndpointFilter<ValidateQuickShareFilter>();
@@ -81,7 +87,7 @@ public static class QuickSharesEndpoints
             .AddEndpointFilter<ValidateQuickShareFilter>();
     }
 
-    private static async Task<Results<Ok<CreateQuickShareResponseDto>, BadRequest<HttpError>, NotFound<HttpError>>> CreateQuickShare(
+    private static async Task<IResult> CreateQuickShare(
         [FromBody] CreateQuickShareRequestDto request,
         HttpContext httpContext,
         CreateQuickShareQuery createQuickShareQuery,
@@ -135,10 +141,15 @@ public static class QuickSharesEndpoints
 
         var creatorExternalId = httpContext.User.GetExternalId();
 
+        var customSlug = string.IsNullOrWhiteSpace(request.CustomSlug)
+            ? null
+            : request.CustomSlug.Trim().ToLowerInvariant();
+
         var result = await createQuickShareQuery.Execute(
             workspace: workspace,
             creatorExternalId: creatorExternalId,
             name: name,
+            customSlug: customSlug,
             selectedFiles: selectedFiles,
             selectedFolders: selectedFolders,
             excludedFiles: excludedFiles,
@@ -186,14 +197,20 @@ public static class QuickSharesEndpoints
 
                 return TypedResults.Ok(new CreateQuickShareResponseDto(
                     ExternalId: result.QuickShareExternalId,
-                    AccessCode: result.AccessCode!,
-                    Url: urlBuilder.BuildUrl(result.AccessCode!)));
+                    Slug: result.Slug!,
+                    Url: urlBuilder.BuildUrl(result.Slug!)));
 
             case CreateQuickShareQuery.ResultCode.CreatorNotFound:
                 return HttpErrors.User.NotFound(creatorExternalId);
 
             case CreateQuickShareQuery.ResultCode.ItemsNotFound:
                 return HttpErrors.QuickShare.ItemsNotFound();
+
+            case CreateQuickShareQuery.ResultCode.SlugInvalid:
+                return HttpErrors.QuickShare.SlugFormatInvalid();
+
+            case CreateQuickShareQuery.ResultCode.SlugTaken:
+                return HttpErrors.QuickShare.SlugTaken();
 
             default:
                 throw new UnexpectedOperationResultException(
@@ -224,13 +241,11 @@ public static class QuickSharesEndpoints
         var items = getItemsQuery.Execute(
             quickShareId: quickShare.Id);
 
-        var accessCodeStatus = quickShare.AccessCode is not null
-            ? "available"
-            : "sealed";
+        var hasSecret = quickShare.SecretHash is not null;
 
-        var url = quickShare.AccessCode is not null
-            ? urlBuilder.BuildUrl(quickShare.AccessCode)
-            : null;
+        // For FE workspaces the per-share secret token is never stored, so the full
+        // URL can't be reconstructed in this view — owner saw it once at creation.
+        var url = hasSecret ? null : urlBuilder.BuildUrl(quickShare.Slug);
 
         return TypedResults.Ok(new GetQuickShareResponseDto(
             ExternalId: quickShare.ExternalId,
@@ -244,7 +259,8 @@ public static class QuickSharesEndpoints
             Mode: quickShare.Mode,
             AllowIndividualFileDownload: quickShare.AllowIndividualFileDownload,
             LastAccessedAt: quickShare.LastAccessedAt,
-            AccessCodeStatus: accessCodeStatus,
+            Slug: quickShare.Slug,
+            HasSecret: hasSecret,
             Url: url,
             Items: items));
     }
@@ -340,6 +356,66 @@ public static class QuickSharesEndpoints
             default:
                 throw new UnexpectedOperationResultException(
                     operationName: nameof(UpdateQuickShareNameQuery),
+                    resultValueStr: resultCode.ToString());
+        }
+    }
+
+    private static async Task<IResult> UpdateQuickShareSlug(
+        [FromRoute] QuickShareExtId quickShareExternalId,
+        [FromBody] UpdateQuickShareSlugRequestDto request,
+        HttpContext httpContext,
+        UpdateQuickShareSlugQuery updateQuickShareSlugQuery,
+        QuickShareCache quickShareCache,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var quickShare = httpContext.GetQuickShareContext();
+
+        var slug = (request.Slug ?? string.Empty).Trim().ToLowerInvariant();
+
+        if (string.IsNullOrEmpty(slug))
+            return HttpErrors.QuickShare.SlugFormatInvalid();
+
+        if (slug == quickShare.Slug)
+            return Results.Ok();
+
+        var oldSlug = quickShare.Slug;
+
+        var resultCode = await updateQuickShareSlugQuery.Execute(
+            quickShare: quickShare,
+            slug: slug,
+            cancellationToken: cancellationToken);
+
+        switch (resultCode)
+        {
+            case UpdateQuickShareSlugQuery.ResultCode.Ok:
+                await quickShareCache.InvalidateEntry(
+                    quickShareId: quickShare.Id,
+                    cancellationToken: cancellationToken);
+
+                await auditLogService.Log(
+                    Audit.QuickShare.SlugUpdatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspace: quickShare.Workspace.ToAuditLogWorkspaceRef(),
+                        quickShare: quickShare.ToAuditLogQuickShareRef(),
+                        oldSlug: oldSlug,
+                        newSlug: slug),
+                    cancellationToken);
+
+                return Results.Ok();
+
+            case UpdateQuickShareSlugQuery.ResultCode.NotFound:
+                return HttpErrors.QuickShare.NotFound(quickShareExternalId);
+
+            case UpdateQuickShareSlugQuery.ResultCode.SlugInvalid:
+                return HttpErrors.QuickShare.SlugFormatInvalid();
+
+            case UpdateQuickShareSlugQuery.ResultCode.SlugTaken:
+                return HttpErrors.QuickShare.SlugTaken();
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateQuickShareSlugQuery),
                     resultValueStr: resultCode.ToString());
         }
     }

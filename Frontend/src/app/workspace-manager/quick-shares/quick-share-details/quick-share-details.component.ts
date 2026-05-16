@@ -16,6 +16,9 @@ import { EditableTxtComponent } from '../../../shared/editable-txt/editable-txt.
 import { ConfirmOperationDirective } from '../../../shared/operation-confirm/confirm-operation.directive';
 import { GetQuickShareResponse, QuickShareMode, QuickSharesApi } from '../../../services/quick-shares.api';
 import { DataStore } from '../../../services/data-store.service';
+import { HttpErrorResponse } from '@angular/common/http';
+
+const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{1,98}[a-z0-9]$/;
 
 @Component({
     selector: 'app-quick-share-details',
@@ -48,6 +51,13 @@ export class QuickShareDetailsComponent implements OnInit {
 
     isNameEditing = signal(false);
     nameValue = signal('');
+
+    slugValue = signal('');
+    private _lastSavedSlug = '';
+    isSlugValid = computed(() => {
+        const s = this.slugValue().trim().toLowerCase();
+        return s.length >= 3 && s.length <= 100 && SLUG_REGEX.test(s);
+    });
 
     mode = signal<QuickShareMode>('browser');
     allowIndividualFileDownload = signal(true);
@@ -117,6 +127,8 @@ export class QuickShareDetailsComponent implements OnInit {
     private applyResponse(response: GetQuickShareResponse) {
         this.quickShare.set(response);
         this.nameValue.set(response.name);
+        this.slugValue.set(response.slug);
+        this._lastSavedSlug = response.slug;
 
         this.mode.set(response.mode);
         this.allowIndividualFileDownload.set(response.allowIndividualFileDownload);
@@ -161,6 +173,43 @@ export class QuickShareDetailsComponent implements OnInit {
             this.copied.set(true);
             this._snackBar.open('Link copied to clipboard', 'Close', { duration: 2000 });
             setTimeout(() => this.copied.set(false), 2000);
+        }
+    }
+
+    async onSlugBlur() {
+        const slug = this.slugValue().trim().toLowerCase();
+        if (!slug || slug === this._lastSavedSlug) return;
+        if (!this.isSlugValid()) {
+            this._toastr.error('Slug format invalid');
+            return;
+        }
+
+        try {
+            await this._api.updateQuickShareSlug(
+                this._workspaceExternalId!,
+                this._externalId!,
+                { slug });
+
+            this._lastSavedSlug = slug;
+            this.slugValue.set(slug);
+
+            const current = this.quickShare();
+            if (current) {
+                const newUrl = current.url ? current.url.replace(/\/share\/[^?]*/, `/share/${slug}`) : null;
+                this.quickShare.set({ ...current, slug, url: newUrl });
+            }
+
+            this._dataStore.invalidateQuickShares(this._workspaceExternalId!);
+            this._toastr.success('Custom URL updated');
+        } catch (error) {
+            this.slugValue.set(this._lastSavedSlug);
+
+            if (error instanceof HttpErrorResponse && error.status === 409) {
+                this._toastr.error('This URL is already taken');
+            } else {
+                console.error(error);
+                this._toastr.error('Failed to update URL');
+            }
         }
     }
 

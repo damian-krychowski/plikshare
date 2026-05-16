@@ -28,12 +28,12 @@ public class TrackQuickShareDownloadQuery(
         var result = dbWriteContext
             .OneRowCmd(
                 sql: """
-                     UPDATE qs_quick_shares
-                     SET qs_downloads_count = qs_downloads_count + 1,
-                         qs_last_accessed_at = $now
-                     WHERE qs_id = $quickShareId
-                         AND (qs_max_downloads IS NULL OR qs_downloads_count < qs_max_downloads)
-                     RETURNING qs_id
+                     UPDATE qsh_quick_shares
+                     SET qsh_downloads_count = qsh_downloads_count + 1,
+                         qsh_last_accessed_at = $now
+                     WHERE qsh_id = $quickShareId
+                         AND (qsh_max_downloads IS NULL OR qsh_downloads_count < qsh_max_downloads)
+                     RETURNING qsh_id
                      """,
                 readRowFunc: reader => reader.GetInt32(0))
             .WithParameter("$quickShareId", quickShare.Id)

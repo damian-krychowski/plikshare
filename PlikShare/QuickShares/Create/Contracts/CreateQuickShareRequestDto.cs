@@ -5,6 +5,7 @@ namespace PlikShare.QuickShares.Create.Contracts;
 
 public record CreateQuickShareRequestDto(
     string Name,
+    string? CustomSlug,
     List<FileExtId> SelectedFiles,
     List<FolderExtId> SelectedFolders,
     List<FileExtId> ExcludedFiles,

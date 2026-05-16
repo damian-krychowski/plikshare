@@ -15,6 +15,27 @@
         <input matInput type="text" [ngModel]="name()" (ngModelChange)="name.set($event)" autocomplete="off">
     </mat-form-field>
 
+    <mat-checkbox class="quick-share-dialog__checkbox"
+        [checked]="useCustomSlug()"
+        (change)="useCustomSlug.set($event.checked)">
+        Custom URL
+    </mat-checkbox>
+
+    @if (useCustomSlug()) {
+        <mat-form-field appearance="outline" class="quick-share-dialog__field">
+            <mat-label>URL slug</mat-label>
+            <span matTextPrefix>{{ data.appUrl }}/share/&nbsp;</span>
+            <input matInput type="text"
+                [ngModel]="customSlug()"
+                (ngModelChange)="customSlug.set($event)"
+                autocomplete="off"
+                placeholder="e.g. wedding-photos-2026">
+            <mat-hint [class.quick-share-dialog__hint-error]="customSlug() && !isCustomSlugValid()">
+                3-100 chars: lowercase letters, digits, '-' (no leading/trailing '-')
+            </mat-hint>
+        </mat-form-field>
+    }
+
     <mat-form-field appearance="outline" class="quick-share-dialog__field">
         <mat-label>Recipient mode</mat-label>
         <mat-select [ngModel]="mode()" (ngModelChange)="mode.set($event)">

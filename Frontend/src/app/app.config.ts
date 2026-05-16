@@ -189,7 +189,7 @@ export const routes: Routes = [{
     redirectTo: 'box/:boxExternalId/',
     pathMatch: 'full'
 }, {
-    path: 'share/:accessCode',
+    path: 'share/:slug',
     loadComponent: () => import('./external-access/quick-share/quick-share.component').then(m => m.QuickShareComponent)
 }];
 

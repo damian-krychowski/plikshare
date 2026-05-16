@@ -284,6 +284,7 @@ public static class AuditLogEventTypes
         public const string Created = "quick-share.created";
         public const string Deleted = "quick-share.deleted";
         public const string NameUpdated = "quick-share.name-updated";
+        public const string SlugUpdated = "quick-share.slug-updated";
         public const string ExpirationUpdated = "quick-share.expiration-updated";
         public const string PasswordUpdated = "quick-share.password-updated";
         public const string MaxDownloadsUpdated = "quick-share.max-downloads-updated";
@@ -297,7 +298,7 @@ public static class AuditLogEventTypes
 
         public static readonly string[] All =
         [
-            Created, Deleted, NameUpdated,
+            Created, Deleted, NameUpdated, SlugUpdated,
             ExpirationUpdated, PasswordUpdated, MaxDownloadsUpdated,
             ModeUpdated, ItemsUpdated,
             Unlocked, UnlockFailed,
