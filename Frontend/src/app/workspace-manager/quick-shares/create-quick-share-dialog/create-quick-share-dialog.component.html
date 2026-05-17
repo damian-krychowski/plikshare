@@ -29,8 +29,6 @@
     </div>
 
     <div class="questionaire__content">
-        <div class="questionaire__section-title questionaire__section-title--divider">Details</div>
-
         <div>
             <mat-form-field class="questionaire__form-field">
                 <mat-label>Name</mat-label>
@@ -130,7 +128,7 @@
             Cancel
         </button>
 
-        <button type="button" class="questionaire__btn" mat-flat-button color="primary"
+        <button type="button" class="questionaire__btn" mat-flat-button
             [disabled]="!canSubmit()"
             (click)="onSubmit()">
             Create

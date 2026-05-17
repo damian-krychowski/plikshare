@@ -1,21 +1,25 @@
-<div class="quick-share-created">
-    <div class="quick-share-created__title">Quick share is live</div>
+<div class="questionaire">
+    <div class="questionaire__title">Quick share is live</div>
 
-    <div class="quick-share-created__name">"{{ data.name }}"</div>
+    <div class="questionaire__subtitle">"{{ data.name }}"</div>
 
-    <div class="quick-share-created__hint">
-        Forward this link through your own channel. Anyone with the link can download
-        whatever you selected (subject to the password / expiration / limits you set).
+    <div class="questionaire__content">
+        <div class="questionaire__text">
+            Forward this link through your own channel. Anyone with the link can download
+            whatever you selected (subject to the password / expiration / limits you set).
+        </div>
+
+        <div class="link-row">
+            <div class="link-row__url" [title]="data.url">{{ data.url }}</div>
+            <button type="button" class="questionaire__btn" mat-flat-button (click)="copyLink()">
+                {{ copied() ? 'Copied' : 'Copy' }}
+            </button>
+        </div>
     </div>
 
-    <div class="quick-share-created__link-row">
-        <div class="quick-share-created__url" [title]="data.url">{{ data.url }}</div>
-        <button mat-stroked-button type="button" (click)="copyLink()">
-            {{ copied() ? 'Copied' : 'Copy' }}
+    <div class="questionaire__actions">
+        <button type="button" class="questionaire__btn" mat-flat-button (click)="onClose()">
+            Done
         </button>
-    </div>
-
-    <div class="quick-share-created__actions">
-        <button mat-flat-button color="primary" type="button" (click)="onClose()">Done</button>
     </div>
 </div>

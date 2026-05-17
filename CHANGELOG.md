@@ -2,6 +2,15 @@
 
 Release notes for PlikShare.
 
+## 1.1.28
+
+- [FEATURE] Quick shares introduced — share selected files and folders via a link with optional custom URL slug, expiration, password, and download cap; recipient gets either a browseable preview (file tree + per-file preview + optional ZIP bundle) or a direct ZIP download
+- [IMPROVEMENT] Files-explorer mobile layout — toolbar splits into a path row and an actions row content-driven by available width (ResizeObserver-based, no fixed breakpoint), search collapses behind a magnifier icon
+- [IMPROVEMENT] Workspace-manager top bar collapses in three stages as the viewport shrinks (full → icon-only → hamburger menu) instead of a single mobile cliff
+- [IMPROVEMENT] Decluttered file and folder rows — per-item download, share, delete and "Edit name" buttons removed; bulk actions live in the toolbar after selection, and tapping the name starts editing on mobile
+- [IMPROVEMENT] Unified view mode and sort order into a single "List · Custom ▾" display menu in the context bar
+- [IMPROVEMENT] Folder / file / upload counts in the context bar shown as icon chips with tooltips instead of text
+
 ## 1.1.27
 
 - [FEATURE] Configurable audit-log policy — admins can disable individual events and override their severity (verbose/info/warning/critical) at the application level, set defaults for new workspaces, and tune the policy of each workspace individually

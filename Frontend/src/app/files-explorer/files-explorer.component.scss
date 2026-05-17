@@ -43,12 +43,6 @@ a.drag-over {
     gap: 0.5rem;
 }
 
-.context-row {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-}
-
 .context-label {
     display: inline-block;
 
@@ -228,50 +222,6 @@ a.drag-over {
 
     &__content {
         padding-top: 0.25rem;
-    }
-}
-
-.view-toggle {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid var(--company-grey-accent);
-    border-radius: 4px;
-    overflow: hidden;
-    height: 36px;
-
-    &__option {
-        all: unset;
-        box-sizing: border-box;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0 0.6rem;
-        height: 100%;
-        cursor: pointer;
-        color: var(--company-grey-font);
-
-        & + & {
-            border-left: 1px solid var(--company-grey-accent);
-        }
-
-        &:hover {
-            background: var(--company-grey-accent-light);
-            color: var(--company-font);
-        }
-
-        &--active {
-            background: var(--company-blue-selected);
-            color: var(--company-font);
-        }
-
-        &:focus-visible {
-            outline: 2px solid var(--company-blue-hover);
-            outline-offset: -2px;
-        }
-
-        .icon {
-            font-size: 1rem;
-        }
     }
 }
 

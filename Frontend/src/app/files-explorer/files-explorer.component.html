@@ -258,7 +258,6 @@
 
                     @if(allowList()) {
                         <app-item-search
-                            class="title-header__search"
                             [collapsibleOnMobile]="true"
                             [isExpanded]="isSearchExpandedOnMobile()"
                             [phrase]="searchPhrase()"
@@ -269,7 +268,7 @@
                         </app-item-search>
                     }
 
-                    <span class="title-header__actions title-header__actions--trailing"
+                    <span class="title-header__actions"
                         [class.title-header__actions--hidden-on-mobile]="isSearchExpandedOnMobile()">
                     @if(allowList()) {
                         <app-action-btn
@@ -322,7 +321,6 @@
 
                     @if(allowList()) {
                         <app-item-search
-                            class="title-header__search"
                             [collapsibleOnMobile]="true"
                             [isExpanded]="isSearchExpandedOnMobile()"
                             [phrase]="searchPhrase()"
@@ -333,7 +331,7 @@
                         </app-item-search>
                     }
 
-                    <span class="title-header__actions title-header__actions--trailing"
+                    <span class="title-header__actions"
                         [class.title-header__actions--hidden-on-mobile]="isSearchExpandedOnMobile()">
                     @if(allowList()) {
                         <app-action-btn
