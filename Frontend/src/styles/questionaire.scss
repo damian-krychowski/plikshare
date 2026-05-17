@@ -147,7 +147,6 @@
     &__radio-group {
         display: flex;
         flex-direction: column;
-        gap: 12px;
         margin-bottom: 12px;
     }
     
@@ -159,5 +158,9 @@
     &__radio-option &__info {
         margin-left: 12px;
         margin-top: 4px;
+    }
+
+    &__checkbox {
+        margin-left: -10px;
     }
 }

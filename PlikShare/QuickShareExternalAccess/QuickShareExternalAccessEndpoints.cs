@@ -79,11 +79,13 @@ public static class QuickShareExternalAccessEndpoints
             httpContext: httpContext,
             quickShareId: quickShare.Id);
 
-        var requiresPassword = quickShare.PasswordHash is not null;
-        var isUnlocked = !requiresPassword || unlockSession.IsUnlockValid(session);
+        var isOwnerPreview = ValidateQuickShareAccessFilter.IsOwnerPreview(httpContext, quickShare);
 
-        var isExpired = quickShare.ExpiresAt is { } expiresAt && expiresAt <= clock.UtcNow;
-        var isExhausted = quickShare.MaxDownloads is { } max && quickShare.DownloadsCount >= max;
+        var requiresPassword = quickShare.PasswordHash is not null;
+        var isUnlocked = !requiresPassword || isOwnerPreview || unlockSession.IsUnlockValid(session);
+
+        var isExpired = !isOwnerPreview && quickShare.ExpiresAt is { } expiresAt && expiresAt <= clock.UtcNow;
+        var isExhausted = !isOwnerPreview && quickShare.MaxDownloads is { } max && quickShare.DownloadsCount >= max;
 
         return Results.Ok(new GetQuickShareInfoResponseDto(
             Name: quickShare.Name,
@@ -93,6 +95,7 @@ public static class QuickShareExternalAccessEndpoints
             IsUnlocked: isUnlocked,
             IsExpired: isExpired,
             IsExhausted: isExhausted,
+            IsOwnerPreview: isOwnerPreview,
             ExpiresAt: quickShare.ExpiresAt,
             MaxDownloads: quickShare.MaxDownloads,
             DownloadsCount: quickShare.DownloadsCount));
@@ -203,37 +206,43 @@ public static class QuickShareExternalAccessEndpoints
         var access = httpContext.GetQuickShareAccess();
         var correlationId = httpContext.GetCorrelationId();
 
-        var trackResult = await trackDownloadQuery.Execute(
-            quickShare: access.QuickShare,
-            cancellationToken: cancellationToken);
-
-        if (trackResult == TrackQuickShareDownloadQuery.ResultCode.LimitReached)
+        if (!access.IsOwnerPreview)
         {
-            await auditLogService.Log(
-                Audit.QuickShare.DownloadLimitReachedEntry(
-                    actor: access.ToAuditLogActorContext(correlationId),
-                    workspace: access.QuickShare.Workspace.ToAuditLogWorkspaceRef(),
-                    quickShare: access.QuickShare.ToAuditLogQuickShareRef()),
-                cancellationToken);
+            var trackResult = await trackDownloadQuery.Execute(
+                quickShare: access.QuickShare,
+                cancellationToken: cancellationToken);
 
-            return HttpErrors.QuickShare.Exhausted();
+            if (trackResult == TrackQuickShareDownloadQuery.ResultCode.LimitReached)
+            {
+                await auditLogService.Log(
+                    Audit.QuickShare.DownloadLimitReachedEntry(
+                        actor: access.ToAuditLogActorContext(correlationId),
+                        workspace: access.QuickShare.Workspace.ToAuditLogWorkspaceRef(),
+                        quickShare: access.QuickShare.ToAuditLogQuickShareRef()),
+                    cancellationToken);
+
+                return HttpErrors.QuickShare.Exhausted();
+            }
+
+            await quickShareCache.InvalidateEntry(
+                quickShareId: access.QuickShare.Id,
+                cancellationToken: cancellationToken);
         }
-
-        await quickShareCache.InvalidateEntry(
-            quickShareId: access.QuickShare.Id,
-            cancellationToken: cancellationToken);
 
         var preSignedUrl = generateLinkOperation.Execute(
             quickShare: access.QuickShare,
             userIdentity: access.UserIdentity);
 
-        await auditLogService.Log(
-            Audit.QuickShare.BulkDownloadLinkGeneratedEntry(
-                actor: access.ToAuditLogActorContext(correlationId),
-                workspace: access.QuickShare.Workspace.ToAuditLogWorkspaceRef(),
-                quickShare: access.QuickShare.ToAuditLogQuickShareRef(),
-                downloadsCountAfter: access.QuickShare.DownloadsCount + 1),
-            cancellationToken);
+        if (!access.IsOwnerPreview)
+        {
+            await auditLogService.Log(
+                Audit.QuickShare.BulkDownloadLinkGeneratedEntry(
+                    actor: access.ToAuditLogActorContext(correlationId),
+                    workspace: access.QuickShare.Workspace.ToAuditLogWorkspaceRef(),
+                    quickShare: access.QuickShare.ToAuditLogQuickShareRef(),
+                    downloadsCountAfter: access.QuickShare.DownloadsCount + 1),
+                cancellationToken);
+        }
 
         return Results.Ok(new GetQuickShareBulkDownloadLinkResponseDto(
             PreSignedUrl: preSignedUrl));
@@ -258,25 +267,28 @@ public static class QuickShareExternalAccessEndpoints
         if (!ContentDispositionHelper.TryParse(contentDisposition, out var contentDispositionType))
             return HttpErrors.File.InvalidContentDisposition(contentDisposition);
 
-        var trackResult = await trackDownloadQuery.Execute(
-            quickShare: access.QuickShare,
-            cancellationToken: cancellationToken);
-
-        if (trackResult == TrackQuickShareDownloadQuery.ResultCode.LimitReached)
+        if (!access.IsOwnerPreview)
         {
-            await auditLogService.Log(
-                Audit.QuickShare.DownloadLimitReachedEntry(
-                    actor: access.ToAuditLogActorContext(correlationId),
-                    workspace: access.QuickShare.Workspace.ToAuditLogWorkspaceRef(),
-                    quickShare: access.QuickShare.ToAuditLogQuickShareRef()),
-                cancellationToken);
+            var trackResult = await trackDownloadQuery.Execute(
+                quickShare: access.QuickShare,
+                cancellationToken: cancellationToken);
 
-            return HttpErrors.QuickShare.Exhausted();
+            if (trackResult == TrackQuickShareDownloadQuery.ResultCode.LimitReached)
+            {
+                await auditLogService.Log(
+                    Audit.QuickShare.DownloadLimitReachedEntry(
+                        actor: access.ToAuditLogActorContext(correlationId),
+                        workspace: access.QuickShare.Workspace.ToAuditLogWorkspaceRef(),
+                        quickShare: access.QuickShare.ToAuditLogQuickShareRef()),
+                    cancellationToken);
+
+                return HttpErrors.QuickShare.Exhausted();
+            }
+
+            await quickShareCache.InvalidateEntry(
+                quickShareId: access.QuickShare.Id,
+                cancellationToken: cancellationToken);
         }
-
-        await quickShareCache.InvalidateEntry(
-            quickShareId: access.QuickShare.Id,
-            cancellationToken: cancellationToken);
 
         var result = await generateLinkOperation.Execute(
             quickShare: access.QuickShare,
@@ -289,15 +301,18 @@ public static class QuickShareExternalAccessEndpoints
         switch (result.Code)
         {
             case GenerateQuickShareFileDownloadLinkOperation.ResultCode.Ok:
-                await auditLogService.LogWithFileContext(
-                    fileExternalId: fileExternalId,
-                    buildEntry: fileRef => Audit.QuickShare.FileDownloadLinkGeneratedEntry(
-                        actor: access.ToAuditLogActorContext(correlationId),
-                        workspace: access.QuickShare.Workspace.ToAuditLogWorkspaceRef(),
-                        quickShare: access.QuickShare.ToAuditLogQuickShareRef(),
-                        file: fileRef,
-                        downloadsCountAfter: access.QuickShare.DownloadsCount + 1),
-                    cancellationToken);
+                if (!access.IsOwnerPreview)
+                {
+                    await auditLogService.LogWithFileContext(
+                        fileExternalId: fileExternalId,
+                        buildEntry: fileRef => Audit.QuickShare.FileDownloadLinkGeneratedEntry(
+                            actor: access.ToAuditLogActorContext(correlationId),
+                            workspace: access.QuickShare.Workspace.ToAuditLogWorkspaceRef(),
+                            quickShare: access.QuickShare.ToAuditLogQuickShareRef(),
+                            file: fileRef,
+                            downloadsCountAfter: access.QuickShare.DownloadsCount + 1),
+                        cancellationToken);
+                }
 
                 return Results.Ok(new GetQuickShareFileDownloadLinkResponseDto(
                     DownloadPreSignedUrl: result.DownloadPreSignedUrl!));

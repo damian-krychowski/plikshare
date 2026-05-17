@@ -8,7 +8,7 @@ public static partial class QuickShareSlug
     public const int MinLength = 3;
     public const int MaxLength = 100;
 
-    [GeneratedRegex(@"^[a-z0-9][a-z0-9\-]{1,98}[a-z0-9]$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex(@"^[a-zA-Z0-9][a-zA-Z0-9\-]{1,98}[a-zA-Z0-9]$", RegexOptions.CultureInvariant)]
     private static partial Regex SlugRegex();
 
     public static bool IsValid(string slug)

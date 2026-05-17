@@ -6,6 +6,13 @@
             This quick share link is invalid or has been removed.
         </div>
     } @else if (info(); as infoValue) {
+        @if (isOwnerPreview()) {
+            <div class="quick-share-page__owner-banner">
+                <i class="icon icon-sm icon-nucleo-eye"></i>
+                <span>Viewing as owner — your visits don't count toward downloads or expiration.</span>
+            </div>
+        }
+
         <div class="quick-share-page__header">
             <h1 class="quick-share-page__title">{{ name() }}</h1>
 
@@ -43,20 +50,20 @@
                         autocomplete="current-password">
                 </mat-form-field>
 
-                <button mat-flat-button color="primary" type="button"
+                <app-action-text-btn
+                    text="Unlock"
                     [disabled]="isUnlocking() || !passwordInput().trim()"
-                    (click)="unlock()">
-                    Unlock
-                </button>
+                    (clicked)="unlock()">
+                </app-action-text-btn>
             </div>
         } @else if (mode() === 'direct') {
             <div class="quick-share-page__direct">
                 <p>Your download should start shortly. If it doesn't, click below.</p>
-                <button mat-flat-button color="primary" type="button"
+                <app-action-text-btn
+                    text="Download"
                     [disabled]="isDownloading()"
-                    (click)="downloadAll()">
-                    Download
-                </button>
+                    (clicked)="downloadAll()">
+                </app-action-text-btn>
             </div>
         } @else if (content(); as contentValue) {
             <div class="quick-share-page__toolbar">

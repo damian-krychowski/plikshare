@@ -2,7 +2,6 @@ import { Component, OnInit, WritableSignal, computed, signal } from '@angular/co
 import { ActivatedRoute } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ToastrService } from 'ngx-toastr';
@@ -11,18 +10,19 @@ import { GetQuickShareContentResponse, GetQuickShareInfoResponse, QuickShareCont
 import { ZipFileNode, ZipFileTreeViewComponent, ZipFolderNode, ZipTreeNode } from '../../shared/zip-file-tree-view/zip-file-tree-view.component';
 import { StorageSizePipe } from '../../shared/storage-size.pipe';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
+import { ActionTextButtonComponent } from '../../shared/buttons/action-text-btn/action-text-btn.component';
 
 @Component({
     selector: 'app-quick-share',
     imports: [
         DatePipe,
         FormsModule,
-        MatButtonModule,
         MatFormFieldModule,
         MatInputModule,
         ZipFileTreeViewComponent,
         StorageSizePipe,
-        ActionButtonComponent
+        ActionButtonComponent,
+        ActionTextButtonComponent
     ],
     templateUrl: './quick-share.component.html',
     styleUrl: './quick-share.component.scss'
@@ -47,6 +47,7 @@ export class QuickShareComponent implements OnInit {
     isUnlocked = computed(() => this.info()?.isUnlocked ?? false);
     isExpired = computed(() => this.info()?.isExpired ?? false);
     isExhausted = computed(() => this.info()?.isExhausted ?? false);
+    isOwnerPreview = computed(() => this.info()?.isOwnerPreview ?? false);
     allowIndividualFileDownload = computed(() => this.info()?.allowIndividualFileDownload ?? false);
     totalSizeInBytes = computed(() => this.content()?.totalSizeInBytes ?? 0);
     filesCount = computed(() => this.content()?.files.length ?? 0);

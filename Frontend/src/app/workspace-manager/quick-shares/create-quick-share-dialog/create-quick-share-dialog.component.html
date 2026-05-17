@@ -1,110 +1,109 @@
-<div class="quick-share-dialog">
-    <div class="quick-share-dialog__title">Create a quick share</div>
+<div class="questionaire">
+    <div class="questionaire__title">
+        Create a quick share
+    </div>
 
-    <div class="quick-share-dialog__hint">
+    <div class="questionaire__subtitle">
         Selected: {{ data.selectedFiles.length }} file(s), {{ data.selectedFolders.length }} folder(s)
         @if (data.excludedFiles.length + data.excludedFolders.length > 0) {
-            <span class="quick-share-dialog__exclusions">
-                ({{ data.excludedFiles.length + data.excludedFolders.length }} excluded)
-            </span>
+            · {{ data.excludedFiles.length + data.excludedFolders.length }} excluded
         }
     </div>
 
-    <mat-form-field appearance="outline" class="quick-share-dialog__field">
-        <mat-label>Name</mat-label>
-        <input matInput type="text" [ngModel]="name()" (ngModelChange)="name.set($event)" autocomplete="off">
-    </mat-form-field>
-
-    <mat-checkbox class="quick-share-dialog__checkbox"
-        [checked]="useCustomSlug()"
-        (change)="useCustomSlug.set($event.checked)">
-        Custom URL
-    </mat-checkbox>
-
-    @if (useCustomSlug()) {
-        <mat-form-field appearance="outline" class="quick-share-dialog__field">
-            <mat-label>URL slug</mat-label>
-            <span matTextPrefix>{{ data.appUrl }}/share/&nbsp;</span>
+    <div class="questionaire__content">
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Name</mat-label>
             <input matInput type="text"
+                [ngModel]="name()"
+                (ngModelChange)="name.set($event)"
+                autocomplete="off"
+                required>
+        </mat-form-field>
+
+        <mat-form-field class="questionaire__form-field">
+            <mat-label>Custom URL slug</mat-label>
+            <input matInput type="text"
+                #slugInput="ngModel"
                 [ngModel]="customSlug()"
                 (ngModelChange)="customSlug.set($event)"
                 autocomplete="off"
-                placeholder="e.g. wedding-photos-2026">
-            <mat-hint [class.quick-share-dialog__hint-error]="customSlug() && !isCustomSlugValid()">
-                3-100 chars: lowercase letters, digits, '-' (no leading/trailing '-')
-            </mat-hint>
+                placeholder="your-custom-url"
+                pattern="^[a-zA-Z0-9][a-zA-Z0-9\-]{1,98}[a-zA-Z0-9]$">
+            @if (slugInput.invalid && customSlug().length > 0) {
+                <mat-error>Invalid format. Allowed: a-z, A-Z, 0-9, '-'. 3-100 chars, no leading/trailing '-'.</mat-error>
+            } @else {
+                <mat-hint>Leave empty for auto-generated.</mat-hint>
+            }
         </mat-form-field>
-    }
 
-    <mat-form-field appearance="outline" class="quick-share-dialog__field">
-        <mat-label>Recipient mode</mat-label>
-        <mat-select [ngModel]="mode()" (ngModelChange)="mode.set($event)">
-            <mat-option value="browser">Browser preview (recipient can preview files)</mat-option>
-            <mat-option value="direct">Direct download (recipient downloads zip immediately)</mat-option>
-        </mat-select>
-    </mat-form-field>
+        <div class="url-preview">{{ urlPreview() }}</div>
 
-    @if (mode() === 'browser') {
-        <mat-checkbox class="quick-share-dialog__checkbox"
+        <div class="questionaire__section-title">Recipient mode</div>
+
+        <mat-radio-group class="questionaire__radio-group"
+            [value]="mode()"
+            (change)="onModeChange($event.value)">
+
+            <div class="questionaire__radio-option">
+                <mat-radio-button value="browser">Browser preview</mat-radio-button>
+                <div class="questionaire__info">
+                    Recipient lands on a page with a file tree, can preview each
+                    file in the browser and download the bundle as a ZIP.
+                </div>
+            </div>
+
+            <div class="questionaire__radio-option">
+                <mat-radio-button value="direct">Direct download</mat-radio-button>
+                <div class="questionaire__info">
+                    Recipient is redirected straight to a ZIP download — no
+                    preview, no browsing, just an immediate file download.
+                </div>
+            </div>
+        </mat-radio-group>
+
+        <mat-checkbox class="questionaire__checkbox"
             [checked]="allowIndividualFileDownload()"
+            [disabled]="mode() !== 'browser'"
             (change)="allowIndividualFileDownload.set($event.checked)">
             Allow downloading individual files
         </mat-checkbox>
-    }
 
-    <div class="quick-share-dialog__section-title">Optional protections</div>
-
-    <mat-checkbox class="quick-share-dialog__checkbox"
-        [checked]="hasExpiration()"
-        (change)="hasExpiration.set($event.checked)">
-        Expires at
-    </mat-checkbox>
-
-    @if (hasExpiration()) {
-        <mat-form-field appearance="outline" class="quick-share-dialog__field">
-            <mat-label>Expiration date/time</mat-label>
-            <input matInput type="datetime-local"
+        <mat-form-field class="questionaire__form-field" floatLabel="always">
+            <mat-label>Expires at</mat-label>
+            <input #expiresAtInput matInput type="datetime-local"
+                placeholder=" "
                 [ngModel]="expiresAtIso()"
-                (ngModelChange)="expiresAtIso.set($event)">
+                (ngModelChange)="expiresAtIso.set($event)"
+                (focus)="openPicker(expiresAtInput)">
+            <mat-hint>Leave empty for no expiration.</mat-hint>
         </mat-form-field>
-    }
 
-    <mat-checkbox class="quick-share-dialog__checkbox"
-        [checked]="hasPassword()"
-        (change)="hasPassword.set($event.checked)">
-        Protect with password
-    </mat-checkbox>
-
-    @if (hasPassword()) {
-        <mat-form-field appearance="outline" class="quick-share-dialog__field">
+        <mat-form-field class="questionaire__form-field">
             <mat-label>Password</mat-label>
             <input matInput type="password"
                 [ngModel]="password()"
                 (ngModelChange)="password.set($event)"
                 autocomplete="new-password">
+            <mat-hint>Leave empty for no password.</mat-hint>
         </mat-form-field>
-    }
 
-    <mat-checkbox class="quick-share-dialog__checkbox"
-        [checked]="hasMaxDownloads()"
-        (change)="hasMaxDownloads.set($event.checked)">
-        Limit number of downloads
-    </mat-checkbox>
-
-    @if (hasMaxDownloads()) {
-        <mat-form-field appearance="outline" class="quick-share-dialog__field">
+        <mat-form-field class="questionaire__form-field">
             <mat-label>Max downloads</mat-label>
             <input matInput type="number" min="1"
                 [ngModel]="maxDownloads()"
                 (ngModelChange)="maxDownloads.set($event)">
+            <mat-hint>Leave empty for unlimited.</mat-hint>
         </mat-form-field>
-    }
+    </div>
 
-    <div class="quick-share-dialog__actions">
-        <button mat-stroked-button type="button" (click)="onCancel()" [disabled]="isSubmitting()">
+    <div class="questionaire__actions">
+        <button type="button" class="questionaire__btn mr-1" mat-flat-button
+            (click)="onCancel()"
+            [disabled]="isSubmitting()">
             Cancel
         </button>
-        <button mat-flat-button color="primary" type="button"
+
+        <button type="button" class="questionaire__btn" mat-flat-button color="primary"
             [disabled]="!canSubmit()"
             (click)="onSubmit()">
             Create

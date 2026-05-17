@@ -6,7 +6,8 @@ namespace PlikShare.QuickShareExternalAccess.Authorization;
 public record QuickShareAccess(
     QuickShareContext QuickShare,
     IUserIdentity UserIdentity,
-    string? UserIp)
+    string? UserIp,
+    bool IsOwnerPreview)
 {
     public const string HttpContextName = "QuickShareAccess";
 }

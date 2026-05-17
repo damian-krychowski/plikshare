@@ -36,6 +36,15 @@
                     (clicked)="nameTxt.save()">
                 </app-action-btn>
             } @else {
+                @if (url()) {
+                    <app-action-btn
+                        [class.d-none-on-mobile]="!areActionsVisible()"
+                        tooltip="Preview"
+                        icon="icon-nucleo-eye"
+                        (clicked)="previewShare()">
+                    </app-action-btn>
+                }
+
                 <app-action-btn
                     [class.d-none-on-mobile]="!areActionsVisible()"
                     tooltip="Edit name"
@@ -92,160 +101,206 @@
 
 @if (notFound()) {
     <div class="mt-3"></div>
-    <div class="empty-state">This quick share could not be loaded.</div>
+    <div class="explanation">This quick share could not be loaded.</div>
 } @else if (quickShare(); as qs) {
 
     <div class="mt-4"></div>
 
-    <!-- Public link -->
-    <div class="subtitle-header">
-        <div class="item">
-            <div class="item__details">
-                <div class="item__title">Public link</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="mt-2"></div>
-
     @if (url(); as linkUrl) {
-        <div class="item">
-            <i class="icon icon-xl icon--placeholder icon-nucleo-link"></i>
-            <div class="item__details">
-                <div class="url" (click)="copyLink()"
-                    [matTooltip]="copied() ? 'Copied' : 'Copy to clipboard'"
-                    matTooltipPosition="below">
-                    {{ linkUrl }} <i class="icon icon-sm icon-nucleo-copy"></i>
-                </div>
-            </div>
+        <div class="public-link"
+            [class.public-link--copied]="copied()"
+            (click)="copyLink()"
+            [matTooltip]="copied() ? 'Copied' : 'Copy to clipboard'"
+            matTooltipPosition="below">
+            <i class="icon icon-lg icon-nucleo-link public-link__leading"></i>
+            <span class="public-link__url">{{ linkUrl }}</span>
+            <span class="public-link__copy">
+                <i class="icon icon-sm" [class.icon-nucleo-copy]="!copied()" [class.icon-lucide-check]="copied()"></i>
+            </span>
         </div>
     } @else if (qs.hasSecret) {
-        <div class="item">
-            <i class="icon icon-xl icon--placeholder icon-nucleo-lock"></i>
-            <div class="item__details">
-                <div>Full URL was shown only once at creation.</div>
-                <div class="item__subtitle">The secret token is never stored on the server.</div>
-            </div>
+        <div class="public-link public-link--muted">
+            <i class="icon icon-lg icon-nucleo-link public-link__leading"></i>
+            <span class="public-link__url public-link__url--muted">Token shown only once at creation — link can't be recovered.</span>
         </div>
     }
 
     <div class="mt-4"></div>
 
-    <!-- Custom URL -->
-    <div class="subtitle-header">
-        <div class="item">
-            <div class="item__details">
-                <div class="item__title">Custom URL</div>
-            </div>
-        </div>
-    </div>
+    <!-- Custom URL slug -->
+    <div class="title-header">
+        <div>Custom URL slug</div>
 
-    <div class="mt-2"></div>
+        <div class="flex-row flex-gap-05 ml-auto">
+            @if (hasPendingSlugChange()) {
+                <app-action-btn
+                    tooltip="Discard change"
+                    icon="icon-lucide-xmark"
+                    (clicked)="revertSlug()">
+                </app-action-btn>
 
-    <div class="item">
-        <i class="icon icon-xl icon--placeholder icon-nucleo-pen"></i>
-        <div class="item__details details-stack">
-            <mat-form-field appearance="outline" class="details-field" subscriptSizing="dynamic">
-                <mat-label>URL slug</mat-label>
-                <input matInput type="text"
-                    [ngModel]="slugValue()"
-                    (ngModelChange)="slugValue.set($event)"
-                    (blur)="onSlugBlur()"
-                    (keyup.enter)="onSlugBlur()"
-                    autocomplete="off">
-                <mat-hint>
-                    Changing this breaks existing links. 3-100 chars: a-z, 0-9, '-'.
-                </mat-hint>
-            </mat-form-field>
-        </div>
-    </div>
-
-    <div class="mt-4"></div>
-
-    <!-- Mode -->
-    <div class="subtitle-header">
-        <div class="item">
-            <div class="item__details">
-                <div class="item__title">Recipient mode</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="mt-2"></div>
-
-    <div class="item">
-        <i class="icon icon-xl icon--placeholder icon-nucleo-eye"></i>
-        <div class="item__details details-stack">
-            <mat-form-field appearance="outline" class="details-field" subscriptSizing="dynamic">
-                <mat-label>Mode</mat-label>
-                <mat-select [ngModel]="mode()" (selectionChange)="onModeChanged($event.value)">
-                    <mat-option value="browser">Browser preview</mat-option>
-                    <mat-option value="direct">Direct download</mat-option>
-                </mat-select>
-            </mat-form-field>
-
-            @if (mode() === 'browser') {
-                <mat-checkbox
-                    [checked]="allowIndividualFileDownload()"
-                    (change)="onAllowIndividualFileDownloadChanged($event.checked)">
-                    Allow downloading individual files
-                </mat-checkbox>
+                <app-action-btn
+                    tooltip="Save new URL slug"
+                    icon="icon-lucide-check"
+                    [disabled]="!isSlugValid()"
+                    appConfirmOperation
+                    [operationItem]="'this URL slug'"
+                    [verb]="'change'"
+                    [isOperationDanger]="true"
+                    (confirmedClick)="saveSlugChange()">
+                </app-action-btn>
+            } @else {
+                <app-action-btn
+                    tooltip="Regenerate URL slug"
+                    icon="icon-nucleo-reload"
+                    appConfirmOperation
+                    [operationItem]="'this URL slug'"
+                    [verb]="'regenerate'"
+                    [isOperationDanger]="true"
+                    (confirmedClick)="regenerateSlug()">
+                </app-action-btn>
             }
         </div>
     </div>
 
+    <div class="mt-2"></div>
+
+    <mat-form-field class="w-100">
+        <mat-label>URL slug</mat-label>
+        <input matInput type="text"
+            #slugInput="ngModel"
+            [ngModel]="slugValue()"
+            (ngModelChange)="slugValue.set($event)"
+            autocomplete="off"
+            pattern="^[a-zA-Z0-9][a-zA-Z0-9\-]{1,98}[a-zA-Z0-9]$"
+            required>
+        @if (slugInput.invalid) {
+            <mat-error>Invalid format. Allowed: a-z, A-Z, 0-9, '-'. 3-100 chars, no leading/trailing '-'.</mat-error>
+        }
+    </mat-form-field>
+
+    <div class="explanation">
+        Changing this breaks any links already shared.
+    </div>
+    
     <div class="mt-4"></div>
 
-    <!-- Expiration -->
-    <div class="subtitle-header">
-        <div class="item">
-            <div class="item__details">
-                <div class="item__title">Expiration</div>
-            </div>
-        </div>
-
-        <div class="flex-row ml-auto">
-            <mat-slide-toggle
-                matTooltip="Enable expiration"
-                matTooltipPosition="above"
-                [checked]="hasExpiration()"
-                (change)="onHasExpirationChanged($event.checked)">
-            </mat-slide-toggle>
-        </div>
+    <!-- Recipient mode -->
+    <div class="title-header">
+        <div>Recipient mode</div>
     </div>
 
     <div class="mt-2"></div>
 
-    @if (hasExpiration()) {
-        <div class="item">
-            <i class="icon icon-xl icon--placeholder icon-nucleo-clock"></i>
-            <div class="item__details">
-                <mat-form-field appearance="outline" class="details-field" subscriptSizing="dynamic">
-                    <mat-label>Expires at</mat-label>
-                    <input matInput type="datetime-local"
-                        [ngModel]="expiresAtIso()"
-                        (ngModelChange)="expiresAtIso.set($event)"
-                        (blur)="onExpirationBlur()">
-                </mat-form-field>
+    <mat-radio-group class="quick-share-details__radio-group"
+        [value]="mode()"
+        (change)="onModeChanged($event.value)">
+
+        <div class="quick-share-details__radio-option">
+            <mat-radio-button value="browser">Browser preview</mat-radio-button>
+            <div class="explanation">
+                Recipient lands on a page with a file tree, can preview each
+                file in the browser and download the bundle as a ZIP.
             </div>
         </div>
-    }
+
+        <div class="quick-share-details__radio-option">
+            <mat-radio-button value="direct">Direct download</mat-radio-button>
+            <div class="explanation">
+                Recipient is redirected straight to a ZIP download — no
+                preview, no browsing, just an immediate file download.
+            </div>
+        </div>
+    </mat-radio-group>
+
+    <div class="mt-2"></div>
+
+    <mat-checkbox
+        [checked]="allowIndividualFileDownload()"
+        [disabled]="mode() !== 'browser'"
+        (change)="onAllowIndividualFileDownloadChanged($event.checked)">
+        Allow downloading individual files
+    </mat-checkbox>
 
     <div class="mt-4"></div>
 
-    <!-- Password -->
-    <div class="subtitle-header">
-        <div class="item">
-            <div class="item__details">
-                <div class="item__title">
-                    Password protection
-                    @if (qs.hasPassword) {
-                        <span class="item__subtitle">currently set</span>
-                    } @else {
-                        <span class="item__subtitle">not set</span>
-                    }
+    <!-- Expiration + Download limit (side by side on desktop) -->
+    <div class="two-column-row">
+        <div class="two-column-row__col">
+            <div class="title-header">
+                <div>Expiration</div>
+
+                <div class="flex-row ml-auto">
+                    <mat-slide-toggle
+                        matTooltip="Enable expiration"
+                        matTooltipPosition="above"
+                        [checked]="hasExpiration()"
+                        (change)="onHasExpirationChanged($event.checked)">
+                    </mat-slide-toggle>
                 </div>
             </div>
+
+            <div class="mt-2"></div>
+
+            <div class="section-content">
+                @if (hasExpiration()) {
+                    <mat-form-field class="w-100" floatLabel="always">
+                        <mat-label>Expires at</mat-label>
+                        <input #expiresAtInput matInput type="datetime-local"
+                            placeholder=" "
+                            [ngModel]="expiresAtIso()"
+                            (ngModelChange)="expiresAtIso.set($event)"
+                            (focus)="openPicker(expiresAtInput)"
+                            (blur)="onExpirationBlur()">
+                    </mat-form-field>
+                } @else {
+                    <div class="explanation">No expiration set — link works indefinitely.</div>
+                }
+            </div>
+        </div>
+
+        <div class="two-column-row__col">
+            <div class="title-header">
+                <div>
+                    Download limit
+                    <span class="title-header-explanation">used: {{ downloadsCount() }}</span>
+                </div>
+
+                <div class="flex-row ml-auto">
+                    <mat-slide-toggle
+                        matTooltip="Limit downloads"
+                        matTooltipPosition="above"
+                        [checked]="hasMaxDownloads()"
+                        (change)="onHasMaxDownloadsChanged($event.checked)">
+                    </mat-slide-toggle>
+                </div>
+            </div>
+
+            <div class="mt-2"></div>
+
+            <div class="section-content">
+                @if (hasMaxDownloads()) {
+                    <mat-form-field class="w-100">
+                        <mat-label>Max downloads</mat-label>
+                        <input matInput type="number" min="1"
+                            [ngModel]="maxDownloadsValue()"
+                            (ngModelChange)="maxDownloadsValue.set($event)"
+                            (blur)="onMaxDownloadsBlur()">
+                    </mat-form-field>
+                } @else {
+                    <div class="explanation">No limit — the link can be downloaded indefinitely.</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Password -->
+    <div class="title-header">
+        <div>
+            Password
+            @if (qs.hasPassword) {
+                <span class="title-header-explanation">currently set</span>
+            }
         </div>
 
         <div class="flex-row ml-auto">
@@ -260,114 +315,54 @@
 
     <div class="mt-2"></div>
 
-    @if (hasPassword()) {
-        <div class="item">
-            <i class="icon icon-xl icon--placeholder icon-nucleo-lock"></i>
-            <div class="item__details">
-                <mat-form-field appearance="outline" class="details-field" subscriptSizing="dynamic">
-                    <mat-label>{{ qs.hasPassword ? 'New password (press Enter to save)' : 'Password (press Enter to save)' }}</mat-label>
-                    <input matInput type="password"
-                        [ngModel]="passwordValue()"
-                        (ngModelChange)="passwordValue.set($event)"
-                        (keyup.enter)="savePassword()"
-                        (blur)="savePassword()"
-                        autocomplete="new-password">
-                </mat-form-field>
-            </div>
-        </div>
-    }
-
-    <div class="mt-4"></div>
-
-    <!-- Max downloads -->
-    <div class="subtitle-header">
-        <div class="item">
-            <div class="item__details">
-                <div class="item__title">
-                    Download limit
-                    <span class="item__subtitle">used: {{ downloadsCount() }}</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="flex-row ml-auto">
-            <mat-slide-toggle
-                matTooltip="Limit downloads"
-                matTooltipPosition="above"
-                [checked]="hasMaxDownloads()"
-                (change)="onHasMaxDownloadsChanged($event.checked)">
-            </mat-slide-toggle>
-        </div>
+    <div class="section-content">
+        @if (hasPassword()) {
+            <mat-form-field class="w-100">
+                <mat-label>{{ qs.hasPassword ? 'New password (press Enter to save)' : 'Password (press Enter to save)' }}</mat-label>
+                <input matInput type="password"
+                    [ngModel]="passwordValue()"
+                    (ngModelChange)="passwordValue.set($event)"
+                    (keyup.enter)="savePassword()"
+                    (blur)="savePassword()"
+                    autocomplete="new-password">
+            </mat-form-field>
+        } @else {
+            <div class="explanation">No password — anyone with the link can access.</div>
+        }
     </div>
-
-    <div class="mt-2"></div>
-
-    @if (hasMaxDownloads()) {
-        <div class="item">
-            <i class="icon icon-xl icon--placeholder icon-nucleo-download"></i>
-            <div class="item__details">
-                <mat-form-field appearance="outline" class="details-field" subscriptSizing="dynamic">
-                    <mat-label>Max downloads</mat-label>
-                    <input matInput type="number" min="1"
-                        [ngModel]="maxDownloadsValue()"
-                        (ngModelChange)="maxDownloadsValue.set($event)"
-                        (blur)="onMaxDownloadsBlur()">
-                </mat-form-field>
-            </div>
-        </div>
-    }
-
-    <div class="mt-4"></div>
 
     <!-- Shared items -->
-    <div class="subtitle-header">
-        <div class="item">
-            <div class="item__details">
-                <div class="item__title">Shared items</div>
-            </div>
-        </div>
+    <div class="title-header">
+        <div>Shared items</div>
     </div>
 
     <div class="mt-2"></div>
 
-    <div class="item">
-        <i class="icon icon-xl icon--placeholder icon-nucleo-folder"></i>
-        <div class="item__details">
-            <div>
-                {{ qs.items.selectedFiles.length }} file(s), {{ qs.items.selectedFolders.length }} folder(s)
-                @if (qs.items.excludedFiles.length + qs.items.excludedFolders.length > 0) {
-                    · {{ qs.items.excludedFiles.length + qs.items.excludedFolders.length }} excluded
-                }
-            </div>
-            <div class="item__subtitle">Items editor coming next.</div>
-        </div>
+    <div class="explanation">
+        {{ qs.items.selectedFiles.length }} file(s), {{ qs.items.selectedFolders.length }} folder(s)
+        @if (qs.items.excludedFiles.length + qs.items.excludedFolders.length > 0) {
+            · {{ qs.items.excludedFiles.length + qs.items.excludedFolders.length }} excluded
+        }
     </div>
 
     <div class="mt-4"></div>
 
     <!-- Metadata -->
-    <div class="subtitle-header">
-        <div class="item">
-            <div class="item__details">
-                <div class="item__title">Metadata</div>
-            </div>
-        </div>
+    <div class="title-header">
+        <div>Metadata</div>
     </div>
 
     <div class="mt-2"></div>
 
-    <div class="item">
-        <i class="icon icon-xl icon--placeholder icon-nucleo-info"></i>
-        <div class="item__details">
-            @if (createdAt(); as created) {
-                <div>Created: {{ created.toLocaleString() }}</div>
-            }
-            @if (lastAccessedAt(); as last) {
-                <div class="item__subtitle">Last accessed: {{ last.toLocaleString() }}</div>
-            } @else {
-                <div class="item__subtitle">Never accessed</div>
-            }
-        </div>
+    <div class="explanation">
+        @if (createdAt(); as created) {
+            Created: {{ created.toLocaleString() }}<br>
+        }
+        @if (lastAccessedAt(); as last) {
+            Last accessed: {{ last.toLocaleString() }}
+        } @else {
+            Never accessed
+        }
     </div>
 
     <div class="mt-5"></div>

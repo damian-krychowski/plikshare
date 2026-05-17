@@ -8,6 +8,7 @@ public record GetQuickShareInfoResponseDto(
     bool IsUnlocked,
     bool IsExpired,
     bool IsExhausted,
+    bool IsOwnerPreview,
     DateTimeOffset? ExpiresAt,
     int? MaxDownloads,
     int DownloadsCount);

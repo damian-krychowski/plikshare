@@ -1,8 +1,10 @@
 using System.Security.Cryptography;
+using PlikShare.Core.Authorization;
 using PlikShare.Core.Clock;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.QuickShares.Cache;
+using PlikShare.Users.Id;
 
 namespace PlikShare.QuickShareExternalAccess.Authorization;
 
@@ -41,26 +43,49 @@ public class ValidateQuickShareAccessFilter : IEndpointFilter
                 return HttpErrors.QuickShare.InvalidSecret();
         }
 
-        if (quickShare.ExpiresAt is { } expiresAt && expiresAt <= clock.UtcNow)
-            return HttpErrors.QuickShare.Expired();
+        var isOwnerPreview = IsOwnerPreview(context.HttpContext, quickShare);
 
-        if (quickShare.MaxDownloads is { } max && quickShare.DownloadsCount >= max)
-            return HttpErrors.QuickShare.Exhausted();
+        if (!isOwnerPreview)
+        {
+            if (quickShare.ExpiresAt is { } expiresAt && expiresAt <= clock.UtcNow)
+                return HttpErrors.QuickShare.Expired();
+
+            if (quickShare.MaxDownloads is { } max && quickShare.DownloadsCount >= max)
+                return HttpErrors.QuickShare.Exhausted();
+        }
 
         var session = unlockSession.ReadOrCreate(
             httpContext: context.HttpContext,
             quickShareId: quickShare.Id);
 
-        if (quickShare.PasswordHash is not null && !unlockSession.IsUnlockValid(session))
+        if (!isOwnerPreview && quickShare.PasswordHash is not null && !unlockSession.IsUnlockValid(session))
             return HttpErrors.QuickShare.RequiresPassword();
 
         var access = new QuickShareAccess(
             QuickShare: quickShare,
             UserIdentity: new QuickShareSessionUserIdentity(session.SessionId),
-            UserIp: context.HttpContext.Connection.RemoteIpAddress?.ToString());
+            UserIp: context.HttpContext.Connection.RemoteIpAddress?.ToString(),
+            IsOwnerPreview: isOwnerPreview);
 
         context.HttpContext.Items[QuickShareAccess.HttpContextName] = access;
 
         return await next(context);
+    }
+
+    internal static bool IsOwnerPreview(HttpContext httpContext, QuickShareContext quickShare)
+    {
+        if (httpContext.User.Identity?.IsAuthenticated != true)
+            return false;
+
+        var claim = httpContext.User.Claims.FirstOrDefault(c =>
+            string.Equals(c.Type, Claims.UserExternalIdClaim, StringComparison.InvariantCultureIgnoreCase));
+
+        if (claim is null)
+            return false;
+
+        if (!UserExtId.TryParse(claim.Value, out var userId))
+            return false;
+
+        return userId == quickShare.CreatorExternalId;
     }
 }

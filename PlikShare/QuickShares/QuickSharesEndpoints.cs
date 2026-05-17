@@ -143,7 +143,7 @@ public static class QuickSharesEndpoints
 
         var customSlug = string.IsNullOrWhiteSpace(request.CustomSlug)
             ? null
-            : request.CustomSlug.Trim().ToLowerInvariant();
+            : request.CustomSlug.Trim();
 
         var result = await createQuickShareQuery.Execute(
             workspace: workspace,
@@ -371,7 +371,7 @@ public static class QuickSharesEndpoints
     {
         var quickShare = httpContext.GetQuickShareContext();
 
-        var slug = (request.Slug ?? string.Empty).Trim().ToLowerInvariant();
+        var slug = (request.Slug ?? string.Empty).Trim();
 
         if (string.IsNullOrEmpty(slug))
             return HttpErrors.QuickShare.SlugFormatInvalid();

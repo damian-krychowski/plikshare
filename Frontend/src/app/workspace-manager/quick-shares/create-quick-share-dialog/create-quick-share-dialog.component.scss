@@ -1,52 +1,29 @@
-.quick-share-dialog {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 1.25rem;
-    min-width: 28rem;
-    max-width: 40rem;
+@forward "./../../../../styles/questionaire.scss";
+@forward "./../../../../styles/mobile-display.scss";
 
-    &__title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        margin-bottom: 0.25rem;
-    }
+.questionaire > .questionaire__subtitle {
+    font-size: var(--company-small-font);
+}
 
-    &__hint {
-        font-size: 0.875rem;
-        color: var(--app-text-muted, #666);
-    }
+// Material's mdc-text-field hides the native datetime picker indicator and traps
+// the click. Restore it so the user can actually open the browser's date picker.
+input[type="datetime-local"] {
+    cursor: pointer;
 
-    &__exclusions {
-        margin-left: 0.25rem;
-        font-style: italic;
+    &::-webkit-calendar-picker-indicator {
+        opacity: 1;
+        display: block;
+        cursor: pointer;
     }
+}
 
-    &__section-title {
-        font-size: 0.875rem;
-        font-weight: 600;
-        margin-top: 0.5rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--app-text-muted, #666);
-    }
-
-    &__field {
-        width: 100%;
-    }
-
-    &__checkbox {
-        margin: 0.25rem 0;
-    }
-
-    &__hint-error {
-        color: var(--app-error, #c33);
-    }
-
-    &__actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.5rem;
-        margin-top: 1rem;
-    }
+.url-preview {
+    font-family: monospace;
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    word-break: break-all;
+    padding: 0.25rem 0.5rem;
+    margin-top: -0.5rem;
+    background: var(--company-background);
+    border-radius: 4px;
 }

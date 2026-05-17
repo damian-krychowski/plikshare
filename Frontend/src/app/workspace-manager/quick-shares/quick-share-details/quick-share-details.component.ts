@@ -5,7 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
+import { MatRadioModule } from '@angular/material/radio';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
@@ -17,8 +17,9 @@ import { ConfirmOperationDirective } from '../../../shared/operation-confirm/con
 import { GetQuickShareResponse, QuickShareMode, QuickSharesApi } from '../../../services/quick-shares.api';
 import { DataStore } from '../../../services/data-store.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { getBase62Guid } from '../../../services/guid-base-62';
 
-const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{1,98}[a-z0-9]$/;
+const SLUG_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,98}[a-zA-Z0-9]$/;
 
 @Component({
     selector: 'app-quick-share-details',
@@ -29,7 +30,7 @@ const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{1,98}[a-z0-9]$/;
         MatCheckboxModule,
         MatFormFieldModule,
         MatInputModule,
-        MatSelectModule,
+        MatRadioModule,
         MatSlideToggleModule,
         MatTooltipModule,
         ActionButtonComponent,
@@ -53,10 +54,14 @@ export class QuickShareDetailsComponent implements OnInit {
     nameValue = signal('');
 
     slugValue = signal('');
-    private _lastSavedSlug = '';
+    private _lastSavedSlug = signal('');
     isSlugValid = computed(() => {
-        const s = this.slugValue().trim().toLowerCase();
+        const s = this.slugValue().trim();
         return s.length >= 3 && s.length <= 100 && SLUG_REGEX.test(s);
+    });
+    hasPendingSlugChange = computed(() => {
+        const current = this.slugValue().trim();
+        return current.length > 0 && current !== this._lastSavedSlug();
     });
 
     mode = signal<QuickShareMode>('browser');
@@ -128,7 +133,7 @@ export class QuickShareDetailsComponent implements OnInit {
         this.quickShare.set(response);
         this.nameValue.set(response.name);
         this.slugValue.set(response.slug);
-        this._lastSavedSlug = response.slug;
+        this._lastSavedSlug.set(response.slug);
 
         this.mode.set(response.mode);
         this.allowIndividualFileDownload.set(response.allowIndividualFileDownload);
@@ -156,9 +161,21 @@ export class QuickShareDetailsComponent implements OnInit {
         this._router.navigate([`/workspaces/${this._workspaceExternalId}/quick-shares`]);
     }
 
+    previewShare() {
+        const url = this.url();
+        if (!url) return;
+
+        const parsed = new URL(url);
+        this._router.navigateByUrl(parsed.pathname + parsed.search);
+    }
+
     editName() {
         this.isNameEditing.set(true);
         this.areActionsVisible.set(false);
+    }
+
+    openPicker(input: HTMLInputElement) {
+        input.showPicker?.();
     }
 
     toggleActions() {
@@ -176,9 +193,18 @@ export class QuickShareDetailsComponent implements OnInit {
         }
     }
 
-    async onSlugBlur() {
-        const slug = this.slugValue().trim().toLowerCase();
-        if (!slug || slug === this._lastSavedSlug) return;
+    regenerateSlug() {
+        this.slugValue.set(getBase62Guid());
+        this.saveSlugChange();
+    }
+
+    revertSlug() {
+        this.slugValue.set(this._lastSavedSlug());
+    }
+
+    async saveSlugChange() {
+        const slug = this.slugValue().trim();
+        if (!slug || slug === this._lastSavedSlug()) return;
         if (!this.isSlugValid()) {
             this._toastr.error('Slug format invalid');
             return;
@@ -190,7 +216,7 @@ export class QuickShareDetailsComponent implements OnInit {
                 this._externalId!,
                 { slug });
 
-            this._lastSavedSlug = slug;
+            this._lastSavedSlug.set(slug);
             this.slugValue.set(slug);
 
             const current = this.quickShare();
@@ -202,7 +228,7 @@ export class QuickShareDetailsComponent implements OnInit {
             this._dataStore.invalidateQuickShares(this._workspaceExternalId!);
             this._toastr.success('Custom URL updated');
         } catch (error) {
-            this.slugValue.set(this._lastSavedSlug);
+            this.slugValue.set(this._lastSavedSlug());
 
             if (error instanceof HttpErrorResponse && error.status === 409) {
                 this._toastr.error('This URL is already taken');
@@ -235,6 +261,9 @@ export class QuickShareDetailsComponent implements OnInit {
 
     onModeChanged(value: QuickShareMode) {
         this.mode.set(value);
+        if (value !== 'browser') {
+            this.allowIndividualFileDownload.set(false);
+        }
         this.saveMode();
     }
 

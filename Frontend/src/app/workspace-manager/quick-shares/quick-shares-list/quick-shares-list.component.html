@@ -8,17 +8,22 @@
 
 <div class="mt-2"></div>
 
-@if (isLoading()) {
-    <div class="empty-state">Loading…</div>
-} @else if (hasNoShares()) {
-    <div class="empty-state">
-        No quick shares yet. Open the explorer, select files or folders, and use "Quick share selection" to create one.
+@for (share of quickShares(); track share.externalId) {
+    <app-quick-share-item
+        [quickShare]="share"
+        (deleted)="onShareDeleted(share)">
+    </app-quick-share-item>
+}
+
+@if (!isLoading() && hasNoShares()) {
+    <div>
+        <div class="mt-2"></div>
+
+        <app-item-btn
+            title="Create a quick share"
+            subtitle="Open the explorer, select files or folders, then click 'Quick share selection'."
+            icon="icon-nucleo-share"
+            (clicked)="goToExplorer()">
+        </app-item-btn>
     </div>
-} @else {
-    @for (share of quickShares(); track share.externalId) {
-        <app-quick-share-item
-            [quickShare]="share"
-            (deleted)="onShareDeleted(share)">
-        </app-quick-share-item>
-    }
 }

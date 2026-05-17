@@ -12,6 +12,7 @@ export interface GetQuickShareInfoResponse {
     isUnlocked: boolean;
     isExpired: boolean;
     isExhausted: boolean;
+    isOwnerPreview: boolean;
     expiresAt: string | null;
     maxDownloads: number | null;
     downloadsCount: number;

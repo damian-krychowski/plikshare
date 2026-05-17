@@ -3,11 +3,13 @@ import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { Subscription, filter } from 'rxjs';
 import { DataStore } from '../../../services/data-store.service';
 import { AppQuickShare, QuickShareItemComponent } from '../quick-share-item/quick-share-item.component';
+import { ItemButtonComponent } from '../../../shared/buttons/item-btn/item-btn.component';
 
 @Component({
     selector: 'app-quick-shares-list',
     imports: [
-        QuickShareItemComponent
+        QuickShareItemComponent,
+        ItemButtonComponent
     ],
     templateUrl: './quick-shares-list.component.html',
     styleUrl: './quick-shares-list.component.scss'
@@ -85,5 +87,10 @@ export class QuickSharesListComponent implements OnInit, OnDestroy {
 
     onShareDeleted(share: AppQuickShare) {
         this.quickShares.update(values => values.filter(s => s.externalId !== share.externalId));
+    }
+
+    goToExplorer() {
+        if (!this._currentWorkspaceExternalId) return;
+        this._router.navigate([`workspaces/${this._currentWorkspaceExternalId}/explorer`]);
     }
 }
