@@ -1,20 +1,31 @@
 <div class="search">
-    <input 
-        class="search__input"
-        type="text"
-        [value]="phrase()"
-        (debouncedChange)="onPerformSearch($event)"
-        [debounceTime]="debounce()"
-        data-lpignore="true"
-        (focus)="isFocused.set(true)"
-        (blur)="isFocused.set(false)"
-        placeholder="Search...">
+    <div class="search__input-wrapper">
+        <input #searchInput
+            class="search__input"
+            type="text"
+            [value]="phrase()"
+            (debouncedChange)="onPerformSearch($event)"
+            [debounceTime]="debounce()"
+            data-lpignore="true"
+            (focus)="isFocused.set(true)"
+            (blur)="isFocused.set(false)"
+            placeholder="Search...">
 
-    @if(isFocused()) {
-        @if(count(); as countValue) {
-            <div class="search__count">
-                {{countValue.matchingItems}} / {{countValue.allItems}}
-            </div>
-        } 
-    }
+        @if(collapsibleOnMobile()) {
+            <button type="button"
+                class="search__close d-none-on-desktop"
+                aria-label="Close search"
+                (click)="onCloseClicked()">
+                <i class="icon icon-lucide-xmark"></i>
+            </button>
+        }
+
+        @if(isFocused()) {
+            @if(count(); as countValue) {
+                <div class="search__count">
+                    {{countValue.matchingItems}} / {{countValue.allItems}}
+                </div>
+            }
+        }
+    </div>
 </div>

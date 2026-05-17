@@ -1,26 +1,28 @@
+@use "./../../../styles/variables.scss" as variables;
+
 .search {
     position: relative;
 
     &__input {
         font-size: 1rem;
         font-weight: normal;
-    
+
         border: 1px solid var(--company-grey-accent);
         margin-left: auto;
-    
+
         flex-grow: 1;
         min-width: 100px;
         transition: flex-grow .15s ease-in-out;
-        
+
         border-radius: 4px;
         padding: 0.3rem 1rem;
         opacity: 0.6;
-    
+
         &:focus-visible {
             outline: 2px solid var(--company-blue-hover);
             border: 1px solid var(--company-grey-accent);
         }
-    
+
         &:focus {
             opacity: 1;
         }
@@ -32,5 +34,62 @@
         color: var(--company-grey-accent);
         bottom: -1.2rem;
         right: 0rem;
+    }
+
+    &__close {
+        all: unset;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        cursor: pointer;
+        color: var(--company-grey-font);
+        border-radius: 4px;
+        margin-left: 0.25rem;
+        flex-shrink: 0;
+
+        &:hover {
+            background: var(--company-grey-accent-light);
+            color: var(--company-font);
+        }
+
+        .icon {
+            font-size: 1.1rem;
+        }
+    }
+}
+
+// Collapsible behavior — opt-in via the host class `is-mobile-collapsible`.
+// Desktop styling is untouched (the rules below all sit inside the mobile
+// media query), so other usages of <app-item-search> keep their original
+// look on every viewport.
+@media (max-width: variables.$mobile-breakpoint) {
+    :host.is-mobile-collapsible {
+        display: none;
+    }
+
+    :host.is-mobile-collapsible.is-mobile-expanded {
+        display: inline-flex;
+        align-items: center;
+        flex: 0 0 100%;
+
+        .search {
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
+
+        .search__input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+            width: 100%;
+        }
+
+        .search__input {
+            width: 100%;
+        }
     }
 }

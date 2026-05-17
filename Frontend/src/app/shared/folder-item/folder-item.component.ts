@@ -1,6 +1,5 @@
 import { Component, HostListener, Signal, WritableSignal, computed, input, output, signal } from "@angular/core";
 import { MatTooltipModule } from "@angular/material/tooltip";
-import { ConfirmOperationDirective } from "../operation-confirm/confirm-operation.directive";
 import { EditableTxtComponent } from "../editable-txt/editable-txt.component";
 import { PrefetchDirective } from "../prefetch.directive";
 import { CtrlClickDirective } from "../ctrl-click.directive";
@@ -64,7 +63,6 @@ const TIME_TO_RENAME_FOLDER_WITHOUT_PERMISSION_MS = 5 * 60 * 1000;
         MatCheckboxModule,
         MatTooltipModule,
         EditableTxtComponent,
-        ConfirmOperationDirective,
         PrefetchDirective,
         CtrlClickDirective,
         ActionButtonComponent

@@ -4,7 +4,6 @@ import { FormsModule } from "@angular/forms";
 import { MatCheckboxModule } from "@angular/material/checkbox";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { CtrlClickDirective } from "../ctrl-click.directive";
-import { ConfirmOperationDirective } from "../operation-confirm/confirm-operation.directive";
 import { EditableTxtComponent } from "../editable-txt/editable-txt.component";
 import { PrefetchDirective } from "../prefetch.directive";
 import { toggle } from "../signal-utils";
@@ -64,7 +63,6 @@ export interface FileOperations {
         MatTooltipModule,
         StorageSizePipe,
         EditableTxtComponent,
-        ConfirmOperationDirective,
         PrefetchDirective,
         CtrlClickDirective,
         FileIconPipe,

@@ -4,6 +4,8 @@
 @forward "./../../styles/mobile-display.scss";
 @forward "./../../styles/drop-area.scss";
 
+@use "./../../styles/variables.scss" as variables;
+
 .explorer-content {
     position: relative;
     z-index: 1;
@@ -37,7 +39,12 @@ a.drag-over {
 
     display: flex;
     flex-direction: row;
+    align-items: center;
     gap: 0.5rem;
+
+    @media (max-width: variables.$mobile-early-breakpoint) {
+        padding: 0.5rem 0;
+    }
 }
 
 .context-row {
@@ -51,6 +58,44 @@ a.drag-over {
 
     &--gap {
         margin-left: 1.25rem;
+    }
+}
+
+.context-counts {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+// Icon-prefixed count chip used in the context bar. Layout is inline-flex so
+// the line-height matches the surrounding text — icon font-size is clamped
+// below the row's natural line-height so swapping text → icons doesn't grow
+// the bar height.
+.context-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    line-height: 1;
+
+    &__icon {
+        // Match the small-font (0.8rem) so the chip's height stays in sync
+        // with the surrounding text — no row-height jumping vs. the
+        // original text-only counts.
+        font-size: 0.8rem;
+        opacity: 0.7;
+        flex-shrink: 0;
+    }
+
+    &__value {
+        font-variant-numeric: tabular-nums;
+    }
+
+    // Subtle styling to differentiate the "in-flight uploads" status badge
+    // from the regular folder/file/upload counters.
+    &--queued {
+        color: var(--company-blue-selected-font, var(--company-font));
+        background: var(--company-blue-selected);
+        border-radius: 3px;
     }
 }
 
@@ -240,6 +285,52 @@ a.drag-over {
 
     &--shadow {
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    }
+}
+
+// Two-row split is content-driven via flex-wrap, not breakpoint-based: when
+// path + actions can't both fit on one line, the actions-row wraps to the
+// next row. This avoids the overlap zone you'd get with a fixed
+// @media (max-width) cutoff. Desktop with normal content stays single-row.
+.title-header--responsive {
+    flex-wrap: wrap;
+    row-gap: 0.4rem;
+
+    .title-header__path-row {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+    }
+
+    .title-header__actions-row {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+        margin-left: auto;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    // Spans group the action buttons logically while still flowing into
+    // .title-header__actions-row as direct flex children — so the gap
+    // between buttons matches the original wrapper's gap.
+    .title-header__actions {
+        display: contents;
+    }
+
+    @media (max-width: variables.$mobile-breakpoint) {
+        .title-header__actions--hidden-on-mobile {
+            display: none;
+        }
+
+        // When the search is expanded on mobile, force the actions-row to its
+        // own line and fill it — so the expanded input has the full row to
+        // breathe in.
+        .title-header__actions-row--search-expanded {
+            flex: 0 0 100%;
+            min-width: 0;
+        }
     }
 }
 

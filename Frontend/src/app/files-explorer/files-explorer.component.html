@@ -160,17 +160,22 @@
                 Total upload size: {{totalBulkUploadSize() | storageSize}}
             </div>      
         </div>
-    } @else {        
-        <div class="title-header">
-            <app-folder-path
-                [topFolderExternalId]="topFolderExternalId()"
-                [selectedFolder]="selectedFolder()"
-                (prefetchFolder)="prefetchFolder($event)"
-                (openFolder)="openFolderByExternalId($event)">        
-            </app-folder-path>
+    } @else {
+        <div class="title-header title-header--responsive">
+            <div class="title-header__path-row">
+                <app-folder-path
+                    [topFolderExternalId]="topFolderExternalId()"
+                    [selectedFolder]="selectedFolder()"
+                    (prefetchFolder)="prefetchFolder($event)"
+                    (openFolder)="openFolderByExternalId($event)">
+                </app-folder-path>
+            </div>
 
-            <div class="flex-row flex-gap-05 ml-auto">   
+            <div class="title-header__actions-row flex-row flex-gap-05"
+                [class.title-header__actions-row--search-expanded]="isSearchExpandedOnMobile()">
                 @if(isListViewMode) {
+                    <span class="title-header__actions"
+                        [class.title-header__actions--hidden-on-mobile]="isSearchExpandedOnMobile()">
                     @if(canBulkDownload()) {
                         <app-action-btn
                             tooltip="Download"
@@ -247,23 +252,43 @@
                         }
                     }
 
+                    </span>
+
                     @if(allowList()) {
                         <app-item-search
+                            class="title-header__search"
+                            [collapsibleOnMobile]="true"
+                            [isExpanded]="isSearchExpandedOnMobile()"
                             [phrase]="searchPhrase()"
                             [debounce]="50"
                             [minimalLength]="1"
-                            (searched)="searchPhrase.set($event)">
+                            (searched)="searchPhrase.set($event)"
+                            (closed)="isSearchExpandedOnMobile.set(false)">
                         </app-item-search>
                     }
 
+                    <span class="title-header__actions title-header__actions--trailing"
+                        [class.title-header__actions--hidden-on-mobile]="isSearchExpandedOnMobile()">
+                    @if(allowList()) {
+                        <app-action-btn
+                            class="d-none-on-desktop"
+                            tooltip="Search"
+                            icon="icon-lucide-search"
+                            (clicked)="openMobileSearch()">
+                        </app-action-btn>
+                    }
+
                     @if(canSelectAll()) {
-                        <mat-checkbox 
+                        <mat-checkbox
                             [matTooltip]="isAnyItemNotSelected() ? 'Select all' : 'Unselect all'"
                             [ngModel]="itemsCount() > 0 && !isAnyItemNotSelected()"
                             (change)="toggleAllItemsSelection()">
                         </mat-checkbox>
                     }
+                    </span>
                 } @else {
+                    <span class="title-header__actions"
+                        [class.title-header__actions--hidden-on-mobile]="isSearchExpandedOnMobile()">
                     @if(canBulkTreeDownload()) {
                         <app-action-btn
                             tooltip="Download"
@@ -291,15 +316,32 @@
                             (confirmedClick)="triggerSelectedTreeItemsDelete()">
                         </app-action-btn>
                     }
+                    </span>
 
                     @if(allowList()) {
                         <app-item-search
+                            class="title-header__search"
+                            [collapsibleOnMobile]="true"
+                            [isExpanded]="isSearchExpandedOnMobile()"
                             [phrase]="searchPhrase()"
                             [debounce]="50"
                             [minimalLength]="1"
-                            (searched)="searchPhrase.set($event)">
+                            (searched)="searchPhrase.set($event)"
+                            (closed)="isSearchExpandedOnMobile.set(false)">
                         </app-item-search>
                     }
+
+                    <span class="title-header__actions title-header__actions--trailing"
+                        [class.title-header__actions--hidden-on-mobile]="isSearchExpandedOnMobile()">
+                    @if(allowList()) {
+                        <app-action-btn
+                            class="d-none-on-desktop"
+                            tooltip="Search"
+                            icon="icon-lucide-search"
+                            (clicked)="openMobileSearch()">
+                        </app-action-btn>
+                    }
+                    </span>
                 }
             </div>
         </div>
@@ -307,7 +349,7 @@
         @if(!hideContextBar()) {
             <div class="context-bar">
                 @if(allowList()) {
-                    <div class="context-row">
+                    <div class="context-row d-none-on-mobile-early">
                         <span class="context-label">View:</span>
 
                         <span class="context-item view-mode context-item--switch"
@@ -335,39 +377,73 @@
                             (sortChanged)="onSortChanged($event)">
                         </app-sort-menu>
                     </div>
+
+                    <app-display-menu
+                        class="d-none-on-desktop-early"
+                        [viewMode]="viewModeVal"
+                        [sortMode]="sortMode()"
+                        [sortDirection]="sortDirection()"
+                        [allowDateSort]="allowDateSort()"
+                        [allowList]="allowList()"
+                        (viewModeChanged)="setViewMode($event)"
+                        (sortChanged)="onSortChanged($event)">
+                    </app-display-menu>
                 }
 
-                <div class="ml-auto">
+                <div class="ml-auto context-counts">
                     @if(isListViewMode) {
                         @if(fileUploadManager.pendingQueueSize() > 0) {
-                            <span class="context-item">
-                                Queued Uploads: {{fileUploadManager.pendingQueueSize()}}
-                            </span> |
+                            <span class="context-item context-count context-count--queued"
+                                matTooltip="Queued uploads">
+                                <i class="icon icon-nucleo-upload context-count__icon"></i>
+                                <span class="context-count__value">{{fileUploadManager.pendingQueueSize()}}</span>
+                            </span>
                         }
 
-                        <span class="context-item context-item--btn" (click)="toggleAllFolders()">
-                            @if(isAnyItemSelected()) {
-                                Folders: {{selectedFoldersCount()}}/{{foldersCount()}}
-                            } @else {
-                                Folders: {{foldersCount()}}
-                            }
-                        </span> |
+                        @if(foldersCount() > 0) {
+                            <span class="context-item context-item--btn context-count"
+                                matTooltip="Folders"
+                                (click)="toggleAllFolders()">
+                                <i class="icon icon-nucleo-folder context-count__icon"></i>
+                                <span class="context-count__value">
+                                    @if(isAnyItemSelected()) {
+                                        {{selectedFoldersCount()}}/{{foldersCount()}}
+                                    } @else {
+                                        {{foldersCount()}}
+                                    }
+                                </span>
+                            </span>
+                        }
 
-                        <span class="context-item context-item--btn" (click)="toggleAllFiles()">
-                            @if(isAnyItemSelected()) {
-                                Files: {{selectedFilesCount()}}/{{filesCount()}}
-                            } @else {
-                                Files: {{filesCount()}}
-                            }
-                        </span> |
+                        @if(filesCount() > 0) {
+                            <span class="context-item context-item--btn context-count"
+                                matTooltip="Files"
+                                (click)="toggleAllFiles()">
+                                <i class="icon icon-nucleo-file context-count__icon"></i>
+                                <span class="context-count__value">
+                                    @if(isAnyItemSelected()) {
+                                        {{selectedFilesCount()}}/{{filesCount()}}
+                                    } @else {
+                                        {{filesCount()}}
+                                    }
+                                </span>
+                            </span>
+                        }
 
-                        <span class="context-item context-item--btn" (click)="toggleAllUploads()">
-                            @if(isAnyItemSelected()) {
-                                Uploads: {{selectedUploadsCount()}}/{{uploadsCount()}}
-                            } @else {
-                                Uploads: {{uploadsCount()}}
-                            }
-                        </span>
+                        @if(uploadsCount() > 0) {
+                            <span class="context-item context-item--btn context-count"
+                                matTooltip="Uploads"
+                                (click)="toggleAllUploads()">
+                                <i class="icon icon-nucleo-upload context-count__icon"></i>
+                                <span class="context-count__value">
+                                    @if(isAnyItemSelected()) {
+                                        {{selectedUploadsCount()}}/{{uploadsCount()}}
+                                    } @else {
+                                        {{uploadsCount()}}
+                                    }
+                                </span>
+                            </span>
+                        }
                     } @else {
                         @let selectionSummary = treeSelectionSummary();
 

@@ -1,0 +1,60 @@
+<button type="button" class="display-menu__trigger" (click)="toggle()">
+    {{ triggerLabel() }}
+    <i class="icon icon-lucide-chevron-down"></i>
+</button>
+
+@if(isOpen()) {
+    <div class="display-menu__panel">
+        @if(allowList()) {
+            <div class="display-menu__section-label">View</div>
+            <button type="button" class="display-menu__item"
+                [class.display-menu__item--active]="isViewActive('list-view')"
+                (click)="selectView('list-view')">
+                <i class="icon" [class.icon-lucide-check]="isViewActive('list-view')"></i>
+                List
+            </button>
+            <button type="button" class="display-menu__item"
+                [class.display-menu__item--active]="isViewActive('tree-view')"
+                (click)="selectView('tree-view')">
+                <i class="icon" [class.icon-lucide-check]="isViewActive('tree-view')"></i>
+                Tree
+            </button>
+
+            <div class="display-menu__divider"></div>
+        }
+
+        <div class="display-menu__section-label">Order</div>
+        <button type="button" class="display-menu__item"
+            [class.display-menu__item--active]="isSortActive('custom', 'asc')"
+            (click)="selectSort('custom', 'asc')">
+            <i class="icon" [class.icon-lucide-check]="isSortActive('custom', 'asc')"></i>
+            Custom
+        </button>
+        <button type="button" class="display-menu__item"
+            [class.display-menu__item--active]="isSortActive('name', 'asc')"
+            (click)="selectSort('name', 'asc')">
+            <i class="icon" [class.icon-lucide-check]="isSortActive('name', 'asc')"></i>
+            Name &uarr;
+        </button>
+        <button type="button" class="display-menu__item"
+            [class.display-menu__item--active]="isSortActive('name', 'desc')"
+            (click)="selectSort('name', 'desc')">
+            <i class="icon" [class.icon-lucide-check]="isSortActive('name', 'desc')"></i>
+            Name &darr;
+        </button>
+        @if(allowDateSort()) {
+            <button type="button" class="display-menu__item"
+                [class.display-menu__item--active]="isSortActive('date', 'asc')"
+                (click)="selectSort('date', 'asc')">
+                <i class="icon" [class.icon-lucide-check]="isSortActive('date', 'asc')"></i>
+                Date &uarr;
+            </button>
+            <button type="button" class="display-menu__item"
+                [class.display-menu__item--active]="isSortActive('date', 'desc')"
+                (click)="selectSort('date', 'desc')">
+                <i class="icon" [class.icon-lucide-check]="isSortActive('date', 'desc')"></i>
+                Date &darr;
+            </button>
+        }
+    </div>
+}

@@ -31,6 +31,7 @@ import { FileInlinePreviewCommandsPipeline } from './file-inline-preview/file-in
 import { WorkspaceIntegrations } from '../services/workspaces.api';
 import { DragStateService } from '../services/drag-state.service';
 import { SortChange, SortMenuComponent } from './sort-menu/sort-menu.component';
+import { DisplayMenuComponent } from './display-menu/display-menu.component';
 import { computePositionForInsertion } from '../shared/drag-drop/item-positioning.utils';
 import { FilesListComponent } from './files-list/files-list.component';
 
@@ -137,7 +138,8 @@ type ViewMode = 'list-view' | 'tree-view';
         BulkUploadPreviewComponent,
         FileTreeViewComponent,
         ItemSearchComponent,
-        SortMenuComponent
+        SortMenuComponent,
+        DisplayMenuComponent
     ],
     templateUrl: './files-explorer.component.html',
     styleUrl: './files-explorer.component.scss'
@@ -460,6 +462,11 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     pendingBulkUpload: WritableSignal<BulkFileUpload | null> = signal(null);
     totalBulkUploadSize = computed(() => this.pendingBulkUpload()?.archive()?.fileSize ?? 0);
 
+    // Mobile-only: when search is expanded, hide the rest of the action row to
+    // give the input the full width. Desktop ignores this flag — the search
+    // input is always visible there.
+    isSearchExpandedOnMobile = signal(false);
+
     previousForPreview = computed(() => this.getPreviousFileForPreview(this.fileInPreview()));
     isPreviousForPreviewAvailable = computed(() => this.previousForPreview() != null);
     isMouseOverPreviewPreviousBtn = signal(false);
@@ -587,6 +594,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
     @ViewChild(BulkUploadPreviewComponent) bulkUploadPreview!: BulkUploadPreviewComponent;
     @ViewChild(FileTreeViewComponent) fileTreeView!: FileTreeViewComponent;
+    @ViewChild(ItemSearchComponent) itemSearch?: ItemSearchComponent;
 
     constructor(
         public fileUploadManager: FileUploadManager,
@@ -1265,6 +1273,11 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
     public startUpload(fileUpload: HTMLInputElement) {
         fileUpload.click();
+    }
+
+    public openMobileSearch() {
+        this.isSearchExpandedOnMobile.set(true);
+        this.itemSearch?.focusInput();
     }
 
     public runBulkUpload() {
