@@ -11,6 +11,8 @@ Release notes for PlikShare.
 - [IMPROVEMENT] Unified view mode and sort order into a single "List · Custom ▾" display menu in the context bar
 - [IMPROVEMENT] Folder / file / upload counts in the context bar shown as icon chips with tooltips instead of text
 
+[Quick share](https://github.com/user-attachments/assets/896b0c39-1857-4f88-acd4-750576d63f59)
+
 ## 1.1.27
 
 - [FEATURE] Configurable audit-log policy — admins can disable individual events and override their severity (verbose/info/warning/critical) at the application level, set defaults for new workspaces, and tune the policy of each workspace individually
