@@ -173,7 +173,7 @@
                 @if(isListViewMode) {
                     @if(canBulkDownload()) {
                         <app-action-btn
-                            tooltip="Bulk Download"
+                            tooltip="Download"
                             icon="icon-nucleo-download"
                             (clicked)="downloadSelectedItems()">
                         </app-action-btn>
@@ -181,7 +181,7 @@
 
                     @if(canBulkQuickShare()) {
                         <app-action-btn
-                            tooltip="Quick share selection"
+                            tooltip="Share"
                             icon="icon-nucleo-share"
                             (clicked)="shareSelectedItems()">
                         </app-action-btn>
@@ -250,7 +250,7 @@
                 } @else {
                     @if(canBulkTreeDownload()) {
                         <app-action-btn
-                            tooltip="Bulk Download"
+                            tooltip="Download"
                             icon="icon-nucleo-download"
                             (clicked)="downloadSelectedTreeItems()">
                         </app-action-btn>
@@ -258,7 +258,7 @@
 
                     @if(canBulkTreeQuickShare()) {
                         <app-action-btn
-                            tooltip="Quick share selection"
+                            tooltip="Share"
                             icon="icon-nucleo-share"
                             (clicked)="shareSelectedTreeItems()">
                         </app-action-btn>

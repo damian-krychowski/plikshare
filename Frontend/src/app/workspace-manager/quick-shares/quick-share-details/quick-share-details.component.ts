@@ -1,4 +1,4 @@
-import { Component, OnInit, WritableSignal, computed, signal } from '@angular/core';
+import { Component, OnInit, WritableSignal, computed, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -18,6 +18,9 @@ import { GetQuickShareResponse, QuickShareMode, QuickSharesApi } from '../../../
 import { DataStore } from '../../../services/data-store.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { getBase62Guid } from '../../../services/guid-base-62';
+import { FoldersAndFilesGetApi, mapFileDtosToItems, mapFolderDtosToItems } from '../../../services/folders-and-files.api';
+import { AppTreeItem } from '../../../shared/file-tree-view/tree-item';
+import { FileTreeSelectionState, FileTreeViewComponent, LoadFolderNodeRequest, areFileTreeSelectionsEqual } from '../../../shared/file-tree-view/file-tree-view.component';
 
 const SLUG_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,98}[a-zA-Z0-9]$/;
 
@@ -35,7 +38,8 @@ const SLUG_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,98}[a-zA-Z0-9]$/;
         MatTooltipModule,
         ActionButtonComponent,
         EditableTxtComponent,
-        ConfirmOperationDirective
+        ConfirmOperationDirective,
+        FileTreeViewComponent
     ],
     templateUrl: './quick-share-details.component.html',
     styleUrl: './quick-share-details.component.scss'
@@ -73,13 +77,52 @@ export class QuickShareDetailsComponent implements OnInit {
 
     hasPassword = signal(false);
     passwordValue = signal('');
-    private _isSavingPassword = false;
+    private _lastSavedHasPassword = signal(false);
+
+    hasPendingPasswordChange = computed(() => {
+        // Pending if user toggled OFF a previously-set password (remove) or typed a new one.
+        if (!this.hasPassword() && this._lastSavedHasPassword()) return true;
+        if (this.hasPassword() && this.passwordValue().trim().length > 0) return true;
+        return false;
+    });
 
     hasMaxDownloads = signal(false);
     maxDownloadsValue: WritableSignal<number | null> = signal(null);
     private _lastSavedMaxDownloads: number | null = null;
 
     copied = signal(false);
+
+    treeItems: WritableSignal<AppTreeItem[]> = signal([]);
+    savedItemsSelection = signal<FileTreeSelectionState>({
+        selectedFolderExternalIds: [],
+        selectedFileExternalIds: [],
+        excludedFolderExternalIds: [],
+        excludedFileExternalIds: []
+    });
+    autoExpandFolderIds = signal<string[]>([]);
+    initiallyExcludedExternalIds = signal<string[]>([]);
+
+    fileTreeView = viewChild(FileTreeViewComponent);
+
+    // Counter of in-flight workspace-tree fetches (initial + lazy loads triggered by auto-expand).
+    // While >0, the tree's selectionState is still converging toward saved — suppress
+    // change-detection so confirm/discard buttons don't flicker during initialization.
+    private _pendingTreeLoads = signal(0);
+
+    hasPendingItemsChange = computed(() => {
+        if (this._pendingTreeLoads() > 0) return false;
+
+        const tree = this.fileTreeView();
+        if (!tree) return false;
+
+        return !areFileTreeSelectionsEqual(tree.selectionState(), this.savedItemsSelection());
+    });
+
+    hasAnyItemsSelected = computed(() => {
+        const tree = this.fileTreeView();
+        const state = tree ? tree.selectionState() : this.savedItemsSelection();
+        return state.selectedFolderExternalIds.length > 0 || state.selectedFileExternalIds.length > 0;
+    });
 
     url = computed(() => this.quickShare()?.url ?? null);
     downloadsCount = computed(() => this.quickShare()?.downloadsCount ?? 0);
@@ -96,6 +139,7 @@ export class QuickShareDetailsComponent implements OnInit {
         private _route: ActivatedRoute,
         private _router: Router,
         private _api: QuickSharesApi,
+        private _foldersApi: FoldersAndFilesGetApi,
         private _dataStore: DataStore,
         private _clipboard: Clipboard,
         private _snackBar: MatSnackBar,
@@ -144,11 +188,146 @@ export class QuickShareDetailsComponent implements OnInit {
         this._lastSavedExpiresAtIso = iso;
 
         this.hasPassword.set(response.hasPassword);
+        this._lastSavedHasPassword.set(response.hasPassword);
         this.passwordValue.set('');
 
         this.hasMaxDownloads.set(response.maxDownloads !== null);
         this.maxDownloadsValue.set(response.maxDownloads);
         this._lastSavedMaxDownloads = response.maxDownloads;
+
+        this.savedItemsSelection.set({
+            selectedFolderExternalIds: [...response.items.selectedFolders],
+            selectedFileExternalIds: [...response.items.selectedFiles],
+            excludedFolderExternalIds: [...response.items.excludedFolders],
+            excludedFileExternalIds: [...response.items.excludedFiles]
+        });
+
+        // Flatten the BE-supplied folder paths into a unique set the tree consumes. Each path
+        // is root→deepest; the tree's auto-expand uses a Set lookup, so duplicates across paths
+        // (shared ancestors) collapse naturally.
+        const expandIds = new Set<string>();
+        for (const path of response.items.foldersToExpand) {
+            for (const id of path.folderExternalIds) {
+                expandIds.add(id);
+            }
+        }
+        this.autoExpandFolderIds.set([...expandIds]);
+
+        this.initiallyExcludedExternalIds.set([
+            ...response.items.excludedFolders,
+            ...response.items.excludedFiles
+        ]);
+
+        this.loadTopFolders();
+    }
+
+    private async loadTopFolders() {
+        this._pendingTreeLoads.update(n => n + 1);
+        try {
+            const response = await this._foldersApi.getTopFolders(this._workspaceExternalId!);
+            const folders = mapFolderDtosToItems(response.subfolders, []);
+            const files = mapFileDtosToItems(response.files, response.folder?.externalId ?? null);
+            this.applySelectedFlagFromSaved(folders, files);
+            this.treeItems.set([...folders, ...files]);
+        } catch (error) {
+            console.error(error);
+            this._toastr.error('Failed to load workspace tree');
+        } finally {
+            this._pendingTreeLoads.update(n => n - 1);
+        }
+    }
+
+    async onFolderTreeLoadRequested(request: LoadFolderNodeRequest) {
+        this._pendingTreeLoads.update(n => n + 1);
+        try {
+            const response = await this._foldersApi.getFolder(
+                this._workspaceExternalId!,
+                request.folder.externalId);
+            const ancestors = response.folder
+                ? [...(response.folder.ancestors ?? []), { externalId: response.folder.externalId, name: response.folder.name }]
+                : [];
+            const folders = mapFolderDtosToItems(response.subfolders, ancestors);
+            const files = mapFileDtosToItems(response.files, response.folder?.externalId ?? null);
+            this.applySelectedFlagFromSaved(folders, files);
+            request.folderLoadedCallback([...folders, ...files]);
+        } catch (error) {
+            console.error(error);
+            this._toastr.error('Failed to load folder content');
+        } finally {
+            this._pendingTreeLoads.update(n => n - 1);
+        }
+    }
+
+    // Items come from the workspace API with isSelected=false. Flip the bit to true on the ones
+    // the share already includes BEFORE handing them to the tree, so the tree wrappers reflect
+    // the saved selection out of the box — no second-pass mutation required.
+    private applySelectedFlagFromSaved(
+        folders: { externalId: string; isSelected: WritableSignal<boolean> }[],
+        files: { externalId: string; isSelected: WritableSignal<boolean> }[]) {
+        const saved = this.savedItemsSelection();
+        const selectedFolderIds = new Set(saved.selectedFolderExternalIds);
+        const selectedFileIds = new Set(saved.selectedFileExternalIds);
+
+        for (const f of folders) {
+            if (selectedFolderIds.has(f.externalId)) f.isSelected.set(true);
+        }
+        for (const f of files) {
+            if (selectedFileIds.has(f.externalId)) f.isSelected.set(true);
+        }
+    }
+
+    revertItems() {
+        this.treeItems.set([]);
+        this.loadTopFolders();
+    }
+
+    async saveItems() {
+        const tree = this.fileTreeView();
+        if (!tree) return;
+
+        const current = tree.selectionState();
+
+        if (current.selectedFolderExternalIds.length === 0 && current.selectedFileExternalIds.length === 0) {
+            this._toastr.error('Select at least one file or folder');
+            return;
+        }
+
+        try {
+            await this._api.updateQuickShareItems(
+                this._workspaceExternalId!,
+                this._externalId!,
+                {
+                    selectedFiles: current.selectedFileExternalIds,
+                    selectedFolders: current.selectedFolderExternalIds,
+                    excludedFiles: current.excludedFileExternalIds,
+                    excludedFolders: current.excludedFolderExternalIds
+                });
+
+            this.savedItemsSelection.set({
+                selectedFolderExternalIds: [...current.selectedFolderExternalIds],
+                selectedFileExternalIds: [...current.selectedFileExternalIds],
+                excludedFolderExternalIds: [...current.excludedFolderExternalIds],
+                excludedFileExternalIds: [...current.excludedFileExternalIds]
+            });
+
+            const qs = this.quickShare();
+            if (qs) this.quickShare.set({
+                ...qs,
+                items: {
+                    ...qs.items,
+                    selectedFiles: [...current.selectedFileExternalIds],
+                    selectedFolders: [...current.selectedFolderExternalIds],
+                    excludedFiles: [...current.excludedFileExternalIds],
+                    excludedFolders: [...current.excludedFolderExternalIds]
+                }
+            });
+
+            this._dataStore.invalidateQuickShares(this._workspaceExternalId!);
+            this._toastr.success('Shared items updated');
+        } catch (error) {
+            console.error(error);
+            this._toastr.error('Failed to update shared items');
+        }
     }
 
     private toLocalInputValue(date: Date): string {
@@ -333,39 +512,35 @@ export class QuickShareDetailsComponent implements OnInit {
 
     onHasPasswordChanged(checked: boolean) {
         this.hasPassword.set(checked);
-
-        if (!checked) {
-            this.passwordValue.set('');
-            this.savePasswordRaw(null);
-        }
+        if (!checked) this.passwordValue.set('');
     }
 
-    async savePassword() {
-        if (!this.hasPassword()) return;
-        if (this._isSavingPassword) return;
-
-        const value = this.passwordValue();
-        if (!value.trim()) return;
-
-        this._isSavingPassword = true;
-        try {
-            await this.savePasswordRaw(value);
-            this.passwordValue.set('');
-        } finally {
-            this._isSavingPassword = false;
-        }
+    revertPassword() {
+        this.hasPassword.set(this._lastSavedHasPassword());
+        this.passwordValue.set('');
     }
 
-    private async savePasswordRaw(password: string | null) {
+    async savePasswordChange() {
+        const password = this.hasPassword() ? this.passwordValue().trim() : null;
+
+        if (this.hasPassword() && !password) {
+            this._toastr.error('Type a password');
+            return;
+        }
+
         try {
             await this._api.updateQuickSharePassword(
                 this._workspaceExternalId!,
                 this._externalId!,
                 { password });
 
+            this._lastSavedHasPassword.set(password !== null);
+            this.passwordValue.set('');
+
             const current = this.quickShare();
             if (current) this.quickShare.set({ ...current, hasPassword: password !== null });
             this._dataStore.invalidateQuickShares(this._workspaceExternalId!);
+            this._toastr.success(password !== null ? 'Password updated' : 'Password removed');
         } catch (error) {
             console.error(error);
             this._toastr.error('Failed to save password');

@@ -58,7 +58,7 @@ public class ValidateQuickShareAccessFilter : IEndpointFilter
             httpContext: context.HttpContext,
             quickShareId: quickShare.Id);
 
-        if (!isOwnerPreview && quickShare.PasswordHash is not null && !unlockSession.IsUnlockValid(session))
+        if (quickShare.PasswordHash is not null && !unlockSession.IsUnlockValid(session))
             return HttpErrors.QuickShare.RequiresPassword();
 
         var access = new QuickShareAccess(

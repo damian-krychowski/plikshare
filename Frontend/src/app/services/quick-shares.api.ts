@@ -4,11 +4,16 @@ import { firstValueFrom } from "rxjs";
 
 export type QuickShareMode = 'browser' | 'direct';
 
+export interface FolderPath {
+    folderExternalIds: string[];
+}
+
 export interface QuickShareItemsDto {
     selectedFiles: string[];
     selectedFolders: string[];
     excludedFiles: string[];
     excludedFolders: string[];
+    foldersToExpand: FolderPath[];
 }
 
 export interface CreateQuickShareRequest {

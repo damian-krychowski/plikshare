@@ -82,7 +82,7 @@ public static class QuickShareExternalAccessEndpoints
         var isOwnerPreview = ValidateQuickShareAccessFilter.IsOwnerPreview(httpContext, quickShare);
 
         var requiresPassword = quickShare.PasswordHash is not null;
-        var isUnlocked = !requiresPassword || isOwnerPreview || unlockSession.IsUnlockValid(session);
+        var isUnlocked = !requiresPassword || unlockSession.IsUnlockValid(session);
 
         var isExpired = !isOwnerPreview && quickShare.ExpiresAt is { } expiresAt && expiresAt <= clock.UtcNow;
         var isExhausted = !isOwnerPreview && quickShare.MaxDownloads is { } max && quickShare.DownloadsCount >= max;

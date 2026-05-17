@@ -72,9 +72,9 @@
             @if(areQuickSharesSupported()) {
                 <button class="top-nav-btn d-none-on-mobile-early"
                     [class.top-nav-btn--active]="isQuickSharesActive()"
-                    aria-label="Quick shares"
+                    aria-label="Sharing"
                     mat-flat-button
-                    matTooltip="Quick shares"
+                    matTooltip="Sharing"
                     matTooltipPosition="below"
                     (prefetch)="prefetchQuickShares()"
                     (click)="goToQuickShares()">
@@ -158,7 +158,7 @@
             @if(areQuickSharesSupported()) {
                 <a class="app-menu__link" (click)="goToQuickShares()"
                     [class.app-menu__link--active]="isQuickSharesActive()">
-                    Quick shares
+                    Sharing
                     <i class="icon icon-xl icon-nucleo-share"></i>
                 </a>
             }

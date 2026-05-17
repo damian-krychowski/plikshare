@@ -119,6 +119,16 @@ export class FileTreeViewComponent implements OnChanges {
     sortMode = input<SortMode>('custom');
     sortDirection = input<SortDirection>('asc');
 
+    // Folder externalIds to auto-expand on render. Triggers the existing loadFolderChildrenHandler
+    // (same code path as a user click on the chevron) — no new load logic. Works recursively:
+    // as children load and new folder wrappers appear, those are checked against this list too.
+    autoExpandFolderIds = input<string[]>([]);
+    private _autoExpandIdSet = computed(() => new Set(this.autoExpandFolderIds()));
+
+    // Item externalIds (folders or files) that should start with isExcluded=true on their wrapper.
+    // Read once when each wrapper is created in mapFolderItem / mapFileItem.
+    initiallyExcludedExternalIds = input<string[]>([]);
+
     allowDownload = input(false);
     
     selectionStateChanged = output<FileTreeSelectionState>();
@@ -289,6 +299,8 @@ export class FileTreeViewComponent implements OnChanges {
 
             this.unmarkSearchedNodes();
             this.clearSearch();
+
+            this.autoExpandMatchingFolders(currentNodes);
         }
 
         const isActiveChanges = changes['isActive'];
@@ -546,6 +558,42 @@ export class FileTreeViewComponent implements OnChanges {
         }
 
         folder.children.set(this.sortMixed(newChildren, this.sortMode(), this.sortDirection()));
+
+        // Newly-loaded children may already be selected (set on AppItem by the host before the
+        // load callback) or excluded (seeded from initiallyExcludedExternalIds in mapXxxItem).
+        // Refresh selectionState so external observers see the full picture without needing a
+        // user click to trigger re-evaluation.
+        this.calculateAndUpdateSelectionState();
+
+        this.autoExpandMatchingFolders(newChildren);
+    }
+
+    // Triggers expansion on folders whose externalId is in autoExpandFolderIds, using the
+    // same loadFolderChildrenHandler a user's chevron click does. This method itself does NOT
+    // self-call — the cascade to deeper levels happens through an async event/callback chain:
+    //   loadFolderChildrenHandler(node)
+    //     → emits folderLoadRequested
+    //     → host fetches children, invokes folderLoadedCallback
+    //     → convertItemsToFolderChildren builds new wrappers
+    //     → convertItemsToFolderChildren calls autoExpandMatchingFolders(newChildren)
+    //     → and around again for any of those matching the list.
+    private autoExpandMatchingFolders(nodes: TreeItem[]) {
+        const ids = this._autoExpandIdSet();
+        if (ids.size === 0)
+            return;
+
+        for (const node of nodes) {
+            if (node.type !== 'folder')
+                continue;
+
+            if (!ids.has(node.item.externalId))
+                continue;
+
+            node.isExpanded.set(true);
+
+            if (!node.wasLoaded)
+                this.loadFolderChildrenHandler(node);
+        }
     }
 
     private getTreeStructures(topLevelItems: AppTreeItem[]) {
@@ -580,7 +628,7 @@ export class FileTreeViewComponent implements OnChanges {
         const {parentSignal, isParentSelectedSignal, isParentExcludedSignal} = this.prepareParentSignals(
             parentFolderExternalId);
 
-        const isExcludedSignal = signal(false);
+        const isExcludedSignal = signal(this.initiallyExcludedExternalIds().includes(item.externalId));
         const childrenSignal = signal<TreeItem[]>([]);
 
         //todo maybe both selected and searched count signals could be merged into one, to limit number of iterations through children collections
@@ -679,7 +727,7 @@ export class FileTreeViewComponent implements OnChanges {
         const {parentSignal, isParentSelectedSignal, isParentExcludedSignal} = this.prepareParentSignals(
             item.folderExternalId);
 
-        const isExcludedSignal = signal(false);
+        const isExcludedSignal = signal(this.initiallyExcludedExternalIds().includes(item.externalId));
         const isSearchedSignal = signal(false);
 
         return {

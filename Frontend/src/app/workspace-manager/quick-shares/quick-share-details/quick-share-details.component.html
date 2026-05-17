@@ -303,7 +303,25 @@
             }
         </div>
 
-        <div class="flex-row ml-auto">
+        <div class="flex-row flex-gap-05 ml-auto">
+            @if (hasPendingPasswordChange()) {
+                <app-action-btn
+                    tooltip="Discard"
+                    icon="icon-lucide-xmark"
+                    (clicked)="revertPassword()">
+                </app-action-btn>
+
+                <app-action-btn
+                    tooltip="Save password"
+                    icon="icon-lucide-check"
+                    appConfirmOperation
+                    [operationItem]="'the password'"
+                    [verb]="'change'"
+                    [isOperationDanger]="true"
+                    (confirmedClick)="savePasswordChange()">
+                </app-action-btn>
+            }
+
             <mat-slide-toggle
                 matTooltip="Enable password"
                 matTooltipPosition="above"
@@ -318,12 +336,10 @@
     <div class="section-content">
         @if (hasPassword()) {
             <mat-form-field class="w-100">
-                <mat-label>{{ qs.hasPassword ? 'New password (press Enter to save)' : 'Password (press Enter to save)' }}</mat-label>
+                <mat-label>{{ qs.hasPassword ? 'New password' : 'Password' }}</mat-label>
                 <input matInput type="password"
                     [ngModel]="passwordValue()"
                     (ngModelChange)="passwordValue.set($event)"
-                    (keyup.enter)="savePassword()"
-                    (blur)="savePassword()"
                     autocomplete="new-password">
             </mat-form-field>
         } @else {
@@ -331,21 +347,7 @@
         }
     </div>
 
-    <!-- Shared items -->
-    <div class="title-header">
-        <div>Shared items</div>
-    </div>
-
-    <div class="mt-2"></div>
-
-    <div class="explanation">
-        {{ qs.items.selectedFiles.length }} file(s), {{ qs.items.selectedFolders.length }} folder(s)
-        @if (qs.items.excludedFiles.length + qs.items.excludedFolders.length > 0) {
-            · {{ qs.items.excludedFiles.length + qs.items.excludedFolders.length }} excluded
-        }
-    </div>
-
-    <div class="mt-4"></div>
+    
 
     <!-- Metadata -->
     <div class="title-header">
@@ -364,6 +366,53 @@
             Never accessed
         }
     </div>
+    
+    <div class="mt-4"></div>
+
+    <!-- Shared items -->
+    <div class="title-header">
+        <div>Shared items</div>
+
+        <div class="flex-row flex-gap-05 ml-auto">
+            @if (hasPendingItemsChange()) {
+                <app-action-btn
+                    tooltip="Discard changes"
+                    icon="icon-lucide-xmark"
+                    (clicked)="revertItems()">
+                </app-action-btn>
+
+                <app-action-btn
+                    tooltip="Save shared items"
+                    icon="icon-lucide-check"
+                    [disabled]="!hasAnyItemsSelected()"
+                    appConfirmOperation
+                    [operationItem]="'the shared items'"
+                    [verb]="'change'"
+                    [isOperationDanger]="true"
+                    (confirmedClick)="saveItems()">
+                </app-action-btn>
+            }
+        </div>
+    </div>
+
+    <div class="mt-2"></div>
+
+    <div class="explanation">
+        Tick or untick folders and files to change what this share includes. Excluded items inside a selected folder are skipped from the share.
+    </div>
+
+    <div class="mt-2"></div>
+
+    <app-file-tree-view
+        [topLevelItems]="treeItems()"
+        [canSelect]="true"
+        [isActive]="true"
+        [viewMode]="'show-all'"
+        [autoExpandFolderIds]="autoExpandFolderIds()"
+        [initiallyExcludedExternalIds]="initiallyExcludedExternalIds()"
+        (folderLoadRequested)="onFolderTreeLoadRequested($event)">
+    </app-file-tree-view>
+
 
     <div class="mt-5"></div>
 }
