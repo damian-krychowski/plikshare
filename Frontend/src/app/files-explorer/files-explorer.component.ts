@@ -186,6 +186,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     hideContextBar = input(false);
     hideSelectAll = input(false);
     hideItemsActions = input(false);
+    hideItemShareAction = input(false);
+    hideItemDownloadAction = input(false);
 
     integrations = input<WorkspaceIntegrations>({textract: null, chatGpt:[]});
 
@@ -256,6 +258,14 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         this.allowQuickShare()
         && !this.isAnyUploadSelected()
         && (this.isAnyFolderSelected() || this.isAnyFileSelected()));
+
+    // A box wraps exactly one folder, so the toolbar button only makes sense
+    // when the user has a single folder selected and nothing else.
+    canCreateBoxFromSelection = computed(() =>
+        this.allowFolderShare()
+        && this.selectedFoldersCount() === 1
+        && this.selectedFilesCount() === 0
+        && this.selectedUploadsCount() === 0);
 
     canBulkTreeQuickShare = computed(() => {
         if (!this.allowQuickShare())
@@ -1182,6 +1192,13 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
 
     public createBoxFromFolder(folder: AppFolderItem) {
         this.boxCreated.emit(folder);
+    }
+
+    createBoxFromSelectedFolder() {
+        const selected = this.folders().find(f => f.isSelected());
+        if (!selected) return;
+
+        this.createBoxFromFolder(selected);
     }
 
     public onUploadAborted(upload: AppUploadItem) {

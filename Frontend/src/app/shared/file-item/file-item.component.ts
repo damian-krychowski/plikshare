@@ -85,6 +85,7 @@ export class FileItemComponent implements OnInit, OnDestroy {
     canLocate = input(false);
     showPath = input(false);
     hideActions = input(false);
+    hideDownloadAction = input(false);
     canReorder = input(false);
     highlightPhrase = input<string>('');
 
@@ -122,7 +123,7 @@ export class FileItemComponent implements OnInit, OnDestroy {
 
         return permissions.allowDelete
             || permissions.allowRename
-            || permissions.allowDownload;
+            || (permissions.allowDownload && !this.hideDownloadAction());
     });
 
     areActionsVisible = signal(false);

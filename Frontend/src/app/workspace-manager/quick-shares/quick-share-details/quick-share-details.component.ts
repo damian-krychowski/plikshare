@@ -80,10 +80,10 @@ export class QuickShareDetailsComponent implements OnInit {
     private _lastSavedHasPassword = signal(false);
 
     hasPendingPasswordChange = computed(() => {
-        // Pending if user toggled OFF a previously-set password (remove) or typed a new one.
-        if (!this.hasPassword() && this._lastSavedHasPassword()) return true;
-        if (this.hasPassword() && this.passwordValue().trim().length > 0) return true;
-        return false;
+        // Toggle-off auto-saves (handled in onHasPasswordChanged), so pending only when the
+        // toggle is ON and the user has typed a new password — covers both initial set and
+        // change-existing.
+        return this.hasPassword() && this.passwordValue().trim().length > 0;
     });
 
     hasMaxDownloads = signal(false);
@@ -512,7 +512,13 @@ export class QuickShareDetailsComponent implements OnInit {
 
     onHasPasswordChanged(checked: boolean) {
         this.hasPassword.set(checked);
-        if (!checked) this.passwordValue.set('');
+        this.passwordValue.set('');
+
+        // Toggling OFF removes the password — apply immediately, no confirm step. Setting or
+        // changing a password requires typing one + confirm, so toggling ON is just UI state.
+        if (!checked && this._lastSavedHasPassword()) {
+            this.applyPassword(null);
+        }
     }
 
     revertPassword() {
@@ -521,13 +527,17 @@ export class QuickShareDetailsComponent implements OnInit {
     }
 
     async savePasswordChange() {
-        const password = this.hasPassword() ? this.passwordValue().trim() : null;
+        const password = this.passwordValue().trim();
 
-        if (this.hasPassword() && !password) {
+        if (!password) {
             this._toastr.error('Type a password');
             return;
         }
 
+        await this.applyPassword(password);
+    }
+
+    private async applyPassword(password: string | null) {
         try {
             await this._api.updateQuickSharePassword(
                 this._workspaceExternalId!,

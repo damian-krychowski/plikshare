@@ -30,6 +30,7 @@ export class FoldersListComponent {
     canReorder = input(false);
     operations = input.required<FolderOperations>();
     hideActions = input(false);
+    hideShareAction = input(false);
     permissions = input.required<AppFolderPermissions>();
     isAnyNameEditPending = input(false);
     filesApi = input.required<FilesExplorerApi>();

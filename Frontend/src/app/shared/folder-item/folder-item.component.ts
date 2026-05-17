@@ -81,6 +81,7 @@ export class FolderItemComponent {
     canLocate = input(false);
     showPath = input(false);
     hideActions = input(false);
+    hideShareAction = input(false);
     canReorder = input(false);
     highlightPhrase = input<string>('');
 
@@ -113,7 +114,7 @@ export class FolderItemComponent {
         const permissions = this.permissions();
 
         return permissions.allowDelete
-            || permissions.allowShare
+            || (permissions.allowShare && !this.hideShareAction())
             || permissions.allowRename;
     });
 

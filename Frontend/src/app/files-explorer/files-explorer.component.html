@@ -187,6 +187,14 @@
                         </app-action-btn>
                     }
 
+                    @if(canCreateBoxFromSelection()) {
+                        <app-action-btn
+                            tooltip="Share with box"
+                            icon="icon-nucleo-box"
+                            (clicked)="createBoxFromSelectedFolder()">
+                        </app-action-btn>
+                    }
+
                     @if(canBulkDelete()) {
                         <app-action-btn
                             tooltip="Delete"
@@ -228,8 +236,16 @@
                             tooltip="Upload files"
                             icon="icon-nucleo-upload-2"
                             (clicked)="startUpload(fileUpload)">
-                        </app-action-btn>             
-                    }          
+                        </app-action-btn>
+
+                        @if(uploadApiVal && allowCreateFolder()) {
+                            <app-action-btn
+                                tooltip="Bulk zip upload"
+                                icon="icon-nucleo-file-zip"
+                                (clicked)="startBulkUpload()">
+                            </app-action-btn>
+                        }
+                    }
 
                     @if(allowList()) {
                         <app-item-search
@@ -481,6 +497,7 @@
                             [canReorder]="canReorder()"
                             [operations]="operations"
                             [hideActions]="hideItemsActions()"
+                            [hideShareAction]="hideItemShareAction()"
                             [permissions]="folderPermissions()"
                             [isAnyNameEditPending]="isAnyNameEditPending()"
                             [filesApi]="filesApi()"
@@ -561,6 +578,7 @@
                             [canReorder]="canReorder()"
                             [operations]="operations"
                             [hideActions]="hideItemsActions()"
+                            [hideDownloadAction]="hideItemDownloadAction()"
                             [permissions]="filePermissions()"
                             [isAnyNameEditPending]="isAnyNameEditPending()"
                             [filesApi]="filesApi()"

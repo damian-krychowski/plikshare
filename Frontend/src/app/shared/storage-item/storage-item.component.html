@@ -49,8 +49,9 @@
                 <app-action-btn
                     tooltip="Edit name"
                     icon="icon-nucleo-pen"
+                    class="d-none-on-desktop"
                     [class.d-none-on-mobile]="!areActionsVisible()"
-                    (clicked)="editStorageName()">                    
+                    (clicked)="editStorageName()">
                 </app-action-btn>
             
                 @if(storageVal.type !== 'hard-drive') {

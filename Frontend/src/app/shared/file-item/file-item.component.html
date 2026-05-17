@@ -78,12 +78,12 @@
                     </app-action-btn>
                 }
             
-                @if(permissionsValue.allowDownload) {
+                @if(permissionsValue.allowDownload && !hideDownloadAction()) {
                     <app-action-btn
                         tooltip="Download"
                         icon="icon-nucleo-download"
                         [class.d-none-on-mobile]="!areActionsVisible()"
-                        (clicked)="downloadFile()">                    
+                        (clicked)="downloadFile()">
                     </app-action-btn>
                 }
             
@@ -91,23 +91,11 @@
                     <app-action-btn
                         tooltip="Edit name"
                         icon="icon-nucleo-pen"
+                        class="d-none-on-desktop"
                         [class.d-none-on-mobile]="!areActionsVisible()"
-                        (clicked)="editName()">                    
+                        (clicked)="editName()">
                     </app-action-btn>
-                }   
-            
-                @if(canDeleteFile()) {
-                    <app-action-btn
-                        tooltip="Delete"
-                        icon="icon-nucleo-remove"
-                        [class.d-none-on-mobile]="!areActionsVisible()"
-                        [isOperationDanger]="true"
-                        [verb]="'delete'"
-                        [operationItem]="'this file'"
-                        appConfirmOperation
-                        (confirmedClick)="deleteFile()">                    
-                    </app-action-btn>
-                }     
+                }
             
                 @if(canToggleActions()) {
                     <app-action-btn

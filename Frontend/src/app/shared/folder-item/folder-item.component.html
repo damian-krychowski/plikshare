@@ -70,33 +70,21 @@
                     <app-action-btn
                         tooltip="Edit name"
                         icon="icon-nucleo-pen"
+                        class="d-none-on-desktop"
                         [class.d-none-on-mobile]="!areActionsVisible()"
                         [countdown]="canEditNamePermission.timeLeft"
-                        (clicked)="editName()">                    
+                        (clicked)="editName()">
                     </app-action-btn>
                 }
             
-                @if(permissionsValue.allowShare) {
+                @if(permissionsValue.allowShare && !hideShareAction()) {
                     <app-action-btn
                         tooltip="Share with box"
                         icon="icon-nucleo-box"
                         [class.d-none-on-mobile]="!areActionsVisible()"
-                        (clicked)="createBox()">                    
+                        (clicked)="createBox()">
                     </app-action-btn>
-                } 
-            
-                @if(permissionsValue.allowDelete) {
-                    <app-action-btn
-                        tooltip="Delete"
-                        icon="icon-nucleo-remove"
-                        [class.d-none-on-mobile]="!areActionsVisible()"
-                        [operationItem]="'this folder'"
-                        [verb]="'delete'"
-                        [isOperationDanger]="true"
-                        appConfirmOperation
-                        (confirmedClick)="deleteFolder()">                    
-                    </app-action-btn>
-                }          
+                }
             
                 @if(canToggleActions()) {
                     <app-action-btn

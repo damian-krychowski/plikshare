@@ -31,6 +31,7 @@ export class FilesListComponent implements OnDestroy {
     canReorder = input(false);
     operations = input.required<FileOperations>();
     hideActions = input(false);
+    hideDownloadAction = input(false);
     permissions = input.required<AppFilePermissions>();
     isAnyNameEditPending = input(false);
     filesApi = input.required<FilesExplorerApi>();
