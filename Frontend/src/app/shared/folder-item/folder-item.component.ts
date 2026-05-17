@@ -106,14 +106,10 @@ export class FolderItemComponent {
     isHighlighted = observeIsHighlighted(this.folder);
 
     canToggleActions = computed(() => {
-        if(this.canLocate())
+        if (this.canLocate())
             return true;
 
-        const permissions = this.permissions();
-
-        return permissions.allowDelete
-            || (permissions.allowShare && !this.hideShareAction())
-            || permissions.allowRename;
+        return this.permissions().allowShare && !this.hideShareAction();
     });
 
     isSelectCheckboxVisible = computed(() => {

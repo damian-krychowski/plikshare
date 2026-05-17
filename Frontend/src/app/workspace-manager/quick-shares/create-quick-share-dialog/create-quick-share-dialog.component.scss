@@ -1,8 +1,41 @@
 @forward "./../../../../styles/questionaire.scss";
 @forward "./../../../../styles/mobile-display.scss";
 
-.questionaire > .questionaire__subtitle {
+.questionaire > .questionaire__title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+}
+
+.questionaire__title-text {
+    min-width: 0;
+}
+
+.title-counts {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-left: auto;
     font-size: var(--company-small-font);
+    font-weight: 400;
+    color: var(--company-grey-font);
+}
+
+.title-count {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    font-variant-numeric: tabular-nums;
+    cursor: default;
+
+    &__icon {
+        font-size: 0.85rem;
+        opacity: 0.7;
+    }
+
+    &--excluded {
+        opacity: 0.65;
+    }
 }
 
 // Material's mdc-text-field hides the native datetime picker indicator and traps

@@ -59,13 +59,7 @@
                 (prefetch)="prefetchExternalBox()">
             </app-action-btn>
 
-            <app-action-btn
-                class="d-none-on-desktop"
-                [class.d-none-on-mobile]="!areActionsVisible()"
-                tooltip="Edit box name"
-                icon="icon-nucleo-pen"
-                (clicked)="editName()">
-            </app-action-btn>            
+            
 
             <app-action-btn
                 [class.d-none-on-mobile]="!areActionsVisible()"

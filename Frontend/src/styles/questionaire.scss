@@ -117,6 +117,28 @@
     &__section-title {
         font-size: 1.2rem;
         font-weight: 400;
+
+        &--divider {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: var(--company-small-font);
+            font-weight: 500;
+            color: var(--company-grey-font);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+
+            &::after {
+                content: '';
+                flex: 1;
+                height: 1px;
+                background: var(--company-grey-accent);
+            }
+
+            &:not(:first-child) {
+                padding-top: 1rem;
+            }
+        }
     }
 
     &__title {

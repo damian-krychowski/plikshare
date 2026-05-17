@@ -111,17 +111,11 @@ export class FileItemComponent implements OnInit, OnDestroy {
     canEditFileName = computed(() => this.file().wasUploadedByUser || this.permissions().allowRename);
     canDeleteFile = computed(() => this.file().wasUploadedByUser || this.permissions().allowDelete);
     canToggleActions = computed(() => {
-        if (this.file().wasUploadedByUser)
-            return true;
-
         if (this.canLocate())
             return true;
 
         const permissions = this.permissions();
-
-        return permissions.allowDelete
-            || permissions.allowRename
-            || (permissions.allowDownload && !this.hideDownloadAction());
+        return permissions.allowDownload && !this.hideDownloadAction();
     });
 
     areActionsVisible = signal(false);

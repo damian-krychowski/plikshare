@@ -66,16 +66,6 @@
                     </app-action-btn>
                 }
             
-                @if(canEditNamePermission.isOn) {
-                    <app-action-btn
-                        tooltip="Edit name"
-                        icon="icon-nucleo-pen"
-                        class="d-none-on-desktop"
-                        [class.d-none-on-mobile]="!areActionsVisible()"
-                        [countdown]="canEditNamePermission.timeLeft"
-                        (clicked)="editName()">
-                    </app-action-btn>
-                }
             
                 @if(permissionsValue.allowShare && !hideShareAction()) {
                     <app-action-btn
@@ -98,7 +88,6 @@
                 @if(isSelectCheckboxVisible()) {
                     <div (click)="$event.stopPropagation()">
                         <mat-checkbox
-                            [class.d-none-on-mobile]="!areActionsVisible()"
                             [ngModel]="isSelected()"
                             (change)="toggleSelection()">
                         </mat-checkbox>

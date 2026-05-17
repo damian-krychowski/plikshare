@@ -87,15 +87,6 @@
                     </app-action-btn>
                 }
             
-                @if(canEditFileName()) {
-                    <app-action-btn
-                        tooltip="Edit name"
-                        icon="icon-nucleo-pen"
-                        class="d-none-on-desktop"
-                        [class.d-none-on-mobile]="!areActionsVisible()"
-                        (clicked)="editName()">
-                    </app-action-btn>
-                }
             
                 @if(canToggleActions()) {
                     <app-action-btn
@@ -108,8 +99,7 @@
                 
                 @if(isSelectCheckboxVisible()) {
                     <div (click)="$event.stopPropagation()">
-                        <mat-checkbox 
-                            [class.d-none-on-mobile]="!areActionsVisible()"
+                        <mat-checkbox
                             [ngModel]="fileVal.isSelected()"
                             (change)="toggleSelection()">
                         </mat-checkbox>

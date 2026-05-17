@@ -30,7 +30,9 @@
             [innerHTML]="displayHtml()">
         </div>
 
-        <div class="text text--mobile" [innerHTML]="displayHtml()">
+        <div class="text text--mobile"
+            (click)="startEditing(); $event.stopPropagation()"
+            [innerHTML]="displayHtml()">
         </div>
     }
 } @else {

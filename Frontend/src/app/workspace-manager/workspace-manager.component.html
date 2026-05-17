@@ -32,7 +32,7 @@
 
 
             @if(anyPendingUploads()) {
-                <button class="top-nav-btn d-none-on-mobile-early" 
+                <button class="top-nav-btn d-none-on-mobile-medium" 
                     [class.top-nav-btn--active]="isUploadsActive()"
                     aria-label="Uploads" 
                     mat-flat-button  
@@ -45,7 +45,7 @@
                 </button> 
             }
 
-            <button class="top-nav-btn d-none-on-mobile-early"
+            <button class="top-nav-btn d-none-on-mobile-medium"
                 [class.top-nav-btn--active]="isExplorerActive()"
                 aria-label="Explorer" 
                 mat-flat-button  
@@ -57,7 +57,7 @@
             </button> 
 
             @if(areBoxesSupported()) {
-                <button class="top-nav-btn d-none-on-mobile-early"
+                <button class="top-nav-btn d-none-on-mobile-medium"
                     [class.top-nav-btn--active]="isBoxesActive()"
                     aria-label="Boxes"
                     mat-flat-button
@@ -70,7 +70,7 @@
             }
 
             @if(areQuickSharesSupported()) {
-                <button class="top-nav-btn d-none-on-mobile-early"
+                <button class="top-nav-btn d-none-on-mobile-medium"
                     [class.top-nav-btn--active]="isQuickSharesActive()"
                     aria-label="Sharing"
                     mat-flat-button
@@ -84,7 +84,7 @@
 
             @if(isTeamVisible()) {
                 <button
-                    class="top-nav-btn d-none-on-mobile-early" 
+                    class="top-nav-btn d-none-on-mobile-medium" 
                     [class.top-nav-btn--active]="isTeamActive()"
                     aria-label="Team" 
                     mat-flat-button  
@@ -98,7 +98,7 @@
             
             @if(auth.canManageUsers()) {
                 <button
-                    class="top-nav-btn d-none-on-mobile-early" 
+                    class="top-nav-btn d-none-on-mobile-medium" 
                     [class.top-nav-btn--active]="isWorkspaceConfigActive()"
                     aria-label="Workspace Config" 
                     mat-flat-button  
@@ -112,23 +112,22 @@
                 </button> 
             }
 
-            <div class="ml-2"></div>
         }
 
-        <div class="ml-auto d-none-on-desktop-early">            
+        <div class="ml-auto d-none-on-desktop-medium">            
         </div>
 
         <app-search-input #searchInput>            
         </app-search-input>
 
         @if(!searchInput.isSearchActive()) {
-            <app-full-encryption-sessions-btn class="d-none-on-mobile-early">
+            <app-full-encryption-sessions-btn>
             </app-full-encryption-sessions-btn>
 
-            <app-settings-menu-btn class="d-none-on-mobile-early">
+            <app-settings-menu-btn class="d-none-on-mobile-medium">
             </app-settings-menu-btn>
 
-            <button class="top-nav-btn d-none-on-desktop-early"
+            <button class="top-nav-btn d-none-on-desktop-medium"
                 (click)="toggleMenu()"
                 aria-label="Menu" 
                 mat-flat-button  

@@ -35,16 +35,12 @@ a.drag-over {
 .context-bar {
     font-size: var(--company-small-font);
     color: var(--company-grey-font);
-    padding: 0.5rem;
+    padding: 0.5rem 0;
 
     display: flex;
     flex-direction: row;
     align-items: center;
     gap: 0.5rem;
-
-    @media (max-width: variables.$mobile-early-breakpoint) {
-        padding: 0.5rem 0;
-    }
 }
 
 .context-row {
@@ -62,7 +58,7 @@ a.drag-over {
 }
 
 .context-counts {
-    display: inline-flex;
+    display: inline-flex !important;
     align-items: center;
     gap: 0.25rem;
 }
@@ -73,7 +69,7 @@ a.drag-over {
 // the bar height.
 .context-count {
     display: inline-flex;
-    align-items: center;
+    align-items: baseline;
     gap: 0.25rem;
     line-height: 1;
 
@@ -147,7 +143,10 @@ a.drag-over {
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.4rem 0.5rem;
+        padding-top: 0.4rem;
+        padding-bottom: 0.4rem;
+        padding-left: 0.5rem;
+        padding-right: 1.3rem;
         font-size: var(--company-small-font);
         color: var(--company-grey-font);
         border-bottom: 1px solid var(--company-grey-accent-light);
@@ -288,17 +287,22 @@ a.drag-over {
     }
 }
 
-// Two-row split is content-driven via flex-wrap, not breakpoint-based: when
-// path + actions can't both fit on one line, the actions-row wraps to the
-// next row. This avoids the overlap zone you'd get with a fixed
-// @media (max-width) cutoff. Desktop with normal content stays single-row.
+// Grid columns are toggled by a content-driven `--stacked` class set from
+// a ResizeObserver in the component: when the actions can't fit alongside
+// a usable path width, the JS sets `--stacked` and we collapse to a single
+// column. No magic breakpoint — the threshold floats with the actual rendered
+// actions width (which changes as buttons appear/disappear based on selection).
 .title-header--responsive {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.5rem;
     row-gap: 0.4rem;
 
     .title-header__path-row {
         display: flex;
         min-width: 0;
+        overflow: hidden;
         align-items: center;
     }
 
@@ -307,7 +311,6 @@ a.drag-over {
         flex-direction: row;
         align-items: center;
         gap: 0.5rem;
-        margin-left: auto;
         flex-wrap: wrap;
         justify-content: flex-end;
     }
@@ -319,17 +322,20 @@ a.drag-over {
         display: contents;
     }
 
+    &.title-header--stacked {
+        grid-template-columns: 1fr;
+    }
+
     @media (max-width: variables.$mobile-breakpoint) {
         .title-header__actions--hidden-on-mobile {
             display: none;
         }
 
-        // When the search is expanded on mobile, force the actions-row to its
-        // own line and fill it — so the expanded input has the full row to
+        // When the search is expanded on mobile, force the actions-row to span
+        // the full grid width — so the expanded input has the full row to
         // breathe in.
         .title-header__actions-row--search-expanded {
-            flex: 0 0 100%;
-            min-width: 0;
+            grid-column: 1 / -1;
         }
     }
 }

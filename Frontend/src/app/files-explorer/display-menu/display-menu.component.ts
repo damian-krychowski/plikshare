@@ -48,11 +48,13 @@ export class DisplayMenuComponent {
 
     selectView(mode: ViewMode) {
         this.viewModeChanged.emit(mode);
+        this.isOpen.set(false);
     }
 
     selectSort(mode: SortMode, direction: SortDirection) {
         if (mode === 'date' && !this.allowDateSort()) return;
         this.sortChanged.emit({ mode, direction });
+        this.isOpen.set(false);
     }
 
     isViewActive(mode: ViewMode): boolean {

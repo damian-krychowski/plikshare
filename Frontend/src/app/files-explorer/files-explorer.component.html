@@ -161,7 +161,9 @@
             </div>      
         </div>
     } @else {
-        <div class="title-header title-header--responsive">
+        <div class="title-header title-header--responsive"
+            [class.title-header--stacked]="isToolbarStacked()"
+            #toolbarHeaderEl>
             <div class="title-header__path-row">
                 <app-folder-path
                     [topFolderExternalId]="topFolderExternalId()"
@@ -349,37 +351,7 @@
         @if(!hideContextBar()) {
             <div class="context-bar">
                 @if(allowList()) {
-                    <div class="context-row d-none-on-mobile-early">
-                        <span class="context-label">View:</span>
-
-                        <span class="context-item view-mode context-item--switch"
-                            [class.view-mode--active]="viewModeVal == 'list-view'"
-                            (click)="setViewMode('list-view')">
-                            List
-                            <i class="icon icon-lucide-check"></i>
-                        </span>
-
-                        |
-
-                        <span class="context-item view-mode context-item--switch"
-                            [class.view-mode--active]="viewModeVal == 'tree-view'"
-                            (click)="setViewMode('tree-view')">
-                            Tree
-                            <i class="icon icon-lucide-check"></i>
-                        </span>
-
-                        <span class="context-label context-label--gap">Order:</span>
-                        
-                        <app-sort-menu
-                            [mode]="sortMode()"
-                            [direction]="sortDirection()"
-                            [allowDateSort]="allowDateSort()"
-                            (sortChanged)="onSortChanged($event)">
-                        </app-sort-menu>
-                    </div>
-
                     <app-display-menu
-                        class="d-none-on-desktop-early"
                         [viewMode]="viewModeVal"
                         [sortMode]="sortMode()"
                         [sortDirection]="sortDirection()"

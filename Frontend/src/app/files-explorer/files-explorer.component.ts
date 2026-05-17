@@ -1,4 +1,4 @@
-import { Component, HostListener, OnChanges, OnDestroy, OnInit, Renderer2, SimpleChanges, ViewChild, WritableSignal, computed, effect, input, output, signal, untracked } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, OnChanges, OnDestroy, OnInit, Renderer2, SimpleChanges, ViewChild, WritableSignal, computed, effect, input, output, signal, untracked } from '@angular/core';
 import { FileToUpload, FileUploadApi, FileUploadManager, UploadsAbortedEvent, UploadCompletedEvent, UploadsInitiatedEvent } from '../services/file-upload-manager/file-upload-manager';
 import { AppUploadItem, UploadItemComponent } from './upload-item/upload-item.component';
 import { ConfirmOperationDirective } from '../shared/operation-confirm/confirm-operation.directive';
@@ -30,7 +30,7 @@ import { TreeViewMode } from '../shared/file-tree-view/tree-item';
 import { FileInlinePreviewCommandsPipeline } from './file-inline-preview/file-inline-preview-commands-pipeline';
 import { WorkspaceIntegrations } from '../services/workspaces.api';
 import { DragStateService } from '../services/drag-state.service';
-import { SortChange, SortMenuComponent } from './sort-menu/sort-menu.component';
+import { SortChange } from './sort-menu/sort-menu.component';
 import { DisplayMenuComponent } from './display-menu/display-menu.component';
 import { computePositionForInsertion } from '../shared/drag-drop/item-positioning.utils';
 import { FilesListComponent } from './files-list/files-list.component';
@@ -138,13 +138,12 @@ type ViewMode = 'list-view' | 'tree-view';
         BulkUploadPreviewComponent,
         FileTreeViewComponent,
         ItemSearchComponent,
-        SortMenuComponent,
         DisplayMenuComponent
     ],
     templateUrl: './files-explorer.component.html',
     styleUrl: './files-explorer.component.scss'
 })
-export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
+export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, AfterViewInit  {
     filesApi = input.required<FilesExplorerApi>();
     uploadsApi = input.required<FileUploadApi | null>();
     currentFolderExternalId = input.required<string | null>();
@@ -595,6 +594,10 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
     @ViewChild(BulkUploadPreviewComponent) bulkUploadPreview!: BulkUploadPreviewComponent;
     @ViewChild(FileTreeViewComponent) fileTreeView!: FileTreeViewComponent;
     @ViewChild(ItemSearchComponent) itemSearch?: ItemSearchComponent;
+    @ViewChild('toolbarHeaderEl') toolbarHeaderEl?: ElementRef<HTMLElement>;
+
+    isToolbarStacked = signal(false);
+    private _toolbarResizeObserver?: ResizeObserver;
 
     constructor(
         public fileUploadManager: FileUploadManager,
@@ -693,11 +696,56 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy  {
         });
     }
 
+    ngAfterViewInit(): void {
+        const headerEl = this.toolbarHeaderEl?.nativeElement;
+        if (!headerEl) return;
+
+        this._toolbarResizeObserver = new ResizeObserver(() => this.measureToolbar());
+        this._toolbarResizeObserver.observe(headerEl);
+        this.measureToolbar();
+    }
+
     ngOnDestroy(): void {
         this._uploadsCompletedSubscription?.unsubscribe();
         this._uploadsInitiatedSubscription?.unsubscribe();
         this._uploadsAbortedSubscription?.unsubscribe();
         this._workspaceSizeUpdatedSubscription?.unsubscribe();
+        this._toolbarResizeObserver?.disconnect();
+    }
+
+    // Content-driven stacking: sum the rendered widths of the action items and
+    // compare to the container width. When path + actions can't both fit, drop
+    // actions to their own row. Avoids the magic-number breakpoint problem —
+    // the threshold shifts as actions appear/disappear based on selection state.
+    private measureToolbar(): void {
+        const headerEl = this.toolbarHeaderEl?.nativeElement;
+        if (!headerEl) return;
+
+        const actionsEl = headerEl.querySelector('.title-header__actions-row') as HTMLElement | null;
+        if (!actionsEl) return;
+
+        const GAP_PX = 8;             // matches gap: 0.5rem on actions-row
+        const COLUMN_GAP_PX = 8;      // matches column-gap on grid container
+        const MIN_PATH_WIDTH_PX = 120; // smallest path display we consider usable
+        const SAFETY_BUFFER_PX = 24;  // sub-pixel rounding + last-segment overshoot
+
+        const items = actionsEl.querySelectorAll('app-action-btn, app-item-search, mat-checkbox');
+        let actionsWidth = 0;
+        let visibleCount = 0;
+        items.forEach((node) => {
+            const el = node as HTMLElement;
+            if (el.offsetParent === null && el.offsetWidth === 0) return;
+            actionsWidth += el.offsetWidth;
+            visibleCount++;
+        });
+        if (visibleCount > 1) actionsWidth += (visibleCount - 1) * GAP_PX;
+
+        const containerWidth = headerEl.offsetWidth;
+        const needsStack = containerWidth < MIN_PATH_WIDTH_PX + COLUMN_GAP_PX + actionsWidth + SAFETY_BUFFER_PX;
+
+        if (this.isToolbarStacked() !== needsStack) {
+            this.isToolbarStacked.set(needsStack);
+        }
     }
 
     private hasOsFiles(event: DragEvent): boolean {

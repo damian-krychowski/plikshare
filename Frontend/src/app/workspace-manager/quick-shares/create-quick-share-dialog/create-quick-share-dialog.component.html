@@ -1,72 +1,99 @@
 <div class="questionaire">
     <div class="questionaire__title">
-        Create a quick share
-    </div>
+        <span class="questionaire__title-text">Create a quick share</span>
 
-    <div class="questionaire__subtitle">
-        Selected: {{ data.selectedFiles.length }} file(s), {{ data.selectedFolders.length }} folder(s)
-        @if (data.excludedFiles.length + data.excludedFolders.length > 0) {
-            · {{ data.excludedFiles.length + data.excludedFolders.length }} excluded
-        }
+        <div class="title-counts">
+            <span class="title-count"
+                matTooltip="Selected folders"
+                matTooltipPosition="below">
+                <i class="icon icon-nucleo-folder title-count__icon"></i>
+                <span class="title-count__value">{{ data.selectedFolders.length }}</span>
+            </span>
+
+            <span class="title-count"
+                matTooltip="Selected files"
+                matTooltipPosition="below">
+                <i class="icon icon-nucleo-file title-count__icon"></i>
+                <span class="title-count__value">{{ data.selectedFiles.length }}</span>
+            </span>
+
+            @if (data.excludedFiles.length + data.excludedFolders.length > 0) {
+                <span class="title-count title-count--excluded"
+                    matTooltip="Excluded items"
+                    matTooltipPosition="below">
+                    <i class="icon icon-lucide-xmark title-count__icon"></i>
+                    <span class="title-count__value">{{ data.excludedFiles.length + data.excludedFolders.length }}</span>
+                </span>
+            }
+        </div>
     </div>
 
     <div class="questionaire__content">
-        <mat-form-field class="questionaire__form-field">
-            <mat-label>Name</mat-label>
-            <input matInput type="text"
-                [ngModel]="name()"
-                (ngModelChange)="name.set($event)"
-                autocomplete="off"
-                required>
-        </mat-form-field>
+        <div class="questionaire__section-title questionaire__section-title--divider">Details</div>
 
-        <mat-form-field class="questionaire__form-field">
-            <mat-label>Custom URL slug</mat-label>
-            <input matInput type="text"
-                #slugInput="ngModel"
-                [ngModel]="customSlug()"
-                (ngModelChange)="customSlug.set($event)"
-                autocomplete="off"
-                placeholder="your-custom-url"
-                pattern="^[a-zA-Z0-9][a-zA-Z0-9\-]{1,98}[a-zA-Z0-9]$">
-            @if (slugInput.invalid && customSlug().length > 0) {
-                <mat-error>Invalid format. Allowed: a-z, A-Z, 0-9, '-'. 3-100 chars, no leading/trailing '-'.</mat-error>
-            } @else {
-                <mat-hint>Leave empty for auto-generated.</mat-hint>
-            }
-        </mat-form-field>
+        <div>
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>Name</mat-label>
+                <input matInput type="text"
+                    [ngModel]="name()"
+                    (ngModelChange)="name.set($event)"
+                    autocomplete="off"
+                    required>
+            </mat-form-field>
+
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>Custom URL slug</mat-label>
+                <input matInput type="text"
+                    #slugInput="ngModel"
+                    [ngModel]="customSlug()"
+                    (ngModelChange)="customSlug.set($event)"
+                    autocomplete="off"
+                    placeholder="your-custom-url"
+                    pattern="^[a-zA-Z0-9][a-zA-Z0-9\-]{1,98}[a-zA-Z0-9]$">
+                @if (slugInput.invalid && customSlug().length > 0) {
+                    <mat-error>Invalid format. Allowed: a-z, A-Z, 0-9, '-'. 3-100 chars, no leading/trailing '-'.</mat-error>
+                } @else {
+                    <mat-hint>Leave empty for auto-generated.</mat-hint>
+                }
+            </mat-form-field>
+        </div>       
 
         <div class="url-preview">{{ urlPreview() }}</div>
 
-        <div class="questionaire__section-title">Recipient mode</div>
+        <div class="questionaire__section-title questionaire__section-title--divider">Recipient mode</div>
 
-        <mat-radio-group class="questionaire__radio-group"
-            [value]="mode()"
-            (change)="onModeChange($event.value)">
+        <div>
+            <mat-radio-group class="questionaire__radio-group"
+                [value]="mode()"
+                (change)="onModeChange($event.value)">
 
-            <div class="questionaire__radio-option">
-                <mat-radio-button value="browser">Browser preview</mat-radio-button>
-                <div class="questionaire__info">
-                    Recipient lands on a page with a file tree, can preview each
-                    file in the browser and download the bundle as a ZIP.
+                <div class="questionaire__radio-option">
+                    <mat-radio-button value="browser">Browser preview</mat-radio-button>
+                    <div class="questionaire__info">
+                        Recipient lands on a page with a file tree, can preview each
+                        file in the browser and download the bundle as a ZIP.
+                    </div>
                 </div>
-            </div>
 
-            <div class="questionaire__radio-option">
-                <mat-radio-button value="direct">Direct download</mat-radio-button>
-                <div class="questionaire__info">
-                    Recipient is redirected straight to a ZIP download — no
-                    preview, no browsing, just an immediate file download.
+                <div class="questionaire__radio-option">
+                    <mat-radio-button value="direct">Direct download</mat-radio-button>
+                    <div class="questionaire__info">
+                        Recipient is redirected straight to a ZIP download — no
+                        preview, no browsing, just an immediate file download.
+                    </div>
                 </div>
-            </div>
-        </mat-radio-group>
+            </mat-radio-group>
 
-        <mat-checkbox class="questionaire__checkbox"
-            [checked]="allowIndividualFileDownload()"
-            [disabled]="mode() !== 'browser'"
-            (change)="allowIndividualFileDownload.set($event.checked)">
-            Allow downloading individual files
-        </mat-checkbox>
+            <mat-checkbox class="questionaire__checkbox"
+                [checked]="allowIndividualFileDownload()"
+                [disabled]="mode() !== 'browser'"
+                (change)="allowIndividualFileDownload.set($event.checked)">
+                Allow downloading individual files
+            </mat-checkbox>
+        </div>
+
+
+        <div class="questionaire__section-title questionaire__section-title--divider">Access limits</div>
 
         <mat-form-field class="questionaire__form-field" floatLabel="always">
             <mat-label>Expires at</mat-label>

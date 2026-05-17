@@ -6,6 +6,12 @@
     }
 }
 
+.d-none-on-mobile-medium {
+    @media (max-width: variables.$mobile-medium-breakpoint) {
+        display: none !important;
+    }
+}
+
 .d-none-on-mobile-early {
     @media (max-width: variables.$mobile-early-breakpoint) {
         display: none !important;
@@ -14,6 +20,12 @@
 
 .d-none-on-desktop {
     @media (min-width: calc(#{variables.$mobile-breakpoint} + 1px)) {
+        display: none !important;
+    }
+}
+
+.d-none-on-desktop-medium {
+    @media (min-width: calc(#{variables.$mobile-medium-breakpoint} + 1px)) {
         display: none !important;
     }
 }

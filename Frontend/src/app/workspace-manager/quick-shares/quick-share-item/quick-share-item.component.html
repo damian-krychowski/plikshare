@@ -48,13 +48,6 @@
                 (clicked)="nameTxt.save()">
             </app-action-btn>
         } @else {
-            <app-action-btn
-                tooltip="Edit quick share name"
-                icon="icon-nucleo-pen"
-                class="d-none-on-desktop"
-                [class.d-none-on-mobile]="!areActionsVisible()"
-                (clicked)="editName()">
-            </app-action-btn>
 
             <app-action-btn
                 tooltip="Delete"
