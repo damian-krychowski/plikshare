@@ -5,7 +5,7 @@
 
 import { computed, signal } from "@angular/core";
 import { toNameAndExtension } from "./filte-type";
-import { ZipTreeNode, ZipFolderNode, ZipFileNode } from "../shared/zip-file-tree-view/zip-file-tree-view.component";
+import { countSelectedDescendants, ZipTreeNode, ZipFolderNode, ZipFileNode } from "../shared/zip-file-tree-view/zip-file-tree-view.component";
 
 //anywhere else, and the one from Central Directory Record may be different than this one
 export type ZipLfhRecord = {
@@ -799,6 +799,8 @@ export class ZipArchives {
         const isParentExcluded = computed(() =>
             parent ? (parent.isExcluded() || parent.isParentExcluded()) : false);
 
+        const children: ZipTreeNode[] = [];
+
         return {
             type: 'folder',
             id: `${folder.virtualFolderId}`,
@@ -810,13 +812,14 @@ export class ZipArchives {
             wasLoaded: true,
             isVisible: signal(true),
 
-            children: [],
+            children: children,
 
             isSelected: isSelected,
             isExcluded: isExcluded,
             parent: parent,
             isParentSelected: isParentSelected,
-            isParentExcluded: isParentExcluded
+            isParentExcluded: isParentExcluded,
+            selectedDescendantsCount: computed(() => countSelectedDescendants(children))
         };
     }
 

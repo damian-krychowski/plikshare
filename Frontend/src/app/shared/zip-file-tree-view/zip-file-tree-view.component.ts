@@ -19,6 +19,20 @@ export type ZipFileTreeViewMode = 'select' | 'download';
 
 export type ZipTreeNode = ZipFileNode | ZipFolderNode;
 
+export function countSelectedDescendants(children: ZipTreeNode[]): number {
+    let count = 0;
+
+    for (const child of children) {
+        if (child.isSelected()) {
+            count += 1;
+        } else if (child.type === 'folder') {
+            count += child.selectedDescendantsCount();
+        }
+    }
+
+    return count;
+}
+
 export type ZipFileNode = {
     type: 'file';
     id: string;
@@ -62,6 +76,8 @@ export type ZipFolderNode = {
     parent: ZipFolderNode | null;
     isParentSelected: Signal<boolean>;
     isParentExcluded: Signal<boolean>;
+
+    selectedDescendantsCount: Signal<number>;
 }
 
 @Component({
@@ -252,7 +268,8 @@ export class ZipFileTreeViewComponent implements OnChanges {
                 isExcluded: node.isExcluded,
                 parent: node.parent,
                 isParentSelected: node.isParentSelected,
-                isParentExcluded: node.isParentExcluded
+                isParentExcluded: node.isParentExcluded,
+                selectedDescendantsCount: computed(() => countSelectedDescendants(clonedChildren))
             };
         };
 

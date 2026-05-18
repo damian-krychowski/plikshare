@@ -23,7 +23,7 @@
     border: 1px solid transparent;
     min-height: 38px;
     font-size: var(--company-medium-font);
-    
+
     &:hover {
         border: 1px solid var(--company-grey-accent);
         background-color: var(--company-blue-hover);
@@ -55,6 +55,13 @@
         flex-grow: 1;
         min-width: 0;
         gap: 0.5rem;
+    }
+
+    &--selected,
+    &--selected-children {
+        background-color: var(--company-blue-selected);
+        outline: 1px solid var(--company-background);
+        outline-offset: -1px;
     }
 }
 

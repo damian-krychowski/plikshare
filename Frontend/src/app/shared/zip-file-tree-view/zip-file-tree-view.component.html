@@ -4,7 +4,20 @@
 <mat-tree class="mat-tree" [dataSource]="dataSource" [childrenAccessor]="childrenAccessor" [class.invisible]="isSearchActive()">
     <mat-nested-tree-node *matTreeNodeDef="let node; when: isFolder">
         <div class="tree-node tree-node--expandable">
-            <div class="node-content">
+            @let isSelected = canDownloadVal 
+                && modeVal === 'select' 
+                && (node.isSelected() || node.isParentSelected()) 
+                && !node.isExcluded() 
+                && !node.isParentExcluded(); 
+
+            @let hasSelectedChildren = canDownloadVal 
+                && modeVal === 'select' 
+                && node.selectedDescendantsCount() > 0 
+                && !node.isExpanded();
+
+            <div class="node-content"
+                [class.node-content--selected]="isSelected"
+                [class.node-content--selected-children]="hasSelectedChildren">
                 <div class="node-content__icon" (click)="expand(node)">
                     @if(!node.isExpanded()) {
                         <i class="icon icon-lg icon-lucide-chevron-right"></i>
@@ -84,7 +97,20 @@
     <mat-tree [dataSource]="searchResultDataSource" [childrenAccessor]="childrenAccessor">
         <mat-nested-tree-node *matTreeNodeDef="let node; when: isFolder" [class.invisible]="!node.isVisible()">
             <div class="tree-node tree-node--expandable">
-                <div class="node-content">
+                @let isSelected = canDownloadVal 
+                    && modeVal === 'select' 
+                    && (node.isSelected() || node.isParentSelected()) 
+                    && !node.isExcluded() 
+                    && !node.isParentExcluded(); 
+
+                @let hasSelectedChildren = canDownloadVal 
+                    && modeVal === 'select' 
+                    && node.selectedDescendantsCount() > 0 
+                    && !node.isExpanded();
+
+                <div class="node-content"
+                    [class.node-content--selected]="isSelected"
+                    [class.node-content--selected-children]="hasSelectedChildren">
                     <div class="node-content__inner" (click)="expand(node)">
                         @if(!node.isExpanded()) {
                             <i class="icon icon-lg icon-lucide-chevron-right"></i>

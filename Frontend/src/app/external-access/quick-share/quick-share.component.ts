@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
 import { GetQuickShareBulkDownloadLinkRequest, GetQuickShareContentResponse, GetQuickShareInfoResponse, QuickShareContentFile, QuickShareContentFolder, QuickShareExternalAccessApi } from '../../services/quick-share-external-access.api';
-import { ZipFileNode, ZipFileTreeViewComponent, ZipFolderNode, ZipTreeNode } from '../../shared/zip-file-tree-view/zip-file-tree-view.component';
+import { countSelectedDescendants, ZipFileNode, ZipFileTreeViewComponent, ZipFolderNode, ZipTreeNode } from '../../shared/zip-file-tree-view/zip-file-tree-view.component';
 import { StorageSizePipe } from '../../shared/storage-size.pipe';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
 import { ActionTextButtonComponent } from '../../shared/buttons/action-text-btn/action-text-btn.component';
@@ -356,7 +356,6 @@ export class QuickShareComponent implements OnInit {
     }
 
     private makeFolderNode(id: string, name: string, parent: ZipFolderNode | null): ZipFolderNode {
-        const isExpanded = signal(false);
         const isSelected = signal(false);
         const isExcluded = signal(false);
 
@@ -366,13 +365,15 @@ export class QuickShareComponent implements OnInit {
         const isParentExcluded = computed(() =>
             parent ? (parent.isExcluded() || parent.isParentExcluded()) : false);
 
+        const children: ZipTreeNode[] = [];
+
         return {
             type: 'folder',
             id: id,
             name: name,
             nameLower: name.toLowerCase(),
-            children: [],
-            isExpanded: isExpanded,
+            children: children,
+            isExpanded: signal(false),
             isVisible: signal(true),
             wasRendered: signal(true),
             wasLoaded: true,
@@ -381,7 +382,8 @@ export class QuickShareComponent implements OnInit {
             isExcluded: isExcluded,
             parent: parent,
             isParentSelected: isParentSelected,
-            isParentExcluded: isParentExcluded
+            isParentExcluded: isParentExcluded,
+            selectedDescendantsCount: computed(() => countSelectedDescendants(children))
         };
     }
 
