@@ -155,14 +155,16 @@ public class box_link_pre_signed_url_tests : TestFixture
             fileExternalId: zipFile.ExternalId,
             boxLinkToken: session.Token);
 
-        var entry = zipDetails.Items.Single(i => i.FilePath == "nested/inside.txt");
+        var entry = zipDetails
+            .Items
+            .Single(i => i.FileName == "inside.txt");
 
         var linkResponse = await Api.AccessCodesApi.GetZipContentDownloadLink(
             accessCode: boxLink.AccessCode,
             fileExternalId: zipFile.ExternalId,
             request: new GetZipContentDownloadLinkRequestDto(
                 Item: new ZipFileDto(
-                    FilePath: entry.FilePath,
+                    FileName: entry.FileName,
                     CompressedSizeInBytes: entry.CompressedSizeInBytes,
                     SizeInBytes: entry.SizeInBytes,
                     OffsetToLocalFileHeader: entry.OffsetToLocalFileHeader,
@@ -492,7 +494,7 @@ public class box_link_pre_signed_url_tests : TestFixture
             fileExternalId: zipFile.ExternalId,
             request: new GetZipContentDownloadLinkRequestDto(
                 Item: new ZipFileDto(
-                    FilePath: entry.FilePath,
+                    FileName: entry.FileName,
                     CompressedSizeInBytes: entry.CompressedSizeInBytes,
                     SizeInBytes: entry.SizeInBytes,
                     OffsetToLocalFileHeader: entry.OffsetToLocalFileHeader,
@@ -994,7 +996,7 @@ public class box_link_pre_signed_url_tests : TestFixture
             fileExternalId: zipFile.ExternalId,
             request: new GetZipContentDownloadLinkRequestDto(
                 Item: new ZipFileDto(
-                    FilePath: entry.FilePath,
+                    FileName: entry.FileName,
                     CompressedSizeInBytes: entry.CompressedSizeInBytes,
                     SizeInBytes: entry.SizeInBytes,
                     OffsetToLocalFileHeader: entry.OffsetToLocalFileHeader,

@@ -60,7 +60,9 @@ export class ZipPreviewComponent implements OnChanges {
     
     async loadZipDetails(operations: ZipPreviewOperations) {
         const result = await operations.getZipPreviewDetails();
-        const archive = ZipArchives.getStructure(result.items);
+        const archive = ZipArchives.getStructure(
+            result.items,
+            result.folders);
         this.zipArchive.set(archive);
     }
 

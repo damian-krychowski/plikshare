@@ -45,7 +45,7 @@ public class GetZipContentDownloadLinkOperation(
                 FileExternalId = file.ExternalId,
                 ZipEntry = new PreSignedUrlsService.ZipEntryPayload
                 {
-                    FileName = GetFileName(zipFile),
+                    FileName = zipFile.FileName,
                     OffsetToLocalFileHeader = zipFile.OffsetToLocalFileHeader,
                     CompressedSizeInBytes = zipFile.CompressedSizeInBytes,
                     SizeInBytes = zipFile.SizeInBytes,
@@ -67,11 +67,6 @@ public class GetZipContentDownloadLinkOperation(
         return new Result(
             Code: ResultCode.Ok,
             DownloadPreSignedUrl: preSignedUrl);
-    }
-
-    private static string GetFileName(ZipFileDto zf)
-    {
-        return zf.FilePath.Split("/", StringSplitOptions.RemoveEmptyEntries).Last();
     }
 
     public record Result(

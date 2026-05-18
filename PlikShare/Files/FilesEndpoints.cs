@@ -329,39 +329,24 @@ public static class FilesEndpoints
 
         return result.Code switch
         {
-            GetZipFileDetailsOperation.ResultCode.Ok => TypedResults.Ok(new GetZipFileDetailsResponseDto
-            {
-                Items = result
-                    .Entries!
-                    .Where(e => e.UncompressedSize > 0)
-                    .Select(e => new GetZipFileDetailsItemDto
-                    {
-                        FilePath = e.FileName,
-                        CompressedSizeInBytes = e.CompressedSize,
-                        SizeInBytes = e.UncompressedSize,
-                        CompressionMethod = e.CompressionMethod,
-                        FileNameLength = e.FileNameLength,
-                        IndexInArchive = e.IndexInArchive,
-                        OffsetToLocalFileHeader = e.OffsetToLocalFileHeader
-                    })
-                    .ToList()
-            }),
+            GetZipFileDetailsOperation.ResultCode.Ok =>
+                TypedResults.Ok(result.Response!),
 
-            GetZipFileDetailsOperation.ResultCode.FileNotFound => 
+            GetZipFileDetailsOperation.ResultCode.FileNotFound =>
                 HttpErrors.File.NotFound(
                     fileExternalId),
-            
-            GetZipFileDetailsOperation.ResultCode.WrongFileExtension => 
+
+            GetZipFileDetailsOperation.ResultCode.WrongFileExtension =>
                 HttpErrors.File.WrongFileExtension(
                     fileExternalId,
                     ".zip"),
 
-            GetZipFileDetailsOperation.ResultCode.ZipFileBroken => 
+            GetZipFileDetailsOperation.ResultCode.ZipFileBroken =>
                 HttpErrors.File.ZipFileBroken(
                     fileExternalId),
 
             _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(CreateFileCommentQuery),
+                operationName: nameof(GetZipFileDetailsOperation),
                 resultValueStr: result.Code.ToString())
         };
     }

@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Text;
 using FluentAssertions;
 using PlikShare.Core.Utils;
+using PlikShare.Files.Preview.GetZipDetails.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.Storages.Encryption;
@@ -18,6 +19,28 @@ public class zip_file_tests : TestFixture
         ITestOutputHelper testOutputHelper)
         : base(hostFixture, testOutputHelper)
     {
+    }
+
+    // Rebuilds the in-zip full path for an item by walking the virtual folder chain
+    // back to the root. The response no longer carries full paths inline — items
+    // expose only a file name plus a folder reference — so legacy assertions that
+    // checked full paths reconstruct them through this helper. New behaviour
+    // (folder structure, stable ids) is exercised by dedicated tests below.
+    private static string GetFullPath(
+        GetZipFileDetailsResponseDto details,
+        GetZipFileDetailsItemDto item)
+    {
+        var segments = new List<string> { item.FileName };
+        var folderId = item.VirtualFolderId;
+
+        while (folderId.HasValue)
+        {
+            var folder = details.Folders.Single(f => f.Id == folderId.Value);
+            segments.Insert(0, folder.Name);
+            folderId = folder.ParentId;
+        }
+
+        return string.Join("/", segments);
     }
 
     private static byte[] CreateZipArchive(Dictionary<string, byte[]> files)
@@ -88,7 +111,9 @@ public class zip_file_tests : TestFixture
         for (var i = 0; i < expectedEntries.Count; i++)
         {
             var expected = expectedEntries[i];
-            var actual = zipDetails.Items.Single(item => item.FilePath == expected.FullName);
+            var actual = zipDetails
+                .Items
+                .Single(item => GetFullPath(zipDetails, item) == expected.FullName);
 
             actual.SizeInBytes.Should().Be(expected.Length,
                 $"SizeInBytes mismatch for '{expected.FullName}'");
@@ -152,12 +177,15 @@ public class zip_file_tests : TestFixture
             workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
 
         //when — download each entry
-        var textEntry = zipDetails.Items.Single(i => i.FilePath == "entry.txt");
+        var textEntry = zipDetails
+            .Items
+            .Single(i => GetFullPath(zipDetails, i) == "entry.txt");
+
         var textDownloadLink = await Api.Files.GetZipContentDownloadLink(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
             item: new ZipFileDto(
-                FilePath: textEntry.FilePath,
+                FileName: textEntry.FileName,
                 CompressedSizeInBytes: textEntry.CompressedSizeInBytes,
                 SizeInBytes: textEntry.SizeInBytes,
                 OffsetToLocalFileHeader: textEntry.OffsetToLocalFileHeader,
@@ -173,12 +201,15 @@ public class zip_file_tests : TestFixture
             preSignedUrl: textDownloadLink.DownloadPreSignedUrl,
             cookie: user.Cookie);
 
-        var binaryEntry = zipDetails.Items.Single(i => i.FilePath == "payload.bin");
+        var binaryEntry = zipDetails
+            .Items
+            .Single(i => GetFullPath(zipDetails, i) == "payload.bin");
+
         var binaryDownloadLink = await Api.Files.GetZipContentDownloadLink(
             workspaceExternalId: workspace.ExternalId,
             fileExternalId: uploadedFile.ExternalId,
             item: new ZipFileDto(
-                FilePath: binaryEntry.FilePath,
+                FileName: binaryEntry.FileName,
                 CompressedSizeInBytes: binaryEntry.CompressedSizeInBytes,
                 SizeInBytes: binaryEntry.SizeInBytes,
                 OffsetToLocalFileHeader: binaryEntry.OffsetToLocalFileHeader,
@@ -278,7 +309,10 @@ public class zip_file_tests : TestFixture
 
         foreach (var (fileName, content) in fileContents)
         {
-            var entry = zipDetails.Items.Single(i => i.FilePath == fileName);
+            var entry = zipDetails
+                .Items
+                .Single(i => GetFullPath(zipDetails, i) == fileName);
+
             entry.SizeInBytes.Should().Be(content.Length,
                 $"SizeInBytes mismatch for '{fileName}'");
         }
@@ -334,18 +368,25 @@ public class zip_file_tests : TestFixture
         //then
         zipDetails.Items.Should().HaveCount(6);
 
-        zipDetails.Items.Select(i => i.FilePath).Should().BeEquivalentTo([
-            "root.txt",
-            "a/level1.txt",
-            "a/b/level2.txt",
-            "a/b/c/level3.txt",
-            "a/b/c/d/level4.txt",
-            "x/y/sibling.txt"
-        ]);
+        zipDetails
+            .Items
+            .Select(i => GetFullPath(zipDetails, i))
+            .Should()
+            .BeEquivalentTo([
+                "root.txt",
+                "a/level1.txt",
+                "a/b/level2.txt",
+                "a/b/c/level3.txt",
+                "a/b/c/d/level4.txt",
+                "x/y/sibling.txt"
+            ]);
 
         foreach (var (fileName, content) in fileContents)
         {
-            var entry = zipDetails.Items.Single(i => i.FilePath == fileName);
+            var entry = zipDetails
+                .Items
+                .Single(i => GetFullPath(zipDetails, i) == fileName);
+
             entry.SizeInBytes.Should().Be(content.Length,
                 $"SizeInBytes mismatch for '{fileName}'");
             entry.FileNameLength.Should().Be((ushort)fileName.Length,
@@ -390,7 +431,7 @@ public class zip_file_tests : TestFixture
         //then
         zipDetails.Items.Should().HaveCount(1);
         var entry = zipDetails.Items[0];
-        entry.FilePath.Should().Be("only-file.txt");
+        GetFullPath(zipDetails, entry).Should().Be("only-file.txt");
         entry.SizeInBytes.Should().Be(content.Length);
         entry.IndexInArchive.Should().Be(0);
     }
@@ -432,7 +473,9 @@ public class zip_file_tests : TestFixture
 
         //then
         zipDetails.Items.Should().HaveCount(1);
-        zipDetails.Items[0].FilePath.Should().Be("file-in-commented-zip.txt");
+        GetFullPath(zipDetails, zipDetails.Items[0])
+            .Should()
+            .Be("file-in-commented-zip.txt");
         zipDetails.Items[0].SizeInBytes.Should().Be(12);
     }
 
@@ -477,7 +520,7 @@ public class zip_file_tests : TestFixture
 
         //then
         zipDetails.Items.Should().HaveCount(1);
-        zipDetails.Items[0].FilePath.Should().Be(longPath);
+        GetFullPath(zipDetails, zipDetails.Items[0]).Should().Be(longPath);
         zipDetails.Items[0].FileNameLength.Should().Be((ushort)longPath.Length);
     }
 
@@ -522,8 +565,11 @@ public class zip_file_tests : TestFixture
 
         //then — only non-empty files should be returned
         zipDetails.Items.Should().HaveCount(2);
-        zipDetails.Items.Select(i => i.FilePath).Should().BeEquivalentTo(
-            ["has-content.txt", "also-content.bin"]);
+        zipDetails
+            .Items
+            .Select(i => GetFullPath(zipDetails, i))
+            .Should()
+            .BeEquivalentTo(["has-content.txt", "also-content.bin"]);
     }
 
     [Theory]
@@ -559,6 +605,281 @@ public class zip_file_tests : TestFixture
         //then
         var exception = await act.Should().ThrowAsync<TestApiCallException>();
         exception.Which.StatusCode.Should().Be(400);
+    }
+
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task root_level_file_has_null_virtual_folder_id(
+        StorageEncryptionType encryptionType)
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
+        var workspace = await CreateWorkspace(storage, user);
+        var folder = await CreateFolder(parent: null, workspace, user);
+
+        var zipContent = CreateZipArchive(new Dictionary<string, byte[]>
+        {
+            ["root.txt"] = "root level"u8.ToArray(),
+            ["sub/nested.txt"] = "nested"u8.ToArray()
+        });
+
+        var uploadedFile = await UploadFile(
+            content: zipContent,
+            fileName: "root-vs-nested.zip",
+            contentType: "application/zip",
+            folder: folder,
+            workspace: workspace,
+            user: user);
+
+        //when
+        var zipDetails = await Api.Files.GetZipDetails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: uploadedFile.ExternalId,
+            cookie: user.Cookie,
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
+
+        //then
+        var rootFile = zipDetails.Items.Single(i => i.FileName == "root.txt");
+        rootFile.VirtualFolderId.Should().BeNull(
+            "files at archive root must carry a null folder reference");
+
+        var nestedFile = zipDetails.Items.Single(i => i.FileName == "nested.txt");
+        nestedFile.VirtualFolderId.Should().NotBeNull(
+            "files inside a folder must point at an existing virtual folder");
+    }
+
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task virtual_folders_are_emitted_with_correct_parent_chain(
+        StorageEncryptionType encryptionType)
+    {
+        //given — Dictionary<,> preserves insertion order in .NET, so CDFH entries
+        //land in the archive in this exact sequence. Folder ids below are pinned
+        //to the deterministic order in which the algorithm discovers them.
+        var user = await SignIn(Users.AppOwner);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
+        var workspace = await CreateWorkspace(storage, user);
+        var folder = await CreateFolder(parent: null, workspace, user);
+
+        var zipContent = CreateZipArchive(new Dictionary<string, byte[]>
+        {
+            ["root.txt"] = "root"u8.ToArray(),
+            ["a/level1.txt"] = "level 1"u8.ToArray(),
+            ["a/b/level2.txt"] = "level 2"u8.ToArray(),
+            ["a/b/c/level3.txt"] = "level 3"u8.ToArray(),
+            ["a/b/c/d/level4.txt"] = "level 4"u8.ToArray(),
+            ["x/y/sibling.txt"] = "sibling"u8.ToArray()
+        });
+
+        var uploadedFile = await UploadFile(
+            content: zipContent,
+            fileName: "folder-chain.zip",
+            contentType: "application/zip",
+            folder: folder,
+            workspace: workspace,
+            user: user);
+
+        //when
+        var zipDetails = await Api.Files.GetZipDetails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: uploadedFile.ExternalId,
+            cookie: user.Cookie,
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
+
+        //then — folders compared as a full collection, in the order the algorithm
+        //must produce them (sequential discovery during CDFH walk). Ids start at 1
+        //because 0 is reserved as the "no folder" marker on the wire (proto3 cannot
+        //distinguish a missing scalar from one with value 0).
+        zipDetails
+            .Folders
+            .Should()
+            .BeEquivalentTo(new[]
+            {
+                new { Id = 1u, ParentId = (uint?)null, Name = "a" },
+                new { Id = 2u, ParentId = (uint?)1u,   Name = "b" },
+                new { Id = 3u, ParentId = (uint?)2u,   Name = "c" },
+                new { Id = 4u, ParentId = (uint?)3u,   Name = "d" },
+                new { Id = 5u, ParentId = (uint?)null, Name = "x" },
+                new { Id = 6u, ParentId = (uint?)5u,   Name = "y" }
+            }, options => options.WithStrictOrdering());
+
+        //and — items mapped to the exact folder ids assigned above
+        zipDetails
+            .Items
+            .Select(i => new { i.FileName, i.VirtualFolderId })
+            .Should()
+            .BeEquivalentTo(new[]
+            {
+                new { FileName = "root.txt",    VirtualFolderId = (uint?)null },
+                new { FileName = "level1.txt",  VirtualFolderId = (uint?)1u },
+                new { FileName = "level2.txt",  VirtualFolderId = (uint?)2u },
+                new { FileName = "level3.txt",  VirtualFolderId = (uint?)3u },
+                new { FileName = "level4.txt",  VirtualFolderId = (uint?)4u },
+                new { FileName = "sibling.txt", VirtualFolderId = (uint?)6u }
+            });
+    }
+
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task siblings_in_same_folder_share_a_virtual_folder_id(
+        StorageEncryptionType encryptionType)
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
+        var workspace = await CreateWorkspace(storage, user);
+        var folder = await CreateFolder(parent: null, workspace, user);
+
+        var zipContent = CreateZipArchive(new Dictionary<string, byte[]>
+        {
+            ["shared/a.txt"] = "a"u8.ToArray(),
+            ["shared/b.txt"] = "b"u8.ToArray(),
+            ["shared/c.txt"] = "c"u8.ToArray()
+        });
+
+        var uploadedFile = await UploadFile(
+            content: zipContent,
+            fileName: "siblings.zip",
+            contentType: "application/zip",
+            folder: folder,
+            workspace: workspace,
+            user: user);
+
+        //when
+        var zipDetails = await Api.Files.GetZipDetails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: uploadedFile.ExternalId,
+            cookie: user.Cookie,
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
+
+        //then — exactly one folder, all three files point at it
+        zipDetails.Folders.Should().HaveCount(1);
+        zipDetails.Folders[0].Name.Should().Be("shared");
+        zipDetails.Folders[0].ParentId.Should().BeNull();
+
+        var folderId = zipDetails.Folders[0].Id;
+        zipDetails
+            .Items
+            .Select(i => i.VirtualFolderId)
+            .Should()
+            .AllBeEquivalentTo(folderId);
+    }
+
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task same_folder_name_under_different_parents_yields_distinct_ids(
+        StorageEncryptionType encryptionType)
+    {
+        //given
+        var user = await SignIn(Users.AppOwner);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
+        var workspace = await CreateWorkspace(storage, user);
+        var folder = await CreateFolder(parent: null, workspace, user);
+
+        var zipContent = CreateZipArchive(new Dictionary<string, byte[]>
+        {
+            ["alpha/shared/file.txt"] = "from alpha"u8.ToArray(),
+            ["beta/shared/file.txt"] = "from beta"u8.ToArray()
+        });
+
+        var uploadedFile = await UploadFile(
+            content: zipContent,
+            fileName: "name-collision.zip",
+            contentType: "application/zip",
+            folder: folder,
+            workspace: workspace,
+            user: user);
+
+        //when
+        var zipDetails = await Api.Files.GetZipDetails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: uploadedFile.ExternalId,
+            cookie: user.Cookie,
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
+
+        //then — four folders: alpha, alpha/shared, beta, beta/shared
+        zipDetails.Folders.Should().HaveCount(4);
+
+        var sharedFolders = zipDetails
+            .Folders
+            .Where(f => f.Name == "shared")
+            .ToList();
+
+        sharedFolders.Should().HaveCount(2,
+            "the same folder name under different parents must produce two virtual folders");
+        sharedFolders[0].Id.Should().NotBe(sharedFolders[1].Id);
+        sharedFolders[0].ParentId.Should().NotBe(sharedFolders[1].ParentId);
+
+        // The two files share the same FileName but different VirtualFolderId.
+        var files = zipDetails
+            .Items
+            .Where(i => i.FileName == "file.txt")
+            .ToList();
+
+        files.Should().HaveCount(2);
+        files[0].VirtualFolderId.Should().NotBe(files[1].VirtualFolderId);
+    }
+
+    [Theory]
+    [InlineData(StorageEncryptionType.None)]
+    [InlineData(StorageEncryptionType.Managed)]
+    [InlineData(StorageEncryptionType.Full)]
+    public async Task repeated_listing_yields_identical_virtual_folder_ids(
+        StorageEncryptionType encryptionType)
+    {
+        //given — a non-trivial folder layout so a buggy non-deterministic
+        //algorithm has a real chance of producing different ids on the second pass
+        var user = await SignIn(Users.AppOwner);
+        var storage = await CreateHardDriveStorage(user, encryptionType);
+        var workspace = await CreateWorkspace(storage, user);
+        var folder = await CreateFolder(parent: null, workspace, user);
+
+        var zipContent = CreateZipArchive(new Dictionary<string, byte[]>
+        {
+            ["alpha/one.txt"] = "1"u8.ToArray(),
+            ["alpha/two.txt"] = "2"u8.ToArray(),
+            ["alpha/nested/deep.txt"] = "deep"u8.ToArray(),
+            ["beta/alone.txt"] = "alone"u8.ToArray(),
+            ["beta/shared/x.txt"] = "x"u8.ToArray(),
+            ["gamma/shared/y.txt"] = "y"u8.ToArray(),
+            ["root.txt"] = "r"u8.ToArray()
+        });
+
+        var uploadedFile = await UploadFile(
+            content: zipContent,
+            fileName: "stability.zip",
+            contentType: "application/zip",
+            folder: folder,
+            workspace: workspace,
+            user: user);
+
+        //when — read the listing twice in independent calls
+        var first = await Api.Files.GetZipDetails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: uploadedFile.ExternalId,
+            cookie: user.Cookie,
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
+
+        var second = await Api.Files.GetZipDetails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: uploadedFile.ExternalId,
+            cookie: user.Cookie,
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
+
+        //then — both readings must agree on the folder structure (ids included)
+        //and on the file → folder mapping (ids included). This is the contract
+        //the bulk-download flow relies on when it sends ids back to the server.
+        first.Folders.Should().BeEquivalentTo(second.Folders);
+        first.Items.Should().BeEquivalentTo(second.Items);
     }
 
     private static byte[] CreateZipArchiveWithComment(

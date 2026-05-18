@@ -7,7 +7,7 @@ import { AppComment, CommentComponent } from '../../shared/comment/comment.compo
 import { getRelativeTime } from '../../services/time.service';
 import { AuthService } from '../../services/auth.service';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
-import { ZipArchives, ZipEntry } from '../../services/zip';
+import { ZipArchives, ZipEntry, ZipVirtualFolder } from '../../services/zip';
 import { AiInclude, AiMessageDto, ContentDisposition, FilePreviewDetailsField, GetAiMessagesResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, TextractFeature, TextractJobStatus, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
 import { TextractIntegration } from '../../services/integrations.types';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -41,6 +41,7 @@ export type ImageExif = Record<string, any>;
 
 export type ZipPreviewDetails = {
     items: ZipEntry[];
+    folders: ZipVirtualFolder[];
 }
 
 export type FilePreviewOperations = {

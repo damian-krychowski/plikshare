@@ -521,8 +521,15 @@ export type ZipFolder = {
     entries: ZipEntry[];
 }
 
+export type ZipVirtualFolder = {
+    id: number;
+    parentId: number | null;
+    name: string;
+};
+
 export type ZipEntry = {
-    filePath: string;
+    fileName: string;
+    virtualFolderId: number | null;
     compressedSizeInBytes: number;
     sizeInBytes: number;
     offsetToLocalFileHeader: number;
@@ -537,55 +544,67 @@ type ZipNode = {
 }
 
 export class ZipArchives {
-    public static getStructure(entries: ZipEntry[]): ZipArchive {
+    public static getStructure(
+        items: ZipEntry[],
+        folders: ZipVirtualFolder[]
+    ): ZipArchive {
         const archive: ZipArchive = {
             folders: [],
             entries: [],
             entriesMap: new Map<number, ZipEntry>(),
-            foldersCount: 0
+            foldersCount: folders.length
         };
 
-        for (let index = 0; index < entries.length; index++) {
-            const entry = entries[index];
+        // Wire folders into the nested tree by walking the input in order. The
+        // server emits a parent before any of its children (root-first traversal),
+        // so by the time we encounter a child its parent is already in the map.
+        const folderById = new Map<number, ZipFolder>();
 
-            archive.entriesMap.set(entry.indexInArchive, entry);
+        for (const virtualFolder of folders) {
+            const folder: ZipFolder = {
+                name: virtualFolder.name,
+                folders: [],
+                entries: []
+            };
 
-            const pathParts = entry.filePath.split('/');
-            const fileLevel = pathParts.length - 1;
+            folderById.set(virtualFolder.id, folder);
 
-            let currentLevelNode: ZipNode = archive;
+            // proto3 wire format cannot distinguish "field absent" from "field = 0"
+            // for scalar uint32: protobuf-net omits the tag when a nullable value is
+            // null, and protobufjs surfaces a missing tag as the default value 0 on
+            // decode. We sidestep the ambiguity by starting folder ids at 1 on the
+            // server, which makes 0 a reserved "absent" marker on both ends.
+            if (virtualFolder.parentId == null || virtualFolder.parentId === 0) {
+                archive.folders.push(folder);
+            } else {
+                const parent = folderById.get(virtualFolder.parentId);
 
-            for (let level = 0; level < pathParts.length; level++) {
-                const levelName = pathParts[level];
-                
-                if(level < fileLevel) {
-                    let folder: ZipFolder | undefined = currentLevelNode
-                        .folders
-                        .find(f => f.name === levelName);
-
-                    if(!folder) {
-                        let folderPath = '';
-
-                        for(let i = 0; i < level; i++) {
-                            folderPath += pathParts[i] + "/";
-                        }
-
-                        folderPath += levelName;
-
-                        folder = {
-                            name: levelName,
-                            folders: [],
-                            entries: []
-                        };
-
-                        archive.foldersCount += 1;
-                        currentLevelNode.folders.push(folder);
-                    }
-
-                    currentLevelNode = folder;
-                } else {
-                    currentLevelNode.entries.push(entry);
+                if (!parent) {
+                    throw new Error(
+                        `Parent folder ${virtualFolder.parentId} not found while attaching ${virtualFolder.name}`);
                 }
+
+                parent.folders.push(folder);
+            }
+        }
+
+        for (const item of items) {
+            archive.entriesMap.set(item.indexInArchive, item);
+
+            // Same proto3 absent-vs-zero collision as above — a root-level item is
+            // serialized with VirtualFolderId = null (tag absent) and decodes as 0
+            // here; treating 0 as "no folder" is safe because folder ids start at 1.
+            if (item.virtualFolderId == null || item.virtualFolderId === 0) {
+                archive.entries.push(item);
+            } else {
+                const folder = folderById.get(item.virtualFolderId);
+
+                if (!folder) {
+                    throw new Error(
+                        `Folder ${item.virtualFolderId} not found while attaching entry ${item.fileName}`);
+                }
+
+                folder.entries.push(item);
             }
         }
 
@@ -594,39 +613,118 @@ export class ZipArchives {
         return archive;
     }
 
+    // JS port of the server-side ZipPreviewResponseBuilder. Walks raw CDFH
+    // records in IndexInArchive order, assigning a virtual folder id the first
+    // time a (parent, name) pair is encountered. Same deterministic algorithm
+    // → same ids for the same zip bytes on both ends.
+    public static fromCdfhRecords(
+        records: ZipCdfhRecord[]
+    ): { items: ZipEntry[]; folders: ZipVirtualFolder[] } {
+        const items: ZipEntry[] = [];
+        const folders: ZipVirtualFolder[] = [];
+        const folderMap = new Map<string, number>();
+        // Start at 1 to mirror the server: 0 is reserved as the "no folder" marker
+        // because proto3 cannot distinguish absent from 0 on the wire. The local
+        // CDFH path never crosses protobuf, but keeping the numbering identical
+        // means the same zip produces the same ids regardless of the source.
+        let nextFolderId = 1;
+
+        for (const record of records) {
+            if (record.uncompressedSize === 0)
+                continue;
+
+            // Zip spec allows messy fileName values — leading slash, double slashes,
+            // trailing slash. Filtering empty segments collapses them in one shot;
+            // the length guard drops degenerate "/" / "" entries entirely.
+            const parts = record
+                .fileName
+                .split('/')
+                .filter(segment => segment.length > 0);
+
+            if (parts.length === 0)
+                continue;
+
+            const fileName = parts[parts.length - 1];
+            let parentId: number | null = null;
+
+            // Last segment is the file name itself — iterate only over the
+            // preceding segments, which are the folder names along the path.
+            for (let i = 0; i < parts.length - 1; i++) {
+                const segment = parts[i];
+
+                // (parentId, segment) — the same name can appear under different
+                // parents (two "src" folders in different subtrees are different
+                // folders), so the lookup key must include parentId.
+                const key = `${parentId}|${segment}`;
+                let id = folderMap.get(key);
+
+                if (id === undefined) {
+                    id = nextFolderId;
+                    nextFolderId++;
+                    folderMap.set(key, id);
+                    folders.push({
+                        id: id,
+                        parentId: parentId,
+                        name: segment
+                    });
+                }
+
+                parentId = id;
+            }
+
+            items.push({
+                fileName: fileName,
+                virtualFolderId: parentId,
+                compressedSizeInBytes: record.compressedSize,
+                sizeInBytes: record.uncompressedSize,
+                offsetToLocalFileHeader: record.offsetToLocalFileHeader,
+                fileNameLength: record.fileNameLength,
+                compressionMethod: record.compressionMethod,
+                indexInArchive: record.indexInArchive
+            });
+        }
+
+        return {
+            items: items,
+            folders: folders
+        };
+    }
+
     private static sortNodeIterative(root: ZipNode): void {
         const nodesToProcess: ZipNode[] = [root];
-        
+
         while (nodesToProcess.length > 0) {
             const currentNode = nodesToProcess.pop()!;
-            
+
             // Sort entries in current node
-            currentNode.entries.sort((a, b) => a.filePath.localeCompare(b.filePath));
-            
+            currentNode.entries.sort(
+                (a, b) => a.fileName.localeCompare(b.fileName));
+
             // Sort folders in current node
-            currentNode.folders.sort((a, b) => a.name.localeCompare(b.name));
-            
+            currentNode.folders.sort(
+                (a, b) => a.name.localeCompare(b.name));
+
             // Add all subfolders to the stack
             nodesToProcess.push(...currentNode.folders);
         }
     }
 
-    public static getFileNameAndExtension(entry: ZipEntry): {name: string; extension: string} {
-        const fullName = ZipArchives.getFullName(
-            entry);
-
-        return toNameAndExtension(fullName);
+    public static getFileNameAndExtension(
+        entry: ZipEntry
+    ): { name: string; extension: string } {
+        return toNameAndExtension(entry.fileName);
     }
 
     public static getFullName(entry: ZipEntry): string {
-        const pathParts = entry.filePath.split('/');
-        return pathParts[pathParts.length - 1];
+        return entry.fileName;
     }
 
-    public static doesMatchSearchPhrase(entry: ZipEntry, searchPhraseLower: string): boolean {
-        const fullFileName = ZipArchives.getFullName(entry);
-
-        return fullFileName
+    public static doesMatchSearchPhrase(
+        entry: ZipEntry,
+        searchPhraseLower: string
+    ): boolean {
+        return entry
+            .fileName
             .toLowerCase()
             .includes(searchPhraseLower);
     }

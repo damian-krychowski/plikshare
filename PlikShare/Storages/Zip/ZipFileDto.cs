@@ -1,7 +1,7 @@
 ﻿namespace PlikShare.Storages.Zip;
 
 public record ZipFileDto(
-    string FilePath,
+    string FileName,
     long CompressedSizeInBytes,
     long SizeInBytes,
     long OffsetToLocalFileHeader,

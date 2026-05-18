@@ -24,7 +24,7 @@ export type BulkUploadZipEntry = {
     fileName: string;
     fileExtension: string;
 
-    filePath: string;
+    virtualFolderId: number | null;
     compressedSizeInBytes: number;
     sizeInBytes: number;
     offsetToLocalFileHeader: number;
@@ -502,8 +502,28 @@ export class BulkUploadPreviewComponent implements OnInit {
         if (readZipResult.isBroken) {
             pendingBulkUpload.isBroken.set(true);
         } else {
-            const zipEntries = readZipResult.entries.map(entry => this.mapToZipEntry(entry));
-            const archive = ZipArchives.getStructure(zipEntries);
+            const { items, folders } = ZipArchives.fromCdfhRecords(
+                readZipResult.entries);
+
+            const zipEntries: BulkUploadZipEntry[] = items.map(item => {
+                const nameAndExt = toNameAndExtension(item.fileName);
+
+                return {
+                    fileName: nameAndExt.name,
+                    fileExtension: nameAndExt.extension,
+                    virtualFolderId: item.virtualFolderId,
+                    compressedSizeInBytes: item.compressedSizeInBytes,
+                    sizeInBytes: item.sizeInBytes,
+                    offsetToLocalFileHeader: item.offsetToLocalFileHeader,
+                    fileNameLength: item.fileNameLength,
+                    compressionMethod: item.compressionMethod,
+                    indexInArchive: item.indexInArchive
+                };
+            });
+
+            const archive = ZipArchives.getStructure(
+                items,
+                folders);
 
             pendingBulkUpload.entries.set(zipEntries);
             pendingBulkUpload.archive.set(archive);
@@ -512,26 +532,5 @@ export class BulkUploadPreviewComponent implements OnInit {
 
     private async readZipEntries(file: File): Promise<{ entries: ZipCdfhRecord[], isBroken: boolean }> {
         return await Zip.readZipFile(file);
-    }
-
-    private mapToZipEntry(cdfh: ZipCdfhRecord): BulkUploadZipEntry {
-        const nameAndExt = this.filePathToNameAndExtensions(cdfh.fileName);
-
-        return {
-            fileName: nameAndExt.name,
-            fileExtension: nameAndExt.extension,
-            filePath: cdfh.fileName,
-            compressedSizeInBytes: cdfh.compressedSize,
-            sizeInBytes: cdfh.uncompressedSize,
-            offsetToLocalFileHeader: cdfh.offsetToLocalFileHeader,
-            fileNameLength: cdfh.fileNameLength,
-            compressionMethod: cdfh.compressionMethod,
-            indexInArchive: cdfh.indexInArchive,            
-        };
-    }
-
-    private filePathToNameAndExtensions(filePath: string) {
-        const path = filePath.split('/');     
-        return toNameAndExtension(path[path.length - 1]);   
     }
 }

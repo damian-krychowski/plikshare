@@ -2,6 +2,7 @@
 using PlikShare.Core.Utils;
 using PlikShare.Files.Download;
 using PlikShare.Files.Id;
+using PlikShare.Files.Preview.GetZipDetails.Contracts;
 using PlikShare.Files.Records;
 using PlikShare.Storages.Exceptions;
 using PlikShare.Storages.Zip;
@@ -30,33 +31,34 @@ public class GetZipFileDetailsOperation(
 
         if (file.Extension != ".zip")
             return new Result { Code = ResultCode.WrongFileExtension };
-        
+
         try
         {
-            var result = await ZipDecoder.ReadZipEntries(
+            var decodingResult = await ZipDecoder.ReadZipEntries(
                 file: file.Resolve(
                     workspaceEncryptionSession: workspaceEncryptionSession,
                     storageClient: workspace.Storage),
                 workspace: workspace,
                 cancellationToken: cancellationToken);
 
-            return result.Code switch
-            {
-                ZipDecoder.ZipDecodingResultCode.ZipFileBroken => new Result
-                {
-                    Code = ResultCode.ZipFileBroken
-                },
+            if (decodingResult.Code == ZipDecoder.ZipDecodingResultCode.ZipFileBroken)
+                return new Result { Code = ResultCode.ZipFileBroken };
 
-                ZipDecoder.ZipDecodingResultCode.Ok => new Result
+            if (decodingResult.Code == ZipDecoder.ZipDecodingResultCode.Ok)
+            {
+                var response = ZipPreviewResponseBuilder.Build(
+                    decodingResult.Entries!);
+
+                return new Result
                 {
                     Code = ResultCode.Ok,
-                    Entries = result.Entries
-                },
+                    Response = response
+                };
+            }
 
-                _ => throw new UnexpectedOperationResultException(
-                    operationName: nameof(ZipDecoder),
-                    resultValueStr: result.Code.ToString())
-            };
+            throw new UnexpectedOperationResultException(
+                operationName: nameof(ZipDecoder),
+                resultValueStr: decodingResult.Code.ToString());
         }
         catch (FileNotFoundInStorageException)
         {
@@ -66,11 +68,11 @@ public class GetZipFileDetailsOperation(
             };
         }
     }
-    
+
     public class Result
     {
         public required ResultCode Code { get; init; }
-        public List<ZipCdfhRecord>? Entries { get; init; }
+        public GetZipFileDetailsResponseDto? Response { get; init; }
     }
 
 
