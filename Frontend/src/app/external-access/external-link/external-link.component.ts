@@ -348,10 +348,15 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
                 fileExternalId),
 
             getZipContentDownloadLink: async (fileExternalId, zipEntry, contentDisposition) =>  this._accessCodesApi.getZipContentDownloadLink(
-                this._accessCodeValue, 
+                this._accessCodeValue,
                 fileExternalId,
                 zipEntry,
                 contentDisposition),
+
+            getZipBulkDownloadLink: async (fileExternalId, request) => this._accessCodesApi.getZipBulkDownloadLink(
+                this._accessCodeValue,
+                fileExternalId,
+                request),
 
             startTextractJob: async (request: StartTextractJobRequest) => {
                 throw new Error("not implemented");

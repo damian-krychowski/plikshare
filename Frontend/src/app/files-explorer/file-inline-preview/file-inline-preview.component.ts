@@ -8,7 +8,7 @@ import { getRelativeTime } from '../../services/time.service';
 import { AuthService } from '../../services/auth.service';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
 import { ZipArchives, ZipEntry, ZipVirtualFolder } from '../../services/zip';
-import { AiInclude, AiMessageDto, ContentDisposition, FilePreviewDetailsField, GetAiMessagesResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, TextractFeature, TextractJobStatus, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
+import { AiInclude, AiMessageDto, ContentDisposition, FilePreviewDetailsField, GetAiMessagesResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, TextractFeature, TextractJobStatus, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
 import { TextractIntegration } from '../../services/integrations.types';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { FormsModule } from '@angular/forms';
@@ -47,6 +47,7 @@ export type ZipPreviewDetails = {
 export type FilePreviewOperations = {
     getZipPreviewDetails: (fileExternalId: string) => Promise<ZipPreviewDetails>;
     getZipContentDownloadLink: (fileExternalId: string, zipEntry: ZipEntry, contentDisposition: ContentDisposition) => Promise<GetFileDownloadLinkResponse>;
+    getZipBulkDownloadLink: (fileExternalId: string, request: GetZipBulkDownloadLinkRequest) => Promise<GetZipBulkDownloadLinkResponse>;
 
     getFilePreviewDetails: (fileExternalId: string, fields: FilePreviewDetailsField[] | null) => Promise<GetFilePreviewDetailsResponse>;
 
@@ -402,6 +403,10 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
                 zipEntry,
                 contentDisposition),
 
+            getZipBulkDownloadLink: (request: GetZipBulkDownloadLinkRequest) => previewOperations.getZipBulkDownloadLink(
+                fileExternalId,
+                request),
+
             getZipPreviewDetails: () => previewOperations.getZipPreviewDetails(
                 fileExternalId),
 
@@ -435,6 +440,10 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
                 contentDisposition),
 
             getZipContentDownloadLink: (zipEntry: ZipEntry, contentDisposition: ContentDisposition) => {
+                throw new Error("not implemented")
+            },
+
+            getZipBulkDownloadLink: (request: GetZipBulkDownloadLinkRequest) => {
                 throw new Error("not implemented")
             },
 

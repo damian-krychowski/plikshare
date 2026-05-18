@@ -16,6 +16,7 @@ using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Files.Records;
 using PlikShare.Storages;
 using PlikShare.Storages.Exceptions;
+using PlikShare.Files.Preview.GetZipBulkDownloadLink;
 using PlikShare.Storages.Zip;
 using PlikShare.AuditLog;
 using PlikShare.Uploads.Algorithm;
@@ -73,6 +74,17 @@ public static class PreSignedFilesEndpoints
         group.MapGet("/{protectedPayload}", DownloadZipFileContent)
             .WithName("DownloadZipFileContent")
             .AddEndpointFilter<ValidateProtectedZipContentDownloadPayloadFilter>();
+    }
+
+    public static void MapPreSignedZipBulkDownloadEndpoints(this WebApplication app)
+    {
+        var group = app.MapGroup("/api/zip-files-bulk")
+            .WithTags("PreSignedZipBulkDownload")
+            .RequireCors(CorsPolicies.PreSignedLink);
+
+        group.MapGet("/{protectedPayload}", DownloadZipBulkContent)
+            .WithName("DownloadZipBulkContent")
+            .AddEndpointFilter<ValidateProtectedZipBulkDownloadPayloadFilter>();
     }
 
     private static async ValueTask<Results<Ok<List<MultiFileDirectUploadItemResponseDto>>, NotFound<HttpError>, BadRequest<HttpError>>> MultiFileDirectUpload(
@@ -634,6 +646,95 @@ public static class PreSignedFilesEndpoints
         finally
         {
             await httpContext.Response.BodyWriter.CompleteAsync();
+        }
+    }
+
+    private static async ValueTask<Results<EmptyHttpResult, NotFound<HttpError>, JsonHttpResult<HttpError>>> DownloadZipBulkContent(
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var protectedPayload = httpContext.GetProtectedZipBulkDownloadPayload();
+        var (payload, file, workspace) = protectedPayload;
+
+        Log.Debug("Zip bulk download with pre-signed url started: {Payload}", payload);
+
+        try
+        {
+            var resolvedFile = file.Resolve(
+                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
+                storageClient: workspace.Storage);
+
+            // CDFH must be read before any response bytes go out — both because the
+            // decoded entries drive the selection plan and because a broken zip has
+            // to surface as an error while we can still write headers.
+            var decodingResult = await ZipDecoder.ReadZipEntries(
+                file: resolvedFile,
+                workspace: workspace,
+                cancellationToken: cancellationToken);
+
+            if (decodingResult.Code == ZipDecoder.ZipDecodingResultCode.ZipFileBroken)
+            {
+                Log.Warning("Zip bulk download: source zip '{FileExternalId}' is broken.",
+                    payload.FileExternalId);
+
+                return HttpErrors.File.NotFound(payload.FileExternalId);
+            }
+
+            if (decodingResult.Code != ZipDecoder.ZipDecodingResultCode.Ok)
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(ZipDecoder),
+                    resultValueStr: decodingResult.Code.ToString());
+
+            var outputFileName = $"{file.Name}-selection.zip";
+
+            httpContext.Response.Headers.ContentType = "application/zip";
+            httpContext.Response.Headers.ContentDisposition = ContentDispositionHelper.CreateContentDisposition(
+                fileName: outputFileName,
+                disposition: ContentDispositionType.Attachment);
+
+            await ZipBulkDownloadStreamer.StreamAsync(
+                sourceFile: resolvedFile,
+                workspace: workspace,
+                payload: payload,
+                cdfhEntries: decodingResult.Entries!,
+                output: httpContext.Response.BodyWriter,
+                cancellationToken: cancellationToken);
+
+            return TypedResults.Empty;
+        }
+        catch (OperationCanceledException)
+        {
+            //if the streaming is cancelled in the middle we just let it end and do nothing
+            return TypedResults.Empty;
+        }
+        catch (FileNotFoundInStorageException e)
+        {
+            Log.Warning(e,
+                "Could not execute zip bulk download with pre-signed url because file '{FileExternalId}' was not found.",
+                payload.FileExternalId);
+
+            return HttpErrors.File.NotFound(payload.FileExternalId);
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Something went wrong while zip-bulk-downloading from file '{FileExternalId}' with pre-signed url.",
+                payload.FileExternalId);
+
+            if (httpContext.Response.HasStarted)
+            {
+                httpContext.Abort();
+                return TypedResults.Empty;
+            }
+
+            return HttpErrors.File.DownloadStreamingFailed(
+                payload.FileExternalId);
+        }
+        finally
+        {
+            if (httpContext.Response.HasStarted)
+            {
+                await httpContext.Response.BodyWriter.CompleteAsync();
+            }
         }
     }
 }

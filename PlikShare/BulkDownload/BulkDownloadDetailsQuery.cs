@@ -3,6 +3,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
+using PlikShare.Folders.Id;
 using PlikShare.Storages;
 
 //todo: handle situation when some files or folders from the request
@@ -74,6 +75,7 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
             .Cmd(
                 sql: """
                      SELECT
+                         fi_id,
                          fi_external_id,
                          fi_name,
                          fi_extension,
@@ -94,28 +96,29 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                      """,
                 readRowFunc: reader =>
                 {
-                    var encryptionKeyVersion = reader.GetByteOrNull(6);
+                    var encryptionKeyVersion = reader.GetByteOrNull(7);
 
                     var fileEncryptionMetadata = encryptionKeyVersion is null
                         ? null
                         : new FileEncryptionMetadata
                         {
                             KeyVersion = encryptionKeyVersion.Value,
-                            Salt = reader.GetFieldValue<byte[]>(7),
-                            NoncePrefix = reader.GetFieldValue<byte[]>(8),
+                            Salt = reader.GetFieldValue<byte[]>(8),
+                            NoncePrefix = reader.GetFieldValue<byte[]>(9),
                             ChainStepSalts = KeyDerivationChain.Deserialize(
-                                reader.GetFieldValueOrNull<byte[]>(9)),
-                            FormatVersion = reader.GetByteOrNull(10) ?? 1
+                                reader.GetFieldValueOrNull<byte[]>(10)),
+                            FormatVersion = reader.GetByteOrNull(11) ?? 1
                         };
 
                     return new ResolvedBulkDownloadFile
                     {
-                        ExternalId = reader.GetExtId<FileExtId>(0),
-                        Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
-                        Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
-                        KeySecretPart = reader.GetString(3),
-                        SizeInBytes = reader.GetInt64(4),
-                        FolderId = reader.GetInt32OrNull(5),
+                        Id = reader.GetInt32(0),
+                        ExternalId = reader.GetExtId<FileExtId>(1),
+                        Name = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
+                        Extension = reader.DecodeEncryptableString(3, workspaceEncryptionSession),
+                        KeySecretPart = reader.GetString(4),
+                        SizeInBytes = reader.GetInt64(5),
+                        FolderId = reader.GetInt32OrNull(6),
                         EncryptionMode = fileEncryptionMetadata.ToEncryptionMode(
                             workspaceEncryptionSession,
                             storageClient)
@@ -141,6 +144,7 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
             .Cmd(
                 sql: """
                      SELECT
+                         fi_id,
                          fi_external_id,
                          fi_name,
                          fi_extension,
@@ -164,28 +168,29 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                      """,
                 readRowFunc: reader =>
                 {
-                    var encryptionKeyVersion = reader.GetByteOrNull(6);
+                    var encryptionKeyVersion = reader.GetByteOrNull(7);
 
                     var fileEncryptionMetadata = encryptionKeyVersion is null
                         ? null
                         : new FileEncryptionMetadata
                         {
                             KeyVersion = encryptionKeyVersion.Value,
-                            Salt = reader.GetFieldValue<byte[]>(7),
-                            NoncePrefix = reader.GetFieldValue<byte[]>(8),
+                            Salt = reader.GetFieldValue<byte[]>(8),
+                            NoncePrefix = reader.GetFieldValue<byte[]>(9),
                             ChainStepSalts = KeyDerivationChain.Deserialize(
-                                reader.GetFieldValueOrNull<byte[]>(9)),
-                            FormatVersion = reader.GetByteOrNull(10) ?? 1
+                                reader.GetFieldValueOrNull<byte[]>(10)),
+                            FormatVersion = reader.GetByteOrNull(11) ?? 1
                         };
 
                     return new ResolvedBulkDownloadFile
                     {
-                        ExternalId = reader.GetExtId<FileExtId>(0),
-                        Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
-                        Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
-                        KeySecretPart = reader.GetString(3),
-                        FolderId = reader.GetInt32(4),
-                        SizeInBytes = reader.GetInt64(5),
+                        Id = reader.GetInt32(0),
+                        ExternalId = reader.GetExtId<FileExtId>(1),
+                        Name = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
+                        Extension = reader.DecodeEncryptableString(3, workspaceEncryptionSession),
+                        KeySecretPart = reader.GetString(4),
+                        FolderId = reader.GetInt32(5),
+                        SizeInBytes = reader.GetInt64(6),
                         EncryptionMode = fileEncryptionMetadata.ToEncryptionMode(
                             workspaceEncryptionSession,
                             storageClient)
@@ -220,6 +225,7 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                 sql: @"
                     SELECT
                         fo_id,
+                        fo_external_id,
                         fo_name,
                         fo_ancestor_folder_ids
                     FROM fo_folders
@@ -243,6 +249,7 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                     UNION ALL
                     SELECT
                         fo.fo_id,
+                        fo.fo_external_id,
                         fo.fo_name,
                         fo.fo_ancestor_folder_ids
                     FROM fo_folders AS fo, json_each(fo_ancestor_folder_ids) AS ancestor
@@ -265,8 +272,9 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader => new BulkDownloadFolder
                 {
                     Id = reader.GetInt32(0),
-                    Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
-                    AncestorFolderIds = reader.GetFromJson<int[]>(2)
+                    ExternalId = reader.GetExtId<FolderExtId>(1),
+                    Name = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
+                    AncestorFolderIds = reader.GetFromJson<int[]>(3)
                 })
             .WithParameter("$workspaceId", workspaceId)
             .WithJsonParameter("$selectedFolderIds", selectedFolderIds)
@@ -327,6 +335,9 @@ public class BulkDownloadDetails
 
 public class ResolvedBulkDownloadFile
 {
+    // Internal database id — needed by callers that translate a selection over
+    // external IDs into the internal-id payload BulkDownload expects.
+    public required int Id { get; init; }
     public required FileExtId ExternalId {get;init;}
     public required string Name { get; init; }
     public required string Extension { get; init; }
@@ -361,6 +372,13 @@ public class FolderSubtree(
     // Returns only download folder IDs (selected + descendants), excluding ancestor folders.
     // Used to determine which folders' files should be included in the zip.
     public int[] GetAllIds() => folders.Keys.ToArray();
+
+    public IReadOnlyCollection<BulkDownloadFolder> GetDownloadFolders() => folders.Values;
+
+    public BulkDownloadFolder? TryGetDownloadFolder(int folderId) =>
+        folders.TryGetValue(folderId, out var folder) ? folder : null;
+
+    public bool IsTopFolder(int folderId) => topFolderIds.Contains(folderId);
 
     // Returns nesting depth relative to the nearest top (selected) folder.
     // Files in ancestor folders or with no folder are treated as root level (0).
@@ -517,6 +535,7 @@ public class FolderSubtree(
 public class BulkDownloadFolder
 {
     public required int Id { get; init; }
+    public required FolderExtId ExternalId { get; init; }
     public required string Name { get; init; }
     public required int[] AncestorFolderIds { get; init; }
 }

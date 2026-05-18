@@ -17,6 +17,7 @@ using PlikShare.Core.Protobuf;
 using PlikShare.Core.Utils;
 using PlikShare.Files.BulkDownload.Contracts;
 using PlikShare.Files.Id;
+using PlikShare.Files.Preview.GetZipBulkDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipContentDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipDetails.Contracts;
 using PlikShare.Folders.Create.Contracts;
@@ -89,6 +90,12 @@ public static class BoxExternalAccessEndpoints
 
         group.MapPost("/{boxExternalId}/files/{fileExternalId}/preview/zip/download-link", GetZipContentDownloadLink)
             .WithName("BoxExternalAccess_GetZipContentDownloadLink")
+            .AddEndpointFilter(new ValidateExternalBoxFilter(
+                BoxPermission.AllowList,
+                BoxPermission.AllowDownload));
+
+        group.MapPost("/{boxExternalId}/files/{fileExternalId}/preview/zip/bulk-download-link", GetZipBulkDownloadLink)
+            .WithName("BoxExternalAccess_GetZipBulkDownloadLink")
             .AddEndpointFilter(new ValidateExternalBoxFilter(
                 BoxPermission.AllowList,
                 BoxPermission.AllowDownload));
@@ -437,6 +444,19 @@ public static class BoxExternalAccessEndpoints
             request: request,
             boxAccess: httpContext.GetBoxAccess(),
             cancellationToken: cancellationToken);
+    }
+
+    private static Results<Ok<GetZipBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult>
+        GetZipBulkDownloadLink(
+            [FromRoute] FileExtId fileExternalId,
+            [FromBody] GetZipBulkDownloadLinkRequestDto request,
+            HttpContext httpContext,
+            BoxExternalAccessHandler boxExternalAccessHandler)
+    {
+        return boxExternalAccessHandler.GetZipBulkDownloadLink(
+            fileExternalId: fileExternalId,
+            request: request,
+            boxAccess: httpContext.GetBoxAccess());
     }
 
     private static Task<Results<Ok<BulkCreateFolderResponseDto>, BadRequest<HttpError>, NotFound<HttpError>, StatusCodeHttpResult>> BulkCreateFolders(

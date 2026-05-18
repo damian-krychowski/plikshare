@@ -1,6 +1,8 @@
 <div class="quick-share-page">
-    @if (isLoading()) {
-        <div class="quick-share-page__state">Loading…</div>
+    @if (isInitialLoading()) {
+        <div class="quick-share-page__loader">
+            <div class="quick-share-page__spinner"></div>
+        </div>
     } @else if (notFound()) {
         <div class="quick-share-page__state quick-share-page__state--error">
             This quick share link is invalid or has been removed.
@@ -66,23 +68,60 @@
                 </app-action-text-btn>
             </div>
         } @else if (content(); as contentValue) {
+            @let summary = selectionSummary();
+
             <div class="quick-share-page__toolbar">
                 <div class="quick-share-page__summary">
                     {{ filesCount() }} file(s) · total {{ totalSizeInBytes() | storageSize }}
                 </div>
 
-                <app-action-btn
-                    tooltip="Download all as zip"
-                    icon="icon-nucleo-download"
-                    [disabled]="isDownloading()"
-                    (clicked)="downloadAll()">
-                </app-action-btn>
+                <div class="quick-share-page__actions">
+                    @if (summary.count > 0) {
+                        <app-action-btn
+                            tooltip="Download selected"
+                            icon="icon-nucleo-download"
+                            [isLoading]="isDownloading()"
+                            (clicked)="downloadSelected()">
+                        </app-action-btn>
+                    } @else {
+                        <app-action-btn
+                            tooltip="Download all as zip"
+                            icon="icon-nucleo-download"
+                            [isLoading]="isDownloading()"
+                            (clicked)="downloadAll()">
+                        </app-action-btn>
+                    }
+
+                    @if (allowIndividualFileDownload()) {
+                        <div class="quick-share-page__search-container">
+                            <app-item-search
+                                (searched)="searchPhrase.set($event)">
+                            </app-item-search>
+
+                            @if(searchPhrase().length >= 1 && searchPhrase().length < 3) {
+                                <div class="quick-share-page__search-info">
+                                    At least 3 characters are required
+                                </div>
+                            }
+                        </div>
+
+                        @let selectAll = selectAllState();
+
+                        <mat-checkbox
+                            class="quick-share-page__select-all"
+                            title="Select all"
+                            [checked]="selectAll === 'all'"
+                            [indeterminate]="selectAll === 'some'"
+                            (change)="toggleSelectAll()">
+                        </mat-checkbox>
+                    }
+                </div>
             </div>
 
             <app-zip-file-tree-view
                 [fileTree]="fileTree()"
-                [canDownload]="allowIndividualFileDownload()"
-                (fileDownloadClicked)="onFileDownloadClicked($event)">
+                [searchPhrase]="searchPhrase()"
+                [canDownload]="true">
             </app-zip-file-tree-view>
         }
 

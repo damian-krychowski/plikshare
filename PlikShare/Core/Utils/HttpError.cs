@@ -552,6 +552,13 @@ public static class HttpErrors
                 Message = $"File with externalId '{fileExternalId}' was not found."
             });
 
+        public static BadRequest<HttpError> EmptyZipBulkSelection(FileExtId fileExternalId) =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "empty-zip-bulk-selection",
+                Message = $"Zip bulk download request for file '{fileExternalId}' contains no selected folders or entries."
+            });
+
         public static BadRequest<HttpError> WrongFileExtension(FileExtId fileExternalId, string expectedExtension) =>
             TypedResults.BadRequest(new HttpError
             {
@@ -936,6 +943,13 @@ public static class HttpErrors
                     Message = "This quick share has reached its download limit."
                 },
                 statusCode: StatusCodes.Status410Gone);
+
+        public static BadRequest<HttpError> EmptyBulkSelection() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "quick-share-empty-bulk-selection",
+                Message = "Bulk download request contains no files from the quick share's effective set."
+            });
 
         public static IResult RequiresPassword() =>
             TypedResults.Json(

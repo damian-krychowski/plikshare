@@ -1,6 +1,7 @@
 @let zipArchiveVal = zipArchive();
+@let summary = selectionSummary();
 
-<div  class="archive-box">
+<div class="archive-box">
     <div class="archive-box__header">
         <div class="flex-row flex-gap-05 flex-align-center pl-1">
             <i class="icon icon-xl icon-{{ fileExtension() | fileIcon }}"></i>
@@ -8,13 +9,21 @@
 
             <div class="ml-auto flex-row flex-gap-05">
                 @if(isArchiveOpened()) {
+                    @if(summary.count > 0) {
+                        <app-action-btn
+                            tooltip="Download selected"
+                            icon="icon-nucleo-download"
+                            (clicked)="downloadSelected()">
+                        </app-action-btn>
+                    }
+
                     <div class="search-container">
                         <app-item-search
-                            (searched)="zipSearchPhrase.set($event)">                    
+                            (searched)="zipSearchPhrase.set($event)">
                         </app-item-search>
-                        
+
                         @if(zipSearchPhrase().length >= 1 && zipSearchPhrase().length < 3) {
-                            <div class="search-info">      
+                            <div class="search-info">
                                 At least 3 characters are required
                             </div>
                         }
@@ -43,8 +52,7 @@
                 [fileTree]="zipFileTreeNodes()"
                 [searchPhrase]="zipSearchPhrase()"
                 [canDownload]="true"
-                (fileClicked)="onZipEntryClick($event)"
-                (fileDownloadClicked)="onZipEntryDownloadClick($event)">
+                (fileClicked)="onZipEntryClick($event)">
             </app-zip-file-tree-view>
         </div>
     }

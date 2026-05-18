@@ -2,6 +2,11 @@
 
 Release notes for PlikShare.
 
+## 1.1.29
+
+- [IMPROVEMENT] Multi-item selection for downloading from zip previews and quick shares
+- [IMPROVEMENT] Search and select-all in the quick share view
+
 ## 1.1.28
 
 - [FEATURE] Quick shares introduced — share selected files and folders via a link with optional custom URL slug, expiration, password, and download cap; recipient gets either a browseable preview (file tree + per-file preview + optional ZIP bundle) or a direct ZIP download

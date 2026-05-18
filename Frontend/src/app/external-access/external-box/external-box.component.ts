@@ -410,11 +410,17 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
                 fileExternalId),
 
             getZipContentDownloadLink: async (fileExternalId, zipEntry, contentDisposition) =>  this._externalBoxesGetApi.getZipContentDownloadLink(
-                this._boxExternalIdValue, 
+                this._boxExternalIdValue,
                 fileExternalId,
                 zipEntry,
                 contentDisposition),
-                
+
+            getZipBulkDownloadLink: async (fileExternalId, request) => this._externalBoxesGetApi.getZipBulkDownloadLink(
+                this._boxExternalIdValue,
+                fileExternalId,
+                request),
+
+
             startTextractJob: async (request: StartTextractJobRequest) => {
                 throw new Error("not implemented");
             },

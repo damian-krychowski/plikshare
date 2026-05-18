@@ -2,27 +2,31 @@ import { Component, OnInit, WritableSignal, computed, signal } from '@angular/co
 import { ActivatedRoute } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
-import { GetQuickShareContentResponse, GetQuickShareInfoResponse, QuickShareContentFile, QuickShareExternalAccessApi } from '../../services/quick-share-external-access.api';
+import { GetQuickShareBulkDownloadLinkRequest, GetQuickShareContentResponse, GetQuickShareInfoResponse, QuickShareContentFile, QuickShareContentFolder, QuickShareExternalAccessApi } from '../../services/quick-share-external-access.api';
 import { ZipFileNode, ZipFileTreeViewComponent, ZipFolderNode, ZipTreeNode } from '../../shared/zip-file-tree-view/zip-file-tree-view.component';
 import { StorageSizePipe } from '../../shared/storage-size.pipe';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
 import { ActionTextButtonComponent } from '../../shared/buttons/action-text-btn/action-text-btn.component';
+import { ItemSearchComponent } from '../../shared/item-search/item-search.component';
 
 @Component({
     selector: 'app-quick-share',
     imports: [
         DatePipe,
         FormsModule,
+        MatCheckboxModule,
         MatFormFieldModule,
         MatInputModule,
         ZipFileTreeViewComponent,
         StorageSizePipe,
         ActionButtonComponent,
-        ActionTextButtonComponent
+        ActionTextButtonComponent,
+        ItemSearchComponent
     ],
     templateUrl: './quick-share.component.html',
     styleUrl: './quick-share.component.scss'
@@ -31,7 +35,7 @@ export class QuickShareComponent implements OnInit {
     slug: string | null = null;
     token: string | null = null;
 
-    isLoading = signal(true);
+    isInitialLoading = signal(true);
     notFound = signal(false);
     info: WritableSignal<GetQuickShareInfoResponse | null> = signal(null);
     content: WritableSignal<GetQuickShareContentResponse | null> = signal(null);
@@ -40,6 +44,7 @@ export class QuickShareComponent implements OnInit {
     passwordInput = signal('');
     isUnlocking = signal(false);
     isDownloading = signal(false);
+    searchPhrase = signal('');
 
     name = computed(() => this.info()?.name ?? '');
     mode = computed(() => this.info()?.mode ?? 'browser');
@@ -60,6 +65,50 @@ export class QuickShareComponent implements OnInit {
         return true;
     });
 
+    selectionState = computed<GetQuickShareBulkDownloadLinkRequest>(() => {
+        const state: GetQuickShareBulkDownloadLinkRequest = {
+            selectedFolderExternalIds: [],
+            selectedFileExternalIds: [],
+            excludedFolderExternalIds: [],
+            excludedFileExternalIds: []
+        };
+
+        this.collectSelected(this.fileTree(), state);
+        return state;
+    });
+
+    selectionSummary = computed(() => {
+        const s = this.selectionState();
+        const total = s.selectedFolderExternalIds.length + s.selectedFileExternalIds.length;
+        const isSingleFile = s.selectedFolderExternalIds.length === 0
+            && s.selectedFileExternalIds.length === 1
+            && s.excludedFolderExternalIds.length === 0
+            && s.excludedFileExternalIds.length === 0;
+
+        return {
+            count: total,
+            isSingleFile: isSingleFile,
+            singleFileId: isSingleFile ? s.selectedFileExternalIds[0] : null
+        };
+    });
+
+    // 'all' = every root is selected with no descendant excludes, 'none' = empty
+    // payload, 'some' = anything in between. Drives the master checkbox tri-state.
+    selectAllState = computed<'all' | 'some' | 'none'>(() => {
+        const tree = this.fileTree();
+        if (tree.length === 0) return 'none';
+
+        const s = this.selectionState();
+        const total = s.selectedFolderExternalIds.length + s.selectedFileExternalIds.length;
+        if (total === 0) return 'none';
+
+        const allRootsSelected = tree.every(n => n.isSelected());
+        const hasExcludes = s.excludedFolderExternalIds.length > 0
+            || s.excludedFileExternalIds.length > 0;
+
+        return allRootsSelected && !hasExcludes ? 'all' : 'some';
+    });
+
     constructor(
         private _route: ActivatedRoute,
         private _api: QuickShareExternalAccessApi,
@@ -73,22 +122,25 @@ export class QuickShareComponent implements OnInit {
 
         if (!this.slug) {
             this.notFound.set(true);
-            this.isLoading.set(false);
+            this.isInitialLoading.set(false);
             return;
         }
 
-        await this.loadInfo();
+        try {
+            await this.loadInfo();
 
-        if (this.isReady() && this.mode() === 'direct') {
-            await this.downloadAll();
-        } else if (this.isReady()) {
-            await this.loadContent();
+            if (this.isReady() && this.mode() === 'direct') {
+                await this.downloadAll();
+            } else if (this.isReady()) {
+                await this.loadContent();
+            }
+        } finally {
+            this.isInitialLoading.set(false);
         }
     }
 
     private async loadInfo() {
         try {
-            this.isLoading.set(true);
             const info = await this._api.getInfo(this.slug!, this.token);
             this.info.set(info);
         } catch (error) {
@@ -98,8 +150,6 @@ export class QuickShareComponent implements OnInit {
                 console.error(error);
                 this._toastr.error('Failed to load quick share');
             }
-        } finally {
-            this.isLoading.set(false);
         }
     }
 
@@ -107,7 +157,7 @@ export class QuickShareComponent implements OnInit {
         try {
             const content = await this._api.getContent(this.slug!, this.token);
             this.content.set(content);
-            this.fileTree.set(this.buildTree(content.files));
+            this.fileTree.set(this.buildTree(content.folders, content.files));
         } catch (error) {
             console.error(error);
             this._toastr.error('Failed to load quick share content');
@@ -167,19 +217,33 @@ export class QuickShareComponent implements OnInit {
         }
     }
 
-    async onFileDownloadClicked(file: ZipFileNode) {
-        if (!this.allowIndividualFileDownload()) return;
+    async downloadSelected() {
+        if (this.isDownloading()) return;
+
+        const summary = this.selectionSummary();
+        if (summary.count === 0) return;
 
         try {
-            const result = await this._api.getFileDownloadLink(
-                this.slug!, this.token,
-                file.id,
-                'attachment');
+            this.isDownloading.set(true);
 
-            const link = document.createElement('a');
-            link.href = result.downloadPreSignedUrl;
-            link.click();
-            link.remove();
+            // Exactly one file with no folder roots → use the single-file endpoint so
+            // the user gets the file as-is instead of a one-file zip. Only honour this
+            // shortcut when individual file downloads are actually allowed; otherwise
+            // fall through to the bulk endpoint (a 1-file zip).
+            if (summary.isSingleFile && summary.singleFileId && this.allowIndividualFileDownload()) {
+                const single = await this._api.getFileDownloadLink(
+                    this.slug!, this.token,
+                    summary.singleFileId,
+                    'attachment');
+
+                this.triggerBrowserDownload(single.downloadPreSignedUrl);
+            } else {
+                const bulk = await this._api.getBulkDownloadLink(
+                    this.slug!, this.token,
+                    this.selectionState());
+
+                this.triggerBrowserDownload(bulk.preSignedUrl);
+            }
 
             await this.loadInfo();
         } catch (error) {
@@ -190,53 +254,161 @@ export class QuickShareComponent implements OnInit {
                 console.error(error);
                 this._toastr.error('Download failed');
             }
+        } finally {
+            this.isDownloading.set(false);
         }
     }
 
-    private buildTree(files: QuickShareContentFile[]): ZipTreeNode[] {
+    toggleSelectAll() {
+        const shouldSelectAll = this.selectAllState() !== 'all';
+
+        for (const root of this.fileTree()) {
+            root.isSelected.set(shouldSelectAll);
+            root.isExcluded.set(false);
+            if (root.type === 'folder') {
+                this.clearDescendantSelection(root.children);
+            }
+        }
+    }
+
+    private clearDescendantSelection(nodes: ZipTreeNode[]) {
+        for (const node of nodes) {
+            node.isSelected.set(false);
+            node.isExcluded.set(false);
+            if (node.type === 'folder') {
+                this.clearDescendantSelection(node.children);
+            }
+        }
+    }
+
+    private triggerBrowserDownload(url: string) {
+        const link = document.createElement('a');
+        link.href = url;
+        link.click();
+        link.remove();
+    }
+
+    private collectSelected(nodes: ZipTreeNode[], state: GetQuickShareBulkDownloadLinkRequest) {
+        for (const node of nodes) {
+            if (node.isSelected()) {
+                if (node.type === 'folder') {
+                    state.selectedFolderExternalIds.push(node.id);
+                    this.collectExcludesUnder(node.children, state);
+                } else {
+                    state.selectedFileExternalIds.push(node.id);
+                }
+            } else if (node.type === 'folder') {
+                this.collectSelected(node.children, state);
+            }
+        }
+    }
+
+    private collectExcludesUnder(nodes: ZipTreeNode[], state: GetQuickShareBulkDownloadLinkRequest) {
+        for (const node of nodes) {
+            if (node.isExcluded()) {
+                if (node.type === 'folder') {
+                    state.excludedFolderExternalIds.push(node.id);
+                } else {
+                    state.excludedFileExternalIds.push(node.id);
+                }
+            } else if (node.type === 'folder') {
+                this.collectExcludesUnder(node.children, state);
+            }
+        }
+    }
+
+    // Server emits folders in parent-before-child order (ordered by ancestor-chain
+    // length), so we can wire parent refs in a single pass.
+    private buildTree(folders: QuickShareContentFolder[], files: QuickShareContentFile[]): ZipTreeNode[] {
         const root: ZipTreeNode[] = [];
-        const folderMap = new Map<string, ZipFolderNode>();
+        const folderById = new Map<string, ZipFolderNode>();
+
+        for (const f of folders) {
+            const parent = f.parentExternalId !== null
+                ? folderById.get(f.parentExternalId) ?? null
+                : null;
+
+            const node = this.makeFolderNode(f.externalId, f.name, parent);
+            folderById.set(f.externalId, node);
+
+            if (parent) {
+                parent.children.push(node);
+            } else {
+                root.push(node);
+            }
+        }
 
         for (const file of files) {
-            const segments = file.filePath.split('/').filter(s => s.length > 0);
-            const fileSegments = segments.slice(0, -1);
+            const parent = file.folderExternalId !== null
+                ? folderById.get(file.folderExternalId) ?? null
+                : null;
 
-            let currentChildren = root;
-            let pathSoFar = '';
+            const node = this.makeFileNode(file, parent);
 
-            for (const segment of fileSegments) {
-                pathSoFar = pathSoFar ? `${pathSoFar}/${segment}` : segment;
-
-                let folder = folderMap.get(pathSoFar);
-                if (!folder) {
-                    folder = {
-                        type: 'folder',
-                        id: pathSoFar,
-                        name: segment,
-                        children: [],
-                        isExpanded: signal(true),
-                        isVisible: signal(true),
-                        wasRendered: signal(true),
-                        wasLoaded: true
-                    };
-                    folderMap.set(pathSoFar, folder);
-                    currentChildren.push(folder);
-                }
-                currentChildren = folder.children;
+            if (parent) {
+                parent.children.push(node);
+            } else {
+                root.push(node);
             }
-
-            const fileNode: ZipFileNode = {
-                type: 'file',
-                id: file.externalId,
-                extension: file.extension,
-                fullName: file.name + file.extension,
-                fullNameLower: (file.name + file.extension).toLowerCase(),
-                sizeInBytes: file.sizeInBytes,
-                isVisible: signal(true)
-            };
-            currentChildren.push(fileNode);
         }
 
         return root;
+    }
+
+    private makeFolderNode(id: string, name: string, parent: ZipFolderNode | null): ZipFolderNode {
+        const isExpanded = signal(false);
+        const isSelected = signal(false);
+        const isExcluded = signal(false);
+
+        const isParentSelected = computed(() =>
+            parent ? (parent.isSelected() || parent.isParentSelected()) : false);
+
+        const isParentExcluded = computed(() =>
+            parent ? (parent.isExcluded() || parent.isParentExcluded()) : false);
+
+        return {
+            type: 'folder',
+            id: id,
+            name: name,
+            nameLower: name.toLowerCase(),
+            children: [],
+            isExpanded: isExpanded,
+            isVisible: signal(true),
+            wasRendered: signal(true),
+            wasLoaded: true,
+
+            isSelected: isSelected,
+            isExcluded: isExcluded,
+            parent: parent,
+            isParentSelected: isParentSelected,
+            isParentExcluded: isParentExcluded
+        };
+    }
+
+    private makeFileNode(file: QuickShareContentFile, parent: ZipFolderNode | null): ZipFileNode {
+        const isSelected = signal(false);
+        const isExcluded = signal(false);
+
+        const isParentSelected = computed(() =>
+            parent ? (parent.isSelected() || parent.isParentSelected()) : false);
+
+        const isParentExcluded = computed(() =>
+            parent ? (parent.isExcluded() || parent.isParentExcluded()) : false);
+
+        return {
+            type: 'file',
+            id: file.externalId,
+            extension: file.extension,
+            fullName: file.name + file.extension,
+            fullNameLower: (file.name + file.extension).toLowerCase(),
+            sizeInBytes: file.sizeInBytes,
+            isVisible: signal(true),
+
+            isSelected: isSelected,
+            isExcluded: isExcluded,
+            parent: parent,
+            isParentSelected: isParentSelected,
+            isParentExcluded: isParentExcluded
+        };
     }
 }

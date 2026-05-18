@@ -3,7 +3,7 @@ import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 import { BoxMoveItemsToFolderRequest, BoxUpdateFolderNameRequest, BoxUpdateFileNameRequest, GetBoxDetailsAndFolderResponse, BoxCompleteFilePartUploadRequest, BoxInitiateFilePartUploadResponse, BoxCompleteFileUploadResponse, BoxGetUploadListResponse, BoxGetFileUploadDetailsResponse } from "../contracts/external-access.contracts";
 import { ZipPreviewDetails } from "../../files-explorer/file-inline-preview/file-inline-preview.component";
-import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFolderResponse, SearchFilesTreeRequest, SearchFilesTreeResponse } from "../../services/folders-and-files.api";
+import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, SearchFilesTreeRequest, SearchFilesTreeResponse } from "../../services/folders-and-files.api";
 import { ZipEntry } from "../../services/zip";
 import { BulkInitiateFileUploadRequest, BulkInitiateFileUploadResponse, BulkInitiateFileUploadResponseRaw, deserializeBulkUploadResponse, InitiateFileUploadRequest, InitiateFileUploadResponse } from "../../services/uploads.api";
 import { getZipFileDetailsDtoProtobuf } from "../../protobuf/zip-file-details-dto.protobuf";
@@ -439,10 +439,10 @@ export class BoxWidgetApi {
 
     public async getZipContentDownloadLink(url: string, fileExternalId: string, zipEntry: ZipEntry, contentDisposition: ContentDisposition): Promise<GetFileDownloadLinkResponse> {
         const { baseUrl, accessCode } = this.extractUrlComponents(url);
-        
+
         return this.executeRequest(url, async () => {
             const call = this._http.post<GetFileDownloadLinkResponse>(
-                `${baseUrl}/api/access-codes/${accessCode}/files/${fileExternalId}/preview/zip/download-link`, 
+                `${baseUrl}/api/access-codes/${accessCode}/files/${fileExternalId}/preview/zip/download-link`,
                 {
                     item: zipEntry,
                     contentDisposition: contentDisposition
@@ -450,7 +450,26 @@ export class BoxWidgetApi {
                     headers: this.getHeaders()
                 }
             );
-            
+
+            return await firstValueFrom(call);
+        });
+    }
+
+    public async getZipBulkDownloadLink(
+        url: string,
+        fileExternalId: string,
+        request: GetZipBulkDownloadLinkRequest
+    ): Promise<GetZipBulkDownloadLinkResponse> {
+        const { baseUrl, accessCode } = this.extractUrlComponents(url);
+
+        return this.executeRequest(url, async () => {
+            const call = this._http.post<GetZipBulkDownloadLinkResponse>(
+                `${baseUrl}/api/access-codes/${accessCode}/files/${fileExternalId}/preview/zip/bulk-download-link`,
+                request, {
+                    headers: this.getHeaders()
+                }
+            );
+
             return await firstValueFrom(call);
         });
     }

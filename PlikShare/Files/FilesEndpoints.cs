@@ -21,6 +21,8 @@ using PlikShare.Files.Preview.Comment.EditComment;
 using PlikShare.Files.Preview.Comment.EditComment.Contracts;
 using PlikShare.Files.Preview.GetDetails;
 using PlikShare.Files.Preview.GetDetails.Contracts;
+using PlikShare.Files.Preview.GetZipBulkDownloadLink;
+using PlikShare.Files.Preview.GetZipBulkDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipContentDownloadLink;
 using PlikShare.Files.Preview.GetZipContentDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipDetails;
@@ -89,6 +91,9 @@ public static class FilesEndpoints
 
         group.MapPost("/{fileExternalId}/preview/zip/download-link", GetZipContentDownloadLink)
             .WithName("GetZipContentDownloadLink");
+
+        group.MapPost("/{fileExternalId}/preview/zip/bulk-download-link", GetZipBulkDownloadLink)
+            .WithName("GetZipBulkDownloadLink");
     }
 
 
@@ -269,6 +274,44 @@ public static class FilesEndpoints
             cancellationToken);
 
         return TypedResults.Ok();
+    }
+
+    private static Results<Ok<GetZipBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>> GetZipBulkDownloadLink(
+        [FromRoute] FileExtId fileExternalId,
+        [FromBody] GetZipBulkDownloadLinkRequestDto request,
+        HttpContext httpContext,
+        GetZipBulkDownloadLinkOperation getZipBulkDownloadLinkOperation)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+
+        var result = getZipBulkDownloadLinkOperation.Execute(
+            workspace: workspaceMembership.Workspace,
+            fileExternalId: fileExternalId,
+            request: request,
+            boxFolderId: null,
+            boxLinkId: null,
+            userIdentity: new UserIdentity(
+                UserExternalId: workspaceMembership.User.ExternalId),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
+
+        return result.Code switch
+        {
+            GetZipBulkDownloadLinkOperation.ResultCode.Ok => TypedResults.Ok(new GetZipBulkDownloadLinkResponseDto(
+                DownloadPreSignedUrl: result.DownloadPreSignedUrl!)),
+
+            GetZipBulkDownloadLinkOperation.ResultCode.FileNotFound =>
+                HttpErrors.File.NotFound(fileExternalId),
+
+            GetZipBulkDownloadLinkOperation.ResultCode.WrongFileExtension =>
+                HttpErrors.File.WrongFileExtension(fileExternalId, ".zip"),
+
+            GetZipBulkDownloadLinkOperation.ResultCode.EmptySelection =>
+                HttpErrors.File.EmptyZipBulkSelection(fileExternalId),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(GetZipBulkDownloadLinkOperation),
+                resultValueStr: result.Code.ToString())
+        };
     }
 
     private static Results<Ok<GetZipContentDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>> GetZipContentDownloadLink(

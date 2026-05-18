@@ -1,14 +1,21 @@
 using PlikShare.Files.Id;
+using PlikShare.Folders.Id;
 
 namespace PlikShare.QuickShareExternalAccess.Contracts;
 
 public record GetQuickShareContentResponseDto(
+    List<QuickShareContentFolderDto> Folders,
     List<QuickShareContentFileDto> Files,
     long TotalSizeInBytes);
 
+public record QuickShareContentFolderDto(
+    FolderExtId ExternalId,
+    FolderExtId? ParentExternalId,
+    string Name);
+
 public record QuickShareContentFileDto(
     FileExtId ExternalId,
-    string FilePath,
+    FolderExtId? FolderExternalId,
     string Name,
     string Extension,
     long SizeInBytes);

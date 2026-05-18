@@ -17,6 +17,25 @@
         }
     }
 
+    &__loader {
+        display: flex;
+        justify-content: center;
+        padding: 4rem 1rem;
+    }
+
+    &__spinner {
+        width: 2.5rem;
+        height: 2.5rem;
+        border: 3px solid var(--company-grey-accent);
+        border-top-color: var(--company-blue);
+        border-radius: 50%;
+        animation: quick-share-spin 0.8s linear infinite;
+    }
+
+    @keyframes quick-share-spin {
+        to { transform: rotate(360deg); }
+    }
+
     &__header {
         display: flex;
         flex-direction: column;
@@ -69,6 +88,31 @@
         justify-content: space-between;
         padding: 0.5rem 0;
         border-bottom: 1px solid var(--app-border, #e0e0e0);
+    }
+
+    &__actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    &__select-all {
+        margin-right: calc(0.5rem + 1px);
+    }
+
+    &__search-container {
+        position: relative;
+    }
+
+    &__search-info {
+        position: absolute;
+        bottom: -1rem;
+        left: 0;
+        font-size: 0.6rem;
+        color: var(--company-grey-font);
+        opacity: 0;
+        animation: fadeIn 0s ease-in forwards;
+        animation-delay: 2s;
     }
 
     &__summary {

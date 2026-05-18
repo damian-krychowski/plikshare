@@ -62,8 +62,8 @@ a.drag-over {
 // below the row's natural line-height so swapping text → icons doesn't grow
 // the bar height.
 .context-count {
-    display: inline-flex;
-    align-items: baseline;
+    display: inline-flex !important;
+    align-items: center;
     gap: 0.25rem;
     line-height: 1;
 

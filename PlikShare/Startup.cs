@@ -117,6 +117,7 @@ using PlikShare.Files.Preview.Comment.CreateComment;
 using PlikShare.Files.Preview.Comment.DeleteComment;
 using PlikShare.Files.Preview.Comment.EditComment;
 using PlikShare.Files.Preview.GetDetails;
+using PlikShare.Files.Preview.GetZipBulkDownloadLink;
 using PlikShare.Files.Preview.GetZipContentDownloadLink;
 using PlikShare.Files.Preview.GetZipDetails;
 using PlikShare.Files.Preview.SaveNote;
@@ -685,6 +686,7 @@ public class Startup
         builder.Services.AddSingleton<GetKnownUsersQuery>();
         builder.Services.AddSingleton<GetZipFileDetailsOperation>();
         builder.Services.AddSingleton<GetZipContentDownloadLinkOperation>();
+        builder.Services.AddSingleton<GetZipBulkDownloadLinkOperation>();
 
         builder.Services.AddSingleton<InsertFileUploadPartQuery>();
         builder.Services.AddSingleton<MarkFileAsUploadedAndDeleteUploadQuery>();
@@ -830,6 +832,7 @@ public class Startup
         app.MapBoxLinksEndpoints();
         app.MapPreSignedFilesEndpoints();
         app.MapPreSignedZipFilesEndpoints();
+        app.MapPreSignedZipBulkDownloadEndpoints();
         app.MapBoxLinkAccessCodesEndpoints();
         app.MapBoxExternalAccessEndpoints();
         app.MapBoxesEndpoints();

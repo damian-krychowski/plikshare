@@ -3,6 +3,7 @@ using System.Text;
 using FluentAssertions;
 using PlikShare.AuditLog;
 using PlikShare.Files.Id;
+using PlikShare.Folders.Id;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.QuickShareExternalAccess.Contracts;
@@ -296,7 +297,52 @@ public class quick_share_external_access_tests : TestFixture
         content.Files.Should().HaveCount(1);
         content.Files[0].Name.Should().Be("hello");
         content.Files[0].Extension.Should().Be(".txt");
+        content.Files[0].FolderExternalId.Should().BeNull(
+            "an individually-shared file has no enclosing share folder");
+        content.Folders.Should().BeEmpty();
         content.TotalSizeInBytes.Should().Be(share.FileContent.Length);
+    }
+
+    [Fact]
+    public async Task get_content_for_nested_share_should_return_folder_structure_with_parent_chain()
+    {
+        //given
+        var share = await CreateNestedShare();
+
+        //when
+        var content = await Api.QuickShareExternalAccess.GetContent(slug: share.Slug);
+
+        //then — every download folder is emitted, with parent chain expressed in
+        //external ids; the share's top folder has no parent inside the response.
+        content
+            .Folders
+            .Should()
+            .BeEquivalentTo(new[]
+            {
+                new { ExternalId = share.Root.ExternalId,  ParentExternalId = (FolderExtId?)null,                 Name = share.Root.Name },
+                new { ExternalId = share.Alpha.ExternalId, ParentExternalId = (FolderExtId?)share.Root.ExternalId, Name = share.Alpha.Name },
+                new { ExternalId = share.Beta.ExternalId,  ParentExternalId = (FolderExtId?)share.Alpha.ExternalId, Name = share.Beta.Name },
+                new { ExternalId = share.Gamma.ExternalId, ParentExternalId = (FolderExtId?)share.Root.ExternalId, Name = share.Gamma.Name }
+            });
+
+        //and — each file points at the folder it belongs to
+        content
+            .Files
+            .Select(f => new { f.ExternalId, f.FolderExternalId, f.Name })
+            .Should()
+            .BeEquivalentTo(new[]
+            {
+                new { ExternalId = share.RootTxt.ExternalId, FolderExternalId = (FolderExtId?)share.Root.ExternalId,  Name = "root" },
+                new { ExternalId = share.ATxt.ExternalId,    FolderExternalId = (FolderExtId?)share.Alpha.ExternalId, Name = "a" },
+                new { ExternalId = share.BTxt.ExternalId,    FolderExternalId = (FolderExtId?)share.Beta.ExternalId,  Name = "b" },
+                new { ExternalId = share.GTxt.ExternalId,    FolderExternalId = (FolderExtId?)share.Gamma.ExternalId, Name = "g" }
+            });
+
+        content.TotalSizeInBytes.Should().Be(
+            share.RootTxtContent.Length +
+            share.ATxtContent.Length +
+            share.BTxtContent.Length +
+            share.GTxtContent.Length);
     }
 
     [Fact]
@@ -434,6 +480,149 @@ public class quick_share_external_access_tests : TestFixture
         var entries = ExtractZipEntries(zipBytes);
         entries.Should().ContainKey("hello.txt")
             .WhoseValue.Should().Equal(share.FileContent);
+    }
+
+    // --- Selective bulk download ---
+
+    [Fact]
+    public async Task bulk_download_with_selected_subfolder_should_return_only_that_subtree()
+    {
+        //given
+        var share = await CreateNestedShare();
+
+        //when — pick only the alpha subtree
+        var zipBytes = await SelectiveBulkDownload(
+            share: share,
+            selectedFolderExternalIds: [share.Alpha.ExternalId]);
+
+        //then — only a.txt (in alpha) and b.txt (in alpha/beta) survive; the
+        //surviving subtree lands rooted at the selected folder
+        var entries = ExtractZipEntries(zipBytes);
+        entries.Should().HaveCount(2);
+        entries.Should().ContainKey($"{share.Alpha.Name}/a.txt")
+            .WhoseValue.Should().Equal(share.ATxtContent);
+        entries.Should().ContainKey($"{share.Alpha.Name}/{share.Beta.Name}/b.txt")
+            .WhoseValue.Should().Equal(share.BTxtContent);
+    }
+
+    [Fact]
+    public async Task bulk_download_with_excluded_file_in_selected_folder_should_skip_it()
+    {
+        //given
+        var share = await CreateNestedShare();
+
+        //when — pick the whole share but exclude b.txt
+        var zipBytes = await SelectiveBulkDownload(
+            share: share,
+            selectedFolderExternalIds: [share.Root.ExternalId],
+            excludedFileExternalIds: [share.BTxt.ExternalId]);
+
+        //then — root.txt + a.txt + g.txt; b.txt pruned
+        var entries = ExtractZipEntries(zipBytes);
+        entries.Should().HaveCount(3);
+        entries.Should().ContainKey($"{share.Root.Name}/root.txt");
+        entries.Should().ContainKey($"{share.Root.Name}/{share.Alpha.Name}/a.txt");
+        entries.Should().ContainKey($"{share.Root.Name}/{share.Gamma.Name}/g.txt");
+        entries.Keys.Should().NotContain(k => k.EndsWith("b.txt"));
+    }
+
+    [Fact]
+    public async Task bulk_download_with_excluded_subfolder_should_skip_its_whole_subtree()
+    {
+        //given
+        var share = await CreateNestedShare();
+
+        //when — pick the whole share but exclude the alpha subtree
+        var zipBytes = await SelectiveBulkDownload(
+            share: share,
+            selectedFolderExternalIds: [share.Root.ExternalId],
+            excludedFolderExternalIds: [share.Alpha.ExternalId]);
+
+        //then — root.txt + g.txt; a.txt and b.txt pruned with their subtree
+        var entries = ExtractZipEntries(zipBytes);
+        entries.Should().HaveCount(2);
+        entries.Should().ContainKey($"{share.Root.Name}/root.txt");
+        entries.Should().ContainKey($"{share.Root.Name}/{share.Gamma.Name}/g.txt");
+        entries.Keys.Should().NotContain(k => k.EndsWith("a.txt"));
+        entries.Keys.Should().NotContain(k => k.EndsWith("b.txt"));
+    }
+
+    [Fact]
+    public async Task bulk_download_with_selected_individual_file_should_return_only_that_file()
+    {
+        //given
+        var share = await CreateNestedShare();
+
+        //when — pick a single nested file with no folder selection
+        var zipBytes = await SelectiveBulkDownload(
+            share: share,
+            selectedFileExternalIds: [share.BTxt.ExternalId]);
+
+        //then — only b.txt in the zip, at the root (no folder context was selected)
+        var entries = ExtractZipEntries(zipBytes);
+        entries.Should().HaveCount(1);
+        entries.Should().ContainKey("b.txt")
+            .WhoseValue.Should().Equal(share.BTxtContent);
+    }
+
+    [Fact]
+    public async Task bulk_download_with_ids_outside_share_should_silently_drop_them()
+    {
+        //given — a valid file in the share, plus a foreign external id
+        var share = await CreateNestedShare();
+        var foreign = FileExtId.NewId();
+
+        //when
+        var zipBytes = await SelectiveBulkDownload(
+            share: share,
+            selectedFileExternalIds: [share.ATxt.ExternalId, foreign]);
+
+        //then — only the in-share file makes it, the foreign id is filtered server-side
+        var entries = ExtractZipEntries(zipBytes);
+        entries.Should().HaveCount(1);
+        entries.Should().ContainKey("a.txt")
+            .WhoseValue.Should().Equal(share.ATxtContent);
+    }
+
+    [Fact]
+    public async Task bulk_download_with_only_foreign_ids_returns_400()
+    {
+        //given
+        var share = await CreateNestedShare();
+        var antiforgery = await Api.Antiforgery.GetToken();
+
+        //when — everything the client asks for is outside the effective set
+        var act = async () => await Api.QuickShareExternalAccess.GetBulkDownloadLink(
+            slug: share.Slug,
+            antiforgery: antiforgery,
+            request: new GetQuickShareBulkDownloadLinkRequestDto(
+                SelectedFolderExternalIds: [FolderExtId.NewId()],
+                ExcludedFolderExternalIds: null,
+                SelectedFileExternalIds: [FileExtId.NewId()],
+                ExcludedFileExternalIds: null));
+
+        //then
+        var ex = await act.Should().ThrowAsync<TestApiCallException>();
+        ex.Which.StatusCode.Should().Be(400);
+        ex.Which.ResponseBody.Should().Contain("quick-share-empty-bulk-selection");
+    }
+
+    [Fact]
+    public async Task bulk_download_with_empty_selection_should_return_the_whole_share()
+    {
+        //given
+        var share = await CreateNestedShare();
+
+        //when — empty request body falls back to "whole share" behavior
+        var zipBytes = await SelectiveBulkDownload(share: share);
+
+        //then — every file in the effective set comes back
+        var entries = ExtractZipEntries(zipBytes);
+        entries.Should().HaveCount(4);
+        entries.Should().ContainKey($"{share.Root.Name}/root.txt");
+        entries.Should().ContainKey($"{share.Root.Name}/{share.Alpha.Name}/a.txt");
+        entries.Should().ContainKey($"{share.Root.Name}/{share.Alpha.Name}/{share.Beta.Name}/b.txt");
+        entries.Should().ContainKey($"{share.Root.Name}/{share.Gamma.Name}/g.txt");
     }
 
     // --- File download ---
@@ -729,4 +918,107 @@ public class quick_share_external_access_tests : TestFixture
         WorkspaceExtId WorkspaceExternalId,
         FileExtId FileExternalId,
         byte[] FileContent);
+
+    // Layout used by the selective bulk download tests:
+    //   <Root>/
+    //     root.txt
+    //     <Alpha>/
+    //       a.txt
+    //       <Beta>/
+    //         b.txt
+    //     <Gamma>/
+    //       g.txt
+    private async Task<NestedAccessShare> CreateNestedShare()
+    {
+        var workspace = await CreateWorkspace(storage: Storage, user: AppOwner);
+
+        var root = await CreateFolder(parent: null, workspace: workspace, user: AppOwner);
+        var alpha = await CreateFolder(parent: root, workspace: workspace, user: AppOwner);
+        var beta = await CreateFolder(parent: alpha, workspace: workspace, user: AppOwner);
+        var gamma = await CreateFolder(parent: root, workspace: workspace, user: AppOwner);
+
+        var rootTxtContent = Encoding.UTF8.GetBytes("root content");
+        var aTxtContent = Encoding.UTF8.GetBytes("alpha content");
+        var bTxtContent = Encoding.UTF8.GetBytes("beta content");
+        var gTxtContent = Encoding.UTF8.GetBytes("gamma content");
+
+        var rootTxt = await UploadFile(
+            content: rootTxtContent, fileName: "root.txt", contentType: "text/plain",
+            folder: root, workspace: workspace, user: AppOwner);
+        var aTxt = await UploadFile(
+            content: aTxtContent, fileName: "a.txt", contentType: "text/plain",
+            folder: alpha, workspace: workspace, user: AppOwner);
+        var bTxt = await UploadFile(
+            content: bTxtContent, fileName: "b.txt", contentType: "text/plain",
+            folder: beta, workspace: workspace, user: AppOwner);
+        var gTxt = await UploadFile(
+            content: gTxtContent, fileName: "g.txt", contentType: "text/plain",
+            folder: gamma, workspace: workspace, user: AppOwner);
+
+        var created = await Api.QuickShares.Create(
+            workspaceExternalId: workspace.ExternalId,
+            request: new CreateQuickShareRequestDto(
+                Name: "nested share",
+                CustomSlug: null,
+                SelectedFiles: [],
+                SelectedFolders: [root.ExternalId],
+                ExcludedFiles: [],
+                ExcludedFolders: [],
+                Mode: QuickShareMode.Browser,
+                AllowIndividualFileDownload: true,
+                ExpiresAt: null,
+                Password: null,
+                MaxDownloads: null),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        return new NestedAccessShare(
+            ExternalId: created.ExternalId,
+            Slug: created.Slug,
+            WorkspaceExternalId: workspace.ExternalId,
+            Root: root,
+            Alpha: alpha,
+            Beta: beta,
+            Gamma: gamma,
+            RootTxt: rootTxt, RootTxtContent: rootTxtContent,
+            ATxt: aTxt, ATxtContent: aTxtContent,
+            BTxt: bTxt, BTxtContent: bTxtContent,
+            GTxt: gTxt, GTxtContent: gTxtContent);
+    }
+
+    private async Task<byte[]> SelectiveBulkDownload(
+        NestedAccessShare share,
+        FolderExtId[]? selectedFolderExternalIds = null,
+        FolderExtId[]? excludedFolderExternalIds = null,
+        FileExtId[]? selectedFileExternalIds = null,
+        FileExtId[]? excludedFileExternalIds = null)
+    {
+        var antiforgery = await Api.Antiforgery.GetToken();
+
+        var linkResponse = await Api.QuickShareExternalAccess.GetBulkDownloadLink(
+            slug: share.Slug,
+            antiforgery: antiforgery,
+            request: new GetQuickShareBulkDownloadLinkRequestDto(
+                SelectedFolderExternalIds: selectedFolderExternalIds,
+                ExcludedFolderExternalIds: excludedFolderExternalIds,
+                SelectedFileExternalIds: selectedFileExternalIds,
+                ExcludedFileExternalIds: excludedFileExternalIds));
+
+        return await Api.PreSignedFiles.DownloadFile(
+            preSignedUrl: linkResponse.PreSignedUrl,
+            cookie: null);
+    }
+
+    private record NestedAccessShare(
+        QuickShareExtId ExternalId,
+        string Slug,
+        WorkspaceExtId WorkspaceExternalId,
+        AppFolder Root,
+        AppFolder Alpha,
+        AppFolder Beta,
+        AppFolder Gamma,
+        AppFile RootTxt, byte[] RootTxtContent,
+        AppFile ATxt, byte[] ATxtContent,
+        AppFile BTxt, byte[] BTxtContent,
+        AppFile GTxt, byte[] GTxtContent);
 }

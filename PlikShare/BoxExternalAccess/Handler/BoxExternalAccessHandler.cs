@@ -14,6 +14,8 @@ using PlikShare.Files.BulkDownload.Contracts;
 using PlikShare.Files.Download;
 using PlikShare.Files.Id;
 using PlikShare.Files.Preview.Comment.CreateComment;
+using PlikShare.Files.Preview.GetZipBulkDownloadLink;
+using PlikShare.Files.Preview.GetZipBulkDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipContentDownloadLink;
 using PlikShare.Files.Preview.GetZipContentDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipDetails;
@@ -62,6 +64,7 @@ public class BoxExternalAccessHandler(
     GetBoxHtmlQuery getBoxHtmlQuery,
     GetZipFileDetailsOperation getZipFileDetailsOperation,
     GetZipContentDownloadLinkOperation getZipContentDownloadLinkOperation,
+    GetZipBulkDownloadLinkOperation getZipBulkDownloadLinkOperation,
     GetOrCreateFolderQuery getOrCreateFolderQuery,
     CreateFolderQuery createFolderQuery,
     CountSelectedItemsQuery countSelectedItemsQuery,
@@ -324,6 +327,44 @@ public class BoxExternalAccessHandler(
 
             _ => throw new UnexpectedOperationResultException(
                 operationName: nameof(CreateFileCommentQuery),
+                resultValueStr: result.Code.ToString())
+        };
+    }
+
+    public Results<Ok<GetZipBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult> GetZipBulkDownloadLink(
+        FileExtId fileExternalId,
+        GetZipBulkDownloadLinkRequestDto request,
+        BoxAccess boxAccess)
+    {
+        if (boxAccess.IsOff || boxAccess.Box.Folder is null)
+            return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
+
+        var result = getZipBulkDownloadLinkOperation.Execute(
+            workspace: boxAccess.Box.Workspace,
+            fileExternalId: fileExternalId,
+            request: request,
+            boxFolderId: boxAccess.Box.Folder.Id,
+            boxLinkId: boxAccess.BoxLink?.Id,
+            userIdentity: boxAccess.UserIdentity,
+            workspaceEncryptionSession: null); //todo: box external access to full-encryption storage not supported yet
+
+        return result.Code switch
+        {
+            GetZipBulkDownloadLinkOperation.ResultCode.Ok =>
+                TypedResults.Ok(new GetZipBulkDownloadLinkResponseDto(
+                    DownloadPreSignedUrl: result.DownloadPreSignedUrl!)),
+
+            GetZipBulkDownloadLinkOperation.ResultCode.FileNotFound =>
+                HttpErrors.File.NotFound(fileExternalId),
+
+            GetZipBulkDownloadLinkOperation.ResultCode.WrongFileExtension =>
+                HttpErrors.File.WrongFileExtension(fileExternalId, ".zip"),
+
+            GetZipBulkDownloadLinkOperation.ResultCode.EmptySelection =>
+                HttpErrors.File.EmptyZipBulkSelection(fileExternalId),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(GetZipBulkDownloadLinkOperation),
                 resultValueStr: result.Code.ToString())
         };
     }

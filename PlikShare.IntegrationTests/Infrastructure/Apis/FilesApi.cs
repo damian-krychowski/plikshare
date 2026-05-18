@@ -6,6 +6,7 @@ using PlikShare.Files.Id;
 using PlikShare.Files.Preview.Comment.CreateComment.Contracts;
 using PlikShare.Files.Preview.Comment.EditComment.Contracts;
 using PlikShare.Files.Preview.GetDetails.Contracts;
+using PlikShare.Files.Preview.GetZipBulkDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipContentDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipDetails.Contracts;
 using PlikShare.Files.Preview.SaveNote.Contracts;
@@ -211,6 +212,30 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
             request: new GetZipContentDownloadLinkRequestDto(
                 Item: item,
                 ContentDisposition: contentDisposition),
+            cookie: cookie,
+            antiforgery: antiforgery,
+            extraCookie: workspaceEncryptionSession);
+    }
+
+    public async Task<GetZipBulkDownloadLinkResponseDto> GetZipBulkDownloadLink(
+        WorkspaceExtId workspaceExternalId,
+        FileExtId fileExternalId,
+        uint[] selectedFolderIds,
+        uint[] selectedEntryIndices,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery,
+        uint[]? excludedFolderIds = null,
+        uint[]? excludedEntryIndices = null,
+        Cookie? workspaceEncryptionSession = null)
+    {
+        return await flurlClient.ExecutePost<GetZipBulkDownloadLinkResponseDto, GetZipBulkDownloadLinkRequestDto>(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/files/{fileExternalId}/preview/zip/bulk-download-link",
+            request: new GetZipBulkDownloadLinkRequestDto(
+                SelectedFolderIds: selectedFolderIds,
+                SelectedEntryIndices: selectedEntryIndices,
+                ExcludedFolderIds: excludedFolderIds ?? [],
+                ExcludedEntryIndices: excludedEntryIndices ?? []),
             cookie: cookie,
             antiforgery: antiforgery,
             extraCookie: workspaceEncryptionSession);

@@ -35,7 +35,7 @@
         min-width: 30px !important;
     }
 
-    &__icon {        
+    &__icon {
         margin-left: -0.2rem;
         padding-left: 0.2rem;
 
@@ -47,6 +47,14 @@
                 background-color: var(--company-grey-accent);
             }
         }
+    }
+
+    &__inner {
+        display: flex;
+        align-items: center;
+        flex-grow: 1;
+        min-width: 0;
+        gap: 0.5rem;
     }
 }
 

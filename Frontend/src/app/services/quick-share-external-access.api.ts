@@ -22,17 +22,31 @@ export interface UnlockQuickShareRequest {
     password: string;
 }
 
+export interface QuickShareContentFolder {
+    externalId: string;
+    parentExternalId: string | null;
+    name: string;
+}
+
 export interface QuickShareContentFile {
     externalId: string;
-    filePath: string;
+    folderExternalId: string | null;
     name: string;
     extension: string;
     sizeInBytes: number;
 }
 
 export interface GetQuickShareContentResponse {
+    folders: QuickShareContentFolder[];
     files: QuickShareContentFile[];
     totalSizeInBytes: number;
+}
+
+export interface GetQuickShareBulkDownloadLinkRequest {
+    selectedFolderExternalIds: string[];
+    excludedFolderExternalIds: string[];
+    selectedFileExternalIds: string[];
+    excludedFileExternalIds: string[];
 }
 
 export interface GetQuickShareBulkDownloadLinkResponse {
@@ -75,10 +89,14 @@ export class QuickShareExternalAccessApi {
         return await firstValueFrom(call);
     }
 
-    public async getBulkDownloadLink(slug: string, token: string | null): Promise<GetQuickShareBulkDownloadLinkResponse> {
+    public async getBulkDownloadLink(
+        slug: string,
+        token: string | null,
+        request?: GetQuickShareBulkDownloadLinkRequest
+    ): Promise<GetQuickShareBulkDownloadLinkResponse> {
         const call = this._http.post<GetQuickShareBulkDownloadLinkResponse>(
             `/api/quick-shares/${slug}/bulk-download-link`,
-            {},
+            request ?? {},
             { params: this.tokenParams(token) });
 
         return await firstValueFrom(call);

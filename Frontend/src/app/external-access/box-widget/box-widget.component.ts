@@ -241,10 +241,15 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
                 fileExternalId),
 
             getZipContentDownloadLink: async (fileExternalId, zipEntry, contentDisposition) =>  this._boxWidgetApi.getZipContentDownloadLink(
-                this.url(), 
+                this.url(),
                 fileExternalId,
                 zipEntry,
                 contentDisposition),
+
+            getZipBulkDownloadLink: async (fileExternalId, request) => this._boxWidgetApi.getZipBulkDownloadLink(
+                this.url(),
+                fileExternalId,
+                request),
 
             startTextractJob: async (request: StartTextractJobRequest) => {
                 throw new Error("not implemented");

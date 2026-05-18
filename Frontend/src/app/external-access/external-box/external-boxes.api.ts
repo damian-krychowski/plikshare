@@ -4,7 +4,7 @@ import { Observable, firstValueFrom } from "rxjs";
 import { BoxMoveItemsToFolderRequest, BoxUpdateFolderNameRequest, BoxUpdateFileNameRequest, GetBoxDetailsAndFolderResponse, BoxCompleteFilePartUploadRequest, BoxInitiateFilePartUploadResponse, BoxCompleteFileUploadResponse, BoxGetUploadListResponse, GetBoxHtmlResponse, BoxGetFileUploadDetailsResponse } from "../contracts/external-access.contracts";
 import { DataStore } from "../../services/data-store.service";
 import { ZipPreviewDetails } from "../../files-explorer/file-inline-preview/file-inline-preview.component";
-import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFolderResponse, SearchFilesTreeRequest, SearchFilesTreeResponse } from "../../services/folders-and-files.api";
+import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, SearchFilesTreeRequest, SearchFilesTreeResponse } from "../../services/folders-and-files.api";
 import { ZipEntry } from "../../services/zip";
 import { BulkInitiateFileUploadRequest, BulkInitiateFileUploadResponse, BulkInitiateFileUploadResponseRaw, deserializeBulkUploadResponse, InitiateFileUploadRequest, InitiateFileUploadResponse } from "../../services/uploads.api";
 import { getZipFileDetailsDtoProtobuf } from "../../protobuf/zip-file-details-dto.protobuf";
@@ -315,11 +315,24 @@ export class ExternalBoxesGetApi {
             .post<GetFileDownloadLinkResponse>(
                 `/api/boxes/${boxExternalId}/files/${fileExternalId}/preview/zip/download-link`, {
                     item: zipEntry,
-                    contentDisposition: contentDisposition                    
+                    contentDisposition: contentDisposition
             });
 
         return firstValueFrom(call);
-    }   
+    }
+
+    public getZipBulkDownloadLink(
+        boxExternalId: string,
+        fileExternalId: string,
+        request: GetZipBulkDownloadLinkRequest
+    ): Promise<GetZipBulkDownloadLinkResponse> {
+        const call = this
+            ._http
+            .post<GetZipBulkDownloadLinkResponse>(
+                `/api/boxes/${boxExternalId}/files/${fileExternalId}/preview/zip/bulk-download-link`, request);
+
+        return firstValueFrom(call);
+    }
     
     public async countSelectedItems(boxExternalId: string, request: CountSelectedItemsRequest): Promise<CountSelectedItemsResponse> {
         const call = this

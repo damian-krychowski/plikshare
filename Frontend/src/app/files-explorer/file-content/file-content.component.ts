@@ -7,7 +7,7 @@ import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { AppFileItem } from "../../shared/file-item/file-item.component";
 import { FileIconPipe } from "../file-icon-pipe/file-icon.pipe";
 import { TextPreviewComponent } from "./text-preview/text-preview.component";
-import { ContentDisposition, GetFileDownloadLinkResponse } from "../../services/folders-and-files.api";
+import { ContentDisposition, GetFileDownloadLinkResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse } from "../../services/folders-and-files.api";
 import { getFileDetails } from "../../services/filte-type";
 import { ZipPreviewDetails } from "../file-inline-preview/file-inline-preview.component";
 import { ZipEntry } from "../../services/zip";
@@ -25,10 +25,11 @@ export type FileToPreview = {
     sizeInBytes: number;
 }
 
-export type FileContentOperations = {    
+export type FileContentOperations = {
     getDownloadLink: (contentDisposition: ContentDisposition) => Promise<GetFileDownloadLinkResponse>;
     getZipPreviewDetails: () => Promise<ZipPreviewDetails>;
     getZipContentDownloadLink: (zipEntry: ZipEntry, contentDisposition: ContentDisposition) => Promise<GetFileDownloadLinkResponse>;
+    getZipBulkDownloadLink: (request: GetZipBulkDownloadLinkRequest) => Promise<GetZipBulkDownloadLinkResponse>;
     prepareAdditionalHttpHeaders: () => Record<string, string> | undefined;
 }
 
@@ -114,6 +115,10 @@ export class FileContentComponent implements OnChanges {
                 return this.operations().getZipContentDownloadLink(
                     zipEntry,
                     contentDisposition);
+            },
+
+            getZipBulkDownloadLink: (request: GetZipBulkDownloadLinkRequest) => {
+                return this.operations().getZipBulkDownloadLink(request);
             },
 
             getZipPreviewDetails: () => {

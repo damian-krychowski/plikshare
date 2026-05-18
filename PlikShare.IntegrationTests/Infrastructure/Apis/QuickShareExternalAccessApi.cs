@@ -104,6 +104,7 @@ public class QuickShareExternalAccessApi(IFlurlClient flurlClient, string appUrl
     public async Task<GetQuickShareBulkDownloadLinkResponseDto> GetBulkDownloadLink(
         string slug,
         AntiforgeryCookies antiforgery,
+        GetQuickShareBulkDownloadLinkRequestDto? request = null,
         string? token = null,
         Cookie? sessionCookie = null,
         Cookie? authCookie = null)
@@ -113,7 +114,7 @@ public class QuickShareExternalAccessApi(IFlurlClient flurlClient, string appUrl
         return await flurlClient.ExecutePost<GetQuickShareBulkDownloadLinkResponseDto, object>(
             appUrl: appUrl,
             apiPath: apiPath,
-            request: new { },
+            request: (object?)request ?? new { },
             cookie: sessionCookie,
             antiforgery: antiforgery,
             extraCookie: authCookie);

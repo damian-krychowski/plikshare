@@ -163,6 +163,17 @@ export interface GetBulkDownloadLinkResponse {
     preSignedUrl: string;
 }
 
+export interface GetZipBulkDownloadLinkRequest {
+    selectedFolderIds: number[];
+    selectedEntryIndices: number[];
+    excludedFolderIds: number[];
+    excludedEntryIndices: number[];
+}
+
+export interface GetZipBulkDownloadLinkResponse {
+    downloadPreSignedUrl: string;
+}
+
 export interface GetFilePreviewDetailsResponse {
     note: FilePreviewNote | null;
     comments: FilePreviewComment[];
@@ -773,6 +784,19 @@ export class FoldersAndFilesGetApi {
                 item: zipEntry,
                 contentDisposition: contentDisposition
             });
+
+        return firstValueFrom(call);
+    }
+
+    public getZipBulkDownloadLink(
+        workspaceExternalId: string,
+        fileExternalId: string,
+        request: GetZipBulkDownloadLinkRequest
+    ): Promise<GetZipBulkDownloadLinkResponse> {
+        const call = this
+            ._http
+            .post<GetZipBulkDownloadLinkResponse>(
+                `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/preview/zip/bulk-download-link`, request);
 
         return firstValueFrom(call);
     }

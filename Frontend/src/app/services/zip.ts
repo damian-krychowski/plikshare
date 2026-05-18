@@ -5,7 +5,6 @@
 
 import { computed, signal } from "@angular/core";
 import { toNameAndExtension } from "./filte-type";
-import { getBase62Guid } from "./guid-base-62";
 import { ZipTreeNode, ZipFolderNode, ZipFileNode } from "../shared/zip-file-tree-view/zip-file-tree-view.component";
 
 //anywhere else, and the one from Central Directory Record may be different than this one
@@ -516,6 +515,10 @@ export type ZipArchive = {
 }
 
 export type ZipFolder = {
+    // Server-side virtual folder id (1-based, deterministic per CDFH walk). Kept on
+    // the runtime tree so the UI can identify a folder when building bulk-download
+    // selection payloads without re-deriving the id from path strings.
+    virtualFolderId: number;
     name: string;
     folders: ZipFolder[];
     entries: ZipEntry[];
@@ -562,6 +565,7 @@ export class ZipArchives {
 
         for (const virtualFolder of folders) {
             const folder: ZipFolder = {
+                virtualFolderId: virtualFolder.id,
                 name: virtualFolder.name,
                 folders: [],
                 entries: []
@@ -729,102 +733,121 @@ export class ZipArchives {
             .includes(searchPhraseLower);
     }
 
-    public static  buildArchiveTree(archive: ZipArchive): ZipTreeNode[] {
+    public static buildArchiveTree(archive: ZipArchive): ZipTreeNode[] {
         const rootLevel: ZipTreeNode[] = [];
-        const dummySignal = signal(false);
-        
-        type SourceNode = {
-            folders: ZipFolder[];
-            entries: ZipEntry[];
-        }
 
-        type NodeToProcess = {
-            target: ZipFolderNode;
-            source: SourceNode;
-        }
+        // Iterates top-down so that when a child node is built its parent is already
+        // wired up — parent refs and isParentSelected/isParentExcluded recursion
+        // therefore resolve without any second pass.
+        type Frame = {
+            children: ZipTreeNode[];
+            parent: ZipFolderNode | null;
+            source: { folders: ZipFolder[]; entries: ZipEntry[] };
+        };
 
-        const nodesToProcess: NodeToProcess[] = [{
-            target: {
-                type: 'folder',
-                id: '',
-
-                name: "",
-                children: rootLevel,
-
-                isExpanded: dummySignal,
-                wasRendered: dummySignal,
-                isVisible: dummySignal,
-                wasLoaded: true
-            },
-            source: archive 
+        const queue: Frame[] = [{
+            children: rootLevel,
+            parent: null,
+            source: archive
         }];
 
-        while(nodesToProcess.length > 0) {
-            const currentNode = nodesToProcess.pop()!;
-            const target = currentNode.target;
+        while (queue.length > 0) {
+            const frame = queue.pop()!;
 
-            for (const folder of currentNode.source.folders) {
-                const isExpanded = signal(false);
+            for (const folder of frame.source.folders) {
+                const folderNode = ZipArchives.makeFolderNode(folder, frame.parent);
+                frame.children.push(folderNode);
 
-                const wasRenderedMemory = {
-                    wasRendered: false
-                };
-    
-                const wasRendered = computed(() => {
-                    if(wasRenderedMemory.wasRendered)
-                        return true;
-    
-                    if(isExpanded()){
-                        wasRenderedMemory.wasRendered = true;
-                        return true;
-                    }
-    
-                    return false;
-                });
-
-                const folderNode: ZipFolderNode = {
-                    type: 'folder',
-                    id: getBase62Guid(),
-                    name: folder.name,
-            
-                    isExpanded: isExpanded,
-                    wasRendered: wasRendered,      
-                    wasLoaded: true,
-                    isVisible: signal(true),
-
-                    children: []                    
-                };
-
-                target.children.push(
-                    folderNode);
-
-                nodesToProcess.push({
-                    target: folderNode,
+                queue.push({
+                    children: folderNode.children,
+                    parent: folderNode,
                     source: folder
                 });
             }
 
-            for (const entry of currentNode.source.entries) {
-                const nameAndExt = ZipArchives.getFileNameAndExtension(
-                    entry);
-
-                const fullName = `${nameAndExt.name}${nameAndExt.extension}`;
-
-                const zipFile: ZipFileNode = {
-                    type: 'file',         
-                    id: `${entry.indexInArchive}`,
-
-                    fullName: fullName,
-                    extension: nameAndExt.extension,
-                    fullNameLower: fullName.toLowerCase(),                    
-                    sizeInBytes: entry.sizeInBytes,
-                    isVisible: signal(true),
-                };
-
-                target.children.push(zipFile);
+            for (const entry of frame.source.entries) {
+                const fileNode = ZipArchives.makeFileNode(entry, frame.parent);
+                frame.children.push(fileNode);
             }
         }
-        
+
         return rootLevel;
+    }
+
+    private static makeFolderNode(folder: ZipFolder, parent: ZipFolderNode | null): ZipFolderNode {
+        const isExpanded = signal(false);
+        const wasRenderedMemory = { wasRendered: false };
+
+        const wasRendered = computed(() => {
+            if (wasRenderedMemory.wasRendered)
+                return true;
+
+            if (isExpanded()) {
+                wasRenderedMemory.wasRendered = true;
+                return true;
+            }
+
+            return false;
+        });
+
+        const isSelected = signal(false);
+        const isExcluded = signal(false);
+
+        const isParentSelected = computed(() =>
+            parent ? (parent.isSelected() || parent.isParentSelected()) : false);
+
+        const isParentExcluded = computed(() =>
+            parent ? (parent.isExcluded() || parent.isParentExcluded()) : false);
+
+        return {
+            type: 'folder',
+            id: `${folder.virtualFolderId}`,
+            name: folder.name,
+            nameLower: folder.name.toLowerCase(),
+
+            isExpanded: isExpanded,
+            wasRendered: wasRendered,
+            wasLoaded: true,
+            isVisible: signal(true),
+
+            children: [],
+
+            isSelected: isSelected,
+            isExcluded: isExcluded,
+            parent: parent,
+            isParentSelected: isParentSelected,
+            isParentExcluded: isParentExcluded
+        };
+    }
+
+    private static makeFileNode(entry: ZipEntry, parent: ZipFolderNode | null): ZipFileNode {
+        const nameAndExt = ZipArchives.getFileNameAndExtension(entry);
+        const fullName = `${nameAndExt.name}${nameAndExt.extension}`;
+
+        const isSelected = signal(false);
+        const isExcluded = signal(false);
+
+        const isParentSelected = computed(() =>
+            parent ? (parent.isSelected() || parent.isParentSelected()) : false);
+
+        const isParentExcluded = computed(() =>
+            parent ? (parent.isExcluded() || parent.isParentExcluded()) : false);
+
+        return {
+            type: 'file',
+            id: `${entry.indexInArchive}`,
+
+            fullName: fullName,
+            extension: nameAndExt.extension,
+            fullNameLower: fullName.toLowerCase(),
+            sizeInBytes: entry.sizeInBytes,
+            isVisible: signal(true),
+
+            isSelected: isSelected,
+            isExcluded: isExcluded,
+            parent: parent,
+            isParentSelected: isParentSelected,
+            isParentExcluded: isParentExcluded
+        };
     }
 }

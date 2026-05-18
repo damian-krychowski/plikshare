@@ -47,6 +47,12 @@ public class PreSignedUrlsService(
         return $"{config.AppUrl}/api/zip-files/{UrlEncodePayload(payload)}";
     }
 
+    public string GeneratePreSignedZipBulkDownloadUrl(
+        ZipBulkDownloadPayload payload)
+    {
+        return $"{config.AppUrl}/api/zip-files-bulk/{UrlEncodePayload(payload)}";
+    }
+
     public (ExtractionResult Code, MultiFileDirectUploadPayload? Payload) TryExtractPreSignedMultiFileDirectUploadPayload(
         string protectedDataUrlEncoded)
         => TryExtractPayload<MultiFileDirectUploadPayload>(protectedDataUrlEncoded);
@@ -97,6 +103,10 @@ public class PreSignedUrlsService(
     public (ExtractionResult Code, ZipContentDownloadPayload? Payload) TryExtractPreSignedZipContentDownloadPayload(
         string protectedDataUrlEncoded)
         => TryExtractPayload<ZipContentDownloadPayload>(protectedDataUrlEncoded);
+
+    public (ExtractionResult Code, ZipBulkDownloadPayload? Payload) TryExtractPreSignedZipBulkDownloadPayload(
+        string protectedDataUrlEncoded)
+        => TryExtractPayload<ZipBulkDownloadPayload>(protectedDataUrlEncoded);
 
     private (ExtractionResult Code, T? Payload) TryExtractPayload<T>(
         string protectedDataUrlEncoded) where T : PreSignedPayload
@@ -261,7 +271,7 @@ public class PreSignedUrlsService(
         public required ZipEntryPayload ZipEntry { get; init; }
         public required ContentDispositionType ContentDisposition { get; init; }
     }
-    
+
     public sealed class ZipEntryPayload
     {
         public required string FileName { get; init; }
@@ -271,5 +281,19 @@ public class PreSignedUrlsService(
         public required ushort FileNameLength { get; init; }
         public required ushort CompressionMethod { get; init; }
         public required uint IndexInArchive { get; init; }
+    }
+
+    // Selection inside a single source zip. The four uint[] arrays carry virtual
+    // folder ids (1-based, deterministic per CDFH walk) and entry indices in
+    // archive, both of which the streaming endpoint reproduces by re-reading the
+    // CDFH of the source file — so the client never has to round-trip server-side
+    // state to identify what it wants extracted.
+    public sealed class ZipBulkDownloadPayload : PreSignedPayload
+    {
+        public required FileExtId FileExternalId { get; init; }
+        public required uint[] SelectedFolderIds { get; init; }
+        public required uint[] SelectedEntryIndices { get; init; }
+        public required uint[] ExcludedFolderIds { get; init; }
+        public required uint[] ExcludedEntryIndices { get; init; }
     }
 }

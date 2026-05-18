@@ -196,6 +196,7 @@ public static class QuickShareExternalAccessEndpoints
     }
 
     private static async Task<IResult> GetBulkDownloadLink(
+        [FromBody] GetQuickShareBulkDownloadLinkRequestDto? request,
         HttpContext httpContext,
         GenerateQuickShareBulkDownloadLinkOperation generateLinkOperation,
         TrackQuickShareDownloadQuery trackDownloadQuery,
@@ -205,6 +206,16 @@ public static class QuickShareExternalAccessEndpoints
     {
         var access = httpContext.GetQuickShareAccess();
         var correlationId = httpContext.GetCorrelationId();
+
+        // Generate the URL FIRST so EmptySelection / validation failures don't burn
+        // a download-count slot. Tracking + audit only happen on a successful link.
+        var result = generateLinkOperation.Execute(
+            quickShare: access.QuickShare,
+            userIdentity: access.UserIdentity,
+            request: request);
+
+        if (result.Code == GenerateQuickShareBulkDownloadLinkOperation.ResultCode.EmptySelection)
+            return HttpErrors.QuickShare.EmptyBulkSelection();
 
         if (!access.IsOwnerPreview)
         {
@@ -227,14 +238,7 @@ public static class QuickShareExternalAccessEndpoints
             await quickShareCache.InvalidateEntry(
                 quickShareId: access.QuickShare.Id,
                 cancellationToken: cancellationToken);
-        }
 
-        var preSignedUrl = generateLinkOperation.Execute(
-            quickShare: access.QuickShare,
-            userIdentity: access.UserIdentity);
-
-        if (!access.IsOwnerPreview)
-        {
             await auditLogService.Log(
                 Audit.QuickShare.BulkDownloadLinkGeneratedEntry(
                     actor: access.ToAuditLogActorContext(correlationId),
@@ -245,7 +249,7 @@ public static class QuickShareExternalAccessEndpoints
         }
 
         return Results.Ok(new GetQuickShareBulkDownloadLinkResponseDto(
-            PreSignedUrl: preSignedUrl));
+            PreSignedUrl: result.PreSignedUrl!));
     }
 
     private static async Task<IResult> GetFileDownloadLink(
