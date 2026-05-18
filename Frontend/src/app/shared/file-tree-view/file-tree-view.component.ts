@@ -1,4 +1,4 @@
-import { Component, computed, effect, input, OnChanges, output, signal, SimpleChanges, untracked, ViewEncapsulation } from '@angular/core';
+import { Component, computed, effect, input, OnChanges, output, signal, SimpleChanges, untracked } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 
@@ -107,8 +107,7 @@ export type SearchedFilesSelection = {
     FolderTreeNodeComponent
 ],
     templateUrl: './file-tree-view.component.html',
-    styleUrls: ['./file-tree-view.component.scss'],
-    encapsulation: ViewEncapsulation.None
+    styleUrls: ['./file-tree-view.component.scss']
 })
 export class FileTreeViewComponent implements OnChanges {
     topLevelItems = input.required<AppTreeItem[]>();

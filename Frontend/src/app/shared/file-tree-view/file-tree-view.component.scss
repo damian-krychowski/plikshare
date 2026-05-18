@@ -2,10 +2,6 @@
 @forward "./../../../styles/hover-switch.scss";
 @forward "./../../../styles/nothing-to-show.scss";
 
-.mat-tree {
-    background-color: transparent !important;
-}
-
 .tree-node {
     &:not(:last-child) {
         margin-bottom: 0.5rem;

@@ -1,4 +1,4 @@
-import { Component, computed, effect, input, Input, InputSignal, OnChanges, output, Signal, signal, SimpleChanges, ViewEncapsulation, WritableSignal } from '@angular/core';
+import { Component, computed, effect, input, Input, InputSignal, OnChanges, output, Signal, signal, SimpleChanges, WritableSignal } from '@angular/core';
 import { MatTreeModule, MatTreeNestedDataSource } from '@angular/material/tree';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -76,8 +76,7 @@ export type ZipFolderNode = {
         ActionButtonComponent
     ],
     templateUrl: './zip-file-tree-view.component.html',
-    styleUrls: ['./zip-file-tree-view.component.scss'],
-    encapsulation: ViewEncapsulation.None
+    styleUrls: ['./zip-file-tree-view.component.scss']
 })
 export class ZipFileTreeViewComponent implements OnChanges {
     fileTree = input.required<ZipTreeNode[]>();
