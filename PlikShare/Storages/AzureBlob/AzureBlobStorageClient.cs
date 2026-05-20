@@ -41,7 +41,7 @@ public class AzureBlobStorageClient(
     public StorageExtId ExternalId { get; } = externalId;
     public string Name { get; } = name;
     public StorageEncryption Encryption { get; } = encryption;
-    public TrashPolicy DefaultTrashPolicy { get; } = defaultTrashPolicy;
+    public TrashPolicy DefaultTrashPolicy { get; set; } = defaultTrashPolicy;
 
     private readonly RateLimiter _rateLimiter = new(100, 80);
 

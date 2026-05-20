@@ -35,7 +35,7 @@ public class S3StorageClient(
     private readonly RateLimiter _rateLimiter = new(100, 80);
     
     public StorageEncryption Encryption { get; } = encryption;
-    public TrashPolicy DefaultTrashPolicy { get; } = defaultTrashPolicy;
+    public TrashPolicy DefaultTrashPolicy { get; set; } = defaultTrashPolicy;
 
 
     public async ValueTask DeleteFile(

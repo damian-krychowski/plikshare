@@ -27,7 +27,7 @@ public class HardDriveStorageClient(
     public HardDriveDetailsEntity Details { get; } = details;
     public string Name { get; } = name;
     public StorageEncryption Encryption { get; } = encryption;
-    public TrashPolicy DefaultTrashPolicy { get; } = defaultTrashPolicy;
+    public TrashPolicy DefaultTrashPolicy { get; set; } = defaultTrashPolicy;
 
     public int StorageId { get; } = storageId;
     public StorageExtId ExternalId { get; } = externalId;

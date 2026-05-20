@@ -17,7 +17,11 @@ public interface IStorageClient
     StorageExtId ExternalId { get; }
     string Name { get; }
     public StorageEncryption Encryption { get; }
-    public TrashPolicy DefaultTrashPolicy { get; }
+
+    // Settable: an admin can change the storage's default trash policy at runtime via the
+    // UpdateDefaultTrashPolicy endpoint, which refreshes this on the cached client so newly
+    // created workspaces snapshot the up-to-date value.
+    public TrashPolicy DefaultTrashPolicy { get; set; }
 
     ValueTask<IStorageFile> DownloadFile(
         DownloadFileDetails fileDetails,

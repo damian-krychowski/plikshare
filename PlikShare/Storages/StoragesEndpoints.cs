@@ -206,6 +206,7 @@ public static class StoragesEndpoints
         [FromRoute] StorageExtId storageExternalId,
         [FromBody] TrashPolicyDto request,
         UpdateStorageDefaultTrashPolicyQuery updateStorageDefaultTrashPolicyQuery,
+        StorageClientStore storageClientStore,
         HttpContext httpContext,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
@@ -221,6 +222,11 @@ public static class StoragesEndpoints
         switch (result.Code)
         {
             case UpdateStorageDefaultTrashPolicyQuery.ResultCode.Ok:
+                // CreateWorkspaceQuery snapshots the default off the cached storage client —
+                // refresh it so workspaces created after this update inherit the new policy.
+                if (storageClientStore.TryGetClient(storageExternalId, out var storageClient))
+                    storageClient.DefaultTrashPolicy = policy;
+
                 await auditLogService.Log(
                     Audit.Storage.DefaultTrashPolicyUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),

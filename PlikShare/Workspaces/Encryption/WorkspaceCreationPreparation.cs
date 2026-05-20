@@ -52,7 +52,15 @@ public class WorkspaceCreationPreparation(
         // None/Managed storages need no pre-flight artifacts — the query inserts the
         // workspace row with NULL encryption salt and no wek row.
         if (storage.EncryptionType != StorageEncryptionType.Full)
-            return new Result(Code: ResultCode.Ok);
+        {
+            return new Result(
+                Code: ResultCode.Ok,
+                Details: new WorkspaceDetails
+                {
+                    Artifacts = null,
+                    Storage = storage
+                });
+        }
 
         return PrepareFullEncryptionArtifacts(
             owner: owner,
@@ -133,7 +141,7 @@ public class WorkspaceCreationPreparation(
         WorkspaceDetails? Details = null);
 
     public readonly record struct WorkspaceDetails(
-        WorkspaceFullEncryptionArtifacts Artifacts,
+        WorkspaceFullEncryptionArtifacts? Artifacts,
         IStorageClient Storage);
 }
 

@@ -157,4 +157,18 @@ public class StoragesApi(IFlurlClient flurlClient, string appUrl)
             antiforgery: antiforgery);
     }
 
+    public async Task UpdateDefaultTrashPolicy(
+        StorageExtId externalId,
+        TrashPolicyDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/storages/{externalId}/default-trash-policy",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
 }

@@ -11,6 +11,7 @@ using PlikShare.Workspaces.Members.List.Contracts;
 using PlikShare.Workspaces.Members.UpdatePermissions.Contracts;
 using PlikShare.Workspaces.SearchFilesTree.Contracts;
 using PlikShare.Workspaces.UpdateName.Contracts;
+using PlikShare.Workspaces.UpdateTrashPolicy.Contracts;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
@@ -73,6 +74,20 @@ public class WorkspacesApi(IFlurlClient flurlClient, string appUrl)
         await flurlClient.ExecuteDelete(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{externalId.Value}",
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task UpdateTrashPolicy(
+        WorkspaceExtId externalId,
+        UpdateWorkspaceTrashPolicyDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{externalId.Value}/trash-policy",
+            request: request,
             cookie: cookie,
             antiforgery: antiforgery);
     }
