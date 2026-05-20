@@ -326,7 +326,7 @@ public static class AuditLogEventTypes
         ..Auth.All, ..User.All, ..Settings.All,
         ..EmailProvider.All, ..AuthProvider.All,
         ..Storage.All, ..Integration.All,
-        ..Workspace.All, ..Folder.All, ..Box.All, ..BoxLink.All,
+        ..Workspace.All, ..Trash.All, ..Folder.All, ..Box.All, ..BoxLink.All,
         ..File.All, ..Upload.All,
         ..QuickShare.All
     ];

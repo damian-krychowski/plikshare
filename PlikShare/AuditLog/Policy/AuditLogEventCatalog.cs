@@ -181,6 +181,22 @@ public static class AuditLogEventCatalog
         new(AuditLogEventTypes.File.UploadInitiated,           AuditLogEventCategories.File, AuditLogSeverities.Info,    "File upload initiated.",                AuditLogEventScope.Workspace),
         new(AuditLogEventTypes.File.UploadCompleted,           AuditLogEventCategories.File, AuditLogSeverities.Info,    "File upload completed.",                AuditLogEventScope.Workspace),
         new(AuditLogEventTypes.File.MultiUploadCompleted,      AuditLogEventCategories.File, AuditLogSeverities.Info,    "Multi-file upload completed.",          AuditLogEventScope.Workspace),
+
+        // ── Quick shares ─────────────────────────────────────────────────────────
+        new(AuditLogEventTypes.QuickShare.Created,                   AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share created.",                       AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.Deleted,                   AuditLogEventCategories.QuickShare, AuditLogSeverities.Warning, "Quick share deleted.",                       AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.NameUpdated,               AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share renamed.",                       AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.SlugUpdated,               AuditLogEventCategories.QuickShare, AuditLogSeverities.Warning, "Quick share slug updated.",                  AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.ExpirationUpdated,         AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share expiration updated.",            AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.PasswordUpdated,           AuditLogEventCategories.QuickShare, AuditLogSeverities.Warning, "Quick share password updated.",              AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.MaxDownloadsUpdated,       AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share max-downloads limit updated.",   AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.ModeUpdated,               AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share mode updated.",                  AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.ItemsUpdated,              AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share items updated.",                 AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.Unlocked,                  AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share unlocked.",                      AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.UnlockFailed,              AuditLogEventCategories.QuickShare, AuditLogSeverities.Warning, "Quick share unlock attempt failed.",         AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.BulkDownloadLinkGenerated, AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share bulk download link generated.",  AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.FileDownloadLinkGenerated, AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share file download link generated.",  AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.DownloadLimitReached,      AuditLogEventCategories.QuickShare, AuditLogSeverities.Warning, "Quick share download limit reached.",        AuditLogEventScope.Workspace),
     ];
 
     public static readonly IReadOnlyDictionary<string, EventMetadata> ByEventType =
