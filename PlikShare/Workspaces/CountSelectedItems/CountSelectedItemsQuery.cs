@@ -75,8 +75,9 @@ public class CountSelectedItemsQuery(PlikShareDb plikShareDb)
                          COUNT(fi_id) AS files_count,
                          SUM(fi_size_in_bytes) AS total_size_in_bytes
                      FROM fi_files
-                     WHERE 
-                         fi_folder_id IN (
+                     WHERE
+                         fi_deleted_at IS NULL
+                         AND fi_folder_id IN (
                              SELECT value FROM json_each($folderIds)
                          )
                      """,
@@ -222,10 +223,11 @@ public class CountSelectedItemsQuery(PlikShareDb plikShareDb)
                          ON fo_id = fi_folder_id
                      WHERE
                          fi_workspace_id = $workspaceId
+                         AND fi_deleted_at IS NULL
                          AND fi_external_id IN (
                              SELECT value FROM json_each($selectedFileExternalIds)
                              UNION ALL
-                             SELECT value FROM json_each($excludedFileExternalIds)  
+                             SELECT value FROM json_each($excludedFileExternalIds)
                          )
                          AND ((
                                  fo_id IS NULL 

@@ -180,6 +180,7 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 							AND fi_uploader_identity_type = $uploaderIdentityType
 							AND fi_uploader_identity =  $uploaderIdentity
 				            AND fi_folder_id = $folderId
+                            AND fi_deleted_at IS NULL
 						ORDER BY
 						    (fi_position IS NULL),
 						    fi_position,
@@ -245,6 +246,7 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 				        fi_workspace_id = $workspaceId
 				        AND fi_folder_id = $folderId
                         AND fi_parent_file_id IS NULL
+                        AND fi_deleted_at IS NULL
 					 ORDER BY
 						(fi_position IS NULL),
 						fi_position,

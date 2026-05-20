@@ -4,6 +4,7 @@ using PlikShare.Core.SQLite;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Entities;
 using PlikShare.Storages.Id;
+using PlikShare.Trash;
 using Serilog;
 
 namespace PlikShare.Storages.UpdateDetails;
@@ -46,7 +47,8 @@ public class UpdateStorageDetailsQuery(
                          s_id,
                          s_encryption_type,
                          s_encryption_details_encrypted,
-                         s_name
+                         s_name,
+                         s_default_trash_policy
                      """,
                 readRowFunc: reader =>
                 {
@@ -61,7 +63,8 @@ public class UpdateStorageDetailsQuery(
                         EncryptionDetailsEncrypted: encryptionType == StorageEncryptionType.None
                             ? null
                             : reader.GetFieldValue<byte[]>(2),
-                        Name: reader.GetString(3));
+                        Name: reader.GetString(3),
+                        DefaultTrashPolicy: reader.GetFromJson<TrashPolicy>(4));
                 })
             .WithParameter("$externalId", externalId.Value)
             .WithEnumParameter("$type", storageType)
@@ -93,6 +96,7 @@ public class UpdateStorageDetailsQuery(
         int Id,
         StorageEncryptionType EncryptionType,
         byte[]? EncryptionDetailsEncrypted,
-        string Name);
+        string Name,
+        TrashPolicy DefaultTrashPolicy);
 
 }

@@ -1,13 +1,12 @@
 using System.IO.Pipelines;
 using PlikShare.Core.Encryption;
-using PlikShare.Core.UserIdentity;
-using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Files.Records;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.FileReading;
 using PlikShare.Storages.Id;
+using PlikShare.Trash;
 using PlikShare.Uploads.Algorithm;
 
 namespace PlikShare.Storages;
@@ -18,6 +17,7 @@ public interface IStorageClient
     StorageExtId ExternalId { get; }
     string Name { get; }
     public StorageEncryption Encryption { get; }
+    public TrashPolicy DefaultTrashPolicy { get; }
 
     ValueTask<IStorageFile> DownloadFile(
         DownloadFileDetails fileDetails,

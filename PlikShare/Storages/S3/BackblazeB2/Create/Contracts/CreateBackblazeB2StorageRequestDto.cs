@@ -1,5 +1,6 @@
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
+using PlikShare.Storages.List.Contracts;
 
 namespace PlikShare.Storages.S3.BackblazeB2.Create.Contracts;
 
@@ -10,6 +11,7 @@ public class CreateBackblazeB2StorageRequestDto
     public required string ApplicationKey { get; init; }
     public required string Url { get; init; }
     public required StorageEncryptionType EncryptionType { get; init; }
+    public required TrashPolicyDto DefaultTrashPolicy { get; init; }
 }
 
 public class CreateBackblazeB2StorageResponseDto

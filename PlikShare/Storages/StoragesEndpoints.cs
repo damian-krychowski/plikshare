@@ -32,10 +32,12 @@ using PlikShare.Storages.S3.DigitalOcean.UpdateDetails.Contracts;
 using PlikShare.Storages.S3.GoogleCloudStorage;
 using PlikShare.Storages.S3.GoogleCloudStorage.Create.Contracts;
 using PlikShare.Storages.S3.GoogleCloudStorage.UpdateDetails.Contracts;
+using PlikShare.Storages.UpdateDefaultTrashPolicy;
 using PlikShare.Storages.UpdateName;
 using PlikShare.Storages.UpdateName.Contracts;
 using PlikShare.AuditLog;
 using PlikShare.Storages.Entities;
+using PlikShare.Trash;
 using PlikShare.Users.Middleware;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
@@ -79,6 +81,9 @@ public static class StoragesEndpoints
 
         group.MapPatch("/{storageExternalId}/name", UpdateName)
             .WithName("UpdateStorageName");
+
+        group.MapPatch("/{storageExternalId}/default-trash-policy", UpdateDefaultTrashPolicy)
+            .WithName("UpdateStorageDefaultTrashPolicy");
 
         // Cloudflare R2
         group.MapPost("/cloudflare-r2", CreateCloudflareR2Storage)
@@ -197,6 +202,50 @@ public static class StoragesEndpoints
         }
     }
 
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateDefaultTrashPolicy(
+        [FromRoute] StorageExtId storageExternalId,
+        [FromBody] TrashPolicyDto request,
+        UpdateStorageDefaultTrashPolicyQuery updateStorageDefaultTrashPolicyQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        if (!TrashPolicy.TryCreate(request.Enabled, request.RetentionDays, out var policy))
+            return HttpErrors.Trash.InvalidPolicy();
+
+        var result = await updateStorageDefaultTrashPolicyQuery.Execute(
+            storageExternalId: storageExternalId,
+            policy: policy,
+            cancellationToken: cancellationToken);
+
+        switch (result.Code)
+        {
+            case UpdateStorageDefaultTrashPolicyQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.DefaultTrashPolicyUpdatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        storage: new Audit.StorageRef
+                        {
+                            ExternalId = storageExternalId,
+                            Name = result.Name!,
+                            Type = result.Type!.Value
+                        },
+                        enabled: policy.Enabled,
+                        retentionDays: policy.RetentionDays),
+                    cancellationToken);
+
+                return TypedResults.Ok();
+
+            case UpdateStorageDefaultTrashPolicyQuery.ResultCode.NotFound:
+                return HttpErrors.Storage.NotFound(storageExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateStorageDefaultTrashPolicyQuery),
+                    resultValueStr: result.ToString());
+        }
+    }
+
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateName(
         [FromRoute] StorageExtId storageExternalId,
         [FromBody] UpdateStorageNameRequestDto request,
@@ -250,6 +299,9 @@ public static class StoragesEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        if (!TrashPolicy.TryCreate(request.DefaultTrashPolicy.Enabled, request.DefaultTrashPolicy.RetentionDays, out var defaultTrashPolicy))
+            return HttpErrors.Trash.InvalidPolicy();
+
         var result = await createStorageFlow.Execute(
             factory: cloudflareR2StorageClientFactory,
             input: new CloudflareR2DetailsEntity(
@@ -258,6 +310,7 @@ public static class StoragesEndpoints
                 Url: request.Url),
             name: request.Name,
             encryptionType: request.EncryptionType,
+            defaultTrashPolicy: defaultTrashPolicy,
             creator: await httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
@@ -357,6 +410,9 @@ public static class StoragesEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        if (!TrashPolicy.TryCreate(request.DefaultTrashPolicy.Enabled, request.DefaultTrashPolicy.RetentionDays, out var defaultTrashPolicy))
+            return HttpErrors.Trash.InvalidPolicy();
+
         var result = await createStorageFlow.Execute(
             factory: awsS3StorageClientFactory,
             input: new AwsS3DetailsEntity(
@@ -365,6 +421,7 @@ public static class StoragesEndpoints
                 Region: request.Region),
             name: request.Name,
             encryptionType: request.EncryptionType,
+            defaultTrashPolicy: defaultTrashPolicy,
             creator: await httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
@@ -459,6 +516,9 @@ public static class StoragesEndpoints
     {
         var url = $"https://{request.Region}.digitaloceanspaces.com";
 
+        if (!TrashPolicy.TryCreate(request.DefaultTrashPolicy.Enabled, request.DefaultTrashPolicy.RetentionDays, out var defaultTrashPolicy))
+            return HttpErrors.Trash.InvalidPolicy();
+
         var result = await createStorageFlow.Execute(
             factory: digitalOceanStorageClientFactory,
             input: new DigitalOceanSpacesDetailsEntity(
@@ -467,6 +527,7 @@ public static class StoragesEndpoints
                 Url: url),
             name: request.Name,
             encryptionType: request.EncryptionType,
+            defaultTrashPolicy: defaultTrashPolicy,
             creator: await httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
@@ -567,6 +628,9 @@ public static class StoragesEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        if (!TrashPolicy.TryCreate(request.DefaultTrashPolicy.Enabled, request.DefaultTrashPolicy.RetentionDays, out var defaultTrashPolicy))
+            return HttpErrors.Trash.InvalidPolicy();
+
         var result = await createStorageFlow.Execute(
             factory: hardDriveStorageClientFactory,
             input: new HardDriveStorageClientFactory.Input(
@@ -574,6 +638,7 @@ public static class StoragesEndpoints
                 FolderPath: request.FolderPath),
             name: request.Name,
             encryptionType: request.EncryptionType,
+            defaultTrashPolicy: defaultTrashPolicy,
             creator: await httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
@@ -634,6 +699,9 @@ public static class StoragesEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        if (!TrashPolicy.TryCreate(request.DefaultTrashPolicy.Enabled, request.DefaultTrashPolicy.RetentionDays, out var defaultTrashPolicy))
+            return HttpErrors.Trash.InvalidPolicy();
+
         var result = await createStorageFlow.Execute(
             factory: backblazeB2StorageClientFactory,
             input: new BackblazeB2DetailsEntity(
@@ -642,6 +710,7 @@ public static class StoragesEndpoints
                 Url: request.Url),
             name: request.Name,
             encryptionType: request.EncryptionType,
+            defaultTrashPolicy: defaultTrashPolicy,
             creator: await httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
@@ -744,6 +813,9 @@ public static class StoragesEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        if (!TrashPolicy.TryCreate(request.DefaultTrashPolicy.Enabled, request.DefaultTrashPolicy.RetentionDays, out var defaultTrashPolicy))
+            return HttpErrors.Trash.InvalidPolicy();
+
         var result = await createStorageFlow.Execute(
             factory: azureBlobStorageClientFactory,
             input: new AzureBlobDetailsEntity(
@@ -754,6 +826,7 @@ public static class StoragesEndpoints
                 SasToken: request.SasToken),
             name: request.Name,
             encryptionType: request.EncryptionType,
+            defaultTrashPolicy: defaultTrashPolicy,
             creator: await httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 
@@ -855,6 +928,9 @@ public static class StoragesEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        if (!TrashPolicy.TryCreate(request.DefaultTrashPolicy.Enabled, request.DefaultTrashPolicy.RetentionDays, out var defaultTrashPolicy))
+            return HttpErrors.Trash.InvalidPolicy();
+
         var result = await createStorageFlow.Execute(
             factory: googleCloudStorageClientFactory,
             input: new GoogleCloudStorageDetailsEntity(
@@ -862,6 +938,7 @@ public static class StoragesEndpoints
                 SecretKey: request.SecretKey),
             name: request.Name,
             encryptionType: request.EncryptionType,
+            defaultTrashPolicy: defaultTrashPolicy,
             creator: await httpContext.GetUserContext(),
             cancellationToken: cancellationToken);
 

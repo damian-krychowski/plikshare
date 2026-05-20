@@ -1,8 +1,5 @@
-using PlikShare.Core.Clock;
-using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Core.Volumes;
-using PlikShare.Files.PreSignedLinks;
 using PlikShare.Storages.Entities;
 using PlikShare.Storages.HardDrive.StorageClient;
 
@@ -37,7 +34,8 @@ public class HardDriveStorageClientFactory(
                     storageId: clientDetails.StorageId,
                     externalId: clientDetails.ExternalId,
                     name: clientDetails.Name,
-                    encryption: clientDetails.Encryption)
+                    encryption: clientDetails.Encryption,
+                    defaultTrashPolicy: clientDetails.DefaultTrashPolicy)
             }));
     }
 

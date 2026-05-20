@@ -18,19 +18,13 @@ using PlikShare.Storages.S3.BackblazeB2;
 using PlikShare.Storages.S3.CloudflareR2;
 using PlikShare.Storages.S3.DigitalOcean;
 using PlikShare.Storages.S3.GoogleCloudStorage;
+using PlikShare.Trash;
 using Serilog;
 
 namespace PlikShare.Storages;
 
 public static class StorageStartupExtensions
 {
-    private sealed record StorageRow(
-        int StorageId,
-        StorageExtId ExternalId,
-        string Name,
-        StorageType Type,
-        string DetailsJson,
-        StorageEncryption Encryption);
 
     public static void UseStorage(this WebApplicationBuilder app)
     {
@@ -73,7 +67,8 @@ public static class StorageStartupExtensions
                         s_type,
                         s_details_encrypted,
                         s_encryption_type,
-                        s_encryption_details_encrypted
+                        s_encryption_details_encrypted,
+                        s_default_trash_policy_json
                     FROM s_storages
                 ",
                 readRowFunc: reader =>
@@ -92,6 +87,8 @@ public static class StorageStartupExtensions
                         ? null
                         : masterDataEncryption.DecryptString(reader.GetFieldValue<byte[]>(6));
 
+                    var defaultTrashPolicy = reader.GetFromJson<TrashPolicy>(7);
+
                     return new StorageRow(
                         StorageId: storageId,
                         ExternalId: externalId,
@@ -101,7 +98,9 @@ public static class StorageStartupExtensions
 
                         Encryption: StorageEncryptionExtensions.GetStorageEncryption(
                             encryptionType: encryptionType,
-                            encryptionDetailsJson: encryptionDetailsJson));
+                            encryptionDetailsJson: encryptionDetailsJson),
+                        
+                        DefaultTrashPolicy: defaultTrashPolicy);
                 })
             .Execute();
 
@@ -144,7 +143,8 @@ public static class StorageStartupExtensions
             storageId: storage.StorageId,
             externalId: storage.ExternalId,
             name: storage.Name,
-            encryption: storage.Encryption);
+            encryption: storage.Encryption,
+            defaultTrashPolicy: storage.DefaultTrashPolicy);
 
         return hdStorageClient;
     }
@@ -164,7 +164,8 @@ public static class StorageStartupExtensions
             storageId: storage.StorageId,
             externalId: storage.ExternalId,
             name: storage.Name,
-            encryption: storage.Encryption);
+            encryption: storage.Encryption,
+            defaultTrashPolicy: storage.DefaultTrashPolicy);
     }
 
     private static IStorageClient BuildS3StorageClient(
@@ -182,6 +183,7 @@ public static class StorageStartupExtensions
             externalId: storage.ExternalId,
             name: storage.Name,
             encryption: storage.Encryption,
+            defaultTrashPolicy: storage.DefaultTrashPolicy,
             lifecycleRules: lifecycleRules,
             customCorsConfigurator: customCorsConfigurator);
 
@@ -274,4 +276,12 @@ public static class StorageStartupExtensions
         throw new InvalidOperationException(
             $"Unsupported storage type '{storage.Type}'.");
     }
+    private sealed record StorageRow(
+        int StorageId,
+        StorageExtId ExternalId,
+        string Name,
+        StorageType Type,
+        string DetailsJson,
+        StorageEncryption Encryption,
+        TrashPolicy DefaultTrashPolicy);
 }

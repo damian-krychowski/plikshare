@@ -31,10 +31,11 @@ public class TestTextractConfigurationOperation(
     {
         try
         {
-            var storageClient = storageClientStore.TryGetClient(
-                externalId: storageExternalId);
+            var hasStorage = storageClientStore.TryGetClient(
+                externalId: storageExternalId,
+                client: out var storageClient);
 
-            if (storageClient is not S3StorageClient s3StorageClient)
+            if (!hasStorage || storageClient is not S3StorageClient s3StorageClient)
                 return new Result { Code = ResultCode.StorageNotFound };
 
             var bucketName = $"textract-test-{Guid.NewGuid()}";

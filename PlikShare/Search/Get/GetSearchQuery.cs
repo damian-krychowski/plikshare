@@ -350,8 +350,9 @@ public class GetSearchQuery(
                         ON bo_folder_id IN (
                             SELECT value FROM json_each(fo.fo_ancestor_folder_ids)
                         ) OR bo_folder_id = fo.fo_id
-                    WHERE                        
+                    WHERE
                         bo_id IN (SELECT value FROM json_each($boxIds))
+                        AND fi_deleted_at IS NULL
                         AND fi_name LIKE $query
                     """,
                 readRowFunc: reader => new SearchResponseDto.ExternalBoxFile
@@ -460,8 +461,9 @@ public class GetSearchQuery(
                      LEFT JOIN fo_folders AS fo
                          ON fo.fo_id = fi_folder_id
                          AND fo.fo_is_being_deleted = FALSE
-                     WHERE                        
+                     WHERE
                          w_id IN (SELECT value FROM json_each($workspaceIds))
+                         AND fi_deleted_at IS NULL
                          AND fi_name LIKE $query
                      """,
                 readRowFunc: reader => new SearchResponseDto.WorkspaceFile
@@ -629,6 +631,7 @@ public class GetSearchQuery(
                          AND fo.fo_is_being_deleted = FALSE
                      WHERE
                          w_id IN (SELECT value FROM json_each($workspaceIds))
+                         AND fi_deleted_at IS NULL
                          AND app_decrypt_metadata(fi_name, fi_workspace_id) LIKE $query
                      """,
                 readRowFunc: reader => new SearchResponseDto.WorkspaceFile

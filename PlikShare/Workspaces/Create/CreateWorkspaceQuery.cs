@@ -4,7 +4,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.GeneralSettings;
-using PlikShare.Storages.Id;
+using PlikShare.Storages;
 using PlikShare.Users.Cache;
 using PlikShare.Workspaces.CreateBucket;
 using PlikShare.Workspaces.Encryption;
@@ -31,7 +31,7 @@ public class CreateWorkspaceQuery(
     UpsertWorkspaceEncryptionKeyQuery upsertWorkspaceEncryptionKeyQuery)
 {
     public async Task<Result> Execute(
-        StorageExtId storageExternalId,
+        IStorageClient storage,
         UserContext user,
         WorkspaceFullEncryptionArtifacts? artifacts,
         string name,
@@ -50,7 +50,7 @@ public class CreateWorkspaceQuery(
         return await dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
-                storageExternalId: storageExternalId,
+                storage: storage,
                 ownerId: user.Id,
                 artifacts: artifacts,
                 name: name,
@@ -80,7 +80,7 @@ public class CreateWorkspaceQuery(
 
     private Result ExecuteOperation(
         SqliteWriteContext dbWriteContext,
-        StorageExtId storageExternalId,
+        IStorageClient storage,
         int ownerId,
         WorkspaceFullEncryptionArtifacts? artifacts,
         string name,
@@ -94,7 +94,7 @@ public class CreateWorkspaceQuery(
         {
             var result = ExecuteTransaction(
                 dbWriteContext: dbWriteContext,
-                storageExternalId: storageExternalId,
+                storage: storage,
                 ownerId: ownerId,
                 artifacts: artifacts,
                 name: name,
@@ -155,7 +155,7 @@ public class CreateWorkspaceQuery(
     /// </summary>
     public Result ExecuteTransaction(
         SqliteWriteContext dbWriteContext,
-        StorageExtId storageExternalId,
+        IStorageClient storage,
         int ownerId,
         WorkspaceFullEncryptionArtifacts? artifacts,
         string name,
@@ -174,9 +174,15 @@ public class CreateWorkspaceQuery(
 
         // Snapshot the current global workspace-default audit-log policy onto the new row.
         // Editing the global default later does not retroactively touch existing workspaces.
-        var auditLogPolicyJson = appSettings.AuditLogWorkspaceDefaultPolicy.Serialize();
-
-        var insertWorkspaceResult = dbWriteContext
+        var auditLogPolicyJson = appSettings
+            .AuditLogWorkspaceDefaultPolicy
+            .Serialize();
+        
+        // Trash policy is snapshotted from the storage's default at create time. Editing
+        // s_default_trash_policy_json later does not retroactively touch existing workspaces.
+        var trashPolicy = storage.DefaultTrashPolicy;
+        
+        var (isEmpty, workspaceId) = dbWriteContext
             .OneRowCmd(
                 sql: """
                       INSERT INTO w_workspaces(
@@ -191,11 +197,12 @@ public class CreateWorkspaceQuery(
                          w_max_size_in_bytes,
                          w_max_team_members,
                          w_encryption_salt,
-                         w_audit_log_disabled_events_json
+                         w_audit_log_disabled_events_json,
+                         w_trash_policy_json
                      ) VALUES (
                          $externalId,
                          $userId,
-                         (SELECT s_id FROM s_storages WHERE s_external_id = $storageExternalId LIMIT 1),
+                         $storageId,
                          $name,
                          0,
                          FALSE,
@@ -204,20 +211,16 @@ public class CreateWorkspaceQuery(
                          $maxSizeInBytes,
                          $maxTeamMembers,
                          $encryptionSalt,
-                         $auditLogPolicyJson
+                         $auditLogPolicyJson,
+                         $trashPolicy
                      )
                      RETURNING
-                         w_id,
-                         w_storage_id
+                         w_id
                      """,
-                readRowFunc: reader => new
-                {
-                    WorkspaceId = reader.GetInt32(0),
-                    StorageId = reader.GetInt32(1)
-                },
+                readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
             .WithParameter("$externalId", workspaceExternalId.Value)
-            .WithParameter("$storageExternalId", storageExternalId.Value)
+            .WithParameter("$storageId", storage.StorageId)
             .WithParameter("$userId", ownerId)
             .WithParameter("$name", name)
             .WithParameter("$bucketName", finalBucketName)
@@ -225,9 +228,10 @@ public class CreateWorkspaceQuery(
             .WithParameter("$maxTeamMembers", maxTeamMembers)
             .WithParameter("$encryptionSalt", (object?) artifacts?.EncryptionSalt ?? DBNull.Value)
             .WithParameter("$auditLogPolicyJson", auditLogPolicyJson)
+            .WithJsonParameter("$trashPolicy", trashPolicy)
             .Execute();
 
-        if (insertWorkspaceResult.IsEmpty)
+        if (isEmpty)
         {
             throw new InvalidOperationException(
                 $"Cannot insert workspace for OwnerId: {ownerId}");
@@ -242,7 +246,7 @@ public class CreateWorkspaceQuery(
             // with the correct wrap at read time.
             upsertWorkspaceEncryptionKeyQuery.ExecuteTransaction(
                 dbWriteContext: dbWriteContext,
-                workspaceId: insertWorkspaceResult.Value.WorkspaceId,
+                workspaceId: workspaceId,
                 userId: ownerId,
                 storageDekVersion: artifacts.StorageDekVersion,
                 wrappedWorkspaceDek: artifacts.OwnerWrappedWorkspaceDek,
@@ -254,9 +258,9 @@ public class CreateWorkspaceQuery(
             correlationId: correlationId,
             jobType: CreateWorkspaceBucketQueueJobType.Value,
             definition: new CreateWorkspaceBucketQueueJobDefinition(
-                WorkspaceId: insertWorkspaceResult.Value.WorkspaceId,
+                WorkspaceId: workspaceId,
                 BucketName: finalBucketName,
-                StorageId: insertWorkspaceResult.Value.StorageId),
+                StorageId: storage.StorageId),
             debounceId: null,
             sagaId: null,
             executeAfterDate: clock.UtcNow,
@@ -272,7 +276,7 @@ public class CreateWorkspaceQuery(
         return new Result(
             Code: ResultCode.Ok,
             Workspace: new Workspace(
-                Id: insertWorkspaceResult.Value.WorkspaceId,
+                Id: workspaceId,
                 ExternalId: workspaceExternalId,
                 BucketName: finalBucketName,
                 MaxSizeInBytes: maxSizeInBytes));

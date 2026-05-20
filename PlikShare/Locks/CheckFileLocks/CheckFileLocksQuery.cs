@@ -19,6 +19,7 @@ public class CheckFileLocksQuery(PlikShareDb plikShareDb)
                      SELECT fi_external_id
                      FROM fi_files
                      WHERE fi_is_upload_completed = FALSE
+                       AND fi_deleted_at IS NULL
                      """,
                 readRowFunc: reader => reader.GetString(0))
             .Execute();

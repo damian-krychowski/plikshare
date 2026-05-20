@@ -46,9 +46,11 @@ public class UpdateStorageFlow(
 
         var storageClientDetails = new StorageClientDetails
         {
-            StorageId = storageData.Id,
             ExternalId = externalId,
+
+            StorageId = storageData.Id,
             Name = storageData.Name,
+            DefaultTrashPolicy = storageData.DefaultTrashPolicy,
 
             Encryption = StorageEncryptionExtensions.GetStorageEncryption(
                 encryptionType: storageData.EncryptionType,

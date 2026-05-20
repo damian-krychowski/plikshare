@@ -86,6 +86,7 @@ public class UpdateFileNameQuery(DbWriteQueue dbWriteQueue)
                     WHERE
                         fi_external_id = $fileExternalId
                         AND fi_workspace_id = $workspaceId
+                        AND fi_deleted_at IS NULL
                     RETURNING
                         fi_id
                 ",
@@ -113,6 +114,7 @@ public class UpdateFileNameQuery(DbWriteQueue dbWriteQueue)
                     WHERE
                         fi_external_id = $fileExternalId
                         AND fi_workspace_id = $workspaceId
+                        AND fi_deleted_at IS NULL
                         AND (
                             $isRenameAllowedByBoxPermissions = TRUE
                             OR (

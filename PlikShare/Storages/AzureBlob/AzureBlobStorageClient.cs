@@ -5,7 +5,6 @@ using Azure.Storage.Blobs.Models;
 using Azure.Storage.Blobs.Specialized;
 using Azure.Storage.Sas;
 using CommunityToolkit.HighPerformance;
-using PlikShare.Core.Clock;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
@@ -13,6 +12,7 @@ using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.FileReading;
 using PlikShare.Storages.Id;
+using PlikShare.Trash;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Chunking;
 using Serilog;
@@ -32,7 +32,8 @@ public class AzureBlobStorageClient(
     int storageId,
     StorageExtId externalId,
     string name,
-    StorageEncryption encryption) : IObjectStorageClient, IDisposable
+    StorageEncryption encryption,
+    TrashPolicy defaultTrashPolicy) : IObjectStorageClient, IDisposable
 {
     public const int MicroFileThreshold = 1 * SizeInBytes.Mb; // 1MB
 
@@ -40,7 +41,8 @@ public class AzureBlobStorageClient(
     public StorageExtId ExternalId { get; } = externalId;
     public string Name { get; } = name;
     public StorageEncryption Encryption { get; } = encryption;
-    
+    public TrashPolicy DefaultTrashPolicy { get; } = defaultTrashPolicy;
+
     private readonly RateLimiter _rateLimiter = new(100, 80);
 
     public async ValueTask DeleteFile(

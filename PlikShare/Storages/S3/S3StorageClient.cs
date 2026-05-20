@@ -1,7 +1,6 @@
 using Amazon.S3;
 using Amazon.S3.Model;
 using CommunityToolkit.HighPerformance;
-using PlikShare.Core.Clock;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks;
@@ -9,6 +8,7 @@ using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.FileReading;
 using PlikShare.Storages.Id;
+using PlikShare.Trash;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Chunking;
 using Serilog;
@@ -23,6 +23,7 @@ public class S3StorageClient(
     StorageExtId externalId,
     string name,
     StorageEncryption encryption,
+    TrashPolicy defaultTrashPolicy,
     IReadOnlyList<LifecycleRule> lifecycleRules,
     Func<string, CancellationToken, Task>? customCorsConfigurator = null) : IObjectStorageClient, IDisposable
 {
@@ -34,7 +35,8 @@ public class S3StorageClient(
     private readonly RateLimiter _rateLimiter = new(100, 80);
     
     public StorageEncryption Encryption { get; } = encryption;
-    
+    public TrashPolicy DefaultTrashPolicy { get; } = defaultTrashPolicy;
+
 
     public async ValueTask DeleteFile(
         string bucketName,

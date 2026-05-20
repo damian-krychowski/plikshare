@@ -4,6 +4,7 @@ using PlikShare.BulkDelete.Contracts;
 using PlikShare.Dashboard.Content.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Storages.Encryption;
+using PlikShare.Storages.List.Contracts;
 using PlikShare.Workspaces.ChangeOwner.Contracts;
 using PlikShare.Workspaces.Create.Contracts;
 using PlikShare.Workspaces.Get.Contracts;
@@ -122,7 +123,8 @@ public class workspace_tests : TestFixture
             IsBucketCreated = false,
             MaxSizeInBytes = null,
             MaxTeamMembers = null,
-            StorageEncryptionType = "none"
+            StorageEncryptionType = "none",
+            TrashPolicy = TrashPolicyDto.Disabled
         });
     }
 

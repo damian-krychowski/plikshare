@@ -16,6 +16,7 @@ using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.HardDrive.Create.Contracts;
 using PlikShare.Storages.Id;
+using PlikShare.Storages.List.Contracts;
 using PlikShare.Workspaces.Create.Contracts;
 using PlikShare.Workspaces.Id;
 using Xunit.Abstractions;
@@ -106,7 +107,8 @@ public class api_access_without_logging_in: TestFixture
                             Name: "some-name",
                             VolumePath: "some-volume-path",
                             FolderPath: "some-folder-path",
-                            EncryptionType: StorageEncryptionType.None),
+                            EncryptionType: StorageEncryptionType.None,
+                            DefaultTrashPolicy: TrashPolicyDto.Disabled),
                         cookie: null,
                         antiforgery: antiforgery);
                 });

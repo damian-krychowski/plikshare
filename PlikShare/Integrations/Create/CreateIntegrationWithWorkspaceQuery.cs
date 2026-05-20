@@ -3,10 +3,10 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Integrations.Id;
+using PlikShare.Storages;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
 using PlikShare.Workspaces.Create;
-using PlikShare.Workspaces.Encryption;
 using PlikShare.Workspaces.Id;
 using Serilog;
 
@@ -15,8 +15,8 @@ namespace PlikShare.Integrations.Create;
 public class CreateIntegrationWithWorkspaceQuery(
     DbWriteQueue dbWriteQueue,
     CreateWorkspaceQuery createWorkspaceQuery,
-    WorkspaceCreationPreparation workspaceCreationPreparation,
-    IMasterDataEncryption masterDataEncryption)
+    IMasterDataEncryption masterDataEncryption,
+    StorageClientStore storageClientStore)
 {
     public Task<Result> Execute<TDetails>(
         string name,
@@ -26,24 +26,22 @@ public class CreateIntegrationWithWorkspaceQuery(
         Guid correlationId,
         CancellationToken cancellationToken) where TDetails: IIntegrationWithWorkspace
     {
-        // Integrations do not carry a user encryption session, so we cannot build the per-user
-        // Workspace DEK wrap that a full-encrypted storage requires. Reject up-front instead of
-        // letting the write queue produce a half-formed workspace with no wrap row.
-        var storageContext = workspaceCreationPreparation.ResolveStorageContextForRead(
-            details.StorageExternalId);
-
-        if (storageContext is null)
+        if (!storageClientStore.TryGetClient(details.StorageExternalId, out var storage))
             return Task.FromResult(new Result(
                 Code: ResultCode.StorageNotFound,
                 MissingStorageExternalId: details.StorageExternalId));
 
-        if (storageContext.Value.EncryptionType == StorageEncryptionType.Full)
+        // Integrations do not carry a user encryption session, so we cannot build the per-user
+        // Workspace DEK wrap that a full-encrypted storage requires. Reject up-front instead of
+        // letting the write queue produce a half-formed workspace with no wrap row.
+        if (storage.EncryptionType == StorageEncryptionType.Full)
             return Task.FromResult(new Result(
                 Code: ResultCode.EncryptedStorageNotSupported));
 
         return dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
+                storage: storage,
                 type: type,
                 name: name,
                 details: details,
@@ -54,6 +52,7 @@ public class CreateIntegrationWithWorkspaceQuery(
 
     private Result ExecuteOperation<TDetails>(
         SqliteWriteContext dbWriteContext,
+        IStorageClient storage,
         string name,
         IntegrationType type,
         TDetails details,
@@ -71,7 +70,7 @@ public class CreateIntegrationWithWorkspaceQuery(
             // passing null artifacts here is the correct shape for None/Managed.
             var workspaceResult = createWorkspaceQuery.ExecuteTransaction(
                 dbWriteContext: dbWriteContext,
-                storageExternalId: details.StorageExternalId,
+                storage: storage,
                 ownerId: ownerId,
                 artifacts: null,
                 name: workspaceName,

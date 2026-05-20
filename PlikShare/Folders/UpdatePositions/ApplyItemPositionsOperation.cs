@@ -120,6 +120,7 @@ public static class ApplyItemPositionsOperation
                      FROM fi_files
                      WHERE fi_workspace_id = $workspaceId
                        AND fi_parent_file_id IS NULL
+                       AND fi_deleted_at IS NULL
                        AND (
                            ($parentFolderId IS NULL AND fi_folder_id IS NULL)
                            OR fi_folder_id = $parentFolderId

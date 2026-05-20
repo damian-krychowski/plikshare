@@ -178,7 +178,9 @@ public class GetFilePreviewDetailsQuery(
                         ON parent_fi.fi_id = child_fi.fi_parent_file_id
                     WHERE
                         child_fi.fi_workspace_id = $workspaceId
+                        AND child_fi.fi_deleted_at IS NULL
                         AND parent_fi.fi_workspace_id = $workspaceId
+                        AND parent_fi.fi_deleted_at IS NULL
                         AND parent_fi.fi_external_id = $fileExternalId
                     ORDER BY child_fi.fi_id DESC
                 ",
@@ -357,6 +359,7 @@ public class GetFilePreviewDetailsQuery(
                     INNER JOIN fi_files
                         ON fi_id = fa_file_id
                         AND fi_workspace_id = $workspaceId
+                        AND fi_deleted_at IS NULL
                     WHERE
                         fi_external_id = $fileExternalId
                         AND fa_workspace_id = $workspaceId

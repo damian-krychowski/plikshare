@@ -24,6 +24,7 @@ public class GetQuickShareItemsQuery(PlikShareDb plikShareDb)
                      WHERE
                          qshi_quick_share_id = $quickShareId
                          AND qshi_file_id IS NOT NULL
+                         AND fi_deleted_at IS NULL
                      """,
                 readRowFunc: reader => new ItemRow<FileExtId>(
                     ExternalId: reader.GetExtId<FileExtId>(0),
@@ -95,6 +96,7 @@ public class GetQuickShareItemsQuery(PlikShareDb plikShareDb)
                      INNER JOIN fo_folders AS pf ON pf.fo_id = fi_folder_id
                      WHERE qshi_quick_share_id = $quickShareId
                        AND qshi_file_id IS NOT NULL
+                       AND fi_deleted_at IS NULL
                        AND pf.fo_is_being_deleted = FALSE
                      """,
                 readRowFunc: reader => reader.GetFromJson<List<FolderExtId>>(0))

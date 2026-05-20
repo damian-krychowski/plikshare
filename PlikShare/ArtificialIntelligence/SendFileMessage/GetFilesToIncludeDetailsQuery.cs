@@ -35,6 +35,7 @@ public class GetFilesToIncludeDetailsQuery(PlikShareDb plikShareDb)
                      WHERE fi_external_id IN (
                             SELECT value FROM json_each($externalIds)
                         )
+                        AND fi_deleted_at IS NULL
                      """,
                 readRowFunc: reader =>
                 {

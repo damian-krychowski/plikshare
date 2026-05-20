@@ -22,28 +22,18 @@ public class StorageClientStore
             updateValueFactory: (_, _) => client.StorageId);
     }
     
-    public IStorageClient? TryGetClient(StorageExtId externalId)
+    public bool TryGetClient(StorageExtId externalId, out IStorageClient client)
     {
-        if (!_clientsIdsDict.TryGetValue(externalId, out var storageId)) 
-            return null;
+        if (_clientsIdsDict.TryGetValue(externalId, out var storageId)) 
+            return TryGetClient(storageId, out client);
 
-        if (TryGetClient(storageId, out var client))
-            return client;
-
-        return null;
+        client = null;
+        return false;
     }
 
     public bool TryGetClient(int storageId, out IStorageClient client)
     {
         return _clientsDict.TryGetValue(storageId, out client!);
-    }
-
-    public IStorageClient GetClientOrThrow(int storageId)
-    {
-        if (TryGetClient(storageId, out var client))
-            return client;
-
-        throw new InvalidOperationException($"Storage Client for StorageId '{storageId}' was not found");
     }
 
     public void RemoveClient(int storageId)

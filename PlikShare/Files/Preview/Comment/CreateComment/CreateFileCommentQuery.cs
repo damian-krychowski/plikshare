@@ -79,6 +79,7 @@ public class CreateFileCommentQuery(DbWriteQueue dbWriteQueue, IClock clock)
                             WHERE
                                 fi_external_id = $fileExternalId
                                 AND fi_workspace_id = $workspaceId
+                                AND fi_deleted_at IS NULL
                             RETURNING
                                 fa_id
                         ",

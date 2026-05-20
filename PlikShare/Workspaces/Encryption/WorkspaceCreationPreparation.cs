@@ -1,11 +1,12 @@
-using System.Security.Cryptography;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
+using PlikShare.Storages;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
 using PlikShare.Users.Cache;
 using Serilog;
+using System.Security.Cryptography;
 
 namespace PlikShare.Workspaces.Encryption;
 
@@ -28,67 +29,40 @@ namespace PlikShare.Workspaces.Encryption;
 /// directly without dragging in crypto state.
 /// </summary>
 public class WorkspaceCreationPreparation(
-    PlikShareDb plikShareDb)
+    StorageClientStore storageClientStore)
 {
     public Result Prepare(
         StorageExtId storageExternalId,
         UserContext owner,
         Func<SecureBytes?> loadUserPrivateKey)
     {
-        var storageContext = ResolveStorageContextForRead(
-            storageExternalId);
+        var hasStorage = storageClientStore.TryGetClient(
+            externalId: storageExternalId,
+            client: out var storage);
 
-        if (storageContext is null)
+        if (!hasStorage)
             return new Result(Code: ResultCode.StorageNotFound);
-
+        
         // Defense-in-depth: even if the dashboard storage picker filters the list, the
         // creation endpoint must independently enforce the user's storage-access policy.
         // App-owners bypass it (CanAccessStorage handles that).
-        if (!owner.CanAccessStorage(storageContext.Value.Id))
+        if (!owner.CanAccessStorage(storage.StorageId))
             return new Result(Code: ResultCode.StorageNotAllowedForUser);
 
         // None/Managed storages need no pre-flight artifacts — the query inserts the
         // workspace row with NULL encryption salt and no wek row.
-        if (storageContext.Value.EncryptionType != StorageEncryptionType.Full)
+        if (storage.EncryptionType != StorageEncryptionType.Full)
             return new Result(Code: ResultCode.Ok);
 
         return PrepareFullEncryptionArtifacts(
             owner: owner,
-            storageId: storageContext.Value.Id,
+            storage: storage,
             loadUserPrivateKey: loadUserPrivateKey);
-    }
-
-    /// <summary>
-    /// Non-transactional read of a storage row's id + encryption type. Safe to call before
-    /// a transaction opens — storage type is effectively immutable, and if the storage row
-    /// disappears between this read and a subsequent workspace INSERT, the FK constraint
-    /// on <c>w_workspaces.w_storage_id</c> will fail and the caller translates it back to
-    /// <c>StorageNotFound</c>.
-    /// </summary>
-    public StorageContext? ResolveStorageContextForRead(StorageExtId storageExternalId)
-    {
-        using var connection = plikShareDb.OpenConnection();
-
-        var (isEmpty, ctx) = connection
-            .OneRowCmd(
-                sql: """
-                     SELECT s_id, s_encryption_type
-                     FROM s_storages
-                     WHERE s_external_id = $storageExternalId
-                     LIMIT 1
-                     """,
-                readRowFunc: reader => new StorageContext(
-                    Id: reader.GetInt32(0),
-                    EncryptionType: StorageEncryptionExtensions.FromDbValue(reader.GetStringOrNull(1))))
-            .WithParameter("$storageExternalId", storageExternalId.Value)
-            .Execute();
-
-        return isEmpty ? null : ctx;
     }
 
     private Result PrepareFullEncryptionArtifacts(
         UserContext owner,
-        int storageId,
+        IStorageClient storage,
         Func<SecureBytes?> loadUserPrivateKey)
     {
         using var userPrivateKey = loadUserPrivateKey();
@@ -103,7 +77,7 @@ public class WorkspaceCreationPreparation(
         // one the creator gets wrapped for here. Older versions exist only to keep files
         // written before a past rotation decryptable.
         var latestWrappedStorageDek = owner.TryGetLatestStorageDek(
-            storageId: storageId);
+            storageId: storage.StorageId);
 
         if (latestWrappedStorageDek is null)
             return new Result(Code: ResultCode.NotAStorageAdmin);
@@ -125,10 +99,12 @@ public class WorkspaceCreationPreparation(
 
             return new Result(
                 Code: ResultCode.Ok,
-                Artifacts: new WorkspaceFullEncryptionArtifacts(
-                    StorageDekVersion: latestWrappedStorageDek.StorageDekVersion,
-                    EncryptionSalt: salt,
-                    OwnerWrappedWorkspaceDek: wrapped));
+                Details: new WorkspaceDetails(
+                    Artifacts: new WorkspaceFullEncryptionArtifacts(
+                        StorageDekVersion: latestWrappedStorageDek.StorageDekVersion,
+                        EncryptionSalt: salt,
+                        OwnerWrappedWorkspaceDek: wrapped),
+                    Storage: storage));
         }
         catch (StorageDekUnsealException e)
         {
@@ -142,10 +118,6 @@ public class WorkspaceCreationPreparation(
         }
     }
 
-    public readonly record struct StorageContext(
-        int Id,
-        StorageEncryptionType EncryptionType);
-
     public enum ResultCode
     {
         Ok = 0,
@@ -158,7 +130,11 @@ public class WorkspaceCreationPreparation(
 
     public readonly record struct Result(
         ResultCode Code,
-        WorkspaceFullEncryptionArtifacts? Artifacts = null);
+        WorkspaceDetails? Details = null);
+
+    public readonly record struct WorkspaceDetails(
+        WorkspaceFullEncryptionArtifacts Artifacts,
+        IStorageClient Storage);
 }
 
 /// <summary>

@@ -13,6 +13,7 @@ using PlikShare.Storages.S3.BackblazeB2;
 using PlikShare.Storages.S3.CloudflareR2;
 using PlikShare.Storages.S3.DigitalOcean;
 using PlikShare.Storages.S3.GoogleCloudStorage;
+using PlikShare.Trash;
 
 namespace PlikShare.Storages.List;
 
@@ -27,13 +28,14 @@ public class GetStoragesQuery(
         return connection
             .Cmd<GetStorageItemResponseDto>(
                 sql: @"
-                    SELECT 
+                    SELECT
                         s_external_id,
                         s_name,
                         s_type,
                         s_details_encrypted,
                         (SELECT COUNT(*) FROM w_workspaces WHERE w_storage_id = s_id) AS s_workspaces_count,
-                        s_encryption_type
+                        s_encryption_type,
+                        s_default_trash_policy_json
                     FROM s_storages
                     ORDER BY s_id ASC
                 ",
@@ -46,6 +48,12 @@ public class GetStoragesQuery(
                     var workspacesCount = reader.GetInt32(4);
                     var encryptionType = StorageEncryptionExtensions.FromDbValue(
                         dbValue: reader.GetStringOrNull(5));
+                    var trashPolicy = reader.GetFromJson<TrashPolicy>(6);
+                    var trashPolicyDto = new TrashPolicyDto
+                    {
+                        Enabled = trashPolicy.Enabled,
+                        RetentionDays = trashPolicy.RetentionDays
+                    };
 
                     if (type == StorageType.HardDrive)
                     {
@@ -58,6 +66,7 @@ public class GetStoragesQuery(
                             EncryptionType = encryptionType,
                             Name = name,
                             WorkspacesCount = workspacesCount,
+                            DefaultTrashPolicy = trashPolicyDto,
 
                             FolderPath = details!.FolderPath,
                             FullPath = details.FullPath,
@@ -76,6 +85,7 @@ public class GetStoragesQuery(
                             EncryptionType = encryptionType,
                             Name = name,
                             WorkspacesCount = workspacesCount,
+                            DefaultTrashPolicy = trashPolicyDto,
 
                             AccessKey = Obfuscate(details!.AccessKey),
                             Region = details.Region
@@ -93,12 +103,13 @@ public class GetStoragesQuery(
                             EncryptionType = encryptionType,
                             Name = name,
                             WorkspacesCount = workspacesCount,
+                            DefaultTrashPolicy = trashPolicyDto,
 
                             AccessKeyId = Obfuscate(details!.AccessKeyId),
                             Url = details.Url
                         };
                     }
-                    
+
                     if (type == StorageType.DigitalOceanSpaces)
                     {
                         var details = GetStorageDetails<DigitalOceanSpacesDetailsEntity>(
@@ -110,6 +121,7 @@ public class GetStoragesQuery(
                             EncryptionType = encryptionType,
                             Name = name,
                             WorkspacesCount = workspacesCount,
+                            DefaultTrashPolicy = trashPolicyDto,
 
                             Url = details!.Url,
                             AccessKey = Obfuscate(details.AccessKey)
@@ -127,6 +139,7 @@ public class GetStoragesQuery(
                             EncryptionType = encryptionType,
                             Name = name,
                             WorkspacesCount = workspacesCount,
+                            DefaultTrashPolicy = trashPolicyDto,
 
                             Url = details!.Url,
                             KeyId = Obfuscate(details.KeyId)
@@ -144,6 +157,7 @@ public class GetStoragesQuery(
                             EncryptionType = encryptionType,
                             Name = name,
                             WorkspacesCount = workspacesCount,
+                            DefaultTrashPolicy = trashPolicyDto,
 
                             AuthType = details!.AuthType,
                             ServiceUrl = details.ServiceUrl,
@@ -164,6 +178,7 @@ public class GetStoragesQuery(
                             EncryptionType = encryptionType,
                             Name = name,
                             WorkspacesCount = workspacesCount,
+                            DefaultTrashPolicy = trashPolicyDto,
 
                             AccessKey = Obfuscate(details!.AccessKey)
                         };

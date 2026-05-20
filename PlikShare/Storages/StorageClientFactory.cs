@@ -1,14 +1,12 @@
 using Amazon.S3;
 using Amazon.S3.Model;
-using PlikShare.Core.Clock;
 using PlikShare.Core.Utils;
-using PlikShare.Files.PreSignedLinks;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Entities;
 using PlikShare.Storages.Id;
 using PlikShare.Storages.S3;
 using PlikShare.Core.Configuration;
-using PlikShare.Core.Encryption;
+using PlikShare.Trash;
 
 namespace PlikShare.Storages;
 
@@ -40,6 +38,7 @@ public class StorageClientDetails
     public required StorageExtId ExternalId { get; init; }
     public required string Name { get; init; }
     public required StorageEncryption Encryption { get; init; }
+    public required TrashPolicy DefaultTrashPolicy { get; init; }
 }
 
 public interface IStorageClientFactory<TInput>
@@ -72,6 +71,7 @@ public static class StoragePreparationDetailsExtensions
                     externalId: clientDetails.ExternalId,
                     name: clientDetails.Name,
                     encryption: clientDetails.Encryption,
+                    defaultTrashPolicy: clientDetails.DefaultTrashPolicy,
                     lifecycleRules: lifecycleRules,
                     customCorsConfigurator: customCorsConfigurator)
             };

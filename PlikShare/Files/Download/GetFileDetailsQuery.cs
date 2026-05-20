@@ -48,6 +48,7 @@ public class GetFileDetailsQuery(PlikShareDb plikShareDb)
                     WHERE
                         fi.fi_workspace_id = $workspaceId
                         AND fi.fi_external_id = $fileExternalId
+                        AND fi.fi_deleted_at IS NULL
                         AND (
                             $boxFolderId IS NULL
                             OR EXISTS (

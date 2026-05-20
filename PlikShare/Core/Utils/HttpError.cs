@@ -10,6 +10,7 @@ using PlikShare.AuthProviders.Id;
 using PlikShare.Integrations.Id;
 using PlikShare.QuickShares.Id;
 using PlikShare.Storages.Id;
+using PlikShare.Trash;
 using PlikShare.Uploads.Id;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Id;
@@ -1100,6 +1101,16 @@ public static class HttpErrors
             {
                 Code = "openai-chatgpt-invalid-api-key",
                 Message = $"Provided ApiKey is invalid"
+            });
+    }
+
+    public static class Trash
+    {
+        public static BadRequest<HttpError> InvalidPolicy() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "invalid-trash-policy",
+                Message = $"retentionDays must be between {TrashPolicy.MinRetentionDays} and {TrashPolicy.MaxRetentionDays} when trash is enabled."
             });
     }
 

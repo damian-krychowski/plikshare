@@ -2,9 +2,11 @@ using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
+using PlikShare.Core.Utils;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Entities;
 using PlikShare.Storages.Id;
+using PlikShare.Trash;
 using Serilog;
 
 namespace PlikShare.Storages.Create;
@@ -20,6 +22,7 @@ public class CreateStorageQuery(
         string detailsJson,
         StorageEncryption encryption,
         OwnerEncryptionKeyData[] ownerKeyDataList,
+        TrashPolicy defaultTrashPolicy,
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
@@ -29,7 +32,8 @@ public class CreateStorageQuery(
                 storageType,
                 detailsJson,
                 encryption,
-                ownerKeyDataList),
+                ownerKeyDataList,
+                defaultTrashPolicy),
             cancellationToken: cancellationToken);
     }
 
@@ -39,7 +43,8 @@ public class CreateStorageQuery(
         StorageType storageType,
         string detailsJson,
         StorageEncryption encryption,
-        OwnerEncryptionKeyData[] ownerKeyDataList)
+        OwnerEncryptionKeyData[] ownerKeyDataList,
+        TrashPolicy defaultTrashPolicy)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
 
@@ -56,14 +61,16 @@ public class CreateStorageQuery(
                              s_name,
                              s_details_encrypted,
                              s_encryption_type,
-                             s_encryption_details_encrypted
+                             s_encryption_details_encrypted,
+                             s_default_trash_policy_json
                          ) VALUES (
                              $externalId,
                              $type,
                              $name,
                              $details,
                              $encryptionType,
-                             $encryptionDetails
+                             $encryptionDetails,
+                             $defaultTrashPolicyJson
                          )
                          RETURNING s_id
                          """,
@@ -75,6 +82,7 @@ public class CreateStorageQuery(
                 .WithParameter("$details", masterDataEncryption.EncryptString(detailsJson))
                 .WithParameter("$encryptionType", encryption.Type.ToDbValue())
                 .WithParameter("$encryptionDetails", encryption.EncryptJson(masterDataEncryption))
+                .WithParameter("$defaultTrashPolicyJson", Json.Serialize(defaultTrashPolicy))
                 .ExecuteOrThrow();
 
             foreach (var ownerKeyData in ownerKeyDataList)

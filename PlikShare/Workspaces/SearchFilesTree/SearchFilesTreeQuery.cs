@@ -237,6 +237,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
 				    WHERE
 				        fi_workspace_id = $workspaceId
                         AND fi_parent_file_id IS NULL
+                        AND fi_deleted_at IS NULL
                         AND (fi_name || fi_extension) LIKE $query
                         AND (
                             fi_folder_id IS NULL

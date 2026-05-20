@@ -90,6 +90,7 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                      FROM fi_files
                      WHERE
                          fi_workspace_id = $workspaceId
+                         AND fi_deleted_at IS NULL
                          AND fi_id IN (
                              SELECT value FROM json_each($fileIds)
                          )
@@ -159,6 +160,7 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                      FROM fi_files
                      WHERE
                          fi_workspace_id = $workspaceId
+                         AND fi_deleted_at IS NULL
                          AND fi_folder_id IN (
                              SELECT value FROM json_each($folderIds)
                          )

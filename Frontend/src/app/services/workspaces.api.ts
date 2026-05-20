@@ -24,7 +24,18 @@ export type WorkspaceDto = {
     };
     integrations: WorkspaceIntegrations;
     storageEncryptionType: AppStorageEncryptionType;
+    trashPolicy: TrashPolicyDto;
 };
+
+export interface TrashPolicyDto {
+    enabled: boolean;
+    retentionDays: number | null;
+}
+
+export interface UpdateWorkspaceTrashPolicyRequest {
+    enabled: boolean;
+    retentionDays: number | null;
+}
 
 export interface WorkspaceIntegrations {
     textract: TextractIntegration | null;
@@ -274,6 +285,19 @@ export class WorkspacesApi {
                 `/api/workspaces/${externalId}/max-team-members`, request, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async updateTrashPolicy(externalId: string, request: UpdateWorkspaceTrashPolicyRequest): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/workspaces/${externalId}/trash-policy`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
                 })
             });
 

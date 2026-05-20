@@ -326,6 +326,7 @@ public class CreateQuickShareQuery(
                      WHERE
                          fi_workspace_id = $workspaceId
                          AND fi_is_upload_completed = TRUE
+                         AND fi_deleted_at IS NULL
                          AND fi_external_id IN (SELECT value FROM json_each($externalIds))
                      """,
                 readRowFunc: reader => reader.GetInt32(0),

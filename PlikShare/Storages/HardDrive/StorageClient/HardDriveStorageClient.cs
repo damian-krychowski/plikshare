@@ -12,6 +12,7 @@ using PlikShare.Uploads.Chunking;
 using PlikShare.Uploads.Id;
 using Serilog;
 using System.IO.Pipelines;
+using PlikShare.Trash;
 
 namespace PlikShare.Storages.HardDrive.StorageClient;
 
@@ -20,11 +21,13 @@ public class HardDriveStorageClient(
     int storageId,
     StorageExtId externalId,
     string name,
-    StorageEncryption encryption) : IStorageClient
+    StorageEncryption encryption,
+    TrashPolicy defaultTrashPolicy) : IStorageClient
 {
     public HardDriveDetailsEntity Details { get; } = details;
     public string Name { get; } = name;
     public StorageEncryption Encryption { get; } = encryption;
+    public TrashPolicy DefaultTrashPolicy { get; } = defaultTrashPolicy;
 
     public int StorageId { get; } = storageId;
     public StorageExtId ExternalId { get; } = externalId;

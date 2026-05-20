@@ -110,6 +110,7 @@ public class BulkInitiateCopyFileUploadOperation(
                     WHERE fi_id IN (
                         SELECT value FROM json_each($fileIds)
                     )
+                    AND fi_deleted_at IS NULL
                 ",
                 readRowFunc: reader =>
                 {

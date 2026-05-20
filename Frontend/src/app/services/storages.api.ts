@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
+import { TrashPolicyDto } from "./workspaces.api";
 
 export interface CreateCloudflareR2StorageRequest {
     name: string;
@@ -104,6 +105,7 @@ export type GetHardDriveStorageItem = {
     name: string;
     workspacesCount: number;
     encryptionType: AppStorageEncryptionType;
+    defaultTrashPolicy: TrashPolicyDto;
 
     volumePath: string;
     folderPath: string;
@@ -116,6 +118,7 @@ export type GetCloudflareR2StorageItem = {
     name: string;
     workspacesCount: number;
     encryptionType: AppStorageEncryptionType;
+    defaultTrashPolicy: TrashPolicyDto;
 
     accessKeyId: string;
     url: string;
@@ -127,6 +130,7 @@ export type GetAwsS3StorageItem = {
     name: string;
     workspacesCount: number;
     encryptionType: AppStorageEncryptionType;
+    defaultTrashPolicy: TrashPolicyDto;
 
     accessKey: string;
     region: string;
@@ -138,6 +142,7 @@ export type GetDigitalOceanSpacesStorageItem = {
     name: string;
     workspacesCount: number;
     encryptionType: AppStorageEncryptionType;
+    defaultTrashPolicy: TrashPolicyDto;
 
     accessKey: string;
     url: string;
@@ -149,6 +154,7 @@ export type GetBackblazeB2StorageItem = {
     name: string;
     workspacesCount: number;
     encryptionType: AppStorageEncryptionType;
+    defaultTrashPolicy: TrashPolicyDto;
 
     keyId: string;
     url: string;
@@ -160,6 +166,7 @@ export type GetAzureBlobStorageItem = {
     name: string;
     workspacesCount: number;
     encryptionType: AppStorageEncryptionType;
+    defaultTrashPolicy: TrashPolicyDto;
 
     authType: AzureBlobAuthType;
     serviceUrl: string;
@@ -172,6 +179,7 @@ export type GetGoogleCloudStorageItem = {
     name: string;
     workspacesCount: number;
     encryptionType: AppStorageEncryptionType;
+    defaultTrashPolicy: TrashPolicyDto;
 
     accessKey: string;
 }

@@ -40,7 +40,8 @@ public class storages_tests : TestFixture
                 Name: storageName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
-                EncryptionType: StorageEncryptionType.None),
+                EncryptionType: StorageEncryptionType.None,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -54,6 +55,7 @@ public class storages_tests : TestFixture
             ExternalId = hardDrive.ExternalId,
             WorkspacesCount = 0,
             EncryptionType = StorageEncryptionType.None,
+            DefaultTrashPolicy = TrashPolicyDto.Disabled,
             FolderPath = Location.NormalizePath($"/{storageName}"),
             VolumePath = Location.NormalizePath(MainVolume.Path),
             FullPath = ""
@@ -72,7 +74,8 @@ public class storages_tests : TestFixture
                 Name: storageName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
-                EncryptionType: StorageEncryptionType.None),
+                EncryptionType: StorageEncryptionType.None,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -92,7 +95,8 @@ public class storages_tests : TestFixture
                 Name: storageName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
-                EncryptionType: StorageEncryptionType.Managed),
+                EncryptionType: StorageEncryptionType.Managed,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -123,7 +127,8 @@ public class storages_tests : TestFixture
                     Name: storageName,
                     VolumePath: MainVolume.Path,
                     FolderPath: $"/{storageName}",
-                    EncryptionType: StorageEncryptionType.Full),
+                    EncryptionType: StorageEncryptionType.Full,
+                    DefaultTrashPolicy: TrashPolicyDto.Disabled),
                 cookie: AppOwner.Cookie,
                 antiforgery: AppOwner.Antiforgery));
 
@@ -146,7 +151,8 @@ public class storages_tests : TestFixture
                 Name: storageName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
-                EncryptionType: StorageEncryptionType.Full),
+                EncryptionType: StorageEncryptionType.Full,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
 
@@ -176,7 +182,8 @@ public class storages_tests : TestFixture
                 Name: Random.Name("hard-drive"),
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{Random.Name("hard-drive")}",
-                EncryptionType: StorageEncryptionType.Full),
+                EncryptionType: StorageEncryptionType.Full,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
 
@@ -185,7 +192,8 @@ public class storages_tests : TestFixture
                 Name: Random.Name("hard-drive"),
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{Random.Name("hard-drive")}",
-                EncryptionType: StorageEncryptionType.Full),
+                EncryptionType: StorageEncryptionType.Full,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
 
@@ -272,7 +280,8 @@ public class storages_tests : TestFixture
                 Name: storageName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
-                EncryptionType: StorageEncryptionType.None),
+                EncryptionType: StorageEncryptionType.None,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -294,6 +303,7 @@ public class storages_tests : TestFixture
             ExternalId = hardDrive.ExternalId,
             WorkspacesCount = 1,
             EncryptionType = StorageEncryptionType.None,
+            DefaultTrashPolicy = TrashPolicyDto.Disabled,
             FolderPath = Location.NormalizePath($"/{storageName}"),
             VolumePath = Location.NormalizePath(MainVolume.Path),
             FullPath = ""
@@ -311,7 +321,8 @@ public class storages_tests : TestFixture
                 Name: storageName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
-                EncryptionType: StorageEncryptionType.None),
+                EncryptionType: StorageEncryptionType.None,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -339,7 +350,8 @@ public class storages_tests : TestFixture
                 Name: storageName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
-                EncryptionType: StorageEncryptionType.None),
+                EncryptionType: StorageEncryptionType.None,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -375,7 +387,8 @@ public class storages_tests : TestFixture
                 Name: storageName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
-                EncryptionType: StorageEncryptionType.None),
+                EncryptionType: StorageEncryptionType.None,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -408,7 +421,8 @@ public class storages_tests : TestFixture
                 Name: storageName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
-                EncryptionType: StorageEncryptionType.None),
+                EncryptionType: StorageEncryptionType.None,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -435,7 +449,8 @@ public class storages_tests : TestFixture
                 Name: storageName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
-                EncryptionType: StorageEncryptionType.None),
+                EncryptionType: StorageEncryptionType.None,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -464,7 +479,8 @@ public class storages_tests : TestFixture
                 Name: storageName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
-                EncryptionType: StorageEncryptionType.None),
+                EncryptionType: StorageEncryptionType.None,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -518,7 +534,8 @@ public class storages_tests : TestFixture
                 Name: storageName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
-                EncryptionType: StorageEncryptionType.Full),
+                EncryptionType: StorageEncryptionType.Full,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
 
@@ -545,7 +562,8 @@ public class storages_tests : TestFixture
                 Name: storageName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{storageName}",
-                EncryptionType: StorageEncryptionType.Full),
+                EncryptionType: StorageEncryptionType.Full,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
 

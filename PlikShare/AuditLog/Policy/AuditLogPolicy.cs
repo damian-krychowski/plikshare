@@ -1,6 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using PlikShare.Core.Utils;
 
 namespace PlikShare.AuditLog.Policy;
 
@@ -59,7 +59,7 @@ public sealed record AuditLogPolicy
                 ? null
                 : SeverityOverrides.ToDictionary(kv => kv.Key, kv => kv.Value));
 
-        return JsonSerializer.Serialize(shape);
+        return Json.Serialize(shape);
     }
 
     public static AuditLogPolicy Parse(string? json)
@@ -69,7 +69,7 @@ public sealed record AuditLogPolicy
 
         try
         {
-            var shape = JsonSerializer.Deserialize<PolicyJsonShape>(json);
+            var shape = Json.Deserialize<PolicyJsonShape>(json);
             if (shape is null)
                 return Empty;
 
@@ -95,6 +95,6 @@ public sealed record AuditLogPolicy
     }
 
     private sealed record PolicyJsonShape(
-        [property: JsonPropertyName("disabled")] string[]? Disabled,
-        [property: JsonPropertyName("severities")] Dictionary<string, string>? Severities);
+        string[]? Disabled,
+        Dictionary<string, string>? Severities);
 }

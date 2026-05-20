@@ -50,9 +50,10 @@ public class InsertFileAttachmentQuery(
                                 fi_id,
                                 fi_folder_id
                             FROM fi_files
-                            WHERE 
+                            WHERE
                                 fi_external_id = $parentExternalId
                                 AND fi_workspace_id = $workspaceId
+                                AND fi_deleted_at IS NULL
                          )
                          INSERT INTO fi_files (
                             fi_external_id,

@@ -104,6 +104,7 @@ public static class AuditLogEventCatalog
         new(AuditLogEventTypes.Storage.Deleted,         AuditLogEventCategories.Storage, AuditLogSeverities.Warning, "Storage deleted.",        AuditLogEventScope.Application),
         new(AuditLogEventTypes.Storage.NameUpdated,     AuditLogEventCategories.Storage, AuditLogSeverities.Info,    "Storage renamed.",        AuditLogEventScope.Application),
         new(AuditLogEventTypes.Storage.DetailsUpdated,  AuditLogEventCategories.Storage, AuditLogSeverities.Info,    "Storage details updated.", AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Storage.DefaultTrashPolicyUpdated, AuditLogEventCategories.Storage, AuditLogSeverities.Info, "Storage default trash policy updated.", AuditLogEventScope.Application),
 
         // ── Integrations ─────────────────────────────────────────────────────────
         new(AuditLogEventTypes.Integration.Created,      AuditLogEventCategories.Integration, AuditLogSeverities.Info,    "Integration created.",     AuditLogEventScope.Application),
@@ -128,6 +129,10 @@ public static class AuditLogEventCatalog
         new(AuditLogEventTypes.Workspace.InvitationRejected,               AuditLogEventCategories.Workspace, AuditLogSeverities.Info,     "Workspace invitation rejected.",                    AuditLogEventScope.Workspace),
         new(AuditLogEventTypes.Workspace.MemberLeft,                       AuditLogEventCategories.Workspace, AuditLogSeverities.Info,     "Workspace member left.",                            AuditLogEventScope.Workspace),
         new(AuditLogEventTypes.Workspace.BulkDeleteRequested,              AuditLogEventCategories.Workspace, AuditLogSeverities.Critical, "Bulk-delete inside workspace requested.",           AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.Workspace.TrashPolicyUpdated,               AuditLogEventCategories.Workspace, AuditLogSeverities.Info,     "Workspace trash policy updated.",                   AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.Trash.ItemsRestored,                        AuditLogEventCategories.Workspace, AuditLogSeverities.Info,     "Items restored from trash.",                        AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.Trash.ItemsPermanentlyDeleted,              AuditLogEventCategories.Workspace, AuditLogSeverities.Critical, "Items permanently deleted from trash.",             AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.Trash.Emptied,                              AuditLogEventCategories.Workspace, AuditLogSeverities.Critical, "Trash emptied.",                                    AuditLogEventScope.Workspace),
 
         // ── Folders ──────────────────────────────────────────────────────────────
         new(AuditLogEventTypes.Folder.Created,      AuditLogEventCategories.Folder, AuditLogSeverities.Info, "Folder created.",            AuditLogEventScope.Workspace),

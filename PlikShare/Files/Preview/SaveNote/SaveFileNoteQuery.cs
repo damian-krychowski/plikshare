@@ -83,6 +83,7 @@ namespace PlikShare.Files.Preview.SaveNote
                             WHERE
                                 fi_external_id = $fileExternalId
                                 AND fi_workspace_id = $workspaceId
+                                AND fi_deleted_at IS NULL
                             ON CONFLICT (fa_uniqueness_id)
                             DO UPDATE SET
                                 fa_content = EXCLUDED.fa_content,

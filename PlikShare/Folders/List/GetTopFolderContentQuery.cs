@@ -118,6 +118,7 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
 		                fi_workspace_id = $workspaceId
 		                AND fi_folder_id IS NULL
                         AND fi_parent_file_id IS NULL
+                        AND fi_deleted_at IS NULL
 					ORDER BY
 					    (fi_position IS NULL),
 					    fi_position,

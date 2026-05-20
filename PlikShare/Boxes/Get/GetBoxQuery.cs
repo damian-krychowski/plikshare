@@ -72,10 +72,11 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
                       	fi_extension,
                       	fi_size_in_bytes
                      FROM fi_files
-                     WHERE 
+                     WHERE
                       	fi_folder_id = $boxFolderId
                       	AND fi_workspace_id = $workspaceId
-                     ORDER BY 
+                      	AND fi_deleted_at IS NULL
+                     ORDER BY
                       	fi_id DESC
                      """,
                 readRowFunc: reader => new GetBoxResponseDto.File

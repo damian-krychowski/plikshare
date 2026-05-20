@@ -112,6 +112,7 @@ public class SendAiFileMessageOperation(
                      SELECT COUNT(*)
                      FROM fi_files
                      WHERE fi_workspace_id = $workspaceId
+                        AND fi_deleted_at IS NULL
                         AND fi_external_id IN (
                             SELECT value FROM json_each($externalIds)
                         )
@@ -448,9 +449,10 @@ public class SendAiFileMessageOperation(
                         $createdAt,
                         $uniquenessId
                     FROM fi_files
-                    WHERE 
+                    WHERE
                         fi_external_id = $fileExternalId
                         AND fi_workspace_id = $workspaceId
+                        AND fi_deleted_at IS NULL
                     ON CONFLICT (fa_uniqueness_id)
                     DO UPDATE SET 
                         fa_content = EXCLUDED.fa_content,

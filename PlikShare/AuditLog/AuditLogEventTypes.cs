@@ -146,6 +146,7 @@ public static class AuditLogEventTypes
         public const string InvitationRejected = "workspace.invitation-rejected";
         public const string MemberLeft = "workspace.member-left";
         public const string BulkDeleteRequested = "workspace.bulk-delete-requested";
+        public const string TrashPolicyUpdated = "workspace.trash-policy-updated";
 
         public static readonly string[] All =
         [
@@ -154,7 +155,8 @@ public static class AuditLogEventTypes
             MemberInvited, AdminAssignedMember, MemberRevoked, MemberPermissionsUpdated,
             MemberEncryptionAccessGranted,
             InvitationAccepted, InvitationRejected, MemberLeft,
-            BulkDeleteRequested
+            BulkDeleteRequested,
+            TrashPolicyUpdated
         ];
     }
 
@@ -164,10 +166,23 @@ public static class AuditLogEventTypes
         public const string Deleted = "storage.deleted";
         public const string NameUpdated = "storage.name-updated";
         public const string DetailsUpdated = "storage.details-updated";
+        public const string DefaultTrashPolicyUpdated = "storage.default-trash-policy-updated";
 
         public static readonly string[] All =
         [
-            Created, Deleted, NameUpdated, DetailsUpdated
+            Created, Deleted, NameUpdated, DetailsUpdated, DefaultTrashPolicyUpdated
+        ];
+    }
+
+    public static class Trash
+    {
+        public const string ItemsRestored = "trash.items-restored";
+        public const string ItemsPermanentlyDeleted = "trash.items-permanently-deleted";
+        public const string Emptied = "trash.emptied";
+
+        public static readonly string[] All =
+        [
+            ItemsRestored, ItemsPermanentlyDeleted, Emptied
         ];
     }
 

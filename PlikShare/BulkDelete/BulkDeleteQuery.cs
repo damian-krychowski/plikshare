@@ -12,6 +12,7 @@ using PlikShare.Folders.Delete.QueueJob;
 using PlikShare.Folders.Id;
 using PlikShare.Integrations.Aws.Textract.Jobs.Delete;
 using PlikShare.Storages.FileCopying.Delete;
+using PlikShare.Trash;
 using PlikShare.Uploads.Delete;
 using PlikShare.Uploads.Id;
 using PlikShare.Workspaces.Cache;
@@ -27,6 +28,7 @@ public class BulkDeleteQuery(
     IQueue queue,
     DbWriteQueue dbWriteQueue,
     DeleteFilesSubQuery deleteFilesSubQuery,
+    SoftDeleteFilesSubQuery softDeleteFilesSubQuery,
     DeleteFileUploadsSubQuery deleteFileUploadsSubQuery,
     DeleteCopyFileQueueJobsSubQuery deleteCopyFileQueueJobsSubQuery,
     DeleteTextractJobsSubQuery deleteTextractJobsSubQuery,
@@ -94,6 +96,12 @@ public class BulkDeleteQuery(
             
             var jobsToEnqueue = new List<BulkQueueJobEntity>();
 
+            // When trash policy is enabled (and the workspace itself isn't being torn down),
+            // soft-delete the files instead of physical-deleting them. The workspace IsBeingDeleted
+            // bypass exists because ScheduleWorkspaceDelete already commits to wiping everything;
+            // routing through trash would just delay the same outcome and waste storage.
+            var trashEnabled = workspace.TrashPolicy.Enabled && !workspace.IsBeingDeleted;
+
             var filesToDelete = GetFilesToDelete(
                 workspace,
                 fileExternalIds,
@@ -103,18 +111,47 @@ public class BulkDeleteQuery(
                 dbWriteContext,
                 transaction);
 
-            var (deletedFiles, fileJobs) = deleteFilesSubQuery.Execute(
-                workspaceId: workspace.Id,
-                fileIds: filesToDelete,
-                sagaId: null,
-                dbWriteContext: dbWriteContext,
-                transaction: transaction);
-            
-            jobsToEnqueue.AddRange(fileJobs);
+            List<DeleteFilesSubQuery.DeletedFile> deletedFiles;
+            int[] deletedFileIds;
 
-            var deletedFileIds = deletedFiles
-                .Select(df => df.Id)
-                .ToArray();
+            if (trashEnabled)
+            {
+                var softResult = softDeleteFilesSubQuery.Execute(
+                    workspaceId: workspace.Id,
+                    fileIds: filesToDelete,
+                    deletedAt: clock.UtcNow,
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction);
+
+                // Soft-deleted files keep their storage objects; downstream cleanup steps
+                // (textract / copy-file) skip them too (deletedFileIds stays empty), and their
+                // pickup queries are gated on fi_deleted_at IS NULL so pending work just stalls
+                // until the file is restored or the sweeper purges it.
+                deletedFiles = [];
+                deletedFileIds = [];
+
+                if (Log.IsEnabled(LogEventLevel.Information))
+                {
+                    Log.Information(
+                        "Soft-deleted {Count} files in Workspace#{WorkspaceId} (trash policy: {Policy})",
+                        softResult.SoftDeletedFiles.Count,
+                        workspace.Id,
+                        Json.Serialize(workspace.TrashPolicy));
+                }
+            }
+            else
+            {
+                var (hardDeletedFiles, fileJobs) = deleteFilesSubQuery.Execute(
+                    workspaceId: workspace.Id,
+                    fileIds: filesToDelete,
+                    sagaId: null,
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction);
+
+                jobsToEnqueue.AddRange(fileJobs);
+                deletedFiles = hardDeletedFiles;
+                deletedFileIds = deletedFiles.Select(df => df.Id).ToArray();
+            }
 
             var fileUploadsToDelete = GetFileUploadsToDelete(
                 workspace, 
@@ -139,6 +176,30 @@ public class BulkDeleteQuery(
                 transaction);
 
             jobsToEnqueue.AddRange(foldersJobs);
+
+            // Trash-mode folder delete: pre-soft-delete every still-live file in the marked
+            // subtree (snapshotting each file's path with its true parent folder) BEFORE the
+            // physical folder-delete queue job runs. After this, those files have
+            // fi_folder_id = NULL, so BulkDeleteFoldersWithDependenciesQuery.GetFilesToDelete
+            // returns zero rows for them and the folder rows can be hard-deleted alone.
+            if (trashEnabled && foldersMarkedAsBeingDeleted.Count > 0)
+            {
+                var filesInSubtree = GetLiveFilesInFolders(
+                    workspaceId: workspace.Id,
+                    folderIds: foldersMarkedAsBeingDeleted,
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction);
+
+                if (filesInSubtree.Count > 0)
+                {
+                    softDeleteFilesSubQuery.Execute(
+                        workspaceId: workspace.Id,
+                        fileIds: filesInSubtree,
+                        deletedAt: clock.UtcNow,
+                        dbWriteContext: dbWriteContext,
+                        transaction: transaction);
+                }
+            }
 
             var (deletedCopyFileQueueJobs, deletedCopyFileUploads, deletedCopyFileUploadParts, copyFileUploadJobs) =
                 deleteCopyFileQueueJobsSubQuery.Execute(
@@ -394,4 +455,28 @@ public class BulkDeleteQuery(
         List<int> FolderIds,
         List<BulkQueueJobEntity> JobsToEnqueue);
 
+    private static List<int> GetLiveFilesInFolders(
+        int workspaceId,
+        List<int> folderIds,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction)
+    {
+        if (folderIds.Count == 0)
+            return [];
+
+        return dbWriteContext
+            .Cmd(
+                sql: @"
+                    SELECT fi_id
+                    FROM fi_files
+                    WHERE fi_workspace_id = $workspaceId
+                      AND fi_folder_id IN (SELECT value FROM json_each($folderIds))
+                      AND fi_deleted_at IS NULL
+                ",
+                readRowFunc: reader => reader.GetInt32(0),
+                transaction: transaction)
+            .WithParameter("$workspaceId", workspaceId)
+            .WithJsonParameter("$folderIds", folderIds)
+            .Execute();
+    }
 }

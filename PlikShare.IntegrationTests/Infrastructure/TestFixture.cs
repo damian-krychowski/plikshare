@@ -30,6 +30,7 @@ using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Entities;
 using PlikShare.Storages.HardDrive.Create.Contracts;
 using PlikShare.Storages.Id;
+using PlikShare.Storages.List.Contracts;
 using PlikShare.Storages.S3.AwsS3.Create.Contracts;
 using PlikShare.Storages.S3.BackblazeB2.Create.Contracts;
 using PlikShare.Storages.S3.CloudflareR2.Create.Contracts;
@@ -362,7 +363,8 @@ public class TestFixture: IAsyncLifetime
                 Name: hardDriveName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{hardDriveName}",
-                EncryptionType: StorageEncryptionType.None),
+                EncryptionType: StorageEncryptionType.None,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: user.Cookie,
             antiforgery: user.Antiforgery);
 
@@ -407,7 +409,8 @@ public class TestFixture: IAsyncLifetime
                         AccessKey: awsCreds.AccessKey,
                         SecretAccessKey: awsCreds.SecretAccessKey,
                         Region: awsCreds.Region,
-                        EncryptionType: encryptionType),
+                        EncryptionType: encryptionType,
+                        DefaultTrashPolicy: TrashPolicyDto.Disabled),
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
                 externalId = awsResponse.ExternalId;
@@ -422,7 +425,8 @@ public class TestFixture: IAsyncLifetime
                         AccessKeyId: r2Creds.AccessKeyId,
                         SecretAccessKey: r2Creds.SecretAccessKey,
                         Url: r2Creds.Url,
-                        EncryptionType: encryptionType),
+                        EncryptionType: encryptionType,
+                        DefaultTrashPolicy: TrashPolicyDto.Disabled),
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
                 externalId = r2Response.ExternalId;
@@ -438,7 +442,8 @@ public class TestFixture: IAsyncLifetime
                         KeyId = b2Creds.KeyId,
                         ApplicationKey = b2Creds.ApplicationKey,
                         Url = b2Creds.Url,
-                        EncryptionType = encryptionType
+                        EncryptionType = encryptionType,
+                        DefaultTrashPolicy = TrashPolicyDto.Disabled
                     },
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
@@ -454,7 +459,8 @@ public class TestFixture: IAsyncLifetime
                         AccessKey: doCreds.AccessKey,
                         SecretKey: doCreds.SecretKey,
                         Region: doCreds.Region,
-                        EncryptionType: encryptionType),
+                        EncryptionType: encryptionType,
+                        DefaultTrashPolicy: TrashPolicyDto.Disabled),
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
                 externalId = doResponse.ExternalId;
@@ -471,7 +477,8 @@ public class TestFixture: IAsyncLifetime
                         AccountName: azureCreds.AccountName,
                         AccountKey: azureCreds.AccountKey,
                         SasToken: null,
-                        EncryptionType: encryptionType),
+                        EncryptionType: encryptionType,
+                        DefaultTrashPolicy: TrashPolicyDto.Disabled),
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
                 externalId = azureResponse.ExternalId;
@@ -485,7 +492,8 @@ public class TestFixture: IAsyncLifetime
                         Name: name,
                         AccessKey: gcsCreds.AccessKey,
                         SecretKey: gcsCreds.SecretKey,
-                        EncryptionType: encryptionType),
+                        EncryptionType: encryptionType,
+                        DefaultTrashPolicy: TrashPolicyDto.Disabled),
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
                 externalId = gcsResponse.ExternalId;
@@ -498,7 +506,8 @@ public class TestFixture: IAsyncLifetime
                         Name: name,
                         VolumePath: MainVolume.Path,
                         FolderPath: $"/{name}",
-                        EncryptionType: encryptionType),
+                        EncryptionType: encryptionType,
+                        DefaultTrashPolicy: TrashPolicyDto.Disabled),
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
                 externalId = hardDriveResponse.ExternalId;
@@ -668,7 +677,8 @@ public class TestFixture: IAsyncLifetime
                 Name: hardDriveName,
                 VolumePath: MainVolume.Path,
                 FolderPath: $"/{hardDriveName}",
-                EncryptionType: encryptionType),
+                EncryptionType: encryptionType,
+                DefaultTrashPolicy: TrashPolicyDto.Disabled),
             cookie: user.Cookie,
             antiforgery: user.Antiforgery);
 

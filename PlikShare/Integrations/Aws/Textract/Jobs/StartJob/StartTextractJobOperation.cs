@@ -266,7 +266,8 @@ public class StartTextractJobOperation(
                      SELECT fi_id
                      FROM fi_files
                      WHERE fi_workspace_id = $workspaceId
-                         AND fi_external_id = $fileExternalId                
+                         AND fi_external_id = $fileExternalId
+                         AND fi_deleted_at IS NULL
                      """,
                 readRowFunc: reader => reader.GetInt32(0))
             .WithParameter("$workspaceId", workspaceId)

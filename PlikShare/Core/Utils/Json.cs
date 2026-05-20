@@ -64,15 +64,9 @@ public static class Json
         return JsonSerializer.Serialize<T>(item, OptionsWithIndentation);
     }
 
-    public static byte[] SerializeToBlob<T>(T item)
-    {
-        var json = Serialize(item);
-        return Encoding.UTF8.GetBytes(json);
-    }
-
     public static string Serialize<T>(T item)
     {
-        return JsonSerializer.Serialize<T>(item, Options);
+        return JsonSerializer.Serialize(item, Options);
     }
 
     public static T? Deserialize<T>(string json)
@@ -125,6 +119,8 @@ public static class JsonConverters
         options.Converters.Add(new JsonStringEnumConverter<UserStorageAccessMode>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<InvitationDeliveryMethod>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<QuickShareMode>(JsonNamingPolicy.KebabCaseLower));
+        options.Converters.Add(new JsonStringEnumConverter<Trash.Restore.Contracts.RestoreMode>(JsonNamingPolicy.KebabCaseLower));
+        options.Converters.Add(new JsonStringEnumConverter<Trash.Restore.Contracts.RestoreStatus>(JsonNamingPolicy.KebabCaseLower));
 
         options.Converters.Add(new NullableByteArrayJsonConverter());
         options.Converters.Add(new FileKeyJsonConverter());

@@ -51,6 +51,7 @@ public class GetFilePreSignedDownloadLinkDetailsQuery(PlikShareDb plikShareDb)
                     FROM fi_files AS fi
                     LEFT JOIN fo_folders AS f ON fi.fi_folder_id = f.fo_id
                     WHERE fi.fi_external_id = $externalId
+                      AND fi.fi_deleted_at IS NULL
                     LIMIT 1
                 """,
                 readRowFunc: reader =>

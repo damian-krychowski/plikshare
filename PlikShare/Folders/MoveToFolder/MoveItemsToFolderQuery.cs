@@ -335,6 +335,7 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
                              SELECT value FROM json_each($fileExternalIds)
                          )
                          AND fi_workspace_id = $workspaceId
+                         AND fi_deleted_at IS NULL
                          AND (
                              $boxFolderId IS NULL
                              OR EXISTS (

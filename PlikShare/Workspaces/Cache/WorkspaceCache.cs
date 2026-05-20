@@ -6,6 +6,7 @@ using PlikShare.Integrations.Aws.Textract;
 using PlikShare.Integrations.OpenAi.ChatGpt;
 using PlikShare.Storages;
 using PlikShare.Storages.Encryption;
+using PlikShare.Trash;
 using PlikShare.Users.Cache;
 using PlikShare.Workspaces.Id;
 using System.ComponentModel;
@@ -165,7 +166,8 @@ public class WorkspaceCache(
             Owner = owner,
             Storage = storageClient,
             EncryptionMetadata = workspace.EncryptionMetadata,
-            Integrations = integrations
+            Integrations = integrations,
+            TrashPolicy = workspace.TrashPolicy
         };
     }
 
@@ -249,7 +251,8 @@ public class WorkspaceCache(
                          w_is_bucket_created,
                          w_is_being_deleted,
                          w_storage_id,
-                         w_encryption_salt
+                         w_encryption_salt,
+                         w_trash_policy_json
                      FROM w_workspaces
                      WHERE {lookup.WhereClause}
                      LIMIT 1
@@ -273,7 +276,8 @@ public class WorkspaceCache(
                         StorageId = reader.GetInt32(10),
                         EncryptionMetadata = salt is null
                             ? null
-                            : new WorkspaceEncryptionMetadata { Salt = salt }
+                            : new WorkspaceEncryptionMetadata { Salt = salt },
+                        TrashPolicy = reader.GetFromJson<TrashPolicy>(12)
                     };
                 })
             .WithParameter(lookup.ParamName, lookup.ParamValue)
@@ -308,5 +312,6 @@ public class WorkspaceCache(
         public required bool IsBeingDeleted { get; init; }
         public required int StorageId { get; init; }
         public required WorkspaceEncryptionMetadata? EncryptionMetadata { get; init; }
+        public required TrashPolicy TrashPolicy { get; init; }
     }
 }

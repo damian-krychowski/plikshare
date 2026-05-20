@@ -47,6 +47,14 @@ public static partial class Audit
             public required int? Value { get; init; }
         }
 
+        public class TrashPolicyUpdated
+        {
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required bool Enabled { get; init; }
+            public required int? RetentionDays { get; init; }
+        }
+
         public class MemberInvited
         {
             public required StorageRef Storage { get; init; }
@@ -222,6 +230,28 @@ public static partial class Audit
                 Storage = storage,
                 Workspace = workspace,
                 Value = value })
+        };
+
+        public static AuditLogEntry TrashPolicyUpdatedEntry(
+            AuditLogActorContext actor,
+            StorageRef storage,
+            WorkspaceRef workspace,
+            bool enabled,
+            int? retentionDays) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.TrashPolicyUpdated,
+            Severity = AuditLogSeverities.Info,
+            WorkspaceExternalId = workspace.ExternalId.Value,
+            DetailsJson = Json.Serialize(new TrashPolicyUpdated {
+                Storage = storage,
+                Workspace = workspace,
+                Enabled = enabled,
+                RetentionDays = retentionDays })
         };
 
         public static AuditLogEntry MemberInvitedEntry(

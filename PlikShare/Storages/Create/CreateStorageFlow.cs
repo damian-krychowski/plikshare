@@ -2,6 +2,7 @@ using PlikShare.Core.Authorization;
 using PlikShare.Core.Encryption;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.Id;
+using PlikShare.Trash;
 using PlikShare.Users.Cache;
 
 namespace PlikShare.Storages.Create;
@@ -17,6 +18,7 @@ public class CreateStorageFlow(
         TInput input,
         string name,
         StorageEncryptionType encryptionType,
+        TrashPolicy defaultTrashPolicy,
         UserContext creator,
         CancellationToken cancellationToken)
     {
@@ -81,6 +83,7 @@ public class CreateStorageFlow(
                 detailsJson: preparation.Details.DetailsJson,
                 encryption: encryption,
                 ownerKeyDataList: ownerKeyDataList,
+                defaultTrashPolicy: defaultTrashPolicy,
                 cancellationToken: cancellationToken);
 
             if (queryResult.Code == CreateStorageQuery.ResultCode.NameNotUnique)
@@ -98,7 +101,8 @@ public class CreateStorageFlow(
                 StorageId = queryResult.StorageId,
                 ExternalId = queryResult.StorageExternalId,
                 Name = name,
-                Encryption = encryption
+                Encryption = encryption,
+                DefaultTrashPolicy = defaultTrashPolicy
             };
 
             var client = preparation.Details.StorageClientFactory(

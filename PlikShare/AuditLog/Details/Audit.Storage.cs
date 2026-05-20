@@ -26,6 +26,13 @@ public static partial class Audit
             public required StorageRef Storage { get; init; }
         }
 
+        public class DefaultTrashPolicyUpdated
+        {
+            public required StorageRef Storage { get; init; }
+            public required bool Enabled { get; init; }
+            public required int? RetentionDays { get; init; }
+        }
+
         public static AuditLogEntry CreatedEntry(
             AuditLogActorContext actor,
             StorageRef storage) => new()
@@ -84,6 +91,25 @@ public static partial class Audit
             Severity = AuditLogSeverities.Info,
             DetailsJson = Json.Serialize(new DetailsUpdated {
                 Storage = storage })
+        };
+
+        public static AuditLogEntry DefaultTrashPolicyUpdatedEntry(
+            AuditLogActorContext actor,
+            StorageRef storage,
+            bool enabled,
+            int? retentionDays) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Storage,
+            EventType = AuditLogEventTypes.Storage.DefaultTrashPolicyUpdated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new DefaultTrashPolicyUpdated {
+                Storage = storage,
+                Enabled = enabled,
+                RetentionDays = retentionDays })
         };
 
     }

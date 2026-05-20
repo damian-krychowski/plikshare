@@ -44,6 +44,9 @@ using PlikShare.Workspaces.SearchFilesTree;
 using PlikShare.Workspaces.SearchFilesTree.Contracts;
 using PlikShare.Workspaces.UpdateName;
 using PlikShare.Workspaces.UpdateName.Contracts;
+using PlikShare.Workspaces.UpdateTrashPolicy;
+using PlikShare.Workspaces.UpdateTrashPolicy.Contracts;
+using PlikShare.Trash;
 using PlikShare.Workspaces.Validation;
 using PlikShare.AuditLog;
 using Audit = PlikShare.AuditLog.Details.Audit;
@@ -74,6 +77,10 @@ public static class WorkspacesEndpoints
         group.MapPatch("/{workspaceExternalId}/name", UpdateWorkspaceName)
             .AddEndpointFilter<ValidateWorkspaceFilter>()
             .WithName("UpdateWorkspaceName");
+
+        group.MapPatch("/{workspaceExternalId}/trash-policy", UpdateWorkspaceTrashPolicy)
+            .AddEndpointFilter<ValidateWorkspaceFilter>()
+            .WithName("UpdateWorkspaceTrashPolicy");
 
         group.MapDelete("/{workspaceExternalId}", DeleteWorkspace)
             .AddEndpointFilter<ValidateWorkspaceFilter>()
@@ -208,10 +215,12 @@ public static class WorkspacesEndpoints
                     resultValueStr: prep.Code.ToString());
         }
 
+        var preparationDetails = prep.Details!.Value;
+
         var result = await createWorkspaceQuery.Execute(
-            storageExternalId: request.StorageExternalId,
+            storage: preparationDetails.Storage,
             user: user,
-            artifacts: prep.Artifacts,
+            artifacts: preparationDetails.Artifacts,
             name: request.Name,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
@@ -477,7 +486,12 @@ public static class WorkspacesEndpoints
                     .ToList()
             },
             IsBucketCreated = workspaceMembership.Workspace.IsBucketCreated,
-            StorageEncryptionType = workspaceMembership.Workspace.Storage.Encryption.Type.ToDbValue()
+            StorageEncryptionType = workspaceMembership.Workspace.Storage.Encryption.Type.ToDbValue(),
+            TrashPolicy = new Storages.List.Contracts.TrashPolicyDto
+            {
+                Enabled = workspaceMembership.Workspace.TrashPolicy.Enabled,
+                RetentionDays = workspaceMembership.Workspace.TrashPolicy.RetentionDays
+            }
         });
     }
 
@@ -523,6 +537,57 @@ public static class WorkspacesEndpoints
             default:
                 throw new UnexpectedOperationResultException(
                     operationName: nameof(UpdateWorkspaceNameQuery),
+                    resultValueStr: resultCode.ToString());
+        }
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateWorkspaceTrashPolicy(
+        [FromBody] UpdateWorkspaceTrashPolicyDto request,
+        HttpContext httpContext,
+        WorkspaceCache workspaceCache,
+        UpdateWorkspaceTrashPolicyQuery updateWorkspaceTrashPolicyQuery,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+
+        // Workspace-wide setting — only the owner (or app admin) may change it.
+        if (workspaceMembership is { IsOwnedByUser: false, User.HasAdminRole: false })
+            return HttpErrors.Workspace.NotOwner(workspaceMembership.Workspace.ExternalId);
+
+        if (!TrashPolicy.TryCreate(request.Enabled, request.RetentionDays, out var policy))
+            return HttpErrors.Trash.InvalidPolicy();
+
+        var resultCode = await updateWorkspaceTrashPolicyQuery.Execute(
+            workspace: workspaceMembership.Workspace,
+            policy: policy,
+            cancellationToken: cancellationToken);
+
+        switch (resultCode)
+        {
+            case UpdateWorkspaceTrashPolicyQuery.ResultCode.Ok:
+                await workspaceCache.InvalidateEntry(
+                    workspaceMembership.Workspace.ExternalId,
+                    cancellationToken);
+
+                await auditLogService.LogWithStorageContext(
+                    storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
+                    buildEntry: storageRef => Audit.Workspace.TrashPolicyUpdatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        storage: storageRef,
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
+                        enabled: policy.Enabled,
+                        retentionDays: policy.RetentionDays),
+                    cancellationToken);
+
+                return TypedResults.Ok();
+
+            case UpdateWorkspaceTrashPolicyQuery.ResultCode.NotFound:
+                return HttpErrors.Workspace.NotFound(workspaceMembership.Workspace.ExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateWorkspaceTrashPolicyQuery),
                     resultValueStr: resultCode.ToString());
         }
     }

@@ -34,13 +34,15 @@ public class AzureBlobStorageClientFactory(
             {
                 StorageType = StorageType.AzureBlob,
                 DetailsJson = Json.Serialize(input),
+
                 StorageClientFactory = clientDetails => new AzureBlobStorageClient(
                     appUrl: config.AppUrl,
                     blobServiceClient: client,
                     storageId: clientDetails.StorageId,
                     externalId: clientDetails.ExternalId,
                     name: clientDetails.Name,
-                    encryption: clientDetails.Encryption)
+                    encryption: clientDetails.Encryption,
+                    defaultTrashPolicy: clientDetails.DefaultTrashPolicy)
             });
     }
 }

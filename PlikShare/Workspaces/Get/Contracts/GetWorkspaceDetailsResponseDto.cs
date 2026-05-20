@@ -1,5 +1,6 @@
 using PlikShare.Core.Utils;
 using PlikShare.Integrations.Id;
+using PlikShare.Storages.List.Contracts;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Id;
 using PlikShare.Workspaces.Permissions;
@@ -21,6 +22,7 @@ public record GetWorkspaceDetailsResponseDto
     public required WorkspaceIntegrationsDto Integrations { get; init; }
     public required bool IsBucketCreated { get; init; }
     public required string StorageEncryptionType { get; init; }
+    public required TrashPolicyDto TrashPolicy { get; init; }
 }
 
 public class WorkspaceOwnerDto

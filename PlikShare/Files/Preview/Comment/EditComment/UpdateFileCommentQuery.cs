@@ -51,7 +51,8 @@ public class UpdateFileCommentQuery(DbWriteQueue dbWriteQueue)
                         SELECT fi_id
                         FROM fi_files
                         WHERE fi_external_id = $fileExternalId
-                        AND fi_workspace_id = $workspaceId",
+                        AND fi_workspace_id = $workspaceId
+                        AND fi_deleted_at IS NULL",
                     readRowFunc: reader => reader.GetInt32(0))
                 .WithParameter("$fileExternalId", fileExternalId.Value)
                 .WithParameter("$workspaceId", workspace.Id)

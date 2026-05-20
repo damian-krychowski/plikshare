@@ -23,6 +23,19 @@ public abstract class GetStorageItemResponseDto
     public required StorageExtId ExternalId { get; init; }
     public required int WorkspacesCount { get; init; }
     public required StorageEncryptionType EncryptionType { get; init; }
+    public required TrashPolicyDto DefaultTrashPolicy { get; init; }
+}
+
+public class TrashPolicyDto
+{
+    public required bool Enabled { get; init; }
+    public required int? RetentionDays { get; init; }
+
+    public static readonly TrashPolicyDto Disabled = new()
+    {
+        Enabled = false,
+        RetentionDays = null
+    };
 }
 
 public class GetHardDriveStorageItemResponseDto : GetStorageItemResponseDto

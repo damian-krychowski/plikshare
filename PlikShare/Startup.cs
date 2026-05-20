@@ -188,8 +188,15 @@ using PlikShare.Storages.S3.BackblazeB2;
 using PlikShare.Storages.S3.CloudflareR2;
 using PlikShare.Storages.S3.DigitalOcean;
 using PlikShare.Storages.S3.GoogleCloudStorage;
+using PlikShare.Storages.UpdateDefaultTrashPolicy;
 using PlikShare.Storages.UpdateDetails;
 using PlikShare.Storages.UpdateName;
+using PlikShare.Trash;
+using PlikShare.Trash.DeleteForever;
+using PlikShare.Trash.Empty;
+using PlikShare.Trash.List;
+using PlikShare.Trash.Restore;
+using PlikShare.Trash.Sweeper;
 using PlikShare.Uploads;
 using PlikShare.Uploads.Abort.QueueJob;
 using PlikShare.Uploads.Cache;
@@ -245,6 +252,7 @@ using PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
 using PlikShare.Workspaces.UpdateMaxSize;
 using PlikShare.Workspaces.UpdateMaxTeamMembers;
 using PlikShare.Workspaces.UpdateName;
+using PlikShare.Workspaces.UpdateTrashPolicy;
 using PlikShare.QuickShares;
 using PlikShare.QuickShares.Cache;
 using PlikShare.QuickShares.Create;
@@ -344,6 +352,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_36_UserStorageAccessIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_37_WorkspaceAuditLogDisabledEventsIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_38_QuickSharesIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_39_TrashIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -482,6 +491,7 @@ public class Startup
         builder.Services.AddSingleton<UpdateWorkspaceNameQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceMaxSizeQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceMaxTeamMembersQuery>();
+        builder.Services.AddSingleton<UpdateWorkspaceTrashPolicyQuery>();
         builder.Services.AddSingleton<CreateWorkspaceMemberInvitationQuery>();
         builder.Services.AddSingleton<CreateWorkspaceMemberInvitationOperation>();
         builder.Services.AddSingleton<RollbackEncryptedInvitationQuery>();
@@ -569,6 +579,19 @@ public class Startup
         builder.Services.AddSingleton<UpdatePositionsQuery>();
         builder.Services.AddSingleton<GetBoxQuery>();
         builder.Services.AddSingleton<DeleteFilesSubQuery>();
+        builder.Services.AddSingleton<PathSnapshotBuilder>();
+        builder.Services.AddSingleton<SoftDeleteFilesSubQuery>();
+        builder.Services.AddSingleton<PurgeFilesSubQuery>();
+        builder.Services.AddSingleton<GetTrashItemsQuery>();
+        builder.Services.AddSingleton<RestoreFromTrashQuery>();
+        builder.Services.AddSingleton<DeleteForeverQuery>();
+        builder.Services.AddSingleton<EmptyTrashQuery>();
+
+        builder.Services.AddSingleton(_ =>
+            builder.Configuration.GetSection("Trash").Get<TrashSweeperOptions>()
+            ?? new TrashSweeperOptions());
+
+        builder.Services.AddHostedService<TrashSweeperHostedService>();
 
         builder.Services.AddSingleton<CreateBoxQuery>();
         builder.Services.AddSingleton<GetBoxesListQuery>();
@@ -629,6 +652,7 @@ public class Startup
         builder.Services.AddSingleton<DeleteStorageQuery>();
         builder.Services.AddSingleton<UpdateStorageNameQuery>();
         builder.Services.AddSingleton<UpdateStorageDetailsQuery>();
+        builder.Services.AddSingleton<UpdateStorageDefaultTrashPolicyQuery>();
         builder.Services.AddSingleton<CreateStorageQuery>();
 
         builder.Services.AddSingleton<CheckUserInvitationCodeQuery>();
@@ -829,6 +853,7 @@ public class Startup
         app.MapBulkDownloadEndpoints();
         app.MapFoldersEndpoints();
         app.MapWorkspacesEndpoints();
+        app.MapTrashEndpoints();
         app.MapBoxLinksEndpoints();
         app.MapPreSignedFilesEndpoints();
         app.MapPreSignedZipFilesEndpoints();
