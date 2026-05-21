@@ -43,8 +43,6 @@ export interface RestoreFromTrashRequest {
 export interface RestoreItemResult {
     fileExternalId: string;
     status: RestoreStatus;
-    finalFolderPath: string[] | null;
-    finalName: string | null;
 }
 
 export interface RestoreFromTrashResponse {

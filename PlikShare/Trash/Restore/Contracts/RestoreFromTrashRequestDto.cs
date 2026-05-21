@@ -44,17 +44,4 @@ public class RestoreItemResultDto
     public required FileExtId FileExternalId { get; init; }
 
     public required RestoreStatus Status { get; init; }
-
-    /// <summary>
-    /// For <see cref="RestoreStatus.Restored"/>: the folder path (root → leaf) the file actually
-    /// landed in. May differ from the snapshot if folders moved/renamed or had to be recreated.
-    /// Null for failed restores.
-    /// </summary>
-    public required List<string>? FinalFolderPath { get; init; }
-
-    /// <summary>
-    /// For <see cref="RestoreStatus.Restored"/>: the file name as it ended up (possibly suffixed
-    /// " (restored)").
-    /// </summary>
-    public required string? FinalName { get; init; }
 }

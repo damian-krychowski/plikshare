@@ -440,7 +440,6 @@ public class trash_tests : TestFixture
         //then — the restored file is suffixed so it doesn't clobber the live one
         var restored = result.Results.Should().ContainSingle().Subject;
         restored.Status.Should().Be(RestoreStatus.Restored);
-        restored.FinalName.Should().Be("report (restored)");
 
         var folderContent = await Api.Folders.Get(
             workspaceExternalId: workspace.ExternalId,
@@ -473,8 +472,14 @@ public class trash_tests : TestFixture
         //then — each collision bumps the suffix
         result.Results.Should().HaveCount(2);
         result.Results.Should().AllSatisfy(r => r.Status.Should().Be(RestoreStatus.Restored));
-        result.Results.Select(r => r.FinalName).Should()
-            .BeEquivalentTo("report (restored)", "report (restored 2)");
+
+        var folderContent = await Api.Folders.Get(
+            workspaceExternalId: workspace.ExternalId,
+            folderExternalId: folder.ExternalId,
+            cookie: AppOwner.Cookie);
+
+        folderContent.Files!.Select(f => f.Name).Should()
+            .BeEquivalentTo("report", "report (restored)", "report (restored 2)");
     }
 
     [Fact]

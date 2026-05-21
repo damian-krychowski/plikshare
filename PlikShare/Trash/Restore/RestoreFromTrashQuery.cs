@@ -113,13 +113,10 @@ public class RestoreFromTrashQuery(
             return new RestoreItemResultDto
             {
                 FileExternalId = item.FileExternalId,
-                Status = RestoreStatus.NotFound,
-                FinalFolderPath = null,
-                FinalName = null
+                Status = RestoreStatus.NotFound
             };
 
         int? destinationFolderId;
-        List<string> destinationPath;
 
         if (item.Mode == RestoreMode.ChosenFolder)
         {
@@ -127,33 +124,26 @@ public class RestoreFromTrashQuery(
                 workspace.Id,
                 item.TargetFolderExternalId,
                 dbWriteContext,
-                transaction,
-                workspaceEncryptionSession);
+                transaction);
 
             if (resolved is null)
                 return new RestoreItemResultDto
                 {
                     FileExternalId = item.FileExternalId,
-                    Status = RestoreStatus.DestinationInvalid,
-                    FinalFolderPath = null,
-                    FinalName = null
+                    Status = RestoreStatus.DestinationInvalid
                 };
 
             destinationFolderId = resolved.Value.Id;
-            destinationPath = resolved.Value.Path;
         }
         else if (item.Mode == RestoreMode.OriginalPath)
         {
-            var resolved = WalkOriginalPath(
+            destinationFolderId = WalkOriginalPath(
                 workspace: workspace,
                 userIdentity: userIdentity,
                 path: trashed.Path,
                 workspaceEncryptionSession: workspaceEncryptionSession,
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);
-
-            destinationFolderId = resolved.LeafId;
-            destinationPath = resolved.Path;
         }
         else
         {
@@ -192,9 +182,7 @@ public class RestoreFromTrashQuery(
         return new RestoreItemResultDto
         {
             FileExternalId = item.FileExternalId,
-            Status = RestoreStatus.Restored,
-            FinalFolderPath = destinationPath,
-            FinalName = finalName
+            Status = RestoreStatus.Restored
         };
     }
 
@@ -235,48 +223,25 @@ public class RestoreFromTrashQuery(
         int workspaceId,
         FolderExtId? folderExternalId,
         SqliteWriteContext dbWriteContext,
-        SqliteTransaction transaction,
-        WorkspaceEncryptionSession? workspaceEncryptionSession)
+        SqliteTransaction transaction)
     {
         if (folderExternalId is null)
         {
             // null target = workspace root, valid choice
-            return new ChosenFolder(Id: null, Path: []);
+            return new ChosenFolder(Id: null);
         }
 
         var result = dbWriteContext
             .OneRowCmd(
                 sql: """
-                     SELECT
-                         f.fo_id,
-                         (
-                             SELECT json_group_array(af.fo_name)
-                             FROM (
-                                 SELECT fo_name
-                                 FROM fo_folders
-                                 WHERE fo_id IN (SELECT value FROM json_each(f.fo_ancestor_folder_ids))
-                                 ORDER BY json_array_length(fo_ancestor_folder_ids)
-                             ) AS af
-                         ) AS ancestor_names,
-                         f.fo_name
-                     FROM fo_folders AS f
-                     WHERE f.fo_workspace_id = $workspaceId
-                       AND f.fo_external_id = $externalId
-                       AND f.fo_is_being_deleted = FALSE
+                     SELECT fo_id
+                     FROM fo_folders
+                     WHERE fo_workspace_id = $workspaceId
+                       AND fo_external_id = $externalId
+                       AND fo_is_being_deleted = FALSE
                      LIMIT 1
                      """,
-                readRowFunc: reader =>
-                {
-                    var path = (reader.GetFromJsonOrNull<List<string>>(1) ?? [])
-                        .Select(raw => workspaceEncryptionSession.DecodeEncryptableMetadata(raw))
-                        .ToList();
-
-                    path.Add(reader.DecodeEncryptableString(2, workspaceEncryptionSession));
-
-                    return new ChosenFolder(
-                        Id: reader.GetInt32(0),
-                        Path: path);
-                },
+                readRowFunc: reader => new ChosenFolder(Id: reader.GetInt32(0)),
                 transaction: transaction)
             .WithParameter("$workspaceId", workspaceId)
             .WithParameter("$externalId", folderExternalId.Value.Value)
@@ -285,7 +250,8 @@ public class RestoreFromTrashQuery(
         return result.IsEmpty ? null : result.Value;
     }
 
-    private WalkResult WalkOriginalPath(
+    // Returns the destination folder id the file should land in — null meaning workspace root.
+    private int? WalkOriginalPath(
         WorkspaceContext workspace,
         IUserIdentity userIdentity,
         IReadOnlyList<OriginalFolderPathSegment>? path,
@@ -296,11 +262,10 @@ public class RestoreFromTrashQuery(
         if (path is null || path.Count == 0)
         {
             // Snapshot missing → fall back to workspace root.
-            return new WalkResult(LeafId: null, Path: []);
+            return null;
         }
 
         int? currentParentId = null;
-        var pathSoFar = new List<string>(path.Count);
 
         foreach (var segment in path)
         {
@@ -322,11 +287,9 @@ public class RestoreFromTrashQuery(
                     workspaceEncryptionSession: workspaceEncryptionSession,
                     dbWriteContext: dbWriteContext,
                     transaction: transaction);
-
-            pathSoFar.Add(segment.Name);
         }
 
-        return new WalkResult(LeafId: currentParentId, Path: pathSoFar);
+        return currentParentId;
     }
 
     private static int? ResolveSegmentByIdThenName(
@@ -578,7 +541,5 @@ public class RestoreFromTrashQuery(
         string Extension,
         List<OriginalFolderPathSegment>? Path);
 
-    private readonly record struct ChosenFolder(int? Id, List<string> Path);
-
-    private readonly record struct WalkResult(int? LeafId, List<string> Path);
+    private readonly record struct ChosenFolder(int? Id);
 }

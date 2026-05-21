@@ -10,28 +10,28 @@ public static partial class Audit
         {
             public required StorageRef Storage { get; init; }
             public required WorkspaceRef Workspace { get; init; }
-            public required int Count { get; init; }
+            public required List<FileRef> Files { get; init; }
         }
 
         public class ItemsPermanentlyDeleted
         {
             public required StorageRef Storage { get; init; }
             public required WorkspaceRef Workspace { get; init; }
-            public required int Count { get; init; }
+            public required List<FileRef> Files { get; init; }
         }
 
         public class Emptied
         {
             public required StorageRef Storage { get; init; }
             public required WorkspaceRef Workspace { get; init; }
-            public required int Count { get; init; }
+            public required List<FileRef> Files { get; init; }
         }
 
         public static AuditLogEntry ItemsRestoredEntry(
             AuditLogActorContext actor,
             StorageRef storage,
             WorkspaceRef workspace,
-            int count) => new()
+            List<FileRef> files) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -44,14 +44,14 @@ public static partial class Audit
             DetailsJson = Json.Serialize(new ItemsRestored {
                 Storage = storage,
                 Workspace = workspace,
-                Count = count })
+                Files = files })
         };
 
         public static AuditLogEntry ItemsPermanentlyDeletedEntry(
             AuditLogActorContext actor,
             StorageRef storage,
             WorkspaceRef workspace,
-            int count) => new()
+            List<FileRef> files) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -64,14 +64,14 @@ public static partial class Audit
             DetailsJson = Json.Serialize(new ItemsPermanentlyDeleted {
                 Storage = storage,
                 Workspace = workspace,
-                Count = count })
+                Files = files })
         };
 
         public static AuditLogEntry EmptiedEntry(
             AuditLogActorContext actor,
             StorageRef storage,
             WorkspaceRef workspace,
-            int count) => new()
+            List<FileRef> files) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -84,7 +84,7 @@ public static partial class Audit
             DetailsJson = Json.Serialize(new Emptied {
                 Storage = storage,
                 Workspace = workspace,
-                Count = count })
+                Files = files })
         };
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
+using PlikShare.AuditLog.Queries;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
 using PlikShare.Core.UserIdentity;
@@ -55,6 +56,7 @@ public static class TrashEndpoints
         [FromBody] RestoreFromTrashRequestDto request,
         HttpContext httpContext,
         RestoreFromTrashQuery restoreFromTrashQuery,
+        GetFileAuditContextQuery getFileAuditContextQuery,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
@@ -67,17 +69,27 @@ public static class TrashEndpoints
             workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
             cancellationToken: cancellationToken);
 
-        var restoredCount = result.Results.Count(r => r.Status == RestoreStatus.Restored);
+        var restoredFileExternalIds = result.Results
+            .Where(r => r.Status == RestoreStatus.Restored)
+            .Select(r => r.FileExternalId)
+            .ToList();
 
-        if (restoredCount > 0)
+        if (restoredFileExternalIds.Count > 0)
         {
+            // Read the file details after the restore — the files are live again, so their
+            // folder path reflects where they were restored to.
+            var files = getFileAuditContextQuery
+                .ExecuteMany(restoredFileExternalIds)
+                .Values
+                .ToList();
+
             await auditLogService.LogWithStorageContext(
                 storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
                 buildEntry: storageRef => Audit.Trash.ItemsRestoredEntry(
                     actor: httpContext.GetAuditLogActorContext(),
                     storage: storageRef,
                     workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
-                    count: restoredCount),
+                    files: files),
                 cancellationToken);
         }
 
@@ -104,7 +116,7 @@ public static class TrashEndpoints
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
-        if (result.DeletedCount > 0)
+        if (result.Files.Count > 0)
         {
             await auditLogService.LogWithStorageContext(
                 storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
@@ -112,7 +124,7 @@ public static class TrashEndpoints
                     actor: httpContext.GetAuditLogActorContext(),
                     storage: storageRef,
                     workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
-                    count: result.DeletedCount),
+                    files: result.Files),
                 cancellationToken);
         }
 
@@ -140,7 +152,7 @@ public static class TrashEndpoints
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
-        if (result.DeletedCount > 0)
+        if (result.Files.Count > 0)
         {
             await auditLogService.LogWithStorageContext(
                 storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
@@ -148,7 +160,7 @@ public static class TrashEndpoints
                     actor: httpContext.GetAuditLogActorContext(),
                     storage: storageRef,
                     workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
-                    count: result.DeletedCount),
+                    files: result.Files),
                 cancellationToken);
         }
 

@@ -1,3 +1,4 @@
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Workspaces.Cache;
@@ -21,7 +22,7 @@ public class EmptyTrashQuery(
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        var deletedCount = await dbWriteQueue.Execute(
+        var purge = await dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
                 workspace: workspace,
@@ -31,11 +32,12 @@ public class EmptyTrashQuery(
         var newSize = getWorkspaceSizeQuery.Execute(workspace);
 
         return new Result(
-            DeletedCount: deletedCount,
-            NewWorkspaceSizeInBytes: newSize);
+            DeletedCount: purge.DeletedCount,
+            NewWorkspaceSizeInBytes: newSize,
+            Files: purge.Files);
     }
 
-    private int ExecuteOperation(
+    private PurgeResult ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         Guid correlationId)
@@ -46,29 +48,32 @@ public class EmptyTrashQuery(
         {
             dbWriteContext.DeferForeignKeys(transaction);
 
-            var fileIds = dbWriteContext
+            // File details are captured now, before the purge wipes the rows, so the audit
+            // log can record exactly what was emptied.
+            var rows = dbWriteContext
                 .Cmd(
                     sql: """
-                         SELECT fi_id
+                         SELECT fi_id, fi_external_id, fi_name, fi_extension, fi_size_in_bytes,
+                                fi_original_folder_path
                          FROM fi_files
                          WHERE fi_workspace_id = $workspaceId
                            AND fi_deleted_at IS NOT NULL
                            AND fi_parent_file_id IS NULL
                          """,
-                    readRowFunc: reader => reader.GetInt32(0),
+                    readRowFunc: TrashedFileRow.Read,
                     transaction: transaction)
                 .WithParameter("$workspaceId", workspace.Id)
                 .Execute();
 
-            if (fileIds.Count == 0)
+            if (rows.Count == 0)
             {
                 transaction.Commit();
-                return 0;
+                return new PurgeResult(DeletedCount: 0, Files: []);
             }
 
             var deletedCount = purgeFilesSubQuery.Execute(
                 workspaceId: workspace.Id,
-                fileIds: fileIds,
+                fileIds: rows.Select(r => r.Id).ToList(),
                 correlationId: correlationId,
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);
@@ -80,7 +85,9 @@ public class EmptyTrashQuery(
                 workspace.Id,
                 deletedCount);
 
-            return deletedCount;
+            return new PurgeResult(
+                DeletedCount: deletedCount,
+                Files: rows.Select(r => r.FileRef).ToList());
         }
         catch (Exception e)
         {
@@ -90,5 +97,10 @@ public class EmptyTrashQuery(
         }
     }
 
-    public readonly record struct Result(int DeletedCount, long NewWorkspaceSizeInBytes);
+    private readonly record struct PurgeResult(int DeletedCount, List<Audit.FileRef> Files);
+
+    public readonly record struct Result(
+        int DeletedCount,
+        long NewWorkspaceSizeInBytes,
+        List<Audit.FileRef> Files);
 }
