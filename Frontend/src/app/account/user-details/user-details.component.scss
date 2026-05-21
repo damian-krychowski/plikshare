@@ -8,16 +8,8 @@
 @forward "./../../../styles/icon-merge.scss";
 @forward "./../../../styles/nothing-to-show.scss";
 
-.user-details {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-}
-
-.workspace-config {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
-
+.config-cards {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
 }

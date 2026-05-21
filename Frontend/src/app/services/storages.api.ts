@@ -9,7 +9,7 @@ export interface CreateCloudflareR2StorageRequest {
     secretAccessKey:string;
     url: string;
     encryptionType: AppStorageEncryptionType;
-
+    defaultTrashPolicy: TrashPolicyDto;
 }
 
 export interface CreateCloudflareR2StorageResponse {
@@ -29,7 +29,7 @@ export interface CreateAwsS3StorageRequest {
     secretAccessKey:string;
     region: string;
     encryptionType: AppStorageEncryptionType;
-
+    defaultTrashPolicy: TrashPolicyDto;
 }
 
 export interface CreateAwsS3StorageResponse {
@@ -43,7 +43,7 @@ export interface CreateDigitalOceanSpacesStorageRequest {
     secretKey:string;
     region: string;
     encryptionType: AppStorageEncryptionType;
-
+    defaultTrashPolicy: TrashPolicyDto;
 }
 
 export interface UpdateDigitalOceanSpacesStorageDetailsRequest {
@@ -62,7 +62,7 @@ export interface CreateHardDriveStorageRequest {
     volumePath: string;
     folderPath: string;
     encryptionType: AppStorageEncryptionType;
-
+    defaultTrashPolicy: TrashPolicyDto;
 }
 
 export interface CreateHardDriveStorageResponse {
@@ -200,7 +200,7 @@ export interface CreateBackblazeB2StorageRequest {
     applicationKey: string;
     url: string;
     encryptionType: AppStorageEncryptionType;
-
+    defaultTrashPolicy: TrashPolicyDto;
 }
 
 export interface CreateBackblazeB2StorageResponse {
@@ -222,6 +222,7 @@ export interface CreateAzureBlobStorageRequest {
     accountKey?: string;
     sasToken?: string;
     encryptionType: AppStorageEncryptionType;
+    defaultTrashPolicy: TrashPolicyDto;
 }
 
 export interface CreateAzureBlobStorageResponse {
@@ -242,6 +243,7 @@ export interface CreateGoogleCloudStorageRequest {
     accessKey: string;
     secretKey: string;
     encryptionType: AppStorageEncryptionType;
+    defaultTrashPolicy: TrashPolicyDto;
 }
 
 export interface CreateGoogleCloudStorageResponse {
@@ -394,6 +396,19 @@ export class StoragesApi {
             ._http
             .delete(
                 `/api/storages/${externalId}`, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async updateDefaultTrashPolicy(externalId: string, request: TrashPolicyDto): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/storages/${externalId}/default-trash-policy`, request, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
                 })

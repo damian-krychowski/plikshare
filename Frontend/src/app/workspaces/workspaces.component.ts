@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit, WritableSignal, computed, signal } from '@angular/core';
-import { WorkspacesApi } from '../services/workspaces.api';
+import { TrashPolicyDto, WorkspacesApi } from '../services/workspaces.api';
 import { NavigationEnd, NavigationExtras, Router } from '@angular/router';
 import { AppWorkspace, WorkspaceItemComponent } from '../shared/workspace-item/workspace-item.component';
 import { AuthService } from '../services/auth.service';
@@ -332,7 +332,10 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
                 encryptionType: item.encryptionType,
                 workspacesCount: item.workspacesCount ?? 0,
                 isHighlighted: signal(false),
-                isNameEditing: signal(false)
+                isNameEditing: signal(false),
+                // Picker mode never surfaces the trash policy — a placeholder satisfies the
+                // shared AppStorage shape without an extra dashboard round-trip.
+                defaultTrashPolicy: signal<TrashPolicyDto>({ enabled: false, retentionDays: null })
             })));
         } catch (error) {
             console.error(error);

@@ -1,0 +1,35 @@
+@forward "./../../../../styles/item-bar.scss";
+
+// Rows are click-to-select (incl. shift-range); never let a shift+click drag-select text.
+.item-bar {
+    user-select: none;
+}
+
+.trash-file-item__name {
+    word-break: break-word;
+}
+
+.trash-file-item__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: baseline;
+    margin-top: 2px;
+}
+
+// Retention chip — grey by default, primary-tinted when a hard-delete is scheduled.
+.trash-file-item__chip {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: var(--mdc-filled-button-container-shape);
+    font-size: var(--company-small-font);
+    font-weight: 500;
+    background: var(--company-grey-bg);
+    color: var(--company-grey-font);
+    white-space: nowrap;
+
+    &--warning {
+        background: var(--company-primary-bg, #e3f2fd);
+        color: var(--company-primary-font, #1565c0);
+    }
+}

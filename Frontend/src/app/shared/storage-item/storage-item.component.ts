@@ -6,6 +6,8 @@ import { EditableTxtComponent } from "../editable-txt/editable-txt.component";
 import { ActionButtonComponent } from "../buttons/action-btn/action-btn.component";
 import { observeIsHighlighted } from "../../services/is-highlighted-utils";
 import { ChangeEncryptionPasswordComponent } from "../change-master-password/change-master-password.component";
+import { StorageTrashPolicyDialogComponent } from "../storage-trash-policy-dialog/storage-trash-policy-dialog.component";
+import { TrashPolicyDto } from "../../services/workspaces.api";
 
 export type AppStorage = {
     externalId: string;
@@ -14,6 +16,7 @@ export type AppStorage = {
     encryptionType: AppStorageEncryptionType;
     details: string | null;
     workspacesCount: number;
+    defaultTrashPolicy: WritableSignal<TrashPolicyDto>;
 
     isNameEditing: WritableSignal<boolean>;
     isHighlighted: WritableSignal<boolean>;
@@ -32,14 +35,14 @@ export type AppStorage = {
 export class StorageItemComponent {
     storage = input.required<AppStorage>();
     pickerMode = input(false);
-    
+
     edited = output<void>();
     deleted = output<void>();
     clicked = output<void>();
-    
+
     isHighlighted = observeIsHighlighted(this.storage);
     isNameEditing = computed(() => this.storage().isNameEditing());
-    
+
 
     areActionsVisible = signal(false);
 
@@ -47,6 +50,16 @@ export class StorageItemComponent {
         private _storagesApi: StoragesApi,
         private _dialog: MatDialog
     ) { }
+
+    openTrashPolicyDialog() {
+        this._dialog.open(StorageTrashPolicyDialogComponent, {
+            width: '600px',
+            position: { top: '80px' },
+            data: this.storage()
+        });
+
+        this.areActionsVisible.set(false);
+    }
 
     async editStorage() {
         if(!this.storage)

@@ -28,6 +28,7 @@ public class TrashSweeperHostedService(
     PurgeFilesSubQuery purgeFilesSubQuery,
     WorkspaceCache workspaceCache,
     IClock clock,
+    IHostApplicationLifetime lifetime,
     TrashSweeperOptions options) : BackgroundService
 {
     private static readonly Serilog.ILogger Logger = Log.ForContext<TrashSweeperHostedService>();
@@ -39,11 +40,18 @@ public class TrashSweeperHostedService(
             options.IntervalSeconds,
             options.MaxItemsPerWorkspacePerTick);
 
-        // Initial small delay — let the app finish startup before we start scanning. Otherwise
-        // a slow startup + a big trash backlog hits the DB before everything else is warm.
+        // Hold off the first scan until the host has fully started (all hosted services started,
+        // Kestrel listening) — a deterministic lifecycle signal instead of guessing with a fixed
+        // delay. Plus a short grace period so the first DB scan doesn't compete with the startup
+        // burst (queue producer polling, consumers spinning up).
         try
         {
-            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            await WaitForApplicationStarted(stoppingToken);
+
+            if (options.StartupGraceSeconds > 0)
+                await Task.Delay(
+                    TimeSpan.FromSeconds(options.StartupGraceSeconds), 
+                    stoppingToken);
         }
         catch (OperationCanceledException)
         {
@@ -69,7 +77,9 @@ public class TrashSweeperHostedService(
 
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(options.IntervalSeconds), stoppingToken);
+                await Task.Delay(
+                    TimeSpan.FromSeconds(options.IntervalSeconds), 
+                    stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -78,6 +88,21 @@ public class TrashSweeperHostedService(
         }
 
         Logger.Information("TrashSweeperHostedService stopped.");
+    }
+
+    // Completes once IHostApplicationLifetime.ApplicationStarted fires; throws OperationCanceledException
+    // if the service is stopped first. Safe from deadlock: ExecuteAsync yields at the first await,
+    // so StartAsync returns, the host finishes starting, and the token fires.
+    private async Task WaitForApplicationStarted(CancellationToken stoppingToken)
+    {
+        var hostStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await using var registration = lifetime
+            .ApplicationStarted
+            .Register(() => hostStarted.TrySetResult());
+
+        await hostStarted.Task.WaitAsync(stoppingToken);
     }
 
     private async Task RunTick(CancellationToken cancellationToken)
@@ -255,4 +280,8 @@ public class TrashSweeperOptions
 {
     public int IntervalSeconds { get; init; } = 3600;
     public int MaxItemsPerWorkspacePerTick { get; init; } = 5000;
+
+    // Grace period after the host has fully started, before the first sweep. Keeps the first
+    // DB scan from competing with the startup burst. Set to 0 to sweep immediately.
+    public int StartupGraceSeconds { get; init; } = 5;
 }

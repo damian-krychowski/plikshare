@@ -47,14 +47,14 @@
 
             <button class="top-nav-btn d-none-on-mobile-medium"
                 [class.top-nav-btn--active]="isExplorerActive()"
-                aria-label="Explorer" 
-                mat-flat-button  
+                aria-label="Explorer"
+                mat-flat-button
                 matTooltip="Explorer"
                 matTooltipPosition="below"
                 (prefetch)="prefetchWorkspaceTopFolders()"
-                (click)="goToExplorer()"> 
-                <i class="icon icon-xl icon-nucleo-explorer"></i>    
-            </button> 
+                (click)="goToExplorer()">
+                <i class="icon icon-xl icon-nucleo-explorer"></i>
+            </button>
 
             @if(areBoxesSupported()) {
                 <button class="top-nav-btn d-none-on-mobile-medium"
@@ -94,7 +94,19 @@
                     (click)="goToTeam()"> 
                     <i class="icon icon-xl icon-nucleo-team"></i>
                 </button> 
-            }     
+            }    
+
+            @if(isTrashEnabled()) {
+                <button class="top-nav-btn d-none-on-mobile-medium"
+                    [class.top-nav-btn--active]="isTrashActive()"
+                    aria-label="Trash"
+                    mat-flat-button
+                    matTooltip="Trash"
+                    matTooltipPosition="below"
+                    (click)="goToTrash()">
+                    <i class="icon icon-xl icon-nucleo-remove"></i>
+                </button>
+            } 
             
             @if(auth.canManageUsers()) {
                 <button
@@ -113,6 +125,9 @@
             }
 
         }
+
+        <div class="mr-1 d-none-on-mobile-early">
+        </div>
 
         <div class="ml-auto d-none-on-desktop-medium">            
         </div>
@@ -143,8 +158,16 @@
             <a class="app-menu__link" (click)="goToExplorer()"
                 [class.app-menu__link--active]="isExplorerActive()">
                 Files Explorer
-                <i class="icon icon-xl icon-nucleo-explorer"></i>    
+                <i class="icon icon-xl icon-nucleo-explorer"></i>
             </a>
+
+            @if(isTrashEnabled()) {
+                <a class="app-menu__link" (click)="goToTrash()"
+                    [class.app-menu__link--active]="isTrashActive()">
+                    Trash
+                    <i class="icon icon-xl icon-nucleo-remove"></i>
+                </a>
+            }
 
             @if(areBoxesSupported()) {
                 <a class="app-menu__link" (click)="goToBoxes()"

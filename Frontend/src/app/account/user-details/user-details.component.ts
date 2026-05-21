@@ -29,6 +29,7 @@ import { Debouncer } from "../../services/debouncer";
 import { WorkspaceNumberConfigComponent, WorkspaceMaxNumberChangedEvent } from "../../shared/workspace-number-config/workspace-number-config.component";
 import { WorkspaceMaxTeamMembersChangedEvent, WorkspaceTeamConfigComponent } from "../../shared/workspace-team-config/workspace-team-config.component";
 import { WorkspacePickerComponent } from "../../shared/workspace-picker/workspace-picker.component";
+import { ConfigCardComponent } from "../../shared/config-card/config-card.component";
 
 
 
@@ -49,7 +50,8 @@ import { WorkspacePickerComponent } from "../../shared/workspace-picker/workspac
         WorkspaceSizeConfigComponent,
         WorkspaceNumberConfigComponent,
         WorkspaceTeamConfigComponent,
-        StorageAccessConfigComponent
+        StorageAccessConfigComponent,
+        ConfigCardComponent
     ],
     templateUrl: './user-details.component.html',
     styleUrl: './user-details.component.scss'

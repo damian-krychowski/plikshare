@@ -6,7 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { WorkspacesApi } from '../../services/workspaces.api';
+import { TrashPolicyDto, WorkspacesApi } from '../../services/workspaces.api';
 import { DataStore } from '../../services/data-store.service';
 import { AuthService } from '../../services/auth.service';
 import { WorkspaceContextService } from '../workspace-context.service';
@@ -15,6 +15,8 @@ import { Debouncer } from '../../services/debouncer';
 import { WorkspaceMaxTeamMembersChangedEvent, WorkspaceTeamConfigComponent } from '../../shared/workspace-team-config/workspace-team-config.component';
 import { ActionTextButtonComponent } from '../../shared/buttons/action-text-btn/action-text-btn.component';
 import { AuditLogPolicyApi } from '../../account/audit-log/policy/audit-log-policy.api';
+import { TrashPolicyConfigChangedEvent, TrashPolicyConfigComponent } from '../../shared/trash-policy-config/trash-policy-config.component';
+import { ConfigCardComponent } from '../../shared/config-card/config-card.component';
 
 
 
@@ -28,6 +30,8 @@ import { AuditLogPolicyApi } from '../../account/audit-log/policy/audit-log-poli
         MatButtonModule,
         WorkspaceSizeConfigComponent,
         WorkspaceTeamConfigComponent,
+        TrashPolicyConfigComponent,
+        ConfigCardComponent,
         ActionTextButtonComponent
     ],
     templateUrl: './workspace-config.component.html',
@@ -38,6 +42,7 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
 
     public maxSizeInBytes = signal<number|null>(null);
     public maxTeamMembers = signal<number|null>(null);
+    public trashPolicy = signal<TrashPolicyDto|null>(null);
 
     // The audit-log section is admin-only — same authorization as the backend endpoint
     // (RequireAdminPermissionEndpointFilter(Permissions.ManageAuditLog), which bypasses the
@@ -136,6 +141,7 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
 
             this.maxSizeInBytes.set(workspace.maxSizeInBytes);
             this.maxTeamMembers.set(workspace.maxTeamMembers);
+            this.trashPolicy.set(workspace.trashPolicy);
 
             // Fire-and-forget; the chip pops in once it resolves. Errors are logged, not surfaced.
             this.loadAuditLogSummary(workspaceExternalId);
@@ -188,9 +194,44 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
 
         try {
             this.isLoading.set(true);
-            
+
             await this._workspacesApi.updateMaxTeamMembers(this._currentWorkspaceExternalId, {
                 maxTeamMembers: this.maxTeamMembers()
+            });
+
+            const workspace = await this
+                ._workspacesApi
+                .getWorkspace(this._currentWorkspaceExternalId);
+
+            this._dataStore.clearWorkspaceDetails(this._currentWorkspaceExternalId);
+            this._workspaceContext.workspace.set(workspace);
+        } catch (error) {
+            console.error('Failed to save workspace configuration', error);
+        } finally {
+            this.isLoading.set(false);
+        }
+    }
+
+    private _trashPolicyDebouncer = new Debouncer(500);
+    onTrashPolicyChange(event: TrashPolicyConfigChangedEvent) {
+        this.trashPolicy.set(event.trashPolicy);
+        this._trashPolicyDebouncer.debounceAsync(() => this.saveTrashPolicy());
+    }
+
+    private async saveTrashPolicy(){
+        if(!this._currentWorkspaceExternalId)
+            return;
+
+        const trashPolicy = this.trashPolicy();
+        if(!trashPolicy)
+            return;
+
+        try {
+            this.isLoading.set(true);
+
+            await this._workspacesApi.updateTrashPolicy(this._currentWorkspaceExternalId, {
+                enabled: trashPolicy.enabled,
+                retentionDays: trashPolicy.retentionDays
             });
 
             const workspace = await this

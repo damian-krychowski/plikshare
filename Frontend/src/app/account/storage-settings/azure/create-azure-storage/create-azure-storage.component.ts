@@ -10,6 +10,9 @@ import { Router } from '@angular/router';
 import { DataStore } from '../../../../services/data-store.service';
 import { RecoveryCodeDialogService } from '../../../../shared/recovery-code-display/recovery-code-dialog.service';
 import { EncryptionTypeSelectorComponent } from '../../../../shared/encryption-type-selector/encryption-type-selector.component';
+import { TrashPolicyConfigChangedEvent, TrashPolicyConfigComponent } from '../../../../shared/trash-policy-config/trash-policy-config.component';
+import { TrashPolicyDto } from '../../../../services/workspaces.api';
+import { ConfigCardComponent } from '../../../../shared/config-card/config-card.component';
 
 @Component({
     selector: 'app-create-azure-storage',
@@ -21,7 +24,9 @@ import { EncryptionTypeSelectorComponent } from '../../../../shared/encryption-t
         MatButtonModule,
         SecureInputDirective,
         MatRadioModule,
-        EncryptionTypeSelectorComponent
+        EncryptionTypeSelectorComponent,
+        TrashPolicyConfigComponent,
+        ConfigCardComponent
     ],
     templateUrl: './create-azure-storage.component.html',
     styleUrl: './create-azure-storage.component.scss',
@@ -41,6 +46,10 @@ export class CreateAzureStorageComponent {
 
     formGroup: FormGroup;
     wasSubmitted = signal(false);
+
+    // Default trash policy snapshotted onto every workspace created on this storage. Disabled by
+    // default — trash is opt-in. The config component validates and only emits a valid policy.
+    trashPolicy = signal<TrashPolicyDto>({ enabled: false, retentionDays: null });
 
     constructor(
         private _dataStore: DataStore,
@@ -97,7 +106,8 @@ export class CreateAzureStorageComponent {
                 accountName: authType === 'shared-key' ? this.accountName.value! : undefined,
                 accountKey: authType === 'shared-key' ? this.accountKey.value! : undefined,
                 sasToken: authType === 'sas' ? this.sasToken.value! : undefined,
-                encryptionType: this.encryption.value!
+                encryptionType: this.encryption.value!,
+                defaultTrashPolicy: this.trashPolicy()
             });
 
             this._dataStore.clearDashboardData();
@@ -133,6 +143,10 @@ export class CreateAzureStorageComponent {
         } finally {
             this.isLoading.set(false);
         }
+    }
+
+    onTrashPolicyChange(event: TrashPolicyConfigChangedEvent) {
+        this.trashPolicy.set(event.trashPolicy);
     }
 
     goToStorages() {

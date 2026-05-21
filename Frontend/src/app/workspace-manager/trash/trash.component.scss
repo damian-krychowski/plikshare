@@ -1,0 +1,145 @@
+@forward "./../../../styles/app-header.scss";
+
+.trash-toolbar {
+    align-items: center;
+}
+
+// View-mode switch — same trigger + dropdown pattern as the files-explorer display menu.
+.view-toggle {
+    position: relative;
+
+    &__trigger {
+        all: unset;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.15rem 0.4rem;
+        border-radius: 3px;
+        color: var(--company-grey-font);
+        font-size: var(--company-small-font);
+
+        &:hover {
+            background: var(--company-grey-accent);
+            color: var(--company-font);
+        }
+
+        .icon {
+            font-size: 0.85rem;
+            opacity: 0.6;
+        }
+    }
+
+    &__panel {
+        position: absolute;
+        left: 0;
+        top: calc(100% + 0.25rem);
+        z-index: 100;
+        min-width: 9rem;
+        padding: 0.35rem 0;
+        background: white;
+        border-radius: 4px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+        font-size: var(--company-small-font);
+    }
+
+    &__item {
+        all: unset;
+        box-sizing: border-box;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.75rem;
+        cursor: pointer;
+        color: var(--company-font);
+
+        &:hover {
+            background: var(--company-grey-accent);
+        }
+
+        &--active {
+            font-weight: 500;
+        }
+
+        .icon {
+            font-size: 0.85rem;
+        }
+    }
+}
+
+// Bar above the list — flat/tree toggle on the left, summary pushed right. Same shape as
+// the files-explorer .context-bar (display-menu on the left, counts ml-auto on the right).
+.trash-context-bar {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    padding: 0.5rem 0;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.trash-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+// A folder of trashed files: a dashed header line + the files belonging to it.
+.trash-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.trash-group__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: var(--company-small-font);
+    font-style: italic;
+    color: var(--company-grey-font);
+
+    // "-- folder path ----------------" — a short dash before the label, a line filling
+    // the rest of the row after it.
+    &::before {
+        content: '';
+        width: 1.25rem;
+        height: 1px;
+        background: var(--company-grey-accent);
+        flex-shrink: 0;
+    }
+
+    &::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--company-grey-accent);
+    }
+}
+
+.trash-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.5rem;
+    padding: 3rem 1rem;
+    color: var(--company-grey-font);
+
+    .icon {
+        opacity: 0.4;
+    }
+
+    &__title {
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    &__text {
+        font-size: var(--company-small-font);
+        max-width: 360px;
+    }
+}

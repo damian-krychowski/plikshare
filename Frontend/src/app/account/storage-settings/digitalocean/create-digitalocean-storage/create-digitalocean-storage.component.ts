@@ -11,6 +11,9 @@ import { Router } from '@angular/router';
 import { DataStore } from '../../../../services/data-store.service';
 import { RecoveryCodeDialogService } from '../../../../shared/recovery-code-display/recovery-code-dialog.service';
 import { EncryptionTypeSelectorComponent } from '../../../../shared/encryption-type-selector/encryption-type-selector.component';
+import { TrashPolicyConfigChangedEvent, TrashPolicyConfigComponent } from '../../../../shared/trash-policy-config/trash-policy-config.component';
+import { TrashPolicyDto } from '../../../../services/workspaces.api';
+import { ConfigCardComponent } from '../../../../shared/config-card/config-card.component';
 
 @Component({
     selector: 'app-create-digitalocean-storage',
@@ -22,7 +25,9 @@ import { EncryptionTypeSelectorComponent } from '../../../../shared/encryption-t
         MatButtonModule,
         RegionInputComponent,
         SecureInputDirective,
-        EncryptionTypeSelectorComponent
+        EncryptionTypeSelectorComponent,
+        TrashPolicyConfigComponent,
+        ConfigCardComponent
     ],
     templateUrl: './create-digitalocean-storage.component.html',
     styleUrl: './create-digitalocean-storage.component.scss',
@@ -42,6 +47,9 @@ export class CreateDigitalOceanStorageComponent{
     formGroup: FormGroup;
     wasSubmitted = signal(false);
 
+    // Default trash policy snapshotted onto every workspace created on this storage. Disabled by
+    // default — trash is opt-in. The config component validates and only emits a valid policy.
+    trashPolicy = signal<TrashPolicyDto>({ enabled: false, retentionDays: null });
 
     constructor(
         private _dataStore: DataStore,
@@ -72,7 +80,8 @@ export class CreateDigitalOceanStorageComponent{
                 accessKey: this.accessKey.value!,
                 secretKey: this.secretKey.value!,
                 region: this.region.value!,
-                encryptionType: this.encryption.value!
+                encryptionType: this.encryption.value!,
+                defaultTrashPolicy: this.trashPolicy()
             });
 
             this._dataStore.clearDashboardData();
@@ -104,6 +113,10 @@ export class CreateDigitalOceanStorageComponent{
         } finally {
             this.isLoading.set(false);
         }
+    }
+
+    onTrashPolicyChange(event: TrashPolicyConfigChangedEvent) {
+        this.trashPolicy.set(event.trashPolicy);
     }
 
     goToStorages() {

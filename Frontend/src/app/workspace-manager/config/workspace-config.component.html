@@ -9,24 +9,40 @@
 <div class="mt-2"></div>
 
 <div class="config-container">
-    <app-workspace-size-config
-        [maxSizeInBytes]="maxSizeInBytes()"
-        (configChanged)="onMaxSizeInBytesChange($event)">
-    </app-workspace-size-config>
+    <app-config-card
+        title="Workspace size"
+        description="Set a maximum amount of storage this workspace can use, or leave it unlimited.">
+        <app-workspace-size-config
+            [maxSizeInBytes]="maxSizeInBytes()"
+            (configChanged)="onMaxSizeInBytesChange($event)">
+        </app-workspace-size-config>
+    </app-config-card>
 
-    <app-workspace-team-config
-        [maxTeamMembers]="maxTeamMembers()"
-        (configChanged)="onMaxTeamMembersChange($event)">
-    </app-workspace-team-config>
+    <app-config-card
+        title="Team members"
+        description="Set a maximum number of members allowed in this workspace, or leave it unlimited.">
+        <app-workspace-team-config
+            [maxTeamMembers]="maxTeamMembers()"
+            (configChanged)="onMaxTeamMembersChange($event)">
+        </app-workspace-team-config>
+    </app-config-card>
+
+    <app-config-card
+        title="Trash"
+        description="When enabled, deleted files are moved to the trash and can be restored until they are permanently removed.">
+        @if (trashPolicy(); as policy) {
+            <app-trash-policy-config
+                [trashPolicy]="policy"
+                (configChanged)="onTrashPolicyChange($event)">
+            </app-trash-policy-config>
+        }
+    </app-config-card>
 
     @if (canConfigureAuditLog()) {
-        <div class="audit-log-config">
-            <div class="audit-log-config__text">
-                <div class="audit-log-config__title">Audit log</div>
-                <div class="audit-log-config__description">
-                    Choose which audit-log events are recorded for this workspace and override their severities.
-                </div>
-            </div>
+        <app-config-card
+            title="Audit log"
+            description="Choose which audit-log events are recorded for this workspace and override their severities."
+            mode="side">
             @if (auditLogSummaryText(); as summary) {
                 <span class="ws-summary-chip"
                     [class.ws-summary-chip--customized]="isAuditLogCustomized()">
@@ -37,6 +53,6 @@
                 text="Configure audit log"
                 (clicked)="goToAuditLogPolicy()">
             </app-action-text-btn>
-        </div>
+        </app-config-card>
     }
 </div>

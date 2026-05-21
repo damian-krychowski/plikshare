@@ -9,6 +9,9 @@ import { Router } from '@angular/router';
 import { DataStore } from '../../../../services/data-store.service';
 import { RecoveryCodeDialogService } from '../../../../shared/recovery-code-display/recovery-code-dialog.service';
 import { EncryptionTypeSelectorComponent } from '../../../../shared/encryption-type-selector/encryption-type-selector.component';
+import { TrashPolicyConfigChangedEvent, TrashPolicyConfigComponent } from '../../../../shared/trash-policy-config/trash-policy-config.component';
+import { TrashPolicyDto } from '../../../../services/workspaces.api';
+import { ConfigCardComponent } from '../../../../shared/config-card/config-card.component';
 
 @Component({
     selector: 'app-create-backblaze-storage',
@@ -19,7 +22,9 @@ import { EncryptionTypeSelectorComponent } from '../../../../shared/encryption-t
         ReactiveFormsModule,
         MatButtonModule,
         SecureInputDirective,
-        EncryptionTypeSelectorComponent
+        EncryptionTypeSelectorComponent,
+        TrashPolicyConfigComponent,
+        ConfigCardComponent
     ],
     templateUrl: './create-backblaze-storage.component.html',
     styleUrl: './create-backblaze-storage.component.scss',
@@ -36,6 +41,10 @@ export class CreateBackblazeStorageComponent {
     endpointUrl = new FormControl('', [Validators.required]);
     formGroup: FormGroup;
     wasSubmitted = signal(false);
+
+    // Default trash policy snapshotted onto every workspace created on this storage. Disabled by
+    // default — trash is opt-in. The config component validates and only emits a valid policy.
+    trashPolicy = signal<TrashPolicyDto>({ enabled: false, retentionDays: null });
 
     constructor(
         private _dataStore: DataStore,
@@ -66,7 +75,8 @@ export class CreateBackblazeStorageComponent {
                 keyId: this.keyId.value!,
                 applicationKey: this.applicationKey.value!,
                 url: this.endpointUrl.value!,
-                encryptionType: this.encryption.value!
+                encryptionType: this.encryption.value!,
+                defaultTrashPolicy: this.trashPolicy()
             });
 
             this._dataStore.clearDashboardData();
@@ -102,6 +112,10 @@ export class CreateBackblazeStorageComponent {
         } finally {
             this.isLoading.set(false);
         }
+    }
+
+    onTrashPolicyChange(event: TrashPolicyConfigChangedEvent) {
+        this.trashPolicy.set(event.trashPolicy);
     }
 
     goToStorages() {

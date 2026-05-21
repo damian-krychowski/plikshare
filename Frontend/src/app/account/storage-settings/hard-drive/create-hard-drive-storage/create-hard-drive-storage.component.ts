@@ -9,6 +9,9 @@ import { Router } from '@angular/router';
 import { DataStore } from '../../../../services/data-store.service';
 import { RecoveryCodeDialogService } from '../../../../shared/recovery-code-display/recovery-code-dialog.service';
 import { EncryptionTypeSelectorComponent } from '../../../../shared/encryption-type-selector/encryption-type-selector.component';
+import { TrashPolicyConfigChangedEvent, TrashPolicyConfigComponent } from '../../../../shared/trash-policy-config/trash-policy-config.component';
+import { TrashPolicyDto } from '../../../../services/workspaces.api';
+import { ConfigCardComponent } from '../../../../shared/config-card/config-card.component';
 
 @Component({
     selector: 'app-create-hard-drive-storage',
@@ -19,7 +22,9 @@ import { EncryptionTypeSelectorComponent } from '../../../../shared/encryption-t
         MatSelectModule,
         ReactiveFormsModule,
         MatButtonModule,
-        EncryptionTypeSelectorComponent
+        EncryptionTypeSelectorComponent,
+        TrashPolicyConfigComponent,
+        ConfigCardComponent
     ],
     templateUrl: './create-hard-drive-storage.component.html',
     styleUrl: './create-hard-drive-storage.component.scss',
@@ -42,6 +47,9 @@ export class CreateHardDriveStorageComponent implements OnInit {
 
     volumes = signal<HardDriveVolumeItem[]>([]);
 
+    // Default trash policy snapshotted onto every workspace created on this storage. Disabled by
+    // default — trash is opt-in. The config component validates and only emits a valid policy.
+    trashPolicy = signal<TrashPolicyDto>({ enabled: false, retentionDays: null });
 
     constructor(
         private _dataStore: DataStore,
@@ -87,7 +95,8 @@ export class CreateHardDriveStorageComponent implements OnInit {
                 name: this.name.value!,
                 volumePath: this.volume.value!,
                 folderPath: this.storagePath.value!,
-                encryptionType: this.encryption.value!
+                encryptionType: this.encryption.value!,
+                defaultTrashPolicy: this.trashPolicy()
             });
 
             this._dataStore.clearDashboardData();
@@ -163,6 +172,10 @@ export class CreateHardDriveStorageComponent implements OnInit {
 
     onVolumeChange(){
         this.storagePath.setValue(null);
+    }
+
+    onTrashPolicyChange(event: TrashPolicyConfigChangedEvent) {
+        this.trashPolicy.set(event.trashPolicy);
     }
 
     goToStorages() {

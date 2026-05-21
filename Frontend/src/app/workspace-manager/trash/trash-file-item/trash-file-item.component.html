@@ -1,0 +1,44 @@
+@let itemVal = item();
+
+<div class="item-bar flex-row item-bar--clickable"
+    [class.item-bar--selected]="isSelected()"
+    (click)="toggle()">
+
+    <div class="item flex-grow">
+        <i class="icon icon-xl icon-{{ itemVal.extension | fileIcon }}"></i>
+
+        <div class="item__details">
+            <div class="item__title trash-file-item__name">
+                {{ itemVal.name }}
+            </div>
+
+            <div class="item__subtitle trash-file-item__meta">
+                <span>
+                    @if (itemVal.extension) {
+                        {{ itemVal.extension }} | {{ itemVal.sizeInBytes | storageSize }}
+                    } @else {
+                        {{ itemVal.sizeInBytes | storageSize }}
+                    }
+                    | Deleted {{ itemVal.deletedAt | date:'mediumDate' }}
+                </span>
+
+                @if (itemVal.autoDeletesAt) {
+                    <span class="trash-file-item__chip trash-file-item__chip--warning">
+                        Auto-deletes {{ itemVal.autoDeletesAt | date:'mediumDate' }}
+                    </span>
+                } @else {
+                    <span class="trash-file-item__chip">
+                        Kept until removed
+                    </span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="item-bar__actions" (click)="$event.stopPropagation()">
+        <mat-checkbox
+            [checked]="isSelected()"
+            (change)="toggle()">
+        </mat-checkbox>
+    </div>
+</div>

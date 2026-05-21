@@ -120,6 +120,15 @@
 
             <app-encryption-type-selector formControlName="encryption" />
 
+            <app-config-card
+                title="Trash"
+                description="Default trash policy for workspaces created on this storage. Each workspace can change it later in its own settings.">
+                <app-trash-policy-config
+                    [trashPolicy]="trashPolicy()"
+                    (configChanged)="onTrashPolicyChange($event)">
+                </app-trash-policy-config>
+            </app-config-card>
+
             <div class="mt-3 d-none-on-mobile"></div>
 
             <div class="page-form__actions">

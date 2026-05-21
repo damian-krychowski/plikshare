@@ -1,0 +1,40 @@
+<div class="config-row">
+    <mat-select
+        class="config-row__select config-row__select--wide"
+        [(ngModel)]="selectedMode"
+        (selectionChange)="onModeChange()">
+
+        @for (item of modeOptions; track item.value) {
+            <mat-option [value]="item.value">
+                {{ item.label }}
+            </mat-option>
+        }
+    </mat-select>
+
+    @if (selectedMode === 'auto-delete') {
+        <div>
+            <input
+                class="config-row__input"
+                type="number"
+                [ngModel]="retentionValue"
+                (input)="onRetentionValueChange($event)"
+                [class.config-row__input--error]="hasError">
+
+            @if (hasError) {
+                <div class="config-row__error">{{ errorMessage }}</div>
+            }
+        </div>
+
+        <mat-select
+            class="config-row__select"
+            [(ngModel)]="retentionUnit"
+            (selectionChange)="onUnitChange()">
+
+            @for (item of unitOptions; track item.value) {
+                <mat-option [value]="item.value">
+                    {{ item.label }}
+                </mat-option>
+            }
+        </mat-select>
+    }
+</div>

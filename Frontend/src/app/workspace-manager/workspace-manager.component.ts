@@ -52,6 +52,7 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
     isFullEncryption = computed(() => this.context.workspace()?.storageEncryptionType === 'full');
     areBoxesSupported = computed(() => !this.isFullEncryption());
     areQuickSharesSupported = computed(() => !this.isFullEncryption());
+    isTrashEnabled = computed(() => this.context.workspace()?.trashPolicy?.enabled ?? false);
 
     allowShare = computed(() => this.context.workspace()?.permissions?.allowShare ?? false);
     isTeamVisible = computed(() => {
@@ -168,6 +169,11 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
         this._router.navigate(['/workspaces/' + this._workspaceExternalId + '/config']);
         this.isMenuOpen.set(false);
     }
+
+    goToTrash() {
+        this._router.navigate(['/workspaces/' + this._workspaceExternalId + '/trash']);
+        this.isMenuOpen.set(false);
+    }
     
     goToAccount() {
         this._router.navigate(['/account']);
@@ -206,6 +212,11 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
     isWorkspaceConfigActive() {
         const configUrl = `/workspaces/${this._workspaceExternalId}/config`;
         return this.isUrlActive(configUrl);
+    }
+
+    isTrashActive() {
+        const trashUrl = `/workspaces/${this._workspaceExternalId}/trash`;
+        return this.isUrlActive(trashUrl);
     }
 
     private isUrlActive(url: string) {

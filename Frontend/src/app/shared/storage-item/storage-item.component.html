@@ -32,7 +32,7 @@
             @if(storageVal.details; as storageDetailsVal) {
                 <div class="item__subtitle">
                     <span [innerHTML]="storageDetailsVal"></span>
-                </div> 
+                </div>
             }
         </div>
     </div>
@@ -55,6 +55,13 @@
                         (clicked)="editStorageDetails()">
                     </app-action-btn>
                 }
+
+                <app-action-btn
+                    tooltip="Edit configuration"
+                    icon="icon-nucleo-settings"
+                    [class.d-none-on-mobile]="!areActionsVisible()"
+                    (clicked)="openTrashPolicyDialog()">
+                </app-action-btn>
             
                 @let hasWorkspaceOrIntegration = storageVal.workspacesCount > 0;
 

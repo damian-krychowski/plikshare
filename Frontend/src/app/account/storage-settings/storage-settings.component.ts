@@ -65,6 +65,7 @@ export class StorageSettingsComponent implements OnInit {
                 details: details,
                 encryptionType: s.encryptionType,
                 workspacesCount: s.workspacesCount,
+                defaultTrashPolicy: signal(s.defaultTrashPolicy),
                 isNameEditing: signal(false),
                 isHighlighted: signal(false)
             };

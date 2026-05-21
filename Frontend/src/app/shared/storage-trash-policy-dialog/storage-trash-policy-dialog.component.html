@@ -1,0 +1,23 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        Default trash policy
+    </div>
+
+    <div class="questionaire__info">
+        Default trash policy for new workspaces created on this storage. Each workspace can
+        change it later in its own settings.
+    </div>
+
+    <div class="questionaire__content">
+        <app-trash-policy-config
+            [trashPolicy]="storage.defaultTrashPolicy()"
+            (configChanged)="onTrashPolicyChange($event)">
+        </app-trash-policy-config>
+    </div>
+
+    <div class="questionaire__actions">
+        <button type="button" class="questionaire__btn" mat-flat-button (click)="close()">
+            Close
+        </button>
+    </div>
+</div>

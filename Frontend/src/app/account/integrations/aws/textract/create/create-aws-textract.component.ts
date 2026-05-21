@@ -225,6 +225,7 @@ export class CreateAwsTextractComponent implements OnInit, OnDestroy {
                     isHighlighted: signal(false),
                     isNameEditing: signal(false),
                     workspacesCount: s.workspacesCount,
+                    defaultTrashPolicy: signal(s.defaultTrashPolicy),
                 };
 
                 return storage;

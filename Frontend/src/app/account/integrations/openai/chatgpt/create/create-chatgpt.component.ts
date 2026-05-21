@@ -170,6 +170,7 @@ export class CreateChatGptComponent implements OnInit {
                     isHighlighted: signal(false),
                     isNameEditing: signal(false),
                     workspacesCount: s.workspacesCount,
+                    defaultTrashPolicy: signal(s.defaultTrashPolicy),
                 };
 
                 return storage;

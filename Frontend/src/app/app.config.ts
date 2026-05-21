@@ -173,6 +173,9 @@ export const routes: Routes = [{
     }, {
         path: 'config',
         loadComponent: () => import('./workspace-manager/config/workspace-config.component').then(m => m.WorkspaceConfigComponent)
+    }, {
+        path: 'trash',
+        loadComponent: () => import('./workspace-manager/trash/trash.component').then(m => m.TrashComponent)
     }]
 }, {
     path: 'link/:accessCode/:folderExternalId',

@@ -6,37 +6,6 @@
     gap: 1.5rem;
 }
 
-// Visually self-contained block that matches the other config sections in this page; sits at
-// the bottom because audit-log policy is a less-frequently-touched dial than size / team.
-.audit-log-config {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--company-grey-accent);
-    border-radius: var(--mdc-filled-button-container-shape);
-    background: white;
-    flex-wrap: wrap;
-
-    &__text {
-        // flex:1 pushes the summary chip and "Configure" button to the right edge of the row,
-        // keeping the title/description block on the left.
-        flex: 1;
-        min-width: 240px;
-    }
-
-    &__title {
-        font-weight: 600;
-    }
-
-    &__description {
-        font-size: var(--company-small-font);
-        color: var(--company-grey-font);
-        margin-top: 2px;
-    }
-}
-
 // Same chip as on the per-workspace list — italic muted "defaults" or primary-tinted "X disabled".
 // Local declaration so this page doesn't depend on the audit-log-policy stylesheet.
 .ws-summary-chip {

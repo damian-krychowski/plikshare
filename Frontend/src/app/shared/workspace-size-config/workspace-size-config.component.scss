@@ -1,2 +1,19 @@
 @forward "./../../../styles/config-row.scss";
 
+// Let the controls wrap onto a second row when there isn't enough width (mobile).
+.config-row {
+    flex-wrap: wrap;
+}
+
+// Fixed width for the primary select so it matches the other workspace-config cards
+// (trash uses the same 280px) instead of the narrow shared --wide cap.
+.config-row__select--wide {
+    width: 280px;
+    max-width: 280px;
+}
+
+// Roughly half the shared input width — the size value is a short number.
+.config-row__input {
+    min-width: 50px;
+    max-width: 100px;
+}

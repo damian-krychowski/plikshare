@@ -23,6 +23,7 @@ import { WorkspaceMaxSizeInBytesChangedEvent, WorkspaceSizeConfigComponent } fro
 import { WorkspaceMaxTeamMembersChangedEvent, WorkspaceTeamConfigComponent } from "../../shared/workspace-team-config/workspace-team-config.component";
 import { StorageAccessChangedEvent, StorageAccessConfigComponent } from "../../shared/storage-access-config/storage-access-config.component";
 import { StorageNameItem, StoragesApi } from "../../services/storages.api";
+import { ConfigCardComponent } from "../../shared/config-card/config-card.component";
 
 type SignUpCheckbox = {
     id: WritableSignal<number | null>;
@@ -61,7 +62,8 @@ type DefaultUser = {
         WorkspaceNumberConfigComponent,
         WorkspaceSizeConfigComponent,
         WorkspaceTeamConfigComponent,
-        StorageAccessConfigComponent
+        StorageAccessConfigComponent,
+        ConfigCardComponent
     ],
     templateUrl: './general-settings.component.html',
     styleUrl: './general-settings.component.scss'

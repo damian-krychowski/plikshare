@@ -1,0 +1,28 @@
+@forward "./../../../styles/config-row.scss";
+
+// Let the controls wrap onto a second row when there isn't enough width (mobile).
+.config-row {
+    flex-wrap: wrap;
+}
+
+// Fixed width for the mode select so it matches the other workspace-config cards.
+// flex-shrink: 0 stops it from being squeezed when the row runs out of space (otherwise
+// changing the unit dropdown's text — e.g. Days -> Weeks — would shift this select's width).
+.config-row__select--wide {
+    width: 280px;
+    max-width: 280px;
+    flex-shrink: 0;
+}
+
+// Short numeric value — roughly half the shared input width.
+.config-row__input {
+    min-width: 50px;
+    max-width: 100px;
+}
+
+// Unit dropdown (Days/Weeks/Months) — wider than the shared --select cap so the labels fit.
+.config-row__select:not(.config-row__select--wide) {
+    min-width: 110px;
+    max-width: 110px;
+    flex-shrink: 0;
+}

@@ -1,0 +1,10 @@
+<div class="config-card" [class.config-card--side]="mode() === 'side'">
+    <div class="config-card__text">
+        <div class="config-card__title">{{ title() }}</div>
+        <div class="config-card__description">{{ description() }}</div>
+    </div>
+
+    <div class="config-card__content">
+        <ng-content></ng-content>
+    </div>
+</div>
