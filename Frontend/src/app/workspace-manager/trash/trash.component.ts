@@ -11,6 +11,8 @@ import { GenericDialogService } from '../../shared/generic-message-dialog/generi
 import { ActionTextButtonComponent } from '../../shared/buttons/action-text-btn/action-text-btn.component';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
 import { DataStore } from '../../services/data-store.service';
+import { WorkspaceContextService } from '../workspace-context.service';
+import { AuthService } from '../../services/auth.service';
 import {
     ZipFileTreeViewComponent,
     ZipFileNode,
@@ -116,6 +118,18 @@ export class TrashComponent implements OnInit {
 
     private _workspaceExternalId: string | null = null;
 
+    // Delete-forever and empty-trash are owner/admin-only on the backend; the UI hides them
+    // for everyone else. Restore stays available to all workspace members.
+    isOwnerOrAdmin = computed(() => {
+        const workspace = this._workspaceContext.workspace();
+
+        if (!workspace)
+            return false;
+
+        return workspace.owner.externalId === this._auth.userExternalId()
+            || this._auth.isAdmin();
+    });
+
     constructor(
         private _trashApi: TrashApi,
         private _activatedRoute: ActivatedRoute,
@@ -123,6 +137,8 @@ export class TrashComponent implements OnInit {
         private _toastr: ToastrService,
         private _dataStore: DataStore,
         private _dialog: MatDialog,
+        private _workspaceContext: WorkspaceContextService,
+        private _auth: AuthService,
         private _el: ElementRef<HTMLElement>)
     {
     }

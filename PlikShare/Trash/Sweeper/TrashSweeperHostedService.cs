@@ -1,6 +1,9 @@
+using PlikShare.AuditLog;
+using PlikShare.AuditLog.Details;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
+using PlikShare.Core.UserIdentity;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 
@@ -27,6 +30,7 @@ public class TrashSweeperHostedService(
     DbWriteQueue dbWriteQueue,
     PurgeFilesSubQuery purgeFilesSubQuery,
     WorkspaceCache workspaceCache,
+    AuditLogService auditLogService,
     IClock clock,
     IHostApplicationLifetime lifetime,
     TrashSweeperOptions options) : BackgroundService
@@ -202,7 +206,7 @@ public class TrashSweeperHostedService(
         var cap = options.MaxItemsPerWorkspacePerTick;
         var correlationId = Guid.NewGuid();
 
-        await dbWriteQueue.Execute(
+        var purged = await dbWriteQueue.Execute(
             operationToEnqueue: ctx => PurgeExpired(
                 ctx,
                 workspace,
@@ -210,9 +214,30 @@ public class TrashSweeperHostedService(
                 cap,
                 correlationId),
             cancellationToken: cancellationToken);
+
+        // The automatic retention purge is recorded in the audit log under a system actor,
+        // so it reads distinctly from a user-triggered delete-forever.
+        if (purged.Files.Count > 0)
+        {
+            await auditLogService.LogWithStorageContext(
+                storageExternalId: workspace.Storage.ExternalId,
+                buildEntry: storageRef => Audit.Trash.ItemsPermanentlyDeletedEntry(
+                    actor: SystemActor(correlationId),
+                    storage: storageRef,
+                    workspace: workspace.ToAuditLogWorkspaceRef(),
+                    files: purged.Files),
+                cancellationToken: cancellationToken);
+        }
     }
 
-    private int PurgeExpired(
+    // The trash sweeper is not a user — its purges are attributed to a fixed system actor.
+    private static AuditLogActorContext SystemActor(Guid correlationId) => new(
+        Identity: new GenericUserIdentity(IdentityType: "system", Identity: "trash-sweeper"),
+        Email: null,
+        Ip: null,
+        CorrelationId: correlationId);
+
+    private PurgeResult PurgeExpired(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         DateTimeOffset cutoff,
@@ -225,10 +250,13 @@ public class TrashSweeperHostedService(
         {
             dbWriteContext.DeferForeignKeys(transaction);
 
-            var fileIds = dbWriteContext
+            // File details are captured before the purge wipes the rows, so the audit log
+            // can record exactly which files the retention sweep removed.
+            var rows = dbWriteContext
                 .Cmd(
                     sql: """
-                         SELECT fi_id
+                         SELECT fi_id, fi_external_id, fi_name, fi_extension, fi_size_in_bytes,
+                                fi_original_folder_path
                          FROM fi_files
                          WHERE fi_workspace_id = $workspaceId
                            AND fi_deleted_at IS NOT NULL
@@ -237,22 +265,22 @@ public class TrashSweeperHostedService(
                          ORDER BY fi_deleted_at ASC
                          LIMIT $cap
                          """,
-                    readRowFunc: reader => reader.GetInt32(0),
+                    readRowFunc: TrashedFileRow.Read,
                     transaction: transaction)
                 .WithParameter("$workspaceId", workspace.Id)
                 .WithParameter("$cutoff", cutoff)
                 .WithParameter("$cap", cap)
                 .Execute();
 
-            if (fileIds.Count == 0)
+            if (rows.Count == 0)
             {
                 transaction.Commit();
-                return 0;
+                return new PurgeResult(Count: 0, Files: []);
             }
 
             var deletedCount = purgeFilesSubQuery.Execute(
                 workspaceId: workspace.Id,
-                fileIds: fileIds,
+                fileIds: rows.Select(r => r.Id).ToList(),
                 correlationId: correlationId,
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);
@@ -265,7 +293,9 @@ public class TrashSweeperHostedService(
                 workspace.Id,
                 cutoff);
 
-            return deletedCount;
+            return new PurgeResult(
+                Count: deletedCount,
+                Files: rows.Select(r => r.FileRef).ToList());
         }
         catch
         {
@@ -274,6 +304,7 @@ public class TrashSweeperHostedService(
         }
     }
 
+    private readonly record struct PurgeResult(int Count, List<Audit.FileRef> Files);
 }
 
 public class TrashSweeperOptions

@@ -153,7 +153,10 @@ public class AuditLogService(
 
     public async ValueTask Log(AuditLogEntry entry, CancellationToken cancellationToken)
     {
-        var evaluation = await policyEvaluator.Evaluate(entry, cancellationToken);
+        var evaluation = await policyEvaluator.Evaluate(
+            entry, 
+            cancellationToken);
+            
         if (!evaluation.ShouldLog)
             return;
 

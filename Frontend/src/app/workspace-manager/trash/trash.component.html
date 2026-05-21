@@ -11,21 +11,28 @@
                 <app-action-btn
                     tooltip="Restore selected"
                     icon="icon-lucide-undo"
+                    [isLoading]="isLoading()"
                     (clicked)="restoreSelected()">
                 </app-action-btn>
 
-                <app-action-btn
-                    tooltip="Delete selected"
-                    icon="icon-nucleo-remove"
-                    [danger]="true"
-                    (clicked)="deleteSelectedForever()">
-                </app-action-btn>
+                @if (isOwnerOrAdmin()) {
+                    <app-action-btn
+                        tooltip="Delete selected"
+                        icon="icon-nucleo-remove"
+                        [danger]="true"
+                        [isLoading]="isLoading()"
+                        (clicked)="deleteSelectedForever()">
+                    </app-action-btn>
+                }
             }
 
-            <app-action-text-btn
-                text="Empty trash"
-                (clicked)="emptyTrash()">
-            </app-action-text-btn>
+            @if (isOwnerOrAdmin()) {
+                <app-action-text-btn
+                    text="Empty trash"
+                    [disabled]="isLoading()"
+                    (clicked)="emptyTrash()">
+                </app-action-text-btn>
+            }
 
             <mat-checkbox
                 [matTooltip]="areAllSelected() ? 'Unselect all' : 'Select all'"
