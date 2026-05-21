@@ -263,6 +263,13 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
         this.dataStore.prefetchWorkspaceMemberList(this._workspaceExternalId);
     }
 
+    prefetchTrash() {
+        if(this.isTrashActive())
+            return;
+
+        this.dataStore.prefetchTrash(this._workspaceExternalId);
+    }
+
     toggleMenu() {
         this.isMenuOpen.set(!this.isMenuOpen());
     }

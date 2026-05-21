@@ -1,0 +1,67 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        Restore {{ data.count }} file(s)
+    </div>
+
+    <div class="questionaire__content">
+        <mat-radio-group
+            class="restore-dialog__modes"
+            [value]="mode()"
+            (change)="onModeChange($event)">
+
+            <mat-radio-button value="original-path">
+                <span class="restore-dialog__mode-label">Original location</span>
+                <span class="restore-dialog__mode-hint">
+                    Each file goes back where it was; missing folders are recreated.
+                </span>
+            </mat-radio-button>
+
+            <mat-radio-button value="chosen-folder">
+                <span class="restore-dialog__mode-label">Choose a folder</span>
+                <span class="restore-dialog__mode-hint">
+                    Put every selected file into one folder you pick below.
+                </span>
+            </mat-radio-button>
+        </mat-radio-group>
+
+        @if (mode() === 'chosen-folder') {
+            <div class="restore-dialog__picker">
+                <div class="restore-dialog__target">
+                    <i class="icon icon-lg icon-nucleo-folder"></i>
+                    <span>Restoring into <strong>{{ targetFolderLabel() }}</strong></span>
+                </div>
+
+                <app-files-explorer
+                    [filesApi]="filesApi()"
+                    [uploadsApi]="uploadsApi()"
+
+                    [initialContent]="null"
+                    [currentFolderExternalId]="currentFolderExternalId()"
+                    [currentFileExternalIdInPreview]="null"
+
+                    [allowList]="true"
+                    [allowCreateFolder]="true"
+                    [allowFolderShare]="false"
+
+                    [hideContextBar]="true"
+                    [hideSelectAll]="true"
+                    [hideFiles]="true"
+
+                    (folderSelected)="onFolderSelected($event)">
+                </app-files-explorer>
+            </div>
+        }
+    </div>
+
+    <div class="questionaire__actions">
+        <button type="button" class="questionaire__btn mr-1" mat-flat-button
+            (click)="cancel()">
+            Cancel
+        </button>
+
+        <button type="button" class="questionaire__btn" mat-flat-button color="primary"
+            (click)="restore()">
+            {{ mode() === 'chosen-folder' ? 'Restore here' : 'Restore' }}
+        </button>
+    </div>
+</div>

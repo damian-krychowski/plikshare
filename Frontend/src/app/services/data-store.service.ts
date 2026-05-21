@@ -12,6 +12,7 @@ import { GetStoragesResponse, StoragesApi } from "./storages.api";
 import { EmailProvidersApi, GetEmailProvidersResponse } from "./email-providers.api";
 import { GetIntegrationsResponse, IntegrationsApi } from "./integrations.api";
 import { GetQuickSharesResponse, QuickSharesApi } from "./quick-shares.api";
+import { GetTrashItemsResponse, TrashApi } from "./trash.api";
 
 type dataPrefetch<T> = {
     promise: Promise<T>;
@@ -36,7 +37,8 @@ export class DataStore {
         private _storagesApi: StoragesApi,
         private _emailProvidersApi: EmailProvidersApi,
         private _integrationsApi: IntegrationsApi,
-        private _quickSharesApi: QuickSharesApi
+        private _quickSharesApi: QuickSharesApi,
+        private _trashApi: TrashApi
     ) {
 
     }
@@ -113,6 +115,22 @@ export class DataStore {
 
     public quickSharesKey(workspaceExternalId: string): string {
         return `workspaces/${workspaceExternalId}/quick-shares`;
+    }
+
+    public prefetchTrash(workspaceExternalId: string): void {
+        this.prefetch<GetTrashItemsResponse>(
+            this.trashKey(workspaceExternalId),
+            () => this._trashApi.getItems(workspaceExternalId));
+    }
+
+    public getTrashItems(workspaceExternalId: string): Promise<GetTrashItemsResponse> {
+        return this.get<GetTrashItemsResponse>(
+            this.trashKey(workspaceExternalId),
+            () => this._trashApi.getItems(workspaceExternalId));
+    }
+
+    public trashKey(workspaceExternalId: string): string {
+        return `workspaces/${workspaceExternalId}/trash`;
     }
 
     public prefetchBox(workspaceExternalId: string, boxExternalId: string | null): void {

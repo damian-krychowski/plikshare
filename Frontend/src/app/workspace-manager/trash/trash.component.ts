@@ -3,6 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialog } from '@angular/material/dialog';
 import { firstValueFrom } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { TrashApi, TrashItemDto } from '../../services/trash.api';
@@ -18,6 +19,11 @@ import {
     countSelectedDescendants
 } from '../../shared/zip-file-tree-view/zip-file-tree-view.component';
 import { TrashFileItemComponent } from './trash-file-item/trash-file-item.component';
+import {
+    RestoreFromTrashDialogComponent,
+    RestoreFromTrashDialogData,
+    RestoreFromTrashDialogResult
+} from './restore-from-trash-dialog/restore-from-trash-dialog.component';
 
 // 'flat' — the grouped-by-folder list of trash-file-items. 'tree' — the nested tree view
 // with select/exclude checkboxes (the zip-file-tree-view component).
@@ -116,6 +122,7 @@ export class TrashComponent implements OnInit {
         private _genericDialog: GenericDialogService,
         private _toastr: ToastrService,
         private _dataStore: DataStore,
+        private _dialog: MatDialog,
         private _el: ElementRef<HTMLElement>)
     {
     }
@@ -132,7 +139,9 @@ export class TrashComponent implements OnInit {
         try {
             this.isLoading.set(true);
 
-            const response = await this._trashApi.getItems(this._workspaceExternalId);
+            // Via the data store so a prefetch (trash icon hover) is consumed when present;
+            // a reload after a mutation re-fetches fresh.
+            const response = await this._dataStore.getTrashItems(this._workspaceExternalId);
 
             this.items.set(response.items);
             this.totalSizeInBytes.set(response.totalSizeInBytes);
@@ -386,14 +395,28 @@ export class TrashComponent implements OnInit {
         if (!this._workspaceExternalId || ids.length === 0)
             return;
 
+        // The dialog lets the user pick the destination: original location or a chosen folder.
+        const choice = await firstValueFrom(this._dialog
+            .open<RestoreFromTrashDialogComponent, RestoreFromTrashDialogData, RestoreFromTrashDialogResult>(
+                RestoreFromTrashDialogComponent, {
+                    width: '700px',
+                    maxHeight: '600px',
+                    position: { top: '100px' },
+                    data: { count: ids.length, workspaceExternalId: this._workspaceExternalId }
+                })
+            .afterClosed());
+
+        if (!choice)
+            return;
+
         try {
             this.isLoading.set(true);
 
             const response = await this._trashApi.restore(this._workspaceExternalId, {
                 items: ids.map(id => ({
                     fileExternalId: id,
-                    mode: 'original-path' as const,
-                    targetFolderExternalId: null
+                    mode: choice.mode,
+                    targetFolderExternalId: choice.targetFolderExternalId
                 }))
             });
 

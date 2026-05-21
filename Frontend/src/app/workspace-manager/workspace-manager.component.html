@@ -103,10 +103,11 @@
                     mat-flat-button
                     matTooltip="Trash"
                     matTooltipPosition="below"
+                    (prefetch)="prefetchTrash()"
                     (click)="goToTrash()">
                     <i class="icon icon-xl icon-nucleo-remove"></i>
                 </button>
-            } 
+            }
             
             @if(auth.canManageUsers()) {
                 <button

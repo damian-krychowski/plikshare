@@ -187,6 +187,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
     hideContextBar = input(false);
     hideSelectAll = input(false);
+    hideFiles = input(false);
     hideItemsActions = input(false);
     hideItemShareAction = input(false);
     hideItemDownloadAction = input(false);
@@ -396,7 +397,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     expandFilesSection = () => this.isFilesExpanded.set(true);
 
     showFoldersSection = computed(() => this.hasFolders() || this.allowCreateFolder());
-    showFilesSection = computed(() => this.hasFiles() || this.hasUploads() || this.canUpload());
+    showFilesSection = computed(() =>
+        !this.hideFiles() && (this.hasFiles() || this.hasUploads() || this.canUpload()));
 
     isEmptyMessageVisible = computed(() => this.showEmptyFolderMessaage() && this.itemsCount() == 0);
 
