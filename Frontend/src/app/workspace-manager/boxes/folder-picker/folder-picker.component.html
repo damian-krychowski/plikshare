@@ -1,4 +1,4 @@
-<div class="questionaire">
+<div class="questionaire folder-picker">
     <div class="questionaire__title">
         Which folder do you want to share?
     </div>
@@ -12,24 +12,43 @@
             [currentFolderExternalId]="currentFolderExternalId()"
             [currentFileExternalIdInPreview]="null"
 
+            [constHeightMode]="true"
+
             [allowList]="true"
             [allowCreateFolder]="true"
-            [allowFolderShare]="true"
+            [allowFolderShare]="false"
 
             [hideContextBar]="true"
             [hideSelectCheckboxes]="true"
             [hideBigAddFolderBtn]="true"
             [hideReorder]="true"
 
-            (boxCreated)="onBoxCreated($event)">    
+            (folderSelected)="onFolderSelected($event)">
         </app-files-explorer>
     </div>
 
-    <div class="questionaire__actions"> 
+    <div class="questionaire__actions pt-1">
+        <div class="folder-picker__target">
+            <i class="icon icon-lg icon-nucleo-folder"></i>
+            @if (selectedFolder()) {
+                <span>Sharing <strong>{{ targetFolderLabel() }}</strong></span>
+            } @else {
+                <span>Open a folder to select it</span>
+            }
+        </div>
+    </div>
+
+    <div class="questionaire__actions pt-1">
         <button type="button" class="questionaire__btn mr-1" mat-flat-button
             aria-label="Cancel"
             (click)="onCancel()">
             Cancel
+        </button>
+
+        <button type="button" class="questionaire__btn" mat-flat-button color="primary"
+            [disabled]="!selectedFolder()"
+            (click)="onConfirm()">
+            Share this folder
         </button>
     </div>
 </div>

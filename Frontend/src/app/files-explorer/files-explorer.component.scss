@@ -14,7 +14,11 @@
 
     &--const-height {
         height: 235px;
-        overflow: auto;
+        // Force the internal scroll even inside a `.questionaire` dialog, whose
+        // `.questionaire .explorer-content` rule otherwise wins on specificity and
+        // sets overflow-y: hidden — clipping the list with no scrollbar.
+        overflow-x: auto;
+        overflow-y: auto !important;
         scrollbar-width: thin;
 
         .drop-area__anchor {

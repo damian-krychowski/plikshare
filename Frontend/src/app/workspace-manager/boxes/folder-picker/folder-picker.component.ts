@@ -1,4 +1,4 @@
-import { Component, Inject, signal, ViewEncapsulation, WritableSignal } from '@angular/core';
+import { Component, Inject, computed, signal, ViewEncapsulation, WritableSignal } from '@angular/core';
 import { FilesExplorerApi, FilesExplorerComponent } from '../../../files-explorer/files-explorer.component';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { FoldersAndFilesGetApi, FoldersAndFilesSetApi } from '../../../services/folders-and-files.api';
@@ -21,8 +21,21 @@ import { FileLockService } from '../../../services/file-lock.service';
 export class FolderPickerComponent {
     currentFolderExternalId: WritableSignal<string | null> = signal(null);
 
+    // The folder currently open in the embedded explorer — the share target.
+    // null = workspace root, which cannot back a box, so confirming is disabled.
+    selectedFolder = signal<AppFolderItem | null>(null);
+
     filesApi: WritableSignal<FilesExplorerApi>;
     uploadsApi = signal(null);
+
+    targetFolderLabel = computed(() => {
+        const folder = this.selectedFolder();
+
+        if (!folder)
+            return '';
+
+        return [...folder.ancestors.map(a => a.name), folder.name()].join(' / ');
+    });
 
     constructor(
         _setApi: FoldersAndFilesSetApi,
@@ -31,7 +44,7 @@ export class FolderPickerComponent {
         _fileLockService: FileLockService,
         public dialogRef: MatDialogRef<FolderPickerComponent>,
         @Inject(MAT_DIALOG_DATA) public data: {workspaceExternalId: string}) {
-        
+
         this.filesApi = signal(new WorkspaceFilesExplorerApi(
             _setApi,
             _getApi,
@@ -41,7 +54,16 @@ export class FolderPickerComponent {
         ));
     }
 
-    public onBoxCreated(folder: AppFolderItem) {
+    public onFolderSelected(folder: AppFolderItem | null) {
+        this.selectedFolder.set(folder);
+    }
+
+    public onConfirm() {
+        const folder = this.selectedFolder();
+
+        if (!folder)
+            return;
+
         this.dialogRef.close(folder);
     }
 

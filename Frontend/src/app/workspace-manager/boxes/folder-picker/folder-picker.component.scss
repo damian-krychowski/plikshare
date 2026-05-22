@@ -1,5 +1,26 @@
 @forward "./../../../../styles/questionaire.scss";
 
+.folder-picker {
+    // Grow with the embedded files-explorer rather than scrolling the dialog body.
+    // Mirrors the dialog container's maxHeight so neither scrolls until the viewport
+    // itself runs out of room.
+    &.questionaire {
+        max-height: calc(100vh - 140px);
+    }
+
+    // Live destination indicator — tracks the folder currently open in the explorer above.
+    &__target {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem 0.6rem;
+        border-radius: var(--mdc-filled-button-container-shape);
+        background: var(--company-primary-bg, #e3f2fd);
+        color: var(--company-primary-font, #1565c0);
+        font-size: var(--company-small-font);
+        width: 100%;
+    }
+}
 
 .sticky-wrapper {
     background-color: white !important;

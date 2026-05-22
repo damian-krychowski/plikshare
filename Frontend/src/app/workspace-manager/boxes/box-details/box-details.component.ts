@@ -329,7 +329,9 @@ export class BoxDetailsComponent implements OnInit, OnDestroy {
             data: {
                 workspaceExternalId: this._workspaceExternalId,
             },
-            maxHeight: '600px',
+            // Stretch to fit the embedded files-explorer instead of capping at a fixed
+            // height and scrolling. 140px = 100px top offset + margin.
+            maxHeight: 'calc(100vh - 140px)',
             position: {
                 top: '100px'
             }
