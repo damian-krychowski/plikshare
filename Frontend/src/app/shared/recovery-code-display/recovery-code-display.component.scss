@@ -1,5 +1,7 @@
 .recovery-code {
     padding: 1.5rem 2rem 1rem;
+    max-height: calc(100vh - 80px - 1rem);
+    overflow-y: auto;
 
     &__title {
         font-size: 1.4rem;
