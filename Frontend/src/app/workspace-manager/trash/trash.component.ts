@@ -416,7 +416,9 @@ export class TrashComponent implements OnInit {
             .open<RestoreFromTrashDialogComponent, RestoreFromTrashDialogData, RestoreFromTrashDialogResult>(
                 RestoreFromTrashDialogComponent, {
                     width: '700px',
-                    maxHeight: '600px',
+                    // Stretch to fit the embedded files-explorer (chosen-folder mode) instead
+                    // of capping at a fixed height and scrolling. 140px = 100px top offset + margin.
+                    maxHeight: 'calc(100vh - 140px)',
                     position: { top: '100px' },
                     data: { count: ids.length, workspaceExternalId: this._workspaceExternalId }
                 })

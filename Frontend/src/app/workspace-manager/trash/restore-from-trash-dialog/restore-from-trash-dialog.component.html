@@ -1,4 +1,6 @@
-<div class="questionaire">
+@let isChosenFolderMode = mode() === 'chosen-folder';
+
+<div class="questionaire restore-dialog">
     <div class="questionaire__title">
         Restore {{ data.count }} file(s)
     </div>
@@ -24,13 +26,8 @@
             </mat-radio-button>
         </mat-radio-group>
 
-        @if (mode() === 'chosen-folder') {
+        @if (isChosenFolderMode) {
             <div class="restore-dialog__picker">
-                <div class="restore-dialog__target">
-                    <i class="icon icon-lg icon-nucleo-folder"></i>
-                    <span>Restoring into <strong>{{ targetFolderLabel() }}</strong></span>
-                </div>
-
                 <app-files-explorer
                     [filesApi]="filesApi()"
                     [uploadsApi]="uploadsApi()"
@@ -39,21 +36,35 @@
                     [currentFolderExternalId]="currentFolderExternalId()"
                     [currentFileExternalIdInPreview]="null"
 
+                    [constHeightMode]="true"
+
                     [allowList]="true"
                     [allowCreateFolder]="true"
                     [allowFolderShare]="false"
 
                     [hideContextBar]="true"
-                    [hideSelectAll]="true"
+                    [hideSelectCheckboxes]="true"
                     [hideFiles]="true"
+                    [hideReorder]="true"
+                    [hideBigAddFolderBtn]="true"
 
                     (folderSelected)="onFolderSelected($event)">
                 </app-files-explorer>
             </div>
-        }
-    </div>
+        }       
+    </div>   
 
-    <div class="questionaire__actions">
+    @if (isChosenFolderMode){
+        <div class="questionaire__actions pt-1">
+            <div class="restore-dialog__target">
+                <i class="icon icon-lg icon-nucleo-folder"></i>
+                <span>Restoring into <strong>{{ targetFolderLabel() }}</strong></span>
+            </div>
+        </div>
+    }
+
+    <div class="questionaire__actions"
+        [class.pt-1]="isChosenFolderMode">
         <button type="button" class="questionaire__btn mr-1" mat-flat-button
             (click)="cancel()">
             Cancel

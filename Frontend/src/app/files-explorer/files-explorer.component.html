@@ -256,7 +256,7 @@
 
                     </span>
 
-                    @if(allowList()) {
+                    @if(allowList() && !hideSearch()) {
                         <app-item-search
                             [collapsibleOnMobile]="true"
                             [isExpanded]="isSearchExpandedOnMobile()"
@@ -319,7 +319,7 @@
                     }
                     </span>
 
-                    @if(allowList()) {
+                    @if(allowList() && !hideSearch()) {
                         <app-item-search
                             [collapsibleOnMobile]="true"
                             [isExpanded]="isSearchExpandedOnMobile()"
@@ -502,37 +502,41 @@
         @if(showFoldersSection()) {
             @let isFoldersExpandedVal = isFoldersExpanded();
             <section class="files-section">
-                <div class="files-section__header" role="button" tabindex="0"
-                    [attr.aria-expanded]="isFoldersExpandedVal"
-                    (click)="toggleFoldersExpanded()"
-                    (keydown.enter)="toggleFoldersExpanded()"
-                    (keydown.space)="$event.preventDefault(); toggleFoldersExpanded()"
-                    appDragOverStay
-                    (appDragOverStay)="expandFoldersSection()">
-                    <span class="files-section__title">Folders</span>
-                    <span class="files-section__count files-section__count--clickable"
-                        [matTooltip]="hasFolders() ? 'Select all folders' : ''"
-                        (click)="$event.stopPropagation(); hasFolders() && toggleAllFolders()">
-                        @if(isSearchActive()) {
-                            {{filteredFoldersCount()}}/{{foldersCount()}}
-                        } @else {
-                            {{foldersCount()}}
-                        }
-                    </span>
-                    @if(selectedFoldersCount() > 0) {
-                        <span class="files-section__selected"
-                            [matTooltip]="'Clear folders selection'"
-                            (click)="$event.stopPropagation(); toggleAllFolders()">
-                            <i class="icon icon-lucide-check"></i>{{selectedFoldersCount()}}
+                @if(showFolderBar()) {
+                    <div class="files-section__header" role="button" tabindex="0"
+                        [attr.aria-expanded]="isFoldersExpandedVal"
+                        (click)="toggleFoldersExpanded()"
+                        (keydown.enter)="toggleFoldersExpanded()"
+                        (keydown.space)="$event.preventDefault(); toggleFoldersExpanded()"
+                        appDragOverStay
+                        (appDragOverStay)="expandFoldersSection()">
+                        <span class="files-section__title">Folders</span>
+
+                        <span class="files-section__count files-section__count--clickable"
+                            [matTooltip]="hasFolders() ? 'Select all folders' : ''"
+                            (click)="$event.stopPropagation(); hasFolders() && toggleAllFolders()">
+                            @if(isSearchActive()) {
+                                {{filteredFoldersCount()}}/{{foldersCount()}}
+                            } @else {
+                                {{foldersCount()}}
+                            }
                         </span>
-                    }
 
-                    <i class="files-section__chevron icon"
-                        [class.icon-lucide-chevron-down]="isFoldersExpandedVal"
-                        [class.icon-lucide-chevron-right]="!isFoldersExpandedVal"></i>
-                </div>
+                        @if(selectedFoldersCount() > 0) {
+                            <span class="files-section__selected"
+                                [matTooltip]="'Clear folders selection'"
+                                (click)="$event.stopPropagation(); toggleAllFolders()">
+                                <i class="icon icon-lucide-check"></i>{{selectedFoldersCount()}}
+                            </span>
+                        }
 
-                @if(isFoldersExpandedVal) {
+                        <i class="files-section__chevron icon"
+                            [class.icon-lucide-chevron-down]="isFoldersExpandedVal"
+                            [class.icon-lucide-chevron-right]="!isFoldersExpandedVal"></i>
+                    </div>
+                }
+
+                @if(isFoldersExpandedVal || !showFolderBar()) {
                     <div class="files-section__content">
                         <app-folders-list
                             [folders]="folders()"
@@ -551,7 +555,7 @@
                             (boxCreated)="createBoxFromFolder($event)">
                         </app-folders-list>
 
-                        @if(allowCreateFolder()){
+                        @if(allowCreateFolder() && !hideBigAddFolderBtn()){
                             <div class="mt-2"></div>
 
                             <app-item-btn
@@ -586,6 +590,7 @@
                             {{filesCount()}}
                         }
                     </span>
+
                     @if(selectedFilesCount() > 0) {
                         <span class="files-section__selected"
                             [matTooltip]="'Clear files selection'"
@@ -593,6 +598,7 @@
                             <i class="icon icon-lucide-check"></i>{{selectedFilesCount()}}
                         </span>
                     }
+
                     @if(hasUploads()) {
                         <span class="files-section__count-extra files-section__count--clickable"
                             [matTooltip]="'Select all uploads'"
@@ -625,6 +631,7 @@
                             [operations]="operations"
                             [hideActions]="hideItemsActions()"
                             [hideDownloadAction]="hideItemDownloadAction()"
+                            [hideSelectCheckboxes]="hideSelectCheckboxes()"
                             [permissions]="filePermissions()"
                             [isAnyNameEditPending]="isAnyNameEditPending()"
                             [filesApi]="filesApi()"

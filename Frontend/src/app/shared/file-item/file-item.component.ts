@@ -84,6 +84,7 @@ export class FileItemComponent implements OnInit, OnDestroy {
     showPath = input(false);
     hideActions = input(false);
     hideDownloadAction = input(false);
+    hideSelectCheckbox = input(false);
     canReorder = input(false);
     highlightPhrase = input<string>('');
 
@@ -123,6 +124,9 @@ export class FileItemComponent implements OnInit, OnDestroy {
 
     isSelectCheckboxVisible = computed(() => {
         if (!this.canSelect())
+            return false;
+
+        if (this.hideSelectCheckbox())
             return false;
 
         if (this.file().wasUploadedByUser)

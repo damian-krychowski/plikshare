@@ -186,15 +186,18 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     }));
 
     hideContextBar = input(false);
-    hideSelectAll = input(false);
     hideFiles = input(false);
     hideItemsActions = input(false);
     hideItemShareAction = input(false);
     hideItemDownloadAction = input(false);
+    hideReorder = input(false);
+    hideBigAddFolderBtn = input(false);
+    hideSearch = input(false);
+    hideSelectCheckboxes = input(false);
 
     integrations = input<WorkspaceIntegrations>({textract: null, chatGpt:[]});
 
-    canSelectAll = computed(() => this.hasAnyItem() && !this.hideSelectAll() && this.canSelectItems());
+    canSelectAll = computed(() => this.hasAnyItem() && !this.hideSelectCheckboxes() && this.canSelectItems());
     canSelectItems = computed(() => this.allowMoveItems() || this.allowDownload() || this.allowFileDelete() || this.allowFileDelete());
 
     showEmptyFolderMessaage = input(false);
@@ -396,9 +399,14 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     expandFoldersSection = () => this.isFoldersExpanded.set(true);
     expandFilesSection = () => this.isFilesExpanded.set(true);
 
+    //if there are no files to show there is no point to show folder bar
+    //because only folders are visible anyway
+    showFolderBar = computed(() => this.showFilesSection());
+
     showFoldersSection = computed(() => this.hasFolders() || this.allowCreateFolder());
-    showFilesSection = computed(() =>
-        !this.hideFiles() && (this.hasFiles() || this.hasUploads() || this.canUpload()));
+
+    showFilesSection = computed(() => !this.hideFiles() 
+        && (this.hasFiles() || this.hasUploads() || this.canUpload()));
 
     isEmptyMessageVisible = computed(() => this.showEmptyFolderMessaage() && this.itemsCount() == 0);
 
@@ -426,7 +434,11 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
     isSearchActive = computed(() => this.searchPhrase().length > 0);
 
-    canReorder = computed(() => this.sortMode() === 'custom' && this.filesApi().updatePositions != null && !this.isSearchActive());
+    canReorder = computed(() => 
+        this.sortMode() === 'custom' 
+        && this.filesApi().updatePositions != null 
+        && !this.isSearchActive()
+        && !this.hideReorder());
 
     explorerTreeItems = computed(() => [...this.folders(), ...this.files()]);
     

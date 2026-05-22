@@ -26,15 +26,16 @@ export class FilesListComponent implements OnDestroy {
     sortDirection = input.required<SortDirection>();
     files = input.required<AppFileItem[]>();
     searchPhrase = input.required<string>();
+    operations = input.required<FileOperations>();
+    permissions = input.required<AppFilePermissions>();
+    filesApi = input.required<FilesExplorerApi>();
 
     currentFolderExternalId = input<string | null>(null);
     canReorder = input(false);
-    operations = input.required<FileOperations>();
     hideActions = input(false);
     hideDownloadAction = input(false);
-    permissions = input.required<AppFilePermissions>();
+    hideSelectCheckboxes = input(false);
     isAnyNameEditPending = input(false);
-    filesApi = input.required<FilesExplorerApi>();
 
     deleted = output<AppFileItem>();
     previewed = output<AppFileItem>();
