@@ -5,17 +5,156 @@
 @forward "./../../styles/top-nav-btn.scss";
 @use './../../styles/variables.scss' as variables;
 
-.setup-explanation {
-    font-size: 1rem;
-    opacity: 0.8;
-    padding-left: 0.5rem;
-}
+.setup-dashboard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 3.5rem 1.5rem;
+    margin-top: 2rem;
+    border: 1px solid var(--company-grey-accent-light);
+    color: var(--company-grey-font);
+    background: white;
 
-.step {
-    padding-left: 1rem;
+    &__icon-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 7rem;
+        height: 7rem;
+        border-radius: 50%;
+        background-color: var(--company-grey-accent-light);
+        border: 1px dashed var(--company-grey-accent);
+        margin-bottom: 1.75rem;
+    }
 
-    &__number {
+    &__icon {
+        font-size: 3.5rem;
+        opacity: 0.55;
+    }
+
+    &__title {
+        font-size: 1.5rem;
         font-weight: 600;
+        color: var(--company-font);
+        margin-bottom: 0.5rem;
+    }
+
+    &__subtitle {
+        font-size: 1rem;
+        opacity: 0.85;
+        margin-bottom: 2rem;
+        word-break: break-word;
+        max-width: 540px;
+    }
+
+    // Left-aligned column inside the centred card — a numbered list reads better flush-left.
+    &__steps {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        width: 100%;
+        max-width: 540px;
+        text-align: left;
+        margin-bottom: 2rem;
+    }
+
+    &__step {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+    }
+
+    &__step-number {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        background-color: var(--company-grey-accent-light);
+        border: 1px solid var(--company-grey-accent);
+        color: var(--company-font);
+        font-weight: 600;
+    }
+
+    &__step-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: var(--company-medium-font);
+        font-weight: 600;
+        color: var(--company-font);
+        margin-bottom: 0.15rem;
+    }
+
+    // "Optional" pill — email setup can be skipped since users can also be invited by link.
+    &__step-tag {
+        font-size: var(--company-small-font);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--company-grey-font);
+        background-color: var(--company-grey-accent-light);
+        border: 1px solid var(--company-grey-accent);
+        border-radius: 999px;
+        padding: 0.05rem 0.5rem;
+    }
+
+    &__step-description {
+        font-size: var(--company-medium-font);
+        line-height: 1.5;
+    }
+
+    // Soft aside: the e-mail step is skippable, so the link-invite alternative is set
+    // apart from the main instruction — lighter, italic, with an info icon and a thin accent.
+    &__step-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.4rem;
+        margin-top: 0.5rem;
+        padding-left: 0.6rem;
+        border-left: 2px solid var(--company-grey-accent);
+        font-size: var(--company-small-font);
+        font-style: italic;
+        line-height: 1.45;
+        color: var(--company-grey-font);
+        opacity: 0.9;
+    }
+
+    &__step-note-icon {
+        flex-shrink: 0;
+        margin-top: 0.1rem;
+        opacity: 0.7;
+    }
+
+    &__hint {
+        font-size: var(--company-medium-font);
+        opacity: 0.75;
+        font-style: italic;
+        max-width: 540px;
+        margin: 0;
+    }
+
+    @media (max-width: variables.$mobile-breakpoint) {
+        padding: 2.25rem 1rem;
+        margin-top: 1rem;
+        border-radius: 10px;
+
+        &__icon-wrap {
+            width: 5.5rem;
+            height: 5.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        &__icon {
+            font-size: 2.75rem;
+        }
+
+        &__title {
+            font-size: 1.25rem;
+        }
     }
 }
 

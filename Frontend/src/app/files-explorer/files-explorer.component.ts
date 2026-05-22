@@ -207,6 +207,14 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     workspaceExternalId = input<string | null>(null);
     allowDateSort = input(false);
 
+    // When the workspace's trash policy is on, deleting a file is recoverable — the
+    // delete-confirmation dialog reflects that instead of "cannot be reverted".
+    isTrashEnabled = input(false);
+
+    deleteConfirmSubtitle = computed(() => this.isTrashEnabled()
+        ? 'Deleted files are moved to the trash and can be restored from there.'
+        : 'This operation cannot be reverted.');
+
     sortMode = signal<SortMode>('custom');
     sortDirection = signal<SortDirection>('asc');
 

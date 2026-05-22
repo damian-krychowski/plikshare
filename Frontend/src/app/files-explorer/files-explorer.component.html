@@ -68,10 +68,11 @@
                             <app-action-btn
                                 tooltip="Delete"
                                 icon="icon-nucleo-remove"
-                                appConfirmOperation 
+                                appConfirmOperation
                                 [operationItem]="'the file'"
                                 [verb]="'delete'"
                                 [isOperationDanger]="true"
+                                [operationSubtitle]="deleteConfirmSubtitle()"
                                 (confirmedClick)="deleteFile(fileInPreviewVal)">
                             </app-action-btn>
                         }
@@ -206,10 +207,11 @@
                         <app-action-btn
                             tooltip="Delete"
                             icon="icon-nucleo-remove"
-                            appConfirmOperation 
+                            appConfirmOperation
                             [operationItem]="'selected items'"
                             [verb]="'delete'"
                             [isOperationDanger]="true"
+                            [operationSubtitle]="deleteConfirmSubtitle()"
                             (confirmedClick)="deleteSelectedItems()">
                         </app-action-btn>
                     }
@@ -314,6 +316,7 @@
                             [operationItem]="'selected items'"
                             [verb]="'delete'"
                             [isOperationDanger]="true"
+                            [operationSubtitle]="deleteConfirmSubtitle()"
                             (confirmedClick)="triggerSelectedTreeItemsDelete()">
                         </app-action-btn>
                     }

@@ -118,7 +118,15 @@
                 </mat-error>        
             }
 
-            <app-encryption-type-selector formControlName="encryption" />
+            <div class="page-form__section-title">
+                Options:
+            </div>
+
+            <app-config-card
+                title="Encryption"
+                description="Choose how files on this storage are encrypted at rest. This is set once and cannot be changed later.">
+                <app-encryption-type-selector formControlName="encryption" />
+            </app-config-card>
 
             <app-config-card
                 title="Trash"

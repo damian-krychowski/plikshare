@@ -109,7 +109,10 @@ public class TrashSweeperHostedService(
         await hostStarted.Task.WaitAsync(stoppingToken);
     }
 
-    private async Task RunTick(CancellationToken cancellationToken)
+    // internal (not private) so integration tests can drive a single deterministic sweep
+    // instead of waiting out the production interval. The background loop above is the
+    // only other caller.
+    internal async Task RunTick(CancellationToken cancellationToken)
     {
         var workspaceIds = GetSweepCandidates();
 

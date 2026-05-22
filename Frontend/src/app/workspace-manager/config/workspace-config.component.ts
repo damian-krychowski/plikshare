@@ -17,6 +17,7 @@ import { ActionTextButtonComponent } from '../../shared/buttons/action-text-btn/
 import { AuditLogPolicyApi } from '../../account/audit-log/policy/audit-log-policy.api';
 import { TrashPolicyConfigChangedEvent, TrashPolicyConfigComponent } from '../../shared/trash-policy-config/trash-policy-config.component';
 import { ConfigCardComponent } from '../../shared/config-card/config-card.component';
+import { GenericDialogService } from '../../shared/generic-message-dialog/generic-dialog-service';
 
 
 
@@ -84,7 +85,8 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
         private _router: Router,
         private _dataStore: DataStore,
         public auth: AuthService,
-        private _auditLogPolicyApi: AuditLogPolicyApi)
+        private _auditLogPolicyApi: AuditLogPolicyApi,
+        private _genericDialog: GenericDialogService)
     {
     }
 
@@ -214,7 +216,36 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
 
     private _trashPolicyDebouncer = new Debouncer(500);
     onTrashPolicyChange(event: TrashPolicyConfigChangedEvent) {
-        this.trashPolicy.set(event.trashPolicy);
+        const previous = this.trashPolicy();
+        const next = event.trashPolicy;
+
+        // Turning trash off purges whatever is already in it at the next cleanup sweep —
+        // make the admin confirm before that happens.
+        const isDisablingTrash = !!previous?.enabled && !next.enabled;
+
+        if (isDisablingTrash) {
+            this._genericDialog.openGenericMessageDialog({
+                title: 'Disable trash?',
+                message: "Any files currently in this workspace's trash will be permanently "
+                    + 'deleted at the next scheduled cleanup, which runs about once an hour. '
+                    + 'This cannot be undone.',
+                confirmButtonText: 'Disable trash',
+                showCancelButton: true,
+                cancelButtonText: 'Keep trash on',
+                isDanger: true
+            }).subscribe(confirmed => {
+                if (confirmed) {
+                    this.trashPolicy.set(next);
+                    this._trashPolicyDebouncer.debounceAsync(() => this.saveTrashPolicy());
+                } else {
+                    // Revert the picker — a fresh object reference forces the child to re-init.
+                    this.trashPolicy.set(previous ? { ...previous } : previous);
+                }
+            });
+            return;
+        }
+
+        this.trashPolicy.set(next);
         this._trashPolicyDebouncer.debounceAsync(() => this.saveTrashPolicy());
     }
 

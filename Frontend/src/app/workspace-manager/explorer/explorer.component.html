@@ -5,6 +5,7 @@
         [filesApi]="filesApiValue"
         [uploadsApi]="uploadsApi()"
         [workspaceExternalId]="workspaceExternalId()"
+        [isTrashEnabled]="context.workspace()?.trashPolicy?.enabled ?? false"
         [allowDateSort]="true"
 
         [hideItemShareAction]="true"

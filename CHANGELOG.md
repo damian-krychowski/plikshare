@@ -2,6 +2,18 @@
 
 Release notes for PlikShare.
 
+## 1.1.30
+
+- [FEATURE] Trash introduced — with a workspace's trash policy enabled, deleted files are moved to a per-workspace trash instead of being removed right away; from the Trash view they can be restored to their original location or to a folder of choice, permanently deleted one by one, or cleared all at once
+- [FEATURE] Configurable retention window — trashed files are automatically purged after a set number of days, or kept indefinitely; a background sweeper enforces retention and records each automatic purge in the audit log under a system actor
+- [FEATURE] Storage-level default trash policy — admins set a default trash policy on each storage; new workspaces inherit it (snapshotted at creation time) and can override it afterwards
+- [IMPROVEMENT] Workspace configuration now presents every option — size, team members, trash, audit log — as a consistent titled card with a short description
+- [IMPROVEMENT] User details settings (permissions, workspace limits, default workspace config, storage access) reworked into the same titled-card layout, replacing the previous inline labels and headers
+- [IMPROVEMENT] General settings — the new-user defaults section adopts the same titled-card layout for permissions, workspace count, default size, default team members and storage access
+- [IMPROVEMENT] Storage creation forms group the encryption type and default trash policy under an "Options" section, each presented as the same titled card used elsewhere
+- [IMPROVEMENT] Box folder picker reworked — a destination bar above the actions shows which folder will be shared and an explicit "Share this folder" button confirms the choice, instead of a per-folder share button; the dialog grows to fit the explorer instead of scrolling
+- [IMPROVEMENT] Admin first-run setup screen redesigned as a centered card — matching the empty-dashboard look — with numbered steps; the email step is marked optional since users can also be invited by link
+
 ## 1.1.29
 
 - [IMPROVEMENT] Multi-item selection for downloading from zip previews and quick shares

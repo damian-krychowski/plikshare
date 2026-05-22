@@ -52,6 +52,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="PlikShare.IntegrationTests" />
+    </ItemGroup>
+
+    <ItemGroup>
         <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="4.0.3.35" />
         <PackageReference Include="AWSSDK.S3" Version="4.0.22.1" />
         <PackageReference Include="AWSSDK.SimpleEmailV2" Version="4.0.12.12" />

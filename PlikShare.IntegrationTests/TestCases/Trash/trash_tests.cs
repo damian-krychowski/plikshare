@@ -1,12 +1,15 @@
 using System.Text;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using PlikShare.AuditLog;
 using PlikShare.BulkDelete.Contracts;
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
+using PlikShare.IntegrationTests.Infrastructure.Storage;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.HardDrive.Create.Contracts;
 using PlikShare.Storages.Id;
@@ -14,6 +17,7 @@ using PlikShare.Storages.List.Contracts;
 using PlikShare.Trash.DeleteForever.Contracts;
 using PlikShare.Trash.List.Contracts;
 using PlikShare.Trash.Restore.Contracts;
+using PlikShare.Trash.Sweeper;
 using PlikShare.Workspaces.Create.Contracts;
 using PlikShare.Workspaces.Id;
 using PlikShare.Workspaces.UpdateTrashPolicy.Contracts;
@@ -672,7 +676,133 @@ public class trash_tests : TestFixture
         result.DeletedCount.Should().Be(0);
     }
 
+    // ── Physical storage deletion ────────────────────────────────────────────
+
+    [Fact]
+    public async Task delete_forever_physically_removes_the_file_from_storage()
+    {
+        //given — a trashed file, confirmed to physically exist on the storage backend
+        var storage = await CreateHardDriveStorage(AppOwner);
+        var workspace = await CreateWorkspace(storage, AppOwner);
+        await EnableTrash(workspace);
+
+        var folder = await CreateFolder(parent: null, workspace: workspace, user: AppOwner);
+        var file = await TrashTextFile("report.txt", folder, workspace);
+
+        using var rawClient = RawStorageClient.For(storage, MainVolume);
+        var bucketName = GetWorkspaceBucketName(workspace.ExternalId);
+
+        await AssertFilePhysicallyExists(rawClient, bucketName, file);
+
+        //when
+        var result = await Api.Trash.DeleteForever(
+            workspaceExternalId: workspace.ExternalId,
+            request: new DeleteForeverRequestDto { FileExternalIds = [file.ExternalId] },
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then — the trash entry is gone ...
+        result.DeletedCount.Should().Be(1);
+        (await GetTrash(workspace)).Items.Should().BeEmpty();
+
+        //and — so is the physical object on the storage backend
+        await rawClient.WaitForFileGone(
+            bucketName: bucketName,
+            fileExternalId: file.ExternalId,
+            timeout: TimeSpan.FromSeconds(30));
+    }
+
+    [Fact]
+    public async Task retention_sweep_physically_removes_an_expired_trashed_file()
+    {
+        //given — a file trashed under a 30-day retention window
+        var storage = await CreateHardDriveStorage(AppOwner);
+        var workspace = await CreateWorkspace(storage, AppOwner);
+        await EnableTrash(workspace, retentionDays: 30);
+
+        var folder = await CreateFolder(parent: null, workspace: workspace, user: AppOwner);
+        var file = await TrashTextFile("report.txt", folder, workspace);
+
+        using var rawClient = RawStorageClient.For(storage, MainVolume);
+        var bucketName = GetWorkspaceBucketName(workspace.ExternalId);
+
+        await AssertFilePhysicallyExists(rawClient, bucketName, file);
+
+        //when — the clock jumps past the retention window and the sweeper runs a tick
+        Clock.CurrentTime(Clock.UtcNow.AddDays(31));
+        await RunTrashSweep();
+
+        //then — the sweep purged the trash entry synchronously ...
+        (await GetTrash(workspace)).Items.Should().BeEmpty();
+
+        //and — the storage-purge job it emitted physically removed the object
+        await rawClient.WaitForFileGone(
+            bucketName: bucketName,
+            fileExternalId: file.ExternalId,
+            timeout: TimeSpan.FromSeconds(30));
+    }
+
+    [Fact]
+    public async Task deleting_the_workspace_physically_removes_trashed_and_live_files()
+    {
+        //given — a workspace with trash enabled, holding one trashed file and one live file
+        var storage = await CreateHardDriveStorage(AppOwner);
+        var workspace = await CreateWorkspace(storage, AppOwner);
+        await EnableTrash(workspace);
+
+        var folder = await CreateFolder(parent: null, workspace: workspace, user: AppOwner);
+
+        var trashedFile = await TrashTextFile("trashed.txt", folder, workspace);
+        var liveFile = await UploadTextFile("live.txt", folder, workspace);
+
+        using var rawClient = RawStorageClient.For(storage, MainVolume);
+        var bucketName = GetWorkspaceBucketName(workspace.ExternalId);
+
+        await AssertFilePhysicallyExists(rawClient, bucketName, trashedFile);
+        await AssertFilePhysicallyExists(rawClient, bucketName, liveFile);
+
+        //when — the whole workspace is deleted
+        await Api.Workspaces.Delete(
+            externalId: workspace.ExternalId,
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then — both physical objects are gone, regardless of their trash state
+        await rawClient.WaitForFileGone(
+            bucketName: bucketName,
+            fileExternalId: trashedFile.ExternalId,
+            timeout: TimeSpan.FromSeconds(30));
+
+        await rawClient.WaitForFileGone(
+            bucketName: bucketName,
+            fileExternalId: liveFile.ExternalId,
+            timeout: TimeSpan.FromSeconds(30));
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    // Drives a single deterministic sweep cycle instead of waiting out the production
+    // interval. Resolves the actual hosted service so the test exercises the real purge path.
+    private Task RunTrashSweep()
+    {
+        var sweeper = HostFixture.App.Services
+            .GetServices<IHostedService>()
+            .OfType<TrashSweeperHostedService>()
+            .Single();
+
+        return sweeper.RunTick(CancellationToken.None);
+    }
+
+    private static async Task AssertFilePhysicallyExists(
+        IRawStorageClient rawClient,
+        string bucketName,
+        AppFile file)
+    {
+        var bytes = await rawClient.ReadFileBytes(bucketName, file.ExternalId);
+
+        bytes.Should().NotBeEmpty(
+            $"file '{file.Name}' must physically exist on the storage backend before deletion");
+    }
 
     private Task EnableTrash(AppWorkspace workspace, int? retentionDays = 30) =>
         Api.Workspaces.UpdateTrashPolicy(
