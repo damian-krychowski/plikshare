@@ -156,20 +156,6 @@ create_directory_and_set_permissions() {
     return 0
 }
 
-set_permanent_env_variable() {
-    local var_name="$1"
-    local var_value="$2"
-    
-    # Check if the variable already exists in /etc/environment
-    if grep -q "^${var_name}=" /etc/environment; then
-        # If it exists, update it
-        sudo sed -i "s|^${var_name}=.*|${var_name}=\"${var_value}\"|" /etc/environment
-    else
-        # If it doesn't exist, append it
-        echo "${var_name}=\"${var_value}\"" | sudo tee -a /etc/environment > /dev/null
-    fi
-}
-
 # Function to install Docker
 install_docker() {
     echo "..........[PREREQUISITES] Docker is not installed. Installing Docker..." >&2
@@ -181,23 +167,30 @@ install_docker() {
     # Update package index
     apt-get update
 
-    # Install packages to allow apt to use a repository over HTTPS
-    apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+    # Install packages required to fetch the Docker repository over HTTPS
+    apt-get install -y ca-certificates curl
 
-    # Add Docker's official GPG key
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+    # Add Docker's official GPG key into a dedicated keyring.
+    # apt-key is deprecated and removed on newer Ubuntu releases (24.04+).
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    chmod a+r /etc/apt/keyrings/docker.asc
 
     # Set up the stable repository
-    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
 
     # Update the package index again
     apt-get update
 
-    # Install the latest version of Docker CE
-    apt-get install -y docker-ce
+    # Install Docker Engine, CLI and the Compose plugin.
+    # docker-compose-plugin is required - this script uses `docker compose` (v2).
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-    # Allow current user to run Docker commands without sudo
-    usermod -aG docker $SUDO_USER
+    # Allow the invoking user to run Docker without sudo.
+    # SUDO_USER is empty when the script is run directly as root - skip then.
+    if [ -n "$SUDO_USER" ]; then
+        usermod -aG docker "$SUDO_USER"
+    fi
 
     echo "..........[PREREQUISITES] Docker has been installed successfully." >&2
 }
@@ -274,8 +267,6 @@ Domain Name:
     
     # Set PLIKSHARE_APP_URL based on the domain
     PLIKSHARE_APP_URL="https://$domain_name"
-    export PlikShare_AppUrl="${PLIKSHARE_APP_URL}"
-    set_permanent_env_variable "PlikShare_AppUrl" "$PLIKSHARE_APP_URL"  
 
     # Email address
     echo "
@@ -295,9 +286,6 @@ Email Address:
             echo "[ERROR] Invalid email address. Please enter a valid email." >&2
         fi
     done
-    
-    export PlikShare_AppOwners="${email_address}"
-    set_permanent_env_variable "PlikShare_AppOwners" "$email_address"  
 
     # PLIKSHARE_APP_OWNERS_INITIAL_PASSWORD
     echo "
@@ -307,10 +295,6 @@ Admin Initial Password:
     Make sure to choose a strong, unique password.
     " >&2
     ask_silent_input "PLIKSHARE_APP_OWNERS_INITIAL_PASSWORD" PLIKSHARE_APP_OWNERS_INITIAL_PASSWORD true true
-    
-    # Set and export the password
-    export PlikShare_AppOwnersInitialPassword="${PLIKSHARE_APP_OWNERS_INITIAL_PASSWORD}"
-    set_permanent_env_variable "PlikShare_AppOwnersInitialPassword" "$PLIKSHARE_APP_OWNERS_INITIAL_PASSWORD"    
 
     # PLIKSHARE_ENCRYPTION_PASSWORDS
     echo "
@@ -335,11 +319,6 @@ PlikShare Encryption Passwords:
     For now, please enter only one password:
     " >&2
     ask_silent_input "PLIKSHARE_ENCRYPTION_PASSWORDS" PLIKSHARE_ENCRYPTION_PASSWORDS true
-
-    # Set and export the encryption passwords
-    export PlikShare_EncryptionPasswords="${PLIKSHARE_ENCRYPTION_PASSWORDS}"
-    set_permanent_env_variable "PlikShare_EncryptionPasswords" "$PLIKSHARE_ENCRYPTION_PASSWORDS"
-
 
     # PLIKSHARE_MAIN_VOLUME_PATH
     echo "
@@ -418,6 +397,37 @@ prompt_for_additional_volumes() {
     fi
 }
 
+# Writes install-time configuration (including secrets) to plikshare.env.
+# docker-compose.yml references this file via `env_file:`, so Docker Compose
+# reads the values from disk every time it (re)creates the plikshare container
+# - on install, on the nightly update cron, or after a VPS reboot. This is what
+# makes the configuration survive restarts; relying on the shell environment
+# (or /etc/environment) failed because cron and the Docker daemon do not see it.
+generate_env_file() {
+    echo "..........[INSTALLATION] Generating plikshare.env file..." >&2
+
+    # Escape backslashes and double quotes so arbitrary passwords round-trip
+    # correctly through the double-quoted env_file format.
+    escape_env_value() {
+        local v="$1"
+        v="${v//\\/\\\\}"
+        v="${v//\"/\\\"}"
+        printf '%s' "$v"
+    }
+
+    cat > plikshare.env <<EOF
+PlikShare_AppUrl="$(escape_env_value "$PLIKSHARE_APP_URL")"
+PlikShare_AppOwners="$(escape_env_value "$email_address")"
+PlikShare_AppOwnersInitialPassword="$(escape_env_value "$PLIKSHARE_APP_OWNERS_INITIAL_PASSWORD")"
+PlikShare_EncryptionPasswords="$(escape_env_value "$PLIKSHARE_ENCRYPTION_PASSWORDS")"
+EOF
+
+    # The file holds secrets - restrict access to the owner only.
+    chmod 600 plikshare.env
+
+    echo "..........[INSTALLATION] plikshare.env file generated." >&2
+}
+
 generate_docker_compose() {
     echo "..........[INSTALLATION] Generating Docker Compose file..." >&2
 
@@ -427,12 +437,10 @@ services:
   plikshare:
     image: damiankrychowski/plikshare:latest
     restart: always
+    env_file:
+      - ./plikshare.env
     environment:
       - ASPNETCORE_URLS=http://+:8080
-      - PlikShare_AppUrl
-      - PlikShare_AppOwners
-      - PlikShare_AppOwnersInitialPassword
-      - PlikShare_EncryptionPasswords
       - PlikShare_Volumes__Path=volumes
       - PlikShare_Volumes__Main__Path=main
 EOF
@@ -696,6 +704,11 @@ NOTE: This process may take several minutes to complete, depending on your serve
 " >&2
 
     if ! ask_yes_no "Do you want to proceed with the PlikShare installation?" "..........[INSTALLATION] Proceeding with installation..." "..........[INSTALLATION] Installation aborted by user."; then
+        return 1
+    fi
+
+    if ! generate_env_file; then
+        echo "[ERROR] Installation aborted due to env file generation failure." >&2
         return 1
     fi
 
