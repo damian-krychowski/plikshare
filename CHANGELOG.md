@@ -2,6 +2,14 @@
 
 Release notes for PlikShare.
 
+## 1.1.31
+
+- [FEATURE] Quick-share file preview — recipients can preview individual files in the browser and browse nested zip archives before downloading, instead of having to grab the bundle blindly
+- [IMPROVEMENT] Quick-share details page reworked — all sections (URL slug, recipient mode, expiration, download limit, password) rebuilt as titled config cards with descriptions and inline header actions; expiration picker blocks past dates client-side; password-change dialog tells the user what's actually happening (add vs change) instead of an inaccurate "cannot be reverted"; downloads count moved into the metadata block
+- [IMPROVEMENT] External quick-share page redesigned — sticky owner-preview banner, centered password gate with lock icon and inline validation under the field, friendlier copy, footer pinned to the bottom on short content; confirm buttons across the app (invitation links, recovery code, master-password change/reset, folder picker, restore from trash) dropped the blue primary look in favour of the bordered style used everywhere else
+- [FIX] Workspace delete with quick shares — deleting a workspace that had any quick shares failed silently (foreign-key rollback) and left the workspace in place; quick shares are now cleaned up first
+- [FIX] External quick-share unlock — wrong password no longer redirects the visitor to the app's sign-in page; the error surfaces inline under the input
+
 ## 1.1.30
 
 - [FEATURE] Trash introduced — with a workspace's trash policy enabled, deleted files are moved to a per-workspace trash instead of being removed right away; from the Trash view they can be restored to their original location or to a folder of choice, permanently deleted one by one, or cleared all at once

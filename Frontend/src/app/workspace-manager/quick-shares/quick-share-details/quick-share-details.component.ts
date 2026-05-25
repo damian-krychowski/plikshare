@@ -343,6 +343,10 @@ export class QuickShareDetailsComponent implements OnInit {
         return new Date(localMs).toISOString().slice(0, 16);
     }
 
+    minExpirationIso(): string {
+        return this.toLocalInputValue(new Date());
+    }
+
     goBack() {
         this._router.navigate([`/workspaces/${this._workspaceExternalId}/quick-shares`]);
     }
@@ -496,8 +500,16 @@ export class QuickShareDetailsComponent implements OnInit {
         const iso = this.expiresAtIso();
         if (!iso || iso === this._lastSavedExpiresAtIso) return;
 
-        const isoUtc = new Date(iso).toISOString();
-        this.saveExpiration(isoUtc);
+        const parsed = new Date(iso);
+
+        // Blocks both picker and typed input from saving past dates — the `min` attr stops
+        // it in the picker UI but Firefox/typed input slip through, hence this check.
+        if (parsed.getTime() <= Date.now()) {
+            this._toastr.error('Pick a date in the future');
+            return;
+        }
+
+        this.saveExpiration(parsed.toISOString());
     }
 
     private async saveExpiration(expiresAt: string | null) {

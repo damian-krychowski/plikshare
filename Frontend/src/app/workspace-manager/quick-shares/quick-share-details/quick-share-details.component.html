@@ -117,8 +117,6 @@
         </div>
     }
 
-    <div class="mt-4"></div>
-
     <div class="config-container">
         <!-- Custom URL slug -->
         <app-config-card
@@ -224,6 +222,7 @@
                             <mat-label>Expires at</mat-label>
                             <input #expiresAtInput matInput type="datetime-local"
                                 placeholder=" "
+                                [min]="minExpirationIso()"
                                 [ngModel]="expiresAtIso()"
                                 (ngModelChange)="expiresAtIso.set($event)"
                                 (focus)="openPicker(expiresAtInput)"

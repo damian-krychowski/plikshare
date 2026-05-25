@@ -95,34 +95,30 @@
     display: flex;
     flex-direction: row;
     align-items: center;
+    margin-bottom: 1.5rem;
     gap: 0.75rem;
     padding: 0.75rem 0.75rem 0.75rem 1rem;
     border: 1px solid var(--company-grey-accent);
-    border-radius: 8px;
     background-color: white;
     cursor: pointer;
     transition: background-color 0.2s ease, border-color 0.2s ease;
     word-break: break-all;
 
     &:hover {
-        background-color: var(--company-overlay-3);
+        background-color: var(--company-grey-accent-light);
         border-color: var(--company-grey-font);
-
-        .public-link__copy {
-            background-color: var(--company-overlay-4);
-        }
     }
 
     &--copied {
         border-color: var(--company-blue);
-        background-color: var(--company-overlay-2);
+        background-color: var(--company-blue-selected);
     }
 
     &--muted {
         cursor: default;
 
         &:hover {
-            background-color: var(--company-overlay-1);
+            background-color: white;
             border-color: var(--company-grey-accent);
         }
     }
@@ -154,10 +150,10 @@
         width: 32px;
         height: 32px;
         border-radius: 6px;
-        background-color: var(--company-overlay-2);
+        background-color: var(--company-grey-accent-light);
         color: var(--company-grey-font);
         flex-shrink: 0;
-        transition: background-color 0.2s ease, color 0.2s ease;
+        transition: color 0.2s ease;
     }
 
     &--copied .public-link__copy {
