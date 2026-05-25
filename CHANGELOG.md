@@ -1,3 +1,4 @@
+
 # Changelog
 
 Release notes for PlikShare.
@@ -9,6 +10,14 @@ Release notes for PlikShare.
 - [IMPROVEMENT] External quick-share page redesigned — sticky owner-preview banner, centered password gate with lock icon and inline validation under the field, friendlier copy, footer pinned to the bottom on short content; confirm buttons across the app (invitation links, recovery code, master-password change/reset, folder picker, restore from trash) dropped the blue primary look in favour of the bordered style used everywhere else
 - [FIX] Workspace delete with quick shares — deleting a workspace that had any quick shares failed silently (foreign-key rollback) and left the workspace in place; quick shares are now cleaned up first
 - [FIX] External quick-share unlock — wrong password no longer redirects the visitor to the app's sign-in page; the error surfaces inline under the input
+
+**Quick share details view:**
+<img width="2038" height="2434" alt="plikshare_quick_share_details" src="https://github.com/user-attachments/assets/16d19a3b-734a-4863-b9ee-44b9a8845749" />
+
+**Quick share access with password:**
+<img width="2038" height="1104" alt="pliskshare_quick_share_password" src="https://github.com/user-attachments/assets/f73c61f6-3dff-4826-89b8-e1e9c0b361d1" />
+
+[Quick share file preview](https://github.com/user-attachments/assets/2d53f264-cc59-42ce-b189-ef9f003287e2)
 
 ## 1.1.30
 
