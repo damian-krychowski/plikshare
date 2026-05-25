@@ -45,13 +45,10 @@
     padding-left: 0.5rem;
 }
 
-// Reserve a fixed height so the section doesn't jump between mat-form-field (~80px tall)
-// and the .explanation fallback (single line). Aligned to the form field's natural height.
-.section-content {
-    min-height: 80px;
+.config-container {
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
+    gap: 1.5rem;
 }
 
 .two-column-row {
@@ -62,6 +59,11 @@
     &__col {
         flex: 1;
         min-width: 0;
+        display: flex;
+
+        > * {
+            flex: 1;
+        }
     }
 
     @media (max-width: variables.$mobile-breakpoint) {
@@ -97,7 +99,7 @@
     padding: 0.75rem 0.75rem 0.75rem 1rem;
     border: 1px solid var(--company-grey-accent);
     border-radius: 8px;
-    background-color: var(--company-overlay-1);
+    background-color: white;
     cursor: pointer;
     transition: background-color 0.2s ease, border-color 0.2s ease;
     word-break: break-all;

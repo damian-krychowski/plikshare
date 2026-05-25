@@ -119,228 +119,191 @@
 
     <div class="mt-4"></div>
 
-    <!-- Custom URL slug -->
-    <div class="title-header">
-        <div>Custom URL slug</div>
+    <div class="config-container">
+        <!-- Custom URL slug -->
+        <app-config-card
+            title="Custom URL slug"
+            description="The public path of this link. Changing it breaks any links already shared.">
 
-        <div class="flex-row flex-gap-05 ml-auto">
-            @if (hasPendingSlugChange()) {
-                <app-action-btn
-                    tooltip="Discard change"
-                    icon="icon-lucide-xmark"
-                    (clicked)="revertSlug()">
-                </app-action-btn>
+            <ng-container configCardActions>
+                @if (hasPendingSlugChange()) {
+                    <app-action-btn
+                        tooltip="Discard change"
+                        icon="icon-lucide-xmark"
+                        (clicked)="revertSlug()">
+                    </app-action-btn>
 
-                <app-action-btn
-                    tooltip="Save new URL slug"
-                    icon="icon-lucide-check"
-                    [disabled]="!isSlugValid()"
-                    appConfirmOperation
-                    [operationItem]="'this URL slug'"
-                    [verb]="'change'"
-                    [isOperationDanger]="true"
-                    (confirmedClick)="saveSlugChange()">
-                </app-action-btn>
-            } @else {
-                <app-action-btn
-                    tooltip="Regenerate URL slug"
-                    icon="icon-nucleo-reload"
-                    appConfirmOperation
-                    [operationItem]="'this URL slug'"
-                    [verb]="'regenerate'"
-                    [isOperationDanger]="true"
-                    (confirmedClick)="regenerateSlug()">
-                </app-action-btn>
-            }
-        </div>
-    </div>
+                    <app-action-btn
+                        tooltip="Save new URL slug"
+                        icon="icon-lucide-check"
+                        [disabled]="!isSlugValid()"
+                        appConfirmOperation
+                        [operationItem]="'this URL slug'"
+                        [verb]="'change'"
+                        [isOperationDanger]="true"
+                        (confirmedClick)="saveSlugChange()">
+                    </app-action-btn>
+                } @else {
+                    <app-action-btn
+                        tooltip="Regenerate URL slug"
+                        icon="icon-nucleo-reload"
+                        appConfirmOperation
+                        [operationItem]="'this URL slug'"
+                        [verb]="'regenerate'"
+                        [isOperationDanger]="true"
+                        (confirmedClick)="regenerateSlug()">
+                    </app-action-btn>
+                }
+            </ng-container>
 
-    <div class="mt-2"></div>
+            <mat-form-field class="w-100">
+                <mat-label>URL slug</mat-label>
+                <input matInput type="text"
+                    #slugInput="ngModel"
+                    [ngModel]="slugValue()"
+                    (ngModelChange)="slugValue.set($event)"
+                    autocomplete="off"
+                    pattern="^[a-zA-Z0-9][a-zA-Z0-9\-]{1,98}[a-zA-Z0-9]$"
+                    required>
+                @if (slugInput.invalid) {
+                    <mat-error>Invalid format. Allowed: a-z, A-Z, 0-9, '-'. 3-100 chars, no leading/trailing '-'.</mat-error>
+                }
+            </mat-form-field>
+        </app-config-card>
 
-    <mat-form-field class="w-100">
-        <mat-label>URL slug</mat-label>
-        <input matInput type="text"
-            #slugInput="ngModel"
-            [ngModel]="slugValue()"
-            (ngModelChange)="slugValue.set($event)"
-            autocomplete="off"
-            pattern="^[a-zA-Z0-9][a-zA-Z0-9\-]{1,98}[a-zA-Z0-9]$"
-            required>
-        @if (slugInput.invalid) {
-            <mat-error>Invalid format. Allowed: a-z, A-Z, 0-9, '-'. 3-100 chars, no leading/trailing '-'.</mat-error>
-        }
-    </mat-form-field>
+        <!-- Recipient mode -->
+        <app-config-card
+            title="Recipient mode"
+            description="How recipients land when they open the link.">
 
-    <div class="explanation">
-        Changing this breaks any links already shared.
-    </div>
-    
-    <div class="mt-4"></div>
+            <mat-radio-group class="quick-share-details__radio-group"
+                [value]="mode()"
+                (change)="onModeChanged($event.value)">
 
-    <!-- Recipient mode -->
-    <div class="title-header">
-        <div>Recipient mode</div>
-    </div>
+                <div class="quick-share-details__radio-option">
+                    <mat-radio-button value="browser">Browser preview</mat-radio-button>
+                    <div class="explanation">
+                        Recipient lands on a page with a file tree, can preview each
+                        file in the browser and download the bundle as a ZIP.
+                    </div>
+                </div>
 
-    <div class="mt-2"></div>
+                <div class="quick-share-details__radio-option">
+                    <mat-radio-button value="direct">Direct download</mat-radio-button>
+                    <div class="explanation">
+                        Recipient is redirected straight to a ZIP download — no
+                        preview, no browsing, just an immediate file download.
+                    </div>
+                </div>
+            </mat-radio-group>
 
-    <mat-radio-group class="quick-share-details__radio-group"
-        [value]="mode()"
-        (change)="onModeChanged($event.value)">
+            <mat-checkbox
+                [checked]="allowIndividualFileDownload()"
+                [disabled]="mode() !== 'browser'"
+                (change)="onAllowIndividualFileDownloadChanged($event.checked)">
+                Allow downloading individual files
+            </mat-checkbox>
+        </app-config-card>
 
-        <div class="quick-share-details__radio-option">
-            <mat-radio-button value="browser">Browser preview</mat-radio-button>
-            <div class="explanation">
-                Recipient lands on a page with a file tree, can preview each
-                file in the browser and download the bundle as a ZIP.
-            </div>
-        </div>
+        <!-- Expiration + Download limit (side by side on desktop) -->
+        <div class="two-column-row">
+            <div class="two-column-row__col">
+                <app-config-card
+                    title="Expiration"
+                    description="Automatically disable the link after a given date.">
 
-        <div class="quick-share-details__radio-option">
-            <mat-radio-button value="direct">Direct download</mat-radio-button>
-            <div class="explanation">
-                Recipient is redirected straight to a ZIP download — no
-                preview, no browsing, just an immediate file download.
-            </div>
-        </div>
-    </mat-radio-group>
-
-    <div class="mt-2"></div>
-
-    <mat-checkbox
-        [checked]="allowIndividualFileDownload()"
-        [disabled]="mode() !== 'browser'"
-        (change)="onAllowIndividualFileDownloadChanged($event.checked)">
-        Allow downloading individual files
-    </mat-checkbox>
-
-    <div class="mt-4"></div>
-
-    <!-- Expiration + Download limit (side by side on desktop) -->
-    <div class="two-column-row">
-        <div class="two-column-row__col">
-            <div class="title-header">
-                <div>Expiration</div>
-
-                <div class="flex-row ml-auto">
-                    <mat-slide-toggle
+                    <mat-slide-toggle configCardActions
                         matTooltip="Enable expiration"
                         matTooltipPosition="above"
                         [checked]="hasExpiration()"
                         (change)="onHasExpirationChanged($event.checked)">
                     </mat-slide-toggle>
-                </div>
+
+                    @if (hasExpiration()) {
+                        <mat-form-field class="w-100" floatLabel="always">
+                            <mat-label>Expires at</mat-label>
+                            <input #expiresAtInput matInput type="datetime-local"
+                                placeholder=" "
+                                [ngModel]="expiresAtIso()"
+                                (ngModelChange)="expiresAtIso.set($event)"
+                                (focus)="openPicker(expiresAtInput)"
+                                (blur)="onExpirationBlur()">
+                        </mat-form-field>
+                    }
+                </app-config-card>
             </div>
 
-            <div class="mt-2"></div>
+            <div class="two-column-row__col">
+                <app-config-card
+                    title="Download limit"
+                    description="Limit how many times the link can be downloaded.">
 
-            <div class="section-content">
-                @if (hasExpiration()) {
-                    <mat-form-field class="w-100" floatLabel="always">
-                        <mat-label>Expires at</mat-label>
-                        <input #expiresAtInput matInput type="datetime-local"
-                            placeholder=" "
-                            [ngModel]="expiresAtIso()"
-                            (ngModelChange)="expiresAtIso.set($event)"
-                            (focus)="openPicker(expiresAtInput)"
-                            (blur)="onExpirationBlur()">
-                    </mat-form-field>
-                } @else {
-                    <div class="explanation">No expiration set — link works indefinitely.</div>
-                }
-            </div>
-        </div>
-
-        <div class="two-column-row__col">
-            <div class="title-header">
-                <div>
-                    Download limit
-                    <span class="title-header-explanation">used: {{ downloadsCount() }}</span>
-                </div>
-
-                <div class="flex-row ml-auto">
-                    <mat-slide-toggle
+                    <mat-slide-toggle configCardActions
                         matTooltip="Limit downloads"
                         matTooltipPosition="above"
                         [checked]="hasMaxDownloads()"
                         (change)="onHasMaxDownloadsChanged($event.checked)">
                     </mat-slide-toggle>
-                </div>
+
+                    @if (hasMaxDownloads()) {
+                        <mat-form-field class="w-100">
+                            <mat-label>Max downloads</mat-label>
+                            <input matInput type="number" min="1"
+                                [ngModel]="maxDownloadsValue()"
+                                (ngModelChange)="maxDownloadsValue.set($event)"
+                                (blur)="onMaxDownloadsBlur()">
+                        </mat-form-field>
+                    }
+                </app-config-card>
             </div>
+        </div>
 
-            <div class="mt-2"></div>
+        <!-- Password -->
+        <app-config-card
+            title="Password"
+            description="Require a password before the link grants access.">
 
-            <div class="section-content">
-                @if (hasMaxDownloads()) {
-                    <mat-form-field class="w-100">
-                        <mat-label>Max downloads</mat-label>
-                        <input matInput type="number" min="1"
-                            [ngModel]="maxDownloadsValue()"
-                            (ngModelChange)="maxDownloadsValue.set($event)"
-                            (blur)="onMaxDownloadsBlur()">
-                    </mat-form-field>
-                } @else {
-                    <div class="explanation">No limit — the link can be downloaded indefinitely.</div>
+            <ng-container configCardActions>
+                @if (hasPendingPasswordChange()) {
+                    <app-action-btn
+                        tooltip="Discard"
+                        icon="icon-lucide-xmark"
+                        (clicked)="revertPassword()">
+                    </app-action-btn>
+
+                    <app-action-btn
+                        tooltip="Save password"
+                        icon="icon-lucide-check"
+                        appConfirmOperation
+                        [operationItem]="'the password'"
+                        [verb]="'change'"
+                        [isOperationDanger]="true"
+                        [operationSubtitle]="passwordChangeConfirmSubtitle()"
+                        (confirmedClick)="savePasswordChange()">
+                    </app-action-btn>
                 }
-            </div>
-        </div>
-    </div>
 
-    <!-- Password -->
-    <div class="title-header">
-        <div>
-            Password
-            @if (qs.hasPassword) {
-                <span class="title-header-explanation">currently set</span>
+                <mat-slide-toggle
+                    matTooltip="Enable password"
+                    matTooltipPosition="above"
+                    [checked]="hasPassword()"
+                    (change)="onHasPasswordChanged($event.checked)">
+                </mat-slide-toggle>
+            </ng-container>
+
+            @if (hasPassword()) {
+                <mat-form-field class="w-100">
+                    <mat-label>{{ qs.hasPassword ? 'New password' : 'Password' }}</mat-label>
+                    <input matInput type="password"
+                        [ngModel]="passwordValue()"
+                        (ngModelChange)="passwordValue.set($event)"
+                        autocomplete="new-password">
+                </mat-form-field>
             }
-        </div>
-
-        <div class="flex-row flex-gap-05 ml-auto">
-            @if (hasPendingPasswordChange()) {
-                <app-action-btn
-                    tooltip="Discard"
-                    icon="icon-lucide-xmark"
-                    (clicked)="revertPassword()">
-                </app-action-btn>
-
-                <app-action-btn
-                    tooltip="Save password"
-                    icon="icon-lucide-check"
-                    appConfirmOperation
-                    [operationItem]="'the password'"
-                    [verb]="'change'"
-                    [isOperationDanger]="true"
-                    [operationSubtitle]="passwordChangeConfirmSubtitle()"
-                    (confirmedClick)="savePasswordChange()">
-                </app-action-btn>
-            }
-
-            <mat-slide-toggle
-                matTooltip="Enable password"
-                matTooltipPosition="above"
-                [checked]="hasPassword()"
-                (change)="onHasPasswordChanged($event.checked)">
-            </mat-slide-toggle>
-        </div>
+        </app-config-card>
     </div>
 
-    <div class="mt-2"></div>
-
-    <div class="section-content">
-        @if (hasPassword()) {
-            <mat-form-field class="w-100">
-                <mat-label>{{ qs.hasPassword ? 'New password' : 'Password' }}</mat-label>
-                <input matInput type="password"
-                    [ngModel]="passwordValue()"
-                    (ngModelChange)="passwordValue.set($event)"
-                    autocomplete="new-password">
-            </mat-form-field>
-        } @else {
-            <div class="explanation">No password — anyone with the link can access.</div>
-        }
-    </div>
-
-    
+    <div class="mt-4"></div>
 
     <!-- Metadata -->
     <div class="title-header">
@@ -354,10 +317,11 @@
             Created: {{ created.toLocaleString() }}<br>
         }
         @if (lastAccessedAt(); as last) {
-            Last accessed: {{ last.toLocaleString() }}
+            Last accessed: {{ last.toLocaleString() }}<br>
         } @else {
-            Never accessed
+            Never accessed<br>
         }
+        Downloads: {{ downloadsCount() }}
     </div>
     
     <div class="mt-4"></div>

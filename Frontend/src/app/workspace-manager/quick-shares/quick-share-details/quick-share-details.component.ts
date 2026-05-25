@@ -12,6 +12,7 @@ import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ToastrService } from 'ngx-toastr';
 import { ActionButtonComponent } from '../../../shared/buttons/action-btn/action-btn.component';
+import { ConfigCardComponent } from '../../../shared/config-card/config-card.component';
 import { EditableTxtComponent } from '../../../shared/editable-txt/editable-txt.component';
 import { ConfirmOperationDirective } from '../../../shared/operation-confirm/confirm-operation.directive';
 import { GetQuickShareResponse, QuickShareMode, QuickSharesApi } from '../../../services/quick-shares.api';
@@ -37,6 +38,7 @@ const SLUG_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,98}[a-zA-Z0-9]$/;
         MatSlideToggleModule,
         MatTooltipModule,
         ActionButtonComponent,
+        ConfigCardComponent,
         EditableTxtComponent,
         ConfirmOperationDirective,
         FileTreeViewComponent

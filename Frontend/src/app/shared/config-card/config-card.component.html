@@ -1,7 +1,13 @@
 <div class="config-card" [class.config-card--side]="mode() === 'side'">
-    <div class="config-card__text">
-        <div class="config-card__title">{{ title() }}</div>
-        <div class="config-card__description">{{ description() }}</div>
+    <div class="config-card__header">
+        <div class="config-card__text">
+            <div class="config-card__title">{{ title() }}</div>
+            <div class="config-card__description">{{ description() }}</div>
+        </div>
+
+        <div class="config-card__header-actions">
+            <ng-content select="[configCardActions]"></ng-content>
+        </div>
     </div>
 
     <div class="config-card__content">

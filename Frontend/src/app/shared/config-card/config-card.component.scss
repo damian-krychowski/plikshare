@@ -8,6 +8,31 @@
     border-radius: var(--mdc-filled-button-container-shape);
     background: white;
 
+    &__header {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    &__text {
+        flex: 1;
+        min-width: 0;
+    }
+
+    // Optional right-side slot in the header for actions / toggles. When nothing is projected
+    // via [configCardActions], the slot collapses so the header doesn't reserve trailing space.
+    &__header-actions {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+
+        &:empty {
+            display: none;
+        }
+    }
+
     &__title {
         font-weight: 600;
     }
@@ -37,10 +62,22 @@
         flex-wrap: wrap;
         gap: 1rem;
 
+        // Hoist header children up to the flex layout of .config-card so the existing
+        // side-mode rules on .config-card__text keep working without restructuring.
+        .config-card__header {
+            display: contents;
+        }
+
         .config-card__text {
             // flex:1 pushes the controls to the right edge, keeping the text block on the left.
             flex: 1;
             min-width: 240px;
+        }
+
+        // Header-actions slot doesn't apply in side mode — the default content slot already
+        // serves as the right-side surface. Avoid double-rendering controls in two places.
+        .config-card__header-actions {
+            display: none;
         }
 
         // Controls sit beside the text in a row — no divider, glued to the right edge
