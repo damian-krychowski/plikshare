@@ -14,12 +14,12 @@ import { DataStore } from '../../services/data-store.service';
 import { WorkspaceContextService } from '../workspace-context.service';
 import { AuthService } from '../../services/auth.service';
 import {
-    ZipFileTreeViewComponent,
-    ZipFileNode,
-    ZipFolderNode,
-    ZipTreeNode,
+    StaticFileTreeViewComponent,
+    StaticFileNode,
+    StaticFolderNode,
+    StaticTreeNode,
     countSelectedDescendants
-} from '../../shared/zip-file-tree-view/zip-file-tree-view.component';
+} from '../../shared/static-file-tree-view/static-file-tree-view.component';
 import { TrashFileItemComponent } from './trash-file-item/trash-file-item.component';
 import {
     RestoreFromTrashDialogComponent,
@@ -28,7 +28,7 @@ import {
 } from './restore-from-trash-dialog/restore-from-trash-dialog.component';
 
 // 'flat' — the grouped-by-folder list of trash-file-items. 'tree' — the nested tree view
-// with select/exclude checkboxes (the zip-file-tree-view component).
+// with select/exclude checkboxes (the static-file-tree-view component).
 type TrashViewMode = 'flat' | 'tree';
 
 // Trash items sharing the same original folder. Rendered as a folder header + file list
@@ -48,7 +48,7 @@ type TrashGroup = {
         MatTooltipModule,
         ActionTextButtonComponent,
         ActionButtonComponent,
-        ZipFileTreeViewComponent,
+        StaticFileTreeViewComponent,
         TrashFileItemComponent
     ],
     templateUrl: './trash.component.html',
@@ -89,8 +89,8 @@ export class TrashComponent implements OnInit {
     private orderedItems = computed<TrashItemDto[]>(() =>
         this.flatGroups().flatMap(g => g.items));
 
-    // 'tree' view — the zip-file-tree-view input, rebuilt on load and on every mode switch.
-    treeNodes = signal<ZipTreeNode[]>([]);
+    // 'tree' view — the static-file-tree-view input, rebuilt on load and on every mode switch.
+    treeNodes = signal<StaticTreeNode[]>([]);
 
     // 'flat' view selection — a set of trash externalIds toggled by the per-row checkboxes.
     private _flatSelectedIds = signal<Set<string>>(new Set());
@@ -272,7 +272,7 @@ export class TrashComponent implements OnInit {
         }
     }
 
-    private setTreeSelection(nodes: ZipTreeNode[], selected: boolean) {
+    private setTreeSelection(nodes: StaticTreeNode[], selected: boolean) {
         for (const node of nodes) {
             node.isExcluded.set(false);
 
@@ -289,12 +289,12 @@ export class TrashComponent implements OnInit {
 
     // --- tree building -----------------------------------------------------------------
 
-    private buildTree(items: TrashItemDto[]): ZipTreeNode[] {
-        const roots: ZipTreeNode[] = [];
-        const folderByPath = new Map<string, ZipFolderNode>();
+    private buildTree(items: TrashItemDto[]): StaticTreeNode[] {
+        const roots: StaticTreeNode[] = [];
+        const folderByPath = new Map<string, StaticFolderNode>();
 
         // Resolves (creating on the way) the folder chain for a path, returning its leaf.
-        const resolveFolder = (path: string[]): ZipFolderNode | null => {
+        const resolveFolder = (path: string[]): StaticFolderNode | null => {
             if (path.length === 0)
                 return null;
 
@@ -320,8 +320,8 @@ export class TrashComponent implements OnInit {
         return roots;
     }
 
-    private makeFolderNode(name: string, id: string, parent: ZipFolderNode | null): ZipFolderNode {
-        const children: ZipTreeNode[] = [];
+    private makeFolderNode(name: string, id: string, parent: StaticFolderNode | null): StaticFolderNode {
+        const children: StaticTreeNode[] = [];
 
         return {
             type: 'folder',
@@ -342,7 +342,7 @@ export class TrashComponent implements OnInit {
         };
     }
 
-    private makeFileNode(item: TrashItemDto, parent: ZipFolderNode | null): ZipFileNode {
+    private makeFileNode(item: TrashItemDto, parent: StaticFolderNode | null): StaticFileNode {
         const fullName = `${item.name}${item.extension}`;
 
         return {
@@ -363,7 +363,7 @@ export class TrashComponent implements OnInit {
 
     // A file is effectively selected when it (or an ancestor folder) is selected and neither
     // it nor an ancestor is excluded — mirrors the tree component's own visual rule.
-    private collectTreeSelectedIds(nodes: ZipTreeNode[], out: string[]) {
+    private collectTreeSelectedIds(nodes: StaticTreeNode[], out: string[]) {
         for (const node of nodes) {
             if (node.type === 'file') {
                 const selected = (node.isSelected() || node.isParentSelected())

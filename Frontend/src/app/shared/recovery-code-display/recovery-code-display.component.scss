@@ -1,3 +1,5 @@
+@forward "./../../../styles/questionaire.scss";
+
 .recovery-code {
     padding: 1.5rem 2rem 1rem;
     max-height: calc(100vh - 80px - 1rem);
@@ -27,7 +29,7 @@
         border: 1px solid #e0e0e0;
         border-radius: 4px;
         margin-bottom: 1rem;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-family: var(--company-monospace-font);
     }
 
     &__word {

@@ -196,6 +196,7 @@ public static class AuditLogEventCatalog
         new(AuditLogEventTypes.QuickShare.UnlockFailed,              AuditLogEventCategories.QuickShare, AuditLogSeverities.Warning, "Quick share unlock attempt failed.",         AuditLogEventScope.Workspace),
         new(AuditLogEventTypes.QuickShare.BulkDownloadLinkGenerated, AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share bulk download link generated.",  AuditLogEventScope.Workspace),
         new(AuditLogEventTypes.QuickShare.FileDownloadLinkGenerated, AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share file download link generated.",  AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.FilePreviewLinkGenerated,  AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share file preview link generated.",   AuditLogEventScope.Workspace),
         new(AuditLogEventTypes.QuickShare.DownloadLimitReached,      AuditLogEventCategories.QuickShare, AuditLogSeverities.Warning, "Quick share download limit reached.",        AuditLogEventScope.Workspace),
     ];
 

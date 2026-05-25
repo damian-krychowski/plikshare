@@ -212,7 +212,7 @@
     border: 1px solid var(--company-grey-accent);
     border-radius: var(--mdc-filled-button-container-shape);
     font-size: var(--company-small-font);
-    font-family: monospace;
+    font-family: var(--company-monospace-font);
     white-space: pre-wrap;
     word-break: break-all;
     max-height: 300px;

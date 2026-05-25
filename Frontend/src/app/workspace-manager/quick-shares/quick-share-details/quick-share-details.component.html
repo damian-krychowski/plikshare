@@ -103,9 +103,7 @@
     @if (url(); as linkUrl) {
         <div class="public-link"
             [class.public-link--copied]="copied()"
-            (click)="copyLink()"
-            [matTooltip]="copied() ? 'Copied' : 'Copy to clipboard'"
-            matTooltipPosition="below">
+            (click)="copyLink()">
             <i class="icon icon-lg icon-nucleo-link public-link__leading"></i>
             <span class="public-link__url">{{ linkUrl }}</span>
             <span class="public-link__copy">
@@ -312,6 +310,7 @@
                     [operationItem]="'the password'"
                     [verb]="'change'"
                     [isOperationDanger]="true"
+                    [operationSubtitle]="passwordChangeConfirmSubtitle()"
                     (confirmedClick)="savePasswordChange()">
                 </app-action-btn>
             }

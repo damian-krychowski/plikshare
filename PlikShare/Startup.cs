@@ -270,9 +270,13 @@ using PlikShare.QuickShares.UpdatePassword;
 using PlikShare.QuickShares.UpdateSlug;
 using PlikShare.QuickShareExternalAccess;
 using PlikShare.QuickShareExternalAccess.Authorization;
+using PlikShare.QuickShareExternalAccess.EffectiveSet;
 using PlikShare.QuickShareExternalAccess.GetBulkDownloadLink;
 using PlikShare.QuickShareExternalAccess.GetContent;
 using PlikShare.QuickShareExternalAccess.GetFileDownloadLink;
+using PlikShare.QuickShareExternalAccess.GetZipBulkDownloadLink;
+using PlikShare.QuickShareExternalAccess.GetZipContentDownloadLink;
+using PlikShare.QuickShareExternalAccess.GetZipFileDetails;
 using Serilog;
 using Serilog.Events;
 
@@ -794,6 +798,10 @@ public class Startup
         builder.Services.AddSingleton<GetQuickShareContentOperation>();
         builder.Services.AddSingleton<GenerateQuickShareBulkDownloadLinkOperation>();
         builder.Services.AddSingleton<GenerateQuickShareFileDownloadLinkOperation>();
+        builder.Services.AddSingleton<IsFileInQuickShareQuery>();
+        builder.Services.AddSingleton<GenerateQuickShareZipFileDetailsOperation>();
+        builder.Services.AddSingleton<GenerateQuickShareZipContentDownloadLinkOperation>();
+        builder.Services.AddSingleton<GenerateQuickShareZipBulkDownloadLinkOperation>();
     }
 
     public static void InitializeWebApp(WebApplication app)

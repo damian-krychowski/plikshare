@@ -1,3 +1,5 @@
+@forward "./../../../../styles/questionaire.scss";
+
 .invitation-links {
     padding: 1.5rem 2rem 1rem;
 
@@ -52,7 +54,7 @@
 
     &__link {
         grid-area: link;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-family: var(--company-monospace-font);
         font-size: 0.85rem;
         color: #555;
         overflow: hidden;

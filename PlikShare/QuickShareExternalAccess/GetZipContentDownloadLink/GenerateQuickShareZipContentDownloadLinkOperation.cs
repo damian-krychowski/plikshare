@@ -1,61 +1,66 @@
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
-using PlikShare.Files.Download;
 using PlikShare.Files.Id;
+using PlikShare.Files.Preview.GetZipContentDownloadLink;
 using PlikShare.QuickShareExternalAccess.EffectiveSet;
 using PlikShare.QuickShares.Cache;
+using PlikShare.Storages.Zip;
 
-namespace PlikShare.QuickShareExternalAccess.GetFileDownloadLink;
+namespace PlikShare.QuickShareExternalAccess.GetZipContentDownloadLink;
 
-public class GenerateQuickShareFileDownloadLinkOperation(
+public class GenerateQuickShareZipContentDownloadLinkOperation(
     IsFileInQuickShareQuery isFileInQuickShareQuery,
-    GetFileDownloadLinkOperation getFileDownloadLinkOperation)
+    GetZipContentDownloadLinkOperation getZipContentDownloadLinkOperation)
 {
-    public async ValueTask<Result> Execute(
+    public Result Execute(
         QuickShareContext quickShare,
         FileExtId fileExternalId,
+        ZipFileDto zipFile,
         ContentDispositionType contentDisposition,
         IUserIdentity userIdentity,
-        bool enforceInternalPassThrough,
         CancellationToken cancellationToken)
     {
         if (!isFileInQuickShareQuery.Execute(quickShare, fileExternalId))
-            return new Result(ResultCode.FileNotInShare);
+            return new Result(Code: ResultCode.FileNotInShare);
 
-        var result = await getFileDownloadLinkOperation.Execute(
+        var result = getZipContentDownloadLinkOperation.Execute(
             workspace: quickShare.Workspace,
             fileExternalId: fileExternalId,
+            zipFile: zipFile,
             contentDisposition: contentDisposition,
             boxFolderId: null,
             boxLinkId: null,
             userIdentity: userIdentity,
-            enforceInternalPassThrough: enforceInternalPassThrough,
             workspaceEncryptionSession: null,
             cancellationToken: cancellationToken);
 
         return result.Code switch
         {
-            GetFileDownloadLinkOperation.ResultCode.Ok => new Result(
+            GetZipContentDownloadLinkOperation.ResultCode.Ok => new Result(
                 Code: ResultCode.Ok,
                 DownloadPreSignedUrl: result.DownloadPreSignedUrl),
 
-            GetFileDownloadLinkOperation.ResultCode.FileNotFound => new Result(
+            GetZipContentDownloadLinkOperation.ResultCode.FileNotFound => new Result(
                 Code: ResultCode.FileNotFound),
 
+            GetZipContentDownloadLinkOperation.ResultCode.WrongFileExtension => new Result(
+                Code: ResultCode.WrongFileExtension),
+
             _ => throw new UnexpectedOperationResultException(
-                operationName: nameof(GetFileDownloadLinkOperation),
+                operationName: nameof(GetZipContentDownloadLinkOperation),
                 resultValueStr: result.Code.ToString())
         };
     }
 
     public record Result(
         ResultCode Code,
-        string? DownloadPreSignedUrl = null);
+        string? DownloadPreSignedUrl = default);
 
     public enum ResultCode
     {
         Ok = 0,
         FileNotFound,
-        FileNotInShare
+        FileNotInShare,
+        WrongFileExtension
     }
 }

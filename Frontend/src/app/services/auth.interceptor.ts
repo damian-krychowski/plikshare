@@ -74,6 +74,12 @@ export class AuthInterceptor implements HttpInterceptor {
 
     private handleError(err: HttpErrorResponse, req: HttpRequest<any>, next: HttpHandler): Observable<any> {
         if (err.status === 401) {
+            // Quick-share external-access is anonymous; a 401 here is about the share's
+            // password/token, not the app session. Let the component handle it.
+            if (this.isQuickShareExternalAccessRequest(req)) {
+                return throwError(() => err);
+            }
+
             this._signOutService.signOutAndNavigateByUrl(`/sign-in`);
 
             return of(err.message);
@@ -133,6 +139,13 @@ export class AuthInterceptor implements HttpInterceptor {
         }
 
         return throwError(() => err);
+    }
+
+    // Authenticated management lives under /api/workspaces/{wid}/quick-shares/...
+    // External access lives under /api/quick-shares/{slug}/... — disjoint URL spaces.
+    private isQuickShareExternalAccessRequest(req: HttpRequest<any>): boolean {
+        return req.url.indexOf('/api/quick-shares/') > -1
+            && req.url.indexOf('/api/workspaces/') === -1;
     }
 
     private parseErrorBody(err: HttpErrorResponse): any {

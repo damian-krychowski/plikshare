@@ -2,31 +2,37 @@ import { Component, OnInit, WritableSignal, computed, signal } from '@angular/co
 import { ActivatedRoute } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
 import { GetQuickShareBulkDownloadLinkRequest, GetQuickShareContentResponse, GetQuickShareInfoResponse, QuickShareContentFile, QuickShareContentFolder, QuickShareExternalAccessApi } from '../../services/quick-share-external-access.api';
-import { countSelectedDescendants, ZipFileNode, ZipFileTreeViewComponent, ZipFolderNode, ZipTreeNode } from '../../shared/zip-file-tree-view/zip-file-tree-view.component';
+import { countSelectedDescendants, StaticFileNode, StaticFileTreeViewComponent, StaticFolderNode, StaticTreeNode } from '../../shared/static-file-tree-view/static-file-tree-view.component';
 import { StorageSizePipe } from '../../shared/storage-size.pipe';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
 import { ActionTextButtonComponent } from '../../shared/buttons/action-text-btn/action-text-btn.component';
 import { ItemSearchComponent } from '../../shared/item-search/item-search.component';
+import { AppFileForContent, FileContentComponent, FileContentOperations } from '../../files-explorer/file-content/file-content.component';
+import { ZipArchives, ZipEntry } from '../../services/zip';
 
 @Component({
     selector: 'app-quick-share',
     imports: [
         DatePipe,
         FormsModule,
+        MatButtonModule,
         MatCheckboxModule,
         MatFormFieldModule,
         MatInputModule,
-        ZipFileTreeViewComponent,
+        StaticFileTreeViewComponent,
         StorageSizePipe,
         ActionButtonComponent,
         ActionTextButtonComponent,
-        ItemSearchComponent
+        ItemSearchComponent,
+        FileContentComponent
     ],
     templateUrl: './quick-share.component.html',
     styleUrl: './quick-share.component.scss'
@@ -39,12 +45,72 @@ export class QuickShareComponent implements OnInit {
     notFound = signal(false);
     info: WritableSignal<GetQuickShareInfoResponse | null> = signal(null);
     content: WritableSignal<GetQuickShareContentResponse | null> = signal(null);
-    fileTree: WritableSignal<ZipTreeNode[]> = signal([]);
+    fileTree: WritableSignal<StaticTreeNode[]> = signal([]);
 
     passwordInput = signal('');
     isUnlocking = signal(false);
+    unlockError = signal<string | null>(null);
+    unlockErrorMatcher: ErrorStateMatcher = {
+        isErrorState: () => this.unlockError() !== null
+    };
     isDownloading = signal(false);
     searchPhrase = signal('');
+
+    currentFilePreviewId: WritableSignal<string | null> = signal(null);
+
+    previewedFile = computed<QuickShareContentFile | null>(() => {
+        const id = this.currentFilePreviewId();
+        if (!id) return null;
+        return this.content()?.files.find(f => f.externalId === id) ?? null;
+    });
+
+    // FileContentComponent expects name as a Signal so it can react to renames.
+    // In quick-share the name is immutable for the lifetime of the preview, so
+    // we wrap the static string in a plain signal each time the previewed file
+    // changes — recomputing the whole AppFileForContent on every change.
+    previewFileForContent = computed<AppFileForContent | null>(() => {
+        const file = this.previewedFile();
+        if (!file) return null;
+        return {
+            name: signal(file.name),
+            extension: file.extension,
+            sizeInBytes: file.sizeInBytes
+        };
+    });
+
+    filePreviewOperations = computed<FileContentOperations | null>(() => {
+        const id = this.currentFilePreviewId();
+        if (!id) return null;
+        return this.buildFileContentOperations(id);
+    });
+
+    // FileContentComponent in archive mode only emits (zipEntryClicked) — the
+    // parent has to render the actual entry preview. We stack a second
+    // <app-file-content> over the zip view when an entry is in preview, mirroring
+    // what FileInlinePreviewComponent does in the workspace flow.
+    zipEntryInPreview: WritableSignal<ZipEntry | null> = signal(null);
+
+    zipEntryFileForContent = computed<AppFileForContent | null>(() => {
+        const entry = this.zipEntryInPreview();
+        if (!entry) return null;
+
+        const nameAndExt = ZipArchives.getFileNameAndExtension(entry);
+        return {
+            name: signal(nameAndExt.name),
+            extension: nameAndExt.extension,
+            // ZipPreviewComponent uses compressedSizeInBytes for its preview file;
+            // mirror that — the inline preview only uses size for "open as text"
+            // gating, and compressed size is conservative enough.
+            sizeInBytes: entry.compressedSizeInBytes
+        };
+    });
+
+    zipEntryPreviewOperations = computed<FileContentOperations | null>(() => {
+        const fileId = this.currentFilePreviewId();
+        const entry = this.zipEntryInPreview();
+        if (!fileId || !entry) return null;
+        return this.buildZipEntryContentOperations(fileId, entry);
+    });
 
     name = computed(() => this.info()?.name ?? '');
     mode = computed(() => this.info()?.mode ?? 'browser');
@@ -164,11 +230,23 @@ export class QuickShareComponent implements OnInit {
         }
     }
 
+    onPasswordInputChange(value: string) {
+        this.passwordInput.set(value);
+        this.unlockError.set(null);
+    }
+
     async unlock() {
-        if (this.isUnlocking() || !this.passwordInput().trim()) return;
+        if (this.isUnlocking()) return;
+
+        if (!this.passwordInput().trim()) {
+            this.unlockError.set('Password is required');
+            return;
+        }
 
         try {
             this.isUnlocking.set(true);
+            this.unlockError.set(null);
+
             await this._api.unlock(this.slug!, this.token, { password: this.passwordInput() });
             this.passwordInput.set('');
 
@@ -181,10 +259,10 @@ export class QuickShareComponent implements OnInit {
             }
         } catch (error) {
             if (error instanceof HttpErrorResponse && error.status === 401) {
-                this._toastr.error('Wrong password');
+                this.unlockError.set('Wrong password');
             } else {
                 console.error(error);
-                this._toastr.error('Unlock failed');
+                this.unlockError.set('Something went wrong. Please try again.');
             }
         } finally {
             this.isUnlocking.set(false);
@@ -259,6 +337,75 @@ export class QuickShareComponent implements OnInit {
         }
     }
 
+    onFilePreviewed(node: StaticFileNode) {
+        if (!this.allowIndividualFileDownload()) {
+            this._toastr.error('File preview is disabled by the share owner');
+            return;
+        }
+
+        this.currentFilePreviewId.set(node.id);
+        this.zipEntryInPreview.set(null);
+    }
+
+    closePreview() {
+        this.currentFilePreviewId.set(null);
+        this.zipEntryInPreview.set(null);
+    }
+
+    onZipEntryClicked(entry: ZipEntry) {
+        this.zipEntryInPreview.set(entry);
+    }
+
+    closeZipEntryPreview() {
+        this.zipEntryInPreview.set(null);
+    }
+
+    private buildFileContentOperations(fileExternalId: string): FileContentOperations {
+        const slug = this.slug!;
+        const token = this.token;
+
+        return {
+            getDownloadLink: () => this._api.getFilePreviewLink(slug, token, fileExternalId),
+
+            getZipPreviewDetails: () => this._api.getZipPreviewDetails(slug, token, fileExternalId),
+
+            // Inline disposition = browsing an entry (preview, no quota burn);
+            // attachment = actually downloading it. Two endpoints handle these
+            // separately so the audit/quota semantics match the single-file
+            // preview vs download split.
+            getZipContentDownloadLink: (zipEntry, contentDisposition) => contentDisposition === 'inline'
+                ? this._api.getZipContentPreviewLink(slug, token, fileExternalId, zipEntry)
+                : this._api.getZipContentDownloadLink(slug, token, fileExternalId, zipEntry, contentDisposition),
+
+            getZipBulkDownloadLink: (request) => this._api.getZipBulkDownloadLink(slug, token, fileExternalId, request),
+
+            prepareAdditionalHttpHeaders: () => undefined
+        };
+    }
+
+    // Operations bound to a SPECIFIC zip entry inside the parent file. Used by
+    // the nested <app-file-content> that renders the clicked entry's contents.
+    // getDownloadLink here resolves to the zip-content endpoints (preview vs
+    // download by disposition); the nested file-content never recursively
+    // opens its own zip, so the zip-* fields are unreachable but must satisfy
+    // the FileContentOperations contract.
+    private buildZipEntryContentOperations(fileExternalId: string, zipEntry: ZipEntry): FileContentOperations {
+        const slug = this.slug!;
+        const token = this.token;
+
+        return {
+            getDownloadLink: (contentDisposition) => contentDisposition === 'inline'
+                ? this._api.getZipContentPreviewLink(slug, token, fileExternalId, zipEntry)
+                : this._api.getZipContentDownloadLink(slug, token, fileExternalId, zipEntry, contentDisposition),
+
+            getZipPreviewDetails: () => Promise.reject(new Error('nested zip preview not supported')),
+            getZipContentDownloadLink: () => Promise.reject(new Error('nested zip preview not supported')),
+            getZipBulkDownloadLink: () => Promise.reject(new Error('nested zip preview not supported')),
+
+            prepareAdditionalHttpHeaders: () => undefined
+        };
+    }
+
     toggleSelectAll() {
         const shouldSelectAll = this.selectAllState() !== 'all';
 
@@ -271,7 +418,7 @@ export class QuickShareComponent implements OnInit {
         }
     }
 
-    private clearDescendantSelection(nodes: ZipTreeNode[]) {
+    private clearDescendantSelection(nodes: StaticTreeNode[]) {
         for (const node of nodes) {
             node.isSelected.set(false);
             node.isExcluded.set(false);
@@ -288,7 +435,7 @@ export class QuickShareComponent implements OnInit {
         link.remove();
     }
 
-    private collectSelected(nodes: ZipTreeNode[], state: GetQuickShareBulkDownloadLinkRequest) {
+    private collectSelected(nodes: StaticTreeNode[], state: GetQuickShareBulkDownloadLinkRequest) {
         for (const node of nodes) {
             if (node.isSelected()) {
                 if (node.type === 'folder') {
@@ -303,7 +450,7 @@ export class QuickShareComponent implements OnInit {
         }
     }
 
-    private collectExcludesUnder(nodes: ZipTreeNode[], state: GetQuickShareBulkDownloadLinkRequest) {
+    private collectExcludesUnder(nodes: StaticTreeNode[], state: GetQuickShareBulkDownloadLinkRequest) {
         for (const node of nodes) {
             if (node.isExcluded()) {
                 if (node.type === 'folder') {
@@ -319,9 +466,9 @@ export class QuickShareComponent implements OnInit {
 
     // Server emits folders in parent-before-child order (ordered by ancestor-chain
     // length), so we can wire parent refs in a single pass.
-    private buildTree(folders: QuickShareContentFolder[], files: QuickShareContentFile[]): ZipTreeNode[] {
-        const root: ZipTreeNode[] = [];
-        const folderById = new Map<string, ZipFolderNode>();
+    private buildTree(folders: QuickShareContentFolder[], files: QuickShareContentFile[]): StaticTreeNode[] {
+        const root: StaticTreeNode[] = [];
+        const folderById = new Map<string, StaticFolderNode>();
 
         for (const f of folders) {
             const parent = f.parentExternalId !== null
@@ -355,7 +502,7 @@ export class QuickShareComponent implements OnInit {
         return root;
     }
 
-    private makeFolderNode(id: string, name: string, parent: ZipFolderNode | null): ZipFolderNode {
+    private makeFolderNode(id: string, name: string, parent: StaticFolderNode | null): StaticFolderNode {
         const isSelected = signal(false);
         const isExcluded = signal(false);
 
@@ -365,7 +512,7 @@ export class QuickShareComponent implements OnInit {
         const isParentExcluded = computed(() =>
             parent ? (parent.isExcluded() || parent.isParentExcluded()) : false);
 
-        const children: ZipTreeNode[] = [];
+        const children: StaticTreeNode[] = [];
 
         return {
             type: 'folder',
@@ -387,7 +534,7 @@ export class QuickShareComponent implements OnInit {
         };
     }
 
-    private makeFileNode(file: QuickShareContentFile, parent: ZipFolderNode | null): ZipFileNode {
+    private makeFileNode(file: QuickShareContentFile, parent: StaticFolderNode | null): StaticFileNode {
         const isSelected = signal(false);
         const isExcluded = signal(false);
 

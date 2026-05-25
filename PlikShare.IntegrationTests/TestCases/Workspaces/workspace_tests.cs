@@ -1,13 +1,23 @@
+using System.Text;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using PlikShare.AuditLog;
 using PlikShare.BulkDelete.Contracts;
+using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.SQLite;
 using PlikShare.Dashboard.Content.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
+using PlikShare.Integrations.Create.Contracts;
+using PlikShare.Integrations.Id;
+using PlikShare.QuickShares;
+using PlikShare.QuickShares.Create.Contracts;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.List.Contracts;
 using PlikShare.Workspaces.ChangeOwner.Contracts;
 using PlikShare.Workspaces.Create.Contracts;
+using PlikShare.Workspaces.Delete.QueueJob;
 using PlikShare.Workspaces.Get.Contracts;
+using PlikShare.Workspaces.Id;
 using PlikShare.Workspaces.Members.CreateInvitation.Contracts;
 using PlikShare.Workspaces.Members.UpdatePermissions.Contracts;
 using PlikShare.Workspaces.Permissions;
@@ -148,6 +158,154 @@ public class workspace_tests : TestFixture
 
         (dashboard.Workspaces ?? []).Should().NotContain(w =>
             w.ExternalId == workspace.ExternalId.Value);
+    }
+
+    // qsh_quick_shares.qsh_workspace_id is a NOT NULL FK to w_workspaces with NO CASCADE,
+    // and DeleteWorkspaceWithDependenciesQuery never deletes those rows. Because the query
+    // runs with PRAGMA defer_foreign_keys = ON, the FK violation only fires at COMMIT time;
+    // the transaction is then rolled back and the workspace stays in w_workspaces despite
+    // the API having reported a successful delete schedule.
+    [Fact]
+    public async Task when_workspace_with_quick_share_is_deleted_it_should_be_removed_from_db()
+    {
+        //given
+        var workspace = await CreateWorkspace(
+            storage: Storage,
+            user: AppOwner);
+
+        var folder = await CreateFolder(
+            parent: null,
+            workspace: workspace,
+            user: AppOwner);
+
+        var file = await UploadFile(
+            content: Encoding.UTF8.GetBytes("hello"),
+            fileName: "hello.txt",
+            contentType: "text/plain",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        await Api.QuickShares.Create(
+            workspaceExternalId: workspace.ExternalId,
+            request: new CreateQuickShareRequestDto(
+                Name: "share",
+                CustomSlug: null,
+                SelectedFiles: [file.ExternalId],
+                SelectedFolders: [],
+                ExcludedFiles: [],
+                ExcludedFolders: [],
+                Mode: QuickShareMode.Browser,
+                AllowIndividualFileDownload: true,
+                ExpiresAt: null,
+                Password: null,
+                MaxDownloads: null),
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //when
+        await Api.Workspaces.Delete(
+            externalId: workspace.ExternalId,
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        //then
+        await WaitFor(() =>
+            WorkspaceRowExists(workspace.ExternalId).Should().BeFalse(
+                "the delete-workspace job must succeed in removing the workspace from w_workspaces; " +
+                "with qsh_quick_shares left dangling the deferred FK check fires at COMMIT, " +
+                "the whole transaction rolls back, and the workspace stays in place"));
+    }
+
+    // i_integrations.i_workspace_id is a NULLable FK to w_workspaces with NO CASCADE/SET NULL,
+    // and DeleteWorkspaceWithDependenciesQuery never deletes or nulls those rows. The
+    // user-facing API blocks this path via ScheduleWorkspaceDeleteQuery.IsWorkspaceUsedByIntegration,
+    // so this test bypasses the schedule layer and invokes DeleteWorkspaceWithDependenciesQuery
+    // directly via DI to expose the underlying defense-in-depth gap.
+    [Fact]
+    public async Task delete_workspace_query_should_handle_workspace_bound_to_integration()
+    {
+        //given
+        var integration = await Api.Integrations.Create(
+            request: new CreateAwsTextractIntegrationRequestDto
+            {
+                Name = Random.Name("Textract"),
+                StorageExternalId = Storage.ExternalId,
+                AccessKey = Random.ClientId(),
+                SecretAccessKey = Random.ClientSecret(),
+                Region = "us-east-1"
+            },
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        var (integrationWorkspaceInternalId, integrationWorkspaceExternalId) =
+            GetIntegrationWorkspace(integration.ExternalId);
+
+        var dbWriteQueue = HostFixture.App.Services.GetRequiredService<DbWriteQueue>();
+        var deleteQuery = HostFixture.App.Services.GetRequiredService<DeleteWorkspaceWithDependenciesQuery>();
+
+        //when
+        Func<Task> runDeleteQuery = () => dbWriteQueue.Execute(
+            operationToEnqueue: context =>
+            {
+                using var transaction = context.Connection.BeginTransaction();
+
+                deleteQuery.Execute(
+                    workspaceId: integrationWorkspaceInternalId,
+                    deletedAt: Clock.UtcNow,
+                    correlationId: Guid.NewGuid(),
+                    dbWriteContext: context,
+                    transaction: transaction);
+
+                transaction.Commit();
+            },
+            cancellationToken: CancellationToken.None);
+
+        //then
+        await runDeleteQuery.Should().NotThrowAsync(
+            "DeleteWorkspaceWithDependenciesQuery must clean up i_integrations rows referencing " +
+            "the workspace; leaving them in place produces a FOREIGN KEY violation on COMMIT");
+
+        WorkspaceRowExists(integrationWorkspaceExternalId).Should().BeFalse(
+            "the workspace bound to the integration must be physically removed from w_workspaces");
+    }
+
+    private bool WorkspaceRowExists(WorkspaceExtId externalId)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        return connection
+            .Cmd(
+                sql: "SELECT 1 FROM w_workspaces WHERE w_external_id = $externalId LIMIT 1",
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$externalId", externalId.Value)
+            .Execute()
+            .Count > 0;
+    }
+
+    private (int InternalId, WorkspaceExtId ExternalId) GetIntegrationWorkspace(
+        IntegrationExtId integrationExternalId)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT w.w_id, w.w_external_id
+                     FROM w_workspaces w
+                     JOIN i_integrations i ON i.i_workspace_id = w.w_id
+                     WHERE i.i_external_id = $integrationExternalId
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => (reader.GetInt32(0), reader.GetExtId<WorkspaceExtId>(1)))
+            .WithParameter("$integrationExternalId", integrationExternalId.Value)
+            .Execute();
+
+        if (rows.Count == 0)
+            throw new InvalidOperationException(
+                $"No workspace bound to integration '{integrationExternalId}' was found.");
+
+        return rows[0];
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 import { Component, Inject, ViewEncapsulation, signal } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
 import { MatSnackBar } from '@angular/material/snack-bar';
 
@@ -14,6 +15,7 @@ export interface QuickShareCreatedDialogData {
     selector: 'app-quick-share-created-dialog',
     imports: [
         MatButtonModule,
+        MatTooltipModule,
         ClipboardModule
     ],
     templateUrl: './quick-share-created-dialog.component.html',

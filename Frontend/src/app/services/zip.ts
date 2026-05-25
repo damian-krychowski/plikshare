@@ -5,7 +5,7 @@
 
 import { computed, signal } from "@angular/core";
 import { toNameAndExtension } from "./filte-type";
-import { countSelectedDescendants, ZipTreeNode, ZipFolderNode, ZipFileNode } from "../shared/zip-file-tree-view/zip-file-tree-view.component";
+import { countSelectedDescendants, StaticTreeNode, StaticFolderNode, StaticFileNode } from "../shared/static-file-tree-view/static-file-tree-view.component";
 
 //anywhere else, and the one from Central Directory Record may be different than this one
 export type ZipLfhRecord = {
@@ -733,15 +733,15 @@ export class ZipArchives {
             .includes(searchPhraseLower);
     }
 
-    public static buildArchiveTree(archive: ZipArchive): ZipTreeNode[] {
-        const rootLevel: ZipTreeNode[] = [];
+    public static buildArchiveTree(archive: ZipArchive): StaticTreeNode[] {
+        const rootLevel: StaticTreeNode[] = [];
 
         // Iterates top-down so that when a child node is built its parent is already
         // wired up — parent refs and isParentSelected/isParentExcluded recursion
         // therefore resolve without any second pass.
         type Frame = {
-            children: ZipTreeNode[];
-            parent: ZipFolderNode | null;
+            children: StaticTreeNode[];
+            parent: StaticFolderNode | null;
             source: { folders: ZipFolder[]; entries: ZipEntry[] };
         };
 
@@ -774,7 +774,7 @@ export class ZipArchives {
         return rootLevel;
     }
 
-    private static makeFolderNode(folder: ZipFolder, parent: ZipFolderNode | null): ZipFolderNode {
+    private static makeFolderNode(folder: ZipFolder, parent: StaticFolderNode | null): StaticFolderNode {
         const isExpanded = signal(false);
         const wasRenderedMemory = { wasRendered: false };
 
@@ -799,7 +799,7 @@ export class ZipArchives {
         const isParentExcluded = computed(() =>
             parent ? (parent.isExcluded() || parent.isParentExcluded()) : false);
 
-        const children: ZipTreeNode[] = [];
+        const children: StaticTreeNode[] = [];
 
         return {
             type: 'folder',
@@ -823,7 +823,7 @@ export class ZipArchives {
         };
     }
 
-    private static makeFileNode(entry: ZipEntry, parent: ZipFolderNode | null): ZipFileNode {
+    private static makeFileNode(entry: ZipEntry, parent: StaticFolderNode | null): StaticFileNode {
         const nameAndExt = ZipArchives.getFileNameAndExtension(entry);
         const fullName = `${nameAndExt.name}${nameAndExt.extension}`;
 

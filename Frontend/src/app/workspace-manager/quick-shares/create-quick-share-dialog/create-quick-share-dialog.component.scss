@@ -51,7 +51,7 @@ input[type="datetime-local"] {
 }
 
 .url-preview {
-    font-family: monospace;
+    font-family: var(--company-monospace-font);
     font-size: var(--company-small-font);
     color: var(--company-grey-font);
     word-break: break-all;

@@ -2,7 +2,13 @@ import { HttpClient, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 import { QuickShareMode } from "./quick-shares.api";
-import { ContentDisposition } from "./folders-and-files.api";
+import { ContentDisposition, GetFileDownloadLinkResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse } from "./folders-and-files.api";
+import { ZipPreviewDetails } from "../files-explorer/file-inline-preview/file-inline-preview.component";
+import { ZipEntry } from "./zip";
+import { ProtoHttp } from "./protobuf-http.service";
+import { getZipFileDetailsDtoProtobuf } from "../protobuf/zip-file-details-dto.protobuf";
+
+const zipFileDetailsDtoProtobuf = getZipFileDetailsDtoProtobuf();
 
 export interface GetQuickShareInfoResponse {
     name: string;
@@ -61,7 +67,10 @@ export interface GetQuickShareFileDownloadLinkResponse {
     providedIn: 'root'
 })
 export class QuickShareExternalAccessApi {
-    constructor(private _http: HttpClient) {
+    constructor(
+        private _http: HttpClient,
+        private _protoHttp: ProtoHttp
+    ) {
     }
 
     public async getInfo(slug: string, token: string | null): Promise<GetQuickShareInfoResponse> {
@@ -118,7 +127,78 @@ export class QuickShareExternalAccessApi {
         return await firstValueFrom(call);
     }
 
+    public async getFilePreviewLink(
+        slug: string,
+        token: string | null,
+        fileExternalId: string
+    ): Promise<GetQuickShareFileDownloadLinkResponse> {
+        const call = this._http.get<GetQuickShareFileDownloadLinkResponse>(
+            `/api/quick-shares/${slug}/files/${fileExternalId}/preview-link`,
+            { params: this.tokenParams(token) });
+
+        return await firstValueFrom(call);
+    }
+
+    public getZipPreviewDetails(
+        slug: string,
+        token: string | null,
+        fileExternalId: string
+    ): Promise<ZipPreviewDetails> {
+        // ProtoHttp.get doesn't take HttpParams — bake the token into the URL.
+        return this._protoHttp.get<ZipPreviewDetails>({
+            route: this.withToken(`/api/quick-shares/${slug}/files/${fileExternalId}/zip-details`, token),
+            responseProtoType: zipFileDetailsDtoProtobuf
+        });
+    }
+
+    public getZipContentPreviewLink(
+        slug: string,
+        token: string | null,
+        fileExternalId: string,
+        zipEntry: ZipEntry
+    ): Promise<GetFileDownloadLinkResponse> {
+        const call = this._http.post<GetFileDownloadLinkResponse>(
+            `/api/quick-shares/${slug}/files/${fileExternalId}/zip-content-preview-link`,
+            { item: zipEntry, contentDisposition: 'inline' },
+            { params: this.tokenParams(token) });
+
+        return firstValueFrom(call);
+    }
+
+    public getZipContentDownloadLink(
+        slug: string,
+        token: string | null,
+        fileExternalId: string,
+        zipEntry: ZipEntry,
+        contentDisposition: ContentDisposition
+    ): Promise<GetFileDownloadLinkResponse> {
+        const call = this._http.post<GetFileDownloadLinkResponse>(
+            `/api/quick-shares/${slug}/files/${fileExternalId}/zip-content-download-link`,
+            { item: zipEntry, contentDisposition: contentDisposition },
+            { params: this.tokenParams(token) });
+
+        return firstValueFrom(call);
+    }
+
+    public getZipBulkDownloadLink(
+        slug: string,
+        token: string | null,
+        fileExternalId: string,
+        request: GetZipBulkDownloadLinkRequest
+    ): Promise<GetZipBulkDownloadLinkResponse> {
+        const call = this._http.post<GetZipBulkDownloadLinkResponse>(
+            `/api/quick-shares/${slug}/files/${fileExternalId}/zip-bulk-download-link`,
+            request,
+            { params: this.tokenParams(token) });
+
+        return firstValueFrom(call);
+    }
+
     private tokenParams(token: string | null): HttpParams {
         return token ? new HttpParams().set('token', token) : new HttpParams();
+    }
+
+    private withToken(route: string, token: string | null): string {
+        return token ? `${route}?token=${encodeURIComponent(token)}` : route;
     }
 }

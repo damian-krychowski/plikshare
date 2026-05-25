@@ -9,11 +9,14 @@
             whatever you selected (subject to the password / expiration / limits you set).
         </div>
 
-        <div class="link-row">
-            <div class="link-row__url" [title]="data.url">{{ data.url }}</div>
-            <button type="button" class="questionaire__btn" mat-flat-button (click)="copyLink()">
-                {{ copied() ? 'Copied' : 'Copy' }}
-            </button>
+        <div class="public-link"
+            [class.public-link--copied]="copied()"
+            (click)="copyLink()">
+            <i class="icon icon-lg icon-nucleo-link public-link__leading"></i>
+            <span class="public-link__url">{{ data.url }}</span>
+            <span class="public-link__copy">
+                <i class="icon icon-sm" [class.icon-nucleo-copy]="!copied()" [class.icon-lucide-check]="copied()"></i>
+            </span>
         </div>
     </div>
 

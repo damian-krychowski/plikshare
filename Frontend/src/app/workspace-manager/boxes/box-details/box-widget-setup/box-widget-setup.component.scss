@@ -42,7 +42,7 @@
         overflow: visible;
         white-space: pre-wrap;
         word-wrap: break-word;
-        font-family: monospace;
+        font-family: var(--company-monospace-font);
         height: auto;
         min-height: fit-content;
     }
@@ -50,7 +50,7 @@
     code {
         display: block;
         width: 100%;
-        font-family: monospace;
+        font-family: var(--company-monospace-font);
     }
 
     i {

@@ -169,7 +169,17 @@ public class DeleteWorkspaceWithDependenciesQuery(
             dbWriteContext: dbWriteContext,
             transaction: transaction);
 
+        var deletedIntegrations = DeleteWorkspaceBoundIntegrations(
+            workspaceId,
+            dbWriteContext,
+            transaction);
+
         var deletedFolders = DeleteFolders(
+            workspaceId,
+            dbWriteContext,
+            transaction);
+
+        var deletedQuickShares = DeleteQuickShares(
             workspaceId,
             dbWriteContext,
             transaction);
@@ -240,6 +250,12 @@ public class DeleteWorkspaceWithDependenciesQuery(
             var textractJobIds = IdsRange.GroupConsecutiveIds(
                 ids: deletedTextractJobs.Select(x => x.Id));
 
+            var quickShareIds = IdsRange.GroupConsecutiveIds(
+                ids: deletedQuickShares);
+
+            var integrationIds = IdsRange.GroupConsecutiveIds(
+                ids: deletedIntegrations);
+
             Log.Information(
                 "Delete workspace#{WorkspaceId} query finished. " +
                 "Deleted Folders ({FoldersCount}): {FolderIds}, " +
@@ -250,6 +266,8 @@ public class DeleteWorkspaceWithDependenciesQuery(
                 "Boxes ({BoxesCount}): [{BoxIds}]. " +
                 "CopyFileQueueJobs ({CopyFileQueueJobsCount}): [{CopyFileQueueJobIds}]" +
                 "TextractJobs ({TextractJobsCount}): [{TextractJobIds}]" +
+                "QuickShares ({QuickSharesCount}): [{QuickShareIds}]" +
+                "Integrations ({IntegrationsCount}): [{IntegrationIds}]" +
                 "Enqueued jobs ({QueueJobsCount}): [{QueueJobIds}]",
                 workspaceId,
                 deletedFolders.Count,
@@ -267,6 +285,10 @@ public class DeleteWorkspaceWithDependenciesQuery(
                 copyFileQueueJobIds,
                 deletedTextractJobs.Count,
                 textractJobIds,
+                deletedQuickShares.Count,
+                quickShareIds,
+                deletedIntegrations.Count,
+                integrationIds,
                 queueJobs.Count,
                 queueJobIds);
         }
@@ -448,6 +470,62 @@ public class DeleteWorkspaceWithDependenciesQuery(
             .Execute();
     }
     
+    private static List<int> DeleteQuickShares(
+        int workspaceId,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction)
+    {
+        return dbWriteContext
+            .Cmd(
+                sql: @"
+                    DELETE FROM qsh_quick_shares
+                    WHERE qsh_workspace_id = $workspaceId
+                    RETURNING qsh_id
+                ",
+                readRowFunc: reader => reader.GetInt32(0),
+                transaction: transaction)
+            .WithParameter("$workspaceId", workspaceId)
+            .Execute();
+    }
+
+    private List<int> DeleteWorkspaceBoundIntegrations(
+        int workspaceId,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction)
+    {
+        var integrationIds = dbWriteContext
+            .Cmd(
+                sql: @"
+                    SELECT i_id
+                    FROM i_integrations
+                    WHERE i_workspace_id = $workspaceId
+                ",
+                readRowFunc: reader => reader.GetInt32(0),
+                transaction: transaction)
+            .WithParameter("$workspaceId", workspaceId)
+            .Execute();
+
+        foreach (var integrationId in integrationIds)
+        {
+            deleteTextractJobsSubQuery.Execute(
+                integrationId: integrationId,
+                dbWriteContext: dbWriteContext,
+                transaction: transaction);
+        }
+
+        return dbWriteContext
+            .Cmd(
+                sql: @"
+                    DELETE FROM i_integrations
+                    WHERE i_workspace_id = $workspaceId
+                    RETURNING i_id
+                ",
+                readRowFunc: reader => reader.GetInt32(0),
+                transaction: transaction)
+            .WithParameter("$workspaceId", workspaceId)
+            .Execute();
+    }
+
     private static void DeleteWorkspaceEncryptionKeys(
         int workspaceId,
         SqliteWriteContext dbWriteContext,

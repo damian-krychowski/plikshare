@@ -5,7 +5,7 @@ import { ItemSearchComponent } from '../../../shared/item-search/item-search.com
 import { FileIconPipe } from '../../file-icon-pipe/file-icon.pipe';
 import { ContentDisposition, GetZipBulkDownloadLinkRequest } from '../../../services/folders-and-files.api';
 import { ZipPreviewDetails } from '../../file-inline-preview/file-inline-preview.component';
-import { ZipFileNode, ZipTreeNode, ZipFileTreeViewComponent } from '../../../shared/zip-file-tree-view/zip-file-tree-view.component';
+import { StaticFileNode, StaticTreeNode, StaticFileTreeViewComponent } from '../../../shared/static-file-tree-view/static-file-tree-view.component';
 
 export interface ZipPreviewOperations {
     getZipPreviewDetails: () => Promise<ZipPreviewDetails>;
@@ -16,7 +16,7 @@ export interface ZipPreviewOperations {
 @Component({
     selector: 'app-zip-preview',
     imports: [
-        ZipFileTreeViewComponent,
+        StaticFileTreeViewComponent,
         ActionButtonComponent,
         ItemSearchComponent,
         FileIconPipe
@@ -34,7 +34,7 @@ export class ZipPreviewComponent implements OnChanges {
     fileFullName = computed(() => this.fileName() + this.fileExtension());
 
     zipArchive = signal<ZipArchive | null>(null);
-    zipFileTreeNodes = computed<ZipTreeNode[]>(() => {
+    zipFileTreeNodes = computed<StaticTreeNode[]>(() => {
         const archive = this.zipArchive();
 
         if(!archive)
@@ -73,7 +73,7 @@ export class ZipPreviewComponent implements OnChanges {
         };
     });
 
-    isArchiveOpened = signal(false);
+    isArchiveOpened = signal(true);
     zipSearchPhrase = signal('');
 
     async ngOnChanges(changes: SimpleChanges): Promise<void> {
@@ -130,7 +130,7 @@ export class ZipPreviewComponent implements OnChanges {
             `${this.fileName()}-selection.zip`);
     }
 
-    async onZipEntryClick(fileNode: ZipFileNode) {
+    async onZipEntryClick(fileNode: StaticFileNode) {
         const entry = this.tryGetEntry(
             fileNode);
 
@@ -140,7 +140,7 @@ export class ZipPreviewComponent implements OnChanges {
         this.zipEntryClicked.emit(entry);
     }
 
-    private tryGetEntry(fileNode: ZipFileNode) {
+    private tryGetEntry(fileNode: StaticFileNode) {
         const archive = this.zipArchive();
 
         if(!archive)
@@ -167,7 +167,7 @@ export class ZipPreviewComponent implements OnChanges {
     // Selected folders short-circuit descent: they include all their contents by
     // contract, so the children are only walked to harvest excludes inside them.
     // Non-selected folders recurse normally to find sub-selections.
-    private collectSelected(nodes: ZipTreeNode[], state: GetZipBulkDownloadLinkRequest) {
+    private collectSelected(nodes: StaticTreeNode[], state: GetZipBulkDownloadLinkRequest) {
         for (const node of nodes) {
             if (node.isSelected()) {
                 if (node.type === 'folder') {
@@ -182,7 +182,7 @@ export class ZipPreviewComponent implements OnChanges {
         }
     }
 
-    private collectExcludesUnder(nodes: ZipTreeNode[], state: GetZipBulkDownloadLinkRequest) {
+    private collectExcludesUnder(nodes: StaticTreeNode[], state: GetZipBulkDownloadLinkRequest) {
         for (const node of nodes) {
             if (node.isExcluded()) {
                 if (node.type === 'folder') {

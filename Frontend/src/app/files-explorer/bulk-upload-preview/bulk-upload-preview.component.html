@@ -78,11 +78,11 @@
     
             @if(archiveVal.isOpened() && archiveFileTreeVal) {
                 <div class="archive-box__content">
-                    <app-zip-file-tree-view 
+                    <app-static-file-tree-view 
                         [fileTree]="archiveFileTreeVal"
                         [canDownload]="false"
                         [searchPhrase]="archiveVal.searchPhrase()">
-                    </app-zip-file-tree-view >
+                    </app-static-file-tree-view >
                 </div>
             }
         </div>

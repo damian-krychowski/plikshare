@@ -48,12 +48,12 @@
 
     @if(isArchiveOpened()) {
         <div class="archive-box__content">
-            <app-zip-file-tree-view
+            <app-static-file-tree-view
                 [fileTree]="zipFileTreeNodes()"
                 [searchPhrase]="zipSearchPhrase()"
                 [canDownload]="true"
                 (fileClicked)="onZipEntryClick($event)">
-            </app-zip-file-tree-view>
+            </app-static-file-tree-view>
         </div>
     }
 </div>

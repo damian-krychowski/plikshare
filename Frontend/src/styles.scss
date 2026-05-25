@@ -87,6 +87,14 @@ select {
     --mdc-checkbox-state-layer-size: 36px;
     --company-small-font: 0.8rem;
     --company-medium-font: 0.9rem;
+    --company-monospace-font: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
+
+    // Neutral tint overlays applied on top of --company-background, lightest → strongest.
+    // Used to layer subtle surfaces (cards, inset tiles) without picking a fixed hex per layer.
+    --company-overlay-1: rgba(0, 0, 0, 0.02);
+    --company-overlay-2: rgba(0, 0, 0, 0.03);
+    --company-overlay-3: rgba(0, 0, 0, 0.04);
+    --company-overlay-4: rgba(0, 0, 0, 0.06);
 }
 
 .app-container {

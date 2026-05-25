@@ -12,7 +12,7 @@
 .top-bar__subtitle {
     font-size: var(--company-small-font);
     color: var(--company-grey-font);
-    font-family: monospace;
+    font-family: var(--company-monospace-font);
     line-height: 1.2;
 }
 
@@ -177,7 +177,7 @@
 }
 
 .policy-event__name {
-    font-family: monospace;
+    font-family: var(--company-monospace-font);
     font-size: var(--company-small-font);
     font-weight: 500;
 }

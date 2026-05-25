@@ -1,20 +1,69 @@
+@use "./../../../../styles/variables.scss" as variables;
 @forward "./../../../../styles/questionaire.scss";
 
-.link-row {
+.public-link {
     display: flex;
+    flex-direction: row;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem;
-    background: var(--company-background);
-    border-radius: 4px;
+    gap: 0.75rem;
+    padding: 0.75rem 0.75rem 0.75rem 1rem;
+    border: 1px solid var(--company-grey-accent);
+    border-radius: 8px;
+    background-color: var(--company-overlay-1);
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    word-break: break-all;
+
+    &:hover {
+        background-color: var(--company-overlay-3);
+        border-color: var(--company-grey-font);
+
+        .public-link__copy {
+            background-color: var(--company-overlay-4);
+        }
+    }
+
+    &--copied {
+        border-color: var(--company-blue);
+        background-color: var(--company-overlay-2);
+    }
+
+    &__leading {
+        color: var(--company-grey-font);
+        flex-shrink: 0;
+    }
 
     &__url {
         flex: 1;
-        font-family: monospace;
-        font-size: var(--company-small-font);
+        font-family: var(--company-monospace-font);
+        font-size: 0.95rem;
+        font-weight: 500;
+        min-width: 0;
+    }
+
+    &__copy {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        background-color: var(--company-overlay-2);
         color: var(--company-grey-font);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        flex-shrink: 0;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    &--copied .public-link__copy {
+        color: var(--company-blue);
+    }
+
+    @media (max-width: variables.$mobile-breakpoint) {
+        gap: 0.5rem;
+        padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+
+        &__url {
+            font-size: 0.85rem;
+        }
     }
 }

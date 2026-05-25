@@ -15,9 +15,7 @@
                     (editingStopped)="link().isNameEditing.set(false)">                                
                 </app-editable-txt>
 
-                <div class="item__subtitle url" (click)="copyToClipboard()"
-                    matTooltip="Copy to clipboard"
-                    matTooltipPosition="below">
+                <div class="item__subtitle url" (click)="copyToClipboard()">
 
                     {{ url() }} <i class="icon icon-sm icon-nucleo-copy"></i>
                 </div>

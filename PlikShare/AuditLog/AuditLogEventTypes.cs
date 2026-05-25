@@ -309,6 +309,7 @@ public static class AuditLogEventTypes
         public const string UnlockFailed = "quick-share.unlock-failed";
         public const string BulkDownloadLinkGenerated = "quick-share.bulk-download-link-generated";
         public const string FileDownloadLinkGenerated = "quick-share.file-download-link-generated";
+        public const string FilePreviewLinkGenerated = "quick-share.file-preview-link-generated";
         public const string DownloadLimitReached = "quick-share.download-limit-reached";
 
         public static readonly string[] All =
@@ -317,7 +318,7 @@ public static class AuditLogEventTypes
             ExpirationUpdated, PasswordUpdated, MaxDownloadsUpdated,
             ModeUpdated, ItemsUpdated,
             Unlocked, UnlockFailed,
-            BulkDownloadLinkGenerated, FileDownloadLinkGenerated,
+            BulkDownloadLinkGenerated, FileDownloadLinkGenerated, FilePreviewLinkGenerated,
             DownloadLimitReached
         ];
     }

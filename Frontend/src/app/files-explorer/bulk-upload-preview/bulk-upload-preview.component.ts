@@ -17,7 +17,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { TimeService } from '../../services/time.service';
 import { ElapsedTimePipe } from '../../shared/elapsed-time.pipe';
 import { DropFilesDirective } from '../directives/drop-files.directive';
-import { ZipTreeNode, ZipFileTreeViewComponent } from '../../shared/zip-file-tree-view/zip-file-tree-view.component';
+import { StaticTreeNode, StaticFileTreeViewComponent } from '../../shared/static-file-tree-view/static-file-tree-view.component';
 import { HttpHeadersFactory } from '../http-headers-factory';
 
 export type BulkUploadZipEntry = {
@@ -77,7 +77,7 @@ const NO_COMPRESSION_CODE = 0;
         MatButtonModule,
         MatSlideToggleModule,
         FileIconPipe,
-        ZipFileTreeViewComponent,
+        StaticFileTreeViewComponent,
         ActionButtonComponent,
         ItemSearchComponent,
         ItemButtonComponent,
@@ -98,7 +98,7 @@ export class BulkUploadPreviewComponent implements OnInit {
     httpHeadersFactory = input.required<HttpHeadersFactory>();
     
     archive = computed(() => this.bulkUpload().archive());
-    archiveFileTree = computed<ZipTreeNode[]>(() => {
+    archiveFileTree = computed<StaticTreeNode[]>(() => {
         const bulkFileUpload = this.archive();
 
         if(!bulkFileUpload)

@@ -15,11 +15,11 @@ import { TreeCheckobxComponent } from '../file-tree-view/tree-checkbox/tree-chec
 // zip preview inside a workspace). 'download' shows per-file download icons and
 // emits fileDownloadClicked — the legacy quick-share UX where each file is
 // fetched on its own through a presigned link.
-export type ZipFileTreeViewMode = 'select' | 'download';
+export type StaticFileTreeViewMode = 'select' | 'download';
 
-export type ZipTreeNode = ZipFileNode | ZipFolderNode;
+export type StaticTreeNode = StaticFileNode | StaticFolderNode;
 
-export function countSelectedDescendants(children: ZipTreeNode[]): number {
+export function countSelectedDescendants(children: StaticTreeNode[]): number {
     let count = 0;
 
     for (const child of children) {
@@ -33,7 +33,7 @@ export function countSelectedDescendants(children: ZipTreeNode[]): number {
     return count;
 }
 
-export type ZipFileNode = {
+export type StaticFileNode = {
     type: 'file';
     id: string;
 
@@ -52,28 +52,28 @@ export type ZipFileNode = {
     // exact signal references so the same checkbox state shows up in both views.
     isSelected: WritableSignal<boolean>;
     isExcluded: WritableSignal<boolean>;
-    parent: ZipFolderNode | null;
+    parent: StaticFolderNode | null;
     isParentSelected: Signal<boolean>;
     isParentExcluded: Signal<boolean>;
 }
 
-export type ZipFolderNode = {
+export type StaticFolderNode = {
     type: 'folder';
     id: string;
 
     name: string;
     nameLower: string;
-    children: ZipTreeNode[];
+    children: StaticTreeNode[];
     isExpanded: WritableSignal<boolean>;
     wasRendered: Signal<boolean>;
 
     isVisible: WritableSignal<boolean>;
     wasLoaded: boolean;
 
-    // See ZipFileNode comment — same cascading-selection contract applies.
+    // See StaticFileNode comment — same cascading-selection contract applies.
     isSelected: WritableSignal<boolean>;
     isExcluded: WritableSignal<boolean>;
-    parent: ZipFolderNode | null;
+    parent: StaticFolderNode | null;
     isParentSelected: Signal<boolean>;
     isParentExcluded: Signal<boolean>;
 
@@ -81,7 +81,7 @@ export type ZipFolderNode = {
 }
 
 @Component({
-    selector: 'app-zip-file-tree-view',
+    selector: 'app-static-file-tree-view',
     imports: [
         MatTreeModule,
         MatIconModule,
@@ -91,17 +91,17 @@ export type ZipFolderNode = {
         TreeCheckobxComponent,
         ActionButtonComponent
     ],
-    templateUrl: './zip-file-tree-view.component.html',
-    styleUrls: ['./zip-file-tree-view.component.scss']
+    templateUrl: './static-file-tree-view.component.html',
+    styleUrls: ['./static-file-tree-view.component.scss']
 })
-export class ZipFileTreeViewComponent implements OnChanges {
-    fileTree = input.required<ZipTreeNode[]>();
+export class StaticFileTreeViewComponent implements OnChanges {
+    fileTree = input.required<StaticTreeNode[]>();
     searchPhrase = input<string>();
     canDownload = input(true);
-    mode = input<ZipFileTreeViewMode>('select');
+    mode = input<StaticFileTreeViewMode>('select');
 
-    fileClicked = output<ZipFileNode>();
-    fileDownloadClicked = output<ZipFileNode>();
+    fileClicked = output<StaticFileNode>();
+    fileDownloadClicked = output<StaticFileNode>();
 
     isSearchActive = computed(() => {
         const phrase = this.searchPhrase();
@@ -109,16 +109,16 @@ export class ZipFileTreeViewComponent implements OnChanges {
         return phrase && phrase.length >= 3;
     });
 
-    private _filesMap: Map<string, ZipFileNode> = new Map();
-    private _foldersMap: Map<string, ZipFolderNode> = new Map();
+    private _filesMap: Map<string, StaticFileNode> = new Map();
+    private _foldersMap: Map<string, StaticFolderNode> = new Map();
     private _pathMap: Map<string, string[]> = new Map();
     
-    private _nGramSearch: NGramSearch<ZipFileNode> = new NGramSearch<ZipFileNode>([], () => '');
-    private _folderNGramSearch: NGramSearch<ZipFolderNode> = new NGramSearch<ZipFolderNode>([], () => '');
+    private _nGramSearch: NGramSearch<StaticFileNode> = new NGramSearch<StaticFileNode>([], () => '');
+    private _folderNGramSearch: NGramSearch<StaticFolderNode> = new NGramSearch<StaticFolderNode>([], () => '');
 
     private _currentSearchPhrase: string | null = null;
 
-    childrenAccessor = (node: ZipTreeNode) => {
+    childrenAccessor = (node: StaticTreeNode) => {
         if(node.type == 'folder')
             return node.children;
 
@@ -128,8 +128,8 @@ export class ZipFileTreeViewComponent implements OnChanges {
     constructor(){
         }
 
-    dataSource = new MatTreeNestedDataSource<ZipTreeNode>();
-    searchResultDataSource = new MatTreeNestedDataSource<ZipTreeNode>();
+    dataSource = new MatTreeNestedDataSource<StaticTreeNode>();
+    searchResultDataSource = new MatTreeNestedDataSource<StaticTreeNode>();
 
     ngOnChanges(changes: SimpleChanges) {
         if (changes['fileTree']) {
@@ -140,11 +140,11 @@ export class ZipFileTreeViewComponent implements OnChanges {
             this._foldersMap = foldersMap;
             this._pathMap = pathMap;
 
-            this._nGramSearch = new NGramSearch<ZipFileNode>(
+            this._nGramSearch = new NGramSearch<StaticFileNode>(
                 files,
                 file => file.fullNameLower);
 
-            this._folderNGramSearch = new NGramSearch<ZipFolderNode>(
+            this._folderNGramSearch = new NGramSearch<StaticFolderNode>(
                 folders,
                 folder => folder.nameLower);
 
@@ -156,8 +156,8 @@ export class ZipFileTreeViewComponent implements OnChanges {
         }
     }
 
-    isFolder = (_: number, node: ZipTreeNode) => node.type == 'folder';
-    isFile = (_: number, node: ZipTreeNode) => node.type == 'file';
+    isFolder = (_: number, node: StaticTreeNode) => node.type == 'folder';
+    isFile = (_: number, node: StaticTreeNode) => node.type == 'file';
 
     private tryApplySearchPhrase() {
         const searchPhrase = this.searchPhrase();
@@ -175,8 +175,8 @@ export class ZipFileTreeViewComponent implements OnChanges {
         const searchPhraseLower = searchPhrase.toLowerCase();
 
         if(this._currentSearchPhrase && searchPhraseLower.startsWith(this._currentSearchPhrase)) {
-            //if new search phrase starts with the current search phrase it means we dont have to rebuild the whole zip
-            //archive from matching entries, we can do a cheaper operation - narrow down the current result. That wont
+            //if new search phrase starts with the current search phrase it means we dont have to rebuild the whole
+            //tree from matching entries, we can do a cheaper operation - narrow down the current result. That wont
             //require a DOM rebuild, we will simply hide the results which no longer matches.
 
             this.applyNextSearchPhrase({
@@ -206,9 +206,9 @@ export class ZipFileTreeViewComponent implements OnChanges {
     }
 
     private buildSubTree(
-        files: ZipFileNode[],
-        folders: ZipFolderNode[],
-        searchPhraseLower: string): ZipTreeNode[] {
+        files: StaticFileNode[],
+        folders: StaticFolderNode[],
+        searchPhraseLower: string): StaticTreeNode[] {
         const matchingFileIds = new Set(files.map(f => f.id));
         const matchingFolderIds = new Set(folders.map(f => f.id));
 
@@ -216,7 +216,7 @@ export class ZipFileTreeViewComponent implements OnChanges {
         // it matches itself or any descendant does — folder match does NOT cascade
         // into its contents, only the folder itself is highlighted. Ancestors of
         // matches stay as path context with their original names.
-        const cloneSubtree = (node: ZipTreeNode): ZipTreeNode | null => {
+        const cloneSubtree = (node: StaticTreeNode): StaticTreeNode | null => {
             if (node.type === 'file') {
                 if (!matchingFileIds.has(node.id)) return null;
 
@@ -241,7 +241,7 @@ export class ZipFileTreeViewComponent implements OnChanges {
 
             const folderMatches = matchingFolderIds.has(node.id);
 
-            const clonedChildren: ZipTreeNode[] = [];
+            const clonedChildren: StaticTreeNode[] = [];
             for (const child of node.children) {
                 const clone = cloneSubtree(child);
                 if (clone) clonedChildren.push(clone);
@@ -273,7 +273,7 @@ export class ZipFileTreeViewComponent implements OnChanges {
             };
         };
 
-        const result: ZipTreeNode[] = [];
+        const result: StaticTreeNode[] = [];
         for (const root of this.fileTree()) {
             const clone = cloneSubtree(root);
             if (clone) result.push(clone);
@@ -282,9 +282,9 @@ export class ZipFileTreeViewComponent implements OnChanges {
         return result;
     }
 
-    private applyNextSearchPhrase(args: {nodes: ZipTreeNode[], searchPhraseLower: string}) {
+    private applyNextSearchPhrase(args: {nodes: StaticTreeNode[], searchPhraseLower: string}) {
         type NodeToProcess = {
-            node: ZipTreeNode;
+            node: StaticTreeNode;
             depth: number;
         };
 
@@ -350,7 +350,7 @@ export class ZipFileTreeViewComponent implements OnChanges {
 
 
 
-    expand(node: ZipFolderNode) {
+    expand(node: StaticFolderNode) {
         toggle(node.isExpanded);
     }
 
@@ -358,7 +358,7 @@ export class ZipFileTreeViewComponent implements OnChanges {
     // drops any individual descendant selections (they would otherwise duplicate
     // entries in the payload); pulling a folder OUT of the selection wipes any
     // descendant exclusions (excludes are only meaningful under a selected root).
-    onIsSelectedChange(node: ZipTreeNode, isSelected: boolean) {
+    onIsSelectedChange(node: StaticTreeNode, isSelected: boolean) {
         node.isSelected.set(isSelected);
 
         if (node.type === 'folder') {
@@ -376,7 +376,7 @@ export class ZipFileTreeViewComponent implements OnChanges {
     // Un-excluding a folder also un-excludes all descendants — a child exclude is
     // only meaningful within a still-excluded ancestor, so cleaning up here keeps
     // the visible checkbox state and the eventual payload consistent.
-    onIsExcludedChange(node: ZipTreeNode, isExcluded: boolean) {
+    onIsExcludedChange(node: StaticTreeNode, isExcluded: boolean) {
         node.isExcluded.set(isExcluded);
 
         if (node.type === 'folder' && !isExcluded) {
@@ -388,7 +388,7 @@ export class ZipFileTreeViewComponent implements OnChanges {
         }
     }
 
-    private *getAllDescendantNodes(node: ZipFolderNode): Generator<ZipTreeNode> {
+    private *getAllDescendantNodes(node: StaticFolderNode): Generator<StaticTreeNode> {
         for (const child of node.children) {
             yield child;
             if (child.type === 'folder') {
@@ -397,15 +397,15 @@ export class ZipFileTreeViewComponent implements OnChanges {
         }
     }
 
-    private getTreeStructures(nodes: ZipTreeNode[]) {
+    private getTreeStructures(nodes: StaticTreeNode[]) {
         const pathMap: Map<string, string[]> = new Map<string, string[]>();
-        const filesMap: Map<string, ZipFileNode> = new Map<string, ZipFileNode>();
-        const foldersMap: Map<string, ZipFolderNode> = new Map<string, ZipFolderNode>();
-        const files: ZipFileNode[] = [];
-        const folders: ZipFolderNode[] = [];
+        const filesMap: Map<string, StaticFileNode> = new Map<string, StaticFileNode>();
+        const foldersMap: Map<string, StaticFolderNode> = new Map<string, StaticFolderNode>();
+        const files: StaticFileNode[] = [];
+        const folders: StaticFolderNode[] = [];
 
         type NodeWithPath = {
-            node: ZipTreeNode;
+            node: StaticTreeNode;
             path: string[];
         };
 

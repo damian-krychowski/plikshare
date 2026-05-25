@@ -86,6 +86,11 @@ export class QuickShareDetailsComponent implements OnInit {
         return this.hasPassword() && this.passwordValue().trim().length > 0;
     });
 
+    passwordChangeConfirmSubtitle = computed(() =>
+        this._lastSavedHasPassword()
+            ? 'Anyone using the current password will lose access until they receive the new one.'
+            : 'The link will become password-protected. Share the password with anyone who should be able to open it.');
+
     hasMaxDownloads = signal(false);
     maxDownloadsValue: WritableSignal<number | null> = signal(null);
     private _lastSavedMaxDownloads: number | null = null;

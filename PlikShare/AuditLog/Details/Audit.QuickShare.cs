@@ -108,6 +108,13 @@ public static partial class Audit
             public required int DownloadsCountAfter { get; init; }
         }
 
+        public class FilePreviewLinkGenerated
+        {
+            public required WorkspaceRef Workspace { get; init; }
+            public required QuickShareRef QuickShare { get; init; }
+            public required FileRef File { get; init; }
+        }
+
         public class DownloadLimitReached
         {
             public required WorkspaceRef Workspace { get; init; }
@@ -417,6 +424,28 @@ public static partial class Audit
                 QuickShare = quickShare,
                 File = file,
                 DownloadsCountAfter = downloadsCountAfter
+            })
+        };
+
+        public static AuditLogEntry FilePreviewLinkGeneratedEntry(
+            AuditLogActorContext actor,
+            WorkspaceRef workspace,
+            QuickShareRef quickShare,
+            FileRef file) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.QuickShare,
+            EventType = AuditLogEventTypes.QuickShare.FilePreviewLinkGenerated,
+            Severity = AuditLogSeverities.Info,
+            WorkspaceExternalId = workspace.ExternalId.Value,
+            DetailsJson = Json.Serialize(new FilePreviewLinkGenerated
+            {
+                Workspace = workspace,
+                QuickShare = quickShare,
+                File = file
             })
         };
 

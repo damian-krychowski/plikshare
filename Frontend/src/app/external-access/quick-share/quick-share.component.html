@@ -1,3 +1,10 @@
+@if (isOwnerPreview()) {
+    <div class="quick-share-owner-banner">
+        <i class="icon icon-sm icon-nucleo-eye"></i>
+        <span>Viewing as owner — your visits don't count toward downloads or expiration.</span>
+    </div>
+}
+
 <div class="quick-share-page">
     @if (isInitialLoading()) {
         <div class="quick-share-page__loader">
@@ -8,28 +15,23 @@
             This quick share link is invalid or has been removed.
         </div>
     } @else if (info(); as infoValue) {
-        @if (isOwnerPreview()) {
-            <div class="quick-share-page__owner-banner">
-                <i class="icon icon-sm icon-nucleo-eye"></i>
-                <span>Viewing as owner — your visits don't count toward downloads or expiration.</span>
+        @if (!requiresPassword() || isUnlocked()) {
+            <div class="quick-share-page__header">
+                <h1 class="quick-share-page__title">{{ name() }}</h1>
+
+                @if (infoValue.expiresAt) {
+                    <div class="quick-share-page__meta">
+                        Expires: {{ infoValue.expiresAt | date:'medium' }}
+                    </div>
+                }
+
+                @if (infoValue.maxDownloads !== null) {
+                    <div class="quick-share-page__meta">
+                        Downloads remaining: {{ infoValue.maxDownloads - infoValue.downloadsCount }}
+                    </div>
+                }
             </div>
         }
-
-        <div class="quick-share-page__header">
-            <h1 class="quick-share-page__title">{{ name() }}</h1>
-
-            @if (infoValue.expiresAt) {
-                <div class="quick-share-page__meta">
-                    Expires: {{ infoValue.expiresAt | date:'medium' }}
-                </div>
-            }
-
-            @if (infoValue.maxDownloads !== null) {
-                <div class="quick-share-page__meta">
-                    Downloads remaining: {{ infoValue.maxDownloads - infoValue.downloadsCount }}
-                </div>
-            }
-        </div>
 
         @if (isExpired()) {
             <div class="quick-share-page__state quick-share-page__state--error">
@@ -41,22 +43,33 @@
             </div>
         } @else if (requiresPassword() && !isUnlocked()) {
             <div class="quick-share-page__password-gate">
-                <p>This quick share is password-protected.</p>
+                <div class="quick-share-page__password-gate-icon-wrap">
+                    <i class="icon icon-nucleo-lock quick-share-page__password-gate-icon"></i>
+                </div>
+
+                <p class="quick-share-page__password-gate-text">
+                    Enter the password to access the shared files.
+                </p>
 
                 <mat-form-field appearance="outline" class="quick-share-page__password-field">
                     <mat-label>Password</mat-label>
                     <input matInput type="password"
                         [ngModel]="passwordInput()"
-                        (ngModelChange)="passwordInput.set($event)"
+                        (ngModelChange)="onPasswordInputChange($event)"
                         (keyup.enter)="unlock()"
+                        [errorStateMatcher]="unlockErrorMatcher"
                         autocomplete="current-password">
+                    @if (unlockError(); as err) {
+                        <mat-error>{{ err }}</mat-error>
+                    }
                 </mat-form-field>
 
-                <app-action-text-btn
-                    text="Unlock"
-                    [disabled]="isUnlocking() || !passwordInput().trim()"
-                    (clicked)="unlock()">
-                </app-action-text-btn>
+                <button class="quick-share-page__unlock-btn"
+                    mat-flat-button
+                    [disabled]="isUnlocking()"
+                    (click)="unlock()">
+                    Unlock
+                </button>
             </div>
         } @else if (mode() === 'direct') {
             <div class="quick-share-page__direct">
@@ -68,61 +81,114 @@
                 </app-action-text-btn>
             </div>
         } @else if (content(); as contentValue) {
+            @let previewFile = previewFileForContent();
+            @let previewOps = filePreviewOperations();
+            @let zipEntryFile = zipEntryFileForContent();
+            @let zipEntryOps = zipEntryPreviewOperations();
             @let summary = selectionSummary();
+            @let selectAll = selectAllState();
 
-            <div class="quick-share-page__toolbar">
-                <div class="quick-share-page__summary">
-                    {{ filesCount() }} file(s) · total {{ totalSizeInBytes() | storageSize }}
+            <!-- Tree + toolbar: always mounted (static-file-tree-view rebuilds n-gram
+                 indexes on input change — destroying/recreating it makes preview→tree
+                 round-trips visibly slow). Hidden via display while preview is open. -->
+            <div [style.display]="previewFile ? 'none' : 'contents'">
+                <div class="quick-share-page__toolbar">
+                    <div class="quick-share-page__summary">
+                        {{ filesCount() }} file(s) · total {{ totalSizeInBytes() | storageSize }}
+                    </div>
+
+                    <div class="quick-share-page__actions">
+                        @if (summary.count > 0) {
+                            <app-action-btn
+                                tooltip="Download selected"
+                                icon="icon-nucleo-download"
+                                [isLoading]="isDownloading()"
+                                (clicked)="downloadSelected()">
+                            </app-action-btn>
+                        } @else {
+                            <app-action-btn
+                                tooltip="Download all as zip"
+                                icon="icon-nucleo-download"
+                                [isLoading]="isDownloading()"
+                                (clicked)="downloadAll()">
+                            </app-action-btn>
+                        }
+
+                        @if (allowIndividualFileDownload()) {
+                            <div class="quick-share-page__search-container">
+                                <app-item-search
+                                    (searched)="searchPhrase.set($event)">
+                                </app-item-search>
+
+                                @if(searchPhrase().length >= 1 && searchPhrase().length < 3) {
+                                    <div class="quick-share-page__search-info">
+                                        At least 3 characters are required
+                                    </div>
+                                }
+                            </div>
+
+                            <mat-checkbox
+                                class="quick-share-page__select-all"
+                                title="Select all"
+                                [checked]="selectAll === 'all'"
+                                [indeterminate]="selectAll === 'some'"
+                                (change)="toggleSelectAll()">
+                            </mat-checkbox>
+                        }
+                    </div>
                 </div>
 
-                <div class="quick-share-page__actions">
-                    @if (summary.count > 0) {
-                        <app-action-btn
-                            tooltip="Download selected"
-                            icon="icon-nucleo-download"
-                            [isLoading]="isDownloading()"
-                            (clicked)="downloadSelected()">
-                        </app-action-btn>
-                    } @else {
-                        <app-action-btn
-                            tooltip="Download all as zip"
-                            icon="icon-nucleo-download"
-                            [isLoading]="isDownloading()"
-                            (clicked)="downloadAll()">
-                        </app-action-btn>
-                    }
-
-                    @if (allowIndividualFileDownload()) {
-                        <div class="quick-share-page__search-container">
-                            <app-item-search
-                                (searched)="searchPhrase.set($event)">
-                            </app-item-search>
-
-                            @if(searchPhrase().length >= 1 && searchPhrase().length < 3) {
-                                <div class="quick-share-page__search-info">
-                                    At least 3 characters are required
-                                </div>
-                            }
-                        </div>
-
-                        @let selectAll = selectAllState();
-
-                        <mat-checkbox
-                            class="quick-share-page__select-all"
-                            title="Select all"
-                            [checked]="selectAll === 'all'"
-                            [indeterminate]="selectAll === 'some'"
-                            (change)="toggleSelectAll()">
-                        </mat-checkbox>
-                    }
-                </div>
+                <app-static-file-tree-view
+                    [fileTree]="fileTree()"
+                    [searchPhrase]="searchPhrase()"
+                    [canDownload]="allowIndividualFileDownload()"
+                    (fileClicked)="onFilePreviewed($event)">
+                </app-static-file-tree-view>
             </div>
 
-            <app-zip-file-tree-view
-                [fileTree]="fileTree()"
-                [searchPhrase]="searchPhrase()"
-                [canDownload]="allowIndividualFileDownload()">
-            </app-zip-file-tree-view>
+            <!-- File preview overlay. The inner file-content stays mounted while a
+                 zip entry is being previewed (hidden via display) so backing out of
+                 the entry doesn't re-fetch the zip listing. -->
+            @if (previewFile && previewOps) {
+                <div [style.display]="zipEntryFile ? 'none' : 'contents'">
+                    <div class="quick-share-page__preview-header">
+                        <app-action-btn
+                            tooltip="Back to file list"
+                            icon="icon-lucide-chevron-left"
+                            (clicked)="closePreview()">
+                        </app-action-btn>
+
+                        <div class="quick-share-page__preview-title">
+                            {{ previewFile.name() }}{{ previewFile.extension }}
+                        </div>
+                    </div>
+
+                    <app-file-content
+                        [file]="previewFile"
+                        [operations]="previewOps"
+                        (zipEntryClicked)="onZipEntryClicked($event)">
+                    </app-file-content>
+                </div>
+
+                @if (zipEntryFile && zipEntryOps) {
+                    <div class="quick-share-page__preview-header">
+                        <app-action-btn
+                            tooltip="Back to zip contents"
+                            icon="icon-lucide-chevron-left"
+                            (clicked)="closeZipEntryPreview()">
+                        </app-action-btn>
+
+                        <div class="quick-share-page__preview-title">
+                            {{ previewFile.name() }}{{ previewFile.extension }} / {{ zipEntryFile.name() }}{{ zipEntryFile.extension }}
+                        </div>
+                    </div>
+
+                    <app-file-content
+                        [file]="zipEntryFile"
+                        [operations]="zipEntryOps">
+                    </app-file-content>
+                }
+            }
         }
 
         <div class="quick-share-page__powered-by">
