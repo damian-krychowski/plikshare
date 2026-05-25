@@ -49,6 +49,10 @@
         margin-left: 0.25rem;
         flex-shrink: 0;
 
+        @media (min-width: calc(#{variables.$mobile-breakpoint} + 1px)) {
+            display: none;
+        }
+
         &:hover {
             background: var(--company-grey-accent-light);
             color: var(--company-font);

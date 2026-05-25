@@ -33,7 +33,6 @@ export class FilesListComponent implements OnDestroy {
     currentFolderExternalId = input<string | null>(null);
     canReorder = input(false);
     hideActions = input(false);
-    hideDownloadAction = input(false);
     hideSelectCheckboxes = input(false);
     isAnyNameEditPending = input(false);
 

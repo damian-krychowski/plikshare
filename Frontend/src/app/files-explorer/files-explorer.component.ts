@@ -189,10 +189,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     hideFiles = input(false);
     hideItemsActions = input(false);
     hideItemShareAction = input(false);
-    hideItemDownloadAction = input(false);
     hideReorder = input(false);
     hideBigAddFolderBtn = input(false);
-    hideSearch = input(false);
     hideSelectCheckboxes = input(false);
 
     integrations = input<WorkspaceIntegrations>({textract: null, chatGpt:[]});

@@ -258,7 +258,7 @@
 
                     </span>
 
-                    @if(allowList() && !hideSearch()) {
+                    @if(allowList()) {
                         <app-item-search
                             [collapsibleOnMobile]="true"
                             [isExpanded]="isSearchExpandedOnMobile()"
@@ -322,7 +322,7 @@
                     }
                     </span>
 
-                    @if(allowList() && !hideSearch()) {
+                    @if(allowList()) {
                         <app-item-search
                             [collapsibleOnMobile]="true"
                             [isExpanded]="isSearchExpandedOnMobile()"
@@ -633,7 +633,6 @@
                             [canReorder]="canReorder()"
                             [operations]="operations"
                             [hideActions]="hideItemsActions()"
-                            [hideDownloadAction]="hideItemDownloadAction()"
                             [hideSelectCheckboxes]="hideSelectCheckboxes()"
                             [permissions]="filePermissions()"
                             [isAnyNameEditPending]="isAnyNameEditPending()"
