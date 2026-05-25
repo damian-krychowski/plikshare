@@ -22,6 +22,12 @@ Release notes for PlikShare.
 - [IMPROVEMENT] Box folder picker reworked — a destination bar above the actions shows which folder will be shared and an explicit "Share this folder" button confirms the choice, instead of a per-folder share button; the dialog grows to fit the explorer instead of scrolling
 - [IMPROVEMENT] Admin first-run setup screen redesigned as a centered card — matching the empty-dashboard look — with numbered steps; the email step is marked optional since users can also be invited by link
 
+[Storage default trash policy](https://github.com/user-attachments/assets/4bff2031-b9ee-4b86-a311-d4afb6352a11)
+
+[Workspace trash policy update](https://github.com/user-attachments/assets/f51f4f9e-9856-4842-834a-d40cca9cb38d)
+
+[Delete/Restore from trash](https://github.com/user-attachments/assets/c094c6f8-111f-4b52-9890-9ecddacfea84)
+
 ## 1.1.29
 
 - [IMPROVEMENT] Multi-item selection for downloading from zip previews and quick shares
