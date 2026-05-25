@@ -26,6 +26,12 @@
         flex-direction: row;
         align-items: center;
         gap: 0.5rem;
+        min-height: 36px;
+
+        > * {
+            display: flex;
+            align-items: center;
+        }
 
         @media (max-width: variables.$mobile-breakpoint) {
             position: absolute;

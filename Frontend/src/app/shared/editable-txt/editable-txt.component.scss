@@ -2,6 +2,8 @@
 
 :host {
     display: flex;
+    align-items: center;
+    height: 30px;
 }
 
 .text {
@@ -53,8 +55,11 @@
     max-width: 100%;
 
     &__input {
-        min-width: 100px; 
-        box-sizing: content-box;
+        min-width: 100px;
+        box-sizing: border-box;
+        height: 30px;
+        padding: 0 4px;
+        margin: 0;
     }
 
     &__mirror-span {
