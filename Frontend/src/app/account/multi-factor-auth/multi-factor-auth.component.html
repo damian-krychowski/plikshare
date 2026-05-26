@@ -1,17 +1,17 @@
 <div class="app-container">
     <div class="top-bar">
         <div class="top-bar__header">
-            <button class="top-nav-btn" 
-                aria-label="Account" 
-                mat-flat-button  
+            <button class="top-nav-btn"
+                aria-label="Account"
+                mat-flat-button
                 matTooltip="Go back to Account"
                 matTooltipPosition="below"
-                (click)="goToAccount()">                 
+                (click)="goToAccount()">
                 <div class="icon-merge">
-                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>   
-                    <i class="icon icon-xl icon-lucide-mobile icon-merge--front"></i>   
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>
+                    <i class="icon icon-xl icon-lucide-mobile icon-merge--front"></i>
                 </div>
-            </button> 
+            </button>
 
             <div class="flex-column">
                 <div class="top-bar__title">
@@ -24,177 +24,159 @@
             </div>
         </div>
     </div>
-    
 
-    <div class="content"> 
+
+    <div class="content">
         <div class="mt-3 hide-on-mobile"></div>
 
-        <div class="title-header">  
-            <div>
-                Your MFA settings:
-
-                @if(viewState() === 'mfa-enabled') {
-                    (enabled)
-                }
-            </div>
-        </div>  
-
-        <div class="mt-2"></div>   
-
         @if(viewState() === 'mfa-enabled') {
-            <div class="account-actions">
+            <app-config-card
+                title="Multi-factor authentication is active"
+                description="Your account is protected by an additional verification step at sign-in."
+                mode="side">
                 <button
-                   class="action-text-btn action-text-btn--danger"
-                   aria-label="Disable MFA"
-                   mat-flat-button
-                   [disabled]="isLoading()"
-                    (click)="disableMfa()"> 
-                   <div class="action-text-btn__content">
-                       <i class="icon icon-lg icon-lucide-mobile"></i>
-                       <div>Disable MFA</div>
-                   </div>
-               </button> 
-            </div>
-        } @else if(viewState() === 'mfa-disabled') {
-            @if(qrCodeUri(); as qrCodeUriValue) {
-                <form (submit)="onMfaEnabled()" [formGroup]="formGroup">
-                    <div class="flex-column">
-                        <div class="ml-auto mr-auto">
-                            <app-qr-code 
-                                [qrdata]="qrCodeUriValue" 
-                                [width]="256">
-                            </app-qr-code>        
-                        </div>
-        
-                        <button
-                            type="button"
-                            class="action-text-btn copy-secret-btn"
-                            aria-label="Copy secret" 
-                            mat-flat-button
-                            (click)="copySecret()"> 
-                            <div class="action-text-btn__content">
-                                <i class="icon icon-lg icon-nucleo-copy"></i>
-                                <div>Copy secret</div>
-                            </div>
-                        </button> 
-                                
-                        <div class="mt-2"></div>
-
-                        <div class="ml-auto mr-auto">
-                            Scan the QR code with your authenticator app and enter the 6-digit code below to enable MFA.
-                        </div>                        
-                            
-                        <div class="mt-3"></div>
-            
-                        <div class="flex-column ml-auto mr-auto">                   
-                            <mat-form-field>
-                                <mat-label>Enter 6-digit code</mat-label>
-                    
-                                <input 
-                                    id="oneTimeCode"
-                                    type="text" 
-                                    matInput 
-                                    (change)="isWrongTOTPCode.set(false)"
-                                    formControlName="oneTimeCode" 
-                                    required>
-                    
-                                @if(oneTimeCode.hasError('required')){
-                                    <mat-error>
-                                        Verification code is <strong>required</strong>
-                                    </mat-error>
-                                }
-
-                                @if(isWrongTOTPCode()){
-                                    <mat-error>
-                                        Verification code is <strong>incorrect</strong>
-                                    </mat-error>
-                                }
-                            </mat-form-field>
-                        </div>
-                    </div>
-
-                    <div class="mt-5"></div>
-
-                    <div class="account-actions">
-                        <button
-                            type="submit" 
-                            class="action-text-btn"
-                            aria-label="Disable MFA"
-                            mat-flat-button
-                            [disabled]="!formGroup.valid || isLoading()"> 
-                            <div class="action-text-btn__content">
-                                <i class="icon icon-lg icon-lucide-mobile"></i>
-                                <div>Enable MFA</div>
-                            </div>
-                        </button> 
-                    </div>
-                </form>
-            }
-        }    
-
-        <div class="mt-3"></div>
-
-        @if(viewState() == 'mfa-enabled') {
-            <div class="title-header">  
-                <div>
-                    Your recovery codes:
-
-                    @if(recoveryCodesLeft(); as recoveryCodesLeftValue) {
-                        ({{recoveryCodesLeftValue}} left)
-                    }
-                </div>
-            </div>  
-    
-            <div class="mt-2"></div>   
-    
-            @if(hasAnyRecoveryCodes()) {
-                <div class="mt-3 flex-column">
-                    <mat-form-field class="ml-auto mr-auto">
-                        <mat-label>Recovery Codes</mat-label>
-                        
-                        <textarea matInput 
-                            [value]="recoveryCodesAsString()"
-                            readonly
-                            rows="5">
-                        </textarea>
-                    </mat-form-field>
-
-                    <button
-                        type="button"
-                        class="action-text-btn copy-secret-btn"
-                        aria-label="Copy codes" 
-                        mat-flat-button
-                        matTooltip="Copy codes"
-                        matTooltipPosition="above"
-                        (click)="copyCodes()"> 
-                        <div class="action-text-btn__content">
-                            <i class="icon icon-lg icon-nucleo-copy"></i>
-                            <div>Copy codes</div>
-                        </div>
-                    </button> 
-    
-                    <div class="mt-2 recovery-codes-info">
-                        Make sure to copy your recovery codes and save somewhere safe - they won't be visible after you close
-                        this window. You will need them in case you loose your authentication device.
-                    </div>
-                </div>
-
-                <div class="mt-5"></div>
-            }
-
-            <div class="account-actions">
-                <button
-                    class="action-text-btn"
+                    class="action-text-btn action-text-btn--danger"
                     aria-label="Disable MFA"
                     mat-flat-button
                     [disabled]="isLoading()"
-                    (click)="generateNewRecoveryCodes()"> 
+                    appConfirmOperation
+                    [operationItem]="'multi-factor authentication'"
+                    [verb]="'disable'"
+                    [isOperationDanger]="true"
+                    [operationSubtitle]="'Your account will no longer require a verification code at sign-in.'"
+                    (confirmedClick)="disableMfa()">
                     <div class="action-text-btn__content">
-                        <i class="icon icon-lg icon-lucide-key"></i>
-                        <div>Generate new recovery codes</div>
+                        <i class="icon icon-lg icon-nucleo-lock-open"></i>
+                        <div>Disable MFA</div>
                     </div>
-                </button> 
+                </button>
+            </app-config-card>
+
+            <div class="mt-3"></div>
+
+            <app-config-card
+                title="Recovery codes"
+                [description]="recoveryCodesDescription()">
+                <ng-container configCardActions>
+                    @if(hasAnyRecoveryCodes()) {
+                        <app-action-btn
+                            tooltip="Copy all codes"
+                            icon="icon-nucleo-copy"
+                            (clicked)="copyCodes()">
+                        </app-action-btn>
+                    }
+
+                    <app-action-btn
+                        tooltip="Generate new recovery codes"
+                        icon="icon-nucleo-reload"
+                        [disabled]="isLoading()"
+                        [operationItem]="'recovery codes'"
+                        [verb]="'regenerate'"
+                        [isOperationDanger]="true"
+                        [operationSubtitle]="'Existing codes will stop working immediately.'"
+                        appConfirmOperation
+                        (confirmedClick)="generateNewRecoveryCodes()">
+                    </app-action-btn>
+                </ng-container>
+
+                @if(hasAnyRecoveryCodes()) {
+                    <div class="mfa-info-box mfa-info-box--warning">
+                        <i class="icon icon-lg icon-nucleo-info"></i>
+                        <div>
+                            Save these codes now &mdash; they won't be visible after you leave this page.
+                            Each code can be used once.
+                        </div>
+                    </div>
+
+                    <div class="recovery-codes">
+                        @for(code of recoveryCodes(); track code) {
+                            <div class="recovery-code">{{code}}</div>
+                        }
+                    </div>
+                } @else {
+                    <div class="mfa-step-hint">
+                        Generate a fresh set of single-use codes to keep as backup.
+                    </div>
+                }
+            </app-config-card>
+        } @else if(viewState() === 'mfa-disabled') {
+            <div class="title-header">
+                <div>Set up multi-factor authentication</div>
             </div>
+
+            <div class="mt-2"></div>
+
+            <div class="explanation">
+                Add an extra layer of security by requiring a code from your authenticator app at sign-in.
+            </div>
+
+            @if(qrCodeUri(); as qrCodeUriValue) {
+                <div class="mt-3"></div>
+
+                <form class="mfa-setup" (submit)="onMfaEnabled()" [formGroup]="formGroup">
+                    <app-config-card
+                        title="Step 1 — Scan the QR code with an authenticator app"
+                        description="Open your authenticator app (Google Authenticator, Authy, 1Password, etc.) and scan the code below.">
+                        <div class="qr-card">
+                            <app-qr-code
+                                [qrdata]="qrCodeUriValue"
+                                [width]="220">
+                            </app-qr-code>
+                        </div>
+
+                        <div class="mfa-step-hint">
+                            Can't scan?
+                            <button type="button" class="link-btn" (click)="copySecret()">
+                                Copy the setup key
+                            </button>
+                            and enter it manually in your app.
+                        </div>
+                    </app-config-card>
+
+                    <app-config-card
+                        title="Step 2 — Enter the 6-digit code"
+                        description="Type the verification code shown in your authenticator app for this account.">
+                        <mat-form-field class="mfa-code-field">
+                            <mat-label>Verification code</mat-label>
+
+                            <input
+                                id="oneTimeCode"
+                                type="text"
+                                matInput
+                                inputmode="numeric"
+                                autocomplete="one-time-code"
+                                maxlength="6"
+                                (change)="isWrongTOTPCode.set(false)"
+                                formControlName="oneTimeCode"
+                                required>
+
+                            @if(oneTimeCode.hasError('required')){
+                                <mat-error>Verification code is <strong>required</strong></mat-error>
+                            } @else if(oneTimeCode.hasError('pattern')){
+                                <mat-error>Code must be <strong>6 digits</strong></mat-error>
+                            } @else if(isWrongTOTPCode()){
+                                <mat-error>Verification code is <strong>incorrect</strong></mat-error>
+                            }
+                        </mat-form-field>
+                    </app-config-card>
+
+                    <div class="account-actions">
+                        <button
+                            type="submit"
+                            class="action-text-btn"
+                            aria-label="Enable MFA"
+                            mat-flat-button
+                            [disabled]="!formGroup.valid || isLoading()">
+                            <div class="action-text-btn__content">
+                                <i class="icon icon-lg icon-lucide-circle-check"></i>
+                                <div>Enable MFA</div>
+                            </div>
+                        </button>
+                    </div>
+                </form>
+            }
         }
+
+        <div class="mt-3"></div>
     </div>
 </div>

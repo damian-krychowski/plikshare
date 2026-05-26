@@ -5,14 +5,17 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { AuthService } from "../../services/auth.service";
 import { DataStore } from "../../services/data-store.service";
-import { ClipboardModule, Clipboard} from '@angular/cdk/clipboard'; 
+import { ClipboardModule, Clipboard} from '@angular/cdk/clipboard';
 import { MatFormFieldModule } from "@angular/material/form-field";
 import { MatInputModule } from "@angular/material/input";
 import { QRCodeComponent } from "./qr-code.component";
 import { AccountApi } from "../../services/account.api";
 import { MatSnackBar } from "@angular/material/snack-bar";
+import { ConfirmOperationDirective } from "../../shared/operation-confirm/confirm-operation.directive";
+import { ConfigCardComponent } from "../../shared/config-card/config-card.component";
+import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
 
-type ViewState = 'mfa-disabled' | 'mfa-enabled' | 'confirm-mfa-disable';
+type ViewState = 'mfa-disabled' | 'mfa-enabled';
 
 @Component({
     selector: 'app-multi-factor-auth',
@@ -23,13 +26,16 @@ type ViewState = 'mfa-disabled' | 'mfa-enabled' | 'confirm-mfa-disable';
         MatInputModule,
         ReactiveFormsModule,
         ClipboardModule,
-        QRCodeComponent
+        QRCodeComponent,
+        ConfirmOperationDirective,
+        ConfigCardComponent,
+        ActionButtonComponent
     ],
     templateUrl: './multi-factor-auth.component.html',
     styleUrl: './multi-factor-auth.component.scss',
     encapsulation: ViewEncapsulation.None
 })
-export class MultiFactorAuthComponent implements OnInit {       
+export class MultiFactorAuthComponent implements OnInit {
     isLoading = signal(false);
 
     viewState: WritableSignal<ViewState> = signal('mfa-disabled');
@@ -43,7 +49,18 @@ export class MultiFactorAuthComponent implements OnInit {
 
     hasAnyRecoveryCodes = computed(() => this.recoveryCodes().length > 0);
 
-    oneTimeCode = new FormControl('', [Validators.required]);    
+    recoveryCodesDescription = computed(() => {
+        const left = this.recoveryCodesLeft();
+        if (left == null) {
+            return "Single-use codes to sign in if you lose access to your authenticator device.";
+        }
+        return `${left} single-use code${left === 1 ? '' : 's'} remaining. Use them to sign in if you lose access to your authenticator device.`;
+    });
+
+    oneTimeCode = new FormControl('', [
+        Validators.required,
+        Validators.pattern(/^[0-9]{6}$/)
+    ]);
     formGroup: FormGroup;
 
     constructor(
@@ -70,7 +87,7 @@ export class MultiFactorAuthComponent implements OnInit {
 
             this.recoveryCodesLeft.set(mfaStatus.recoveryCodesLeft);
 
-            if(!mfaStatus.isEnabled) {                
+            if(!mfaStatus.isEnabled) {
                 this.qrCodeUri.set(mfaStatus.qrCodeUri!);
                 this._secret = this.extractSecret(mfaStatus.qrCodeUri!);
             } else {
@@ -91,12 +108,14 @@ export class MultiFactorAuthComponent implements OnInit {
     async onMfaEnabled() {
         if (this.formGroup.valid) {
             try {
+                this.isLoading.set(true);
                 const result = await this._accountApi.enable2Fa({
                     verificationCode: this.oneTimeCode.value!
                 })
 
                 if(result.code === 'enabled') {
                     this.recoveryCodes.set(result.recoveryCodes);
+                    this.recoveryCodesLeft.set(result.recoveryCodes.length);
                     this.viewState.set('mfa-enabled');
                 } else if(result.code === 'invalid-verification-code') {
                     this.isWrongTOTPCode.set(true);
@@ -104,7 +123,7 @@ export class MultiFactorAuthComponent implements OnInit {
                     //todo handle
                 }
             } catch (err: any) {
-                console.error(err); 
+                console.error(err);
             } finally {
                 this.isLoading.set(false);
             }
@@ -113,9 +132,11 @@ export class MultiFactorAuthComponent implements OnInit {
 
     async disableMfa() {
         try {
+            this.isLoading.set(true);
             const result = await this._accountApi.disable2Fa();
 
             if(result.code === 'disabled') {
+                this.recoveryCodes.set([]);
                 this.viewState.set('mfa-disabled');
                 await this.initializeMfa();
             } else if(result.code === 'failed') {
@@ -123,6 +144,8 @@ export class MultiFactorAuthComponent implements OnInit {
             }
         } catch (err: any) {
             console.error(err);
+        } finally {
+            this.isLoading.set(false);
         }
     }
 
