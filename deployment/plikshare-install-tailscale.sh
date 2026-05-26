@@ -214,10 +214,9 @@ prerequisites_installation() {
 The following components will be installed or configured:
 - Docker (if not already installed)
 - Tailscale daemon (if not already installed)
-- Uncomplicated Firewall (UFW) - opens 22 only, plus all traffic on tailscale0
+- Uncomplicated Firewall (UFW) — opens 22 only, plus all traffic on tailscale0
 
-Tailscale mode does NOT open ports 80 / 443. PlikShare is reachable only
-inside your tailnet.
+PlikShare will be reachable only inside your tailnet.
 " >&2
 
     if ask_yes_no "Do you want to proceed with the prerequisites installation?"; then
@@ -520,8 +519,7 @@ Tailscale admin console (https://login.tailscale.com/admin), then have
 them install the Tailscale client on their device.
 
 REMINDER: public PlikShare share links won't work for people who are NOT
-on your tailnet. That's the whole point of this deployment mode — if you
-need that, redeploy with the Caddy, Nginx or Cloudflare Tunnel script.
+on your tailnet. That is intentional.
 EOF
 }
 
@@ -572,8 +570,7 @@ setup_cron_jobs() {
   4. PlikShare - Cron Jobs Setup
 ===================================
 
-Tailscale handles certificates for *.ts.net automatically — no renewal cron
-is needed. You can optionally schedule nightly PlikShare updates.
+You can optionally schedule nightly PlikShare updates.
 " >&2
 
     remove_existing_cron_jobs() {
@@ -624,9 +621,8 @@ Welcome to the PlikShare installation process.
 This script sets up PlikShare for tailnet-only access via Tailscale.
 
 WARNING: public share links sent to people who are NOT on your tailnet
-will not work. This deployment is intentionally private. If you need to
-share files with anyone with a browser, pick a different install script
-(Caddy / Nginx / Cloudflare Tunnel).
+will not work. This deployment is intentionally private. If that's not
+what you want, stop here.
 " >&2
     if ! prerequisites_installation; then
         echo "[ERROR] Installation aborted due to prerequisites installation failure." >&2

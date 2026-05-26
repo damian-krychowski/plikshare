@@ -106,7 +106,7 @@ install_configure_ufw() {
         echo "..........[PREREQUISITES] UFW is already installed." >&2
     fi
 
-    echo "..........[PREREQUISITES] Configuring UFW (Cloudflare Tunnel mode — no public ports)..." >&2
+    echo "..........[PREREQUISITES] Configuring UFW..." >&2
 
     ufw --force disable
 
@@ -189,10 +189,10 @@ prerequisites_installation() {
 
 The following components will be installed or configured:
 - Docker (if not already installed)
-- Uncomplicated Firewall (UFW) - opens 22 only
+- Uncomplicated Firewall (UFW) — opens 22 only
 
-Cloudflare Tunnel mode does NOT open ports 80 / 443 — every request reaches
-your server through an outbound tunnel maintained by cloudflared.
+Every request reaches your server through an outbound tunnel maintained
+by cloudflared, so no inbound ports beyond SSH need to be open.
 " >&2
 
     if ask_yes_no "Do you want to proceed with the prerequisites installation?"; then
@@ -477,7 +477,7 @@ PlikShare will be live at:
 
   $PLIKSHARE_APP_URL
 
-- TLS is terminated at Cloudflare's edge — no certificates locally.
+- TLS is terminated at Cloudflare's edge.
 - No inbound ports are open on this server.
 - The cloudflared container reconnects on its own after reboots.
 EOF
@@ -494,9 +494,6 @@ We are now ready to install PlikShare. This process involves three steps:
 1. Generating env files (plikshare.env, cloudflared.env — both chmod 600).
 2. Generating a Docker Compose file with two services (PlikShare and cloudflared).
 3. Starting the stack — cloudflared connects outbound to Cloudflare.
-
-No certificates are issued or managed locally — Cloudflare terminates TLS
-at its edge.
 " >&2
 
     if ! ask_yes_no "Do you want to proceed with the PlikShare installation?" "..........[INSTALLATION] Proceeding with installation..." "..........[INSTALLATION] Installation aborted by user."; then
@@ -527,8 +524,7 @@ setup_cron_jobs() {
   4. PlikShare - Cron Jobs Setup
 ===================================
 
-Cloudflare handles TLS at its edge — no renewal cron is needed. You can
-optionally schedule nightly PlikShare updates.
+You can optionally schedule nightly PlikShare updates.
 " >&2
 
     remove_existing_cron_jobs() {

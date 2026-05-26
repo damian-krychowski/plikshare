@@ -464,10 +464,9 @@ EOF
     echo "..........[INSTALLATION] Docker Compose file generated." >&2
 }
 
-# Writes the Caddyfile. Caddy handles ACME on its own — no two-phase nginx
-# bootstrap, no Certbot, no manual cert swap. On first `docker compose up`,
-# Caddy requests a Let's Encrypt cert via HTTP-01 challenge on port 80 and
-# starts serving HTTPS once it has one.
+# Writes the Caddyfile. Caddy handles ACME on its own. On first
+# `docker compose up`, Caddy requests a Let's Encrypt cert via HTTP-01
+# challenge on port 80 and starts serving HTTPS once it has one.
 write_caddyfile() {
     echo "..........[INSTALLATION] Writing Caddyfile..." >&2
 
@@ -532,9 +531,6 @@ three steps:
 1. Generating a Docker Compose file tailored to your configuration.
 2. Writing a Caddyfile that handles HTTPS automatically.
 3. Starting the stack — Caddy requests a Let's Encrypt certificate on first boot.
-
-Unlike a Nginx + Certbot setup, there is no two-phase bootstrap and no
-manual certificate management. Caddy fetches and renews certs on its own.
 " >&2
 
     if ! ask_yes_no "Do you want to proceed with the PlikShare installation?" "..........[INSTALLATION] Proceeding with installation..." "..........[INSTALLATION] Installation aborted by user."; then
@@ -570,8 +566,7 @@ setup_cron_jobs() {
   4. PlikShare - Cron Jobs Setup
 ===================================
 
-Caddy handles TLS certificate renewal automatically — no cron job is needed
-for that. You can optionally schedule nightly PlikShare updates.
+You can optionally schedule nightly PlikShare updates.
 " >&2
 
     remove_existing_cron_jobs() {
@@ -620,7 +615,7 @@ main_installation() {
 
 Welcome to the PlikShare installation process.
 This script sets up PlikShare with Caddy as the reverse proxy.
-Caddy handles HTTPS automatically — no Certbot, no two-phase bootstrap.
+Caddy handles HTTPS automatically.
 " >&2
     if ! prerequisites_installation; then
         echo "[ERROR] Installation aborted due to prerequisites installation failure." >&2
