@@ -1,4 +1,5 @@
-﻿using PlikShare.Core.Database.MainDatabase;
+using Microsoft.Data.Sqlite;
+using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
 using Serilog;
@@ -15,14 +16,23 @@ public class MarkFileAsUploadedQuery(
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
-            operationToEnqueue: context => ExecuteOperation(
+            operationToEnqueue: context => ExecuteInTransaction(
                 dbWriteContext: context,
-                fileExternalId),
+                transaction: null,
+                fileExternalId: fileExternalId),
             cancellationToken: cancellationToken);
     }
 
-    private void ExecuteOperation(
+    /// <summary>
+    /// Sub-query form: runs the UPDATE inside a caller-owned transaction (or no transaction
+    /// when <paramref name="transaction"/> is null — used by the top-level <see cref="Execute"/>
+    /// path where the queue serializes the write). Compose this from operations that need to
+    /// mark a file uploaded atomically with other writes (e.g. thumbnail finalize that also
+    /// hard-deletes the replaced thumb in the same commit).
+    /// </summary>
+    public void ExecuteInTransaction(
         SqliteWriteContext dbWriteContext,
+        SqliteTransaction? transaction,
         FileExtId fileExternalId)
     {
         try
@@ -34,7 +44,8 @@ public class MarkFileAsUploadedQuery(
                         SET fi_is_upload_completed = TRUE
                         WHERE fi_external_id = $fileExternalId
                         RETURNING fi_id",
-                    readRowFunc: reader => reader.GetInt32(0))
+                    readRowFunc: reader => reader.GetInt32(0),
+                    transaction: transaction)
                 .WithParameter("$fileExternalId", fileExternalId.Value)
                 .Execute();
 

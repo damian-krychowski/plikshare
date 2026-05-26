@@ -1,0 +1,72 @@
+<div class="thumbnails-grid">
+    @for (slot of slots(); track slot.variant) {
+        <app-config-card
+            [title]="slot.label"
+            [description]="slot.existing
+                ? ('Target size ' + slot.targetSize + ' · ' + (slot.existing.sizeInBytes | storageSize))
+                : ('Target size ' + slot.targetSize)">
+
+            <ng-container configCardActions>
+                @if (slot.existing) {
+                    <input
+                        #replaceFileInput
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        [disabled]="slot.isUploading"
+                        (change)="onFilePicked($event, slot.variant)"/>
+                    <app-action-btn
+                        [tooltip]="'Replace ' + slot.label.toLowerCase()"
+                        icon="icon-nucleo-upload-2"
+                        [disabled]="slot.isUploading"
+                        (clicked)="replaceFileInput.click()">
+                    </app-action-btn>
+                    <app-action-btn
+                        [tooltip]="'Delete ' + slot.label.toLowerCase()"
+                        icon="icon-lucide-xmark"
+                        (clicked)="onDelete(slot.variant)">
+                    </app-action-btn>
+                }
+            </ng-container>
+
+            @if (slot.existing) {
+                <div class="thumbnail-preview">
+                    @if (slot.objectUrl) {
+                        <img
+                            class="thumbnail-preview__image"
+                            [src]="slot.objectUrl"
+                            [alt]="slot.label"/>
+                    } @else if (slot.isLoading) {
+                        <mat-progress-spinner
+                            diameter="32"
+                            mode="indeterminate">
+                        </mat-progress-spinner>
+                    } @else {
+                        <span class="icon icon-nucleo-image thumbnail-preview__placeholder-icon"></span>
+                    }
+                </div>
+            } @else {
+                <label
+                    class="thumbnail-empty"
+                    [class.thumbnail-empty--uploading]="slot.isUploading">
+                    @if (slot.isUploading) {
+                        <mat-progress-spinner
+                            diameter="24"
+                            mode="indeterminate">
+                        </mat-progress-spinner>
+                        <span class="thumbnail-empty__hint">Uploading...</span>
+                    } @else {
+                        <span class="icon icon-nucleo-upload-2 thumbnail-empty__icon"></span>
+                        <span class="thumbnail-empty__hint">Click to upload</span>
+                    }
+                    <input
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        [disabled]="slot.isUploading"
+                        (change)="onFilePicked($event, slot.variant)"/>
+                </label>
+            }
+        </app-config-card>
+    }
+</div>

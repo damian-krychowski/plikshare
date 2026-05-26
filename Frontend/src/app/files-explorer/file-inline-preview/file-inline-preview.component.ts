@@ -8,7 +8,7 @@ import { getRelativeTime } from '../../services/time.service';
 import { AuthService } from '../../services/auth.service';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
 import { ZipArchives, ZipEntry, ZipVirtualFolder } from '../../services/zip';
-import { AiInclude, AiMessageDto, ContentDisposition, FilePreviewDetailsField, GetAiMessagesResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, TextractFeature, TextractJobStatus, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
+import { AiInclude, AiMessageDto, ContentDisposition, FilePreviewDetailsField, FilePreviewThumbnail, GetAiMessagesResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, TextractFeature, TextractJobStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../../services/folders-and-files.api';
 import { TextractIntegration } from '../../services/integrations.types';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { FormsModule } from '@angular/forms';
@@ -31,6 +31,7 @@ import { AiConversationsStatusService } from '../../services/ai-conversations-st
 import { Subscription } from 'rxjs';
 import { AiResponseComponent, AiResponseOperations, AttachmentCreatedEvent } from '../../shared/ai-response/ai-response.component';
 import { StorageSizePipe, StorageSizeUtils } from '../../shared/storage-size.pipe';
+import { FileThumbnailsComponent, FileThumbnailsOperations } from '../file-thumbnails/file-thumbnails.component';
 
 export type ImageDimensions = {
     width: number;
@@ -61,6 +62,8 @@ export type FilePreviewOperations = {
 
     updateFileContent: (fileExternalId: string, file: Blob) => Promise<void>;
     uploadFileAttachment: (fileExternalId: string, request: UploadFileAttachmentRequest) => Promise<void>;
+    uploadFileThumbnail: (fileExternalId: string, request: UploadFileThumbnailRequest) => Promise<void>;
+    deleteFileThumbnail: (fileExternalId: string, variant: ThumbnailVariant) => Promise<void>;
 
     sendAiFileMessage(fileExternalId: string, request: SendAiFileMessageRequest): Promise<void>;
     updateAiConversationName(fileExternalId: string, fileArtifactExternalId: string, request: UpdateAiConversationNameRequest): Promise<void>;
@@ -103,7 +106,8 @@ type AiContentType = OtherAiContentType | FileAiContentType;
         AiMessageComponent,
         AiConversationItemComponent,
         AiResponseComponent,
-        StorageSizePipe
+        StorageSizePipe,
+        FileThumbnailsComponent
     ],
     templateUrl: './file-inline-preview.component.html',
     styleUrls: ['./file-inline-preview.component.scss']
@@ -336,6 +340,13 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
     attachments = signal<AppFileItem[]>([]);
     allAttachments = computed(() => [...this.textractResultFiles(), ...this.attachments()]);
 
+    thumbnails = signal<FilePreviewThumbnail[]>([]);
+    isFileThumbnailable = computed(() => {
+        const ext = this.file().extension;
+        const details = getFileDetails(ext);
+        return details.type === 'image' || details.type === 'video';
+    });
+
     runningTextractJobs = computed(() => {
         const jobs = this.textractJobs();
 
@@ -376,6 +387,7 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
 
     isNotesExpanded = signal(false);
     isCommentsExpanded = signal(false);
+    isThumbnailsExpanded = signal(false);
 
     constructor(
         private _auth: AuthService,
@@ -414,6 +426,36 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
         };
 
         return contentOperations;
+    }
+
+    getThumbnailOperations = computed<FileThumbnailsOperations>(() => {
+        const fileOps = this.fileOperations();
+        const previewOps = this.operations();
+        const parentExtId = this.fileExternalId();
+
+        return {
+            uploadFileThumbnail: (request) => previewOps.uploadFileThumbnail(
+                parentExtId,
+                request),
+
+            deleteFileThumbnail: (variant) => previewOps.deleteFileThumbnail(
+                parentExtId,
+                variant),
+
+            getDownloadLink: (thumbExternalId, contentDisposition) => fileOps.getDownloadLink(
+                thumbExternalId,
+                contentDisposition),
+
+            prepareAdditionalHttpHeaders: () => previewOps.prepareAdditionalHttpHeaders(),
+        };
+    });
+
+    async onThumbnailsChanged(): Promise<void> {
+        const result = await this.operations().getFilePreviewDetails(
+            this.fileExternalId(),
+            ['thumbnails']);
+
+        this.setThumbnails(result);
     }
 
     private getAiConversationOperations(fileExternalId: string): AiConversationOperations {
@@ -474,6 +516,7 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
         this.textractJobs.set([]);
         this.textractResultFiles.set([]);
         this.attachments.set([]);
+        this.thumbnails.set([]);
         this.noteJson.set(undefined);
         this.noteChangedAt.set(null);
         this.noteChangedBy.set(null);
@@ -483,6 +526,7 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
         const expandedByDefault = !window.matchMedia('(max-width: 500px)').matches;
         this.isNotesExpanded.set(expandedByDefault);
         this.isCommentsExpanded.set(expandedByDefault);
+        this.isThumbnailsExpanded.set(expandedByDefault);
     }
 
     private async loadFilePreviewDetails() {
@@ -548,6 +592,11 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
 
         this.setTextractResultFiles(result);
         this.setAttachmentFiles(result);
+        this.setThumbnails(result);
+    }
+
+    private setThumbnails(result: GetFilePreviewDetailsResponse) {
+        this.thumbnails.set(result?.thumbnails ?? []);
     }
 
     private setTextractResultFiles(result: GetFilePreviewDetailsResponse) {

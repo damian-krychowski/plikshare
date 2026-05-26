@@ -12,6 +12,7 @@ using PlikShare.EmailProviders.ExternalProviders.Smtp;
 using PlikShare.EmailProviders.Id;
 using PlikShare.Files.Artifacts;
 using PlikShare.Files.Id;
+using PlikShare.Files.Metadata;
 using PlikShare.Files.Preview.GetDetails.Contracts;
 using PlikShare.Folders.Id;
 using PlikShare.Integrations;
@@ -114,6 +115,7 @@ public static class JsonConverters
         options.Converters.Add(new JsonStringEnumConverter<TextractJobStatus>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<FileArtifactType>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<FilePreviewDetailsField>(JsonNamingPolicy.KebabCaseLower));
+        options.Converters.Add(new JsonStringEnumConverter<ThumbnailVariant>());
         options.Converters.Add(new JsonStringEnumConverter<AiMessageAuthorType>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<FileType>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<UserStorageAccessMode>(JsonNamingPolicy.KebabCaseLower));

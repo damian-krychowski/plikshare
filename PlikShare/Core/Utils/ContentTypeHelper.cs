@@ -208,6 +208,12 @@ public static class ContentTypeHelper
         return FileType.Other;
     }
 
+    public static bool IsThumbnailable(string extension)
+    {
+        var fileType = GetFileTypeFromExtension(extension);
+        return fileType is FileType.Image or FileType.Video;
+    }
+
     /// <summary>
     /// Gets the markdown language identifier for a given file extension.
     /// Used for formatting code blocks with language and filename in markdown.

@@ -22,6 +22,16 @@ export interface UploadFileAttachmentRequest {
     file: Blob
 }
 
+export type ThumbnailVariant = 'Small' | 'Large';
+
+export interface UploadFileThumbnailRequest {
+    externalId: string;
+    name: string;
+    extension: string;
+    file: Blob;
+    variant: ThumbnailVariant;
+}
+
 export interface BulkCreateFolderRequest {
     parentExternalId: string | null;
     ensureUniqueNames: boolean;
@@ -181,9 +191,16 @@ export interface GetFilePreviewDetailsResponse {
     pendingTextractJobs: FilePreviewPendingTextractJob[] | null;
     aiConversations: FilePreviewAiConversation[] | null;
     attachments: FilePreviewAttachmentFile[] | null;
+    thumbnails: FilePreviewThumbnail[] | null;
 }
 
-export type FilePreviewDetailsField = 'note' | 'comments' | 'textract-result-files' | 'pending-textract-jobs' | "attachments";
+export type FilePreviewDetailsField = 'note' | 'comments' | 'textract-result-files' | 'pending-textract-jobs' | "attachments" | "thumbnails";
+
+export type FilePreviewThumbnail = {
+    externalId: string;
+    variant: ThumbnailVariant;
+    sizeInBytes: number;
+}
 
 export type FilePreviewComment = {
     externalId: string;
@@ -662,10 +679,10 @@ export class FoldersAndFilesSetApi {
 
     public async uploadFileAttachment(workspaceExternalId: string, fileExternalId: string, request: UploadFileAttachmentRequest): Promise<void> {
         const formData = new FormData();
-    
+
         const fullFileName = `${request.name}${request.extension}`;
         const file = new File([request.file], fullFileName, { type: request.file.type });
-        
+
         formData.append('file', file);
         formData.append('fileExternalId', request.externalId);
 
@@ -673,7 +690,39 @@ export class FoldersAndFilesSetApi {
             `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/attachments`,
             formData
         );
-        
+
+        await firstValueFrom(call);
+    }
+
+    public async uploadFileThumbnail(
+        workspaceExternalId: string,
+        fileExternalId: string,
+        request: UploadFileThumbnailRequest): Promise<void> {
+        const formData = new FormData();
+
+        const fullFileName = `${request.name}${request.extension}`;
+        const file = new File([request.file], fullFileName, { type: request.file.type });
+
+        formData.append('file', file);
+        formData.append('fileExternalId', request.externalId);
+        formData.append('variant', request.variant);
+
+        const call = this._http.post<void>(
+            `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/thumbnails`,
+            formData
+        );
+
+        await firstValueFrom(call);
+    }
+
+    public async deleteFileThumbnail(
+        workspaceExternalId: string,
+        fileExternalId: string,
+        variant: ThumbnailVariant): Promise<void> {
+        const call = this._http.delete<void>(
+            `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/thumbnails/${variant}`
+        );
+
         await firstValueFrom(call);
     }
 }

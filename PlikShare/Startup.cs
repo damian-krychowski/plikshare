@@ -124,6 +124,7 @@ using PlikShare.Files.Preview.SaveNote;
 using PlikShare.Files.Rename;
 using PlikShare.Files.Rename.Contracts;
 using PlikShare.Files.UpdateSize;
+using PlikShare.Files.Thumbnails;
 using PlikShare.Files.UploadAttachment;
 using PlikShare.Folders;
 using PlikShare.Folders.Create;
@@ -770,6 +771,12 @@ public class Startup
         builder.Services.AddSingleton<SaveAiChatCompletionQuery>();
         builder.Services.AddSingleton<InsertFileAttachmentQuery>();
         builder.Services.AddSingleton<MarkFileAsUploadedQuery>();
+        builder.Services.AddSingleton<GetThumbnailsQuery>();
+        builder.Services.AddSingleton<HardDeleteFilesWithStorageCleanupSubQuery>();
+        builder.Services.AddSingleton<FinalizeThumbnailUploadQuery>();
+        builder.Services.AddSingleton<DeleteThumbnailsQuery>();
+        builder.Services.AddSingleton<UploadFileThumbnailOperation>();
+        builder.Services.AddSingleton<DeleteFileThumbnailOperation>();
         builder.Services.AddSingleton<IQueueLongRunningJobExecutor, SendAiMessageQueueJobExecutor>();
         builder.Services.AddSingleton<IQueueNormalJobExecutor, DeleteAiConversationQueueJobExecutor>();
 

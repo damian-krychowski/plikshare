@@ -422,6 +422,43 @@
     </div>
 }
     
+@if(isFileThumbnailable()) {
+    @let isThumbnailsExpandedVal = isThumbnailsExpanded();
+
+    <div class="preview-bottom-section">
+        <div>
+            <div class="subtitle-header">
+                <div class="item">
+                    <div class="item__details">
+                        <div class="item__title">
+                            Thumbnails:
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-row flex-gap-05 ml-auto">
+                    <app-action-btn
+                        [tooltip]="isThumbnailsExpandedVal ? 'Collapse' : 'Expand'"
+                        [icon]="isThumbnailsExpandedVal ? 'icon-lucide-chevron-up' : 'icon-lucide-chevron-down'"
+                        (clicked)="isThumbnailsExpanded.set(!isThumbnailsExpandedVal)">
+                    </app-action-btn>
+                </div>
+            </div>
+
+            @if(isThumbnailsExpandedVal) {
+                <div class="mt-2">
+                    <app-file-thumbnails
+                        [fileExternalId]="fileExternalId()"
+                        [thumbnails]="thumbnails()"
+                        [operations]="getThumbnailOperations()"
+                        (changed)="onThumbnailsChanged()">
+                    </app-file-thumbnails>
+                </div>
+            }
+        </div>
+    </div>
+}
+
 @if(allAttachmentFilesVal.length || isTextractAvailableVal) {
     <div class="preview-bottom-section">
         <div>

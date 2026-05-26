@@ -95,7 +95,7 @@ public class InsertFileAttachmentQuery(
                             $encryptionChainSalts,
                             $encryptionFormatVersion,
                             (SELECT fi_id FROM parent),
-                            NULL
+                            $metadata
                          )
                          RETURNING
                             fi_id,
@@ -111,9 +111,9 @@ public class InsertFileAttachmentQuery(
                 .WithParameter("$workspaceId", workspace.Id)
                 .WithParameter("$externalId", attachment.ExternalId.Value)
                 .WithParameter("$keySecretPart", attachment.KeySecretPart)
-                .WithParameter("$name", attachment.Name)
-                .WithParameter("$extension", attachment.Extension)
-                .WithParameter("$contentType", attachment.ContentType)
+                .WithEncryptableParameter("$name", attachment.Name)
+                .WithEncryptableParameter("$extension", attachment.Extension)
+                .WithEncryptableParameter("$contentType", attachment.ContentType)
                 .WithParameter("$sizeInBytes", attachment.SizeInBytes)
                 .WithParameter("$uploaderIdentityType", uploader.IdentityType)
                 .WithParameter("$uploaderIdentity", uploader.Identity)
@@ -123,6 +123,7 @@ public class InsertFileAttachmentQuery(
                 .WithParameter("$encryptionNoncePrefix", attachment.EncryptionMetadata?.NoncePrefix)
                 .WithParameter("$encryptionChainSalts", KeyDerivationChain.Serialize(attachment.EncryptionMetadata?.ChainStepSalts))
                 .WithParameter("$encryptionFormatVersion", attachment.EncryptionMetadata?.FormatVersion)
+                .WithEncryptableBlobParameterOrNull("$metadata", attachment.Metadata)
                 .ExecuteOrThrow();
 
             if (result.ParentId is null)
@@ -184,11 +185,12 @@ public class InsertFileAttachmentQuery(
     public class AttachmentFile
     {
         public required FileExtId ExternalId { get; init; }
-        public required string Name { get; init; }
-        public required string Extension { get; init; }
-        public required string ContentType { get; init; }
+        public required EncryptableMetadata Name { get; init; }
+        public required EncryptableMetadata Extension { get; init; }
+        public required EncryptableMetadata ContentType { get; init; }
         public required string KeySecretPart { get; init; }
         public required long SizeInBytes { get; init; }
         public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
+        public EncryptableMetadata? Metadata { get; init; }
     }
 }

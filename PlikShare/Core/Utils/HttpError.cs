@@ -632,6 +632,27 @@ public static class HttpErrors
                 Message = "Attachment fileExternalId is required."
             });
 
+        public static BadRequest<HttpError> ParentNotThumbnailable() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "parent-not-thumbnailable",
+                Message = "Thumbnails can only be attached to image or video files."
+            });
+
+        public static BadRequest<HttpError> ThumbnailMustBeImage() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "thumbnail-must-be-image",
+                Message = "Thumbnail file must be an image (jpg, jpeg, png, webp, gif, bmp)."
+            });
+
+        public static BadRequest<HttpError> InvalidThumbnailVariant() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "invalid-thumbnail-variant",
+                Message = "Thumbnail variant must be 'Small' or 'Large'."
+            });
+
         public static BadRequest<HttpError> MissingContentTypeBoundary() => TypedResults.BadRequest(new HttpError
             {
                 Code = "invalid-boundary",

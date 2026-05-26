@@ -33,6 +33,8 @@ using PlikShare.Files.Records;
 using PlikShare.Files.Rename;
 using PlikShare.Files.Rename.Contracts;
 using PlikShare.Files.UpdateSize;
+using PlikShare.Files.Metadata;
+using PlikShare.Files.Thumbnails;
 using PlikShare.Files.UploadAttachment;
 using PlikShare.Storages;
 using PlikShare.Storages.Encryption.Authorization;
@@ -63,6 +65,12 @@ public static class FilesEndpoints
 
         group.MapPost("/{fileExternalId}/attachments", UploadFileAttachment)
             .WithName("UploadFileAttachment");
+
+        group.MapPost("/{fileExternalId}/thumbnails", UploadFileThumbnail)
+            .WithName("UploadFileThumbnail");
+
+        group.MapDelete("/{fileExternalId}/thumbnails/{variant}", DeleteFileThumbnail)
+            .WithName("DeleteFileThumbnail");
 
         group.MapGet("/{fileExternalId}/download-link", GetFileDownloadLink)
             .WithName("GetFileDownloadLink");
@@ -137,13 +145,14 @@ public static class FilesEndpoints
         }
 
         var workspace = workspaceMembership.Workspace;
-        
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
         var attachment = new InsertFileAttachmentQuery.AttachmentFile
         {
             ExternalId = attachmentFileExternalId,
-            ContentType = file.ContentType,
-            Name = fileName.Name,
-            Extension = fileName.Extension,
+            ContentType = workspaceEncryptionSession.ToEncryptableMetadata(file.ContentType),
+            Name = workspaceEncryptionSession.ToEncryptableMetadata(fileName.Name),
+            Extension = workspaceEncryptionSession.ToEncryptableMetadata(fileName.Extension),
             SizeInBytes = file.Length,
             KeySecretPart = workspace.Storage.GenerateFileKeySecretPart(),
             EncryptionMetadata = workspace.Storage.GenerateFileEncryptionMetadata(
@@ -162,7 +171,7 @@ public static class FilesEndpoints
             return HttpErrors.File.NotFound(fileExternalId);
 
         var encryptionMode = attachment.EncryptionMetadata.ToEncryptionMode(
-            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
+            workspaceEncryptionSession: workspaceEncryptionSession,
             storageClient: workspace.Storage);
 
         var uploadDetails = new UploadFilePartDetails(
@@ -187,8 +196,6 @@ public static class FilesEndpoints
             fileExternalId: attachment.ExternalId,
             cancellationToken: cancellationToken);
 
-        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
-
         await auditLogService.LogWithFileContext(
             fileExternalId: fileExternalId,
             buildEntry: fileRef => Audit.File.AttachmentUploadedEntry(
@@ -203,6 +210,129 @@ public static class FilesEndpoints
                     SizeInBytes = attachment.SizeInBytes
                 }),
             cancellationToken);
+
+        return TypedResults.Ok();
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UploadFileThumbnail(
+        [FromRoute] FileExtId fileExternalId,
+        HttpContext httpContext,
+        UploadFileThumbnailOperation uploadFileThumbnailOperation,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+
+        if (!httpContext.Request.HasFormContentType)
+            return HttpErrors.File.ExpectedMultipartFormDataContent();
+
+        var form = await httpContext.Request.ReadFormAsync(cancellationToken);
+
+        if (!form.Files.Any())
+            return HttpErrors.File.MissingFile();
+
+        var file = form.Files[0];
+        var fileName = FileNames.TryGetNameAndExtension(file.FileName);
+
+        if (fileName is null)
+            return HttpErrors.File.MissingFileName();
+
+        if (file.Length > MaximumFileUploadPayloadSizeInBytes)
+            return HttpErrors.File.PayloadTooBig(file.Length);
+
+        if (ContentTypeHelper.GetFileTypeFromExtension(fileName.Extension) != FileType.Image)
+            return HttpErrors.File.ThumbnailMustBeImage();
+
+        if (!form.TryGetValue("fileExternalId", out var externalIdValues)
+            || string.IsNullOrEmpty(externalIdValues)
+            || externalIdValues.Count != 1
+            || !FileExtId.TryParse(
+                externalIdValues[0],
+                CultureInfo.InvariantCulture,
+                out var thumbnailFileExternalId))
+        {
+            return HttpErrors.File.MissingAttachmentFileExternalId();
+        }
+
+        if (!form.TryGetValue("variant", out var variantValues)
+            || string.IsNullOrEmpty(variantValues)
+            || variantValues.Count != 1
+            || !Enum.TryParse<ThumbnailVariant>(
+                variantValues[0],
+                ignoreCase: true,
+                out var variant))
+        {
+            return HttpErrors.File.InvalidThumbnailVariant();
+        }
+
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
+        var result = await uploadFileThumbnailOperation.Execute(
+            workspace: workspaceMembership.Workspace,
+            parentFileExternalId: fileExternalId,
+            thumbnailFileExternalId: thumbnailFileExternalId,
+            variant: variant,
+            thumbnailFile: file,
+            thumbnailFileName: fileName.Name,
+            thumbnailFileExtension: fileName.Extension,
+            uploader: new UserIdentity(
+                UserExternalId: workspaceMembership.User.ExternalId),
+            workspaceEncryptionSession: workspaceEncryptionSession,
+            correlationId: httpContext.GetCorrelationId(),
+            cancellationToken: cancellationToken);
+
+        if (result.Code == UploadFileThumbnailOperation.ResultCode.ParentNotFound)
+            return HttpErrors.File.NotFound(fileExternalId);
+
+        if (result.Code == UploadFileThumbnailOperation.ResultCode.ParentNotThumbnailable)
+            return HttpErrors.File.ParentNotThumbnailable();
+
+        await auditLogService.LogWithFileContext(
+            fileExternalId: fileExternalId,
+            buildEntry: fileRef => Audit.File.AttachmentUploadedEntry(
+                actor: httpContext.GetAuditLogActorContext(),
+                workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
+                parentFile: fileRef,
+                attachment: new Audit.FileRef
+                {
+                    ExternalId = result.Attachment!.ExternalId,
+                    Name = workspaceEncryptionSession.Encode(fileName.Name),
+                    Extension = workspaceEncryptionSession.Encode(fileName.Extension),
+                    SizeInBytes = result.Attachment.SizeInBytes
+                }),
+            cancellationToken);
+
+        return TypedResults.Ok();
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> DeleteFileThumbnail(
+        [FromRoute] FileExtId fileExternalId,
+        [FromRoute] string variant,
+        HttpContext httpContext,
+        DeleteFileThumbnailOperation deleteFileThumbnailOperation,
+        CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse<ThumbnailVariant>(
+                variant,
+                ignoreCase: true,
+                out var parsedVariant))
+        {
+            return HttpErrors.File.InvalidThumbnailVariant();
+        }
+
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
+        var result = await deleteFileThumbnailOperation.Execute(
+            workspace: workspaceMembership.Workspace,
+            parentFileExternalId: fileExternalId,
+            variant: parsedVariant,
+            workspaceEncryptionSession: workspaceEncryptionSession,
+            correlationId: httpContext.GetCorrelationId(),
+            cancellationToken: cancellationToken);
+
+        if (result.Code == DeleteFileThumbnailOperation.ResultCode.ParentNotFound)
+            return HttpErrors.File.NotFound(fileExternalId);
 
         return TypedResults.Ok();
     }

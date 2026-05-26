@@ -1,5 +1,6 @@
 ﻿using PlikShare.ArtificialIntelligence.Id;
 using PlikShare.Files.Id;
+using PlikShare.Files.Metadata;
 using PlikShare.Integrations.Aws.Textract;
 using PlikShare.Integrations.Aws.Textract.Id;
 using PlikShare.Integrations.Aws.Textract.Jobs;
@@ -14,7 +15,8 @@ public enum FilePreviewDetailsField
     TextractResultFiles,
     PendingTextractJobs,
     AiConversations,
-    Attachments
+    Attachments,
+    Thumbnails
 }
 
 public class GetFilePreviewDetailsResponseDto
@@ -25,6 +27,14 @@ public class GetFilePreviewDetailsResponseDto
     public required List<FilePreviewPendingTextractJob>? PendingTextractJobs { get; init; }
     public required List<FilePreviewAiConversation>? AiConversations { get; init; }
     public required List<FilePreviewAttachmentFile>? Attachments { get; init; }
+    public required List<FilePreviewThumbnail>? Thumbnails { get; init; }
+}
+
+public class FilePreviewThumbnail
+{
+    public required FileExtId ExternalId { get; init; }
+    public required ThumbnailVariant Variant { get; init; }
+    public required long SizeInBytes { get; init; }
 }
 
 public class FilePreviewNoteDto

@@ -9,6 +9,7 @@ using PlikShare.Files.Preview.GetDetails.Contracts;
 using PlikShare.Files.Preview.GetZipBulkDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipContentDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipDetails.Contracts;
+using PlikShare.Files.Metadata;
 using PlikShare.Files.Preview.SaveNote.Contracts;
 using PlikShare.Files.Rename.Contracts;
 using PlikShare.Folders.Id;
@@ -126,6 +127,62 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
                 statusCode: response.StatusCode,
                 url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
         }
+    }
+
+    public async Task<FileExtId> UploadThumbnail(
+        WorkspaceExtId workspaceExternalId,
+        FileExtId parentFileExternalId,
+        byte[] thumbnailContent,
+        string thumbnailFileName,
+        string thumbnailContentType,
+        ThumbnailVariant variant,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery,
+        Cookie? workspaceEncryptionSession = null)
+    {
+        var thumbnailExternalId = FileExtId.NewId();
+
+        using var formData = new MultipartFormDataContent();
+
+        var fileContent = new ByteArrayContent(thumbnailContent);
+        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(thumbnailContentType);
+
+        formData.Add(fileContent, "file", thumbnailFileName);
+        formData.Add(new StringContent(thumbnailExternalId.Value), "fileExternalId");
+        formData.Add(new StringContent(variant.ToString()), "variant");
+
+        var response = await flurlClient
+            .Request(appUrl, $"api/workspaces/{workspaceExternalId}/files/{parentFileExternalId}/thumbnails")
+            .AllowAnyHttpStatus()
+            .WithCookies(cookie, workspaceEncryptionSession)
+            .WithAntiforgery(antiforgery)
+            .PostAsync(formData);
+
+        if (!response.ResponseMessage.IsSuccessStatusCode)
+        {
+            throw new TestApiCallException(
+                responseBody: await response.GetStringAsync(),
+                statusCode: response.StatusCode,
+                url: response.ResponseMessage.RequestMessage!.RequestUri!.AbsoluteUri);
+        }
+
+        return thumbnailExternalId;
+    }
+
+    public async Task DeleteThumbnail(
+        WorkspaceExtId workspaceExternalId,
+        FileExtId parentFileExternalId,
+        ThumbnailVariant variant,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery,
+        Cookie? workspaceEncryptionSession = null)
+    {
+        await flurlClient.ExecuteDelete(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/files/{parentFileExternalId}/thumbnails/{variant}",
+            cookie: cookie,
+            antiforgery: antiforgery,
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task<GetFilePreviewDetailsResponseDto> GetPreviewDetails(

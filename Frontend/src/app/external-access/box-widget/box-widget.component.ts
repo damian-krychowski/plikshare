@@ -212,7 +212,8 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
                     pendingTextractJobs: [],
                     textractResultFiles: [],
                     aiConversations: [],
-                    attachments: []
+                    attachments: [],
+                    thumbnails: []
                 };
             },
 
@@ -233,6 +234,14 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
             },
 
             uploadFileAttachment: async (fileExternalId: string, request: UploadFileAttachmentRequest) => {
+                throw new Error("not implemented");
+            },
+
+            uploadFileThumbnail: async () => {
+                throw new Error("not implemented");
+            },
+
+            deleteFileThumbnail: async () => {
                 throw new Error("not implemented");
             },
 

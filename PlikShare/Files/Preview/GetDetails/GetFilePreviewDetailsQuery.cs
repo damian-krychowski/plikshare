@@ -12,6 +12,7 @@ using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Files.Preview.Comment;
 using PlikShare.Files.Preview.GetDetails.Contracts;
+using PlikShare.Files.Thumbnails;
 using PlikShare.Integrations.Aws.Textract;
 using PlikShare.Integrations.Aws.Textract.Id;
 using PlikShare.Integrations.Aws.Textract.Jobs;
@@ -24,7 +25,8 @@ namespace PlikShare.Files.Preview.GetDetails;
 public class GetFilePreviewDetailsQuery(
     PlikShareAiDb plikShareAiDb,
     PlikShareDb plikShareDb,
-    UserIdentityResolver userIdentityResolver)
+    UserIdentityResolver userIdentityResolver,
+    GetThumbnailsQuery getThumbnailsQuery)
 {
     public GetFilePreviewDetailsResponseDto Execute(
         WorkspaceContext workspace,
@@ -106,7 +108,15 @@ public class GetFilePreviewDetailsQuery(
                 artifacts,
                 resolvedIdentities)
             : null;
-        
+
+        var thumbnails = shouldGetAll || requestedFields.Contains(FilePreviewDetailsField.Thumbnails)
+            ? GetThumbnails(
+                workspace,
+                fileExternalId,
+                connection,
+                workspaceEncryptionSession)
+            : null;
+
         return new GetFilePreviewDetailsResponseDto
         {
             Note = note,
@@ -114,8 +124,46 @@ public class GetFilePreviewDetailsQuery(
             TextractResultFiles = textractResultFiles,
             PendingTextractJobs = pendingTextractJobs,
             AiConversations = aiConversations,
-            Attachments = attachmentFiles
+            Attachments = attachmentFiles,
+            Thumbnails = thumbnails
         };
+    }
+
+    /// <summary>
+    /// Loads thumbnails for the file and dedupes by variant — keeping the latest write per
+    /// variant. Rows come back ORDER BY fi_id DESC from <see cref="GetThumbnailsQuery"/>,
+    /// so the first occurrence of each variant is the latest one. Duplicate variants would
+    /// only show up after a race during replace; this self-heals the read view.
+    /// </summary>
+    private List<FilePreviewThumbnail> GetThumbnails(
+        WorkspaceContext workspace,
+        FileExtId fileExternalId,
+        SqliteConnection connection,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
+    {
+        var thumbnails = getThumbnailsQuery.Execute(
+            workspace: workspace,
+            parentFileExternalId: fileExternalId,
+            workspaceEncryptionSession: workspaceEncryptionSession,
+            connection: connection);
+
+        var seenVariants = new HashSet<ThumbnailVariant>();
+        var result = new List<FilePreviewThumbnail>();
+
+        foreach (var thumb in thumbnails)
+        {
+            if (!seenVariants.Add(thumb.Variant))
+                continue;
+
+            result.Add(new FilePreviewThumbnail
+            {
+                ExternalId = thumb.ExternalId,
+                Variant = thumb.Variant,
+                SizeInBytes = thumb.SizeInBytes
+            });
+        }
+
+        return result;
     }
 
     private static List<FilePreviewPendingTextractJob> GetPendingTextractJobs(
