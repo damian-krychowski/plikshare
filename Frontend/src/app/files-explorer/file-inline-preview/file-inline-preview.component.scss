@@ -89,3 +89,41 @@
     font-size: var(--company-small-font);
     color: var(--company-grey-font);
 }
+
+// Image-section metadata config-card body: <dl> of label/value rows separated by subtle
+// bottom rule, label-left value-right grid that collapses to a single column on mobile.
+.metadata-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+}
+
+.metadata-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 28%) 1fr;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--company-grey-accent-light);
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    @media (max-width: 500px) {
+        grid-template-columns: 1fr;
+        gap: 0.15rem;
+    }
+}
+
+.metadata-key {
+    color: var(--company-grey-font);
+    font-size: var(--company-small-font);
+    font-weight: 500;
+    margin: 0;
+}
+
+.metadata-val {
+    font-size: var(--company-small-font);
+    word-break: break-word;
+    margin: 0;
+}

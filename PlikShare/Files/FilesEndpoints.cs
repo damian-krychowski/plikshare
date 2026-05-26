@@ -35,6 +35,7 @@ using PlikShare.Files.Rename.Contracts;
 using PlikShare.Files.UpdateSize;
 using PlikShare.Files.Metadata;
 using PlikShare.Files.Thumbnails;
+using PlikShare.Files.Thumbnails.Generation;
 using PlikShare.Files.UploadAttachment;
 using PlikShare.Storages;
 using PlikShare.Storages.Encryption.Authorization;
@@ -71,6 +72,9 @@ public static class FilesEndpoints
 
         group.MapDelete("/{fileExternalId}/thumbnails/{variant}", DeleteFileThumbnail)
             .WithName("DeleteFileThumbnail");
+
+        group.MapPost("/{fileExternalId}/thumbnails/generate", GenerateFileThumbnails)
+            .WithName("GenerateFileThumbnails");
 
         group.MapGet("/{fileExternalId}/download-link", GetFileDownloadLink)
             .WithName("GetFileDownloadLink");
@@ -267,12 +271,16 @@ public static class FilesEndpoints
 
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
 
+        await using var fileStream = file.OpenReadStream();
+
         var result = await uploadFileThumbnailOperation.Execute(
             workspace: workspaceMembership.Workspace,
             parentFileExternalId: fileExternalId,
             thumbnailFileExternalId: thumbnailFileExternalId,
             variant: variant,
-            thumbnailFile: file,
+            thumbnailContent: fileStream,
+            thumbnailSizeInBytes: file.Length,
+            thumbnailContentType: file.ContentType,
             thumbnailFileName: fileName.Name,
             thumbnailFileExtension: fileName.Extension,
             uploader: new UserIdentity(
@@ -335,6 +343,44 @@ public static class FilesEndpoints
             return HttpErrors.File.NotFound(fileExternalId);
 
         return TypedResults.Ok();
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>, JsonHttpResult<HttpError>>> GenerateFileThumbnails(
+        [FromRoute] FileExtId fileExternalId,
+        [FromBody] GenerateFileThumbnailsRequestDto request,
+        HttpContext httpContext,
+        GenerateFileThumbnailsOperation generateFileThumbnailsOperation,
+        CancellationToken cancellationToken)
+    {
+        if (request.Variants is null || request.Variants.Count == 0)
+            return HttpErrors.File.NoThumbnailVariantsRequested();
+
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
+        var result = await generateFileThumbnailsOperation.Execute(
+            workspace: workspaceMembership.Workspace,
+            parentFileExternalId: fileExternalId,
+            variants: request.Variants,
+            triggeredByUserExternalId: workspaceMembership.User.ExternalId,
+            workspaceEncryptionSession: workspaceEncryptionSession,
+            correlationId: httpContext.GetCorrelationId(),
+            cancellationToken: cancellationToken);
+
+        return result.Code switch
+        {
+            GenerateFileThumbnailsOperation.ResultCode.Ok => TypedResults.Ok(),
+            GenerateFileThumbnailsOperation.ResultCode.FfmpegUnavailable => HttpErrors.File.FfmpegUnavailable(),
+            GenerateFileThumbnailsOperation.ResultCode.ParentNotFound => HttpErrors.File.NotFound(fileExternalId),
+            GenerateFileThumbnailsOperation.ResultCode.ParentNotThumbnailable => HttpErrors.File.ParentNotThumbnailable(),
+            GenerateFileThumbnailsOperation.ResultCode.NoVariants => HttpErrors.File.NoThumbnailVariantsRequested(),
+            _ => HttpErrors.File.NotFound(fileExternalId)
+        };
+    }
+
+    public class GenerateFileThumbnailsRequestDto
+    {
+        public required List<ThumbnailVariant> Variants { get; init; }
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateFileContent(

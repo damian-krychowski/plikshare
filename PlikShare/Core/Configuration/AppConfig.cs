@@ -12,6 +12,9 @@ public class AppConfig : IConfig
                  throw new InvalidOperationException("Config for 'AppUrl' not found.");
 
         ForcePasswordLoginEnabled = configuration.GetValue<bool>("ForcePasswordLoginEnabled");
+
+        var ffmpegPath = configuration.GetSection("Ffmpeg").GetSection("Path").Value;
+        FfmpegPath = string.IsNullOrWhiteSpace(ffmpegPath) ? null : ffmpegPath.Trim();
     }
 
     public int QueueProcessingBatchSize { get; }
@@ -19,4 +22,6 @@ public class AppConfig : IConfig
     public string AppUrl { get; }
 
     public bool ForcePasswordLoginEnabled { get; }
+
+    public string? FfmpegPath { get; }
 }

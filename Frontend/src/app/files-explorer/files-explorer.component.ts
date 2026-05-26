@@ -74,6 +74,7 @@ export interface FilesExplorerApi {
     uploadFileAttachment: (fileExternalId: string, request: UploadFileAttachmentRequest) => Promise<void>;
     uploadFileThumbnail: (fileExternalId: string, request: UploadFileThumbnailRequest) => Promise<void>;
     deleteFileThumbnail: (fileExternalId: string, variant: ThumbnailVariant) => Promise<void>;
+    generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) => Promise<void>;
 
     getZipPreviewDetails: (fileExternalId: string) => Promise<ZipPreviewDetails>;
     getZipContentDownloadLink: (fileExternalId: string, zipEntry: ZipEntry, contentDisposition: ContentDisposition) => Promise<GetFileDownloadLinkResponse>;
@@ -578,6 +579,9 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
         deleteFileThumbnail: (fileExternalId: string, variant: ThumbnailVariant) =>
             this.filesApi().deleteFileThumbnail(fileExternalId, variant),
+
+        generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) =>
+            this.filesApi().generateFileThumbnails(fileExternalId, variants),
 
         sendAiFileMessage: (fileExternalId: string, request: SendAiFileMessageRequest) =>
             this.filesApi().sendAiFileMessage(fileExternalId, request),

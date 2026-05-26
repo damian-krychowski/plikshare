@@ -414,6 +414,10 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
                 throw new Error("not implemented");
             },
 
+            generateFileThumbnails: async () => {
+                throw new Error("not implemented");
+            },
+
             getZipPreviewDetails: async (fileExternalId: string) =>  this._externalBoxesGetApi.getZipPreviewDetails(
                 this._boxExternalIdValue, 
                 fileExternalId),

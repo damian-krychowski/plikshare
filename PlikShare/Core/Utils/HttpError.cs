@@ -653,6 +653,22 @@ public static class HttpErrors
                 Message = "Thumbnail variant must be 'Small' or 'Large'."
             });
 
+        public static BadRequest<HttpError> NoThumbnailVariantsRequested() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "no-thumbnail-variants-requested",
+                Message = "Generate request must include at least one variant ('Small' or 'Large')."
+            });
+
+        public static JsonHttpResult<HttpError> FfmpegUnavailable() =>
+            TypedResults.Json(
+                new HttpError
+                {
+                    Code = "ffmpeg-unavailable",
+                    Message = "Thumbnail auto-generation is not available — ffmpeg is not installed on this PlikShare instance."
+                },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+
         public static BadRequest<HttpError> MissingContentTypeBoundary() => TypedResults.BadRequest(new HttpError
             {
                 Code = "invalid-boundary",

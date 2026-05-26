@@ -125,6 +125,7 @@ using PlikShare.Files.Rename;
 using PlikShare.Files.Rename.Contracts;
 using PlikShare.Files.UpdateSize;
 using PlikShare.Files.Thumbnails;
+using PlikShare.Files.Thumbnails.Generation;
 using PlikShare.Files.UploadAttachment;
 using PlikShare.Folders;
 using PlikShare.Folders.Create;
@@ -777,6 +778,10 @@ public class Startup
         builder.Services.AddSingleton<DeleteThumbnailsQuery>();
         builder.Services.AddSingleton<UploadFileThumbnailOperation>();
         builder.Services.AddSingleton<DeleteFileThumbnailOperation>();
+        builder.Services.AddSingleton<FfmpegService>();
+        builder.Services.AddSingleton<TemporaryWorkspaceEncryptionKeyStore>();
+        builder.Services.AddSingleton<IQueueLongRunningJobExecutor, ProcessImageQueueJobExecutor>();
+        builder.Services.AddSingleton<GenerateFileThumbnailsOperation>();
         builder.Services.AddSingleton<IQueueLongRunningJobExecutor, SendAiMessageQueueJobExecutor>();
         builder.Services.AddSingleton<IQueueNormalJobExecutor, DeleteAiConversationQueueJobExecutor>();
 
@@ -847,6 +852,7 @@ public class Startup
 
         app.MapLockStatusEndpoints();
         app.MapApplicationSettingsEndpoints();
+        app.MapAppCapabilitiesEndpoints();
         app.MapWorkspacesAdminEndpoints();
         app.MapFilesEndpoints();
         app.MapEntryPageEndpoints();
@@ -900,6 +906,10 @@ public class Startup
         //integrations
         app.InitializeTextractIntegrations();
         app.InitializeChatGptIntegrations();
+
+        // Force ffmpeg probe at startup so the detection log fires regardless of whether any
+        // request hits the capability endpoint or the generate endpoint first.
+        app.Services.GetRequiredService<FfmpegService>();
     }
 
     private static void UseRequestLogging(WebApplication app)

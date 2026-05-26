@@ -11,8 +11,10 @@
             [fileName]="fileVal.name()"
             [fileExtension]="fileVal.extension"
             [fileUrl]="fileUrlValue"
-            [httpHeadersFactory]="operationsVal">            
-        </app-image-preview>           
+            [httpHeadersFactory]="operationsVal"
+            (dimensionsChange)="imageDimensionsChange.emit($event)"
+            (exifChange)="imageExifChange.emit($event)">
+        </app-image-preview>
     } @else if(fileTypeValue == 'video' && fileUrlValue) {
         <app-video-preview
             [fileUrl]="fileUrlValue">            

@@ -725,6 +725,18 @@ export class FoldersAndFilesSetApi {
 
         await firstValueFrom(call);
     }
+
+    public async generateFileThumbnails(
+        workspaceExternalId: string,
+        fileExternalId: string,
+        variants: ThumbnailVariant[]): Promise<void> {
+        const call = this._http.post<void>(
+            `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/thumbnails/generate`,
+            { variants }
+        );
+
+        await firstValueFrom(call);
+    }
 }
 
 

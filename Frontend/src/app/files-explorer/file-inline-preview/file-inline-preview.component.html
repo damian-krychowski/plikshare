@@ -29,7 +29,9 @@
             [operations]="fileContentOperations()"
             [isEditMode]="isInEditMode()"
             [commandsPipeline]="commandsPipeline()"
-            (zipEntryClicked)="onZipEntryClicked($event)">        
+            (zipEntryClicked)="onZipEntryClicked($event)"
+            (imageDimensionsChange)="imageDimensions.set($event)"
+            (imageExifChange)="imageExif.set($event)">
         </app-file-content>
     </div>
 
@@ -424,6 +426,9 @@
     
 @if(isFileThumbnailable()) {
     @let isThumbnailsExpandedVal = isThumbnailsExpanded();
+    @let imageDimensionsVal = imageDimensions();
+    @let imageExifVal = imageExif();
+    @let isMetadataExpandedVal = isMetadataExpanded();
 
     <div class="preview-bottom-section">
         <div>
@@ -431,12 +436,24 @@
                 <div class="item">
                     <div class="item__details">
                         <div class="item__title">
-                            Thumbnails:
+                            Image:
                         </div>
                     </div>
                 </div>
 
                 <div class="flex-row flex-gap-05 ml-auto">
+                    @if(isThumbnailsExpandedVal && isFfmpegAvailable()) {
+                        @let anyGenerating = !!thumbnailsComponent()?.slots()?.some(s => s.isGenerating);
+
+                        <app-action-btn
+                            tooltip="Generate thumbnails"
+                            icon="icon-image-scale"
+                            [isLoading]="anyGenerating"
+                            [disabled]="anyGenerating"
+                            (clicked)="onGenerateAllThumbnails()">
+                        </app-action-btn>
+                    }
+
                     <app-action-btn
                         [tooltip]="isThumbnailsExpandedVal ? 'Collapse' : 'Expand'"
                         [icon]="isThumbnailsExpandedVal ? 'icon-lucide-chevron-up' : 'icon-lucide-chevron-down'"
@@ -446,7 +463,41 @@
             </div>
 
             @if(isThumbnailsExpandedVal) {
-                <div class="mt-2">
+                <div class="mt-2 flex-column flex-gap-1">
+                    @if(imageDimensionsVal || imageExifVal) {
+                        <app-config-card
+                            title="Metadata"
+                            description="Image dimensions, camera details and EXIF tags read from the file.">
+
+                            <ng-container configCardActions>
+                                <app-action-btn
+                                    [tooltip]="isMetadataExpandedVal ? 'Collapse' : 'Expand'"
+                                    [icon]="isMetadataExpandedVal ? 'icon-lucide-chevron-up' : 'icon-lucide-chevron-down'"
+                                    (clicked)="isMetadataExpanded.set(!isMetadataExpandedVal)">
+                                </app-action-btn>
+                            </ng-container>
+
+                            @if(isMetadataExpandedVal) {
+                                <dl class="metadata-list">
+                                    @if(imageDimensionsVal) {
+                                        <div class="metadata-row">
+                                            <dt class="metadata-key">Dimensions</dt>
+                                            <dd class="metadata-val">{{ imageDimensionsVal.width }} × {{ imageDimensionsVal.height }} px</dd>
+                                        </div>
+                                    }
+                                    @if(imageExifVal) {
+                                        @for(item of getExifEntries(imageExifVal); track $index) {
+                                            <div class="metadata-row">
+                                                <dt class="metadata-key">{{ item[0] }}</dt>
+                                                <dd class="metadata-val">{{ item[1] }}</dd>
+                                            </div>
+                                        }
+                                    }
+                                </dl>
+                            }
+                        </app-config-card>
+                    }
+
                     <app-file-thumbnails
                         [fileExternalId]="fileExternalId()"
                         [thumbnails]="thumbnails()"

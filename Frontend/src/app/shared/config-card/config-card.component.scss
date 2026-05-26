@@ -1,3 +1,12 @@
+// When stretch is enabled the host element itself must participate in flex layout so the
+// inner .config-card can fill it. Without `display: flex` the host stays inline-default
+// and `height: 100%` on the child has nothing to resolve against. Scoped to the stretch
+// class so non-stretch callers see no change.
+:host(.app-config-card--stretch) {
+    display: flex;
+    flex-direction: column;
+}
+
 .config-card {
     // Default ('stacked') mode: title/description on top, controls below, left-aligned.
     display: flex;
@@ -52,6 +61,26 @@
         gap: 1rem;
         padding-top: 1rem;
         border-top: 1px dashed var(--company-grey-accent);
+
+        // Callers may conditionally render the body via `@if` — when no children project the
+        // empty wrapper would still draw its top divider and padding, leaving a stray underline
+        // beneath the header. Hide the slot when there's literally nothing inside.
+        &:empty {
+            display: none;
+        }
+    }
+
+    // Opt-in via `[stretch]="true"` on the host. The host element gets the
+    // `.app-config-card--stretch` class via HostBinding; we make the host a flex column
+    // with full height (so a CSS grid cell can stretch it to the tallest sibling's height)
+    // and propagate that downward — the .config-card div fills the host, the projected
+    // content area expands to fill the remaining vertical space inside the card.
+    :host(.app-config-card--stretch) & {
+        flex: 1;
+
+        .config-card__content {
+            flex: 1;
+        }
     }
 
     // 'side' mode: title/description on the left, controls on the right, vertically centered.

@@ -24,7 +24,9 @@ public class UploadFileThumbnailOperation(
         FileExtId parentFileExternalId,
         FileExtId thumbnailFileExternalId,
         ThumbnailVariant variant,
-        IFormFile thumbnailFile,
+        Stream thumbnailContent,
+        long thumbnailSizeInBytes,
+        string thumbnailContentType,
         string thumbnailFileName,
         string thumbnailFileExtension,
         IUserIdentity uploader,
@@ -67,10 +69,10 @@ public class UploadFileThumbnailOperation(
         var attachment = new InsertFileAttachmentQuery.AttachmentFile
         {
             ExternalId = thumbnailFileExternalId,
-            ContentType = workspaceEncryptionSession.ToEncryptableMetadata(thumbnailFile.ContentType),
+            ContentType = workspaceEncryptionSession.ToEncryptableMetadata(thumbnailContentType),
             Name = workspaceEncryptionSession.ToEncryptableMetadata(thumbnailFileName),
             Extension = workspaceEncryptionSession.ToEncryptableMetadata(thumbnailFileExtension),
-            SizeInBytes = thumbnailFile.Length,
+            SizeInBytes = thumbnailSizeInBytes,
             KeySecretPart = workspace.Storage.GenerateFileKeySecretPart(),
             EncryptionMetadata = workspace.Storage.GenerateFileEncryptionMetadata(
                 workspace.EncryptionMetadata),
@@ -105,7 +107,7 @@ public class UploadFileThumbnailOperation(
 
         await workspace.UploadFilePart(
             input: PipeReader.Create(
-                stream: thumbnailFile.OpenReadStream()),
+                stream: thumbnailContent),
             uploadDetails: uploadDetails,
             cancellationToken: cancellationToken);
 

@@ -1,16 +1,18 @@
-import { Component, effect, EventEmitter, input, OnDestroy, Output, signal } from '@angular/core';
+import { Component, computed, effect, EventEmitter, inject, input, OnDestroy, Output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
 import { ConfigCardComponent } from '../../shared/config-card/config-card.component';
 import { StorageSizePipe } from '../../shared/storage-size.pipe';
+import { AppCapabilitiesService } from '../../services/app-capabilities.service';
 import { ContentDisposition, FilePreviewThumbnail, GetFileDownloadLinkResponse, ThumbnailVariant, UploadFileThumbnailRequest } from '../../services/folders-and-files.api';
 import { getBase62Guid } from '../../services/guid-base-62';
 
 export type FileThumbnailsOperations = {
     uploadFileThumbnail: (request: UploadFileThumbnailRequest) => Promise<void>;
     deleteFileThumbnail: (variant: ThumbnailVariant) => Promise<void>;
+    generateFileThumbnails: (variants: ThumbnailVariant[]) => Promise<void>;
     getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => Promise<GetFileDownloadLinkResponse>;
     prepareAdditionalHttpHeaders: () => Record<string, string> | undefined;
 };
@@ -23,6 +25,7 @@ type SlotState = {
     objectUrl: string | null;
     isLoading: boolean;
     isUploading: boolean;
+    isGenerating: boolean;
 };
 
 const SLOT_DEFS: { variant: ThumbnailVariant; label: string; targetSize: string }[] = [
@@ -51,6 +54,10 @@ export class FileThumbnailsComponent implements OnDestroy {
 
     @Output() changed = new EventEmitter<void>();
 
+    private _capabilities = inject(AppCapabilitiesService);
+
+    isFfmpegAvailable = computed(() => this._capabilities.capabilities().isFfmpegAvailable);
+
     slots = signal<SlotState[]>(SLOT_DEFS.map(def => ({
         variant: def.variant,
         label: def.label,
@@ -59,9 +66,13 @@ export class FileThumbnailsComponent implements OnDestroy {
         objectUrl: null,
         isLoading: false,
         isUploading: false,
+        isGenerating: false,
     })));
 
     constructor() {
+        // Capabilities are app-wide; first component to mount fires the HTTP, others reuse.
+        this._capabilities.ensureLoaded();
+
         // Reconcile slot.existing against the latest thumbnails input. Preserves objectUrl
         // for variants whose externalId is unchanged so the image doesn't flicker; revokes +
         // clears object URLs whose thumbnail was replaced or removed; then kicks off any
@@ -81,6 +92,46 @@ export class FileThumbnailsComponent implements OnDestroy {
 
             this.syncObjectUrls();
         });
+    }
+
+    /**
+     * Trigger backend generation for the supplied variants. Public so the parent component
+     * can invoke "generate both" from the section header next to the chevron.
+     */
+    public async generateVariants(variants: ThumbnailVariant[]): Promise<void> {
+        if (variants.length === 0) return;
+
+        // Reject duplicate triggers per slot; the global path may overlap with a still-running
+        // per-slot click — only the slots that aren't already generating start.
+        const toGenerate = variants.filter(v =>
+            !this.slots().find(s => s.variant === v)?.isGenerating);
+
+        if (toGenerate.length === 0) return;
+
+        for (const variant of toGenerate) {
+            this.patchSlot(variant, s => ({ ...s, isGenerating: true }));
+        }
+
+        try {
+            await this.operations().generateFileThumbnails(toGenerate);
+
+            // Queue worker is async — emit changed periodically so parent re-fetches preview
+            // details. Stop early once every requested variant shows up on the slot side.
+            for (let i = 0; i < 10; i++) {
+                await new Promise(r => setTimeout(r, 1500));
+                this.changed.emit();
+
+                const allPresent = toGenerate.every(v =>
+                    this.slots().find(s => s.variant === v)?.existing != null);
+                if (allPresent) break;
+            }
+        } catch (err) {
+            console.error('Thumbnail generation failed:', err);
+        } finally {
+            for (const variant of toGenerate) {
+                this.patchSlot(variant, s => ({ ...s, isGenerating: false }));
+            }
+        }
     }
 
     ngOnDestroy(): void {
@@ -181,5 +232,9 @@ export class FileThumbnailsComponent implements OnDestroy {
         } catch (err) {
             console.error('Thumbnail delete failed:', err);
         }
+    }
+
+    onGenerateVariant(variant: ThumbnailVariant): Promise<void> {
+        return this.generateVariants([variant]);
     }
 }

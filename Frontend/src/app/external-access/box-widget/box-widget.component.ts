@@ -245,6 +245,10 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
                 throw new Error("not implemented");
             },
 
+            generateFileThumbnails: async () => {
+                throw new Error("not implemented");
+            },
+
             getZipPreviewDetails: async (fileExternalId: string) =>  this._boxWidgetApi.getZipPreviewDetails(
                 this.url(), 
                 fileExternalId),

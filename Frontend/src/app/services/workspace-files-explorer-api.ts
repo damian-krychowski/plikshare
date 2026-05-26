@@ -230,6 +230,14 @@ export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
         );
     }
 
+    generateFileThumbnails(fileExternalId: string, variants: ThumbnailVariant[]): Promise<void> {
+        return this._setApi.generateFileThumbnails(
+            this._workspaceExternalId,
+            fileExternalId,
+            variants
+        );
+    }
+
     sendAiFileMessage(fileExternalId: string, request: SendAiFileMessageRequest): Promise<void> {
         return this._setApi.sendAiFileMessage(
             this._workspaceExternalId,

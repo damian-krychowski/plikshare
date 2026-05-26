@@ -8,23 +8,6 @@
     @media (max-width: variables.$mobile-breakpoint) {
         grid-template-columns: 1fr;
     }
-
-    // Stretch both cards to the tallest. Grid cells already align-items: stretch by default,
-    // but the config-card host is an Angular element with no intrinsic block flow — make it
-    // a flex column so its inner .config-card fills the cell height. ::ng-deep pierces the
-    // child component's view encapsulation to stretch the projected content area too.
-    app-config-card {
-        display: flex;
-        flex-direction: column;
-    }
-
-    ::ng-deep .config-card {
-        flex: 1;
-    }
-
-    ::ng-deep .config-card__content {
-        flex: 1;
-    }
 }
 
 .thumbnail-preview {
@@ -34,19 +17,54 @@
     justify-content: center;
     padding: 0.5rem;
     min-height: 140px;
-    background: var(--company-grey-accent-light);
     border-radius: 4px;
+    // Subtle diagonal stripe pattern — gives the image a "framed on a textured backing" feel,
+    // makes aspect-ratio differences between Small and Large visually obvious (whitespace
+    // around portrait/landscape images shows the stripes).
+    background: repeating-linear-gradient(
+        45deg,
+        var(--company-grey-accent-light) 0,
+        var(--company-grey-accent-light) 8px,
+        var(--company-background) 8px,
+        var(--company-background) 16px
+    );
 
     &__image {
-        max-width: 100%;
-        max-height: 180px;
         display: block;
         object-fit: contain;
+        // White backdrop so transparent PNGs read against the stripe pattern; shadow lifts
+        // the image off the textured background.
+        background: white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
     }
 
     &__placeholder-icon {
-        font-size: 2rem;
         color: var(--company-grey-accent);
+    }
+
+    // Visual size cue conveying the real pixel ratio between variants (400px vs 1600px = 1:4
+    // linear). Strict 1:4 makes Small almost invisible, so we soften to ~60% / 100% — Small
+    // reads as "clearly smaller" without becoming unreadable.
+    &--small {
+        .thumbnail-preview__image {
+            max-width: 60%;
+            max-height: 60%;
+        }
+
+        .thumbnail-preview__placeholder-icon {
+            font-size: 1.3rem;
+        }
+    }
+
+    &--large {
+        .thumbnail-preview__image {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .thumbnail-preview__placeholder-icon {
+            font-size: 2rem;
+        }
     }
 }
 

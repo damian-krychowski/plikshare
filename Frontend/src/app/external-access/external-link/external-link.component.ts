@@ -352,6 +352,10 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
                 throw new Error("not implemented");
             },
 
+            generateFileThumbnails: async () => {
+                throw new Error("not implemented");
+            },
+
             getZipPreviewDetails: async (fileExternalId: string) =>  this._accessCodesApi.getZipPreviewDetails(
                 this._accessCodeValue, 
                 fileExternalId),

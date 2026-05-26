@@ -4,9 +4,20 @@
             [title]="slot.label"
             [description]="slot.existing
                 ? ('Target size ' + slot.targetSize + ' · ' + (slot.existing.sizeInBytes | storageSize))
-                : ('Target size ' + slot.targetSize)">
+                : ('Target size ' + slot.targetSize)"
+            [stretch]="true">
 
             <ng-container configCardActions>
+                @if (isFfmpegAvailable()) {
+                    <app-action-btn
+                        tooltip="Generate"
+                        icon="icon-image-scale"
+                        [isLoading]="slot.isGenerating"
+                        [disabled]="slot.isUploading || slot.isGenerating"
+                        (clicked)="onGenerateVariant(slot.variant)">
+                    </app-action-btn>
+                }
+
                 @if (slot.existing) {
                     <input
                         #replaceFileInput
@@ -18,19 +29,22 @@
                     <app-action-btn
                         [tooltip]="'Replace ' + slot.label.toLowerCase()"
                         icon="icon-nucleo-upload-2"
-                        [disabled]="slot.isUploading"
+                        [disabled]="slot.isUploading || slot.isGenerating"
                         (clicked)="replaceFileInput.click()">
                     </app-action-btn>
                     <app-action-btn
                         [tooltip]="'Delete ' + slot.label.toLowerCase()"
                         icon="icon-lucide-xmark"
+                        [disabled]="slot.isGenerating"
                         (clicked)="onDelete(slot.variant)">
                     </app-action-btn>
                 }
             </ng-container>
 
             @if (slot.existing) {
-                <div class="thumbnail-preview">
+                <div
+                    class="thumbnail-preview"
+                    [class]="'thumbnail-preview--' + slot.variant.toLowerCase()">
                     @if (slot.objectUrl) {
                         <img
                             class="thumbnail-preview__image"
@@ -48,13 +62,19 @@
             } @else {
                 <label
                     class="thumbnail-empty"
-                    [class.thumbnail-empty--uploading]="slot.isUploading">
+                    [class.thumbnail-empty--uploading]="slot.isUploading || slot.isGenerating">
                     @if (slot.isUploading) {
                         <mat-progress-spinner
                             diameter="24"
                             mode="indeterminate">
                         </mat-progress-spinner>
                         <span class="thumbnail-empty__hint">Uploading...</span>
+                    } @else if (slot.isGenerating) {
+                        <mat-progress-spinner
+                            diameter="24"
+                            mode="indeterminate">
+                        </mat-progress-spinner>
+                        <span class="thumbnail-empty__hint">Generating...</span>
                     } @else {
                         <span class="icon icon-nucleo-upload-2 thumbnail-empty__icon"></span>
                         <span class="thumbnail-empty__hint">Click to upload</span>
@@ -63,7 +83,7 @@
                         type="file"
                         accept="image/*"
                         hidden
-                        [disabled]="slot.isUploading"
+                        [disabled]="slot.isUploading || slot.isGenerating"
                         (change)="onFilePicked($event, slot.variant)"/>
                 </label>
             }

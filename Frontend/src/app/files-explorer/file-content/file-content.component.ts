@@ -9,7 +9,7 @@ import { FileIconPipe } from "../file-icon-pipe/file-icon.pipe";
 import { TextPreviewComponent } from "./text-preview/text-preview.component";
 import { ContentDisposition, GetFileDownloadLinkResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse } from "../../services/folders-and-files.api";
 import { getFileDetails } from "../../services/filte-type";
-import { ZipPreviewDetails } from "../file-inline-preview/file-inline-preview.component";
+import { ImageDimensions, ImageExif, ZipPreviewDetails } from "../file-inline-preview/file-inline-preview.component";
 import { ZipEntry } from "../../services/zip";
 import { ImagePreviewComponent } from "./image-preview/image-preview.component";
 import { VideoPreviewComponent } from "./video-preview/video-preview.component";
@@ -81,6 +81,11 @@ export class FileContentComponent implements OnChanges {
     //zip
     zipPreviewOperations = signal<ZipPreviewOperations | null>(null);
     zipEntryClicked = output<ZipEntry>();
+
+    // Forwarded from <app-image-preview> so file-inline-preview can render the metadata
+    // config-card in the same section as the thumbnail slots.
+    imageDimensionsChange = output<ImageDimensions | null>();
+    imageExifChange = output<ImageExif | null>();
 
     async ngOnChanges(changes: SimpleChanges): Promise<void> {
         if(changes['file'] && this.file()) {

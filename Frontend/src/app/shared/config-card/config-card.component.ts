@@ -12,16 +12,28 @@ import { Component, input } from '@angular/core';
  * `[configCardActions]` attribute selector — typically used for toggles or
  * pending-change action buttons that should sit next to the title. The slot
  * collapses when nothing is projected and is ignored in 'side' mode.
+ *
+ * <para>The content area also auto-hides when no content is projected (e.g. when a
+ * caller conditionally renders its body via <c>@if</c>) so the dashed divider doesn't
+ * dangle as a stray underline beneath the header.</para>
+ *
+ * <para>Opt-in <c>[stretch]="true"</c> makes the card fill the height of its parent —
+ * useful when several cards sit in a CSS grid and should align to the tallest. The
+ * projected content area also grows to fill, so its bottom edge meets the card edge.</para>
  */
 @Component({
     selector: 'app-config-card',
     standalone: true,
     imports: [],
     templateUrl: './config-card.component.html',
-    styleUrl: './config-card.component.scss'
+    styleUrl: './config-card.component.scss',
+    host: {
+        '[class.app-config-card--stretch]': 'stretch()'
+    }
 })
 export class ConfigCardComponent {
     title = input.required<string>();
     description = input.required<string>();
     mode = input<'stacked' | 'side'>('stacked');
+    stretch = input<boolean>(false);
 }

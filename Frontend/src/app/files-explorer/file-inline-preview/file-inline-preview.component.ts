@@ -1,4 +1,4 @@
-import { Component, computed, input, OnChanges, OnDestroy, OnInit, output, Signal, signal, SimpleChanges, WritableSignal } from '@angular/core';
+import { Component, computed, inject, input, OnChanges, OnDestroy, OnInit, output, Signal, signal, SimpleChanges, viewChild, WritableSignal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { AppFileItem, AppFileItems, FileItemComponent, FileOperations } from '../../shared/file-item/file-item.component';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -32,6 +32,8 @@ import { Subscription } from 'rxjs';
 import { AiResponseComponent, AiResponseOperations, AttachmentCreatedEvent } from '../../shared/ai-response/ai-response.component';
 import { StorageSizePipe, StorageSizeUtils } from '../../shared/storage-size.pipe';
 import { FileThumbnailsComponent, FileThumbnailsOperations } from '../file-thumbnails/file-thumbnails.component';
+import { AppCapabilitiesService } from '../../services/app-capabilities.service';
+import { ConfigCardComponent } from '../../shared/config-card/config-card.component';
 
 export type ImageDimensions = {
     width: number;
@@ -64,6 +66,7 @@ export type FilePreviewOperations = {
     uploadFileAttachment: (fileExternalId: string, request: UploadFileAttachmentRequest) => Promise<void>;
     uploadFileThumbnail: (fileExternalId: string, request: UploadFileThumbnailRequest) => Promise<void>;
     deleteFileThumbnail: (fileExternalId: string, variant: ThumbnailVariant) => Promise<void>;
+    generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) => Promise<void>;
 
     sendAiFileMessage(fileExternalId: string, request: SendAiFileMessageRequest): Promise<void>;
     updateAiConversationName(fileExternalId: string, fileArtifactExternalId: string, request: UpdateAiConversationNameRequest): Promise<void>;
@@ -107,7 +110,8 @@ type AiContentType = OtherAiContentType | FileAiContentType;
         AiConversationItemComponent,
         AiResponseComponent,
         StorageSizePipe,
-        FileThumbnailsComponent
+        FileThumbnailsComponent,
+        ConfigCardComponent
     ],
     templateUrl: './file-inline-preview.component.html',
     styleUrls: ['./file-inline-preview.component.scss']
@@ -347,6 +351,17 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
         return details.type === 'image' || details.type === 'video';
     });
 
+    // Lifted out of <app-image-preview> so this component can render the metadata config-card
+    // in the same "Image" section as the thumbnail slots. The image-preview component still
+    // computes the values (it owns the fetched blob) and emits them up through file-content.
+    imageDimensions = signal<ImageDimensions | null>(null);
+    imageExif = signal<ImageExif | null>(null);
+    isMetadataExpanded = signal(false);
+
+    getExifEntries(exif: ImageExif): [string, any][] {
+        return Object.entries(exif);
+    }
+
     runningTextractJobs = computed(() => {
         const jobs = this.textractJobs();
 
@@ -388,6 +403,17 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
     isNotesExpanded = signal(false);
     isCommentsExpanded = signal(false);
     isThumbnailsExpanded = signal(false);
+
+    private _capabilities = inject(AppCapabilitiesService);
+    isFfmpegAvailable = computed(() => this._capabilities.capabilities().isFfmpegAvailable);
+
+    thumbnailsComponent = viewChild<FileThumbnailsComponent>(FileThumbnailsComponent);
+
+    async onGenerateAllThumbnails(): Promise<void> {
+        const component = this.thumbnailsComponent();
+        if (!component) return;
+        await component.generateVariants(['Small', 'Large']);
+    }
 
     constructor(
         private _auth: AuthService,
@@ -441,6 +467,10 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
             deleteFileThumbnail: (variant) => previewOps.deleteFileThumbnail(
                 parentExtId,
                 variant),
+
+            generateFileThumbnails: (variants) => previewOps.generateFileThumbnails(
+                parentExtId,
+                variants),
 
             getDownloadLink: (thumbExternalId, contentDisposition) => fileOps.getDownloadLink(
                 thumbExternalId,
@@ -517,6 +547,9 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
         this.textractResultFiles.set([]);
         this.attachments.set([]);
         this.thumbnails.set([]);
+        this.imageDimensions.set(null);
+        this.imageExif.set(null);
+        this.isMetadataExpanded.set(false);
         this.noteJson.set(undefined);
         this.noteChangedAt.set(null);
         this.noteChangedBy.set(null);
