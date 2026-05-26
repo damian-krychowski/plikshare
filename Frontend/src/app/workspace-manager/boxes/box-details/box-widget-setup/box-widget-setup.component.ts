@@ -1,6 +1,6 @@
-import { Component, OnInit, Signal, computed, signal, ViewEncapsulation, Inject } from '@angular/core';
+import { Component, OnInit, computed, signal, ViewEncapsulation, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
-import { FormsModule, NgForm } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,7 +8,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActionButtonComponent } from '../../../../shared/buttons/action-btn/action-btn.component';
 import { ClipboardModule, Clipboard } from '@angular/cdk/clipboard';
 import { WidgetsApi } from '../../../../services/widgets.api';
-import { AppEmailProvider } from '../../../../shared/email-provider-item/email-provider-item.component';
+import { ConfigCardComponent } from '../../../../shared/config-card/config-card.component';
 
 type OriginControl = {
     value: string;
@@ -23,7 +23,8 @@ type OriginControl = {
         MatInputModule,
         MatButtonModule,
         ActionButtonComponent,
-        ClipboardModule
+        ClipboardModule,
+        ConfigCardComponent
     ],
     templateUrl: './box-widget-setup.component.html',
     styleUrls: ['./box-widget-setup.component.scss'],
@@ -32,15 +33,15 @@ type OriginControl = {
 export class BoxWidgetSetupComponent implements OnInit {
     origins = signal<OriginControl[]>([]);
     widgetUrl = signal<string>('');
-    
+
     scriptTags = signal<string | null>(null);
-    
-    widgetTag = computed(() => 
-`<plikshare-box-widget 
+
+    widgetTag = computed(() =>
+`<plikshare-box-widget
     url="${this.widgetUrl()}">
 </plikshare-box-widget>`
     );
-    
+
     constructor(
         private _widgetsApi: WidgetsApi,
         private _clipboard: Clipboard,
@@ -78,43 +79,22 @@ export class BoxWidgetSetupComponent implements OnInit {
     }
 
     removeOrigin(id: string) {
-        this.origins.update(origins => {
-            const index = origins.findIndex(origin => origin.id === id);
-            origins.splice(index, 1);
-            return origins;
-        });
+        this.origins.update(origins => origins.filter(o => o.id !== id));
     }
 
     copyWidgetTagToClipboard() {
         if(this._clipboard.copy(this.widgetTag())) {
-            this.animateCopy('.icon-copy-tag');
+            this._snackBar.open('Widget tag copied to clipboard', 'Close', { duration: 2000 });
         }
     }
 
-    copyWidgetScriptsToClipboard() {  
+    copyWidgetScriptsToClipboard() {
         const scripts = this.scriptTags();
+        if(!scripts) return;
 
-        if(!scripts)
-            return;
-        
         if(this._clipboard.copy(scripts)) {
-            this.animateCopy('.icon-copy-scripts');
+            this._snackBar.open('Scripts copied to clipboard', 'Close', { duration: 2000 });
         }
-    }
-
-    private animateCopy(copySelector: string) {
-        const iconElement = document.querySelector(copySelector);
-
-        if (iconElement) {
-            iconElement.classList.add('copy-animation');
-            setTimeout(() => {
-                iconElement.classList.remove('copy-animation');
-            }, 300);
-        }
-
-        this._snackBar.open('Copied to clipboard', 'Close', {
-            duration: 2000,
-        });
     }
 
     onSave() {
