@@ -220,25 +220,49 @@ prompt_for_setup_details() {
   2. PlikShare - Setup Details
 ===============================
 
-We'll now collect some important details for your PlikShare installation.
+You should have already done all of the following in the Cloudflare Zero
+Trust dashboard, BEFORE running this script:
 
-Before continuing, you should have already:
-- A Cloudflare account with your domain on it (DNS managed by Cloudflare).
-- A Tunnel created in the Cloudflare Zero Trust dashboard
-  (Networks → Tunnels → Create a tunnel, pick the 'Cloudflared' connector).
-- The Tunnel token from that dashboard.
+1. Your domain on Cloudflare (DNS managed by Cloudflare).
+
+2. Networks → Connectors → Cloudflare Tunnels → Create a tunnel.
+   Pick the 'Cloudflared' connector and give the tunnel a name.
+
+3. On the 'Install and run a connector' screen, pick the Docker tab.
+   Cloudflare shows a 'docker run … --token eyJhIjoi…' command. Copy
+   the long token value after '--token ' — the script will ask for it
+   below. Do NOT run the docker command yourself; the script handles
+   cloudflared.
+
+4. On the 'Published application routes' screen click 'Add a published
+   application route' and fill in:
+     Subdomain:    the leftmost label (e.g. 'plikshare')
+     Domain:       pick your domain from the dropdown
+     Path:         leave empty
+     Service Type: HTTP
+     URL:          plikshare:8080
+
+5. Save the tunnel.
+
+GOTCHA on step 4: in the URL field use 'plikshare:8080' — NOT
+'localhost:8080' as the placeholder suggests. cloudflared runs in its
+own container on the compose network, and 'plikshare' is the service
+name that resolves to the PlikShare container. 'localhost' would point
+to cloudflared's own loopback, where nothing is listening.
+
+If everything above is done, continue below.
 " >&2
 
     # Domain name — needed for PlikShare's AppUrl, even though no DNS A
     # record points here. Cloudflare resolves the hostname through the tunnel.
     echo "
 Domain Name:
-    The hostname you will configure as a Public Hostname inside the Cloudflare
-    Tunnel (e.g., plikshare.yourdomain.com). PlikShare uses this for CORS and
+    The hostname you will publish via the Cloudflare Tunnel
+    (e.g., plikshare.yourdomain.com). PlikShare uses this for CORS and
     for the links it generates in emails / shares.
 
     NOTE: No DNS A record is needed here. Cloudflare will create the CNAME
-    automatically when you set up the Public Hostname later.
+    automatically when you add the published application route later.
 
     Enter your domain name without 'http://' or 'https://'.
     " >&2
@@ -297,11 +321,9 @@ PlikShare Encryption Passwords:
 
     echo "
 Cloudflare Tunnel Token:
-    The token you copied from the Cloudflare Zero Trust dashboard. On the
-    'Install and run a connector' screen, Cloudflare shows a docker run
-    command. Copy the long token value that appears after '--token '.
-
-    This value will be stored in cloudflared.env (chmod 600).
+    Paste the token you copied from the 'Install and run a connector'
+    screen (the long string after '--token ', starts with 'ey'). It
+    will be stored in cloudflared.env (chmod 600).
     " >&2
     ask_silent_input "Cloudflare Tunnel token" CLOUDFLARE_TUNNEL_TOKEN
 
@@ -458,28 +480,22 @@ start_stack() {
   PlikShare Installation Complete
 ===================================
 
-The local stack is running. One last step is required on the Cloudflare side
-to actually route traffic to PlikShare:
-
-1. Open https://one.dash.cloudflare.com/ → Networks → Tunnels
-2. Click your tunnel.
-3. Go to the "Public Hostname" tab.
-4. Click "Add a public hostname":
-     Subdomain:  the leftmost label (e.g. 'plikshare')
-     Domain:     pick from the list (e.g. 'yourdomain.com')
-                 — together this must equal $domain_name
-     Type:       HTTP
-     URL:        plikshare:8080
-5. Save.
-
-Cloudflare creates a CNAME for that hostname automatically. Within a minute
-PlikShare will be live at:
+Your PlikShare instance is now live at:
 
   $PLIKSHARE_APP_URL
+
+If the URL does not respond immediately, give Cloudflare a minute to
+propagate the CNAME for the published application route you set up
+earlier.
 
 - TLS is terminated at Cloudflare's edge.
 - No inbound ports are open on this server.
 - The cloudflared container reconnects on its own after reboots.
+
+If the URL shows a Cloudflare error about no route being configured,
+you skipped step 4 of the prerequisites. Go back to your tunnel in
+the dashboard → 'Published application routes' tab → add a route
+with Service Type HTTP and URL plikshare:8080.
 EOF
 }
 
@@ -597,10 +613,6 @@ ports, TLS terminated at Cloudflare's edge.
     echo "
 =====================================
   !!! PlikShare Is Ready To Use !!!
-
-  Don't forget the final step: add a
-  Public Hostname inside your tunnel
-  pointing at http://plikshare:8080
 =====================================
 " >&2
 
