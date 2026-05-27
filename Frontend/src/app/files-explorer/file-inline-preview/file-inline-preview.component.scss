@@ -127,3 +127,14 @@
     word-break: break-word;
     margin: 0;
 }
+
+// The Download-as menu trigger uses a raw <button> (not <app-action-btn>) so matMenuTriggerFor
+// can attach without fighting the component's own click handler. Mirror the visual shape of
+// .action-btn (square 36px, grey border) so it sits flush next to the other action buttons.
+.action-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    padding: 0 !important;
+    border: 1px solid var(--company-grey-accent);
+}

@@ -129,6 +129,77 @@ public class FfmpegService
         _ => throw new ArgumentOutOfRangeException(nameof(variant), variant, null)
     };
 
+    /// <summary>
+    /// Re-encodes the source image to the requested format at its full resolution. Used by the
+    /// "Download as JPEG / PNG / WebP" flow — caller streams the returned bytes back to the
+    /// client. Quality settings are hard-coded to sensible defaults (JPEG ≈ q4 / Q85, WebP 85,
+    /// PNG lossless max compression); no per-request quality knob to keep the menu simple.
+    /// </summary>
+    public async Task<byte[]> ConvertImage(
+        ReadOnlyMemory<byte> sourceBytes,
+        DownloadImageFormat targetFormat,
+        CancellationToken cancellationToken)
+    {
+        var formatArgs = targetFormat switch
+        {
+            // mjpeg muxer streams a single JPEG frame to stdout; q:v 4 ≈ visual Q 85
+            DownloadImageFormat.Jpeg => "-c:v mjpeg -q:v 4 -f image2pipe",
+            // PNG over image2pipe so ffmpeg emits raw PNG bytes (not a sequence); max zlib level
+            DownloadImageFormat.Png => "-c:v png -compression_level 9 -f image2pipe",
+            // WebP muxer handles single-image output natively
+            DownloadImageFormat.Webp => "-quality 85 -f webp",
+            _ => throw new ArgumentOutOfRangeException(nameof(targetFormat), targetFormat, null)
+        };
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = _ffmpegPath,
+            // -vframes 1 = single frame (handles video sources too — extracts first frame).
+            // No scale filter — preserve original resolution; this is "convert" not "thumbnail".
+            Arguments = $"-hide_banner -loglevel error -i pipe:0 -vframes 1 {formatArgs} -y pipe:1",
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var process = Process.Start(psi)
+            ?? throw new InvalidOperationException("ffmpeg failed to start.");
+
+        var stdinTask = WriteToStdin(process, sourceBytes, cancellationToken);
+        var stdoutBuffer = new MemoryStream();
+        var stdoutTask = process.StandardOutput.BaseStream.CopyToAsync(stdoutBuffer, cancellationToken);
+        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+
+        try
+        {
+            await Task.WhenAll(stdinTask, stdoutTask);
+            await process.WaitForExitAsync(cancellationToken);
+        }
+        catch
+        {
+            try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+            throw;
+        }
+
+        var stderr = await stderrTask;
+
+        if (process.ExitCode != 0)
+        {
+            throw new InvalidOperationException(
+                $"ffmpeg convert exited with code {process.ExitCode}: {stderr}");
+        }
+
+        if (stdoutBuffer.Length == 0)
+        {
+            throw new InvalidOperationException(
+                $"ffmpeg convert produced empty output. stderr: {stderr}");
+        }
+
+        return stdoutBuffer.ToArray();
+    }
+
     private static async Task WriteToStdin(
         Process process,
         ReadOnlyMemory<byte> sourceBytes,

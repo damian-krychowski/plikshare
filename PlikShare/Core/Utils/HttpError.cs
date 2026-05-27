@@ -669,6 +669,13 @@ public static class HttpErrors
                 },
                 statusCode: StatusCodes.Status503ServiceUnavailable);
 
+        public static BadRequest<HttpError> InvalidDownloadFormat() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "invalid-download-format",
+                Message = "Download format must be 'jpeg', 'png' or 'webp'."
+            });
+
         public static BadRequest<HttpError> MissingContentTypeBoundary() => TypedResults.BadRequest(new HttpError
             {
                 Code = "invalid-boundary",

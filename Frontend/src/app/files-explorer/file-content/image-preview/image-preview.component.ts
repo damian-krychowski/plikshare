@@ -1,4 +1,4 @@
-import { Component, computed, input, OnChanges, output, signal, SimpleChanges } from "@angular/core";
+import { Component, computed, input, OnChanges, OnDestroy, output, signal, SimpleChanges } from "@angular/core";
 import { ImageDimensions, ImageExif } from "../../file-inline-preview/file-inline-preview.component";
 import { getMimeType } from "../../../services/filte-type";
 import exifr from "exifr";
@@ -10,7 +10,7 @@ import { HttpHeadersFactory } from "../../http-headers-factory";
     templateUrl: './image-preview.component.html',
     styleUrls: ['./image-preview.component.scss']
 })
-export class ImagePreviewComponent implements OnChanges {
+export class ImagePreviewComponent implements OnChanges, OnDestroy {
     fileUrl = input.required<string>();
     fileName = input.required<string>();
     fileExtension = input.required<string>();
@@ -25,20 +25,23 @@ export class ImagePreviewComponent implements OnChanges {
     fileFullName = computed(() => this.fileName() + this.fileExtension());
 
     objectUrl = signal<string | null>(null);
+    // Drives the opacity fade — flipped to false right before the new objectUrl swap so the
+    // <img> starts at 0 opacity, then flipped back to true on the native (load) event so
+    // CSS transition runs a buttery fade-in. Avoids the harsh blink that direct src swap
+    // would otherwise produce when navigating next/previous between files.
+    isImageLoaded = signal(false);
 
     async ngOnChanges(changes: SimpleChanges): Promise<void> {
         const url = this.fileUrl();
 
         if(changes['fileUrl'] && url) {
-            this.resetState();
             await this.loadImageWithMetadata(url);
         }
     }
 
-    private resetState() {
-        this.objectUrl.set(null);
-        this.dimensionsChange.emit(null);
-        this.exifChange.emit(null);
+    ngOnDestroy(): void {
+        const current = this.objectUrl();
+        if (current) URL.revokeObjectURL(current);
     }
 
     async loadImageWithMetadata(url: string): Promise<void> {
@@ -55,9 +58,22 @@ export class ImagePreviewComponent implements OnChanges {
             const arrayBuffer = await response.arrayBuffer();
             const mimeType = getMimeType(this.fileExtension());
             const blob = new Blob([arrayBuffer], { type: mimeType });
+            const newObjectUrl = URL.createObjectURL(blob);
 
-            this.objectUrl.set(URL.createObjectURL(blob));
+            // Atomic swap: prime the fade (loaded=false), set new URL, then revoke the old.
+            // The <img> keeps rendering the old src until the new blob loads, but the opacity
+            // dip + fade-in masks the moment of transition. Old URL is revoked AFTER the new
+            // one is in place so there's never a flash of empty frame.
+            const oldObjectUrl = this.objectUrl();
+            this.isImageLoaded.set(false);
+            this.objectUrl.set(newObjectUrl);
+            if (oldObjectUrl) {
+                URL.revokeObjectURL(oldObjectUrl);
+            }
 
+            // EXIF parsed from the new blob — emit either the formatted bag or null when
+            // the file has no readable tags. Emitting null clears the parent's stale state
+            // from the previous file; without it the metadata card would show wrong data.
             try {
                 const exif = await exifr.parse(blob);
 
@@ -73,9 +89,12 @@ export class ImagePreviewComponent implements OnChanges {
                         });
 
                     this.exifChange.emit(formattedExif);
+                } else {
+                    this.exifChange.emit(null);
                 }
             } catch (exifError) {
                 console.log('No EXIF data available:', exifError);
+                this.exifChange.emit(null);
             }
 
         } catch (error) {
@@ -113,6 +132,8 @@ export class ImagePreviewComponent implements OnChanges {
             width: image.naturalWidth,
             height: image.naturalHeight
         });
+
+        this.isImageLoaded.set(true);
     }
 
     handleMediaError(event: any): void {

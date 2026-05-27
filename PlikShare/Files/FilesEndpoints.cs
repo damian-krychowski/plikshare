@@ -76,6 +76,9 @@ public static class FilesEndpoints
         group.MapPost("/{fileExternalId}/thumbnails/generate", GenerateFileThumbnails)
             .WithName("GenerateFileThumbnails");
 
+        group.MapGet("/{fileExternalId}/download-converted", DownloadFileConverted)
+            .WithName("DownloadFileConverted");
+
         group.MapGet("/{fileExternalId}/download-link", GetFileDownloadLink)
             .WithName("GetFileDownloadLink");
 
@@ -381,6 +384,44 @@ public static class FilesEndpoints
     public class GenerateFileThumbnailsRequestDto
     {
         public required List<ThumbnailVariant> Variants { get; init; }
+    }
+
+    private static async Task<IResult> DownloadFileConverted(
+        [FromRoute] FileExtId fileExternalId,
+        [FromQuery] string format,
+        HttpContext httpContext,
+        DownloadFileConvertedOperation downloadFileConvertedOperation,
+        CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse<DownloadImageFormat>(
+                format,
+                ignoreCase: true,
+                out var targetFormat))
+        {
+            return HttpErrors.File.InvalidDownloadFormat();
+        }
+
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
+        var result = await downloadFileConvertedOperation.Execute(
+            workspace: workspaceMembership.Workspace,
+            parentFileExternalId: fileExternalId,
+            targetFormat: targetFormat,
+            workspaceEncryptionSession: workspaceEncryptionSession,
+            cancellationToken: cancellationToken);
+
+        return result.Code switch
+        {
+            DownloadFileConvertedOperation.ResultCode.Ok => Results.File(
+                fileContents: result.Content!,
+                contentType: result.ContentType!,
+                fileDownloadName: result.DownloadFileName!),
+            DownloadFileConvertedOperation.ResultCode.FfmpegUnavailable => HttpErrors.File.FfmpegUnavailable(),
+            DownloadFileConvertedOperation.ResultCode.ParentNotFound => HttpErrors.File.NotFound(fileExternalId),
+            DownloadFileConvertedOperation.ResultCode.ParentNotThumbnailable => HttpErrors.File.ParentNotThumbnailable(),
+            _ => HttpErrors.File.NotFound(fileExternalId)
+        };
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateFileContent(

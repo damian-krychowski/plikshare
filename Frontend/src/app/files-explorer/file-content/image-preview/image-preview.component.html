@@ -6,6 +6,7 @@
             [src]="objectUrlValue"
             [alt]="fileFullName()"
             class="image-preview"
+            [class.image-preview--loaded]="isImageLoaded()"
             (load)="onImageLoad($event.target)"
             (error)="handleMediaError($event)">
     </div>

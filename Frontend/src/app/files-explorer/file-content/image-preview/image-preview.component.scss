@@ -28,4 +28,15 @@
     // White backdrop for transparent PNGs; shadow lifts the photo off the textured frame.
     background: white;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+
+    // Fade-in when src changes. ImagePreviewComponent drops `--loaded` right before the
+    // atomic objectUrl swap and re-adds it on the native (load) event, giving the new
+    // image a smooth opacity transition instead of a harsh blink during next/previous
+    // navigation between files.
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+
+    &--loaded {
+        opacity: 1;
+    }
 }

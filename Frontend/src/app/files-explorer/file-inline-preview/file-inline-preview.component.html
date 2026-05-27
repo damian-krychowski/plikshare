@@ -447,11 +447,27 @@
 
                         <app-action-btn
                             tooltip="Generate thumbnails"
-                            icon="icon-image-scale"
+                            icon="icon-nucleo-image-scale"
                             [isLoading]="anyGenerating"
                             [disabled]="anyGenerating"
                             (clicked)="onGenerateAllThumbnails()">
                         </app-action-btn>
+
+                        <button
+                            type="button"
+                            class="action-btn"
+                            mat-flat-button
+                            matTooltip="Download as..."
+                            matTooltipPosition="above"
+                            [matMenuTriggerFor]="downloadAsMenu"
+                            [disabled]="isDownloadingConverted()">
+                            <i class="icon icon-lg icon-lucide-image-down"></i>
+                        </button>
+                        <mat-menu #downloadAsMenu="matMenu">
+                            <button mat-menu-item (click)="onDownloadAs('jpeg')">Download as JPEG</button>
+                            <button mat-menu-item (click)="onDownloadAs('png')">Download as PNG</button>
+                            <button mat-menu-item (click)="onDownloadAs('webp')">Download as WebP</button>
+                        </mat-menu>
                     }
 
                     <app-action-btn

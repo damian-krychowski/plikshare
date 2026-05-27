@@ -18,7 +18,7 @@ import { FileInlinePreviewComponent, FilePreviewOperations, ZipPreviewDetails } 
 import { StorageSizePipe } from '../shared/storage-size.pipe';
 import { EditableTxtComponent } from '../shared/editable-txt/editable-txt.component';
 import { BulkUploadPreviewComponent, BulkFileUpload, SingleBulkFileUpload, CreatedFolder } from './bulk-upload-preview/bulk-upload-preview.component';
-import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../services/folders-and-files.api';
+import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, DownloadImageFormat, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../services/folders-and-files.api';
 import { ZipEntry } from '../services/zip';
 import { FileSlicer } from '../services/file-upload-manager/file-slicer';
 import { TextractJobStatusService } from '../services/textract-job-status.service';
@@ -75,6 +75,7 @@ export interface FilesExplorerApi {
     uploadFileThumbnail: (fileExternalId: string, request: UploadFileThumbnailRequest) => Promise<void>;
     deleteFileThumbnail: (fileExternalId: string, variant: ThumbnailVariant) => Promise<void>;
     generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) => Promise<void>;
+    downloadFileConverted: (fileExternalId: string, format: DownloadImageFormat, downloadFileName: string) => Promise<void>;
 
     getZipPreviewDetails: (fileExternalId: string) => Promise<ZipPreviewDetails>;
     getZipContentDownloadLink: (fileExternalId: string, zipEntry: ZipEntry, contentDisposition: ContentDisposition) => Promise<GetFileDownloadLinkResponse>;
@@ -582,6 +583,9 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
         generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) =>
             this.filesApi().generateFileThumbnails(fileExternalId, variants),
+
+        downloadFileConverted: (fileExternalId: string, format: DownloadImageFormat, downloadFileName: string) =>
+            this.filesApi().downloadFileConverted(fileExternalId, format, downloadFileName),
 
         sendAiFileMessage: (fileExternalId: string, request: SendAiFileMessageRequest) =>
             this.filesApi().sendAiFileMessage(fileExternalId, request),

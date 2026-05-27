@@ -782,6 +782,7 @@ public class Startup
         builder.Services.AddSingleton<TemporaryWorkspaceEncryptionKeyStore>();
         builder.Services.AddSingleton<IQueueLongRunningJobExecutor, ProcessImageQueueJobExecutor>();
         builder.Services.AddSingleton<GenerateFileThumbnailsOperation>();
+        builder.Services.AddSingleton<DownloadFileConvertedOperation>();
         builder.Services.AddSingleton<IQueueLongRunningJobExecutor, SendAiMessageQueueJobExecutor>();
         builder.Services.AddSingleton<IQueueNormalJobExecutor, DeleteAiConversationQueueJobExecutor>();
 

@@ -11,7 +11,7 @@
                 @if (isFfmpegAvailable()) {
                     <app-action-btn
                         tooltip="Generate"
-                        icon="icon-image-scale"
+                        icon="icon-nucleo-image-scale"
                         [isLoading]="slot.isGenerating"
                         [disabled]="slot.isUploading || slot.isGenerating"
                         (clicked)="onGenerateVariant(slot.variant)">

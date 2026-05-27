@@ -1,5 +1,6 @@
 import { Component, computed, inject, input, OnChanges, OnDestroy, OnInit, output, Signal, signal, SimpleChanges, viewChild, WritableSignal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatMenuModule } from '@angular/material/menu';
 import { AppFileItem, AppFileItems, FileItemComponent, FileOperations } from '../../shared/file-item/file-item.component';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { RichTextEditorComponent } from '../../shared/rich-text-editor/rich-text-editor.component';
@@ -8,7 +9,7 @@ import { getRelativeTime } from '../../services/time.service';
 import { AuthService } from '../../services/auth.service';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
 import { ZipArchives, ZipEntry, ZipVirtualFolder } from '../../services/zip';
-import { AiInclude, AiMessageDto, ContentDisposition, FilePreviewDetailsField, FilePreviewThumbnail, GetAiMessagesResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, TextractFeature, TextractJobStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../../services/folders-and-files.api';
+import { AiInclude, AiMessageDto, ContentDisposition, DownloadImageFormat, FilePreviewDetailsField, FilePreviewThumbnail, GetAiMessagesResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, TextractFeature, TextractJobStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../../services/folders-and-files.api';
 import { TextractIntegration } from '../../services/integrations.types';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { FormsModule } from '@angular/forms';
@@ -67,6 +68,7 @@ export type FilePreviewOperations = {
     uploadFileThumbnail: (fileExternalId: string, request: UploadFileThumbnailRequest) => Promise<void>;
     deleteFileThumbnail: (fileExternalId: string, variant: ThumbnailVariant) => Promise<void>;
     generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) => Promise<void>;
+    downloadFileConverted: (fileExternalId: string, format: DownloadImageFormat, downloadFileName: string) => Promise<void>;
 
     sendAiFileMessage(fileExternalId: string, request: SendAiFileMessageRequest): Promise<void>;
     updateAiConversationName(fileExternalId: string, fileArtifactExternalId: string, request: UpdateAiConversationNameRequest): Promise<void>;
@@ -111,7 +113,8 @@ type AiContentType = OtherAiContentType | FileAiContentType;
         AiResponseComponent,
         StorageSizePipe,
         FileThumbnailsComponent,
-        ConfigCardComponent
+        ConfigCardComponent,
+        MatMenuModule
     ],
     templateUrl: './file-inline-preview.component.html',
     styleUrls: ['./file-inline-preview.component.scss']
@@ -415,6 +418,30 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
         await component.generateVariants(['Small', 'Large']);
     }
 
+    isDownloadingConverted = signal(false);
+
+    async onDownloadAs(format: DownloadImageFormat): Promise<void> {
+        if (this.isDownloadingConverted()) return;
+
+        // Filename extension follows the target format. JPEG → .jpg (the more common
+        // convention) rather than .jpeg, both are valid but .jpg is what users expect.
+        const targetExt = format === 'jpeg' ? '.jpg' : `.${format}`;
+        const downloadFileName = `${this.file().name()}${targetExt}`;
+
+        this.isDownloadingConverted.set(true);
+
+        try {
+            await this.operations().downloadFileConverted(
+                this.fileExternalId(),
+                format,
+                downloadFileName);
+        } catch (err) {
+            console.error('Download as conversion failed:', err);
+        } finally {
+            this.isDownloadingConverted.set(false);
+        }
+    }
+
     constructor(
         private _auth: AuthService,
         private _aiConversationsStatusService: AiConversationsStatusService,
@@ -547,9 +574,12 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
         this.textractResultFiles.set([]);
         this.attachments.set([]);
         this.thumbnails.set([]);
-        this.imageDimensions.set(null);
-        this.imageExif.set(null);
-        this.isMetadataExpanded.set(false);
+        // imageDimensions / imageExif / isMetadataExpanded intentionally NOT cleared here —
+        // <app-image-preview> overwrites them once the new file's blob is fetched and parsed,
+        // so keeping the previous values during the brief transition prevents the metadata
+        // config-card from being removed-and-re-added (which causes a layout jump on
+        // next/previous navigation). Stale data is only briefly visible and gets replaced
+        // atomically when the new image loads.
         this.noteJson.set(undefined);
         this.noteChangedAt.set(null);
         this.noteChangedBy.set(null);

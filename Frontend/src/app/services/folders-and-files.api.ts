@@ -24,6 +24,8 @@ export interface UploadFileAttachmentRequest {
 
 export type ThumbnailVariant = 'Small' | 'Large';
 
+export type DownloadImageFormat = 'jpeg' | 'png' | 'webp';
+
 export interface UploadFileThumbnailRequest {
     externalId: string;
     name: string;
@@ -736,6 +738,35 @@ export class FoldersAndFilesSetApi {
         );
 
         await firstValueFrom(call);
+    }
+
+    public async downloadFileConverted(
+        workspaceExternalId: string,
+        fileExternalId: string,
+        format: DownloadImageFormat,
+        downloadFileName: string): Promise<void> {
+        // Fetch as blob with HttpClient (sends auth cookies / antiforgery automatically),
+        // then synthesize a click on a hidden <a download="..."> so the browser shows its
+        // native Save dialog. Going straight to the URL via window.open would bypass
+        // HttpClient interceptors and lose the requested filename on cross-origin headers.
+        const blob = await firstValueFrom(
+            this._http.get(
+                `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/download-converted`,
+                {
+                    params: { format },
+                    responseType: 'blob'
+                }
+            )
+        );
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = downloadFileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 }
 
