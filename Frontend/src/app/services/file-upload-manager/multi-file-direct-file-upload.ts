@@ -52,15 +52,25 @@ export class MultiFileDirectFileUpload implements IFileUpload {
         for (const fileDetails of this.detailsList) {
             totalSizeInBytes += fileDetails.fileSizeInBytes;
         }
-        
+
+        // Slicers in this group only exist long enough to hand their bytes
+        // into FormData. Blob construction copies into Blob storage, so the
+        // slicer's DecompressionStream + zlib state can be released right
+        // here — no need to keep 100+ finished streams alive for the whole
+        // POST.
         for (const fileDetails of this.detailsList) {
             if (abortSignal.aborted) {
                 return null;
             }
 
-            const wholeBlob = await fileDetails.fileSlicer.takeWhole();
-            formData.append('files', wholeBlob, fileDetails.uploadExternalId);
-            fileExternalIds.push(fileDetails.uploadExternalId);
+            const slicer = fileDetails.createSlicer();
+            try {
+                const wholeBlob = await slicer.takeWhole();
+                formData.append('files', wholeBlob, fileDetails.uploadExternalId);
+                fileExternalIds.push(fileDetails.uploadExternalId);
+            } finally {
+                slicer.dispose();
+            }
         }
 
         let directUploadPromise: Promise<{ fileExternalId: string; uploadExternalId: string }[]> | null = null;
@@ -120,9 +130,9 @@ export class MultiFileDirectFileUpload implements IFileUpload {
             return null;
 
         const result = await directUploadPromise;
-        
+
         this._isUploadFinished.set(true);
-                        
+
         for (const file of this.detailsList) {
             if(file.reportProgressCallback) {
                 file.reportProgressCallback(file.fileSizeInBytes);

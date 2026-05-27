@@ -117,7 +117,7 @@ export class UploadItemComponent {
 
         this.fileUploadManager.resumeUpload({
             contentType: file.type,
-            fileSlicer: new FileSlicer(file),
+            createSlicer: () => new FileSlicer(file),
             uploadExternalId: upload.externalId,
             uploadsApi: fileUploadApi,
             fileSizeInBytes: file.size,

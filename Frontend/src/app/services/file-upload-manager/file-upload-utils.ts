@@ -56,8 +56,10 @@ export type FileUploadDetails = {
     contentType: string;
     allPartsCount: number;
     alreadyUploadedPartNumbers: number[];
-    fileSlicer: IFileSlicer;
-        
+    // Factory — the actual slicer is instantiated lazily by the upload class
+    // and disposed once the upload finishes/aborts.
+    createSlicer: () => IFileSlicer;
+
     reportProgressCallback?: (alreadyUploadedBytes: number) => void;
     reportUploadFinishedCallback?: () => void;
 }

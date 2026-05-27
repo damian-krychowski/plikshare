@@ -128,7 +128,7 @@ export class UploadListItemComponent implements OnInit {
 
             this._fileUploadManager.resumeUpload({
                 contentType: file.type,
-                fileSlicer: new FileSlicer(file),
+                createSlicer: () => new FileSlicer(file),
                 uploadExternalId: upload.externalId(),
                 uploadsApi: this.fileUploadApi(),
                 fileSizeInBytes: upload.fileSizeInBytes(),

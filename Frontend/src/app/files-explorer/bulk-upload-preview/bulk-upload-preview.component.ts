@@ -314,8 +314,15 @@ export class BulkUploadPreviewComponent implements OnInit {
      }
 
     private async processChunk(filesToUploadPromises: Promise<FileToUpload>[]) {
+        // Wait for the manager's queue to drain below the back-pressure
+        // threshold before pushing the next batch. Without this, the loop in
+        // runBulkUpload would materialize a FileToUpload + AppUploadItem (with
+        // its Angular signals) for every entry in the zip upfront — fine for
+        // hundreds of files, fatal for hundreds of thousands.
+        await this._fileUploadManager.waitForQueueCapacity();
+
         const results = await Promise.all(filesToUploadPromises);
-        
+
         this._fileUploadManager.addFiles(
             results,
             this.uploadsApi(),
@@ -323,34 +330,40 @@ export class BulkUploadPreviewComponent implements OnInit {
     }
 
     private async mapZipEntryToFileToUpload(args: {
-        entry: ZipEntry, 
+        entry: ZipEntry,
         folderExternalId: string | null,
         archive: SingleBulkFileUpload
     }): Promise<FileToUpload> {
         const {entry, folderExternalId, archive} = args;
         const {name, extension} = ZipArchives.getFileNameAndExtension(entry);
         const fullName = ZipArchives.getFullName(entry);
-        
+
         const lfhRecord = await Zip.readLfhRecord(
             archive.file,
             entry.offsetToLocalFileHeader);
 
-        const blob = archive
-            .file
-            .slice(
-                entry.offsetToLocalFileHeader + Zip.LFH_MINIMUM_SIZE + entry.fileNameLength + lfhRecord.extraFieldLength, 
-                entry.offsetToLocalFileHeader + Zip.LFH_MINIMUM_SIZE + entry.fileNameLength + lfhRecord.extraFieldLength + entry.compressedSizeInBytes);
+        // Capture only the byte offsets here — don't slice the blob yet. We
+        // also intentionally don't instantiate the CompressedBlobSlicer, because
+        // that would spin up a live DecompressionStream + reader for every
+        // archive entry the moment we queue it. For a 100k-entry zip that used
+        // to mean 100k concurrent streams sitting around waiting their turn.
+        const sliceStart = entry.offsetToLocalFileHeader + Zip.LFH_MINIMUM_SIZE + entry.fileNameLength + lfhRecord.extraFieldLength;
+        const sliceEnd = sliceStart + entry.compressedSizeInBytes;
+        const file = archive.file;
+        const uncompressedSize = entry.sizeInBytes;
+        const isDeflate = entry.compressionMethod == DEFLATE_COMPRESSION_CODE;
 
         const fileToUpload: FileToUpload = {
             folderExternalId: folderExternalId,
             name: fullName,
             size: entry.sizeInBytes,
             contentType: getMimeType(extension),
-            slicer: entry.compressionMethod == DEFLATE_COMPRESSION_CODE
-                ? new CompressedBlobSlicer(
-                    entry.sizeInBytes,
-                    blob)
-                : new BlobSlicer(blob),
+            createSlicer: () => {
+                const blob = file.slice(sliceStart, sliceEnd);
+                return isDeflate
+                    ? new CompressedBlobSlicer(uncompressedSize, blob)
+                    : new BlobSlicer(blob);
+            },
 
             reportProgressCallback: (alreadyUploadedBytes) => this.alreadyUploadedBytes.update(value => value + alreadyUploadedBytes),
             reportUploadFinishedCallback: () => {

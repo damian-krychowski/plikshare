@@ -22,6 +22,11 @@ export interface IFileSlicer {
     takeSlice: (start: number, end: number) => Promise<Blob>;
     takeWhole: () => Promise<Blob>;
     canBeProcessedInParallel: () => boolean;
+    // Release any retained resources (e.g. DecompressionStream + reader lock for
+    // CompressedBlobSlicer). Slicers are now instantiated lazily right before an
+    // upload starts and disposed once it finishes or aborts — without this the
+    // bulk zip flow used to hold one live stream per archive entry.
+    dispose: () => void;
 }
 
 export interface FileUploadApi {
@@ -88,7 +93,12 @@ export type FileToUpload = {
     contentType: string;
     name: string;
     size: number;
-    slicer: IFileSlicer;
+    // Factory instead of an instance so that resource-holding slicers
+    // (CompressedBlobSlicer keeps a live DecompressionStream + reader lock) are
+    // only materialized when the file is about to be uploaded, not at the
+    // moment we queue it. For a bulk zip with 100k entries this is the
+    // difference between 100k live streams and ~30 at any time.
+    createSlicer: () => IFileSlicer;
 
     reportProgressCallback?: (alreadyUploadedBytes: number) => void
     reportUploadFinishedCallback?: () => void;
@@ -96,17 +106,17 @@ export type FileToUpload = {
 
 type PreInitiationFileToUpload = {
     uploadItem: AppUploadItem;
-    fileSlicer: IFileSlicer;
-    
+    createSlicer: () => IFileSlicer;
+
     reportProgressCallback?: (alreadyUploadedBytes: number) => void
     reportUploadFinishedCallback?: () => void;
 }
 
 type InitiatedFileToUpload = {
     uploadItem: AppUploadItem;
-    fileSlicer: IFileSlicer;
+    createSlicer: () => IFileSlicer;
     initiateUploadResult: InitiateFileUploadResponse;
-    
+
     reportProgressCallback?: (alreadyUploadedBytes: number) => void
     reportUploadFinishedCallback?: () => void;
 }
@@ -115,6 +125,11 @@ const BATCH_SIZE = 30;
 const SMALL_FILE_THRESHOLD = 1024 * 1024; // 1MB in bytes
 const SMALL_FILES_BATCH_SIZE = 10 * 1024 * 1024; // 10MB in bytes
 const PRE_GROUPING_SMALL_FILES_BATCH_SIZE = SMALL_FILES_BATCH_SIZE * 2; //2 parallel groups
+
+// Soft cap on how many FileToUpload entries the bulk-upload feeder is allowed
+// to keep queued ahead of the worker. Beyond this we apply back-pressure so the
+// zip-bulk-upload doesn't materialize 100k AppUploadItem+slicer objects upfront.
+export const MAX_PENDING_QUEUE_FOR_BACKPRESSURE = 1000;
 
 @Injectable({
     providedIn: 'root'
@@ -139,8 +154,17 @@ export class FileUploadManager {
 
     constructor(private _genericDialogService: GenericDialogService) { }
 
+    // Polls until the queue drops below `threshold`. Bulk-upload feeders call
+    // this before pushing the next chunk so memory pressure from buffered
+    // FileToUpload + AppUploadItem signal objects stays bounded.
+    public async waitForQueueCapacity(threshold: number = MAX_PENDING_QUEUE_FOR_BACKPRESSURE): Promise<void> {
+        while (this.pendingQueueSize() >= threshold) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    }
+
     public addFiles(
-        files: FileToUpload[], 
+        files: FileToUpload[],
         uploadsApi: FileUploadApi,
         httpHeadersFactory: HttpHeadersFactory) {
 
@@ -265,7 +289,7 @@ export class FileUploadManager {
                                 allPartsCount: upload.initiateUploadResult.expectedPartsCount,
                                 alreadyUploadedPartNumbers: [],
                                 contentType: upload.uploadItem.fileContentType,
-                                fileSlicer: upload.fileSlicer,
+                                createSlicer: upload.createSlicer,
                                 fileSizeInBytes: upload.uploadItem.fileSizeInBytes,
                                 reportProgressCallback: upload.reportProgressCallback,
                                 reportUploadFinishedCallback: upload.reportUploadFinishedCallback,
@@ -439,10 +463,10 @@ export class FileUploadManager {
 
             const preInitiationUpload: PreInitiationFileToUpload = {
                 uploadItem: uploadItem,
-                fileSlicer: file.slicer,
+                createSlicer: file.createSlicer,
                 reportProgressCallback: file.reportProgressCallback,
                 reportUploadFinishedCallback: file.reportUploadFinishedCallback,
-                
+
             };
 
             result.set(uploadItem.externalId, preInitiationUpload);
@@ -466,7 +490,7 @@ export class FileUploadManager {
 
             results.push({
                 uploadItem: preInitation.uploadItem,
-                fileSlicer: preInitation.fileSlicer,
+                createSlicer: preInitation.createSlicer,
                 reportProgressCallback: preInitation.reportProgressCallback,
                 reportUploadFinishedCallback: preInitation.reportUploadFinishedCallback,
 
@@ -500,7 +524,7 @@ export class FileUploadManager {
     //todo test this for different algorithms
     public async resumeUpload(args: {
         contentType: string,
-        fileSlicer: IFileSlicer,
+        createSlicer: () => IFileSlicer,
         uploadExternalId: string,
         uploadsApi: FileUploadApi,
         fileSizeInBytes: number,
@@ -509,7 +533,7 @@ export class FileUploadManager {
         uploadResumed: (args: { fileUpload: IFileUpload }) => void;
     }) {
         const uploadDetails = await args.uploadsApi.getUploadDetails(
-            args.uploadExternalId);       
+            args.uploadExternalId);
 
         const fileUploadDetails: FileUploadDetails = {
             uploadExternalId: args.uploadExternalId,
@@ -517,7 +541,7 @@ export class FileUploadManager {
             allPartsCount: uploadDetails.expectedPartsCount,
             alreadyUploadedPartNumbers: uploadDetails.alreadyUploadedPartNumbers,
             fileSizeInBytes: args.fileSizeInBytes,
-            fileSlicer: args.fileSlicer
+            createSlicer: args.createSlicer
         };
 
         const fileUpload = new MultiStepChunkFileUpload(
@@ -596,7 +620,7 @@ export class FileUploadManager {
             allPartsCount: args.file.initiateUploadResult.expectedPartsCount,
             alreadyUploadedPartNumbers: [],
             contentType: args.file.uploadItem.fileContentType,
-            fileSlicer: args.file.fileSlicer,
+            createSlicer: args.file.createSlicer,
             fileSizeInBytes: args.file.uploadItem.fileSizeInBytes,
             reportProgressCallback: args.file.reportProgressCallback,
             reportUploadFinishedCallback: args.file.reportUploadFinishedCallback

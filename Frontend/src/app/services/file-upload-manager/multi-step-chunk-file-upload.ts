@@ -3,6 +3,8 @@ import { IFileSlicer, FileUploadApi, IFileUpload } from "./file-upload-manager";
 import { FileUploadDetails, FileUploadUtils, MAXIMUM_PARALLEL_UPLOADS } from "./file-upload-utils";
 import { HttpHeadersFactory } from "../../files-explorer/http-headers-factory";
 
+
+
 export class MultiStepChunkFileUpload implements IFileUpload  {
     public type = 'MultiStepChunkFileUpload';
 
@@ -18,10 +20,14 @@ export class MultiStepChunkFileUpload implements IFileUpload  {
         fileExternalId: string;
     } | null> | null = null;
 
+    // Created lazily in upload() so the slicer's resources (decompression
+    // stream, reader lock) are only live for the duration of the upload.
+    private _slicer: IFileSlicer | null = null;
+
     constructor(
         private _httpHeadersFactory: HttpHeadersFactory,
         private _activeUploads: Promise<void>[],
-        private _uploadsApi: FileUploadApi,        
+        private _uploadsApi: FileUploadApi,
         public details: FileUploadDetails
     ) {
         this._uploadedPartNumbersSet = new Set(details.alreadyUploadedPartNumbers);
@@ -60,8 +66,14 @@ export class MultiStepChunkFileUpload implements IFileUpload  {
 
     public async upload(): Promise<{ fileExternalId: string; } | null> {
         this._abortController = new AbortController();
-        this._uploadPromise = this.uploadFile(this._abortController.signal);
-        return await this._uploadPromise;
+        this._slicer = this.details.createSlicer();
+        try {
+            this._uploadPromise = this.uploadFile(this._abortController.signal);
+            return await this._uploadPromise;
+        } finally {
+            this._slicer.dispose();
+            this._slicer = null;
+        }
     }
 
     private async uploadFile(abortSignal: AbortSignal): Promise<{ fileExternalId: string } | null> {
@@ -92,12 +104,22 @@ export class MultiStepChunkFileUpload implements IFileUpload  {
                         fileActiveUplaods.splice(fileActiveUplaods.indexOf(uploadPromise), 1);
                     });
 
-                if(!this.details.fileSlicer.canBeProcessedInParallel()) {
-                    await uploadPromise;
-                }
-
+                // Push BEFORE awaiting — otherwise the .finally above fires
+                // during the await with indexOf returning -1, and splice(-1, 1)
+                // silently removes some other in-flight upload's promise from
+                // the shared _activeUploads array. That corrupts concurrency
+                // accounting across files: parallel uploads from store-mode
+                // entries get kicked out, _activeUploads.length under-counts,
+                // and the manager keeps launching new fetches well past
+                // MAXIMUM_PARALLEL_UPLOADS — which is the actual OOM trigger
+                // for deflate zips (CompressedBlobSlicer is the only slicer
+                // with canBeProcessedInParallel() == false).
                 this._activeUploads.push(uploadPromise);
                 fileActiveUplaods.push(uploadPromise);
+
+                if(!this._slicer!.canBeProcessedInParallel()) {
+                    await uploadPromise;
+                }
             } else {
                 await Promise.race(this._activeUploads);
             }
@@ -119,7 +141,7 @@ export class MultiStepChunkFileUpload implements IFileUpload  {
                 this.details.uploadExternalId,
                 partNumber);
 
-            const partBlob = await this.details.fileSlicer.takeSlice(
+            const partBlob = await this._slicer!.takeSlice(
                 initiatePartUploadResult.startsAtByte,
                 initiatePartUploadResult.endsAtByte + 1);
 

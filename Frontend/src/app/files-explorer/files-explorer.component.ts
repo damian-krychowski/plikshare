@@ -1189,33 +1189,33 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                 contentType: file.type,
                 name: file.name,
                 size: file.size,
-                slicer: new FileSlicer(file)
+                createSlicer: () => new FileSlicer(file)
             });
-        }   
+        }
 
         this.fileUploadManager.addFiles(filesToUpload, uploadsApi, filesApi);
     }
 
-    onFilesSelected(event: any, fileUpload: HTMLInputElement) {        
+    onFilesSelected(event: any, fileUpload: HTMLInputElement) {
         try {
             const uploadsApi = this.uploadsApi();
             const filesApi = this.filesApi();
 
             if(!uploadsApi || !filesApi)
                 return;
-            
-            const files: File[] = event.target.files;        
+
+            const files: File[] = event.target.files;
             const filesToUpload: FileToUpload[] = [];
-                    
+
             for (const file of files) {
                 filesToUpload.push({
                     folderExternalId: this.selectedFolder()?.externalId ?? null,
                     contentType: file.type,
                     name: file.name,
                     size: file.size,
-                    slicer: new FileSlicer(file)
+                    createSlicer: () => new FileSlicer(file)
                 });
-            }        
+            }
             
             this.fileUploadManager.addFiles(filesToUpload, uploadsApi, filesApi);
         } finally {            

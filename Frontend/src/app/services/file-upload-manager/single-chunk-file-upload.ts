@@ -17,6 +17,8 @@ export class SingleChunkFileUpload implements IFileUpload {
         fileExternalId: string;
     } | null> | null = null;
 
+    private _slicer: IFileSlicer | null = null;
+
     constructor(
         private _httpHeadersFactory: HttpHeadersFactory,
         private _activeUploads: Promise<void>[],
@@ -47,11 +49,17 @@ export class SingleChunkFileUpload implements IFileUpload {
         preSignedUploadLinkRequiredHeaders: RequiredHeader[]
     ): Promise<{ fileExternalId: string; } | null> {
         this._abortController = new AbortController();
-        this._uploadPromise = this.uploadFile(
-            this._abortController.signal,
-            preSignedUploadLink,
-            preSignedUploadLinkRequiredHeaders);
-        return await this._uploadPromise;
+        this._slicer = this.details.createSlicer();
+        try {
+            this._uploadPromise = this.uploadFile(
+                this._abortController.signal,
+                preSignedUploadLink,
+                preSignedUploadLinkRequiredHeaders);
+            return await this._uploadPromise;
+        } finally {
+            this._slicer.dispose();
+            this._slicer = null;
+        }
     }
 
     private async uploadFile(
@@ -75,9 +83,7 @@ export class SingleChunkFileUpload implements IFileUpload {
             if (this._activeUploads.length < MAXIMUM_PARALLEL_UPLOADS) {
                 shouldRun = false;
 
-                const wholeBlob = await this
-                    .details.fileSlicer
-                    .takeWhole();
+                const wholeBlob = await this._slicer!.takeWhole();
 
                 const additionalHeaders = this._httpHeadersFactory.prepareAdditionalHttpHeaders() ?? {};
                 for (const header of preSignedUploadLinkRequiredHeaders) {

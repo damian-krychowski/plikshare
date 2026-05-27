@@ -14,4 +14,7 @@ export class BlobSlicer implements IFileSlicer {
     async takeWhole () {
         return this._blob;
     }
+
+    dispose() {
+    }
 }

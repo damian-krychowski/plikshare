@@ -14,4 +14,7 @@ export class FileSlicer implements IFileSlicer {
     async takeWhole () {
         return this._file;
     }
+
+    dispose() {
+    }
 }
