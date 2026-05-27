@@ -1,25 +1,35 @@
 @let canDownloadVal = canDownload();
 @let modeVal = mode();
+@let searchActive = isSearchActive();
 
-<mat-tree class="mat-tree" [dataSource]="dataSource" [childrenAccessor]="childrenAccessor" [class.invisible]="isSearchActive()">
-    <mat-nested-tree-node *matTreeNodeDef="let node; when: isFolder">
-        <div class="tree-node tree-node--expandable">
-            @let isSelected = canDownloadVal 
-                && modeVal === 'select' 
-                && (node.isSelected() || node.isParentSelected()) 
-                && !node.isExcluded() 
-                && !node.isParentExcluded(); 
+<cdk-virtual-scroll-viewport
+    [itemSize]="rowHeightPx"
+    class="tree-viewport"
+    [style.height.px]="mainViewportHeightPx()"
+    [class.invisible]="searchActive">
 
-            @let hasSelectedChildren = canDownloadVal 
-                && modeVal === 'select' 
-                && node.selectedDescendantsCount() > 0 
-                && !node.isExpanded();
+    <div *cdkVirtualFor="let row of flatVisibleNodes(); trackBy: trackByNodeId"
+         class="virtual-row"
+         [style.padding-left.px]="row.depth * 20">
 
-            <div class="node-content"
+        @if(row.node.type === 'folder') {
+            @let folder = row.node;
+            @let isSelected = canDownloadVal
+                && modeVal === 'select'
+                && (folder.isSelected() || folder.isParentSelected())
+                && !folder.isExcluded()
+                && !folder.isParentExcluded();
+
+            @let hasSelectedChildren = canDownloadVal
+                && modeVal === 'select'
+                && folder.selectedDescendantsCount() > 0
+                && !folder.isExpanded();
+
+            <div class="node-content tree-node--expandable"
                 [class.node-content--selected]="isSelected"
                 [class.node-content--selected-children]="hasSelectedChildren">
-                <div class="node-content__icon" (click)="expand(node)">
-                    @if(!node.isExpanded()) {
+                <div class="node-content__icon" (click)="expand(folder)">
+                    @if(!folder.isExpanded()) {
                         <i class="icon icon-lg icon-lucide-chevron-right"></i>
                     } @else {
                         <i class="icon icon-lg icon-lucide-chevron-down"></i>
@@ -27,44 +37,35 @@
                 </div>
 
                 <div class="node-name">
-                    {{node.name}}
+                    {{folder.name}}
                 </div>
 
                 @if(canDownloadVal && modeVal === 'select') {
                     <div class="ml-auto" (click)="$event.stopPropagation()">
                         <app-tree-checkbox
-                            [isSelected]="node.isSelected()"
-                            [isParentSelected]="node.isParentSelected()"
-                            [isExcluded]="node.isExcluded()"
-                            [isParentExcluded]="node.isParentExcluded()"
-                            (isSelectedChange)="onIsSelectedChange(node, $event)"
-                            (isExcludedChange)="onIsExcludedChange(node, $event)">
+                            [isSelected]="folder.isSelected()"
+                            [isParentSelected]="folder.isParentSelected()"
+                            [isExcluded]="folder.isExcluded()"
+                            [isParentExcluded]="folder.isParentExcluded()"
+                            (isSelectedChange)="onIsSelectedChange(folder, $event)"
+                            (isExcludedChange)="onIsExcludedChange(folder, $event)">
                         </app-tree-checkbox>
                     </div>
                 }
             </div>
-
-            @if(node.wasRendered()) {
-                <div class="nested-node" [class.invisible]="!node.isExpanded()">
-                    <ng-container matTreeNodeOutlet></ng-container>
-                </div>
-            }
-        </div>
-    </mat-nested-tree-node>
-
-    <mat-nested-tree-node *matTreeNodeDef="let node; when: isFile">
-        <div class="tree-node">
+        } @else {
+            @let file = row.node;
             <div class="node-content">
-                <div class="file-node" (click)="fileClicked.emit(node)">
-                    <i class="icon icon-xl icon-{{ node.extension | fileIcon }}"></i>
+                <div class="file-node" (click)="fileClicked.emit(file)">
+                    <i class="icon icon-xl icon-{{ file.extension | fileIcon }}"></i>
 
                     <div class="file-node__details">
                         <div class="file-node__name">
-                            {{node.fullName}}
+                            {{file.fullName}}
                         </div>
 
                         <div class="file-node__subtitle ml-auto">
-                            {{ node.sizeInBytes | storageSize }}
+                            {{ file.sizeInBytes | storageSize }}
                         </div>
                     </div>
                 </div>
@@ -73,87 +74,87 @@
                     <div class="ml-auto flex-row flex-gap-05" (click)="$event.stopPropagation()">
                         @if(modeVal === 'select') {
                             <app-tree-checkbox
-                                [isSelected]="node.isSelected()"
-                                [isParentSelected]="node.isParentSelected()"
-                                [isExcluded]="node.isExcluded()"
-                                [isParentExcluded]="node.isParentExcluded()"
-                                (isSelectedChange)="onIsSelectedChange(node, $event)"
-                                (isExcludedChange)="onIsExcludedChange(node, $event)">
+                                [isSelected]="file.isSelected()"
+                                [isParentSelected]="file.isParentSelected()"
+                                [isExcluded]="file.isExcluded()"
+                                [isParentExcluded]="file.isParentExcluded()"
+                                (isSelectedChange)="onIsSelectedChange(file, $event)"
+                                (isExcludedChange)="onIsExcludedChange(file, $event)">
                             </app-tree-checkbox>
                         } @else {
                             <app-action-btn
                                 icon="icon-nucleo-download"
-                                (clicked)="fileDownloadClicked.emit(node)">
+                                (clicked)="fileDownloadClicked.emit(file)">
                             </app-action-btn>
                         }
                     </div>
                 }
             </div>
-        </div>
-    </mat-nested-tree-node>
-</mat-tree>
+        }
+    </div>
+</cdk-virtual-scroll-viewport>
 
-@if(isSearchActive()) {
-    <mat-tree [dataSource]="searchResultDataSource" [childrenAccessor]="childrenAccessor">
-        <mat-nested-tree-node *matTreeNodeDef="let node; when: isFolder" [class.invisible]="!node.isVisible()">
-            <div class="tree-node tree-node--expandable">
-                @let isSelected = canDownloadVal 
-                    && modeVal === 'select' 
-                    && (node.isSelected() || node.isParentSelected()) 
-                    && !node.isExcluded() 
-                    && !node.isParentExcluded(); 
+@if(searchActive) {
+    <cdk-virtual-scroll-viewport
+        [itemSize]="rowHeightPx"
+        class="tree-viewport"
+        [style.height.px]="searchViewportHeightPx()">
+        <div *cdkVirtualFor="let row of flatSearchVisibleNodes(); trackBy: trackByNodeId"
+             class="virtual-row"
+             [style.padding-left.px]="row.depth * 20">
 
-                @let hasSelectedChildren = canDownloadVal 
-                    && modeVal === 'select' 
-                    && node.selectedDescendantsCount() > 0 
-                    && !node.isExpanded();
+            @if(row.node.type === 'folder') {
+                @let folder = row.node;
+                @let isSelected = canDownloadVal
+                    && modeVal === 'select'
+                    && (folder.isSelected() || folder.isParentSelected())
+                    && !folder.isExcluded()
+                    && !folder.isParentExcluded();
 
-                <div class="node-content"
+                @let hasSelectedChildren = canDownloadVal
+                    && modeVal === 'select'
+                    && folder.selectedDescendantsCount() > 0
+                    && !folder.isExpanded();
+
+                <div class="node-content tree-node--expandable"
                     [class.node-content--selected]="isSelected"
                     [class.node-content--selected-children]="hasSelectedChildren">
-                    <div class="node-content__inner" (click)="expand(node)">
-                        @if(!node.isExpanded()) {
+                    <div class="node-content__inner" (click)="expand(folder)">
+                        @if(!folder.isExpanded()) {
                             <i class="icon icon-lg icon-lucide-chevron-right"></i>
                         } @else {
                             <i class="icon icon-lg icon-lucide-chevron-down"></i>
                         }
 
-                        <span class="node-name" [innerHTML]="node.name"></span>
+                        <span class="node-name" [innerHTML]="folder.name"></span>
                     </div>
 
                     @if(canDownloadVal && modeVal === 'select') {
                         <div class="ml-auto" (click)="$event.stopPropagation()">
                             <app-tree-checkbox
-                                [isSelected]="node.isSelected()"
-                                [isParentSelected]="node.isParentSelected()"
-                                [isExcluded]="node.isExcluded()"
-                                [isParentExcluded]="node.isParentExcluded()"
-                                (isSelectedChange)="onIsSelectedChange(node, $event)"
-                                (isExcludedChange)="onIsExcludedChange(node, $event)">
+                                [isSelected]="folder.isSelected()"
+                                [isParentSelected]="folder.isParentSelected()"
+                                [isExcluded]="folder.isExcluded()"
+                                [isParentExcluded]="folder.isParentExcluded()"
+                                (isSelectedChange)="onIsSelectedChange(folder, $event)"
+                                (isExcludedChange)="onIsExcludedChange(folder, $event)">
                             </app-tree-checkbox>
                         </div>
                     }
                 </div>
-
-                <div class="nested-node" [class.invisible]="!node.isExpanded()">
-                    <ng-container matTreeNodeOutlet></ng-container>
-                </div>
-            </div>
-        </mat-nested-tree-node>
-
-        <mat-nested-tree-node *matTreeNodeDef="let node; when: isFile" [class.invisible]="!node.isVisible()">
-            <div class="tree-node">
+            } @else {
+                @let file = row.node;
                 <div class="node-content">
-                    <div class="file-node" (click)="fileClicked.emit(node)">
-                        <i class="icon icon-xl icon-{{ node.extension | fileIcon }}"></i>
+                    <div class="file-node" (click)="fileClicked.emit(file)">
+                        <i class="icon icon-xl icon-{{ file.extension | fileIcon }}"></i>
 
                         <div class="file-node__details">
                             <div>
-                                <span [innerHTML]="node.fullName"></span>
+                                <span [innerHTML]="file.fullName"></span>
                             </div>
 
                             <div class="file-node__subtitle ml-auto">
-                                {{ node.sizeInBytes | storageSize }}
+                                {{ file.sizeInBytes | storageSize }}
                             </div>
                         </div>
                     </div>
@@ -162,23 +163,23 @@
                         <div class="ml-auto flex-row flex-gap-05" (click)="$event.stopPropagation()">
                             @if(modeVal === 'select') {
                                 <app-tree-checkbox
-                                    [isSelected]="node.isSelected()"
-                                    [isParentSelected]="node.isParentSelected()"
-                                    [isExcluded]="node.isExcluded()"
-                                    [isParentExcluded]="node.isParentExcluded()"
-                                    (isSelectedChange)="onIsSelectedChange(node, $event)"
-                                    (isExcludedChange)="onIsExcludedChange(node, $event)">
+                                    [isSelected]="file.isSelected()"
+                                    [isParentSelected]="file.isParentSelected()"
+                                    [isExcluded]="file.isExcluded()"
+                                    [isParentExcluded]="file.isParentExcluded()"
+                                    (isSelectedChange)="onIsSelectedChange(file, $event)"
+                                    (isExcludedChange)="onIsExcludedChange(file, $event)">
                                 </app-tree-checkbox>
                             } @else {
                                 <app-action-btn
                                     icon="icon-nucleo-download"
-                                    (clicked)="fileDownloadClicked.emit(node)">
+                                    (clicked)="fileDownloadClicked.emit(file)">
                                 </app-action-btn>
                             }
                         </div>
                     }
                 </div>
-            </div>
-        </mat-nested-tree-node>
-    </mat-tree>
+            }
+        </div>
+    </cdk-virtual-scroll-viewport>
 }

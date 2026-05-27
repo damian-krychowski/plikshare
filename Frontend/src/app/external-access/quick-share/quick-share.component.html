@@ -142,7 +142,8 @@
                     [fileTree]="fileTree()"
                     [searchPhrase]="searchPhrase()"
                     [canDownload]="allowIndividualFileDownload()"
-                    (fileClicked)="onFilePreviewed($event)">
+                    (fileClicked)="onFilePreviewed($event)"
+                    (selectionChanged)="treeSelection.set($event)">
                 </app-static-file-tree-view>
             </div>
 

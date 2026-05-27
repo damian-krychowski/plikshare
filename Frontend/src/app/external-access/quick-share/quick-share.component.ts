@@ -1,4 +1,4 @@
-import { Component, OnInit, WritableSignal, computed, signal } from '@angular/core';
+import { Component, OnInit, Signal, WritableSignal, computed, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -10,7 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { ToastrService } from 'ngx-toastr';
 import { HttpErrorResponse } from '@angular/common/http';
 import { GetQuickShareBulkDownloadLinkRequest, GetQuickShareContentResponse, GetQuickShareInfoResponse, QuickShareContentFile, QuickShareContentFolder, QuickShareExternalAccessApi } from '../../services/quick-share-external-access.api';
-import { countSelectedDescendants, StaticFileNode, StaticFileTreeViewComponent, StaticFolderNode, StaticTreeNode } from '../../shared/static-file-tree-view/static-file-tree-view.component';
+import { collectSelectionFromChildren, EMPTY_TREE_SELECTION, StaticFileNode, StaticFileTreeViewComponent, StaticFolderNode, StaticSearchCorpusEntry, StaticTreeNode, StaticTreeSelection } from '../../shared/static-file-tree-view/static-file-tree-view.component';
 import { StorageSizePipe } from '../../shared/storage-size.pipe';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
 import { ActionTextButtonComponent } from '../../shared/buttons/action-text-btn/action-text-btn.component';
@@ -131,16 +131,19 @@ export class QuickShareComponent implements OnInit {
         return true;
     });
 
-    selectionState = computed<GetQuickShareBulkDownloadLinkRequest>(() => {
-        const state: GetQuickShareBulkDownloadLinkRequest = {
-            selectedFolderExternalIds: [],
-            selectedFileExternalIds: [],
-            excludedFolderExternalIds: [],
-            excludedFileExternalIds: []
-        };
+    // Fed by the tree component's (selectionChanged) output. The tree owns the
+    // walk + lazy-aware cascade — we just hold the latest payload and map it to
+    // the API shape below.
+    treeSelection: WritableSignal<StaticTreeSelection> = signal(EMPTY_TREE_SELECTION);
 
-        this.collectSelected(this.fileTree(), state);
-        return state;
+    selectionState = computed<GetQuickShareBulkDownloadLinkRequest>(() => {
+        const s = this.treeSelection();
+        return {
+            selectedFolderExternalIds: s.selectedFolderIds,
+            selectedFileExternalIds: s.selectedFileIds,
+            excludedFolderExternalIds: s.excludedFolderIds,
+            excludedFileExternalIds: s.excludedFileIds
+        };
     });
 
     selectionSummary = computed(() => {
@@ -221,9 +224,17 @@ export class QuickShareComponent implements OnInit {
 
     private async loadContent() {
         try {
-            const content = await this._api.getContent(this.slug!, this.token);
+            const content = await this._api.getContent(
+                this.slug!, 
+                this.token);
+
             this.content.set(content);
-            this.fileTree.set(this.buildTree(content.folders, content.files));
+
+            const tree = this.buildTree(
+                content.folders, 
+                content.files);
+
+            this.fileTree.set(tree);
         } catch (error) {
             console.error(error);
             this._toastr.error('Failed to load quick share content');
@@ -435,74 +446,121 @@ export class QuickShareComponent implements OnInit {
         link.remove();
     }
 
-    private collectSelected(nodes: StaticTreeNode[], state: GetQuickShareBulkDownloadLinkRequest) {
-        for (const node of nodes) {
-            if (node.isSelected()) {
-                if (node.type === 'folder') {
-                    state.selectedFolderExternalIds.push(node.id);
-                    this.collectExcludesUnder(node.children, state);
-                } else {
-                    state.selectedFileExternalIds.push(node.id);
-                }
-            } else if (node.type === 'folder') {
-                this.collectSelected(node.children, state);
-            }
-        }
-    }
-
-    private collectExcludesUnder(nodes: StaticTreeNode[], state: GetQuickShareBulkDownloadLinkRequest) {
-        for (const node of nodes) {
-            if (node.isExcluded()) {
-                if (node.type === 'folder') {
-                    state.excludedFolderExternalIds.push(node.id);
-                } else {
-                    state.excludedFileExternalIds.push(node.id);
-                }
-            } else if (node.type === 'folder') {
-                this.collectExcludesUnder(node.children, state);
-            }
-        }
-    }
-
-    // Server emits folders in parent-before-child order (ordered by ancestor-chain
-    // length), so we can wire parent refs in a single pass.
+    // Indexes source data by parent so lazy folder nodes (and their search-
+    // metadata enumeration) can resolve children without scanning the flat lists.
     private buildTree(folders: QuickShareContentFolder[], files: QuickShareContentFile[]): StaticTreeNode[] {
-        const root: StaticTreeNode[] = [];
-        const folderById = new Map<string, StaticFolderNode>();
+        const childFoldersByParent = new Map<string | null, QuickShareContentFolder[]>();
+        const childFilesByFolder = new Map<string | null, QuickShareContentFile[]>();
 
         for (const f of folders) {
-            const parent = f.parentExternalId !== null
-                ? folderById.get(f.parentExternalId) ?? null
-                : null;
-
-            const node = this.makeFolderNode(f.externalId, f.name, parent);
-            folderById.set(f.externalId, node);
-
-            if (parent) {
-                parent.children.push(node);
-            } else {
-                root.push(node);
-            }
+            const key = f.parentExternalId;
+            const bucket = childFoldersByParent.get(key);
+            if (bucket) bucket.push(f);
+            else childFoldersByParent.set(key, [f]);
         }
 
         for (const file of files) {
-            const parent = file.folderExternalId !== null
-                ? folderById.get(file.folderExternalId) ?? null
-                : null;
+            const key = file.folderExternalId;
+            const bucket = childFilesByFolder.get(key);
+            if (bucket) bucket.push(file);
+            else childFilesByFolder.set(key, [file]);
+        }
 
-            const node = this.makeFileNode(file, parent);
+        return this.materializeLevel(
+            null, 
+            null, 
+            childFoldersByParent, 
+            childFilesByFolder);
+    }
 
-            if (parent) {
-                parent.children.push(node);
-            } else {
-                root.push(node);
+    // Materializes immediate children of `parentFolderId`. Called once for root
+    // and on every folder's first expand (via loadChildren).
+    private materializeLevel(
+        parentFolderId: string | null,
+        parent: StaticFolderNode | null,
+        childFoldersByParent: Map<string | null, QuickShareContentFolder[]>,
+        childFilesByFolder: Map<string | null, QuickShareContentFile[]>
+    ): StaticTreeNode[] {
+        const result: StaticTreeNode[] = [];
+
+        const subFolders = childFoldersByParent.get(parentFolderId) ?? [];
+
+        for (const subfolder of subFolders) {
+            const folderNode = this.makeFolderNode(
+                subfolder, 
+                parent, 
+                childFoldersByParent, 
+                childFilesByFolder);
+
+            result.push(folderNode);
+        }
+
+        const subFiles = childFilesByFolder.get(parentFolderId) ?? [];
+        
+        for (const file of subFiles) {
+            const fileNode =  this.makeFileNode(
+                file, 
+                parent);
+                
+            result.push();
+        }
+
+        return result;
+    }
+
+    // Walks the source-data maps to produce flat search metadata for a folder's
+    // whole subtree WITHOUT materializing any StaticTreeNode. Ancestor chains
+    // are relative to `folderId` — the consumer re-anchors them.
+    private enumerateFolderForSearch(
+        folderId: string,
+        childFoldersByParent: Map<string | null, QuickShareContentFolder[]>,
+        childFilesByFolder: Map<string | null, QuickShareContentFile[]>
+    ): StaticSearchCorpusEntry[] {
+        const result: StaticSearchCorpusEntry[] = [];
+
+        type Frame = { parentId: string; ancestorIds: string[]; };
+        const stack: Frame[] = [{ parentId: folderId, ancestorIds: [] }];
+
+        while (stack.length > 0) {
+            const frame = stack.pop()!;
+
+            const subFolders = childFoldersByParent.get(frame.parentId) ?? [];
+            for (const sub of subFolders) {
+                result.push({
+                    id: sub.externalId,
+                    name: sub.name,
+                    nameLower: sub.name.toLowerCase(),
+                    type: 'folder',
+                    ancestorFolderIds: frame.ancestorIds
+                });
+                stack.push({
+                    parentId: sub.externalId,
+                    ancestorIds: [...frame.ancestorIds, sub.externalId]
+                });
+            }
+
+            const subFiles = childFilesByFolder.get(frame.parentId) ?? [];
+            for (const file of subFiles) {
+                const fullName = file.name + file.extension;
+                result.push({
+                    id: file.externalId,
+                    name: fullName,
+                    nameLower: fullName.toLowerCase(),
+                    type: 'file',
+                    ancestorFolderIds: frame.ancestorIds
+                });
             }
         }
 
-        return root;
+        return result;
     }
 
-    private makeFolderNode(id: string, name: string, parent: StaticFolderNode | null): StaticFolderNode {
+    private makeFolderNode(
+        folder: QuickShareContentFolder,
+        parent: StaticFolderNode | null,
+        childFoldersByParent: Map<string | null, QuickShareContentFolder[]>,
+        childFilesByFolder: Map<string | null, QuickShareContentFile[]>
+    ): StaticFolderNode {
         const isSelected = signal(false);
         const isExcluded = signal(false);
 
@@ -514,24 +572,56 @@ export class QuickShareComponent implements OnInit {
 
         const children: StaticTreeNode[] = [];
 
-        return {
+        // Signal-of-signal — see makeFolderNode in zip.ts for the rationale.
+        const subtreeInner = signal<Signal<StaticTreeSelection>>(signal(EMPTY_TREE_SELECTION));
+        const subtreeState = computed(() => subtreeInner()());
+
+        const node: StaticFolderNode = {
             type: 'folder',
-            id: id,
-            name: name,
-            nameLower: name.toLowerCase(),
+            id: folder.externalId,
+            name: folder.name,
+            nameLower: folder.name.toLowerCase(),
             children: children,
             isExpanded: signal(false),
             isVisible: signal(true),
             wasRendered: signal(true),
             wasLoaded: true,
 
+            // Built on first expand; consumer nulls this out afterwards.
+            loadChildren: () => {
+                const built = this.materializeLevel(
+                    folder.externalId,
+                    node,
+                    childFoldersByParent,
+                    childFilesByFolder);
+
+                for (const child of built){
+                    children.push(child);
+                }
+
+                subtreeInner.set(
+                    computed(() => collectSelectionFromChildren(children)));
+            },
+
+            // Source-data driven search enumeration so the n-gram corpus covers
+            // every entry without forcing materialization of unopened subtrees.
+            enumerateDescendantsForSearch: () =>
+                this.enumerateFolderForSearch(folder.externalId, childFoldersByParent, childFilesByFolder),
+
             isSelected: isSelected,
             isExcluded: isExcluded,
             parent: parent,
             isParentSelected: isParentSelected,
             isParentExcluded: isParentExcluded,
-            selectedDescendantsCount: computed(() => countSelectedDescendants(children))
+
+            subtreeState: subtreeState,
+            selectedDescendantsCount: computed(() => {
+                const s = subtreeState();
+                return s.selectedFolderIds.length + s.selectedFileIds.length;
+            })
         };
+
+        return node;
     }
 
     private makeFileNode(file: QuickShareContentFile, parent: StaticFolderNode | null): StaticFileNode {

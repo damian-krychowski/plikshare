@@ -1,18 +1,27 @@
 @use "./../../../styles/variables.scss" as variables;
 @forward "./../../../styles/hover-switch.scss";
 
-.mat-tree {
-    background-color: transparent !important;
+// CDK virtual-scroll viewport. Concrete height comes from the inline
+// [style.height.px] binding (auto-fit content under a 60vh cap) — leave no
+// CSS height here, otherwise it races the binding on first render and CDK
+// snapshots the wrong size.
+.tree-viewport {
+    width: 100%;
+    background-color: transparent;
 }
 
-.tree-node {
-    &:not(:last-child) {
-        margin-bottom: 0.5rem;
-    }
+// Fixed-height row — itemSize on the viewport MUST match this exactly,
+// otherwise the virtual-scroll offsets drift relative to the rendered DOM
+// (you get empty space below the last visible row). 38px matches
+// `.node-content { min-height: 38px }`; we drop the old 8px between-row gap
+// because varying real height vs declared itemSize broke the math.
+.virtual-row {
+    height: 44px;
+    box-sizing: border-box;
+}
 
-    &--expandable {
-        cursor: pointer;
-    }
+.tree-node--expandable {
+    cursor: pointer;
 }
 
 .node-content {
@@ -65,10 +74,6 @@
     }
 }
 
-.nested-node {
-    padding-left: 40px;
-}
-
 .invisible {
     display: none !important;
 }
@@ -119,9 +124,5 @@
         font-size: var(--company-small-font);
         color: var(--company-grey-font);
         white-space: nowrap;
-    }    
-}
-
-.nested-node {
-    padding-left: 20px !important;
+    }
 }

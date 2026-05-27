@@ -1,11 +1,11 @@
-import { Component, input, signal, computed, OnChanges, SimpleChanges, output } from '@angular/core';
+import { Component, input, signal, computed, OnChanges, SimpleChanges, output, WritableSignal } from '@angular/core';
 import { ZipArchive, ZipArchives, ZipEntry } from '../../../services/zip';
 import { ActionButtonComponent } from '../../../shared/buttons/action-btn/action-btn.component';
 import { ItemSearchComponent } from '../../../shared/item-search/item-search.component';
 import { FileIconPipe } from '../../file-icon-pipe/file-icon.pipe';
 import { ContentDisposition, GetZipBulkDownloadLinkRequest } from '../../../services/folders-and-files.api';
 import { ZipPreviewDetails } from '../../file-inline-preview/file-inline-preview.component';
-import { StaticFileNode, StaticTreeNode, StaticFileTreeViewComponent } from '../../../shared/static-file-tree-view/static-file-tree-view.component';
+import { EMPTY_TREE_SELECTION, StaticFileNode, StaticFileTreeViewComponent, StaticTreeNode, StaticTreeSelection } from '../../../shared/static-file-tree-view/static-file-tree-view.component';
 
 export interface ZipPreviewOperations {
     getZipPreviewDetails: () => Promise<ZipPreviewDetails>;
@@ -43,19 +43,19 @@ export class ZipPreviewComponent implements OnChanges {
         return ZipArchives.buildArchiveTree(archive);
     });
 
-    // Aggregated 4-array view of the in-tree selection state. Recomputes whenever
-    // any node's isSelected/isExcluded signal changes — the bulk-download button's
-    // count and the eventual server payload both feed off this.
-    selectionState = computed<GetZipBulkDownloadLinkRequest>(() => {
-        const state: GetZipBulkDownloadLinkRequest = {
-            selectedFolderIds: [],
-            selectedEntryIndices: [],
-            excludedFolderIds: [],
-            excludedEntryIndices: []
-        };
+    // Fed by (selectionChanged) from the tree component, which owns the walk +
+    // lazy-aware cascade. We just map the generic string-id payload to the
+    // numeric form the bulk-download endpoint expects.
+    treeSelection: WritableSignal<StaticTreeSelection> = signal(EMPTY_TREE_SELECTION);
 
-        this.collectSelected(this.zipFileTreeNodes(), state);
-        return state;
+    selectionState = computed<GetZipBulkDownloadLinkRequest>(() => {
+        const s = this.treeSelection();
+        return {
+            selectedFolderIds: s.selectedFolderIds.map(id => parseInt(id)),
+            selectedEntryIndices: s.selectedFileIds.map(id => parseInt(id)),
+            excludedFolderIds: s.excludedFolderIds.map(id => parseInt(id)),
+            excludedEntryIndices: s.excludedFileIds.map(id => parseInt(id))
+        };
     });
 
     selectionSummary = computed(() => {
@@ -164,37 +164,4 @@ export class ZipPreviewComponent implements OnChanges {
         link.remove();
     }
 
-    // Selected folders short-circuit descent: they include all their contents by
-    // contract, so the children are only walked to harvest excludes inside them.
-    // Non-selected folders recurse normally to find sub-selections.
-    private collectSelected(nodes: StaticTreeNode[], state: GetZipBulkDownloadLinkRequest) {
-        for (const node of nodes) {
-            if (node.isSelected()) {
-                if (node.type === 'folder') {
-                    state.selectedFolderIds.push(parseInt(node.id));
-                    this.collectExcludesUnder(node.children, state);
-                } else {
-                    state.selectedEntryIndices.push(parseInt(node.id));
-                }
-            } else if (node.type === 'folder') {
-                this.collectSelected(node.children, state);
-            }
-        }
-    }
-
-    private collectExcludesUnder(nodes: StaticTreeNode[], state: GetZipBulkDownloadLinkRequest) {
-        for (const node of nodes) {
-            if (node.isExcluded()) {
-                if (node.type === 'folder') {
-                    state.excludedFolderIds.push(parseInt(node.id));
-                    // Excluded folder prunes the whole subtree from the payload;
-                    // descending further would only collect dead-letter excludes.
-                } else {
-                    state.excludedEntryIndices.push(parseInt(node.id));
-                }
-            } else if (node.type === 'folder') {
-                this.collectExcludesUnder(node.children, state);
-            }
-        }
-    }
 }

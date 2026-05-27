@@ -3,9 +3,9 @@
 //as they may be not reliable (sic!) - we should use Central Directory record for those
 //the only information we MUST read from here is extraFieldLength, becuase it is not present
 
-import { computed, signal } from "@angular/core";
+import { computed, Signal, signal } from "@angular/core";
 import { toNameAndExtension } from "./filte-type";
-import { countSelectedDescendants, StaticTreeNode, StaticFolderNode, StaticFileNode } from "../shared/static-file-tree-view/static-file-tree-view.component";
+import { collectSelectionFromChildren, EMPTY_TREE_SELECTION, StaticTreeNode, StaticFolderNode, StaticFileNode, StaticSearchCorpusEntry, StaticTreeSelection } from "../shared/static-file-tree-view/static-file-tree-view.component";
 
 //anywhere else, and the one from Central Directory Record may be different than this one
 export type ZipLfhRecord = {
@@ -733,45 +733,91 @@ export class ZipArchives {
             .includes(searchPhraseLower);
     }
 
+    // Build only the root level eagerly. Each folder carries:
+    //   - loadChildren factory → materializes ITS immediate children on expand,
+    //     idempotent (nulled by the consumer after first invocation).
+    //   - enumerateDescendantsForSearch → walks the ZipFolder source to produce
+    //     flat search-corpus entries for its whole subtree WITHOUT touching
+    //     StaticTreeNode at all.
+    // Subtrees that the user never expands — and that contain no search hits —
+    // stay as a single StaticFolderNode with empty children. For a 100k-entry
+    // archive this is the difference between 500k+ Angular signals built upfront
+    // and only the few hundred touched in practice.
     public static buildArchiveTree(archive: ZipArchive): StaticTreeNode[] {
-        const rootLevel: StaticTreeNode[] = [];
+        return ZipArchives.materializeChildrenOf(archive, null);
+    }
 
-        // Iterates top-down so that when a child node is built its parent is already
-        // wired up — parent refs and isParentSelected/isParentExcluded recursion
-        // therefore resolve without any second pass.
+    // Materializes immediate children for one source level. Used by the lazy
+    // loadChildren factory so a folder's subtree appears only when actually
+    // touched (expand or search-driven materialization).
+    private static materializeChildrenOf(
+        source: { folders: ZipFolder[]; entries: ZipEntry[] },
+        parent: StaticFolderNode | null
+    ): StaticTreeNode[] {
+        const result: StaticTreeNode[] = [];
+
+        for (const folder of source.folders) {
+            result.push(ZipArchives.makeFolderNode(folder, parent));
+        }
+        for (const entry of source.entries) {
+            result.push(ZipArchives.makeFileNode(entry, parent));
+        }
+
+        return result;
+    }
+
+    // Enumerates a folder's whole subtree (files + sub-folders) directly from
+    // source ZipFolder data. Ancestor chains are RELATIVE to `folder` itself —
+    // an immediate child gets an empty chain. The consumer (search index in
+    // StaticFileTreeViewComponent) re-anchors to absolute paths.
+    private static enumerateZipFolderForSearch(folder: ZipFolder): StaticSearchCorpusEntry[] {
+        const result: StaticSearchCorpusEntry[] = [];
+
         type Frame = {
-            children: StaticTreeNode[];
-            parent: StaticFolderNode | null;
-            source: { folders: ZipFolder[]; entries: ZipEntry[] };
+            folders: ZipFolder[];
+            entries: ZipEntry[];
+            ancestorIds: string[];
         };
 
-        const queue: Frame[] = [{
-            children: rootLevel,
-            parent: null,
-            source: archive
+        const stack: Frame[] = [{
+            folders: folder.folders,
+            entries: folder.entries,
+            ancestorIds: []
         }];
 
-        while (queue.length > 0) {
-            const frame = queue.pop()!;
+        while (stack.length > 0) {
+            const frame = stack.pop()!;
 
-            for (const folder of frame.source.folders) {
-                const folderNode = ZipArchives.makeFolderNode(folder, frame.parent);
-                frame.children.push(folderNode);
-
-                queue.push({
-                    children: folderNode.children,
-                    parent: folderNode,
-                    source: folder
+            for (const sub of frame.folders) {
+                const subId = `${sub.virtualFolderId}`;
+                result.push({
+                    id: subId,
+                    name: sub.name,
+                    nameLower: sub.name.toLowerCase(),
+                    type: 'folder',
+                    ancestorFolderIds: frame.ancestorIds
+                });
+                stack.push({
+                    folders: sub.folders,
+                    entries: sub.entries,
+                    ancestorIds: [...frame.ancestorIds, subId]
                 });
             }
 
-            for (const entry of frame.source.entries) {
-                const fileNode = ZipArchives.makeFileNode(entry, frame.parent);
-                frame.children.push(fileNode);
+            for (const entry of frame.entries) {
+                const nameAndExt = ZipArchives.getFileNameAndExtension(entry);
+                const fullName = `${nameAndExt.name}${nameAndExt.extension}`;
+                result.push({
+                    id: `${entry.indexInArchive}`,
+                    name: fullName,
+                    nameLower: fullName.toLowerCase(),
+                    type: 'file',
+                    ancestorFolderIds: frame.ancestorIds
+                });
             }
         }
 
-        return rootLevel;
+        return result;
     }
 
     private static makeFolderNode(folder: ZipFolder, parent: StaticFolderNode | null): StaticFolderNode {
@@ -801,7 +847,17 @@ export class ZipArchives {
 
         const children: StaticTreeNode[] = [];
 
-        return {
+        // Signal-of-signal pattern. While the folder is lazy (children empty),
+        // the inner is a constant signal(EMPTY). When loadChildren mutates the
+        // array, we swap in a real computed that walks the now-populated
+        // children. Consumers read via `subtreeState()` which double-derefs;
+        // swapping the inner emits through the outer, so any parent observing
+        // the cascade re-runs and picks up the new computation automatically.
+        const subtreeInner = signal<Signal<StaticTreeSelection>>(signal(EMPTY_TREE_SELECTION));
+
+        const subtreeState = computed(() => subtreeInner()());
+
+        const node: StaticFolderNode = {
             type: 'folder',
             id: `${folder.virtualFolderId}`,
             name: folder.name,
@@ -814,13 +870,38 @@ export class ZipArchives {
 
             children: children,
 
+            // Materialize immediate children on first expand. The consumer nulls
+            // this out after invocation so subsequent expands are no-ops.
+            loadChildren: () => {
+                const built = ZipArchives.materializeChildrenOf(folder, node);
+                for (const child of built) {
+                    children.push(child);
+                }
+                // Swap in the real computation now that `children` is populated
+                // — see subtreeInner comment above.
+                subtreeInner.set(
+                    computed(() => collectSelectionFromChildren(children)));
+            },
+
+            // Search index pulls subtree metadata from source data without
+            // materializing any node — the whole reason buildArchiveTree can
+            // stay lazy even when the user types into the search box.
+            enumerateDescendantsForSearch: () =>
+                ZipArchives.enumerateZipFolderForSearch(folder),
+
             isSelected: isSelected,
             isExcluded: isExcluded,
             parent: parent,
             isParentSelected: isParentSelected,
             isParentExcluded: isParentExcluded,
-            selectedDescendantsCount: computed(() => countSelectedDescendants(children))
+            subtreeState: subtreeState,
+            selectedDescendantsCount: computed(() => {
+                const s = subtreeState();
+                return s.selectedFolderIds.length + s.selectedFileIds.length;
+            })
         };
+
+        return node;
     }
 
     private static makeFileNode(entry: ZipEntry, parent: StaticFolderNode | null): StaticFileNode {

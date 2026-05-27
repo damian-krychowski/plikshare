@@ -18,7 +18,7 @@ import {
     StaticFileNode,
     StaticFolderNode,
     StaticTreeNode,
-    countSelectedDescendants
+    collectSelectionFromChildren
 } from '../../shared/static-file-tree-view/static-file-tree-view.component';
 import { TrashFileItemComponent } from './trash-file-item/trash-file-item.component';
 import {
@@ -322,6 +322,9 @@ export class TrashComponent implements OnInit {
 
     private makeFolderNode(name: string, id: string, parent: StaticFolderNode | null): StaticFolderNode {
         const children: StaticTreeNode[] = [];
+        // Trash is eager — children are populated before any computed reads
+        // subtreeState, so a plain computed is enough (no signal-of-signal).
+        const subtreeState = computed(() => collectSelectionFromChildren(children));
 
         return {
             type: 'folder',
@@ -338,7 +341,11 @@ export class TrashComponent implements OnInit {
             parent,
             isParentSelected: computed(() => parent ? (parent.isSelected() || parent.isParentSelected()) : false),
             isParentExcluded: computed(() => parent ? (parent.isExcluded() || parent.isParentExcluded()) : false),
-            selectedDescendantsCount: computed(() => countSelectedDescendants(children))
+            subtreeState: subtreeState,
+            selectedDescendantsCount: computed(() => {
+                const s = subtreeState();
+                return s.selectedFolderIds.length + s.selectedFileIds.length;
+            })
         };
     }
 

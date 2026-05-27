@@ -1,7 +1,7 @@
-import { Component, computed, effect, input, Input, InputSignal, OnChanges, output, Signal, signal, SimpleChanges, WritableSignal } from '@angular/core';
-import { MatTreeModule, MatTreeNestedDataSource } from '@angular/material/tree';
+import { Component, computed, effect, input, Input, InputSignal, OnChanges, output, QueryList, Signal, signal, SimpleChanges, ViewChildren, WritableSignal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
 
 import { StorageSizePipe } from '../storage-size.pipe';
 import { ActionButtonComponent } from '../buttons/action-btn/action-btn.component';
@@ -11,6 +11,14 @@ import { NGramSearch } from '../../services/n-gram-search';
 import { getNameWithHighlight } from '../name-with-highlight';
 import { TreeCheckobxComponent } from '../file-tree-view/tree-checkbox/tree-checkbox.component';
 
+// One flattened row produced by the virtual-scroll renderer. We walk the tree
+// in DFS order and emit one entry per visible node — children of collapsed
+// folders are skipped, so this is also what drives expand/collapse animations.
+export type FlatTreeRow = {
+    node: StaticTreeNode;
+    depth: number;
+};
+
 // 'select' shows tri-state checkboxes that feed a bulk-download payload (used by
 // zip preview inside a workspace). 'download' shows per-file download icons and
 // emits fileDownloadClicked — the legacy quick-share UX where each file is
@@ -19,18 +27,83 @@ export type StaticFileTreeViewMode = 'select' | 'download';
 
 export type StaticTreeNode = StaticFileNode | StaticFolderNode;
 
-export function countSelectedDescendants(children: StaticTreeNode[]): number {
-    let count = 0;
+// Lightweight metadata entry for search. Lets callers provide a flat index of
+// every name+ancestor chain in the source data WITHOUT materializing the heavy
+// StaticTreeNode objects (with their Angular signals). When the user searches,
+// we hit only the matching ids and materialize the path root→match. Subtrees
+// that contain no match stay unbuilt.
+export type StaticSearchCorpusEntry = {
+    id: string;
+    name: string;
+    nameLower: string;
+    type: 'file' | 'folder';
+    // Folder ids from root down to the immediate parent (exclusive of the entry
+    // itself). Empty array for root-level entries.
+    ancestorFolderIds: string[];
+};
+
+// Aggregated bulk-selection payload exposed by the tree component (and by every
+// folder's subtreeState). All ids are StaticTreeNode.id (string). Consumers map
+// to their own typed id space (numeric for zip, external-id string for shares).
+export type StaticTreeSelection = {
+    selectedFolderIds: string[];
+    selectedFileIds: string[];
+    excludedFolderIds: string[];
+    excludedFileIds: string[];
+};
+
+export const EMPTY_TREE_SELECTION: StaticTreeSelection = Object.freeze({
+    selectedFolderIds: [],
+    selectedFileIds: [],
+    excludedFolderIds: [],
+    excludedFileIds: []
+}) as StaticTreeSelection;
+
+// Aggregates a children-array into a StaticTreeSelection by composing each
+// child's own subtreeState. Folder selection semantics:
+//   - selected folder → push its id, take ONLY excludes from its subtree (its
+//     own subtree selects are redundant under a selected ancestor)
+//   - excluded folder → push its id, prune the subtree entirely
+//   - neither → merge the whole subtreeState upward
+// Reactivity is driven by the child signals read here — subtreeState (signal),
+// isSelected (signal), isExcluded (signal). Cascade up happens for free.
+export function collectSelectionFromChildren(children: StaticTreeNode[]): StaticTreeSelection {
+    const out: StaticTreeSelection = {
+        selectedFolderIds: [],
+        selectedFileIds: [],
+        excludedFolderIds: [],
+        excludedFileIds: []
+    };
 
     for (const child of children) {
+        if (child.type === 'file') {
+            if (child.isSelected()) {
+                out.selectedFileIds.push(child.id);
+            } else if (child.isExcluded()) {
+                out.excludedFileIds.push(child.id);
+            }
+            continue;
+        }
+
+        const sub = child.subtreeState();
+
         if (child.isSelected()) {
-            count += 1;
-        } else if (child.type === 'folder') {
-            count += child.selectedDescendantsCount();
+            out.selectedFolderIds.push(child.id);
+            // selects under a selected folder are redundant — keep only excludes
+            out.excludedFolderIds.push(...sub.excludedFolderIds);
+            out.excludedFileIds.push(...sub.excludedFileIds);
+        } else if (child.isExcluded()) {
+            out.excludedFolderIds.push(child.id);
+            // excluded subtree pruned — nothing else to carry up
+        } else {
+            out.selectedFolderIds.push(...sub.selectedFolderIds);
+            out.selectedFileIds.push(...sub.selectedFileIds);
+            out.excludedFolderIds.push(...sub.excludedFolderIds);
+            out.excludedFileIds.push(...sub.excludedFileIds);
         }
     }
 
-    return count;
+    return out;
 }
 
 export type StaticFileNode = {
@@ -70,6 +143,19 @@ export type StaticFolderNode = {
     isVisible: WritableSignal<boolean>;
     wasLoaded: boolean;
 
+    // Optional lazy-build hook. When non-null, the folder's `children` have not
+    // been materialized yet — calling this populates `children`, MUST bump
+    // childrenChanged afterwards, and the call-site MUST null this field out so
+    // the next expand is a no-op.
+    loadChildren?: (() => void) | null;
+
+    // Optional enumeration of this folder's full subtree (files + folders) for
+    // search indexing, WITHOUT materializing StaticTreeNodes. Lazy-tree builders
+    // populate it from source data (e.g. ZipArchive). Returned ancestor chains
+    // are RELATIVE to this folder (empty = immediate child). When absent the
+    // search index falls back to walking `children` — fine for eager trees.
+    enumerateDescendantsForSearch?: () => StaticSearchCorpusEntry[];
+
     // See StaticFileNode comment — same cascading-selection contract applies.
     isSelected: WritableSignal<boolean>;
     isExcluded: WritableSignal<boolean>;
@@ -77,13 +163,23 @@ export type StaticFolderNode = {
     isParentSelected: Signal<boolean>;
     isParentExcluded: Signal<boolean>;
 
+    // Full bulk-selection payload for this folder's subtree (selects + excludes
+    // the user explicitly made anywhere below). Lazy folders implement this as
+    // signal-of-signal so swapping in the real computation after loadChildren
+    // automatically propagates up the cascade — parent's collectSelectionFromChildren
+    // reads child.subtreeState(), so any change here re-runs the parent.
+    subtreeState: Signal<StaticTreeSelection>;
+
+    // Derived from subtreeState — kept for templates that show "N selected" on
+    // collapsed folders. Equals selects-count of THIS folder's own subtree
+    // (excludes don't count toward the badge).
     selectedDescendantsCount: Signal<number>;
 }
 
 @Component({
     selector: 'app-static-file-tree-view',
     imports: [
-        MatTreeModule,
+        ScrollingModule,
         MatIconModule,
         MatButtonModule,
         FileIconPipe,
@@ -103,52 +199,154 @@ export class StaticFileTreeViewComponent implements OnChanges {
     fileClicked = output<StaticFileNode>();
     fileDownloadClicked = output<StaticFileNode>();
 
+    // Emits the aggregated bulk-selection payload on every change. Replaces the
+    // collectSelected/collectExcludesUnder helpers that used to live in each
+    // consumer (quick-share, zip-preview) — those duplicated identical recursion
+    // and didn't compose with lazy folders' signal-of-signal cascade.
+    selectionChanged = output<StaticTreeSelection>();
+
+    // Public read-only signal exposing the same payload — consumers that prefer
+    // a signal (@ViewChild path) can read it directly without holding a
+    // WritableSignal copy.
+    public selectionState: Signal<StaticTreeSelection> = computed(() =>
+        collectSelectionFromChildren(this.fileTree()));
+
     isSearchActive = computed(() => {
         const phrase = this.searchPhrase();
 
         return phrase && phrase.length >= 3;
     });
 
-    private _filesMap: Map<string, StaticFileNode> = new Map();
-    private _foldersMap: Map<string, StaticFolderNode> = new Map();
-    private _pathMap: Map<string, string[]> = new Map();
-    
-    private _nGramSearch: NGramSearch<StaticFileNode> = new NGramSearch<StaticFileNode>([], () => '');
-    private _folderNGramSearch: NGramSearch<StaticFolderNode> = new NGramSearch<StaticFolderNode>([], () => '');
+    // Original (un-highlighted) names indexed by id. Populated either from the
+    // caller-provided corpus or from a full tree walk. applyNextSearchPhrase
+    // reads from here to re-apply highlights as the user narrows the phrase.
+    private _originalNameById: Map<string, string> = new Map();
+
+    private _nGramSearch: NGramSearch<StaticSearchCorpusEntry> =
+        new NGramSearch<StaticSearchCorpusEntry>([], () => '');
+
+    private _folderNGramSearch: NGramSearch<StaticSearchCorpusEntry> =
+        new NGramSearch<StaticSearchCorpusEntry>([], () => '');
 
     private _currentSearchPhrase: string | null = null;
 
-    childrenAccessor = (node: StaticTreeNode) => {
-        if(node.type == 'folder')
-            return node.children;
-
-        return [];
-    }
+    @ViewChildren(CdkVirtualScrollViewport)
+    private _viewports!: QueryList<CdkVirtualScrollViewport>;
 
     constructor(){
+        // CDK's internal ResizeObserver is too lazy to wake up reliably right
+        // after we flip [style.height.px]; without an explicit poke the
+        // viewport reports a stale size and renders empty space on shrink.
+        // queueMicrotask runs BEFORE the browser applies the new style though
+        // — so we'd read the old height and CDK would clamp scrollTop badly
+        // (visible jank on collapse). requestAnimationFrame fires after style
+        // application + layout, so checkViewportSize() sees the real new
+        // height and reconciles in one pass.
+        effect(() => {
+            // Read both heights so the effect re-runs whenever either changes.
+            this.mainViewportHeightPx();
+            this.searchViewportHeightPx();
+
+            requestAnimationFrame(() => {
+                this._viewports?.forEach(vp => vp.checkViewportSize());
+            });
+        });
+
+        // Emit the aggregated selection payload as a (selectionChanged) event
+        // whenever the cascade settles on a new value.
+        effect(() => {
+            this.selectionChanged.emit(this.selectionState());
+        });
+    }
+
+    // Search-result root, held as a signal so flatSearchVisibleNodes recomputes
+    // when applyNextSearchPhrase mutates visibility / when buildSubTree returns
+    // a fresh subtree on a fresh search phrase.
+    private _searchResultRoot: WritableSignal<StaticTreeNode[]> = signal([]);
+
+    // Flat DFS render lists for the virtual scroll. Each emits ONE entry per
+    // visible node — children of collapsed folders are skipped, indent is
+    // expressed as `depth` so the template can position with padding-left
+    // instead of nested DOM. Reactivity: isExpanded() (collapsed folders cut
+    // their subtree) plus isVisible() (search narrowing hides results).
+    flatVisibleNodes = computed<FlatTreeRow[]>(() => this.flatten(this.fileTree(), false));
+    flatSearchVisibleNodes = computed<FlatTreeRow[]>(() => this.flatten(this._searchResultRoot(), true));
+
+    // Fixed row height used by both the SCSS (.virtual-row) and the cdk-virtual-
+    // scroll-viewport itemSize. Matches `.node-content { min-height: 38px }` —
+    // virtual-scroll math relies on declared itemSize equaling the actual DOM
+    // height, otherwise scroll range drifts and the bottom of the viewport
+    // shows empty space.
+    static readonly ROW_HEIGHT_PX = 44;
+    rowHeightPx = StaticFileTreeViewComponent.ROW_HEIGHT_PX;
+
+    // Per-viewport auto-fit height: small trees collapse to exactly their
+    // content (no empty space below the last row), large trees cap at 60% of
+    // the window so the rest of the page stays usable.
+    mainViewportHeightPx = computed<number>(() =>
+        this.computeViewportHeight(this.flatVisibleNodes().length));
+
+    searchViewportHeightPx = computed<number>(() =>
+        this.computeViewportHeight(this.flatSearchVisibleNodes().length));
+
+    private computeViewportHeight(itemCount: number): number {
+        const maxHeight = typeof window !== 'undefined'
+            ? window.innerHeight * 0.6
+            : 600;
+
+        const contentHeight = itemCount * StaticFileTreeViewComponent.ROW_HEIGHT_PX;
+        
+        // 1px minimum keeps CDK happy when itemCount === 0 (zero-height
+        // viewport never initializes its scroll range cleanly).
+        return Math.max(1, Math.min(contentHeight, maxHeight));
+    }
+
+    private flatten(roots: StaticTreeNode[], respectVisibility: boolean): FlatTreeRow[] {
+        const result: FlatTreeRow[] = [];
+        const stack: FlatTreeRow[] = [];
+
+        // Push in reverse so DFS pops first-child-first.
+        for (let i = roots.length - 1; i >= 0; i--) {
+            stack.push({ node: roots[i], depth: 0 });
         }
 
-    dataSource = new MatTreeNestedDataSource<StaticTreeNode>();
-    searchResultDataSource = new MatTreeNestedDataSource<StaticTreeNode>();
+        while (stack.length > 0) {
+            const row = stack.pop()!;
+            const { node, depth } = row;
+
+            if (respectVisibility && !node.isVisible()) {
+                continue;
+            }
+
+            result.push(row);
+
+            if (node.type === 'folder' && node.isExpanded()) {
+                for (let i = node.children.length - 1; i >= 0; i--) {
+                    stack.push({ node: node.children[i], depth: depth + 1 });
+                }
+            }
+        }
+
+        return result;
+    }
+
+    trackByNodeId = (_: number, row: FlatTreeRow) => row.node.id;
+
+    // Tracks whether the search-related structures (n-gram indexes + the
+    // _originalNameById map) reflect the current tree. Reset on every fileTree
+    // change and refreshed lazily in ensureSearchIndexBuilt() — so a tree that's
+    // never searched never pays for indexing.
+    private _searchIndexBuilt = false;
 
     ngOnChanges(changes: SimpleChanges) {
         if (changes['fileTree']) {
-            const nodes = this.fileTree();
-            const {files, folders, filesMap, foldersMap, pathMap} = this.getTreeStructures(nodes);
-
-            this._filesMap = filesMap;
-            this._foldersMap = foldersMap;
-            this._pathMap = pathMap;
-
-            this._nGramSearch = new NGramSearch<StaticFileNode>(
-                files,
-                file => file.fullNameLower);
-
-            this._folderNGramSearch = new NGramSearch<StaticFolderNode>(
-                folders,
-                folder => folder.nameLower);
-
-            this.dataSource.data = nodes;
+            // Reset search-side state; rebuilt lazily on the first search.
+            this._originalNameById = new Map();
+            this._nGramSearch = new NGramSearch<StaticSearchCorpusEntry>([], () => '');
+            this._folderNGramSearch = new NGramSearch<StaticSearchCorpusEntry>([], () => '');
+            this._searchIndexBuilt = false;
+            this._currentSearchPhrase = null;
+            this._searchResultRoot.set([]);
         }
 
         if(changes['searchPhrase']) {
@@ -156,8 +354,106 @@ export class StaticFileTreeViewComponent implements OnChanges {
         }
     }
 
-    isFolder = (_: number, node: StaticTreeNode) => node.type == 'folder';
-    isFile = (_: number, node: StaticTreeNode) => node.type == 'file';
+    // Walks fileTree to build the n-gram search corpus. For folders that expose
+    // `enumerateDescendantsForSearch` (lazy trees, e.g. ZipArchive), we pull
+    // their full subtree metadata from source data WITHOUT materializing any
+    // StaticTreeNode — that's the whole point. For folders without the hook
+    // (eager trees, e.g. trash/quick-share) we walk `children` recursively.
+    private ensureSearchIndexBuilt(): void {
+        if (this._searchIndexBuilt) return;
+
+        const files: StaticSearchCorpusEntry[] = [];
+        const folders: StaticSearchCorpusEntry[] = [];
+
+        const addEntry = (entry: StaticSearchCorpusEntry) => {
+            if (entry.type === 'file') files.push(entry);
+            else folders.push(entry);
+            this._originalNameById.set(entry.id, entry.name);
+        };
+
+        const stack: { node: StaticTreeNode; ancestors: string[] }[] =
+            this.fileTree().map(node => ({ node, ancestors: [] }));
+
+        while (stack.length > 0) {
+            const { node, ancestors } = stack.pop()!;
+
+            if (node.type === 'file') {
+                addEntry({
+                    id: node.id,
+                    name: node.fullName,
+                    nameLower: node.fullNameLower,
+                    type: 'file',
+                    ancestorFolderIds: ancestors
+                });
+
+                continue;
+            }
+
+            addEntry({
+                id: node.id,
+                name: node.name,
+                nameLower: node.nameLower,
+                type: 'folder',
+                ancestorFolderIds: ancestors
+            });
+
+            if (node.enumerateDescendantsForSearch) {
+                // Lazy folder — source data knows its subtree without us having
+                // to materialize. Re-anchor each entry's ancestor chain so it's
+                // absolute (from fileTree root) rather than relative to `node`.
+                const childAncestorPrefix = [...ancestors, node.id];
+
+                for (const descendant of node.enumerateDescendantsForSearch()) {
+                    addEntry({
+                        ...descendant,
+                        ancestorFolderIds: [
+                            ...childAncestorPrefix,
+                            ...descendant.ancestorFolderIds
+                        ]
+                    });
+                }
+            } else {
+                // Eager folder — walk its already-built children.
+                const childAncestors = [...ancestors, node.id];
+                for (const child of node.children) {
+                    stack.push({ node: child, ancestors: childAncestors });
+                }
+            }
+        }
+
+        this._nGramSearch = new NGramSearch<StaticSearchCorpusEntry>(
+            files,
+            entry => entry.nameLower);
+
+        this._folderNGramSearch = new NGramSearch<StaticSearchCorpusEntry>(
+            folders,
+            entry => entry.nameLower);
+
+        this._searchIndexBuilt = true;
+    }
+
+    // Walk down the tree along ancestorFolderIds, invoking loadChildren on each
+    // unmaterialized folder. After this returns, every folder on the path has
+    // its `children` populated (and idempotent loadChildren = null), so
+    // buildSubTree can reach the match by walking fileTree normally. Folders
+    // OFF the path stay lazy.
+    private materializePath(ancestorFolderIds: string[]): void {
+        let currentLevel: StaticTreeNode[] = this.fileTree();
+
+        for (const folderId of ancestorFolderIds) {
+            const folder = currentLevel.find(
+                n => n.type === 'folder' && n.id === folderId) as StaticFolderNode | undefined;
+
+            if (!folder) return;
+
+            if (folder.loadChildren) {
+                folder.loadChildren();
+                folder.loadChildren = null;
+            }
+
+            currentLevel = folder.children;
+        }
+    }
 
     private tryApplySearchPhrase() {
         const searchPhrase = this.searchPhrase();
@@ -172,6 +468,8 @@ export class StaticFileTreeViewComponent implements OnChanges {
             return;
         }
 
+        this.ensureSearchIndexBuilt();
+
         const searchPhraseLower = searchPhrase.toLowerCase();
 
         if(this._currentSearchPhrase && searchPhraseLower.startsWith(this._currentSearchPhrase)) {
@@ -180,9 +478,13 @@ export class StaticFileTreeViewComponent implements OnChanges {
             //require a DOM rebuild, we will simply hide the results which no longer matches.
 
             this.applyNextSearchPhrase({
-                nodes: this.searchResultDataSource.data,
+                nodes: this._searchResultRoot(),
                 searchPhraseLower: searchPhraseLower
             });
+
+            // Force a re-emit of the search root so the flatSearchVisibleNodes
+            // computed picks up the in-place name/visibility mutations.
+            this._searchResultRoot.set([...this._searchResultRoot()]);
         } else {
             //we search matchin entries a compose an archive using only those
             //that allows to limit the size of DOM we need to render
@@ -195,23 +497,35 @@ export class StaticFileTreeViewComponent implements OnChanges {
                 ._folderNGramSearch
                 .search(searchPhraseLower);
 
+            // Materialize only the paths to actual matches. Subtrees with no
+            // hits stay unbuilt — for a deep archive with a couple of matches
+            // this is the difference between materializing a handful of nodes
+            // and the whole tree.
+            for (const match of matchingFiles) {
+                this.materializePath(match.ancestorFolderIds);
+            }
+            
+            for (const match of matchingFolders) {
+                this.materializePath(match.ancestorFolderIds);
+            }
+
+            const matchingFileIds = new Set(matchingFiles.map(f => f.id));
+            const matchingFolderIds = new Set(matchingFolders.map(f => f.id));
+
             const treeData = this.buildSubTree(
-                matchingFiles,
-                matchingFolders,
+                matchingFileIds,
+                matchingFolderIds,
                 searchPhraseLower);
 
-            this.searchResultDataSource.data = treeData;
+            this._searchResultRoot.set(treeData);
             this._currentSearchPhrase = searchPhraseLower;
         }
     }
 
     private buildSubTree(
-        files: StaticFileNode[],
-        folders: StaticFolderNode[],
+        matchingFileIds: Set<string>,
+        matchingFolderIds: Set<string>,
         searchPhraseLower: string): StaticTreeNode[] {
-        const matchingFileIds = new Set(files.map(f => f.id));
-        const matchingFolderIds = new Set(folders.map(f => f.id));
-
         // Walk the original tree top-down in its native order. A node is kept iff
         // it matches itself or any descendant does — folder match does NOT cascade
         // into its contents, only the folder itself is highlighted. Ancestors of
@@ -251,6 +565,12 @@ export class StaticFileTreeViewComponent implements OnChanges {
                 return null;
             }
 
+            // Search-result clones share isSelected/isExcluded signals with
+            // the originals, so checkbox clicks propagate to the main tree.
+            // subtreeState here is plain (no signal-of-signal) because
+            // clonedChildren is built fully upfront — no lazy mutation.
+            const cloneSubtreeState = computed(() => collectSelectionFromChildren(clonedChildren));
+
             return {
                 type: 'folder',
                 id: node.id,
@@ -269,11 +589,16 @@ export class StaticFileTreeViewComponent implements OnChanges {
                 parent: node.parent,
                 isParentSelected: node.isParentSelected,
                 isParentExcluded: node.isParentExcluded,
-                selectedDescendantsCount: computed(() => countSelectedDescendants(clonedChildren))
+                subtreeState: cloneSubtreeState,
+                selectedDescendantsCount: computed(() => {
+                    const s = cloneSubtreeState();
+                    return s.selectedFolderIds.length + s.selectedFileIds.length;
+                })
             };
         };
 
         const result: StaticTreeNode[] = [];
+
         for (const root of this.fileTree()) {
             const clone = cloneSubtree(root);
             if (clone) result.push(clone);
@@ -318,12 +643,12 @@ export class StaticFileTreeViewComponent implements OnChanges {
                 const fileMatches = node.fullNameLower.includes(args.searchPhraseLower);
 
                 if (fileMatches) {
-                    const originalFile = this._filesMap.get(node.id);
-                    if(!originalFile) {
-                        throw new Error(`Could not find FileNode with id: '${node.id}' while narrowing down search results`);
+                    const originalName = this._originalNameById.get(node.id);
+                    if(originalName === undefined) {
+                        throw new Error(`Could not find original name for FileNode id: '${node.id}' while narrowing down search results`);
                     }
 
-                    node.fullName = getNameWithHighlight(originalFile.fullName, args.searchPhraseLower);
+                    node.fullName = getNameWithHighlight(originalName, args.searchPhraseLower);
                 }
 
                 node.isVisible.set(fileMatches);
@@ -333,14 +658,14 @@ export class StaticFileTreeViewComponent implements OnChanges {
                 const isVisible = folderMatches || hasVisibleChild;
 
                 if (isVisible) {
-                    const originalFolder = this._foldersMap.get(node.id);
-                    if(!originalFolder) {
-                        throw new Error(`Could not find FolderNode with id: '${node.id}' while narrowing down search results`);
+                    const originalName = this._originalNameById.get(node.id);
+                    if(originalName === undefined) {
+                        throw new Error(`Could not find original name for FolderNode id: '${node.id}' while narrowing down search results`);
                     }
 
                     node.name = folderMatches
-                        ? getNameWithHighlight(originalFolder.name, args.searchPhraseLower)
-                        : originalFolder.name;
+                        ? getNameWithHighlight(originalName, args.searchPhraseLower)
+                        : originalName;
                 }
 
                 node.isVisible.set(isVisible);
@@ -351,6 +676,11 @@ export class StaticFileTreeViewComponent implements OnChanges {
 
 
     expand(node: StaticFolderNode) {
+        if (node.loadChildren) {
+            node.loadChildren();
+            node.loadChildren = null;
+        }
+
         toggle(node.isExpanded);
     }
 
@@ -391,68 +721,10 @@ export class StaticFileTreeViewComponent implements OnChanges {
     private *getAllDescendantNodes(node: StaticFolderNode): Generator<StaticTreeNode> {
         for (const child of node.children) {
             yield child;
+
             if (child.type === 'folder') {
                 yield* this.getAllDescendantNodes(child);
             }
         }
-    }
-
-    private getTreeStructures(nodes: StaticTreeNode[]) {
-        const pathMap: Map<string, string[]> = new Map<string, string[]>();
-        const filesMap: Map<string, StaticFileNode> = new Map<string, StaticFileNode>();
-        const foldersMap: Map<string, StaticFolderNode> = new Map<string, StaticFolderNode>();
-        const files: StaticFileNode[] = [];
-        const folders: StaticFolderNode[] = [];
-
-        type NodeWithPath = {
-            node: StaticTreeNode;
-            path: string[];
-        };
-
-        const stack: NodeWithPath[] = [];
-
-        const topNodes: NodeWithPath[] = nodes.map(node => ({
-            node: node,
-            path: []
-        }));
-
-        stack.push(...topNodes);
-
-        while(stack.length > 0) {
-            const item = stack.pop();
-
-            if(!item) continue;
-
-            const node = item.node;
-
-            if(node.type == 'file') {
-                files.push(node);
-                filesMap.set(node.id, node);
-                pathMap.set(node.id, item.path);
-            } else if(node.type == 'folder') {
-                folders.push(node);
-                foldersMap.set(node.id, node);
-                pathMap.set(node.id, item.path);
-
-                const folderPath = [...item.path, node.id];
-
-                const children: NodeWithPath[] = node.children.map(child => ({
-                    node: child,
-                    path: folderPath
-                }));
-
-                stack.push(...children);
-            } else {
-                throw new Error(`Unknown FileTreeNode type: '${(item as any).type}'`)
-            }
-        }
-
-        return {
-            files,
-            folders,
-            filesMap,
-            foldersMap,
-            pathMap
-        };
     }
 }
