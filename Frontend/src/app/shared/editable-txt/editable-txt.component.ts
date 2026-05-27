@@ -1,14 +1,18 @@
 import { Component, ElementRef, Signal, ViewChild, computed, effect, input, output, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { DomSanitizer, SafeHtml } from "@angular/platform-browser";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { SelectAllTextDirective } from "../select-all-text.directive";
+import { MarqueeOnTruncateDirective } from "../marquee-on-truncate.directive";
 import { getNameWithHighlight } from "../name-with-highlight";
 
 @Component({
     selector: 'app-editable-txt',
     imports: [
         FormsModule,
-        SelectAllTextDirective
+        MatTooltipModule,
+        SelectAllTextDirective,
+        MarqueeOnTruncateDirective
     ],
     templateUrl: './editable-txt.component.html',
     styleUrl: './editable-txt.component.scss'
@@ -19,6 +23,12 @@ export class EditableTxtComponent {
     textToDisplay = input<string>();
     canEdit = input(true);
     highlightPhrase = input<string>('');
+
+    // When set, the display modes show a matTooltip with this text — but ONLY
+    // when the rendered text is actually truncated (the marquee directive
+    // exports an isTruncated signal we wire into the binding). Empty string
+    // disables the tooltip even when the text overflows.
+    tooltipText = input<string>('');
 
     visibleText = computed(() => this.textToDisplay() ?? this.text());
 

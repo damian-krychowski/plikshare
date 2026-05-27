@@ -1,10 +1,10 @@
 @if(canEdit()) {
     @if(isEditing()) {
-        <div class="txt-editor"             
+        <div class="txt-editor"
             (click)="$event.stopPropagation()">
             <input class="txt-editor__input"
                 autofocus
-                type="text" 
+                type="text"
                 inputmode="text"
                 autocomplete="off"
                 autocorrect="off"
@@ -17,25 +17,41 @@
                 (keyup.enter)="save()"
                 (keyup.escape)="editingStopped.emit()"
                 [style.width.px]="inputWidth()">
-    
+
                 <span  #mirrorSpan
-                    class="txt-editor__mirror-span" 
+                    class="txt-editor__mirror-span"
                     [innerText]="newValue">
                 </span>
         </div>
     } @else {
-        <div class="text text--desktop text--editable"
+        <div class="text-frame text-frame--desktop"
             (dblclick)="startEditing(); $event.stopPropagation()"
-            (click)="$event.stopPropagation()"
-            [innerHTML]="displayHtml()">
+            (click)="$event.stopPropagation()">
+            <div class="text text--editable"
+                #m1="marqueeTruncate" appMarqueeOnTruncate
+                [matTooltip]="m1.isTruncated() ? tooltipText() : ''"
+                [matTooltipShowDelay]="500">
+                <span class="text__inner" [innerHTML]="displayHtml()"></span>
+            </div>
         </div>
 
-        <div class="text text--mobile"
-            (click)="startEditing(); $event.stopPropagation()"
-            [innerHTML]="displayHtml()">
+        <div class="text-frame text-frame--mobile"
+            (click)="startEditing(); $event.stopPropagation()">
+            <div class="text text--editable"
+                #m2="marqueeTruncate" appMarqueeOnTruncate
+                [matTooltip]="m2.isTruncated() ? tooltipText() : ''"
+                [matTooltipShowDelay]="500">
+                <span class="text__inner" [innerHTML]="displayHtml()"></span>
+            </div>
         </div>
     }
 } @else {
-    <div class="text" [innerHTML]="displayHtml()">
+    <div class="text-frame">
+        <div class="text"
+            #m3="marqueeTruncate" appMarqueeOnTruncate
+            [matTooltip]="m3.isTruncated() ? tooltipText() : ''"
+            [matTooltipShowDelay]="500">
+            <span class="text__inner" [innerHTML]="displayHtml()"></span>
+        </div>
     </div>
 }

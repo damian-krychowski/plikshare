@@ -4,38 +4,24 @@
     display: flex;
     align-items: center;
     height: 30px;
+    min-width: 0; // allow shrinking inside flex parents so ellipsis can kick in
+    flex: 1 1 auto;
 }
 
-.text {
+// Outer frame: only carries the desktop/mobile media-query display toggles
+// and provides a flex slot that .text can shrink within. The hover-edit
+// dashed border is now on .text itself (which is inline-block, so it sizes
+// to the actual visible text — short names get a tight border, long ones
+// extend to the available slot width).
+.text-frame {
     position: relative;
-    line-height: 30px;
-    
-    &:hover{
-        cursor: pointer;
-    }
-
-    &--editable {
-        &:hover {
-            &::after {
-                content: '';
-                position: absolute;
-                top: 0px;
-                left: -3px;
-                right: -20px;
-                bottom: 0px;
-                min-width: 110px;
-                border: 1px dashed var(--company-grey-accent);
-                border-radius: 4px;
-                z-index: 10;
-                cursor: text;
-            }
-        }
-    }
+    min-width: 0;
+    flex: 1 1 auto;
 
     &--desktop {
         @media (max-width: variables.$mobile-breakpoint) {
-            display: none;            
-        }    
+            display: none;
+        }
     }
 
     &--mobile {
@@ -43,8 +29,92 @@
 
         @media (max-width: variables.$mobile-breakpoint) {
             display: block;
-        }    
+        }
     }
+}
+
+.text {
+    position: relative;
+    // inline-block lets the box shrink to actual text width when the name
+    // fits, OR cap at the flex slot width (via max-width:100%) when it
+    // doesn't — so the hover border below hugs the visible text instead of
+    // always filling the whole row.
+    display: inline-block;
+    max-width: 100%;
+    line-height: 30px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+
+    &:hover{
+        cursor: pointer;
+    }
+
+    // Inline by default so ellipsis on .text works normally; the marquee
+    // rules below flip this to inline-block during animation so translateX
+    // actually moves the text inside .text's overflow:hidden clip.
+    &__inner {
+        display: inline;
+    }
+
+    &--editable {
+        &:hover {
+            // Override the generic .text:hover { cursor: pointer } above with
+            // the text-caret cursor — signals "click to edit" rather than
+            // "click to navigate". ::after has pointer-events:none so the
+            // cursor falls through to .text where this rule applies.
+            cursor: text;
+
+            &::after {
+                content: '';
+                position: absolute;
+                // inset:0 keeps the dashed border inside .text's box —
+                // sized to either content width (short names) or the flex
+                // slot (long names). Avoids .item { overflow: hidden }
+                // clipping that bit the old left:-3px/right:-20px style.
+                inset: 0;
+                border: 1px dashed var(--company-grey-accent);
+                border-radius: 4px;
+                z-index: 10;
+                pointer-events: none;
+            }
+        }
+    }
+}
+
+// Marquee animation — kicks in when the marquee directive has flagged the
+// .text element as `is-truncated` AND either the .text itself is hovered or
+// it's inside a selected item-bar. Direct :hover on .text covers the most
+// common path (kursor nad tekstem), :host-context covers the
+// .item-bar--selected and .item-bar:hover cases — broader so a hover over
+// the actions area still scrolls the name. Belt-and-suspenders because
+// :host-context with :hover sometimes misses depending on encapsulation.
+.text.is-truncated:hover,
+:host-context(.item-bar:hover) .text.is-truncated,
+:host-context(.item-bar--selected) .text.is-truncated {
+    text-overflow: clip; // ellipsis would otherwise show next to the moving text
+}
+
+.text.is-truncated:hover .text__inner,
+:host-context(.item-bar:hover) .text.is-truncated .text__inner,
+:host-context(.item-bar--selected) .text.is-truncated .text__inner {
+    display: inline-block;
+    // Duration scales with text overflow distance — see directive for the
+    // formula. `linear` keeps the px/s speed constant across the scroll
+    // segment (with `ease-in-out` short titles look slow and long titles
+    // race past). Keyframe percentages MUST match the SCROLL_FRACTION
+    // constant in the directive (0.85 = 85%).
+    animation: marquee var(--marquee-duration, 6s) linear infinite;
+}
+
+// Classic marquee: brief pause → scroll to end → brief pause → INSTANT snap
+// back. The 99.99%/100% pair gives an effectively-zero-duration return
+// instead of a smooth scroll-back (which felt weird going both directions).
+@keyframes marquee {
+    0%, 10%        { transform: translateX(0); }
+    95%, 99.99%    { transform: translateX(calc(-1 * var(--marquee-distance, 0px))); }
+    100%           { transform: translateX(0); }
 }
 
 .txt-editor {
@@ -56,6 +126,11 @@
 
     &__input {
         min-width: 100px;
+        // Cap the JS-driven [style.width.px] at the parent's available width
+        // — without this the input grows to fit the typed text and pushes the
+        // file icon off the left edge / collides with the confirm button on
+        // the right.
+        max-width: 100%;
         box-sizing: border-box;
         height: 30px;
         padding: 0 4px;

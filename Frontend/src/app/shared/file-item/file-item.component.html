@@ -29,6 +29,7 @@
                 [isEditing]="fileVal.isNameEditing()"
                 [canEdit]="canEditFileName()"
                 [highlightPhrase]="highlightPhrase()"
+                [tooltipText]="fileVal.name() + fileVal.extension"
                 (valueChange)="saveFileName($event)"
                 (editingStarted)="file().isNameEditing.set(true)"
                 (editingStopped)="file().isNameEditing.set(false)">
