@@ -789,7 +789,7 @@ export class ZipArchives {
             const frame = stack.pop()!;
 
             for (const sub of frame.folders) {
-                const subId = `${sub.virtualFolderId}`;
+                const subId = `${ZipArchives.FOLDER_ID_PREFIX}${sub.virtualFolderId}`;
                 result.push({
                     id: subId,
                     name: sub.name,
@@ -808,7 +808,7 @@ export class ZipArchives {
                 const nameAndExt = ZipArchives.getFileNameAndExtension(entry);
                 const fullName = `${nameAndExt.name}${nameAndExt.extension}`;
                 result.push({
-                    id: `${entry.indexInArchive}`,
+                    id: `${ZipArchives.FILE_ID_PREFIX}${entry.indexInArchive}`,
                     name: fullName,
                     nameLower: fullName.toLowerCase(),
                     type: 'file',
@@ -820,22 +820,25 @@ export class ZipArchives {
         return result;
     }
 
+    // Prefix tags on StaticTreeNode.id so the global id-space is
+    // collision-free across files and folders — both source numerics start
+    // counting from 1 in the zip metadata, so without a tag a file with
+    // indexInArchive=3 and a folder with virtualFolderId=3 collide and break
+    // anything that tracks by id (Angular @for trackBy, search match sets,
+    // materializePath find()).
+    static readonly FILE_ID_PREFIX = 'f_';
+    static readonly FOLDER_ID_PREFIX = 'd_';
+
+    static parseFileId(id: string): number {
+        return Number(id.slice(ZipArchives.FILE_ID_PREFIX.length));
+    }
+
+    static parseFolderId(id: string): number {
+        return Number(id.slice(ZipArchives.FOLDER_ID_PREFIX.length));
+    }
+
     private static makeFolderNode(folder: ZipFolder, parent: StaticFolderNode | null): StaticFolderNode {
         const isExpanded = signal(false);
-        const wasRenderedMemory = { wasRendered: false };
-
-        const wasRendered = computed(() => {
-            if (wasRenderedMemory.wasRendered)
-                return true;
-
-            if (isExpanded()) {
-                wasRenderedMemory.wasRendered = true;
-                return true;
-            }
-
-            return false;
-        });
-
         const isSelected = signal(false);
         const isExcluded = signal(false);
 
@@ -859,13 +862,11 @@ export class ZipArchives {
 
         const node: StaticFolderNode = {
             type: 'folder',
-            id: `${folder.virtualFolderId}`,
+            id: `${ZipArchives.FOLDER_ID_PREFIX}${folder.virtualFolderId}`,
             name: folder.name,
             nameLower: folder.name.toLowerCase(),
 
             isExpanded: isExpanded,
-            wasRendered: wasRendered,
-            wasLoaded: true,
             isVisible: signal(true),
 
             children: children,
@@ -919,7 +920,7 @@ export class ZipArchives {
 
         return {
             type: 'file',
-            id: `${entry.indexInArchive}`,
+            id: `${ZipArchives.FILE_ID_PREFIX}${entry.indexInArchive}`,
 
             fullName: fullName,
             extension: nameAndExt.extension,

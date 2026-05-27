@@ -1,7 +1,7 @@
-import { Component, computed, effect, input, Input, InputSignal, OnChanges, output, QueryList, Signal, signal, SimpleChanges, ViewChildren, WritableSignal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, ElementRef, inject, input, OnChanges, output, Signal, signal, SimpleChanges, viewChild, WritableSignal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
 
 import { StorageSizePipe } from '../storage-size.pipe';
 import { ActionButtonComponent } from '../buttons/action-btn/action-btn.component';
@@ -138,15 +138,14 @@ export type StaticFolderNode = {
     nameLower: string;
     children: StaticTreeNode[];
     isExpanded: WritableSignal<boolean>;
-    wasRendered: Signal<boolean>;
 
     isVisible: WritableSignal<boolean>;
-    wasLoaded: boolean;
 
     // Optional lazy-build hook. When non-null, the folder's `children` have not
-    // been materialized yet — calling this populates `children`, MUST bump
-    // childrenChanged afterwards, and the call-site MUST null this field out so
-    // the next expand is a no-op.
+    // been materialized yet — calling this populates `children` and the
+    // call-site MUST null this field out so the next expand is a no-op. The
+    // implementation also has to invalidate any signal-of-signal subtreeState
+    // it captured (so the cascade picks up the freshly-pushed children).
     loadChildren?: (() => void) | null;
 
     // Optional enumeration of this folder's full subtree (files + folders) for
@@ -179,7 +178,6 @@ export type StaticFolderNode = {
 @Component({
     selector: 'app-static-file-tree-view',
     imports: [
-        ScrollingModule,
         MatIconModule,
         MatButtonModule,
         FileIconPipe,
@@ -230,26 +228,40 @@ export class StaticFileTreeViewComponent implements OnChanges {
 
     private _currentSearchPhrase: string | null = null;
 
-    @ViewChildren(CdkVirtualScrollViewport)
-    private _viewports!: QueryList<CdkVirtualScrollViewport>;
+    // ViewChild refs to the two host divs — the geometry source for the
+    // window-driven virtualization. We read getBoundingClientRect() of these
+    // against window.innerHeight to figure out which slice is on-screen.
+    private _mainHost = viewChild<ElementRef<HTMLElement>>('mainHost');
+    private _searchHost = viewChild<ElementRef<HTMLElement>>('searchHost');
 
     constructor(){
-        // CDK's internal ResizeObserver is too lazy to wake up reliably right
-        // after we flip [style.height.px]; without an explicit poke the
-        // viewport reports a stale size and renders empty space on shrink.
-        // queueMicrotask runs BEFORE the browser applies the new style though
-        // — so we'd read the old height and CDK would clamp scrollTop badly
-        // (visible jank on collapse). requestAnimationFrame fires after style
-        // application + layout, so checkViewportSize() sees the real new
-        // height and reconciles in one pass.
-        effect(() => {
-            // Read both heights so the effect re-runs whenever either changes.
-            this.mainViewportHeightPx();
-            this.searchViewportHeightPx();
+        // Scroll triggers: we listen in CAPTURE phase on the window so we catch
+        // scroll events from EVERY scrollable ancestor of the host — not just
+        // the window itself. SPA shells frequently put `overflow: auto` on an
+        // inner element (router-outlet wrapper, sidenav content, etc.), in
+        // which case window.scroll never fires and ViewportRuler stays silent.
+        // Capture-phase listening sees the event on its way down through the
+        // ancestor chain regardless of which element actually scrolls.
+        const onScroll = () => requestAnimationFrame(() => this.recomputeRanges());
 
-            requestAnimationFrame(() => {
-                this._viewports?.forEach(vp => vp.checkViewportSize());
-            });
+        window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+        window.addEventListener('resize', onScroll, { passive: true });
+
+        const destroyRef = inject(DestroyRef);
+        destroyRef.onDestroy(() => {
+            window.removeEventListener('scroll', onScroll, { capture: true });
+            window.removeEventListener('resize', onScroll);
+        });
+
+        // Content changes (expand/collapse, tree swap, search toggle) shift
+        // the host's geometry and the total row count — recompute the ranges
+        // after the DOM has been updated.
+        effect(() => {
+            this.flatVisibleNodes();
+            this.flatSearchVisibleNodes();
+            this.isSearchActive();
+
+            requestAnimationFrame(() => this.recomputeRanges());
         });
 
         // Emit the aggregated selection payload as a (selectionChanged) event
@@ -272,33 +284,83 @@ export class StaticFileTreeViewComponent implements OnChanges {
     flatVisibleNodes = computed<FlatTreeRow[]>(() => this.flatten(this.fileTree(), false));
     flatSearchVisibleNodes = computed<FlatTreeRow[]>(() => this.flatten(this._searchResultRoot(), true));
 
-    // Fixed row height used by both the SCSS (.virtual-row) and the cdk-virtual-
-    // scroll-viewport itemSize. Matches `.node-content { min-height: 38px }` —
-    // virtual-scroll math relies on declared itemSize equaling the actual DOM
-    // height, otherwise scroll range drifts and the bottom of the viewport
-    // shows empty space.
+    // Fixed row height — drives both the absolute-positioning math and the
+    // CSS height of .virtual-row. MUST match exactly or rows overlap/gap.
     static readonly ROW_HEIGHT_PX = 44;
     rowHeightPx = StaticFileTreeViewComponent.ROW_HEIGHT_PX;
 
-    // Per-viewport auto-fit height: small trees collapse to exactly their
-    // content (no empty space below the last row), large trees cap at 60% of
-    // the window so the rest of the page stays usable.
-    mainViewportHeightPx = computed<number>(() =>
-        this.computeViewportHeight(this.flatVisibleNodes().length));
+    // How many rows above/below the visible window slice to also render —
+    // smooths over the gap during fast scrolling so the user doesn't see
+    // unrendered rows before the next recompute lands. With `track row.node`
+    // the DOM is reused across slice shifts, so a generous buffer is cheap.
+    private static readonly RENDER_BUFFER_ROWS = 30;
 
-    searchViewportHeightPx = computed<number>(() =>
-        this.computeViewportHeight(this.flatSearchVisibleNodes().length));
+    // Host element grows to the full virtual content height — that's what
+    // makes the PAGE scrollbar (rather than a viewport-local one) reflect the
+    // real tree size. Rows are positioned absolutely within this height.
+    mainTotalHeightPx = computed(() => this.flatVisibleNodes().length * StaticFileTreeViewComponent.ROW_HEIGHT_PX);
+    searchTotalHeightPx = computed(() => this.flatSearchVisibleNodes().length * StaticFileTreeViewComponent.ROW_HEIGHT_PX);
 
-    private computeViewportHeight(itemCount: number): number {
-        const maxHeight = typeof window !== 'undefined'
-            ? window.innerHeight * 0.6
-            : 600;
+    // {start, end} index of rows to actually render. Updated by
+    // recomputeRanges() on window scroll/resize and on tree-content changes.
+    private _mainRenderedRange: WritableSignal<{ start: number; end: number }> = signal({ start: 0, end: 0 });
+    private _searchRenderedRange: WritableSignal<{ start: number; end: number }> = signal({ start: 0, end: 0 });
 
-        const contentHeight = itemCount * StaticFileTreeViewComponent.ROW_HEIGHT_PX;
-        
-        // 1px minimum keeps CDK happy when itemCount === 0 (zero-height
-        // viewport never initializes its scroll range cleanly).
-        return Math.max(1, Math.min(contentHeight, maxHeight));
+    // Slice of the flat list to actually render, with absolute index attached
+    // (used as `top = index * ROW_HEIGHT_PX` in the template).
+    mainRenderedRows = computed(() => this.sliceForRange(this.flatVisibleNodes(), this._mainRenderedRange()));
+    searchRenderedRows = computed(() => this.sliceForRange(this.flatSearchVisibleNodes(), this._searchRenderedRange()));
+
+    private sliceForRange(
+        flat: FlatTreeRow[],
+        range: { start: number; end: number }
+    ): (FlatTreeRow & { index: number })[] {
+        const end = Math.min(range.end, flat.length);
+        const out: (FlatTreeRow & { index: number })[] = [];
+
+        for (let i = range.start; i < end; i++) {
+            out.push({ ...flat[i], index: i });
+        }
+
+        return out;
+    }
+
+    // Inspects the host's position within the window viewport and updates the
+    // rendered range to cover only the on-screen slice (plus buffer). Called
+    // on window scroll/resize and on every content change.
+    private recomputeRanges(): void {
+        const mainEl = this._mainHost()?.nativeElement;
+        if (mainEl && !this.isSearchActive()) {
+            this._mainRenderedRange.set(
+                this.computeRange(mainEl, this.flatVisibleNodes().length));
+        }
+
+        const searchEl = this._searchHost()?.nativeElement;
+        if (searchEl && this.isSearchActive()) {
+            this._searchRenderedRange.set(
+                this.computeRange(searchEl, this.flatSearchVisibleNodes().length));
+        }
+    }
+
+    private computeRange(host: HTMLElement, itemCount: number): { start: number; end: number } {
+        if (itemCount === 0) return { start: 0, end: 0 };
+
+        const rect = host.getBoundingClientRect();
+        const winHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+        // Pixels of the host that sit above the viewport's top edge.
+        const overflowAbove = Math.max(0, -rect.top);
+        // Pixels of the host that fit inside the viewport from rect.top down.
+        const visiblePx = Math.max(0, Math.min(rect.height, winHeight - Math.max(0, rect.top)));
+
+        const startIdx = Math.floor(overflowAbove / StaticFileTreeViewComponent.ROW_HEIGHT_PX);
+        const endIdx = Math.ceil((overflowAbove + visiblePx) / StaticFileTreeViewComponent.ROW_HEIGHT_PX);
+
+        const buffer = StaticFileTreeViewComponent.RENDER_BUFFER_ROWS;
+        return {
+            start: Math.max(0, startIdx - buffer),
+            end: Math.min(itemCount, endIdx + buffer)
+        };
     }
 
     private flatten(roots: StaticTreeNode[], respectVisibility: boolean): FlatTreeRow[] {
@@ -581,8 +643,6 @@ export class StaticFileTreeViewComponent implements OnChanges {
                 children: clonedChildren,
                 isExpanded: signal(true),
                 isVisible: signal(true),
-                wasRendered: signal(true),
-                wasLoaded: true,
 
                 isSelected: node.isSelected,
                 isExcluded: node.isExcluded,

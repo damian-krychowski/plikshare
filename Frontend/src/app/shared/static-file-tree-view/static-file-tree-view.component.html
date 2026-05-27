@@ -2,105 +2,14 @@
 @let modeVal = mode();
 @let searchActive = isSearchActive();
 
-<cdk-virtual-scroll-viewport
-    [itemSize]="rowHeightPx"
-    class="tree-viewport"
-    [style.height.px]="mainViewportHeightPx()"
-    [class.invisible]="searchActive">
+<div #mainHost
+     class="tree-host"
+     [style.height.px]="mainTotalHeightPx()"
+     [class.invisible]="searchActive">
 
-    <div *cdkVirtualFor="let row of flatVisibleNodes(); trackBy: trackByNodeId"
-         class="virtual-row"
-         [style.padding-left.px]="row.depth * 20">
-
-        @if(row.node.type === 'folder') {
-            @let folder = row.node;
-            @let isSelected = canDownloadVal
-                && modeVal === 'select'
-                && (folder.isSelected() || folder.isParentSelected())
-                && !folder.isExcluded()
-                && !folder.isParentExcluded();
-
-            @let hasSelectedChildren = canDownloadVal
-                && modeVal === 'select'
-                && folder.selectedDescendantsCount() > 0
-                && !folder.isExpanded();
-
-            <div class="node-content tree-node--expandable"
-                [class.node-content--selected]="isSelected"
-                [class.node-content--selected-children]="hasSelectedChildren">
-                <div class="node-content__icon" (click)="expand(folder)">
-                    @if(!folder.isExpanded()) {
-                        <i class="icon icon-lg icon-lucide-chevron-right"></i>
-                    } @else {
-                        <i class="icon icon-lg icon-lucide-chevron-down"></i>
-                    }
-                </div>
-
-                <div class="node-name">
-                    {{folder.name}}
-                </div>
-
-                @if(canDownloadVal && modeVal === 'select') {
-                    <div class="ml-auto" (click)="$event.stopPropagation()">
-                        <app-tree-checkbox
-                            [isSelected]="folder.isSelected()"
-                            [isParentSelected]="folder.isParentSelected()"
-                            [isExcluded]="folder.isExcluded()"
-                            [isParentExcluded]="folder.isParentExcluded()"
-                            (isSelectedChange)="onIsSelectedChange(folder, $event)"
-                            (isExcludedChange)="onIsExcludedChange(folder, $event)">
-                        </app-tree-checkbox>
-                    </div>
-                }
-            </div>
-        } @else {
-            @let file = row.node;
-            <div class="node-content">
-                <div class="file-node" (click)="fileClicked.emit(file)">
-                    <i class="icon icon-xl icon-{{ file.extension | fileIcon }}"></i>
-
-                    <div class="file-node__details">
-                        <div class="file-node__name">
-                            {{file.fullName}}
-                        </div>
-
-                        <div class="file-node__subtitle ml-auto">
-                            {{ file.sizeInBytes | storageSize }}
-                        </div>
-                    </div>
-                </div>
-
-                @if(canDownloadVal) {
-                    <div class="ml-auto flex-row flex-gap-05" (click)="$event.stopPropagation()">
-                        @if(modeVal === 'select') {
-                            <app-tree-checkbox
-                                [isSelected]="file.isSelected()"
-                                [isParentSelected]="file.isParentSelected()"
-                                [isExcluded]="file.isExcluded()"
-                                [isParentExcluded]="file.isParentExcluded()"
-                                (isSelectedChange)="onIsSelectedChange(file, $event)"
-                                (isExcludedChange)="onIsExcludedChange(file, $event)">
-                            </app-tree-checkbox>
-                        } @else {
-                            <app-action-btn
-                                icon="icon-nucleo-download"
-                                (clicked)="fileDownloadClicked.emit(file)">
-                            </app-action-btn>
-                        }
-                    </div>
-                }
-            </div>
-        }
-    </div>
-</cdk-virtual-scroll-viewport>
-
-@if(searchActive) {
-    <cdk-virtual-scroll-viewport
-        [itemSize]="rowHeightPx"
-        class="tree-viewport"
-        [style.height.px]="searchViewportHeightPx()">
-        <div *cdkVirtualFor="let row of flatSearchVisibleNodes(); trackBy: trackByNodeId"
-             class="virtual-row"
+    @for (row of mainRenderedRows(); track row.node.id) {
+        <div class="virtual-row"
+             [style.top.px]="row.index * rowHeightPx"
              [style.padding-left.px]="row.depth * 20">
 
             @if(row.node.type === 'folder') {
@@ -119,14 +28,16 @@
                 <div class="node-content tree-node--expandable"
                     [class.node-content--selected]="isSelected"
                     [class.node-content--selected-children]="hasSelectedChildren">
-                    <div class="node-content__inner" (click)="expand(folder)">
+                    <div class="node-content__icon" (click)="expand(folder)">
                         @if(!folder.isExpanded()) {
                             <i class="icon icon-lg icon-lucide-chevron-right"></i>
                         } @else {
                             <i class="icon icon-lg icon-lucide-chevron-down"></i>
                         }
+                    </div>
 
-                        <span class="node-name" [innerHTML]="folder.name"></span>
+                    <div class="node-name">
+                        {{folder.name}}
                     </div>
 
                     @if(canDownloadVal && modeVal === 'select') {
@@ -149,8 +60,8 @@
                         <i class="icon icon-xl icon-{{ file.extension | fileIcon }}"></i>
 
                         <div class="file-node__details">
-                            <div>
-                                <span [innerHTML]="file.fullName"></span>
+                            <div class="file-node__name">
+                                {{file.fullName}}
                             </div>
 
                             <div class="file-node__subtitle ml-auto">
@@ -181,5 +92,97 @@
                 </div>
             }
         </div>
-    </cdk-virtual-scroll-viewport>
+    }
+</div>
+
+@if(searchActive) {
+    <div #searchHost
+         class="tree-host"
+         [style.height.px]="searchTotalHeightPx()">
+
+        @for (row of searchRenderedRows(); track row.node.id) {
+            <div class="virtual-row"
+                 [style.top.px]="row.index * rowHeightPx"
+                 [style.padding-left.px]="row.depth * 20">
+
+                @if(row.node.type === 'folder') {
+                    @let folder = row.node;
+                    @let isSelected = canDownloadVal
+                        && modeVal === 'select'
+                        && (folder.isSelected() || folder.isParentSelected())
+                        && !folder.isExcluded()
+                        && !folder.isParentExcluded();
+
+                    @let hasSelectedChildren = canDownloadVal
+                        && modeVal === 'select'
+                        && folder.selectedDescendantsCount() > 0
+                        && !folder.isExpanded();
+
+                    <div class="node-content tree-node--expandable"
+                        [class.node-content--selected]="isSelected"
+                        [class.node-content--selected-children]="hasSelectedChildren">
+                        <div class="node-content__inner" (click)="expand(folder)">
+                            @if(!folder.isExpanded()) {
+                                <i class="icon icon-lg icon-lucide-chevron-right"></i>
+                            } @else {
+                                <i class="icon icon-lg icon-lucide-chevron-down"></i>
+                            }
+
+                            <span class="node-name" [innerHTML]="folder.name"></span>
+                        </div>
+
+                        @if(canDownloadVal && modeVal === 'select') {
+                            <div class="ml-auto" (click)="$event.stopPropagation()">
+                                <app-tree-checkbox
+                                    [isSelected]="folder.isSelected()"
+                                    [isParentSelected]="folder.isParentSelected()"
+                                    [isExcluded]="folder.isExcluded()"
+                                    [isParentExcluded]="folder.isParentExcluded()"
+                                    (isSelectedChange)="onIsSelectedChange(folder, $event)"
+                                    (isExcludedChange)="onIsExcludedChange(folder, $event)">
+                                </app-tree-checkbox>
+                            </div>
+                        }
+                    </div>
+                } @else {
+                    @let file = row.node;
+                    <div class="node-content">
+                        <div class="file-node" (click)="fileClicked.emit(file)">
+                            <i class="icon icon-xl icon-{{ file.extension | fileIcon }}"></i>
+
+                            <div class="file-node__details">
+                                <div>
+                                    <span [innerHTML]="file.fullName"></span>
+                                </div>
+
+                                <div class="file-node__subtitle ml-auto">
+                                    {{ file.sizeInBytes | storageSize }}
+                                </div>
+                            </div>
+                        </div>
+
+                        @if(canDownloadVal) {
+                            <div class="ml-auto flex-row flex-gap-05" (click)="$event.stopPropagation()">
+                                @if(modeVal === 'select') {
+                                    <app-tree-checkbox
+                                        [isSelected]="file.isSelected()"
+                                        [isParentSelected]="file.isParentSelected()"
+                                        [isExcluded]="file.isExcluded()"
+                                        [isParentExcluded]="file.isParentExcluded()"
+                                        (isSelectedChange)="onIsSelectedChange(file, $event)"
+                                        (isExcludedChange)="onIsExcludedChange(file, $event)">
+                                    </app-tree-checkbox>
+                                } @else {
+                                    <app-action-btn
+                                        icon="icon-nucleo-download"
+                                        (clicked)="fileDownloadClicked.emit(file)">
+                                    </app-action-btn>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
 }

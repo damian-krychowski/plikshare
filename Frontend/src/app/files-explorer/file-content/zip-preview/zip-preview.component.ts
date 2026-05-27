@@ -51,10 +51,10 @@ export class ZipPreviewComponent implements OnChanges {
     selectionState = computed<GetZipBulkDownloadLinkRequest>(() => {
         const s = this.treeSelection();
         return {
-            selectedFolderIds: s.selectedFolderIds.map(id => parseInt(id)),
-            selectedEntryIndices: s.selectedFileIds.map(id => parseInt(id)),
-            excludedFolderIds: s.excludedFolderIds.map(id => parseInt(id)),
-            excludedEntryIndices: s.excludedFileIds.map(id => parseInt(id))
+            selectedFolderIds: s.selectedFolderIds.map(id => ZipArchives.parseFolderId(id)),
+            selectedEntryIndices: s.selectedFileIds.map(id => ZipArchives.parseFileId(id)),
+            excludedFolderIds: s.excludedFolderIds.map(id => ZipArchives.parseFolderId(id)),
+            excludedEntryIndices: s.excludedFileIds.map(id => ZipArchives.parseFileId(id))
         };
     });
 
@@ -148,7 +148,7 @@ export class ZipPreviewComponent implements OnChanges {
 
         const entry = archive
             .entriesMap
-            .get(parseInt(fileNode.id));
+            .get(ZipArchives.parseFileId(fileNode.id));
 
         if(!entry)
             return null;

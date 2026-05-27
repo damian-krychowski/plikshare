@@ -496,13 +496,13 @@ export class QuickShareComponent implements OnInit {
         }
 
         const subFiles = childFilesByFolder.get(parentFolderId) ?? [];
-        
+
         for (const file of subFiles) {
-            const fileNode =  this.makeFileNode(
-                file, 
+            const fileNode = this.makeFileNode(
+                file,
                 parent);
-                
-            result.push();
+
+            result.push(fileNode);
         }
 
         return result;
@@ -584,8 +584,6 @@ export class QuickShareComponent implements OnInit {
             children: children,
             isExpanded: signal(false),
             isVisible: signal(true),
-            wasRendered: signal(true),
-            wasLoaded: true,
 
             // Built on first expand; consumer nulls this out afterwards.
             loadChildren: () => {

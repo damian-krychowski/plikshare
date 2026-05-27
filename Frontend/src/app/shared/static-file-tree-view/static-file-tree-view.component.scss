@@ -1,21 +1,23 @@
 @use "./../../../styles/variables.scss" as variables;
 @forward "./../../../styles/hover-switch.scss";
 
-// CDK virtual-scroll viewport. Concrete height comes from the inline
-// [style.height.px] binding (auto-fit content under a 60vh cap) — leave no
-// CSS height here, otherwise it races the binding on first render and CDK
-// snapshots the wrong size.
-.tree-viewport {
+// Host element grows to the full virtual content height (set inline as
+// `[style.height.px]="totalHeight"`) — that's what makes the PAGE scrollbar
+// reflect the real tree size instead of a viewport-local scrollbar. Rows are
+// positioned absolutely within this box.
+.tree-host {
+    position: relative;
     width: 100%;
     background-color: transparent;
 }
 
-// Fixed-height row — itemSize on the viewport MUST match this exactly,
-// otherwise the virtual-scroll offsets drift relative to the rendered DOM
-// (you get empty space below the last visible row). 38px matches
-// `.node-content { min-height: 38px }`; we drop the old 8px between-row gap
-// because varying real height vs declared itemSize broke the math.
+// Absolutely positioned within .tree-host — `top` is set inline as
+// `index * ROW_HEIGHT_PX`. Height MUST match ROW_HEIGHT_PX exactly or
+// adjacent rows overlap / leave gaps.
 .virtual-row {
+    position: absolute;
+    left: 0;
+    right: 0;
     height: 44px;
     box-sizing: border-box;
 }
@@ -30,7 +32,7 @@
     padding: 0.2rem 0.5rem 0.2rem 0.2rem;
     transition: background-color 0.2s;
     border: 1px solid transparent;
-    min-height: 38px;
+    height: 44px;
     font-size: var(--company-medium-font);
 
     &:hover {
