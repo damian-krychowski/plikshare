@@ -19,7 +19,6 @@
 @for(box of boxes(); track box.externalId()) {
     <app-box-item
         [box]="box"
-        [canOpen]="!isAnyBoxEditing()"
         (deleted)="onBoxDelete(box)">
     </app-box-item>
 }

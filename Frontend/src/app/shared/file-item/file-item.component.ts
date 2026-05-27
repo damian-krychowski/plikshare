@@ -78,7 +78,6 @@ export class FileItemComponent implements OnInit, OnDestroy {
     operations = input.required<FileOperations>();
     file = input.required<AppFileItem>();
 
-    canOpen = input(false);
     canSelect = input(true); //this by default is enabled
     canLocate = input(false);
     showPath = input(false);
@@ -111,16 +110,8 @@ export class FileItemComponent implements OnInit, OnDestroy {
 
     canEditFileName = computed(() => this.file().wasUploadedByUser || this.permissions().allowRename);
     canDeleteFile = computed(() => this.file().wasUploadedByUser || this.permissions().allowDelete);
-    canToggleActions = computed(() => {
-        if (this.canLocate())
-            return true;
 
-        const permissions = this.permissions();
-        return permissions.allowDownload && !this.hideDownloadAction();
-    });
-
-    areActionsVisible = signal(false);
-    canPreview = computed(() => AppFileItems.canPreview(this.file(), this.permissions().allowDownload, this.canOpen()));
+    canPreview = computed(() => AppFileItems.canPreview(this.file(), this.permissions().allowDownload));
 
     isSelectCheckboxVisible = computed(() => {
         if (!this.canSelect())
@@ -228,11 +219,6 @@ export class FileItemComponent implements OnInit, OnDestroy {
             return;
 
         file.isNameEditing.set(true);
-        this.areActionsVisible.set(false);
-    }
-
-    toggleActions() {
-        this.areActionsVisible.set(!this.areActionsVisible());
     }
 
     private _lastMouseDownShift = false;
@@ -252,7 +238,6 @@ export class FileItemComponent implements OnInit, OnDestroy {
         }
 
         this.file().isSelected.update(value => !value);
-        this.areActionsVisible.set(false);
         this.selectionToggled.emit();
     }
 
@@ -267,11 +252,11 @@ export class FileItemComponent implements OnInit, OnDestroy {
 }
 
 export class AppFileItems {
-    public static canPreview(item: AppFileItem, allowDownload: boolean, canOpen: boolean = true) {
-        return  canOpen && allowDownload && !item.isLocked();
+    public static canPreview(item: AppFileItem, allowDownload: boolean) {
+        return allowDownload && !item.isLocked();
     }
 
-    public static canEdit(item: AppFileItem, allowFileEdit: boolean, canOpen: boolean = true) {
-        return  canOpen && allowFileEdit && !item.isLocked() && item.extension === '.md';
+    public static canEdit(item: AppFileItem, allowFileEdit: boolean) {
+        return allowFileEdit && !item.isLocked() && item.extension === '.md';
     }
 }

@@ -10,8 +10,7 @@
     [class.item-bar--locked]="fileVal.isLocked()"
     (click)="!($event.ctrlKey || $event.metaKey || $event.shiftKey) && canPreview() && showPreview()">
     <div class="item flex-grow"
-        [class.item--highlighted]="isHighlighted()"
-        [class.item--in-background]="areActionsVisible()">
+        [class.item--highlighted]="isHighlighted()">
         
         @if(canReorder()) {
             <i class="icon icon-xl icon-lucide-menu drag-handle"
@@ -29,7 +28,6 @@
                 [isEditing]="fileVal.isNameEditing()"
                 [canEdit]="canEditFileName()"
                 [highlightPhrase]="highlightPhrase()"
-                [tooltipText]="fileVal.name() + fileVal.extension"
                 (valueChange)="saveFileName($event)"
                 (editingStarted)="file().isNameEditing.set(true)"
                 (editingStopped)="file().isNameEditing.set(false)">
@@ -73,7 +71,6 @@
                     <app-action-btn
                         tooltip="Locate"
                         icon="icon-lucide-search"
-                        [class.d-none-on-mobile]="!areActionsVisible()"
                         (prefetch)="operations().prefetchFolderFunc(fileVal.folderExternalId)"
                         (clicked)="locate()">                    
                     </app-action-btn>
@@ -83,20 +80,9 @@
                     <app-action-btn
                         tooltip="Download"
                         icon="icon-nucleo-download"
-                        [class.d-none-on-mobile]="!areActionsVisible()"
                         (clicked)="downloadFile()">
                     </app-action-btn>
-                }
-            
-            
-                @if(canToggleActions()) {
-                    <app-action-btn
-                        tooltip="Actions"
-                        icon="icon-lucide-dots"
-                        class="d-none-on-desktop"
-                        (clicked)="toggleActions()">                    
-                    </app-action-btn>
-                }
+                }            
                 
                 @if(isSelectCheckboxVisible()) {
                     <div (click)="$event.stopPropagation()">

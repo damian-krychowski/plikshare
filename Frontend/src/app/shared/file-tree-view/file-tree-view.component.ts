@@ -742,7 +742,7 @@ export class FileTreeViewComponent implements OnChanges {
             isParentExcluded: isParentExcludedSignal,
             fullPath: computed(() => this.getFullPath(parentSignal())),
 
-            canPreview: computed(() => AppFileItems.canPreview(item, this.allowDownload(), true))
+            canPreview: computed(() => AppFileItems.canPreview(item, this.allowDownload()))
         };
     }
 

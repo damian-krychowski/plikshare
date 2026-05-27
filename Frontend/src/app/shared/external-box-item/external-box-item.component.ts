@@ -38,7 +38,6 @@ export type AppExternalBox = {
 export class ExternalBoxItemComponent {
     externalBox = input.required<AppExternalBox>();
 
-    canOpen = input(false);
     canLocate = input(false);
     isAdminView = input(false);
 
@@ -69,10 +68,6 @@ export class ExternalBoxItemComponent {
     }
 
     openExternalBox() {
-        if (!this.canOpen()) {
-            return;
-        }
-        
         if(this.isHighlighted()) {
             this.externalBox().isHighlighted.set(false);
         }

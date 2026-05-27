@@ -335,7 +335,6 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             || treeSelectionState.selectedFolderExternalIds.length > 0;
     });
 
-    isAnyNameEditPending = computed(() => this.foldersStats().isAnyNameEditing || this.filesStats().isAnyNameEditing);
     isAnyItemCut = computed(() => this.cutItems().length > 0);
 
     canUpload = computed(() => this.allowUpload() && this.uploadsApi() != null);
@@ -934,7 +933,6 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         if (!folderResponse)
             return;
 
-        //czy to wyciagnaie parentaexternalid ma tutaj jakikolwiek sens? przedebugować
         const selectedFolder = folderResponse.folder
             ? mapFolderDtoToItem(
                 folderResponse.folder,
@@ -1053,9 +1051,6 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     }
 
     async openFolderByExternalId(folderExternalId: string | null) {
-        if (this.isAnyNameEditPending())
-            return;
-
         const selectedFolder = this.selectedFolder();
 
         if (selectedFolder != null && selectedFolder.externalId === folderExternalId){
@@ -1560,11 +1555,15 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
     private handleKeyDown(event: KeyboardEvent): void {
         if (event.ctrlKey && event.key.toLowerCase() === 'a') {
-            event.preventDefault();
-            
-            if (!this.isAnyNameEditPending()) {
-                this.selectAllItems();
+            // Skip the global select-all when the user is typing in an input —
+            // Ctrl+A there should select the input's text, not toggle items.
+            const target = event.target;
+            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+                return;
             }
+
+            event.preventDefault();
+            this.selectAllItems();
         } else if (event.key === 'Escape' && this.isAnyItemSelected()) {
             this.clearSelection();
         }
@@ -1638,60 +1637,47 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         }
     }
 
-    private getSelectionStats(items: {isSelected: WritableSignal<boolean>; isNameEditing?: WritableSignal<boolean>;}[]): {
-        count: number, 
+    private getSelectionStats(items: {isSelected: WritableSignal<boolean>;}[]): {
+        count: number,
         selectedCount: number,
-        isAnyNameEditing: boolean,
     } {
         let selectedCount = 0;
-        let isAnyNameEditing = false;
-        let ownedByUserCount = 0;
 
         for (const item of items) {
             if(item.isSelected())
                 selectedCount ++;
-
-            if(!isAnyNameEditing && item.isNameEditing && item.isNameEditing())
-                isAnyNameEditing = true;
         }
 
         return  {
             count: items.length,
             selectedCount: selectedCount,
-            isAnyNameEditing: isAnyNameEditing
         };
     }
 
     private getFilesStats(files: AppFileItem[]): {
-        count: number, 
+        count: number,
         selectedCount: number,
-        isAnyNameEditing: boolean,
         uploadedByUserCount: number,
         selectedUploadedByUserCount: number
     } {
         let selectedCount = 0;
-        let isAnyNameEditing = false;
         let uploadedByUserCount = 0;
         let selectedUploadedByUserCount = 0;
-    
+
         for (const file of files) {
             if(file.isSelected())
                 selectedCount ++;
-    
+
             if(file.wasUploadedByUser)
                 uploadedByUserCount ++;
-    
+
             if(file.wasUploadedByUser && file.isSelected())
                 selectedUploadedByUserCount ++;
-    
-            if(file.isNameEditing())
-                isAnyNameEditing = true;
         }
-        
+
         return  {
             count: files.length,
             selectedCount: selectedCount,
-            isAnyNameEditing: isAnyNameEditing,
             uploadedByUserCount: uploadedByUserCount,
             selectedUploadedByUserCount: selectedUploadedByUserCount
         };

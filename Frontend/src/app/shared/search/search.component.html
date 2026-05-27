@@ -25,17 +25,15 @@
                 <div class="search-results">
                     @for (item of result.dashboardItems; track item.externalId) {
                         @if(item.type === 'workspace'){
-                            <app-workspace-item 
+                            <app-workspace-item
                                 [workspace]="item.workspace"
-                                [canOpen]="true"
                                 [canLocate]="true"
                                 [isAdminView]="false">
                             </app-workspace-item>
                         } @else if(item.type === 'external-box') {
                             <app-external-box-item
                                 [externalBox]="item.box"
-                                [canOpen]="true"
-                                [canLocate]="true">                                
+                                [canLocate]="true">
                             </app-external-box-item>
                         }
                     }
@@ -77,30 +75,27 @@
 
                     @for (item of group.items; track item.externalId) {
                         @if (item.type === 'workspace-box') {
-                            <app-box-item 
+                            <app-box-item
                                 [box]="item.box"
-                                [canOpen]="true"
-                                [canLocate]="true"                                
+                                [canLocate]="true"
                                 (deleted)="onGroupItemDeleted(group, item)">
                             </app-box-item>
                         } @else if (item.type === 'workspace-folder') {
-                            <app-folder-item 
+                            <app-folder-item
                                 [permissions]="folderPermissions"
                                 [folder]="item.folder"
-                                [canOpen]="true"
                                 [canLocate]="true"
-                                [showPath]="true"   
-                                [canSelect]="false"                             
-                                [operations]="item.operations"                                
-                                (deleted)="onGroupItemDeleted(group, item)">                    
+                                [showPath]="true"
+                                [canSelect]="false"
+                                [operations]="item.operations"
+                                (deleted)="onGroupItemDeleted(group, item)">
                             </app-folder-item>
                         } @else if (item.type === 'workspace-file') {
-                            <app-file-item 
+                            <app-file-item
                                 [file]="item.file"
                                 [operations]="item.operations"
                                 [showPath]="true"
                                 [permissions]="filePermissions"
-                                [canOpen]="true"
                                 [canLocate]="true"
                                 [canSelect]="false"
                                 (deleted)="onGroupItemDeleted(group, item)"
@@ -146,21 +141,19 @@
                         };
 
                         @if (item.type === 'external-box-folder') {
-                            <app-folder-item 
+                            <app-folder-item
                                 [permissions]="folderPermissions"
                                 [folder]="item.folder"
-                                [canOpen]="true"
                                 [canLocate]="true"
                                 [showPath]="true"
-                                [operations]="item.operations">                    
+                                [operations]="item.operations">
                             </app-folder-item>
                         } @else if (item.type === 'external-box-file') {
-                            <app-file-item 
+                            <app-file-item
                                 [file]="item.file"
                                 [operations]="item.operations"
                                 [showPath]="true"
                                 [permissions]="filePermissions"
-                                [canOpen]="true"
                                 [canLocate]="true"
                                 (previewed)="boxFilePreview(item, group)">
                             </app-file-item>

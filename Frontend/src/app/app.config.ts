@@ -1,13 +1,11 @@
 import { ApplicationConfig, ErrorHandler, importProvidersFrom, provideZonelessChangeDetection } from '@angular/core';
-import { PreloadAllModules, Router, provideRouter, withEnabledBlockingInitialNavigation, withInMemoryScrolling, withPreloading, withRouterConfig } from '@angular/router';
+import { PreloadAllModules, provideRouter, withEnabledBlockingInitialNavigation, withInMemoryScrolling, withPreloading } from '@angular/router';
 import { HTTP_INTERCEPTORS, provideHttpClient, withFetch, withInterceptorsFromDi } from '@angular/common/http';
 import { AuthInterceptor } from './services/auth.interceptor';
-import { ToastrModule, ToastrService } from 'ngx-toastr';
-import { AuthService } from './services/auth.service';
+import { ToastrModule } from 'ngx-toastr';
 import { LoadingChunkFailedErrorHandler } from './services/loading-chunk-failed-error.handler';
 import { Routes } from '@angular/router';
 import { AdminGuardService } from './services/auth-guard.service';
-import { AccessCodesApi } from './external-access/external-link/access-codes.api';
 import { provideMarkdown } from 'ngx-markdown';
 
 export const routes: Routes = [{

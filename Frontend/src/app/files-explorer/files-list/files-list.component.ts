@@ -1,4 +1,4 @@
-import { Component, OnDestroy, ViewChild, computed, effect, input, output, signal, untracked } from "@angular/core";
+import { Component, DestroyRef, ElementRef, OnDestroy, ViewChild, computed, effect, inject, input, output, signal, untracked, viewChild } from "@angular/core";
 import { Subscription } from "rxjs";
 import { SortDirection, SortMode } from "../../services/folders-and-files.api";
 import { AppFileItem, AppFilePermissions, FileItemComponent, FileOperations } from "../../shared/file-item/file-item.component";
@@ -34,12 +34,16 @@ export class FilesListComponent implements OnDestroy {
     canReorder = input(false);
     hideActions = input(false);
     hideSelectCheckboxes = input(false);
-    isAnyNameEditPending = input(false);
 
     deleted = output<AppFileItem>();
     previewed = output<AppFileItem>();
 
     @ViewChild('filesFlip') filesFlip?: FlipAnimationDirective;
+
+    // Geometry source for the window-driven virtualization — we read its
+    // bounding rect against window.innerHeight to figure out which slice of
+    // visibleFiles() is currently on-screen.
+    private _hostRef = viewChild<ElementRef<HTMLElement>>('listHost');
 
     isSearchActive = computed(() => this.searchPhrase().length > 0);
 
@@ -47,9 +51,50 @@ export class FilesListComponent implements OnDestroy {
     localFiles = signal<AppFileItem[]>([]);
     filteredOutFiles = signal<string[]>([]);
 
+    // Files actually shown — drops the search-filtered ones. The template
+    // used to do this with a per-row @if; pulling it into a computed lets
+    // virtualization base its row count and offsets on the real list size.
+    visibleFiles = computed<AppFileItem[]>(() => {
+        const all = this.localFiles();
+        if (!this.isSearchActive()) return all;
+        const filteredOut = new Set(this.filteredOutFiles());
+        return all.filter(f => !filteredOut.has(f.externalId));
+    });
+
     hasNoListSearchMatches = computed(() =>
         this.isSearchActive()
         && this.localFiles().length === this.filteredOutFiles().length);
+
+    // Fixed row height — MUST match `.item-bar { height: 72px }` in the
+    // global styles, otherwise absolute positioning of rows desyncs from
+    // their rendered height.
+    static readonly ROW_HEIGHT_PX = 72;
+    rowHeightPx = FilesListComponent.ROW_HEIGHT_PX;
+
+    // Rows rendered above/below the on-screen window slice so fast scrolling
+    // doesn't reveal an unrendered gap before the next recompute lands.
+    private static readonly RENDER_BUFFER_ROWS = 30;
+
+    // Host gets `height: totalHeightPx` so the page scrollbar reflects the
+    // real list size — rows are absolutely positioned within this height.
+    totalHeightPx = computed(() => this.visibleFiles().length * FilesListComponent.ROW_HEIGHT_PX);
+
+    // Visible-window slice that's actually rendered to the DOM. Updated by
+    // recomputeRange() on scroll/resize and on visibleFiles content changes.
+    private _renderedRange = signal<{ start: number; end: number }>({ start: 0, end: 0 });
+
+    // The DOM-rendered subset, each row carrying its absolute index so the
+    // template can position it at `top = index * ROW_HEIGHT_PX`.
+    renderedFiles = computed<{ file: AppFileItem; index: number }[]>(() => {
+        const flat = this.visibleFiles();
+        const { start, end } = this._renderedRange();
+        const realEnd = Math.min(end, flat.length);
+        const out: { file: AppFileItem; index: number }[] = [];
+        for (let i = start; i < realEnd; i++) {
+            out.push({ file: flat[i], index: i });
+        }
+        return out;
+    });
 
     private selectionAnchorExternalId: string | null = null;
     private _draggingStoppedSubscription: Subscription | null = null;
@@ -61,6 +106,57 @@ export class FilesListComponent implements OnDestroy {
 
         this._draggingStoppedSubscription = this._dragState.draggingStopped$
             .subscribe(event => this.onDraggingStopped(event));
+
+        // Capture-phase scroll listener so we catch scroll on ANY ancestor —
+        // the SPA shell often scrolls an inner element (router-outlet wrapper,
+        // etc.) rather than the window itself, in which case window.scroll
+        // never fires. requestAnimationFrame batches multiple scroll events
+        // into one recompute per frame.
+        const onScroll = () => requestAnimationFrame(() => this.recomputeRange());
+
+        window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+        window.addEventListener('resize', onScroll, { passive: true });
+
+        const destroyRef = inject(DestroyRef);
+        destroyRef.onDestroy(() => {
+            window.removeEventListener('scroll', onScroll, { capture: true });
+            window.removeEventListener('resize', onScroll);
+        });
+
+        // Content changes (sort/filter/load/drag-reorder) shift the host's
+        // geometry and the total row count — recompute after the DOM has been
+        // updated.
+        effect(() => {
+            this.visibleFiles();
+            requestAnimationFrame(() => this.recomputeRange());
+        });
+    }
+
+    // Inspects the host's position within the window viewport and updates
+    // the rendered range to cover only the on-screen slice (plus buffer).
+    private recomputeRange(): void {
+        const el = this._hostRef()?.nativeElement;
+        const itemCount = this.visibleFiles().length;
+
+        if (!el || itemCount === 0) {
+            this._renderedRange.set({ start: 0, end: 0 });
+            return;
+        }
+
+        const rect = el.getBoundingClientRect();
+        const winHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+        const overflowAbove = Math.max(0, -rect.top);
+        const visiblePx = Math.max(0, Math.min(rect.height, winHeight - Math.max(0, rect.top)));
+
+        const startIdx = Math.floor(overflowAbove / FilesListComponent.ROW_HEIGHT_PX);
+        const endIdx = Math.ceil((overflowAbove + visiblePx) / FilesListComponent.ROW_HEIGHT_PX);
+
+        const buffer = FilesListComponent.RENDER_BUFFER_ROWS;
+        this._renderedRange.set({
+            start: Math.max(0, startIdx - buffer),
+            end: Math.min(itemCount, endIdx + buffer)
+        });
     }
 
     ngOnDestroy(): void {
@@ -177,11 +273,16 @@ export class FilesListComponent implements OnDestroy {
             return;
         }
 
-        untracked(() => sortFilesInPlace(
-            this.localFiles(),
-            sortMode,
-            sortDirection
-        ));
+        untracked(() => {
+            sortFilesInPlace(
+                this.localFiles(),
+                sortMode,
+                sortDirection
+            );
+            // sortFilesInPlace mutates the array in-place; the signal needs a
+            // new reference to wake the visibleFiles/renderedFiles computeds.
+            this.localFiles.update(arr => [...arr]);
+        });
     }
 
     private handleSearchPhraseInputChange() {

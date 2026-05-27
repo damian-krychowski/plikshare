@@ -1,3 +1,21 @@
 :host {
     display: block;
 }
+
+// Host grows to the full virtual content height (set via [style.height.px])
+// so the page scrollbar reflects the real list size — rows are positioned
+// absolutely within this height by the virtualizer.
+.files-list {
+    position: relative;
+    width: 100%;
+}
+
+// Absolutely positioned within .files-list — `top` set inline as
+// `index * ROW_HEIGHT_PX`. Height MUST stay locked to ROW_HEIGHT_PX (72px,
+// matching .item-bar in item-bar.scss) or rows overlap / leave gaps.
+.virtual-file-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 72px;
+}

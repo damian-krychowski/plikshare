@@ -213,7 +213,6 @@
                 @for(workspace of workspaces(); track workspace.externalId()) {
                     <app-workspace-item
                         [workspace]="workspace"
-                        [canOpen]="!isAnyNameEditing()"
                         [isAdminView]="true"
                         [canLocate]="false"
                         (deleted)="onWorkspaceDelete(workspace)"
@@ -254,7 +253,6 @@
                 @for(workspace of sharedWorkspaces(); track workspace.externalId()) {
                     <app-workspace-item
                         [workspace]="workspace"
-                        [canOpen]="!isAnyNameEditing()"
                         [isAdminView]="true"
                         [canLocate]="false"
                         (deleted)="onSharedWorkspaceDelete(workspace)"
@@ -303,7 +301,6 @@
             @for(box of sharedBoxes(); track box.boxExternalId()) {
                 <app-external-box-item
                     [externalBox]="box"
-                    [canOpen]="!isAnyNameEditing()"
                     [isAdminView]="true"
                     (permissionsChange)="onBoxPermissionsChange(box)"
                     (accessRevoked)="onBoxAccessRevoked(box)">                        

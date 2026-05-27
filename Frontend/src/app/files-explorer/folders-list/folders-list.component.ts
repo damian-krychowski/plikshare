@@ -32,7 +32,6 @@ export class FoldersListComponent {
     hideActions = input(false);
     hideShareAction = input(false);
     permissions = input.required<AppFolderPermissions>();
-    isAnyNameEditPending = input(false);
     filesApi = input.required<FilesExplorerApi>();
 
     deleted = output<AppFolderItem>();

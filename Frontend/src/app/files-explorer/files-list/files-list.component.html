@@ -1,35 +1,34 @@
-@let filteredOut = filteredOutFiles();
+<div #listHost
+    class="files-list"
+    appFlipAnimation #filesFlip="appFlipAnimation"
+    [style.height.px]="totalHeightPx()">
 
-<div class="files-list"
-    appFlipAnimation #filesFlip="appFlipAnimation">
-
-    @for(file of localFiles(); track file.externalId) {
-        @if(!isSearchActive() || !filteredOut.includes(file.externalId)) {
-            <app-file-item
-                appDraggableItem
-                [draggableType]="'file'"
-                [draggableExternalId]="file.externalId"
-                [draggableDisabled]="file.isNameEditing() || !canReorder()"
-                appDropTarget
-                [dropMode]="'two-zone'"
-                (dragStarted)="onFileDragStarted(file.externalId)"
-                (dragOverItem)="onFileDragOverItem(file, $event)"
-                (droppedAt)="onFileDroppedAt(file, $event)"
-                [file]="file"
-                [highlightPhrase]="searchPhrase()"
-                [canReorder]="canReorder()"
-                [operations]="operations()"
-                [hideActions]="hideActions()"
-                [hideDownloadAction]="true"
-                [hideSelectCheckbox]="hideSelectCheckboxes()"
-                [permissions]="permissions()"
-                [canOpen]="!isAnyNameEditPending()"
-                (deleted)="deleted.emit(file)"
-                (previewed)="previewed.emit(file)"
-                (selectionToggled)="onFileSelectionToggled(file)"
-                (shiftClicked)="onFileShiftClicked(file)">
-            </app-file-item>
-        }
+    @for(row of renderedFiles(); track row.file.externalId) {
+        <app-file-item
+            class="virtual-file-row"
+            [style.top.px]="row.index * rowHeightPx"
+            appDraggableItem
+            [draggableType]="'file'"
+            [draggableExternalId]="row.file.externalId"
+            [draggableDisabled]="row.file.isNameEditing() || !canReorder()"
+            appDropTarget
+            [dropMode]="'two-zone'"
+            (dragStarted)="onFileDragStarted(row.file.externalId)"
+            (dragOverItem)="onFileDragOverItem(row.file, $event)"
+            (droppedAt)="onFileDroppedAt(row.file, $event)"
+            [file]="row.file"
+            [highlightPhrase]="searchPhrase()"
+            [canReorder]="canReorder()"
+            [operations]="operations()"
+            [hideActions]="hideActions()"
+            [hideDownloadAction]="true"
+            [hideSelectCheckbox]="hideSelectCheckboxes()"
+            [permissions]="permissions()"
+            (deleted)="deleted.emit(row.file)"
+            (previewed)="previewed.emit(row.file)"
+            (selectionToggled)="onFileSelectionToggled(row.file)"
+            (shiftClicked)="onFileShiftClicked(row.file)">
+        </app-file-item>
     }
 </div>
 

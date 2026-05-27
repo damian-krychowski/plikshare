@@ -75,7 +75,6 @@ export class FolderItemComponent {
     folder = input.required<AppFolderItem>();
 
     canSelect = input(true);
-    canOpen = input(false);
     canLocate = input(false);
     showPath = input(false);
     hideActions = input(false);
@@ -100,7 +99,11 @@ export class FolderItemComponent {
     folderPath = computed(() => this.buildFolderPath(this.folder()));
     areActionsVisible = signal(false);
 
-    isNameEditing = computed(() => this.folder().isNameEditing());
+    isNameEditing = computed(() => {
+        const isEditing = this.folder().isNameEditing();
+        return isEditing;
+    });
+    
     isCut = computed(() => this.folder().isCut());
     isSelected = computed(() => this.folder().isSelected());
     isHighlighted = observeIsHighlighted(this.folder);
@@ -211,18 +214,12 @@ export class FolderItemComponent {
     }
 
     openFolder() {
-        if(!this.canOpen() || this.isNameEditing())
-            return;
-
         this.operations().openFolderFunc(
             this.folderExternalId(),
             null);
     }
 
     locate() {
-        if(this.isNameEditing())
-            return;
-
         const temporaryKey = this._inAppSharing.set(
             this.folderExternalId());
 

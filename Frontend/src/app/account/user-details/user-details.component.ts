@@ -99,8 +99,6 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
         && this.auth.canManageUsers()
         && ((this.isAdmin() && this.auth.isAppOwner()) || !this.isAdmin()));
 
-    isAnyNameEditing = computed(() => this.workspaces().some((b) => b.isNameEditing()) || this.sharedWorkspaces().some((b) => b.isNameEditing()));
-
     private _userExternalId: string | null = null;
     private _subscription: Subscription | null = null;
 

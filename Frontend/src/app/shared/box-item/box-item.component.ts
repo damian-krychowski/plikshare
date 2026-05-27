@@ -44,7 +44,6 @@ export type AppBoxFolderPathSegment = {
 })
 export class BoxItemComponent {
     box = input.required<AppBox>();
-    canOpen = input(false);
     canLocate = input(false);
     
     deleted = output<void>();
@@ -152,7 +151,7 @@ export class BoxItemComponent {
 
         const boxExternalId = this.boxExternalId();
 
-        if(!this.canOpen() || !boxExternalId || this.isNameEditing())
+        if(!boxExternalId)
             return;
 
         this._router.navigate([

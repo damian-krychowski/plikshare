@@ -123,7 +123,6 @@ export class QuickShareItemComponent {
 
     openDetails() {
         const qs = this.quickShare();
-        if (this.isNameEditing()) return;
 
         this._router.navigate([
             `workspaces/${qs.workspaceExternalId}/quick-shares/${qs.externalId}`

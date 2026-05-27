@@ -15,7 +15,7 @@
                 (ngModelChange)="adjustInputWidth()"
                 (blur)="save()"
                 (keyup.enter)="save()"
-                (keyup.escape)="editingStopped.emit()"
+                (keyup.escape)="cancelEditing()"
                 [style.width.px]="inputWidth()">
 
                 <span  #mirrorSpan
@@ -27,31 +27,34 @@
         <div class="text-frame text-frame--desktop"
             (dblclick)="startEditing(); $event.stopPropagation()"
             (click)="$event.stopPropagation()">
-            <div class="text text--editable"
-                #m1="marqueeTruncate" appMarqueeOnTruncate
-                [matTooltip]="m1.isTruncated() ? tooltipText() : ''"
-                [matTooltipShowDelay]="500">
-                <span class="text__inner" [innerHTML]="displayHtml()"></span>
+            <div class="text text--editable" appMarqueeOnTruncate>
+                @if(hasHighlight()) {
+                    <span class="text__inner" [innerHTML]="displayHtml()"></span>
+                } @else {
+                    <span class="text__inner">{{visibleText()}}</span>
+                }
             </div>
         </div>
 
         <div class="text-frame text-frame--mobile"
             (click)="startEditing(); $event.stopPropagation()">
-            <div class="text text--editable"
-                #m2="marqueeTruncate" appMarqueeOnTruncate
-                [matTooltip]="m2.isTruncated() ? tooltipText() : ''"
-                [matTooltipShowDelay]="500">
-                <span class="text__inner" [innerHTML]="displayHtml()"></span>
+            <div class="text text--editable" appMarqueeOnTruncate>
+                @if(hasHighlight()) {
+                    <span class="text__inner" [innerHTML]="displayHtml()"></span>
+                } @else {
+                    <span class="text__inner">{{visibleText()}}</span>
+                }
             </div>
         </div>
     }
 } @else {
     <div class="text-frame">
-        <div class="text"
-            #m3="marqueeTruncate" appMarqueeOnTruncate
-            [matTooltip]="m3.isTruncated() ? tooltipText() : ''"
-            [matTooltipShowDelay]="500">
-            <span class="text__inner" [innerHTML]="displayHtml()"></span>
+        <div class="text" appMarqueeOnTruncate>
+            @if(hasHighlight()) {
+                <span class="text__inner" [innerHTML]="displayHtml()"></span>
+            } @else {
+                <span class="text__inner">{{visibleText()}}</span>
+            }
         </div>
     </div>
 }

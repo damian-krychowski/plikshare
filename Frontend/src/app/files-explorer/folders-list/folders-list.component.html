@@ -26,7 +26,6 @@
                 [hideActions]="hideActions()"
                 [hideShareAction]="hideShareAction()"
                 [permissions]="permissions()"
-                [canOpen]="!isAnyNameEditPending()"
                 (deleted)="deleted.emit(folder)"
                 (boxCreated)="boxCreated.emit(folder)"
                 (selectionToggled)="onFolderSelectionToggled(folder)"

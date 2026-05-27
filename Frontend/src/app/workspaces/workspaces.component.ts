@@ -93,12 +93,6 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
         && !(this.auth.isAdmin() && !this.hasAnyStorage())
     );
 
-    isAnyNameEditing = computed(() => 
-        this.workspaces().some((b) => b.isNameEditing()) 
-        || this.sharedWorkspaces().some((b) => b.isNameEditing())
-        || this.otherWorkspaces().some((b) => b.isNameEditing())
-        || this.integrationWorkspaces().some((b) => b.isNameEditing()));
-
     private _routerSubscription: Subscription | null = null;
 
     constructor(

@@ -25,8 +25,6 @@ export class BoxesComponent implements OnInit, OnDestroy {
     isLoadingBoxes = signal(false);
     isDeleting = signal(false);
     isLoading = computed(() => this.isLoadingBoxes() || this.isDeleting());
-    isAnyBoxEditing = computed(() => this.boxes().some((b) => b.isNameEditing()));
-
     boxes: WritableSignal<AppBox[]> = signal([]);
     
     private _routerSubscription: Subscription | null = null;

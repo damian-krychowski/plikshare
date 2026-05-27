@@ -64,7 +64,6 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
 
     workspace = input.required<AppWorkspace>();
 
-    canOpen = input(false);
     canLocate = input(false);
     isAdminView = input(false);
 
@@ -153,7 +152,7 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
 
         const externalId = workspace.externalId();
 
-        if(!this.canOpen() || !externalId || workspace.isNameEditing())
+        if(!externalId)
             return;
 
         if (this.isFullEncryption() && !this.auth.isEncryptionUnlocked()) {

@@ -151,7 +151,6 @@
         @for(workspace of workspaces(); track workspace.externalId()) {
             <app-workspace-item 
                 [workspace]="workspace"
-                [canOpen]="!isAnyNameEditing()"
                 [isAdminView]="false"
                 [canLocate]="false"
                 (deleted)="onWorkspaceDelete(workspace)"
@@ -184,7 +183,6 @@
             @for(workspace of sharedWorkspaces(); track workspace.externalId()) {
                 <app-workspace-item 
                     [workspace]="workspace"
-                    [canOpen]="!isAnyNameEditing()"
                     [isAdminView]="false"
                     [canLocate]="false"
                     (left)="onSharedWorkspaceLeft(workspace)"
@@ -206,7 +204,6 @@
             @for(workspace of integrationWorkspaces(); track workspace.externalId()) {
                 <app-workspace-item 
                     [workspace]="workspace"
-                    [canOpen]="!isAnyNameEditing()"
                     [isAdminView]="false"
                     [canLocate]="false"
                     (left)="onIntegrationWorkspaceLeft(workspace)"
@@ -228,7 +225,6 @@
             @for(box of sharedBoxes(); track box.boxExternalId()) {
                 <app-external-box-item
                     [externalBox]="box"
-                    [canOpen]="!isAnyNameEditing()"
                     (leave)="onExternalBoxLeft(box)">                        
                 </app-external-box-item>
             }
@@ -278,7 +274,6 @@
         @for(workspace of otherWorkspaces(); track workspace.externalId()) {
             <app-workspace-item 
                 [workspace]="workspace"
-                [canOpen]="!isAnyNameEditing()"
                 [isAdminView]="false"
                 [canLocate]="false"
                 (deleted)="onOtherWorkspaceDelete(workspace)"

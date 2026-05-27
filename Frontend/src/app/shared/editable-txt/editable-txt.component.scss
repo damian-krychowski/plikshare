@@ -13,10 +13,16 @@
 // dashed border is now on .text itself (which is inline-block, so it sizes
 // to the actual visible text — short names get a tight border, long ones
 // extend to the available slot width).
+//
+// `flex: 0 1 auto` keeps width = content width (not full-width). That's
+// what makes empty space to the right of a short title bubble click events
+// up to .item-bar (so clicking off the title still opens the folder), while
+// clicks ON the title get the stop-propagation handler in the template.
 .text-frame {
     position: relative;
     min-width: 0;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
+    max-width: 100%;
 
     &--desktop {
         @media (max-width: variables.$mobile-breakpoint) {

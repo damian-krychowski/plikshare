@@ -23,24 +23,32 @@ export class MarqueeOnTruncateDirective implements OnDestroy {
 
     isTruncated = signal(false);
 
-    private _ro: ResizeObserver;
-    private _mo: MutationObserver;
+    private _ro: ResizeObserver | null = null;
+    private _rafHandle = 0;
 
     constructor() {
-        this._ro = new ResizeObserver(() => this.update());
-        this._ro.observe(this._el.nativeElement);
+        // Defer observer creation + initial measurement to the next frame.
+        // The directive runs on every item in a virtualized list (~60+
+        // instances), and ResizeObserver instantiation is not free; doing
+        // it synchronously in the constructor stalls the initial render
+        // of each row. requestAnimationFrame fires after the browser has
+        // rendered the row, so the user sees content fast and the
+        // truncation check kicks in shortly after.
+        //
+        // Note: there's no MutationObserver — we rely on the fact that text
+        // content changes typically come with a width change that
+        // ResizeObserver picks up. The rare edge case (text length changes
+        // without container resize) means a stale is-truncated state until
+        // the next layout event; acceptable for this UX.
+        this._rafHandle = requestAnimationFrame(() => {
+            this._rafHandle = 0;
+            const el = this._el.nativeElement;
 
-        this._mo = new MutationObserver(() => this.update());
-        this._mo.observe(this._el.nativeElement, {
-            childList: true,
-            characterData: true,
-            subtree: true
+            this._ro = new ResizeObserver(() => this.update());
+            this._ro.observe(el);
+
+            this.update();
         });
-
-        // Initial measurement after the first render cycle has laid the
-        // element out. Without this the first paint shows the wrong state
-        // until the first observer tick.
-        queueMicrotask(() => this.update());
     }
 
     // Constant scroll velocity (pixels per second) during the active scroll
@@ -86,7 +94,9 @@ export class MarqueeOnTruncateDirective implements OnDestroy {
     }
 
     ngOnDestroy(): void {
-        this._ro.disconnect();
-        this._mo.disconnect();
+        if (this._rafHandle !== 0) {
+            cancelAnimationFrame(this._rafHandle);
+        }
+        this._ro?.disconnect();
     }
 }
