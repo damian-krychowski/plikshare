@@ -6,4 +6,7 @@ public class BulkQueueJobEntity
     public required string Status { get; init; }
     public required string Definition { get; init; }
     public required int? SagaId { get; init; }
+
+    /// <summary>Generic batch grouping key — written to <c>q_batch_id</c>. Null for jobs not part of a batch.</summary>
+    public Guid? BatchId { get; init; }
 }

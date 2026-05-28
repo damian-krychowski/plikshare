@@ -73,7 +73,8 @@ public class DeleteFileUploadsSubQuery(
                     KeySecretPart = deletedFileUpload.FileKeySecretPart,
                     AbortHandle = abortHandle
                 },
-                sagaId: sagaId);
+                sagaId: sagaId,
+                batchId: null);
 
             jobsToEnqueue.Add(job);
         }

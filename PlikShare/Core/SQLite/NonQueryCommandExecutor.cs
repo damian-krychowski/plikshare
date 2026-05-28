@@ -18,7 +18,7 @@ public class SQLiteNonQueryCommandExecutor
     
     public SQLiteNonQueryCommandExecutor WithParameter<T>(string name, T value)
     {
-        _command.Parameters.AddWithValue(name, value);
+        _command.WithParameter(name, value);
         return this;
     }
     

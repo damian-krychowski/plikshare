@@ -2,7 +2,7 @@ import { FilesExplorerApi } from "../files-explorer/files-explorer.component";
 import { AppFileItem } from "../shared/file-item/file-item.component";
 import { DataStore } from "./data-store.service";
 import { FileLockService } from "./file-lock.service";
-import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, DownloadImageFormat, FilePreviewDetailsField, FoldersAndFilesGetApi, FoldersAndFilesSetApi, GenerateFileThumbnailsResponse, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFilesTreeResponseDto, GetZipBulkDownloadLinkRequest, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from "./folders-and-files.api";
+import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, DownloadImageFormat, FilePreviewDetailsField, FoldersAndFilesGetApi, FoldersAndFilesSetApi, GenerateFileThumbnailsResponse, GenerateThumbnailsBulkResponse, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFilesTreeResponseDto, GetZipBulkDownloadLinkRequest, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from "./folders-and-files.api";
 import { ZipEntry } from "./zip";
 
 export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
@@ -235,6 +235,13 @@ export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
             this._workspaceExternalId,
             fileExternalId,
             variants
+        );
+    }
+
+    generateBulkThumbnails(fileExternalIds: string[], variants: ThumbnailVariant[]): Promise<GenerateThumbnailsBulkResponse> {
+        return this._setApi.generateBulkThumbnails(
+            this._workspaceExternalId,
+            { fileExternalIds, variants }
         );
     }
 

@@ -49,7 +49,8 @@ public interface IQueue
     public BulkQueueJobEntity CreateBulkEntity<T>(
         string jobType,
         T definition,
-        QueueSagaId? sagaId);
+        QueueSagaId? sagaId,
+        Guid? batchId);
     
     public Task HandleJobFailure(
         QueueJob job,

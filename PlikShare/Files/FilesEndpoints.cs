@@ -79,6 +79,9 @@ public static class FilesEndpoints
         group.MapPost("/{fileExternalId}/thumbnails/generate", GenerateFileThumbnails)
             .WithName("GenerateFileThumbnails");
 
+        group.MapPost("/thumbnails/generate-bulk", GenerateFileThumbnailsBulk)
+            .WithName("GenerateFileThumbnailsBulk");
+
         group.MapGet("/thumbnail-batches/{batchId:guid}/status", GetThumbnailGenerationStatus)
             .WithName("GetThumbnailGenerationStatus");
 
@@ -393,6 +396,44 @@ public static class FilesEndpoints
         };
     }
 
+    private static async Task<Results<Ok<GenerateFileThumbnailsBulkResponseDto>, BadRequest<HttpError>, JsonHttpResult<HttpError>>> GenerateFileThumbnailsBulk(
+        [FromBody] GenerateFileThumbnailsBulkRequestDto request,
+        HttpContext httpContext,
+        GenerateFileThumbnailsBulkOperation generateFileThumbnailsBulkOperation,
+        CancellationToken cancellationToken)
+    {
+        if (request.Variants is null || request.Variants.Count == 0)
+            return HttpErrors.File.NoThumbnailVariantsRequested();
+
+        if (request.FileExternalIds is null || request.FileExternalIds.Count == 0)
+            return HttpErrors.File.NoThumbnailableFilesSelected();
+
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
+        var result = await generateFileThumbnailsBulkOperation.Execute(
+            workspace: workspaceMembership.Workspace,
+            parentFileExternalIds: request.FileExternalIds,
+            variants: request.Variants,
+            triggeredByUserExternalId: workspaceMembership.User.ExternalId,
+            workspaceEncryptionSession: workspaceEncryptionSession,
+            correlationId: httpContext.GetCorrelationId(),
+            cancellationToken: cancellationToken);
+
+        return result.Code switch
+        {
+            GenerateFileThumbnailsBulkOperation.ResultCode.Ok => TypedResults.Ok(new GenerateFileThumbnailsBulkResponseDto
+            {
+                BatchId = result.BatchId!.Value,
+                TotalFiles = result.TotalFiles
+            }),
+            GenerateFileThumbnailsBulkOperation.ResultCode.FfmpegUnavailable => HttpErrors.File.FfmpegUnavailable(),
+            GenerateFileThumbnailsBulkOperation.ResultCode.NoVariants => HttpErrors.File.NoThumbnailVariantsRequested(),
+            GenerateFileThumbnailsBulkOperation.ResultCode.NoThumbnailableFiles => HttpErrors.File.NoThumbnailableFilesSelected(),
+            _ => HttpErrors.File.NoThumbnailableFilesSelected()
+        };
+    }
+
     private static Ok<ThumbnailGenerationStatusResponseDto> GetThumbnailGenerationStatus(
         [FromRoute] Guid batchId,
         HttpContext httpContext,
@@ -437,11 +478,12 @@ public static class FilesEndpoints
             batchId);
 
         await WriteSseStatus(
-            response, 
-            status, 
+            response,
+            status,
             cancellationToken);
 
-        if (status.GeneratingVariants.Count == 0)
+        // Batch is done once nothing is outstanding (covers bulk: all files finished/failed).
+        if (status.Pending == 0)
             return;
 
         var keepAlive = TimeSpan.FromSeconds(20);
@@ -479,11 +521,11 @@ public static class FilesEndpoints
                 batchId);
 
             await WriteSseStatus(
-                response, 
-                status, 
+                response,
+                status,
                 cancellationToken);
 
-            if (status.GeneratingVariants.Count == 0)
+            if (status.Pending == 0)
                 break;
         }
     }

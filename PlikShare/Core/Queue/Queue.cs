@@ -225,26 +225,28 @@ public class Queue(
             .Cmd(
                 sql: @"
                     INSERT INTO q_queue (
-                        q_job_type, 
-                        q_definition, 
-                        q_status, 
-                        q_failed_retries_count, 
+                        q_job_type,
+                        q_definition,
+                        q_status,
+                        q_failed_retries_count,
                         q_execute_after_date,
-                        q_enqueued_at, 
+                        q_enqueued_at,
                         q_correlation_id,
                         q_debounce_id,
-                        q_saga_id
-                    ) 
+                        q_saga_id,
+                        q_batch_id
+                    )
                     SELECT
                         json_extract(value, '$.jobType'),
                         json_extract(value, '$.definition'),
                         json_extract(value, '$.status'),
-                        0,     
-                        $executeAfterDate,      
-                        $enqueuedAt,              
+                        0,
+                        $executeAfterDate,
+                        $enqueuedAt,
                         $correlationId,
                         NULL,
-                        json_extract(value, '$.sagaId')
+                        json_extract(value, '$.sagaId'),
+                        json_extract(value, '$.batchId')
                     FROM
                         json_each($definitions)
                     RETURNING
@@ -271,9 +273,10 @@ public class Queue(
     }
     
     public BulkQueueJobEntity CreateBulkEntity<T>(
-        string jobType, 
+        string jobType,
         T definition,
-        QueueSagaId? sagaId)
+        QueueSagaId? sagaId,
+        Guid? batchId)
     {
         return new BulkQueueJobEntity
         {
@@ -286,7 +289,9 @@ public class Queue(
                 .GetNewJobStatus(jobType)
                 .Value,
 
-            SagaId = sagaId?.Value
+            SagaId = sagaId?.Value,
+
+            BatchId = batchId
         };
     }
    

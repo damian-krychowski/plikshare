@@ -208,6 +208,16 @@ export type GenerateFileThumbnailsResponse = {
     batchId: string;
 }
 
+export type GenerateThumbnailsBulkRequest = {
+    fileExternalIds: string[];
+    variants: ThumbnailVariant[];
+}
+
+export type GenerateThumbnailsBulkResponse = {
+    batchId: string;
+    totalFiles: number;
+}
+
 export type FailedThumbnailVariant = {
     variant: ThumbnailVariant;
     error: string;
@@ -216,6 +226,10 @@ export type FailedThumbnailVariant = {
 export type ThumbnailGenerationStatus = {
     generatingVariants: ThumbnailVariant[];
     failedVariants: FailedThumbnailVariant[];
+    total: number;
+    completed: number;
+    failed: number;
+    pending: number;
 }
 
 export type FilePreviewComment = {
@@ -749,6 +763,17 @@ export class FoldersAndFilesSetApi {
         const call = this._http.post<GenerateFileThumbnailsResponse>(
             `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/thumbnails/generate`,
             { variants }
+        );
+
+        return await firstValueFrom(call);
+    }
+
+    public async generateBulkThumbnails(
+        workspaceExternalId: string,
+        request: GenerateThumbnailsBulkRequest): Promise<GenerateThumbnailsBulkResponse> {
+        const call = this._http.post<GenerateThumbnailsBulkResponse>(
+            `/api/workspaces/${workspaceExternalId}/files/thumbnails/generate-bulk`,
+            request
         );
 
         return await firstValueFrom(call);

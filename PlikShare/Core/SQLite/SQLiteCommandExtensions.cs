@@ -20,7 +20,11 @@ public static class SqLiteCommandExtensions
             case DateTime:
                 throw new InvalidOperationException(
                     $"Queue should operate on {nameof(DateTimeOffset)} type only");
-            
+
+            case Guid guid:
+                command.Parameters.AddWithValue(name, guid.ToString());
+                break;
+
             default:
                 command.Parameters.AddWithValue(name, value);
                 break;

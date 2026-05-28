@@ -1,0 +1,32 @@
+@if (batches().length > 0) {
+    <div class="thumb-batches">
+        @for (batch of batches(); track batch.batchId) {
+            <div class="thumb-batch">
+                <div class="thumb-batch__head">
+                    <span class="thumb-batch__name">{{ batch.name }}</span>
+
+                    <span class="thumb-batch__counts">
+                        {{ batch.completed + batch.failed }} / {{ batch.total }}
+                        @if (batch.failed > 0) {
+                            <span class="thumb-batch__failed">· {{ batch.failed }} failed</span>
+                        }
+                        @if (batch.isDone) {
+                            <span class="thumb-batch__done">· done</span>
+                        }
+                    </span>
+
+                    <app-action-btn
+                        tooltip="Dismiss"
+                        icon="icon-lucide-xmark"
+                        (clicked)="dismiss(batch.batchId)">
+                    </app-action-btn>
+                </div>
+
+                <mat-progress-bar
+                    mode="determinate"
+                    [value]="progress(batch)">
+                </mat-progress-bar>
+            </div>
+        }
+    </div>
+}

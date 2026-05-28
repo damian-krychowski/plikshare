@@ -18,7 +18,7 @@ import { FileInlinePreviewComponent, FilePreviewOperations, ZipPreviewDetails } 
 import { StorageSizePipe } from '../shared/storage-size.pipe';
 import { EditableTxtComponent } from '../shared/editable-txt/editable-txt.component';
 import { BulkUploadPreviewComponent, BulkFileUpload, SingleBulkFileUpload, CreatedFolder } from './bulk-upload-preview/bulk-upload-preview.component';
-import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, DownloadImageFormat, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GenerateFileThumbnailsResponse, GetFilePreviewDetailsResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../services/folders-and-files.api';
+import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, DownloadImageFormat, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GenerateFileThumbnailsResponse, GenerateThumbnailsBulkResponse, GetFilePreviewDetailsResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../services/folders-and-files.api';
 import { ZipEntry } from '../services/zip';
 import { FileSlicer } from '../services/file-upload-manager/file-slicer';
 import { TextractJobStatusService } from '../services/textract-job-status.service';
@@ -35,6 +35,10 @@ import { SortChange } from './sort-menu/sort-menu.component';
 import { DisplayMenuComponent } from './display-menu/display-menu.component';
 import { computePositionForInsertion } from '../shared/drag-drop/item-positioning.utils';
 import { FilesListComponent } from './files-list/files-list.component';
+import { ThumbnailBatchesBarComponent } from './thumbnail-batches-bar/thumbnail-batches-bar.component';
+import { ThumbnailBatchProgressService } from '../services/thumbnail-batch-progress.service';
+import { AppCapabilitiesService } from '../services/app-capabilities.service';
+import { getFileDetails } from '../services/filte-type';
 
 export interface FilesExplorerApi {
     invalidatePrefetchedFolderDependentEntries: (folderExternalId: string) => void;
@@ -76,6 +80,7 @@ export interface FilesExplorerApi {
     uploadFileThumbnail: (fileExternalId: string, request: UploadFileThumbnailRequest) => Promise<void>;
     deleteFileThumbnail: (fileExternalId: string, variant: ThumbnailVariant) => Promise<void>;
     generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) => Promise<GenerateFileThumbnailsResponse>;
+    generateBulkThumbnails: (fileExternalIds: string[], variants: ThumbnailVariant[]) => Promise<GenerateThumbnailsBulkResponse>;
     subscribeThumbnailBatch: (batchId: string, onStatus: (status: ThumbnailGenerationStatus) => void) => () => void;
     downloadFileConverted: (fileExternalId: string, format: DownloadImageFormat, downloadFileName: string) => Promise<void>;
 
@@ -145,7 +150,8 @@ type ViewMode = 'list-view' | 'tree-view';
         BulkUploadPreviewComponent,
         FileTreeViewComponent,
         ItemSearchComponent,
-        DisplayMenuComponent
+        DisplayMenuComponent,
+        ThumbnailBatchesBarComponent
     ],
     templateUrl: './files-explorer.component.html',
     styleUrl: './files-explorer.component.scss'
@@ -299,12 +305,32 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             || treeSelectionState.selectedFolderExternalIds.length > 0;
     });
 
-    canBulkDelete = computed(() => 
+    canBulkDelete = computed(() =>
         (this.isAnyFolderSelected() && this.allowFolderDelete())
         || (this.isAnyFileSelected() && this.allowFileDelete())
         || this.isAnyUploadSelected()
         || (this.isAnyFileSelected() && this.filesStats().selectedCount == this.filesStats().selectedUploadedByUserCount));
-    
+
+    // Bulk thumbnail generation: only when ffmpeg is available, we're in a real workspace explorer,
+    // and the selection is purely thumbnailable files (images/videos) — no folders/uploads.
+    canGenerateThumbnails = computed(() => {
+        if (!this._capabilities.capabilities().isFfmpegAvailable)
+            return false;
+
+        if (this.workspaceExternalId() == null)
+            return false;
+
+        if (this.isAnyFolderSelected() || this.isAnyUploadSelected() || !this.isAnyFileSelected())
+            return false;
+
+        return this.files()
+            .filter(file => file.isSelected())
+            .every(file => {
+                const type = getFileDetails(file.extension).type;
+                return type === 'image' || type === 'video';
+            });
+    });
+
     canBulkTreeDownload = computed(() => {
         if(!this.allowDownload())
             return false;
@@ -653,7 +679,13 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         private _renderer: Renderer2,
         private _dragState: DragStateService,
         private _router: Router,
-        private _route: ActivatedRoute) {
+        private _route: ActivatedRoute,
+        private _thumbnailBatches: ThumbnailBatchProgressService,
+        private _capabilities: AppCapabilitiesService) {
+
+        // App-wide capability flag (drives the bulk "Generate thumbnails" action) — first consumer
+        // triggers the fetch, others reuse it.
+        this._capabilities.ensureLoaded();
 
         effect(() => {
             const key = this.sortStorageKey();
@@ -1460,6 +1492,40 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         
         if(result.newWorkspaceSizeInBytes != null) {
             this.workspaceSizeUpdated.emit(result.newWorkspaceSizeInBytes);
+        }
+    }
+
+    async generateThumbnailsForSelectedItems() {
+        const workspaceExternalId = this.workspaceExternalId();
+
+        if (workspaceExternalId == null)
+            return;
+
+        const fileExternalIds = this
+            .files()
+            .filter(f => f.isSelected())
+            .map(f => f.externalId);
+
+        if (fileExternalIds.length === 0)
+            return;
+
+        const variants: ThumbnailVariant[] = ['Mini', 'Small', 'Large'];
+
+        try {
+            const response = await this.filesApi().generateBulkThumbnails(
+                fileExternalIds,
+                variants);
+
+            this._thumbnailBatches.track(
+                workspaceExternalId,
+                response.batchId,
+                `Generating thumbnails — ${response.totalFiles} file(s)`,
+                response.totalFiles);
+
+            // Selection has done its job — clear it so the toolbar returns to its default actions.
+            this.files().forEach(f => f.isSelected.set(false));
+        } catch (err) {
+            console.error('Bulk thumbnail generation failed:', err);
         }
     }
 

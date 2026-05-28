@@ -5,10 +5,12 @@
 @let isListViewMode =viewModeVal == 'list-view';
 
 <input #fileUpload
-    type="file" 
+    type="file"
     class="file-input"
     multiple="multiple"
     (change)="onFilesSelected($event, fileUpload)">
+
+<app-thumbnail-batches-bar></app-thumbnail-batches-bar>
 
 <div #stickyWrapper class="sticky-wrapper">
     @if(fileInPreviewVal) {
@@ -200,6 +202,14 @@
                             tooltip="Share with box"
                             icon="icon-nucleo-box"
                             (clicked)="createBoxFromSelectedFolder()">
+                        </app-action-btn>
+                    }
+
+                    @if(canGenerateThumbnails()) {
+                        <app-action-btn
+                            tooltip="Generate thumbnails"
+                            icon="icon-nucleo-image-scale"
+                            (clicked)="generateThumbnailsForSelectedItems()">
                         </app-action-btn>
                     }
 

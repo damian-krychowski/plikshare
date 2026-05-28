@@ -23,7 +23,11 @@ export function getFileDetails(fileExtension: string): FileDetails {
         markdown: ['.md']
     };
 
-    const fileType = (Object.entries(fileTypes).find(([_, extensions]) => extensions.includes(fileExtension))?.[0] as FileType) || 'other';
+    // Match case-insensitively — files can carry uppercase extensions (eg. ".JPG") and the
+    // lookup lists are lowercase. (getMimeType below already normalizes the same way.)
+    const normalizedExtension = fileExtension?.toLowerCase() ?? '';
+
+    const fileType = (Object.entries(fileTypes).find(([_, extensions]) => extensions.includes(normalizedExtension))?.[0] as FileType) || 'other';
 
     return {
         type: fileType,

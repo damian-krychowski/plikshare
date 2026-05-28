@@ -660,6 +660,13 @@ public static class HttpErrors
                 Message = "Generate request must include at least one variant ('Mini', 'Small' or 'Large')."
             });
 
+        public static BadRequest<HttpError> NoThumbnailableFilesSelected() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "no-thumbnailable-files-selected",
+                Message = "None of the selected files are images or videos that can have thumbnails generated."
+            });
+
         public static JsonHttpResult<HttpError> FfmpegUnavailable() =>
             TypedResults.Json(
                 new HttpError

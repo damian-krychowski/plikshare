@@ -310,7 +310,8 @@ public class BulkInitiateCopyFileUploadOperation(
                     {
                         CopyFileQueueJobId = jobId
                     },
-                    sagaId: null))
+                    sagaId: null,
+                    batchId: null))
                 .ToList();
 
             queue.EnqueueBulk(

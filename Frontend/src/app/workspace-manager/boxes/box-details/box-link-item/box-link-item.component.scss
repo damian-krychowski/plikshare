@@ -1,8 +1,9 @@
 @forward "./../../../../../styles/item-bar.scss";
 @forward "./../../../../../styles/mobile-display.scss";
 
-.url {    
-    display: flex;
+.url {
+    display: inline-flex;
+    align-self: flex-start;
     flex-direction: row;
     align-items: center;
     gap: 0.5rem;
