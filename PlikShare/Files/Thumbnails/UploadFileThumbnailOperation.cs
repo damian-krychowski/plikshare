@@ -69,14 +69,25 @@ public class UploadFileThumbnailOperation(
         var attachment = new InsertFileAttachmentQuery.AttachmentFile
         {
             ExternalId = thumbnailFileExternalId,
-            ContentType = workspaceEncryptionSession.ToEncryptableMetadata(thumbnailContentType),
-            Name = workspaceEncryptionSession.ToEncryptableMetadata(thumbnailFileName),
-            Extension = workspaceEncryptionSession.ToEncryptableMetadata(thumbnailFileExtension),
+
+            ContentType = workspaceEncryptionSession.ToEncryptableMetadata(
+                thumbnailContentType),
+
+            Name = workspaceEncryptionSession.ToEncryptableMetadata(
+                thumbnailFileName),
+
+            Extension = workspaceEncryptionSession.ToEncryptableMetadata(
+                thumbnailFileExtension),
+
             SizeInBytes = thumbnailSizeInBytes,
+
             KeySecretPart = workspace.Storage.GenerateFileKeySecretPart(),
+
             EncryptionMetadata = workspace.Storage.GenerateFileEncryptionMetadata(
                 workspace.EncryptionMetadata),
-            Metadata = workspaceEncryptionSession.ToEncryptableMetadata(thumbnailMetadataJson)
+
+            Metadata = workspaceEncryptionSession.ToEncryptableMetadata(
+                thumbnailMetadataJson)
         };
 
         var insertResult = await insertFileAttachmentQuery.Execute(

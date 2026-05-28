@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Net.Http.Headers;
 using PlikShare.AuditLog;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
@@ -514,19 +515,30 @@ public static class FilesEndpoints
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
 
+        var response = httpContext.Response;
+
         var result = await downloadFileConvertedOperation.Execute(
             workspace: workspaceMembership.Workspace,
             parentFileExternalId: fileExternalId,
             targetFormat: targetFormat,
             workspaceEncryptionSession: workspaceEncryptionSession,
+            output: response.BodyWriter,
+            onMetadataResolved: metadata =>
+            {
+                // Set headers right before the body streams. From here the response is committed,
+                // so the error branches below only ever fire when nothing has been written.
+                response.ContentType = metadata.ContentType;
+
+                var contentDisposition = new ContentDispositionHeaderValue("attachment");
+                contentDisposition.SetHttpFileName(metadata.DownloadFileName);
+                response.Headers.ContentDisposition = contentDisposition.ToString();
+            },
             cancellationToken: cancellationToken);
 
         return result.Code switch
         {
-            DownloadFileConvertedOperation.ResultCode.Ok => Results.File(
-                fileContents: result.Content!,
-                contentType: result.ContentType!,
-                fileDownloadName: result.DownloadFileName!),
+            // Body already streamed to the response — nothing left to write.
+            DownloadFileConvertedOperation.ResultCode.Ok => Results.Empty,
             DownloadFileConvertedOperation.ResultCode.FfmpegUnavailable => HttpErrors.File.FfmpegUnavailable(),
             DownloadFileConvertedOperation.ResultCode.ParentNotFound => HttpErrors.File.NotFound(fileExternalId),
             DownloadFileConvertedOperation.ResultCode.ParentNotThumbnailable => HttpErrors.File.ParentNotThumbnailable(),

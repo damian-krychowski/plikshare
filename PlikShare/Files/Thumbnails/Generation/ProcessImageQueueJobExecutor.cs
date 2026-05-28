@@ -1,4 +1,3 @@
-using System.IO.Pipelines;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.UserIdentity;
@@ -111,11 +110,10 @@ public class ProcessImageQueueJobExecutor(
         }
 
         var parent = parentLookup.Details;
-        var sourceBytes = await DownloadSourceBytes(
-            workspace: workspace,
-            parent: parent,
-            session: session,
-            cancellationToken: cancellationToken);
+
+        var encryptionMode = parent.EncryptionMetadata.ToEncryptionMode(
+            workspaceEncryptionSession: session,
+            storageClient: workspace.Storage);
 
         var uploader = new UserIdentity(
             UserExternalId: definition.TriggeredByUserExternalId);
@@ -125,64 +123,100 @@ public class ProcessImageQueueJobExecutor(
         // failures are returned as the job's result payload so the user can see what didn't work.
         var failedVariants = new List<ThumbnailGenerationResult.FailedVariant>();
 
-        foreach (var variant in definition.Variants)
+        try
         {
-            try
+            await using var storageFile = await workspace.Storage.DownloadFile(
+                fileDetails: new DownloadFileDetails(
+                    FileKey: new FileKey
+                    {
+                        FileExternalId = parent.ExternalId,
+                        KeySecretPart = parent.KeySecretPart
+                    },
+                    FileSizeInBytes: parent.SizeInBytes,
+                    EncryptionMode: encryptionMode),
+                bucketName: workspace.BucketName,
+                cancellationToken: cancellationToken);
+
+            // Stream the source ONCE from storage and fan it out to one ffmpeg process per variant
+            // over stdin — the original is never buffered in memory or on disk.
+            var outputs = await ffmpegService.GenerateThumbnails(
+                writeSourceTo: (writer, ct) => storageFile.ReadTo(writer, ct),
+                variants: definition.Variants,
+                cancellationToken: cancellationToken);
+
+            foreach (var output in outputs)
             {
-                var thumbBytes = await ffmpegService.GenerateThumbnail(
-                    sourceBytes: sourceBytes,
-                    variant: variant,
-                    cancellationToken: cancellationToken);
-
-                await using var thumbStream = new MemoryStream(thumbBytes);
-
-                var uploadResult = await uploadFileThumbnailOperation.Execute(
-                    workspace: workspace,
-                    parentFileExternalId: definition.ParentFileExternalId,
-                    thumbnailFileExternalId: FileExtId.NewId(),
-                    variant: variant,
-                    thumbnailContent: thumbStream,
-                    thumbnailSizeInBytes: thumbBytes.Length,
-                    thumbnailContentType: "image/webp",
-                    thumbnailFileName: $"thumb-{variant.ToString().ToLowerInvariant()}",
-                    thumbnailFileExtension: ".webp",
-                    uploader: uploader,
-                    workspaceEncryptionSession: session,
-                    correlationId: correlationId,
-                    cancellationToken: cancellationToken);
-
-                if (uploadResult.Code != UploadFileThumbnailOperation.ResultCode.Ok)
+                if (output.Error is not null)
                 {
-                    Logger.Warning(
-                        "Upload of generated {Variant} thumbnail returned {Code} for File '{ParentFileExternalId}'.",
-                        variant,
-                        uploadResult.Code,
+                    Logger.Error(
+                        "Failed to generate {Variant} thumbnail for File '{ParentFileExternalId}': {Error}",
+                        output.Variant,
+                        definition.ParentFileExternalId,
+                        output.Error);
+
+                    failedVariants.Add(new ThumbnailGenerationResult.FailedVariant
+                    {
+                        Variant = output.Variant,
+                        Error = Truncate(output.Error, maxLength: 500)
+                    });
+
+                    continue;
+                }
+
+                try
+                {
+                    await using var thumbStream = output.DataStream!;
+
+                    var uploadResult = await uploadFileThumbnailOperation.Execute(
+                        workspace: workspace,
+                        parentFileExternalId: definition.ParentFileExternalId,
+                        thumbnailFileExternalId: FileExtId.NewId(),
+                        variant: output.Variant,
+                        thumbnailContent: thumbStream,
+                        thumbnailSizeInBytes: output.DataStream!.Length,
+                        thumbnailContentType: "image/webp",
+                        thumbnailFileName: $"thumb-{output.Variant.ToString().ToLowerInvariant()}",
+                        thumbnailFileExtension: ".webp",
+                        uploader: uploader,
+                        workspaceEncryptionSession: session,
+                        correlationId: correlationId,
+                        cancellationToken: cancellationToken);
+
+                    if (uploadResult.Code != UploadFileThumbnailOperation.ResultCode.Ok)
+                    {
+                        Logger.Warning(
+                            "Upload of generated {Variant} thumbnail returned {Code} for File '{ParentFileExternalId}'.",
+                            output.Variant,
+                            uploadResult.Code,
+                            definition.ParentFileExternalId);
+
+                        failedVariants.Add(new ThumbnailGenerationResult.FailedVariant
+                        {
+                            Variant = output.Variant,
+                            Error = $"Upload failed: {uploadResult.Code}"
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(
+                        ex,
+                        "Failed to upload {Variant} thumbnail for File '{ParentFileExternalId}'.",
+                        output.Variant,
                         definition.ParentFileExternalId);
 
                     failedVariants.Add(new ThumbnailGenerationResult.FailedVariant
                     {
-                        Variant = variant,
-                        Error = $"Upload failed: {uploadResult.Code}"
+                        Variant = output.Variant,
+                        Error = Truncate(ex.Message, maxLength: 500)
                     });
                 }
             }
-            catch (Exception ex)
-            {
-                Logger.Error(
-                    ex,
-                    "Failed to generate {Variant} thumbnail for File '{ParentFileExternalId}'. Continuing with remaining variants.",
-                    variant,
-                    definition.ParentFileExternalId);
-
-                failedVariants.Add(new ThumbnailGenerationResult.FailedVariant
-                {
-                    Variant = variant,
-                    Error = Truncate(ex.Message, maxLength: 500)
-                });
-            }
         }
-
-        ReleaseKey(definition.TempEncryptionKeyId);
+        finally
+        {
+            ReleaseKey(definition.TempEncryptionKeyId);
+        }
 
         // NULL result on full success — the generated thumbnails are the proof. Only persist a
         // payload when there's something the user needs to know about.
@@ -200,40 +234,6 @@ public class ProcessImageQueueJobExecutor(
         return value.Length <= maxLength
             ? value
             : value[..maxLength];
-    }
-
-    private async Task<byte[]> DownloadSourceBytes(
-        WorkspaceContext workspace,
-        FileRecord parent,
-        WorkspaceEncryptionSession? session,
-        CancellationToken cancellationToken)
-    {
-        var encryptionMode = parent.EncryptionMetadata.ToEncryptionMode(
-            workspaceEncryptionSession: session,
-            storageClient: workspace.Storage);
-
-        await using var storageFile = await workspace.Storage.DownloadFile(
-            fileDetails: new DownloadFileDetails(
-                FileKey: new FileKey
-                {
-                    FileExternalId = parent.ExternalId,
-                    KeySecretPart = parent.KeySecretPart
-                },
-                FileSizeInBytes: parent.SizeInBytes,
-                EncryptionMode: encryptionMode),
-            bucketName: workspace.BucketName,
-            cancellationToken: cancellationToken);
-
-        var buffer = new MemoryStream(capacity: (int)Math.Min(parent.SizeInBytes, int.MaxValue));
-        var writer = PipeWriter.Create(buffer);
-
-        await storageFile.ReadTo(
-            output: writer,
-            cancellationToken: cancellationToken);
-
-        await writer.CompleteAsync();
-
-        return buffer.ToArray();
     }
 
     private void ReleaseKey(Guid? keyId)
