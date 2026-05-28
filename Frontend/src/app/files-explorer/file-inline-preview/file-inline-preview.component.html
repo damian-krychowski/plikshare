@@ -432,7 +432,7 @@
 
     <div class="preview-bottom-section">
         <div>
-            <div class="subtitle-header">
+            <div class="subtitle-header subtitle-header--config-card">
                 <div class="item">
                     <div class="item__details">
                         <div class="item__title">
@@ -443,21 +443,11 @@
 
                 <div class="flex-row flex-gap-05 ml-auto">
                     @if(isThumbnailsExpandedVal && isFfmpegAvailable()) {
-                        @let anyGenerating = !!thumbnailsComponent()?.slots()?.some(s => s.isGenerating);
-
-                        <app-action-btn
-                            tooltip="Generate thumbnails"
-                            icon="icon-nucleo-image-scale"
-                            [isLoading]="anyGenerating"
-                            [disabled]="anyGenerating"
-                            (clicked)="onGenerateAllThumbnails()">
-                        </app-action-btn>
-
                         <button
                             type="button"
                             class="action-btn"
                             mat-flat-button
-                            matTooltip="Download as..."
+                            matTooltip="Download as"
                             matTooltipPosition="above"
                             [matMenuTriggerFor]="downloadAsMenu"
                             [disabled]="isDownloadingConverted()">

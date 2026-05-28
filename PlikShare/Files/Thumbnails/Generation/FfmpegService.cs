@@ -124,6 +124,7 @@ public class FfmpegService
 
     private static int GetTargetPixelSize(ThumbnailVariant variant) => variant switch
     {
+        ThumbnailVariant.Mini => 128,
         ThumbnailVariant.Small => 400,
         ThumbnailVariant.Large => 1600,
         _ => throw new ArgumentOutOfRangeException(nameof(variant), variant, null)

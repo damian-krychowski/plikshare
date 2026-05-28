@@ -1,5 +1,6 @@
 import { Component, computed, effect, EventEmitter, inject, input, OnDestroy, Output, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
@@ -8,6 +9,10 @@ import { StorageSizePipe } from '../../shared/storage-size.pipe';
 import { AppCapabilitiesService } from '../../services/app-capabilities.service';
 import { ContentDisposition, FilePreviewThumbnail, GetFileDownloadLinkResponse, ThumbnailVariant, UploadFileThumbnailRequest } from '../../services/folders-and-files.api';
 import { getBase62Guid } from '../../services/guid-base-62';
+import { DropFilesDirective } from '../directives/drop-files.directive';
+import { MatDialog } from '@angular/material/dialog';
+import { OperationConfirmComponent } from '../../shared/operation-confirm/operation-confirm.component';
+import { firstValueFrom } from 'rxjs';
 
 export type FileThumbnailsOperations = {
     uploadFileThumbnail: (request: UploadFileThumbnailRequest) => Promise<void>;
@@ -21,6 +26,7 @@ type SlotState = {
     variant: ThumbnailVariant;
     label: string;
     targetSize: string;
+    description: string;
     existing: FilePreviewThumbnail | null;
     objectUrl: string | null;
     isLoading: boolean;
@@ -28,9 +34,10 @@ type SlotState = {
     isGenerating: boolean;
 };
 
-const SLOT_DEFS: { variant: ThumbnailVariant; label: string; targetSize: string }[] = [
-    { variant: 'Small', label: 'Small thumbnail', targetSize: '~400px' },
-    { variant: 'Large', label: 'Large thumbnail', targetSize: '~1600px' },
+const SLOT_DEFS: { variant: ThumbnailVariant; label: string; targetSize: string; description: string }[] = [
+    { variant: 'Mini', label: 'Mini thumbnail', targetSize: '~128px', description: 'File-list rows and other compact spots.' },
+    { variant: 'Small', label: 'Small thumbnail', targetSize: '~400px', description: 'Gallery tiles and grid previews.' },
+    { variant: 'Large', label: 'Large thumbnail', targetSize: '~1600px', description: 'Full-size preview and high-DPI screens.' },
 ];
 
 @Component({
@@ -38,11 +45,13 @@ const SLOT_DEFS: { variant: ThumbnailVariant; label: string; targetSize: string 
     standalone: true,
     imports: [
         MatButtonModule,
+        MatMenuModule,
         MatTooltipModule,
         MatProgressSpinnerModule,
         ActionButtonComponent,
         ConfigCardComponent,
         StorageSizePipe,
+        DropFilesDirective,
     ],
     templateUrl: './file-thumbnails.component.html',
     styleUrl: './file-thumbnails.component.scss',
@@ -55,19 +64,26 @@ export class FileThumbnailsComponent implements OnDestroy {
     @Output() changed = new EventEmitter<void>();
 
     private _capabilities = inject(AppCapabilitiesService);
+    private _dialog = inject(MatDialog);
 
     isFfmpegAvailable = computed(() => this._capabilities.capabilities().isFfmpegAvailable);
+
+    isExpanded = signal(true);
 
     slots = signal<SlotState[]>(SLOT_DEFS.map(def => ({
         variant: def.variant,
         label: def.label,
         targetSize: def.targetSize,
+        description: def.description,
         existing: null,
         objectUrl: null,
         isLoading: false,
         isUploading: false,
         isGenerating: false,
     })));
+
+    anyGenerating = computed(() => this.slots().some(s => s.isGenerating));
+    anyExisting = computed(() => this.slots().some(s => s.existing));
 
     constructor() {
         // Capabilities are app-wide; first component to mount fires the HTTP, others reuse.
@@ -94,10 +110,6 @@ export class FileThumbnailsComponent implements OnDestroy {
         });
     }
 
-    /**
-     * Trigger backend generation for the supplied variants. Public so the parent component
-     * can invoke "generate both" from the section header next to the chevron.
-     */
     public async generateVariants(variants: ThumbnailVariant[]): Promise<void> {
         if (variants.length === 0) return;
 
@@ -107,6 +119,8 @@ export class FileThumbnailsComponent implements OnDestroy {
             !this.slots().find(s => s.variant === v)?.isGenerating);
 
         if (toGenerate.length === 0) return;
+
+        if (!await this.confirmOverwrite(toGenerate)) return;
 
         for (const variant of toGenerate) {
             this.patchSlot(variant, s => ({ ...s, isGenerating: true }));
@@ -196,8 +210,22 @@ export class FileThumbnailsComponent implements OnDestroy {
         const file = inputEl.files?.[0];
         inputEl.value = '';
 
-        if (!file) return;
+        if (file)
+            await this.uploadFile(file, variant);
+    }
 
+    async onFilesDropped(files: FileList, variant: ThumbnailVariant): Promise<void> {
+        const file = files?.[0];
+
+        // Backend validates that the file is an image; bail early on an obvious mismatch so a
+        // mistaken drop (eg. a PDF) doesn't fire a doomed upload round-trip.
+        if (!file || !file.type.startsWith('image/'))
+            return;
+
+        await this.uploadFile(file, variant);
+    }
+
+    private async uploadFile(file: File, variant: ThumbnailVariant): Promise<void> {
         const lastDot = file.name.lastIndexOf('.');
         const name = lastDot >= 0 ? file.name.substring(0, lastDot) : file.name;
         const extension = lastDot >= 0 ? file.name.substring(lastDot).toLowerCase() : '';
@@ -226,9 +254,57 @@ export class FileThumbnailsComponent implements OnDestroy {
     }
 
     async onDelete(variant: ThumbnailVariant): Promise<void> {
+        const slot = this.slots().find(s => s.variant === variant);
+
+        if (!slot?.existing)
+            return;
+
+        const confirmed = await this.confirm({
+            item: `the ${slot.label.toLowerCase()}`,
+            verb: 'delete',
+            isDanger: true,
+            subtitle: 'You can generate or upload it again afterwards.'
+        });
+
+        if (!confirmed)
+            return;
+
+        await this.deleteVariant(variant);
+        this.changed.emit();
+    }
+
+    async deleteAll(): Promise<void> {
+        const existing = this.slots().filter(s => s.existing);
+
+        if (existing.length === 0)
+            return;
+
+        const isSingle = existing.length === 1;
+
+        const confirmed = await this.confirm({
+            item: isSingle
+                ? `the ${existing[0].label.toLowerCase()}`
+                : `${existing.length} thumbnails`,
+            verb: 'delete',
+            isDanger: true,
+            subtitle: isSingle
+                ? 'You can generate or upload it again afterwards.'
+                : 'You can generate or upload them again afterwards.'
+        });
+
+        if (!confirmed)
+            return;
+
+        for (const slot of existing) {
+            await this.deleteVariant(slot.variant);
+        }
+
+        this.changed.emit();
+    }
+
+    private async deleteVariant(variant: ThumbnailVariant): Promise<void> {
         try {
             await this.operations().deleteFileThumbnail(variant);
-            this.changed.emit();
         } catch (err) {
             console.error('Thumbnail delete failed:', err);
         }
@@ -236,5 +312,49 @@ export class FileThumbnailsComponent implements OnDestroy {
 
     onGenerateVariant(variant: ThumbnailVariant): Promise<void> {
         return this.generateVariants([variant]);
+    }
+
+    generateAll(): Promise<void> {
+        return this.generateVariants(this.slots().map(s => s.variant));
+    }
+
+    // Generation silently overwrites a variant that already exists. Prompt before clobbering
+    // any existing thumbnail (which may have been manually uploaded); skip the dialog entirely
+    // when every target slot is empty so the common first-time path stays one-click.
+    private confirmOverwrite(variants: ThumbnailVariant[]): Promise<boolean> {
+        const existing = this.slots().filter(
+            s => variants.includes(s.variant) && s.existing);
+
+        if (existing.length === 0)
+            return Promise.resolve(true);
+
+        const isSingle = existing.length === 1;
+
+        return this.confirm({
+            item: isSingle
+                ? `the ${existing[0].label.toLowerCase()}`
+                : `${existing.length} existing thumbnails`,
+            verb: 'overwrite',
+            isDanger: false,
+            subtitle: isSingle
+                ? 'The current image will be replaced with a freshly generated thumbnail.'
+                : 'The current images will be replaced with freshly generated thumbnails.'
+        });
+    }
+
+    private async confirm(data: {
+        item: string;
+        verb: string;
+        isDanger: boolean;
+        subtitle: string;
+    }): Promise<boolean> {
+        const dialogRef = this._dialog.open(OperationConfirmComponent, {
+            width: '400px',
+            maxHeight: '600px',
+            position: { top: '100px' },
+            data
+        });
+
+        return !!(await firstValueFrom(dialogRef.afterClosed()));
     }
 }

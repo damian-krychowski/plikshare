@@ -7,6 +7,7 @@ public class ThumbnailFileMetadata : FileMetadata
 
 public enum ThumbnailVariant
 {
-    Small = 0,
-    Large = 1
+    Mini = 0,
+    Small = 1,
+    Large = 2
 }

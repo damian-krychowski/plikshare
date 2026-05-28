@@ -1,27 +1,58 @@
+// Diagonal stripe backdrop — same pattern as the thumbnail config-cards for visual
+// consistency across image surfaces in the app.
+$stripe-bg: repeating-linear-gradient(
+    45deg,
+    var(--company-grey-accent-light) 0,
+    var(--company-grey-accent-light) 8px,
+    var(--company-background) 8px,
+    var(--company-background) 16px
+);
+
 .image-preview-frame {
+    position: relative;
     width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0.75rem;
+    // Extra room at the bottom so the centered image never sits under the resize handle.
+    padding-bottom: 1.25rem;
     border-radius: 4px;
-    // Diagonal stripe backdrop — same pattern as the thumbnail config-cards for visual
-    // consistency across image surfaces in the app.
-    background: repeating-linear-gradient(
-        45deg,
-        var(--company-grey-accent-light) 0,
-        var(--company-grey-accent-light) 8px,
-        var(--company-background) 8px,
-        var(--company-background) 16px
-    );
+    // Clip the oversized, fixed-height stripe layer to the current frame size.
+    overflow: hidden;
+    // Fallback backdrop shown before the first image loads (when __bg has no height yet);
+    // once loaded it's fully covered by the opaque __bg layer, so its crawling during a
+    // drag is never visible.
+    background: $stripe-bg;
+
+    &--resizing {
+        cursor: ns-resize;
+        // Suppress text/image selection while dragging the handle.
+        user-select: none;
+    }
+
+    // Constant-size stripe layer. Its height tracks maxPreviewHeight (changes only per
+    // image, never mid-drag), so the diagonal gradient is rasterized against a stable box
+    // and the stripes don't crawl while the frame is resized — the frame just reveals
+    // more/less of it via overflow:hidden.
+    &__bg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 0;
+        background: $stripe-bg;
+        pointer-events: none;
+    }
 }
 
 .image-preview {
+    // Lift above the absolutely-positioned __bg stripe layer.
+    position: relative;
+    z-index: 1;
     max-width: 100%;
-    // Viewport-relative cap directly on the img element. `max-height: 100%` against the
-    // frame doesn't work — frame has no definite height (it sizes to its content), so a
-    // huge intrinsic image would force the frame past any wrapper max-height. Hard cap on
-    // the img itself keeps the element bounded regardless of how the frame is sized.
+    // Pre-load / fallback cap. Once the frame gets a concrete height (`--sized`), the image
+    // instead fills that frame via `max-height: 100%`, and the bottom handle drives the size.
     max-height: 70vh;
     object-fit: contain;
     display: block;
@@ -36,7 +67,43 @@
     opacity: 0;
     transition: opacity 0.2s ease-in-out;
 
+    &--sized {
+        // Fill the resizable frame instead of the static viewport cap.
+        max-height: 100%;
+    }
+
     &--loaded {
         opacity: 1;
     }
+}
+
+.resize-handle {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: ns-resize;
+    // Keep touch drags from scrolling the surrounding panel.
+    touch-action: none;
+
+    &__grip {
+        width: 40px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--company-grey-accent);
+        transition: background 0.15s ease-in-out;
+    }
+
+    &:hover &__grip {
+        background: var(--company-grey-font);
+    }
+}
+
+.image-preview-frame--resizing .resize-handle__grip {
+    background: var(--company-grey-font);
 }

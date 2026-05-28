@@ -1,13 +1,33 @@
 @let objectUrlValue = objectUrl();
 
 @if(objectUrlValue) {
-    <div class="image-preview-frame">
+    <div
+        #frame
+        class="image-preview-frame"
+        [class.image-preview-frame--resizing]="isResizing()"
+        [style.height.px]="previewHeight()">
+        <div
+            class="image-preview-frame__bg"
+            [style.height.px]="maxPreviewHeight()"></div>
         <img
             [src]="objectUrlValue"
             [alt]="fileFullName()"
             class="image-preview"
             [class.image-preview--loaded]="isImageLoaded()"
+            [class.image-preview--sized]="previewHeight() !== null"
             (load)="onImageLoad($event.target)"
             (error)="handleMediaError($event)">
+
+        @if(isImageLoaded() && previewHeight() !== null) {
+            <div
+                class="resize-handle"
+                (pointerdown)="onResizeStart($event)"
+                (pointermove)="onResizeMove($event)"
+                (pointerup)="onResizeEnd($event)"
+                (pointercancel)="onResizeEnd($event)"
+                (dblclick)="onResizeReset()">
+                <span class="resize-handle__grip"></span>
+            </div>
+        }
     </div>
 }

@@ -22,7 +22,7 @@ export interface UploadFileAttachmentRequest {
     file: Blob
 }
 
-export type ThumbnailVariant = 'Small' | 'Large';
+export type ThumbnailVariant = 'Mini' | 'Small' | 'Large';
 
 export type DownloadImageFormat = 'jpeg' | 'png' | 'webp';
 

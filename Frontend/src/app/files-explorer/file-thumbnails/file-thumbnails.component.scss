@@ -1,33 +1,137 @@
-@use '../../../styles/variables' as variables;
+// Hard cap on the drop box height. `max-height: 100%` on the image can't do this job — it
+// resolves against the drop box, which has no definite height, so portrait images would
+// otherwise render at their full intrinsic height and blow the card out vertically.
+$preview-max-height: 240px;
 
-.thumbnails-grid {
+// Inner padding of the drop box. With the global `box-sizing: border-box`, the box's content
+// area is $preview-max-height minus this padding on both sides — so the IMAGE cap must be the
+// content area, not $preview-max-height itself, otherwise the largest image is taller than the
+// content box and spills over the padding.
+$preview-padding: 0.5rem;
+$preview-image-max-height: calc(#{$preview-max-height} - #{$preview-padding} * 2);
+
+// Diagonal stripe backdrop behind a rendered thumbnail — makes aspect-ratio / whitespace
+// around portrait & landscape images obvious. Only applied once an image is present.
+$stripe-bg: repeating-linear-gradient(
+    45deg,
+    var(--company-grey-accent-light) 0,
+    var(--company-grey-accent-light) 8px,
+    var(--company-background) 8px,
+    var(--company-background) 16px
+);
+
+.thumbnails-row {
+    // Reflow 3 → 2 → 1 columns based on the card's own width (not the viewport — the preview
+    // panel can be narrow even on a wide screen). Each column keeps a readable minimum width;
+    // below it the grid drops a column instead of squeezing the others into illegibility.
+    // Plain gaps (rather than hairline dividers) separate the tiles: with a wrapping grid a
+    // trailing empty cell would otherwise show as a stray block / the per-column line would
+    // dangle. Each tile is already bounded by its own drop box, so it reads as a unit.
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-
-    @media (max-width: variables.$mobile-breakpoint) {
-        grid-template-columns: 1fr;
-    }
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.25rem;
 }
 
-.thumbnail-preview {
-    flex: 1;
+.thumbnail-col {
+    min-width: 0;
     display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    // Name on the left, file size pinned to the right of the same row.
+    &__head {
+        display: flex;
+        flex-direction: row;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem;
+        min-width: 0;
+    }
+
+    &__name {
+        min-width: 0;
+        font-weight: 500;
+        font-size: var(--company-medium-font);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__filesize {
+        flex-shrink: 0;
+        font-size: var(--company-small-font);
+        color: var(--company-grey-font);
+        white-space: nowrap;
+    }
+
+    // Short "what it's for" line. Reserved at a fixed two-line height (and clamped to two)
+    // so columns with shorter/longer blurbs still line up — the preview boxes below them
+    // stay on the same baseline across all three columns.
+    &__desc {
+        font-size: var(--company-small-font);
+        color: var(--company-grey-font);
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+    }
+
+}
+
+// Click-or-drop target. Acts as both the empty upload affordance (dashed border + hint) and
+// the rendered-thumbnail surface (striped backdrop). Drop is wired via appDropFiles, which
+// toggles `.drop-area--drag-over`; clicking anywhere triggers the nested file input so an
+// existing thumbnail can be replaced with a single click too.
+.thumbnail-drop {
+    position: relative;
+    // Fixed height → all three preview boxes are identical regardless of how many lines each
+    // description wraps to. margin-top:auto drops the box to the bottom of the grid-stretched
+    // (equal-height) column, so the boxes bottom-align and any slack lands between the
+    // description and the box. flex-shrink:0 stops the column from squashing it.
+    margin-top: auto;
+    flex-shrink: 0;
+    height: $preview-max-height;
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 0.5rem;
-    min-height: 140px;
+    gap: 0.5rem;
+    padding: $preview-padding;
     border-radius: 4px;
-    // Subtle diagonal stripe pattern — gives the image a "framed on a textured backing" feel,
-    // makes aspect-ratio differences between Small and Large visually obvious (whitespace
-    // around portrait/landscape images shows the stripes).
-    background: repeating-linear-gradient(
-        45deg,
-        var(--company-grey-accent-light) 0,
-        var(--company-grey-accent-light) 8px,
-        var(--company-background) 8px,
-        var(--company-background) 16px
-    );
+    cursor: pointer;
+    color: var(--company-grey-font);
+    border: 2px dashed var(--company-grey-accent-light);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+
+    &:hover {
+        border-color: var(--company-grey-accent);
+        background-color: var(--company-grey-hover);
+    }
+
+    // Highlight while an OS file is dragged over (class set by DropFilesDirective).
+    &.drop-area--drag-over {
+        border-style: solid;
+        border-color: var(--company-grey-accent);
+        background-color: var(--company-grey-hover);
+    }
+
+    // Once a thumbnail is rendered it's display-only (delete first to replace), so it drops
+    // the dashed affordance, sits on the stripe backdrop and is not interactive.
+    &--filled {
+        cursor: default;
+        border-color: transparent;
+        background: $stripe-bg;
+
+        &:hover {
+            border-color: transparent;
+        }
+    }
+
+    &--busy {
+        pointer-events: none;
+        cursor: default;
+    }
 
     &__image {
         display: block;
@@ -38,66 +142,67 @@
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
     }
 
-    &__placeholder-icon {
-        color: var(--company-grey-accent);
-    }
-
-    // Visual size cue conveying the real pixel ratio between variants (400px vs 1600px = 1:4
-    // linear). Strict 1:4 makes Small almost invisible, so we soften to ~60% / 100% — Small
-    // reads as "clearly smaller" without becoming unreadable.
-    &--small {
-        .thumbnail-preview__image {
-            max-width: 60%;
-            max-height: 60%;
-        }
-
-        .thumbnail-preview__placeholder-icon {
-            font-size: 1.3rem;
-        }
-    }
-
-    &--large {
-        .thumbnail-preview__image {
-            max-width: 100%;
-            max-height: 100%;
-        }
-
-        .thumbnail-preview__placeholder-icon {
-            font-size: 2rem;
-        }
-    }
-}
-
-.thumbnail-empty {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 1rem;
-    min-height: 140px;
-    cursor: pointer;
-    border: 2px dashed var(--company-grey-accent-light);
-    border-radius: 4px;
-    color: var(--company-grey-font);
-    transition: border-color 0.15s ease, background-color 0.15s ease;
-
-    &:hover {
-        border-color: var(--company-grey-accent);
-        background: var(--company-grey-hover);
-    }
-
-    &--uploading {
-        pointer-events: none;
-        cursor: default;
-    }
-
     &__icon {
-        font-size: 1.75rem;
+        font-size: 1.5rem;
     }
 
     &__hint {
         font-size: var(--company-small-font);
+        text-align: center;
     }
+
+    // Target pixel size as a small badge in the bottom-right corner. Floats (position:absolute)
+    // over the image if need be — the white rounded pill keeps it legible against the photo or
+    // the stripe pattern. pointer-events:none keeps the whole tile clickable/droppable through it.
+    &__px {
+        position: absolute;
+        right: 0.3rem;
+        bottom: 0.3rem;
+        padding: 0.05rem 0.3rem;
+        font-size: 0.7rem;
+        line-height: 1.4;
+        color: var(--company-grey-font);
+        background: white;
+        border-radius: 4px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        pointer-events: none;
+    }
+
+    // Visual size cue conveying the real pixel ratio between variants (128 / 400 / 1600px).
+    // The true linear ratios (~0.08 / 0.25 / 1) would make Mini and Small almost invisible, so
+    // we soften to ~40% / 60% / 100% — each reads as "clearly smaller" without disappearing.
+    &--mini &__image {
+        max-width: 40%;
+        max-height: calc(#{$preview-image-max-height} * 0.4);
+    }
+
+    &--small &__image {
+        max-width: 60%;
+        max-height: calc(#{$preview-image-max-height} * 0.6);
+    }
+
+    &--large &__image {
+        max-width: 100%;
+        max-height: $preview-image-max-height;
+    }
+}
+
+// The Generate / Delete menu triggers are raw <button>s (so matMenuTriggerFor attaches without
+// fighting app-action-btn's own click handler). `.action-btn` is styled per-component, not
+// globally, so the file-inline-preview rule doesn't reach here — mirror the square 36px shape
+// so these sit flush next to the collapse chevron, exactly like the Download-as button.
+.action-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    padding: 0 !important;
+    border: 1px solid var(--company-grey-accent);
+}
+
+// The app uses no primary-colour accents — force the in-tile loading spinner to neutral grey.
+// Overriding the SVG circle stroke directly is robust to Material's theme-token renames (where
+// the --mdc-* / --mat-* indicator-colour vars are easy to miss); ::ng-deep pierces the
+// spinner's view, scoped under .thumbnail-drop so it can't leak to other spinners.
+.thumbnail-drop ::ng-deep circle {
+    stroke: var(--company-grey-font);
 }

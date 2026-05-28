@@ -1,92 +1,140 @@
-<div class="thumbnails-grid">
-    @for (slot of slots(); track slot.variant) {
-        <app-config-card
-            [title]="slot.label"
-            [description]="slot.existing
-                ? ('Target size ' + slot.targetSize + ' · ' + (slot.existing.sizeInBytes | storageSize))
-                : ('Target size ' + slot.targetSize)"
-            [stretch]="true">
+<app-config-card
+    title="Thumbnails"
+    description="Mini, small and large previews generated from this image and reused across the app.">
 
-            <ng-container configCardActions>
-                @if (isFfmpegAvailable()) {
-                    <app-action-btn
-                        tooltip="Generate"
-                        icon="icon-nucleo-image-scale"
-                        [isLoading]="slot.isGenerating"
-                        [disabled]="slot.isUploading || slot.isGenerating"
-                        (clicked)="onGenerateVariant(slot.variant)">
-                    </app-action-btn>
-                }
-
-                @if (slot.existing) {
-                    <input
-                        #replaceFileInput
-                        type="file"
-                        accept="image/*"
-                        hidden
-                        [disabled]="slot.isUploading"
-                        (change)="onFilePicked($event, slot.variant)"/>
-                    <app-action-btn
-                        [tooltip]="'Replace ' + slot.label.toLowerCase()"
-                        icon="icon-nucleo-upload-2"
-                        [disabled]="slot.isUploading || slot.isGenerating"
-                        (clicked)="replaceFileInput.click()">
-                    </app-action-btn>
-                    <app-action-btn
-                        [tooltip]="'Delete ' + slot.label.toLowerCase()"
-                        icon="icon-lucide-xmark"
+    <ng-container configCardActions>
+        @if (isFfmpegAvailable()) {
+            <button
+                type="button"
+                class="action-btn"
+                mat-flat-button
+                matTooltip="Generate"
+                matTooltipPosition="above"
+                [matMenuTriggerFor]="generateMenu">
+                <i class="icon icon-lg icon-nucleo-image-scale"></i>
+            </button>
+            <mat-menu #generateMenu="matMenu">
+                @for (slot of slots(); track slot.variant) {
+                    <button
+                        mat-menu-item
                         [disabled]="slot.isGenerating"
-                        (clicked)="onDelete(slot.variant)">
-                    </app-action-btn>
+                        (click)="onGenerateVariant(slot.variant)">
+                        {{ slot.variant }}
+                    </button>
                 }
-            </ng-container>
+                <button mat-menu-item (click)="generateAll()">All</button>
+            </mat-menu>
+        }
 
-            @if (slot.existing) {
-                <div
-                    class="thumbnail-preview"
-                    [class]="'thumbnail-preview--' + slot.variant.toLowerCase()">
-                    @if (slot.objectUrl) {
-                        <img
-                            class="thumbnail-preview__image"
-                            [src]="slot.objectUrl"
-                            [alt]="slot.label"/>
-                    } @else if (slot.isLoading) {
-                        <mat-progress-spinner
-                            diameter="32"
-                            mode="indeterminate">
-                        </mat-progress-spinner>
+        <button
+            type="button"
+            class="action-btn"
+            mat-flat-button
+            matTooltip="Delete"
+            matTooltipPosition="above"
+            [matMenuTriggerFor]="deleteMenu"
+            [disabled]="!anyExisting()">
+            <i class="icon icon-lg icon-lucide-xmark"></i>
+        </button>
+        <mat-menu #deleteMenu="matMenu">
+            @for (slot of slots(); track slot.variant) {
+                <button
+                    mat-menu-item
+                    [disabled]="!slot.existing"
+                    (click)="onDelete(slot.variant)">
+                    {{ slot.variant }}
+                </button>
+            }
+            <button
+                mat-menu-item
+                [disabled]="!anyExisting()"
+                (click)="deleteAll()">
+                All
+            </button>
+        </mat-menu>
+
+        <app-action-btn
+            [tooltip]="isExpanded() ? 'Collapse' : 'Expand'"
+            [icon]="isExpanded() ? 'icon-lucide-chevron-up' : 'icon-lucide-chevron-down'"
+            (clicked)="isExpanded.set(!isExpanded())">
+        </app-action-btn>
+    </ng-container>
+
+    @if (isExpanded()) {
+        <div class="thumbnails-row">
+            @for (slot of slots(); track slot.variant) {
+                <div class="thumbnail-col">
+                    <div class="thumbnail-col__head">
+                        <span class="thumbnail-col__name">{{ slot.variant }}</span>
+                        @if (slot.existing) {
+                            <span class="thumbnail-col__filesize">{{ slot.existing.sizeInBytes | storageSize }}</span>
+                        }
+                    </div>
+
+                    <span class="thumbnail-col__desc">{{ slot.description }}</span>
+
+                    @if (slot.existing) {
+                        <!-- Existing thumbnail: display only. Click does NOT open the picker —
+                             the variant must be deleted first before a new one can be uploaded. -->
+                        <div
+                            class="thumbnail-drop thumbnail-drop--filled"
+                            [class]="'thumbnail-drop--' + slot.variant.toLowerCase()">
+                            @if (slot.isGenerating) {
+                                <mat-progress-spinner
+                                    diameter="24"
+                                    mode="indeterminate">
+                                </mat-progress-spinner>
+                                <span class="thumbnail-drop__hint">Generating...</span>
+                            } @else if (slot.objectUrl) {
+                                <img
+                                    class="thumbnail-drop__image"
+                                    [src]="slot.objectUrl"
+                                    [alt]="slot.label"/>
+                            } @else {
+                                <mat-progress-spinner
+                                    diameter="24"
+                                    mode="indeterminate">
+                                </mat-progress-spinner>
+                            }
+
+                            <span class="thumbnail-drop__px">{{ slot.targetSize }}</span>
+                        </div>
                     } @else {
-                        <span class="icon icon-nucleo-image thumbnail-preview__placeholder-icon"></span>
+                        <label
+                            class="thumbnail-drop"
+                            [class.thumbnail-drop--busy]="slot.isUploading || slot.isGenerating"
+                            appDropFiles
+                            (filesDropped)="onFilesDropped($event, slot.variant)">
+
+                            <input
+                                type="file"
+                                accept="image/*"
+                                hidden
+                                [disabled]="slot.isUploading || slot.isGenerating"
+                                (change)="onFilePicked($event, slot.variant)"/>
+
+                            @if (slot.isUploading) {
+                                <mat-progress-spinner
+                                    diameter="24"
+                                    mode="indeterminate">
+                                </mat-progress-spinner>
+                                <span class="thumbnail-drop__hint">Uploading...</span>
+                            } @else if (slot.isGenerating) {
+                                <mat-progress-spinner
+                                    diameter="24"
+                                    mode="indeterminate">
+                                </mat-progress-spinner>
+                                <span class="thumbnail-drop__hint">Generating...</span>
+                            } @else {
+                                <span class="icon icon-nucleo-upload-2 thumbnail-drop__icon"></span>
+                                <span class="thumbnail-drop__hint">Click or drop to upload</span>
+                            }
+
+                            <span class="thumbnail-drop__px">{{ slot.targetSize }}</span>
+                        </label>
                     }
                 </div>
-            } @else {
-                <label
-                    class="thumbnail-empty"
-                    [class.thumbnail-empty--uploading]="slot.isUploading || slot.isGenerating">
-                    @if (slot.isUploading) {
-                        <mat-progress-spinner
-                            diameter="24"
-                            mode="indeterminate">
-                        </mat-progress-spinner>
-                        <span class="thumbnail-empty__hint">Uploading...</span>
-                    } @else if (slot.isGenerating) {
-                        <mat-progress-spinner
-                            diameter="24"
-                            mode="indeterminate">
-                        </mat-progress-spinner>
-                        <span class="thumbnail-empty__hint">Generating...</span>
-                    } @else {
-                        <span class="icon icon-nucleo-upload-2 thumbnail-empty__icon"></span>
-                        <span class="thumbnail-empty__hint">Click to upload</span>
-                    }
-                    <input
-                        type="file"
-                        accept="image/*"
-                        hidden
-                        [disabled]="slot.isUploading || slot.isGenerating"
-                        (change)="onFilePicked($event, slot.variant)"/>
-                </label>
             }
-        </app-config-card>
+        </div>
     }
-</div>
+</app-config-card>

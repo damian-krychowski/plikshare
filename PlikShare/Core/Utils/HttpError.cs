@@ -650,14 +650,14 @@ public static class HttpErrors
             TypedResults.BadRequest(new HttpError
             {
                 Code = "invalid-thumbnail-variant",
-                Message = "Thumbnail variant must be 'Small' or 'Large'."
+                Message = "Thumbnail variant must be 'Mini', 'Small' or 'Large'."
             });
 
         public static BadRequest<HttpError> NoThumbnailVariantsRequested() =>
             TypedResults.BadRequest(new HttpError
             {
                 Code = "no-thumbnail-variants-requested",
-                Message = "Generate request must include at least one variant ('Small' or 'Large')."
+                Message = "Generate request must include at least one variant ('Mini', 'Small' or 'Large')."
             });
 
         public static JsonHttpResult<HttpError> FfmpegUnavailable() =>

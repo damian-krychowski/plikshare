@@ -88,14 +88,30 @@ export class FileContentComponent implements OnChanges {
     imageExifChange = output<ImageExif | null>();
 
     async ngOnChanges(changes: SimpleChanges): Promise<void> {
-        if(changes['file'] && this.file()) {
-            this.resetState();
+        const fileChange = changes['file'];
+
+        if(fileChange && this.file()) {
+            // When navigating between two files of the same type (eg. next/previous between
+            // images), keep the old fileUrl in place instead of nulling it. Nulling collapses
+            // the type-gated @if in the template, which unmounts <app-image-preview> and makes
+            // the striped backdrop flash away before the new image arrives. Leaving the URL up
+            // keeps the component mounted, so the new URL just swaps in and image-preview's own
+            // cross-fade runs — the backdrop stays visible the whole time.
+            const previousFile = fileChange.previousValue as AppFileForContent | undefined;
+            const previousType = previousFile
+                ? getFileDetails(previousFile.extension).type
+                : null;
+            const isSameType = previousType === this.fileType();
+
+            this.resetState(!isSameType);
             await this.loadFileContent();
         }
-    }  
+    }
 
-    private resetState() {
-        this.fileUrl.set(null);
+    private resetState(clearFileUrl: boolean) {
+        if (clearFileUrl)
+            this.fileUrl.set(null);
+
         this.forceFileTextDisplay.set(false);
         this.zipPreviewOperations.set(null);
     }

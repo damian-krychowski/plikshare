@@ -28,6 +28,13 @@
     @extend .app-header;
     padding: 0.5rem;
     border-bottom: 1px solid var(--company-grey-accent-light);
+
+    // For sections whose body is a config-card: the card's header actions sit 1rem (card
+    // horizontal padding) + 1px (card border) in from the card edge. Match that on the right
+    // so this header's trailing actions line up with the card's instead of sticking out.
+    &--config-card {
+        padding-right: calc(1rem + 1px);
+    }
 }
 
 .explanation {

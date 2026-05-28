@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, OnChanges, OnDestroy, OnInit, output, Signal, signal, SimpleChanges, viewChild, WritableSignal } from '@angular/core';
+import { Component, computed, inject, input, OnChanges, OnDestroy, OnInit, output, Signal, signal, SimpleChanges, WritableSignal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
 import { AppFileItem, AppFileItems, FileItemComponent, FileOperations } from '../../shared/file-item/file-item.component';
@@ -409,14 +409,6 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
 
     private _capabilities = inject(AppCapabilitiesService);
     isFfmpegAvailable = computed(() => this._capabilities.capabilities().isFfmpegAvailable);
-
-    thumbnailsComponent = viewChild<FileThumbnailsComponent>(FileThumbnailsComponent);
-
-    async onGenerateAllThumbnails(): Promise<void> {
-        const component = this.thumbnailsComponent();
-        if (!component) return;
-        await component.generateVariants(['Small', 'Large']);
-    }
 
     isDownloadingConverted = signal(false);
 
