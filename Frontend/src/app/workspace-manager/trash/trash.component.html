@@ -88,21 +88,22 @@
     @if (viewMode() === 'flat') {
         <div class="mt-2"></div>
 
-        <div class="trash-list">
-            @for (group of flatGroups(); track group.key) {
-                <div class="trash-group">
-                    @if (group.items.length > 1) {
-                        <div class="trash-group__header">
-                            {{ group.pathLabel }}
-                        </div>
-                    }
+        <div #trashListHost class="trash-list" [style.height.px]="totalHeightPx()">
+            @for (row of renderedRows(); track rowTrackId($index, row)) {
+                <div class="trash-row"
+                    [style.top.px]="row.offset"
+                    [style.height.px]="row.height">
 
-                    @for (item of group.items; track item.externalId) {
+                    @if (row.type === 'header') {
+                        <div class="trash-group__header">
+                            {{ row.pathLabel }}
+                        </div>
+                    } @else {
                         <app-trash-file-item
-                            [item]="item"
-                            [isSelected]="isSelected(item)"
-                            (selectedChange)="onSelectionChange(item, $event)"
-                            (shiftSelected)="onShiftSelected(item)">
+                            [item]="row.item"
+                            [isSelected]="isSelected(row.item)"
+                            (selectedChange)="onSelectionChange(row.item, $event)"
+                            (shiftSelected)="onShiftSelected(row.item)">
                         </app-trash-file-item>
                     }
                 </div>

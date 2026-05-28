@@ -1,20 +1,41 @@
 @forward "./../../../../styles/item-bar.scss";
 
+// Fill the virtual-row slot (the host is the direct child of an absolutely
+// positioned .trash-row) — otherwise the inline default would shrink to
+// content width.
+:host {
+    display: block;
+}
+
 // Rows are click-to-select (incl. shift-range); never let a shift+click drag-select text.
 .item-bar {
     user-select: none;
 }
 
+// Single-line ellipsis (was word-break:break-word) so the row keeps the fixed
+// 72px height the virtual scroll relies on.
 .trash-file-item__name {
-    word-break: break-word;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
+// Meta on one line too — the retention chip stays inline; overflow is clipped
+// rather than wrapping to a second line.
 .trash-file-item__meta {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.35rem;
     align-items: baseline;
     margin-top: 2px;
+    min-width: 0;
+    overflow: hidden;
+
+    > span:first-child {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 }
 
 // Retention chip — grey by default, primary-tinted when a hard-delete is scheduled.

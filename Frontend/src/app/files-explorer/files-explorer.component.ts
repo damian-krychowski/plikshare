@@ -30,6 +30,7 @@ import { TreeViewMode } from '../shared/file-tree-view/tree-item';
 import { FileInlinePreviewCommandsPipeline } from './file-inline-preview/file-inline-preview-commands-pipeline';
 import { WorkspaceIntegrations } from '../services/workspaces.api';
 import { DragStateService } from '../services/drag-state.service';
+import { ActivatedRoute, Router } from '@angular/router';
 import { SortChange } from './sort-menu/sort-menu.component';
 import { DisplayMenuComponent } from './display-menu/display-menu.component';
 import { computePositionForInsertion } from '../shared/drag-drop/item-positioning.utils';
@@ -208,6 +209,11 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
     workspaceExternalId = input<string | null>(null);
     allowDateSort = input(false);
+
+    // Opt-in: when true this explorer reflects/restores the list/tree view in
+    // the page URL (?view=). Only the routed workspace explorer should set it —
+    // embedded instances (dialogs, external access) must not touch the URL.
+    syncViewModeToUrl = input(false);
 
     // When the workspace's trash policy is on, deleting a file is recoverable — the
     // delete-confirmation dialog reflects that instead of "cannot be reverted".
@@ -641,7 +647,9 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     constructor(
         public fileUploadManager: FileUploadManager,
         private _renderer: Renderer2,
-        private _dragState: DragStateService) {
+        private _dragState: DragStateService,
+        private _router: Router,
+        private _route: ActivatedRoute) {
 
         effect(() => {
             const key = this.sortStorageKey();
@@ -712,6 +720,16 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     }
 
     ngOnInit(): void {
+        // Restore the list/tree view from the URL on load (survives refresh).
+        // Guarded by syncViewModeToUrl so embedded instances ignore the page's
+        // query params.
+        if (this.syncViewModeToUrl()) {
+            const view = this._route.snapshot.queryParamMap.get('view');
+            if (view === 'tree-view' || view === 'list-view') {
+                this.viewMode.set(view);
+            }
+        }
+
         this._renderer.listen('window', 'dragenter', this.onDragEnter.bind(this));
         this._renderer.listen('window', 'dragleave', this.onDragLeave.bind(this));
         this._renderer.listen('window', 'dragover', this.onDragOver.bind(this));
@@ -1716,6 +1734,18 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
     async setViewMode(viewMode: ViewMode) {
         this.viewMode.set(viewMode);
+
+        // Reflect the choice in the URL so a refresh keeps tree/list. Only when
+        // this explorer owns the page route — embedded instances (dialogs,
+        // external access) must not mutate the page URL.
+        if (this.syncViewModeToUrl()) {
+            this._router.navigate([], {
+                relativeTo: this._route,
+                queryParams: { view: viewMode },
+                queryParamsHandling: 'merge',
+                replaceUrl: true
+            });
+        }
     }
 
 

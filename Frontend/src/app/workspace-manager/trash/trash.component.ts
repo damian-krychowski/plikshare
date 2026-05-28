@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, OnInit, computed, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, HostListener, OnInit, WritableSignal, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -38,6 +38,13 @@ type TrashGroup = {
     pathLabel: string;
     items: TrashItemDto[];
 };
+
+// One row of the flattened, virtualized flat-view list — either a group header
+// or a file. `height`/`offset` (prefix-sum) drive the absolute positioning;
+// heights come from the data (header vs item), not from measuring the DOM.
+type FlatTrashRow =
+    | { type: 'header'; key: string; pathLabel: string; height: number; offset: number }
+    | { type: 'item'; item: TrashItemDto; height: number; offset: number };
 
 @Component({
     selector: 'app-trash',
@@ -88,6 +95,70 @@ export class TrashComponent implements OnInit {
     // selection, which must follow what the user actually sees.
     private orderedItems = computed<TrashItemDto[]>(() =>
         this.flatGroups().flatMap(g => g.items));
+
+    // --- flat-view virtualization ------------------------------------------------------
+
+    // Fixed-height rows so the virtual scroll has stable geometry. Item = the
+    // shared 72px item-bar (item-bar--fixed-height); header = the dashed group
+    // separator line. MUST match the rendered heights or rows overlap.
+    private static readonly ROW_ITEM_PX = 72;
+    private static readonly ROW_HEADER_PX = 36;
+    private static readonly RENDER_BUFFER_ROWS = 30;
+
+    private _listHost = viewChild<ElementRef<HTMLElement>>('trashListHost');
+    private _renderedRange: WritableSignal<{ start: number; end: number }> = signal({ start: 0, end: 0 });
+
+    // Groups flattened to a single row list (header rows + item rows) with a
+    // running prefix-sum offset — the absolute top of each row.
+    flatRows = computed<FlatTrashRow[]>(() => {
+        const groups = this.flatGroups();
+        const rows: FlatTrashRow[] = [];
+        let offset = 0;
+
+        for (const group of groups) {
+            if (group.items.length > 1) {
+                rows.push({
+                    type: 'header',
+                    key: group.key,
+                    pathLabel: group.pathLabel,
+                    height: TrashComponent.ROW_HEADER_PX,
+                    offset
+                });
+                offset += TrashComponent.ROW_HEADER_PX;
+            }
+
+            for (const item of group.items) {
+                rows.push({
+                    type: 'item',
+                    item,
+                    height: TrashComponent.ROW_ITEM_PX,
+                    offset
+                });
+                offset += TrashComponent.ROW_ITEM_PX;
+            }
+        }
+
+        return rows;
+    });
+
+    totalHeightPx = computed(() => {
+        const flat = this.flatRows();
+        if (flat.length === 0) return 0;
+        const last = flat[flat.length - 1];
+        return last.offset + last.height;
+    });
+
+    renderedRows = computed<FlatTrashRow[]>(() => {
+        const flat = this.flatRows();
+        const { start, end } = this._renderedRange();
+        const realEnd = Math.min(end, flat.length);
+        const realStart = Math.min(start, realEnd);
+        return flat.slice(realStart, realEnd);
+    });
+
+    // Stable @for track id — externalId for items, group key for headers.
+    rowTrackId = (_: number, row: FlatTrashRow): string =>
+        row.type === 'item' ? row.item.externalId : row.key;
 
     // 'tree' view — the static-file-tree-view input, rebuilt on load and on every mode switch.
     treeNodes = signal<StaticTreeNode[]>([]);
@@ -141,6 +212,81 @@ export class TrashComponent implements OnInit {
         private _auth: AuthService,
         private _el: ElementRef<HTMLElement>)
     {
+        // Capture-phase scroll listener — catches scroll on ANY ancestor (the
+        // SPA shell scrolls an inner element, not window). RAF batches bursts.
+        const onScroll = () => requestAnimationFrame(() => this.recomputeRange());
+        window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+        window.addEventListener('resize', onScroll, { passive: true });
+
+        inject(DestroyRef).onDestroy(() => {
+            window.removeEventListener('scroll', onScroll, { capture: true });
+            window.removeEventListener('resize', onScroll);
+        });
+
+        // Row count / view-mode changes shift geometry — recompute after the
+        // DOM updated. Reading viewMode() re-runs this when switching flat/tree.
+        effect(() => {
+            this.flatRows();
+            this.viewMode();
+            requestAnimationFrame(() => this.recomputeRange());
+        });
+    }
+
+    private recomputeRange(): void {
+        const el = this._listHost()?.nativeElement;
+        const flat = this.flatRows();
+
+        if (!el || flat.length === 0) {
+            this._renderedRange.set({ start: 0, end: 0 });
+            return;
+        }
+
+        const rect = el.getBoundingClientRect();
+        const winHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+        const viewTop = Math.max(0, -rect.top);
+        const visiblePx = Math.max(0, Math.min(rect.height, winHeight - Math.max(0, rect.top)));
+        const viewBottom = viewTop + visiblePx;
+
+        const startIdx = this.firstRowEndingAfter(flat, viewTop);
+        const endIdx = this.firstRowStartingAtOrAfter(flat, viewBottom);
+
+        const buffer = TrashComponent.RENDER_BUFFER_ROWS;
+        const end = Math.min(flat.length, endIdx + buffer);
+        this._renderedRange.set({
+            start: Math.max(0, Math.min(startIdx - buffer, end)),
+            end
+        });
+    }
+
+    // Smallest index whose bottom edge (offset + height) is below `y`.
+    private firstRowEndingAfter(flat: FlatTrashRow[], y: number): number {
+        let lo = 0;
+        let hi = flat.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (flat[mid].offset + flat[mid].height > y) {
+                hi = mid;
+            } else {
+                lo = mid + 1;
+            }
+        }
+        return lo;
+    }
+
+    // Smallest index whose top edge (offset) is at or below `y` — exclusive end.
+    private firstRowStartingAtOrAfter(flat: FlatTrashRow[], y: number): number {
+        let lo = 0;
+        let hi = flat.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (flat[mid].offset >= y) {
+                hi = mid;
+            } else {
+                lo = mid + 1;
+            }
+        }
+        return lo;
     }
 
     async ngOnInit() {

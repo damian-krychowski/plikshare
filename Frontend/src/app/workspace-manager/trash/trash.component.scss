@@ -81,17 +81,21 @@
     gap: 0.5rem;
 }
 
+// Host grows to the full virtual content height (set via [style.height.px]) so
+// the page scrollbar reflects the real list size — rows are absolutely
+// positioned within it by the virtualizer.
 .trash-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    position: relative;
+    width: 100%;
 }
 
-// A folder of trashed files: a dashed header line + the files belonging to it.
-.trash-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+// Absolutely positioned within .trash-list — `top` and `height` set inline per
+// row (header vs item differ). Must match TrashComponent.ROW_*_PX.
+.trash-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
 }
 
 .trash-group__header {
@@ -101,6 +105,8 @@
     font-size: var(--company-small-font);
     font-style: italic;
     color: var(--company-grey-font);
+    // Fills its row slot; the dashed line sits vertically centered.
+    height: 100%;
 
     // "-- folder path ----------------" — a short dash before the label, a line filling
     // the rest of the row after it.
