@@ -6,15 +6,21 @@
     border-bottom: 1px solid var(--company-grey-accent-light);
     width: 100%;
     position: relative;
-    // Fixed height (not min-height) so virtual-scroll math has a stable row
-    // size to work with. 72px matches the natural height with title (30px) +
-    // subtitle (~14px) + padding (24px). Titles overflow → ellipsis + marquee.
-    height: 72px;
-    box-sizing: border-box;
 
     &:hover {
         border: 1px solid var(--company-grey-accent);
         background-color: var(--company-blue-hover);
+    }
+
+    // Opt-in fixed-height variant for items rendered inside the virtualized
+    // file/folder lists — virtual-scroll math requires a stable row size.
+    // 72px matches the natural height with title (30px) + subtitle (~14px) +
+    // padding (24px). Titles overflow → ellipsis + marquee. Do NOT apply to
+    // other item-bar consumers (boxes, workspaces, ai-conversations, etc.) —
+    // they vary in row content and need to grow naturally.
+    &--fixed-height {
+        height: 72px;
+        box-sizing: border-box;
     }
 
     &--opaque {

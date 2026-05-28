@@ -1,31 +1,42 @@
 @let viewModeVal = viewMode();
 
-@for (node of dataSource(); track node.item.externalId) {
-    @if(node.type == 'file') {
-        <app-file-tree-node
-            [file]="node"
-            [canSelect]="canSelect()"
-            [viewMode]="viewModeVal"
-            [isSearchActive]="isSearchActive()"
-            [fileClickedHandler]="fileClickedHandler"
-            [isSelectedChangedHandler]="isSelectedChangedHandler"
-            [isExcludedChangedHandler]="isExcludedChangedHandler">                        
-        </app-file-tree-node>
-    } @else {
-        <app-folder-tree-node
-            [folder]="node"
-            [canSelect]="canSelect()"
-            [viewMode]="viewModeVal"
-            [isSearchActive]="isSearchActive()"
-            [fileClickedHandler]="fileClickedHandler"
-            [isSelectedChangedHandler]="isSelectedChangedHandler"
-            [isExcludedChangedHandler]="isExcludedChangedHandler"
-            [loadFolderChildrenHandler]="loadFolderChildrenHandler"
-            [prefetchFolderHandler]="prefetchFolderHandler"
-            [setFolderToRootHandler]="setFolderToRootHandler">                        
-        </app-folder-tree-node>
+<div #host
+     class="tree-host"
+     [style.height.px]="totalHeightPx()">
+
+    @for (row of renderedRows(); track row.node.item.externalId) {
+        <div class="virtual-row"
+             [style.top.px]="row.offset"
+             [style.height.px]="row.height"
+             [style.padding-left.px]="row.depth * 20">
+
+            @if(row.node.type == 'file') {
+                <app-file-tree-node
+                    [file]="row.node"
+                    [canSelect]="canSelect()"
+                    [viewMode]="viewModeVal"
+                    [isSearchActive]="isSearchActive()"
+                    [fileClickedHandler]="fileClickedHandler"
+                    [isSelectedChangedHandler]="isSelectedChangedHandler"
+                    [isExcludedChangedHandler]="isExcludedChangedHandler">
+                </app-file-tree-node>
+            } @else {
+                <app-folder-tree-node
+                    [folder]="row.node"
+                    [canSelect]="canSelect()"
+                    [viewMode]="viewModeVal"
+                    [isSearchActive]="isSearchActive()"
+                    [fileClickedHandler]="fileClickedHandler"
+                    [isSelectedChangedHandler]="isSelectedChangedHandler"
+                    [isExcludedChangedHandler]="isExcludedChangedHandler"
+                    [loadFolderChildrenHandler]="loadFolderChildrenHandler"
+                    [prefetchFolderHandler]="prefetchFolderHandler"
+                    [setFolderToRootHandler]="setFolderToRootHandler">
+                </app-folder-tree-node>
+            }
+        </div>
     }
-}
+</div>
 
 
 @if(viewModeVal == 'show-only-selected' && !isAnyItemSelected()) {

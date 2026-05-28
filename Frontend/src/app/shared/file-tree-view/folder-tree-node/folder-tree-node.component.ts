@@ -7,8 +7,8 @@ import { MatTreeModule } from "@angular/material/tree";
 import { TreeCheckobxComponent } from "../tree-checkbox/tree-checkbox.component";
 import { FileTreeItem, FolderTreeItem, TreeItem, TreeViewMode } from "../tree-item";
 import { toggle } from "../../signal-utils";
-import { FileTreeNodeComponent } from "../file-tree-node/file-tree-node.component";
 import { PrefetchDirective } from "../../prefetch.directive";
+import { MarqueeOnTruncateDirective } from "../../marquee-on-truncate.directive";
 
 @Component({
     selector: 'app-folder-tree-node',
@@ -18,8 +18,8 @@ import { PrefetchDirective } from "../../prefetch.directive";
     MatIconModule,
     MatButtonModule,
     TreeCheckobxComponent,
-    FileTreeNodeComponent,
-    PrefetchDirective
+    PrefetchDirective,
+    MarqueeOnTruncateDirective
 ],
     templateUrl: './folder-tree-node.component.html',
     styleUrls: ['./folder-tree-node.component.scss']

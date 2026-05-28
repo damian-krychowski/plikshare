@@ -1,4 +1,4 @@
-import { Component, computed, effect, input, OnChanges, output, signal, SimpleChanges, untracked } from '@angular/core';
+import { Component, computed, DestroyRef, effect, ElementRef, inject, input, OnChanges, output, signal, SimpleChanges, untracked, viewChild, WritableSignal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 
@@ -56,10 +56,7 @@ export function areFileTreeSelectionsEqual(
    );
 }
 
-type TreeItemSelectionState = {
-    state: 'selected' | 'excluded';
-    node: TreeItem;
-}
+type SelectionStateLabel = 'selected' | 'excluded';
 
 export type LoadFolderNodeRequest = {
     folder: AppFolderItem;
@@ -96,6 +93,21 @@ export type SearchedFilesSelection = {
     matchingFiles: number;
     selectedFiles: number;
 }
+
+// One flattened row produced by the virtual-scroll renderer. DFS walk of the
+// tree in display order — one entry per visible node; collapsed/filtered
+// children are skipped. `depth` drives the indent (padding-left in template)
+// so we don't need nested DOM. `height` is the row's pixel height (varies in
+// show-only-selected: rows that display an ancestor path are taller) and
+// `offset` is the prefix-sum of all preceding rows' heights — the absolute
+// `top` for this row. Known-variable-height virtualization: heights come from
+// the data, not from measuring the DOM.
+export type FlatTreeRow = {
+    node: TreeItem;
+    depth: number;
+    height: number;
+    offset: number;
+};
 
 @Component({
     selector: 'app-file-tree-view',
@@ -204,6 +216,7 @@ export class FileTreeViewComponent implements OnChanges {
 
     loadFolderChildrenHandler = (node: FolderTreeItem) => this.folderLoadRequested.emit({
         folder: node.item,
+
         folderLoadedCallback: (items: AppTreeItem[]) => {
             node.wasLoaded = true;                    
             this.convertItemsToFolderChildren(node, items);
@@ -215,6 +228,69 @@ export class FileTreeViewComponent implements OnChanges {
 
     dataSource = signal<TreeItem[]>([]);
 
+    // Window-driven virtualization, ported from StaticFileTreeViewComponent. The
+    // old approach rendered one Angular component per node — at 10k items that
+    // was several seconds of component instantiation + DOM work even though only
+    // a small slice was on-screen. We now produce a flat DFS row list and
+    // render only the visible slice.
+    private _hostRef = viewChild<ElementRef<HTMLElement>>('host');
+
+    // Default single-line row height. Rows that show an ancestor path (in
+    // show-only-selected, for items viewed from another folder) are taller.
+    // Both MUST match the rendered heights in file-tree-view.component.scss /
+    // the node templates, or absolute positioning desyncs.
+    static readonly ROW_HEIGHT_PX = 44;
+    // Measured rendered height of a row with an ancestor path is ~52.39px;
+    // rounded up so the slot never clips the content (tiny sub-px slack is
+    // invisible, overlap is not).
+    private static readonly ROW_WITH_PATH_PX = 53;
+    private static readonly RENDER_BUFFER_ROWS = 30;
+
+    // DFS-flattened list of currently-visible rows. Folder children are pushed
+    // only when the folder is effectively expanded (isExpanded OR — in show-all
+    // with active search — searchedChildrenCount > 0). Per-node visibility
+    // replicates the @class.invisible logic that used to live in
+    // file-tree-node / folder-tree-node templates, so collapsed/filtered nodes
+    // don't take a row slot (which would leave gaps in absolute-positioned UI).
+    flatVisibleNodes = computed<FlatTreeRow[]>(() => {
+        const roots = this.dataSource();
+        const viewMode = this.viewMode();
+        const isSearchActive = this.isSearchActive();
+
+        return this.flatten(
+            roots,
+            viewMode,
+            isSearchActive);
+    });
+
+    // Total scroll height = bottom edge of the last row (offset + height).
+    totalHeightPx = computed(() => {
+        const flat = this.flatVisibleNodes();
+        if (flat.length === 0) return 0;
+        const last = flat[flat.length - 1];
+        return last.offset + last.height;
+    });
+
+    private _renderedRange: WritableSignal<{ start: number; end: number }> = signal({ start: 0, end: 0 });
+
+    renderedRows = computed<FlatTreeRow[]>(() => {
+        const flat = this.flatVisibleNodes();
+        const { start, end } = this._renderedRange();
+
+        // Clamp both ends — `_renderedRange` is a separate signal that can
+        // briefly hold stale values (set by a RAF-scheduled recomputeRange,
+        // while flatVisibleNodes can shrink synchronously via signal cascade,
+        // e.g. when search collapses the list from 10k to a handful). Without
+        // clamping start, `for (i=stale; i<smallerEnd; i++)` loops zero times
+        // and the user sees an empty list until the next RAF lands.
+        const realEnd = Math.min(end, flat.length);
+        const realStart = Math.min(start, realEnd);
+
+        // Each row already carries its absolute `offset` and `height`, so the
+        // template positions it directly — no index→pixel math needed here.
+        return flat.slice(realStart, realEnd);
+    });
+
     constructor(){
         // Re-sort already loaded tree levels when the user toggles sort mode/direction.
         // The mutation pass is wrapped in `untracked` so that reading `_foldersMap()` and
@@ -225,6 +301,167 @@ export class FileTreeViewComponent implements OnChanges {
             const direction = this.sortDirection();
             untracked(() => this.resortTree(mode, direction));
         });
+
+        // Capture-phase scroll listener — catches scroll on ANY ancestor (SPA
+        // shells often scroll an inner element rather than window). RAF batches
+        // scroll bursts into one recompute per frame.
+        const onScroll = () => requestAnimationFrame(() => this.recomputeRange());
+        window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+        window.addEventListener('resize', onScroll, { passive: true });
+
+        const destroyRef = inject(DestroyRef);
+        destroyRef.onDestroy(() => {
+            window.removeEventListener('scroll', onScroll, { capture: true });
+            window.removeEventListener('resize', onScroll);
+        });
+
+        // Content shifts (expand/collapse, sort, search, dataSource swap) change
+        // the row count and host geometry — recompute after DOM has been updated.
+        effect(() => {
+            this.flatVisibleNodes();
+            requestAnimationFrame(() => this.recomputeRange());
+        });
+
+        // Scroll to top when search activates so the user lands on the first
+        // result. Only on the false→true transition — subsequent narrowing
+        // keystrokes preserve the current scroll position (user may already
+        // be browsing the result set).
+        let wasSearchActive = false;
+        effect(() => {
+            const active = this.isSearchActive();
+            if (active && !wasSearchActive) {
+                window.scrollTo({ top: 0 });
+            }
+            wasSearchActive = active;
+        });
+    }
+
+    private flatten(roots: TreeItem[], viewMode: TreeViewMode, isSearchActive: boolean): FlatTreeRow[] {
+        const result: FlatTreeRow[] = [];
+        const stack: { node: TreeItem; depth: number }[] = [];
+
+        for (let i = roots.length - 1; i >= 0; i--) {
+            stack.push({ node: roots[i], depth: 0 });
+        }
+
+        // Running prefix-sum of row heights — each emitted row's `offset` is
+        // the total height of all rows before it (its absolute top).
+        let offset = 0;
+
+        while (stack.length > 0) {
+            const { node, depth } = stack.pop()!;
+
+            if (!this.isNodeVisible(node, viewMode, isSearchActive))
+                continue;
+
+            const height = this.rowHeight(node, viewMode);
+            result.push({ node, depth, height, offset });
+            offset += height;
+
+            if (node.type !== 'folder') continue;
+
+            const effectivelyExpanded = node.isExpanded()
+                || (viewMode === 'show-all' && node.searchedChildrenCount() > 0);
+
+            if (!effectivelyExpanded) continue;
+
+            const children = node.children();
+            for (let i = children.length - 1; i >= 0; i--) {
+                stack.push({ node: children[i], depth: depth + 1 });
+            }
+        }
+
+        return result;
+    }
+
+    // Row height is derived from the data, not measured: a row is taller only
+    // when it actually renders an ancestor path — i.e. in show-only-selected,
+    // for a selected item that has a non-empty fullPath (viewed from another
+    // folder). MUST stay in sync with the node templates' `pathText` gate.
+    private rowHeight(node: TreeItem, viewMode: TreeViewMode): number {
+        if (viewMode === 'show-only-selected'
+            && node.item.isSelected()
+            && !!node.fullPath()) {
+            return FileTreeViewComponent.ROW_WITH_PATH_PX;
+        }
+        return FileTreeViewComponent.ROW_HEIGHT_PX;
+    }
+
+    private isNodeVisible(node: TreeItem, viewMode: TreeViewMode, isSearchActive: boolean): boolean {
+        if (viewMode === 'show-all') {
+            if (node.type === 'file') {
+                return !isSearchActive || node.isSearched();
+            }
+
+            return !isSearchActive
+                || node.isSearched()
+                || node.searchedChildrenCount() > 0;
+        }
+
+        // show-only-selected — visibility IS the selection state.
+        return (node.item.isSelected() || node.isParentSelected())
+            && !node.isExcluded() && !node.isParentExcluded();
+    }
+
+    private recomputeRange(): void {
+        const el = this._hostRef()?.nativeElement;
+        const flat = this.flatVisibleNodes();
+
+        if (!el || flat.length === 0) {
+            this._renderedRange.set({ start: 0, end: 0 });
+            return;
+        }
+
+        const rect = el.getBoundingClientRect();
+        const winHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+        const viewTop = Math.max(0, -rect.top);
+        const visiblePx = Math.max(0, Math.min(rect.height, winHeight - Math.max(0, rect.top)));
+        const viewBottom = viewTop + visiblePx;
+
+        // Rows are variable-height, so the on-screen slice can't be derived by
+        // division — binary-search the prefix-sum offsets instead.
+        const startIdx = this.firstRowEndingAfter(flat, viewTop);
+        const endIdx = this.firstRowStartingAtOrAfter(flat, viewBottom);
+
+        const buffer = FileTreeViewComponent.RENDER_BUFFER_ROWS;
+        const end = Math.min(flat.length, endIdx + buffer);
+        this._renderedRange.set({
+            start: Math.max(0, Math.min(startIdx - buffer, end)),
+            end
+        });
+    }
+
+    // Smallest index whose bottom edge (offset + height) is below `y` — i.e.
+    // the first row still (partly) visible from the top of the viewport.
+    private firstRowEndingAfter(flat: FlatTreeRow[], y: number): number {
+        let lo = 0;
+        let hi = flat.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (flat[mid].offset + flat[mid].height > y) {
+                hi = mid;
+            } else {
+                lo = mid + 1;
+            }
+        }
+        return lo;
+    }
+
+    // Smallest index whose top edge (offset) is at or below the viewport
+    // bottom — exclusive end of the visible slice.
+    private firstRowStartingAtOrAfter(flat: FlatTreeRow[], y: number): number {
+        let lo = 0;
+        let hi = flat.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (flat[mid].offset >= y) {
+                hi = mid;
+            } else {
+                lo = mid + 1;
+            }
+        }
+        return lo;
     }
 
     private resortTree(mode: SortMode, direction: SortDirection) {
@@ -338,9 +575,9 @@ export class FileTreeViewComponent implements OnChanges {
     private buildFoldersMap(nodes: TreeItem[]): Map<string, FolderTreeItem> {
         const map: Map<string, FolderTreeItem> = new Map();
 
-        for (const folder of this.getFolderNodes(nodes)) {
+        this.walkFolderNodes(nodes, folder => {
             map.set(folder.item.externalId, folder);
-        }
+        });
 
         return map;
     }
@@ -556,7 +793,10 @@ export class FileTreeViewComponent implements OnChanges {
             });
         }
 
-        folder.children.set(this.sortMixed(newChildren, this.sortMode(), this.sortDirection()));
+        folder.children.set(this.sortMixed(
+            newChildren, 
+            this.sortMode(), 
+            this.sortDirection()));
 
         // Newly-loaded children may already be selected (set on AppItem by the host before the
         // load callback) or excluded (seeded from initiallyExcludedExternalIds in mapXxxItem).
@@ -578,6 +818,7 @@ export class FileTreeViewComponent implements OnChanges {
     //     → and around again for any of those matching the list.
     private autoExpandMatchingFolders(nodes: TreeItem[]) {
         const ids = this._autoExpandIdSet();
+
         if (ids.size === 0)
             return;
 
@@ -788,13 +1029,18 @@ export class FileTreeViewComponent implements OnChanges {
     }
 
     private tryGetFolderNode(nodes: TreeItem[], folderExternalId: string): FolderTreeItem | null {
-        for (const folder of this.getFolderNodes(nodes)) {
+        let found: FolderTreeItem | null = null;
+
+        this.walkFolderNodes(nodes, folder => {
             if (folder.item.externalId === folderExternalId) {
-                return folder;
+                found = folder;
+                return false;
             }
-        }
-        
-        return null;
+
+            return;
+        });
+
+        return found;
     }
 
 
@@ -804,17 +1050,17 @@ export class FileTreeViewComponent implements OnChanges {
 
     private onIsSelectedChange(item: TreeItem, isSelected: boolean) {
         item.item.isSelected.set(isSelected);
-        
-        if(item.type === 'folder') {
-            for (const child of this.getAllNodes(item.children())) {
-                if(isSelected && child.item.isSelected()) {
+
+        if (item.type === 'folder') {
+            this.walkAllNodes(item.children(), child => {
+                if (isSelected && child.item.isSelected()) {
                     child.item.isSelected.set(false);
                 }
-                
-                if(!isSelected && child.isExcluded()) {
+
+                if (!isSelected && child.isExcluded()) {
                     child.isExcluded.set(false);
                 }
-            }
+            });
         }
 
         this.calculateAndUpdateSelectionState();
@@ -824,12 +1070,12 @@ export class FileTreeViewComponent implements OnChanges {
     private onIsExcludedChange(item: TreeItem, isExcluded: boolean) {
         item.isExcluded.set(isExcluded);
 
-        if(item.type === 'folder') {
-            for (const child of this.getAllNodes(item.children())) {                
-                if(!isExcluded && child.isExcluded()) {
+        if (item.type === 'folder') {
+            this.walkAllNodes(item.children(), child => {
+                if (!isExcluded && child.isExcluded()) {
                     child.isExcluded.set(false);
                 }
-            }
+            });
         }
 
         this.calculateAndUpdateSelectionState();
@@ -904,13 +1150,13 @@ export class FileTreeViewComponent implements OnChanges {
             .files
             .map(f => f.externalId));
 
-        const nodes: FileTreeItem[] = []
-            
-        for (const node of this.getAllNodes(this.nodes())) {
-            if(selectedFileExternalIdsSet.has(node.item.externalId)) {
+        const nodes: FileTreeItem[] = [];
+
+        this.walkAllNodes(this.nodes(), node => {
+            if (selectedFileExternalIdsSet.has(node.item.externalId)) {
                 nodes.push(node as FileTreeItem);
             }
-        }
+        });
 
         return nodes;
     }
@@ -925,31 +1171,75 @@ export class FileTreeViewComponent implements OnChanges {
         this.selectionStateChanged.emit(newSelectionState);
     }
 
+    // Hot path — runs on every checkbox toggle. DFS is inlined here (rather
+    // than delegated to `walkSelectedOrExcludedNodes`) to skip the per-node
+    // callback indirection and push id values directly into the typed result
+    // arrays. At 10k+ items even the visitor's function call overhead matters.
     private getSelectionState(): FileTreeSelectionState {
-        const result: FileTreeSelectionState = {
-            selectedFolderExternalIds: [],
-            selectedFileExternalIds: [],
-            excludedFolderExternalIds: [],
-            excludedFileExternalIds: []
-        };
+        const selectedFolderExternalIds: string[] = [];
+        const selectedFileExternalIds: string[] = [];
+        const excludedFolderExternalIds: string[] = [];
+        const excludedFileExternalIds: string[] = [];
 
-        for (const nodeWithState of this.getSelectedOrExcludedNodes(this.nodes())) {
-            if(nodeWithState.state == 'selected') {
-                if(nodeWithState.node.type == 'file') {                    
-                    result.selectedFileExternalIds.push(nodeWithState.node.item.externalId);
-                } else if(nodeWithState.node.type == 'folder') {
-                    result.selectedFolderExternalIds.push(nodeWithState.node.item.externalId);                    
-                }                
-            } else if (nodeWithState.state == 'excluded') {
-                if(nodeWithState.node.type == 'file') {                    
-                    result.excludedFileExternalIds.push(nodeWithState.node.item.externalId);
-                } else if(nodeWithState.node.type == 'folder') {
-                    result.excludedFolderExternalIds.push(nodeWithState.node.item.externalId);                    
-                }  
+        const selectionStack: TreeItem[] = this.nodes().slice();
+        const exclusionStack: TreeItem[] = [];
+
+        // Phase 1: walk the tree top-down. Selected nodes terminate the
+        // selection-side descent (children become exclusion-only candidates);
+        // excluded nodes terminate entirely; neither → keep descending.
+        while (selectionStack.length > 0) {
+            const node = selectionStack.pop()!;
+
+            if (node.item.isSelected()) {
+                if (node.type === 'file') {
+                    selectedFileExternalIds.push(node.item.externalId);
+                } else {
+                    selectedFolderExternalIds.push(node.item.externalId);
+                    const children = node.children();
+                    for (let i = 0; i < children.length; i++) {
+                        exclusionStack.push(children[i]);
+                    }
+                }
+            } else if (node.isExcluded()) {
+                if (node.type === 'file') {
+                    excludedFileExternalIds.push(node.item.externalId);
+                } else {
+                    excludedFolderExternalIds.push(node.item.externalId);
+                }
+            } else if (node.type === 'folder') {
+                const children = node.children();
+                for (let i = 0; i < children.length; i++) {
+                    selectionStack.push(children[i]);
+                }
             }
         }
 
-        return result;
+        // Phase 2: walk subtrees that sit under a selected folder. Only
+        // excludes are meaningful here — selects would be redundant under a
+        // selected ancestor.
+        while (exclusionStack.length > 0) {
+            const node = exclusionStack.pop()!;
+
+            if (node.isExcluded()) {
+                if (node.type === 'file') {
+                    excludedFileExternalIds.push(node.item.externalId);
+                } else {
+                    excludedFolderExternalIds.push(node.item.externalId);
+                }
+            } else if (node.type === 'folder') {
+                const children = node.children();
+                for (let i = 0; i < children.length; i++) {
+                    exclusionStack.push(children[i]);
+                }
+            }
+        }
+
+        return {
+            selectedFolderExternalIds,
+            selectedFileExternalIds,
+            excludedFolderExternalIds,
+            excludedFileExternalIds
+        };
     }
 
     private buildTreeOfSelectedNodes(nodes: TreeItem[]): TreeItem[] {
@@ -977,92 +1267,104 @@ export class FileTreeViewComponent implements OnChanges {
         return selectedNodes;
     }
 
-    private *getSelectedOrExcludedNodes(nodes: TreeItem[]): Generator<TreeItemSelectionState> {
-        const selectionStack: TreeItem[] = nodes.slice();
-        const exlusionStack: TreeItem[] = [];
-
-        while(selectionStack.length > 0) {
-            const node = selectionStack.pop();
-
-            if(!node)
-                continue;
-
-            if(node.item.isSelected()) {
-                yield {
-                    node: node,
-                    state: 'selected'
-                };
-
-                if(node.type == 'folder') {    
-                    exlusionStack.push(...node.children());
-                }               
-            } else if(node.isExcluded()) {
-                yield {
-                    node: node,
-                    state: 'excluded'
-                };
-            } else {
-                if(node.type == 'folder'){
-                    selectionStack.push(...node.children());
-                }
-            }          
-        }        
-
-        while(exlusionStack.length > 0) {
-            const node = exlusionStack.pop();
-
-            if(!node)
-                continue;
-
-            if(node.isExcluded()) {
-                yield {
-                    node: node,
-                    state: 'excluded'
-                };
-            } else {
-                if(node.type == 'folder'){
-                    exlusionStack.push(...node.children());
-                }
-            }
-        }
-    }
-
-    private *getFolderNodes(nodes: TreeItem[]): Generator<FolderTreeItem> {
-        for (const node of this.getAllNodes(nodes)) {
-            if(node.type === 'folder')
-                yield node;
-        }
-    }
-
-    private *getAllNodes(nodes: TreeItem[]): Generator<TreeItem> {
-        const stack = nodes.slice();
+    // Visitor-style DFS walkers. We previously used generator functions
+    // (`function*` / `yield`), but V8 generators run 3-5× slower than plain
+    // loops because every `yield` has to save/restore the function context.
+    // At 10k+ nodes this added measurable lag to checkbox-click handling.
+    // The callback form is allocation-free (no result array, no Generator
+    // object) and supports early-exit by returning `false` from `visit`.
+    private walkAllNodes(nodes: TreeItem[], visit: (node: TreeItem) => boolean | void): void {
+        const stack: TreeItem[] = nodes.slice();
 
         while (stack.length > 0) {
-            const node = stack.pop();
-            
-            if (!node) {
-                continue;
+            const node = stack.pop()!;
+
+            if (visit(node) === false) 
+                return;
+
+            if (node.type === 'folder') {
+                const children = node.children();
+                
+                for (let i = 0; i < children.length; i++) {
+                    stack.push(children[i]);
+                }
             }
-            
-            yield node;
-            
-            if(node.type === 'folder') {
-                stack.push(...node.children());
+        }
+    }
+
+    private walkFolderNodes(nodes: TreeItem[], visit: (folder: FolderTreeItem) => boolean | void): void {
+        this.walkAllNodes(nodes, node => {
+            if (node.type !== 'folder') 
+                return;
+
+            return visit(node);
+        });
+    }
+
+    // Tree walk that classifies each yielded node as 'selected' or 'excluded'.
+    // Selection cascades: a selected folder terminates the selection-side
+    // descent (its subtree contributes only excludes); an excluded node
+    // terminates entirely. The two-stack split (selectionStack vs
+    // exclusionStack) preserves that invariant — once a folder is reported
+    // selected, its children are walked exclusion-only.
+    private walkSelectedOrExcludedNodes(
+        nodes: TreeItem[],
+        visit: (node: TreeItem, state: SelectionStateLabel) => boolean | void
+    ): void {
+        const selectionStack: TreeItem[] = nodes.slice();
+        const exclusionStack: TreeItem[] = [];
+
+        while (selectionStack.length > 0) {
+            const node = selectionStack.pop()!;
+
+            if (node.item.isSelected()) {
+                if (visit(node, 'selected') === false) return;
+
+                if (node.type === 'folder') {
+                    const children = node.children();
+                    for (let i = 0; i < children.length; i++) {
+                        exclusionStack.push(children[i]);
+                    }
+                }
+            } else if (node.isExcluded()) {
+                if (visit(node, 'excluded') === false) return;
+            } else if (node.type === 'folder') {
+                const children = node.children();
+                for (let i = 0; i < children.length; i++) {
+                    selectionStack.push(children[i]);
+                }
+            }
+        }
+
+        while (exclusionStack.length > 0) {
+            const node = exclusionStack.pop()!;
+
+            if (node.isExcluded()) {
+                if (visit(node, 'excluded') === false) return;
+            } else if (node.type === 'folder') {
+                const children = node.children();
+                for (let i = 0; i < children.length; i++) {
+                    exclusionStack.push(children[i]);
+                }
             }
         }
     }
 
     deleteSelectedItems() {
         const selectedNodes: TreeItem[] = [];
+        let hasExcluded = false;
 
-        for (const nodeWithState of this.getSelectedOrExcludedNodes(this.nodes())) {
-            if(nodeWithState.state == 'excluded') {
+        this.walkSelectedOrExcludedNodes(this.nodes(), (node, state) => {
+            if (state === 'excluded') {
                 //cannot progress with deleting if any nodes are excluded
-                return;
-            } else if (nodeWithState.state == 'selected') {
-                selectedNodes.push(nodeWithState.node);
+                hasExcluded = true;
+                return false;
             }
-        }
+            selectedNodes.push(node);
+            return;
+        });
+
+        if (hasExcluded) return;
 
         for (const node of selectedNodes) {
             const parentNode = node.parent();
@@ -1086,8 +1388,18 @@ export class FileTreeViewComponent implements OnChanges {
     }
     
     private _searchDebouncer = new Debouncer(250);
+
+    // Monotonic token bumped on every performSearch. Async fresh-search
+    // callbacks capture the value at request time and bail if it's stale —
+    // a slow "00" response could otherwise land AFTER the user typed "007"
+    // and mark its results as searched on top of the "007" results, so both
+    // sets show up at once.
+    private _searchGeneration = 0;
+
     private performSearch(phrase: string) {
         this.unmarkSearchedNodes();
+
+        const generation = ++this._searchGeneration;
 
         if(!phrase) {
             this.clearSearch();
@@ -1095,23 +1407,35 @@ export class FileTreeViewComponent implements OnChanges {
         }
 
         const currentPhrase = phrase.toLowerCase();
-        const lastSearchResponse = this._lastSearchResponse();
 
-        const isNewPhraseANarrowDownOfPrevious = lastSearchResponse
-            && lastSearchResponse.phrase 
-            && currentPhrase.includes(lastSearchResponse.phrase);
+        // Narrow-down is only valid when the previous response actually held
+        // results. If it came back as too-many (response.files = [], counter
+        // > 0), filtering an empty array always yields empty and the stale
+        // counter keeps showing "too many" while subsequent keystrokes that
+        // would have returned a tractable result set never reach the backend.
+        const isNewPhraseANarrowDownOfPrevious = this.canNarrowDown(currentPhrase);
 
-        if(isNewPhraseANarrowDownOfPrevious && !this._searchDebouncer.isOn()){  
+        if(isNewPhraseANarrowDownOfPrevious && !this._searchDebouncer.isOn()){
             this.executeSearchQuery({
                 isNewPhraseANarrowDownOfPrevious: true,
-                phrase: phrase
+                phrase: phrase,
+                generation
             });
         } else {
             this._searchDebouncer.debounce(() => this.executeSearchQuery({
-                isNewPhraseANarrowDownOfPrevious: true,
-                phrase: phrase
+                isNewPhraseANarrowDownOfPrevious: this.canNarrowDown(phrase.toLowerCase()),
+                phrase: phrase,
+                generation
             }));
         }
+    }
+
+    private canNarrowDown(currentPhrase: string): boolean {
+        const last = this._lastSearchResponse();
+        return !!last
+            && !!last.phrase
+            && last.response.tooManyResultsCounter === -1
+            && currentPhrase.includes(last.phrase);
     }
 
     private clearSearch() {
@@ -1125,15 +1449,23 @@ export class FileTreeViewComponent implements OnChanges {
     private executeSearchQuery(args: {
         phrase: string;
         isNewPhraseANarrowDownOfPrevious: boolean;
+        generation: number;
     }) {
         const currentPhrase = args.phrase.toLowerCase();
         const lastSearchResponse = this._lastSearchResponse();
 
-
-        if(lastSearchResponse && args.isNewPhraseANarrowDownOfPrevious) {           
+        // Defense in depth — `canNarrowDown` also gates this; we re-check
+        // here so a stray caller passing `isNewPhraseANarrowDownOfPrevious:
+        // true` cannot accidentally enter the narrow path against a stale
+        // too-many response. The condition is inlined (rather than extracted
+        // to a local) so TS narrows `lastSearchResponse` to non-null inside
+        // the branch.
+        if(lastSearchResponse
+                && args.isNewPhraseANarrowDownOfPrevious
+                && lastSearchResponse.response.tooManyResultsCounter === -1) {
             //if new search phrase starts with the current search phrase it means we dont have to call the service for new search
             //we can do a cheaper operation - narrow down the current results. That wont
-            //require a DOM rebuild, we will simply hide the results which no longer matches.                      
+            //require a DOM rebuild, we will simply hide the results which no longer matches.
             this.isSearchActive.set(true);
 
             const narrowedSearchResponse = {
@@ -1152,8 +1484,15 @@ export class FileTreeViewComponent implements OnChanges {
         } else {
             this.searchRequested.emit({
                 phrase: args.phrase,
-                callback: response => {                              
-                    this.isSearchActive.set(true);  
+                callback: response => {
+                    // Stale guard: a newer keystroke has superseded this
+                    // request. Applying it now would re-mark obsolete results
+                    // on top of the current phrase's results. unmarkSearchedNodes
+                    // already ran for the newer phrase, so just drop this one.
+                    if (args.generation !== this._searchGeneration)
+                        return;
+
+                    this.isSearchActive.set(true);
 
                     this._lastSearchResponse.set({
                         phrase: currentPhrase,
@@ -1167,11 +1506,11 @@ export class FileTreeViewComponent implements OnChanges {
     }
 
     private unmarkSearchedNodes() {
-        for (const node of this.getAllNodes(this.nodes())) {
-            if(node.isSearched()){
+        this.walkAllNodes(this.nodes(), node => {
+            if (node.isSearched()) {
                 node.isSearched.set(false);
             }
-        }
+        });
     }
 
     private consumeSearchResponse(response: SearchFilesTreeResponse, searchPhraseLower: string) {
@@ -1394,15 +1733,15 @@ export class FileTreeViewComponent implements OnChanges {
     }
 
     cancelSelection() {
-        for (const nodeState of this.getSelectedOrExcludedNodes(this.nodes())) {
-            if(nodeState.state === 'excluded') {
-                nodeState.node.isExcluded.set(false);
+        this.walkSelectedOrExcludedNodes(this.nodes(), (node, state) => {
+            if (state === 'excluded') {
+                node.isExcluded.set(false);
             }
 
-            if(nodeState.state === 'selected') {
-                nodeState.node.item.isSelected.set(false);
+            if (state === 'selected') {
+                node.item.isSelected.set(false);
             }
-        }
+        });
 
         this.calculateAndUpdateSelectionState();
         this.calcualteAndUpdateSearchedFilesSelectionState();

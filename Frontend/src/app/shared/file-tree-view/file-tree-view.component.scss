@@ -2,6 +2,26 @@
 @forward "./../../../styles/hover-switch.scss";
 @forward "./../../../styles/nothing-to-show.scss";
 
+// Host element grows to the full virtual content height (`[style.height.px]`)
+// so the PAGE scrollbar reflects the real tree size — rows are absolutely
+// positioned within this box. See FileTreeViewComponent.ROW_HEIGHT_PX.
+.tree-host {
+    position: relative;
+    width: 100%;
+    background-color: transparent;
+}
+
+// Absolutely positioned within .tree-host — `top` and `height` are set inline
+// per row (rows are variable-height; see FlatTreeRow.offset/height). The inline
+// height MUST match what the row content actually renders or rows overlap /
+// leave gaps.
+.virtual-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
+}
+
 .tree-node {
     &:not(:last-child) {
         margin-bottom: 0.5rem;
@@ -79,14 +99,40 @@
 
 .node-name {
     margin-left: 0.5rem;
-    flex: 1;
-    display: flex-inline;
+    flex: 1 1 auto;
+    // Allow shrinking inside the flex row so the ellipsis on __text can kick
+    // in — without this the name forces the row wider than its slot.
+    min-width: 0;
+    display: flex;
     flex-direction: column;
+
+    // Single-line clip for the folder name. The marquee directive (on __text)
+    // scrolls it on hover via the Web Animations API when it overflows.
+    &__text {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    // Inner span — inline so ellipsis works; the directive flips it to
+    // inline-block inline while the marquee animation runs.
+    &__inner {
+        display: inline;
+    }
 }
 
 .node-full-path {
     font-size: 0.75rem;
     color: var(--company-grey-font);
+    // Long ancestor paths must not wrap and blow up the row height.
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    // Inner span — see .node-name__inner.
+    &__inner {
+        display: inline;
+    }
 }
 
 .file-size {
@@ -116,6 +162,8 @@
         flex-direction: column;
         padding-right: 1.5rem;
         flex-grow: 1;
+        // Permit flex-shrink below content width so the name's ellipsis works.
+        min-width: 0;
     }
 
     &__details {
@@ -123,20 +171,37 @@
         flex-direction: row;
         align-items: center;
         flex-grow: 1;
+        min-width: 0;
 
         z-index: 1;
     }
 
+    // Single-line clip for the file name (was overflow-wrap:anywhere, which
+    // let long names wrap onto multiple lines and break the virtual row
+    // height). Marquee directive scrolls it on hover when truncated.
     &__name {
-        overflow-wrap: anywhere;
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
         padding-right: 1rem;
+    }
+
+    // Inner span — inline so ellipsis works; the marquee directive flips it to
+    // inline-block inline while the Web Animations API scroll runs.
+    &__name-inner {
+        display: inline;
     }
 
     &__subtitle {
         font-size: var(--company-small-font);
         color: var(--company-grey-font);
         white-space: nowrap;
-    }    
+        // Breathing room from the (now ellipsis-clipped) name — padding-left
+        // rather than margin so it doesn't clash with the `ml-auto` utility.
+        padding-left: 0.5rem;
+    }
 }
 
 .nested-node {

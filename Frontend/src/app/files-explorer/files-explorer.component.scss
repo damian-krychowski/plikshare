@@ -246,6 +246,16 @@ a.drag-over {
 // a usable path width, the JS sets `--stacked` and we collapse to a single
 // column. No magic breakpoint — the threshold floats with the actual rendered
 // actions width (which changes as buttons appear/disappear based on selection).
+// File-preview header: the name wrapper must shrink below its content width so
+// the editable-txt inside can ellipsis/marquee instead of pushing the action
+// buttons off-screen. The bare flex item defaults to min-width:auto (= content
+// width), which a long name blows past.
+.preview-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
 .title-header--responsive {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;

@@ -8,6 +8,7 @@ import { FileIconPipe } from "../../../files-explorer/file-icon-pipe/file-icon.p
 import { StorageSizePipe } from "../../storage-size.pipe";
 import { TreeCheckobxComponent } from "../tree-checkbox/tree-checkbox.component";
 import { FileTreeItem, TreeItem, TreeViewMode } from "../tree-item";
+import { MarqueeOnTruncateDirective } from "../../marquee-on-truncate.directive";
 
 @Component({
     selector: 'app-file-tree-node',
@@ -18,7 +19,8 @@ import { FileTreeItem, TreeItem, TreeViewMode } from "../tree-item";
     MatButtonModule,
     FileIconPipe,
     StorageSizePipe,
-    TreeCheckobxComponent
+    TreeCheckobxComponent,
+    MarqueeOnTruncateDirective
 ],
     templateUrl: './file-tree-node.component.html',
     styleUrls: ['./file-tree-node.component.scss']

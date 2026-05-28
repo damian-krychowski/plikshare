@@ -11,7 +11,13 @@ namespace PlikShare.Workspaces.SearchFilesTree;
 
 public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
 {
-    public const int TooManyResultsThreshold = 1000;
+    // Safety cap on result-set size. Bumped from 1000 after the tree-view
+    // switched to window-driven virtualization — DOM render cost is no longer
+    // proportional to match count, so the limit is now only about backend
+    // memory (matchingFiles list + SQL result) and protobuf payload size.
+    // Keeps a safety net against pathological queries (e.g. single-letter
+    // phrase matching everything in a million-file workspace).
+    public const int TooManyResultsThreshold = 10000;
 
     public SearchFilesTreeResponseDto Execute(
         WorkspaceContext workspace,

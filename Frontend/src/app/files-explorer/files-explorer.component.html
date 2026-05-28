@@ -13,14 +13,14 @@
 <div #stickyWrapper class="sticky-wrapper">
     @if(fileInPreviewVal) {
         <div class="title-header">
-            <div>
+            <div class="preview-title">
                 <app-editable-txt #nameTxt
                     [text]="fileInPreviewVal.name()"
-                    [isEditing]="fileInPreviewVal.isNameEditing()"                
+                    [isEditing]="fileInPreviewVal.isNameEditing()"
                     [canEdit]="allowFileRename() || fileInPreviewVal.wasUploadedByUser"
                     (valueChange)="saveFileName(fileInPreviewVal, $event)"
                     (editingStarted)="fileInPreviewVal.isNameEditing.set(true)"
-                    (editingStopped)="fileInPreviewVal.isNameEditing.set(false)">                    
+                    (editingStopped)="fileInPreviewVal.isNameEditing.set(false)">
                 </app-editable-txt>
             </div>
 
@@ -701,7 +701,7 @@
 
     </div>
 
-    <!-- @let isFileTreeViewActive = !(fileInPreviewVal || pendingBulkUploadVal || isListViewMode);
+    @let isFileTreeViewActive = !(fileInPreviewVal || pendingBulkUploadVal || isListViewMode);
 
     <div [style.display]="isFileTreeViewActive ? 'unset' : 'none'">
         <app-file-tree-view  #fileTreeView
@@ -723,5 +723,5 @@
             (searchRequested)="onTreeSearchRequested($event)"
             (searchedFilesSelectionChanged)="onTreeSearchedFilesSelectionChanged($event)">
         </app-file-tree-view>
-    </div>    -->
+    </div>
 </div>

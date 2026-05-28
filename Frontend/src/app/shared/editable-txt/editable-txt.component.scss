@@ -89,39 +89,11 @@
     }
 }
 
-// Marquee animation — kicks in when the marquee directive has flagged the
-// .text element as `is-truncated` AND either the .text itself is hovered or
-// it's inside a selected item-bar. Direct :hover on .text covers the most
-// common path (kursor nad tekstem), :host-context covers the
-// .item-bar--selected and .item-bar:hover cases — broader so a hover over
-// the actions area still scrolls the name. Belt-and-suspenders because
-// :host-context with :hover sometimes misses depending on encapsulation.
-.text.is-truncated:hover,
-:host-context(.item-bar:hover) .text.is-truncated,
-:host-context(.item-bar--selected) .text.is-truncated {
-    text-overflow: clip; // ellipsis would otherwise show next to the moving text
-}
-
-.text.is-truncated:hover .text__inner,
-:host-context(.item-bar:hover) .text.is-truncated .text__inner,
-:host-context(.item-bar--selected) .text.is-truncated .text__inner {
-    display: inline-block;
-    // Duration scales with text overflow distance — see directive for the
-    // formula. `linear` keeps the px/s speed constant across the scroll
-    // segment (with `ease-in-out` short titles look slow and long titles
-    // race past). Keyframe percentages MUST match the SCROLL_FRACTION
-    // constant in the directive (0.85 = 85%).
-    animation: marquee var(--marquee-duration, 6s) linear infinite;
-}
-
-// Classic marquee: brief pause → scroll to end → brief pause → INSTANT snap
-// back. The 99.99%/100% pair gives an effectively-zero-duration return
-// instead of a smooth scroll-back (which felt weird going both directions).
-@keyframes marquee {
-    0%, 10%        { transform: translateX(0); }
-    95%, 99.99%    { transform: translateX(calc(-1 * var(--marquee-distance, 0px))); }
-    100%           { transform: translateX(0); }
-}
+// Marquee scrolling is driven by MarqueeOnTruncateDirective via the Web
+// Animations API (constant velocity + constant pause), which CSS keyframes
+// can't express together. The directive toggles `text-overflow: clip` and the
+// inner span's `display: inline-block` inline while animating, so there are no
+// :hover animation rules here anymore.
 
 .txt-editor {
     display: inline-block;
