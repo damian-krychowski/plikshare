@@ -204,6 +204,20 @@ export type FilePreviewThumbnail = {
     sizeInBytes: number;
 }
 
+export type GenerateFileThumbnailsResponse = {
+    batchId: string;
+}
+
+export type FailedThumbnailVariant = {
+    variant: ThumbnailVariant;
+    error: string;
+}
+
+export type ThumbnailGenerationStatus = {
+    generatingVariants: ThumbnailVariant[];
+    failedVariants: FailedThumbnailVariant[];
+}
+
 export type FilePreviewComment = {
     externalId: string;
     contentJson: string;
@@ -731,13 +745,51 @@ export class FoldersAndFilesSetApi {
     public async generateFileThumbnails(
         workspaceExternalId: string,
         fileExternalId: string,
-        variants: ThumbnailVariant[]): Promise<void> {
-        const call = this._http.post<void>(
+        variants: ThumbnailVariant[]): Promise<GenerateFileThumbnailsResponse> {
+        const call = this._http.post<GenerateFileThumbnailsResponse>(
             `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/thumbnails/generate`,
             { variants }
         );
 
-        await firstValueFrom(call);
+        return await firstValueFrom(call);
+    }
+
+    public async getThumbnailGenerationStatus(
+        workspaceExternalId: string,
+        batchId: string): Promise<ThumbnailGenerationStatus> {
+        const call = this._http.get<ThumbnailGenerationStatus>(
+            `/api/workspaces/${workspaceExternalId}/files/thumbnail-batches/${batchId}/status`
+        );
+
+        return await firstValueFrom(call);
+    }
+
+    // Server-pushed batch status over SSE (replaces client polling). The server sends an initial
+    // snapshot, then a fresh status on every change, and closes once nothing is still generating.
+    // Returns an unsubscribe that closes the connection. Cookie auth flows automatically via
+    // withCredentials (same-origin EventSource).
+    public subscribeThumbnailBatch(
+        workspaceExternalId: string,
+        batchId: string,
+        onStatus: (status: ThumbnailGenerationStatus) => void): () => void {
+        const eventSource = new EventSource(
+            `/api/workspaces/${workspaceExternalId}/files/thumbnail-batches/${batchId}/events`,
+            { withCredentials: true }
+        );
+
+        eventSource.onmessage = (event) => {
+            try {
+                onStatus(JSON.parse(event.data) as ThumbnailGenerationStatus);
+            } catch (err) {
+                console.error('Failed to parse thumbnail batch event:', err);
+            }
+        };
+
+        eventSource.onerror = () => {
+            // EventSource reconnects on its own; the caller closes us once the batch is terminal.
+        };
+
+        return () => eventSource.close();
     }
 
     public async downloadFileConverted(

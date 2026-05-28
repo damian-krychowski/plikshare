@@ -263,6 +263,7 @@ public class CreateWorkspaceQuery(
                 StorageId: storage.StorageId),
             debounceId: null,
             sagaId: null,
+            batchId: null,
             executeAfterDate: clock.UtcNow,
             dbWriteContext: dbWriteContext,
             transaction: transaction);

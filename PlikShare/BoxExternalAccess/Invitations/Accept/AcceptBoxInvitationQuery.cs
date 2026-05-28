@@ -86,6 +86,7 @@ public class AcceptBoxInvitationQuery(
                     executeAfterDate: clock.UtcNow,
                     debounceId: null,
                     sagaId: null,
+                    batchId: null,
                     dbWriteContext: dbWriteContext,
                     transaction: transaction);
             }

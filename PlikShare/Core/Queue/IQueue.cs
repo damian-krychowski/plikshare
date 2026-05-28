@@ -19,6 +19,7 @@ public interface IQueue
         DateTimeOffset executeAfterDate,
         string? debounceId,
         QueueSagaId? sagaId,
+        Guid? batchId,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction);
 
@@ -29,6 +30,7 @@ public interface IQueue
         DateTimeOffset executeAfterDate,
         string? debounceId,
         QueueSagaId? sagaId,
+        Guid? batchId,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction);
 

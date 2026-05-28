@@ -81,6 +81,7 @@ public class RevokeBoxMemberQuery(
                 },
                 debounceId: null,
                 sagaId: null,
+                batchId: null,
                 executeAfterDate: clock.UtcNow,
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);

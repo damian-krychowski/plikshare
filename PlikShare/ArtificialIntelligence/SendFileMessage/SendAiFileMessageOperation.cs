@@ -387,6 +387,7 @@ public class SendAiFileMessageOperation(
                 executeAfterDate: clock.UtcNow,
                 debounceId: null,
                 sagaId: null,
+                batchId: null,
                 dbWriteContext,
                 transaction);
 

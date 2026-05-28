@@ -705,6 +705,7 @@ public class DownloadTextractAnalysisQueueJobExecutor(
             executeAfterDate: clock.UtcNow.AddSeconds(10),
             debounceId: null,
             sagaId: null,
+            batchId: null,
             dbWriteContext: dbWriteContext,
             transaction: transaction);
     }

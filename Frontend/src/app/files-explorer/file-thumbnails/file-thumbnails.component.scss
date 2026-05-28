@@ -149,6 +149,16 @@ $stripe-bg: repeating-linear-gradient(
     &__hint {
         font-size: var(--company-small-font);
         text-align: center;
+
+        // Danger is one of the few sanctioned accent colours (alongside success/warning); a failed
+        // generation is exactly that case.
+        &--error {
+            color: var(--company-danger);
+        }
+    }
+
+    &__icon--error {
+        color: var(--company-danger);
     }
 
     // Target pixel size as a small badge in the bottom-right corner. Floats (position:absolute)

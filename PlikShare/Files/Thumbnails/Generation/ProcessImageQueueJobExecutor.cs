@@ -120,6 +120,11 @@ public class ProcessImageQueueJobExecutor(
         var uploader = new UserIdentity(
             UserExternalId: definition.TriggeredByUserExternalId);
 
+        // A per-variant ffmpeg/upload failure is collected, not thrown — one bad image must not
+        // fail the queue job (and, for bulk, must not block the rest of the batch). The collected
+        // failures are returned as the job's result payload so the user can see what didn't work.
+        var failedVariants = new List<ThumbnailGenerationResult.FailedVariant>();
+
         foreach (var variant in definition.Variants)
         {
             try
@@ -153,6 +158,12 @@ public class ProcessImageQueueJobExecutor(
                         variant,
                         uploadResult.Code,
                         definition.ParentFileExternalId);
+
+                    failedVariants.Add(new ThumbnailGenerationResult.FailedVariant
+                    {
+                        Variant = variant,
+                        Error = $"Upload failed: {uploadResult.Code}"
+                    });
                 }
             }
             catch (Exception ex)
@@ -162,11 +173,33 @@ public class ProcessImageQueueJobExecutor(
                     "Failed to generate {Variant} thumbnail for File '{ParentFileExternalId}'. Continuing with remaining variants.",
                     variant,
                     definition.ParentFileExternalId);
+
+                failedVariants.Add(new ThumbnailGenerationResult.FailedVariant
+                {
+                    Variant = variant,
+                    Error = Truncate(ex.Message, maxLength: 500)
+                });
             }
         }
 
         ReleaseKey(definition.TempEncryptionKeyId);
-        return QueueJobResult.Success;
+
+        // NULL result on full success — the generated thumbnails are the proof. Only persist a
+        // payload when there's something the user needs to know about.
+        return failedVariants.Count == 0
+            ? QueueJobResult.Success
+            : QueueJobResult.SuccessWithResult(
+                Json.Serialize(new ThumbnailGenerationResult
+                {
+                    FailedVariants = failedVariants
+                }));
+    }
+
+    private static string Truncate(string value, int maxLength)
+    {
+        return value.Length <= maxLength
+            ? value
+            : value[..maxLength];
     }
 
     private async Task<byte[]> DownloadSourceBytes(

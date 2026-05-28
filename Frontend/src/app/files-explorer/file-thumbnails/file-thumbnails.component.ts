@@ -1,4 +1,4 @@
-import { Component, computed, effect, EventEmitter, inject, input, OnDestroy, Output, signal } from '@angular/core';
+import { Component, computed, effect, EventEmitter, inject, input, OnDestroy, Output, signal, untracked } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -7,7 +7,7 @@ import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-bt
 import { ConfigCardComponent } from '../../shared/config-card/config-card.component';
 import { StorageSizePipe } from '../../shared/storage-size.pipe';
 import { AppCapabilitiesService } from '../../services/app-capabilities.service';
-import { ContentDisposition, FilePreviewThumbnail, GetFileDownloadLinkResponse, ThumbnailVariant, UploadFileThumbnailRequest } from '../../services/folders-and-files.api';
+import { ContentDisposition, FilePreviewThumbnail, GenerateFileThumbnailsResponse, GetFileDownloadLinkResponse, ThumbnailGenerationStatus, ThumbnailVariant, UploadFileThumbnailRequest } from '../../services/folders-and-files.api';
 import { getBase62Guid } from '../../services/guid-base-62';
 import { DropFilesDirective } from '../directives/drop-files.directive';
 import { MatDialog } from '@angular/material/dialog';
@@ -17,7 +17,8 @@ import { firstValueFrom } from 'rxjs';
 export type FileThumbnailsOperations = {
     uploadFileThumbnail: (request: UploadFileThumbnailRequest) => Promise<void>;
     deleteFileThumbnail: (variant: ThumbnailVariant) => Promise<void>;
-    generateFileThumbnails: (variants: ThumbnailVariant[]) => Promise<void>;
+    generateFileThumbnails: (variants: ThumbnailVariant[]) => Promise<GenerateFileThumbnailsResponse>;
+    subscribeThumbnailBatch: (batchId: string, onStatus: (status: ThumbnailGenerationStatus) => void) => () => void;
     getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => Promise<GetFileDownloadLinkResponse>;
     prepareAdditionalHttpHeaders: () => Record<string, string> | undefined;
 };
@@ -32,6 +33,7 @@ type SlotState = {
     isLoading: boolean;
     isUploading: boolean;
     isGenerating: boolean;
+    error: string | null;
 };
 
 const SLOT_DEFS: { variant: ThumbnailVariant; label: string; targetSize: string; description: string }[] = [
@@ -80,7 +82,14 @@ export class FileThumbnailsComponent implements OnDestroy {
         isLoading: false,
         isUploading: false,
         isGenerating: false,
+        error: null,
     })));
+
+    // In-flight generation batches for the current file, each mapped to its open SSE
+    // subscription's unsubscribe fn. Persisted to localStorage so a page reload (or switching back
+    // to the file) re-opens the stream — the queue is the source of truth, this is just the handle
+    // to re-discover it.
+    private _batchSubscriptions = new Map<string, () => void>();
 
     anyGenerating = computed(() => this.slots().some(s => s.isGenerating));
     anyExisting = computed(() => this.slots().some(s => s.existing));
@@ -91,23 +100,44 @@ export class FileThumbnailsComponent implements OnDestroy {
 
         // Reconcile slot.existing against the latest thumbnails input. Preserves objectUrl
         // for variants whose externalId is unchanged so the image doesn't flicker; revokes +
-        // clears object URLs whose thumbnail was replaced or removed; then kicks off any
-        // pending preview-blob fetches.
+        // clears object URLs whose thumbnail was replaced or removed; clears any stale failure
+        // once a thumbnail is present; then kicks off any pending preview-blob fetches.
         effect(() => {
             const incoming = this.thumbnails();
             this.slots.update(current => current.map(slot => {
                 const existing = incoming.find(t => t.variant === slot.variant) ?? null;
+                const error = existing ? null : slot.error;
                 const sameId = slot.existing?.externalId === existing?.externalId;
 
-                if (sameId) return { ...slot, existing };
+                if (sameId) return { ...slot, existing, error };
 
                 if (slot.objectUrl) URL.revokeObjectURL(slot.objectUrl);
 
-                return { ...slot, existing, objectUrl: null };
+                return { ...slot, existing, error, objectUrl: null };
             }));
 
             this.syncObjectUrls();
         });
+
+        // React to the file changing: close any open streams, reset transient state, then resume
+        // from any persisted in-flight batches so generation survives reloads / file switches.
+        effect(() => {
+            const fileExternalId = this.fileExternalId();
+            untracked(() => this.onFileChanged());
+        });
+    }
+
+    private onFileChanged(): void {
+        this.closeAllSubscriptions();
+
+        this.slots.update(slots => slots.map(slot => ({
+            ...slot,
+            isGenerating: false,
+            error: null,
+        })));
+
+        for (const batchId of this.loadPersistedBatches())
+            this.subscribeToBatch(batchId);
     }
 
     public async generateVariants(variants: ThumbnailVariant[]): Promise<void> {
@@ -123,25 +153,21 @@ export class FileThumbnailsComponent implements OnDestroy {
         if (!await this.confirmOverwrite(toGenerate)) return;
 
         for (const variant of toGenerate) {
-            this.patchSlot(variant, s => ({ ...s, isGenerating: true }));
+            this.patchSlot(variant, s => ({ ...s, isGenerating: true, error: null }));
         }
 
         try {
-            await this.operations().generateFileThumbnails(toGenerate);
+            const { batchId } = await this.operations().generateFileThumbnails(toGenerate);
 
-            // Queue worker is async — emit changed periodically so parent re-fetches preview
-            // details. Stop early once every requested variant shows up on the slot side.
-            for (let i = 0; i < 10; i++) {
-                await new Promise(r => setTimeout(r, 1500));
-                this.changed.emit();
-
-                const allPresent = toGenerate.every(v =>
-                    this.slots().find(s => s.variant === v)?.existing != null);
-                if (allPresent) break;
-            }
+            // The queue worker is async. We open an SSE stream for the batch; the server pushes a
+            // fresh status on every change and we clear isGenerating per-variant when the queue
+            // reports it done (see onBatchStatus) — never on a timer, so a slow generation is
+            // never prematurely marked complete.
+            this.persistBatches([...this._batchSubscriptions.keys(), batchId]);
+            this.subscribeToBatch(batchId);
         } catch (err) {
             console.error('Thumbnail generation failed:', err);
-        } finally {
+
             for (const variant of toGenerate) {
                 this.patchSlot(variant, s => ({ ...s, isGenerating: false }));
             }
@@ -149,8 +175,98 @@ export class FileThumbnailsComponent implements OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.closeAllSubscriptions();
+
         for (const slot of this.slots()) {
             if (slot.objectUrl) URL.revokeObjectURL(slot.objectUrl);
+        }
+    }
+
+    // --- Generation status: server pushes batch status over SSE until nothing is generating ----
+
+    private subscribeToBatch(batchId: string): void {
+        if (this._batchSubscriptions.has(batchId))
+            return;
+
+        const unsubscribe = this.operations().subscribeThumbnailBatch(
+            batchId,
+            status => this.onBatchStatus(batchId, status));
+
+        this._batchSubscriptions.set(batchId, unsubscribe);
+    }
+
+    private onBatchStatus(batchId: string, status: ThumbnailGenerationStatus): void {
+        const generating = new Set<ThumbnailVariant>(status.generatingVariants);
+        const failedByVariant = new Map<ThumbnailVariant, string>(
+            status.failedVariants.map(failed => [failed.variant, failed.error]));
+
+        this.slots.update(slots => slots.map(slot => {
+            const isGenerating = generating.has(slot.variant);
+            const freshError = failedByVariant.get(slot.variant);
+
+            return {
+                ...slot,
+                isGenerating,
+                // A fresh failure wins; otherwise keep the existing error unless the variant is
+                // (re)generating, in which case clear it.
+                error: freshError ?? (isGenerating ? null : slot.error),
+            };
+        }));
+
+        // Pull the freshly generated thumbnails into the preview.
+        this.changed.emit();
+
+        // No variant still generating -> the batch is done (success and/or failure captured
+        // above). Close its stream so the server can stop and we don't reconnect.
+        if (status.generatingVariants.length === 0)
+            this.endBatch(batchId);
+    }
+
+    private endBatch(batchId: string): void {
+        const unsubscribe = this._batchSubscriptions.get(batchId);
+
+        if (unsubscribe) {
+            unsubscribe();
+            this._batchSubscriptions.delete(batchId);
+        }
+
+        this.persistBatches([...this._batchSubscriptions.keys()]);
+    }
+
+    private closeAllSubscriptions(): void {
+        for (const unsubscribe of this._batchSubscriptions.values())
+            unsubscribe();
+
+        this._batchSubscriptions.clear();
+    }
+
+    private storageKey(): string {
+        return `plik:thumb-batches:${this.fileExternalId()}`;
+    }
+
+    private loadPersistedBatches(): string[] {
+        try {
+            const raw = localStorage.getItem(this.storageKey());
+
+            if (raw)
+                return JSON.parse(raw) as string[];
+        } catch {
+            // Corrupt/blocked storage — just start with no resumable batches.
+        }
+
+        return [];
+    }
+
+    private persistBatches(batchIds: string[]): void {
+        const key = this.storageKey();
+
+        try {
+            if (batchIds.length === 0)
+                localStorage.removeItem(key);
+            else
+                localStorage.setItem(key, JSON.stringify(batchIds));
+        } catch {
+            // Storage unavailable — generation still works, it just won't survive a reload.
         }
     }
 

@@ -4,6 +4,7 @@ using PlikShare.AuditLog;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.CorrelationId;
 using PlikShare.Core.Encryption;
+using PlikShare.Core.Queue;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
@@ -36,6 +37,7 @@ using PlikShare.Files.UpdateSize;
 using PlikShare.Files.Metadata;
 using PlikShare.Files.Thumbnails;
 using PlikShare.Files.Thumbnails.Generation;
+using PlikShare.Files.Thumbnails.Generation.Contracts;
 using PlikShare.Files.UploadAttachment;
 using PlikShare.Storages;
 using PlikShare.Storages.Encryption.Authorization;
@@ -75,6 +77,12 @@ public static class FilesEndpoints
 
         group.MapPost("/{fileExternalId}/thumbnails/generate", GenerateFileThumbnails)
             .WithName("GenerateFileThumbnails");
+
+        group.MapGet("/thumbnail-batches/{batchId:guid}/status", GetThumbnailGenerationStatus)
+            .WithName("GetThumbnailGenerationStatus");
+
+        group.MapGet("/thumbnail-batches/{batchId:guid}/events", GetThumbnailBatchEvents)
+            .WithName("GetThumbnailBatchEvents");
 
         group.MapGet("/{fileExternalId}/download-converted", DownloadFileConverted)
             .WithName("DownloadFileConverted");
@@ -348,7 +356,7 @@ public static class FilesEndpoints
         return TypedResults.Ok();
     }
 
-    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>, JsonHttpResult<HttpError>>> GenerateFileThumbnails(
+    private static async Task<Results<Ok<GenerateFileThumbnailsResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, JsonHttpResult<HttpError>>> GenerateFileThumbnails(
         [FromRoute] FileExtId fileExternalId,
         [FromBody] GenerateFileThumbnailsRequestDto request,
         HttpContext httpContext,
@@ -372,7 +380,10 @@ public static class FilesEndpoints
 
         return result.Code switch
         {
-            GenerateFileThumbnailsOperation.ResultCode.Ok => TypedResults.Ok(),
+            GenerateFileThumbnailsOperation.ResultCode.Ok => TypedResults.Ok(new GenerateFileThumbnailsResponseDto
+            {
+                BatchId = result.BatchId!.Value
+            }),
             GenerateFileThumbnailsOperation.ResultCode.FfmpegUnavailable => HttpErrors.File.FfmpegUnavailable(),
             GenerateFileThumbnailsOperation.ResultCode.ParentNotFound => HttpErrors.File.NotFound(fileExternalId),
             GenerateFileThumbnailsOperation.ResultCode.ParentNotThumbnailable => HttpErrors.File.ParentNotThumbnailable(),
@@ -381,9 +392,108 @@ public static class FilesEndpoints
         };
     }
 
-    public class GenerateFileThumbnailsRequestDto
+    private static Ok<ThumbnailGenerationStatusResponseDto> GetThumbnailGenerationStatus(
+        [FromRoute] Guid batchId,
+        HttpContext httpContext,
+        GetThumbnailGenerationStatusQuery getThumbnailGenerationStatusQuery)
     {
-        public required List<ThumbnailVariant> Variants { get; init; }
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+
+        var response = getThumbnailGenerationStatusQuery.Execute(
+            workspace: workspaceMembership.Workspace,
+            batchId: batchId);
+
+        return TypedResults.Ok(response);
+    }
+
+    /// <summary>
+    /// Server-Sent Events stream of a thumbnail batch's status. Pushes an initial snapshot, then a
+    /// fresh status on every queue notification for the batch, and closes once no variant is still
+    /// generating. Replaces client-side polling — the connection is opened once and the server
+    /// pushes. Single-process app, so no backplane is needed.
+    /// </summary>
+    private static async Task GetThumbnailBatchEvents(
+        [FromRoute] Guid batchId,
+        HttpContext httpContext,
+        GetThumbnailGenerationStatusQuery getThumbnailGenerationStatusQuery,
+        QueueBatchNotifier queueBatchNotifier,
+        CancellationToken cancellationToken)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspace = workspaceMembership.Workspace;
+
+        var response = httpContext.Response;
+        response.Headers.ContentType = "text/event-stream";
+        response.Headers.CacheControl = "no-cache";
+        response.Headers.Append("X-Accel-Buffering", "no");
+
+        // Subscribe BEFORE the snapshot so a completion landing between the two isn't missed.
+        using var subscription = queueBatchNotifier.Subscribe(
+            batchId);
+
+        var status = getThumbnailGenerationStatusQuery.Execute(
+            workspace, 
+            batchId);
+
+        await WriteSseStatus(
+            response, 
+            status, 
+            cancellationToken);
+
+        if (status.GeneratingVariants.Count == 0)
+            return;
+
+        var keepAlive = TimeSpan.FromSeconds(20);
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            subscription.DrainPending();
+
+            bool signalled;
+
+            using (var keepAliveCts = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken))
+            {
+                keepAliveCts.CancelAfter(keepAlive);
+
+                try
+                {
+                    signalled = await subscription.WaitForSignalAsync(
+                        keepAliveCts.Token);
+                }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    // Keep-alive tick — comment line keeps the connection (and proxies) alive.
+                    await response.WriteAsync(": keep-alive\n\n", cancellationToken);
+                    await response.Body.FlushAsync(cancellationToken);
+                    continue;
+                }
+            }
+
+            if (!signalled)
+                break;
+
+            status = getThumbnailGenerationStatusQuery.Execute(
+                workspace, 
+                batchId);
+
+            await WriteSseStatus(
+                response, 
+                status, 
+                cancellationToken);
+
+            if (status.GeneratingVariants.Count == 0)
+                break;
+        }
+    }
+
+    private static async Task WriteSseStatus(
+        HttpResponse response,
+        ThumbnailGenerationStatusResponseDto status,
+        CancellationToken cancellationToken)
+    {
+        await response.WriteAsync($"data: {Json.Serialize(status)}\n\n", cancellationToken);
+        await response.Body.FlushAsync(cancellationToken);
     }
 
     private static async Task<IResult> DownloadFileConverted(

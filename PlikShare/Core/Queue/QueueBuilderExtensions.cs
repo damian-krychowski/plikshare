@@ -10,7 +10,8 @@ public static class QueueBuilderExtensions
         int parallelConsumersCount)
     {
         app.Services.AddSingleton<IQueue, Queue>();
-        
+        app.Services.AddSingleton<QueueBatchNotifier>();
+
         app.Services.AddSingleton(new QueueChannels(
             capacity: parallelConsumersCount * 3));
 

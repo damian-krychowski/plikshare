@@ -2,7 +2,7 @@ import { FilesExplorerApi } from "../files-explorer/files-explorer.component";
 import { AppFileItem } from "../shared/file-item/file-item.component";
 import { DataStore } from "./data-store.service";
 import { FileLockService } from "./file-lock.service";
-import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, DownloadImageFormat, FilePreviewDetailsField, FoldersAndFilesGetApi, FoldersAndFilesSetApi, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFilesTreeResponseDto, GetZipBulkDownloadLinkRequest, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from "./folders-and-files.api";
+import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, DownloadImageFormat, FilePreviewDetailsField, FoldersAndFilesGetApi, FoldersAndFilesSetApi, GenerateFileThumbnailsResponse, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFilesTreeResponseDto, GetZipBulkDownloadLinkRequest, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from "./folders-and-files.api";
 import { ZipEntry } from "./zip";
 
 export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
@@ -230,11 +230,19 @@ export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
         );
     }
 
-    generateFileThumbnails(fileExternalId: string, variants: ThumbnailVariant[]): Promise<void> {
+    generateFileThumbnails(fileExternalId: string, variants: ThumbnailVariant[]): Promise<GenerateFileThumbnailsResponse> {
         return this._setApi.generateFileThumbnails(
             this._workspaceExternalId,
             fileExternalId,
             variants
+        );
+    }
+
+    subscribeThumbnailBatch(batchId: string, onStatus: (status: ThumbnailGenerationStatus) => void): () => void {
+        return this._setApi.subscribeThumbnailBatch(
+            this._workspaceExternalId,
+            batchId,
+            onStatus
         );
     }
 

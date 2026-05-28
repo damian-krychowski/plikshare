@@ -136,6 +136,15 @@ public static class DbReaderExtensions
             : reader.GetInt64(ordinal);
     }
 
+    public static Guid? GetGuidOrNull(this DbDataReader reader, int ordinal)
+    {
+        ArgumentNullException.ThrowIfNull(reader);
+
+        return reader.IsDBNull(ordinal)
+            ? null
+            : reader.GetGuid(ordinal);
+    }
+
     public static T GetFromJson<T>(this DbDataReader reader, int ordinal)
     {
         ArgumentNullException.ThrowIfNull(reader);

@@ -83,15 +83,28 @@ public class FfmpegService
 
         // stdin writer, stdout reader, stderr reader must run concurrently — ffmpeg will block
         // if the OS pipe buffer for stderr fills while we're sequentially waiting on stdout.
-        var stdinTask = WriteToStdin(process, sourceBytes, cancellationToken);
-        var stdoutBuffer = new MemoryStream();
-        var stdoutTask = process.StandardOutput.BaseStream.CopyToAsync(stdoutBuffer, cancellationToken);
-        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        var stdinTask = WriteToStdin(
+            process, 
+            sourceBytes, 
+            cancellationToken);
+            
+        using var stdoutBuffer = new MemoryStream();
+
+        var stdoutTask = process.StandardOutput.BaseStream.CopyToAsync(
+            stdoutBuffer, 
+            cancellationToken);
+
+        var stderrTask = process.StandardError.ReadToEndAsync(
+            cancellationToken);
 
         try
         {
-            await Task.WhenAll(stdinTask, stdoutTask);
-            await process.WaitForExitAsync(cancellationToken);
+            await Task.WhenAll(
+                stdinTask, 
+                stdoutTask);
+
+            await process.WaitForExitAsync(
+                cancellationToken);
         }
         catch
         {
@@ -168,15 +181,28 @@ public class FfmpegService
         using var process = Process.Start(psi)
             ?? throw new InvalidOperationException("ffmpeg failed to start.");
 
-        var stdinTask = WriteToStdin(process, sourceBytes, cancellationToken);
-        var stdoutBuffer = new MemoryStream();
-        var stdoutTask = process.StandardOutput.BaseStream.CopyToAsync(stdoutBuffer, cancellationToken);
-        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        var stdinTask = WriteToStdin(
+            process, 
+            sourceBytes, 
+            cancellationToken);
+
+        using var stdoutBuffer = new MemoryStream();
+
+        var stdoutTask = process.StandardOutput.BaseStream.CopyToAsync(
+            stdoutBuffer, 
+            cancellationToken);
+
+        var stderrTask = process.StandardError.ReadToEndAsync(
+            cancellationToken);
 
         try
         {
-            await Task.WhenAll(stdinTask, stdoutTask);
-            await process.WaitForExitAsync(cancellationToken);
+            await Task.WhenAll(
+                stdinTask, 
+                stdoutTask);
+
+            await process.WaitForExitAsync(
+                cancellationToken);
         }
         catch
         {

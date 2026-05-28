@@ -268,6 +268,7 @@ public class TestTextractConfigurationOperation(
                         executeAfterDate: clock.UtcNow,
                         debounceId: null,
                         sagaId: sagaId,
+                        batchId: null,
                         dbWriteContext: context,
                         transaction: transaction);
 

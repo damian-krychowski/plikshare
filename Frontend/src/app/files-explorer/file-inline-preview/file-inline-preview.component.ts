@@ -9,7 +9,7 @@ import { getRelativeTime } from '../../services/time.service';
 import { AuthService } from '../../services/auth.service';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
 import { ZipArchives, ZipEntry, ZipVirtualFolder } from '../../services/zip';
-import { AiInclude, AiMessageDto, ContentDisposition, DownloadImageFormat, FilePreviewDetailsField, FilePreviewThumbnail, GetAiMessagesResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, TextractFeature, TextractJobStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../../services/folders-and-files.api';
+import { AiInclude, AiMessageDto, ContentDisposition, DownloadImageFormat, FilePreviewDetailsField, FilePreviewThumbnail, GenerateFileThumbnailsResponse, GetAiMessagesResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, TextractFeature, TextractJobStatus, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../../services/folders-and-files.api';
 import { TextractIntegration } from '../../services/integrations.types';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { FormsModule } from '@angular/forms';
@@ -67,7 +67,8 @@ export type FilePreviewOperations = {
     uploadFileAttachment: (fileExternalId: string, request: UploadFileAttachmentRequest) => Promise<void>;
     uploadFileThumbnail: (fileExternalId: string, request: UploadFileThumbnailRequest) => Promise<void>;
     deleteFileThumbnail: (fileExternalId: string, variant: ThumbnailVariant) => Promise<void>;
-    generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) => Promise<void>;
+    generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) => Promise<GenerateFileThumbnailsResponse>;
+    subscribeThumbnailBatch: (batchId: string, onStatus: (status: ThumbnailGenerationStatus) => void) => () => void;
     downloadFileConverted: (fileExternalId: string, format: DownloadImageFormat, downloadFileName: string) => Promise<void>;
 
     sendAiFileMessage(fileExternalId: string, request: SendAiFileMessageRequest): Promise<void>;
@@ -490,6 +491,10 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
             generateFileThumbnails: (variants) => previewOps.generateFileThumbnails(
                 parentExtId,
                 variants),
+
+            subscribeThumbnailBatch: (batchId, onStatus) => previewOps.subscribeThumbnailBatch(
+                batchId,
+                onStatus),
 
             getDownloadLink: (thumbExternalId, contentDisposition) => fileOps.getDownloadLink(
                 thumbExternalId,

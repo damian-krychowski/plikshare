@@ -590,6 +590,7 @@ public static class AuthEndpoints
                 executeAfterDate: clock.UtcNow,
                 debounceId: null,
                 sagaId: null,
+                batchId: null,
                 dbWriteContext: context,
                 transaction: null),
             cancellationToken: cancellationToken);
@@ -707,6 +708,7 @@ public static class AuthEndpoints
                 executeAfterDate: clock.UtcNow,
                 debounceId: null,
                 sagaId: null,
+                batchId: null,
                 dbWriteContext: context,
                 transaction: null),
             cancellationToken: cancellationToken);

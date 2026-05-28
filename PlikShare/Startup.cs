@@ -359,6 +359,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_37_WorkspaceAuditLogDisabledEventsIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_38_QuickSharesIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_39_TrashIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_40_QueueResultAndThumbnailIndexesIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -782,6 +783,7 @@ public class Startup
         builder.Services.AddSingleton<TemporaryWorkspaceEncryptionKeyStore>();
         builder.Services.AddSingleton<IQueueLongRunningJobExecutor, ProcessImageQueueJobExecutor>();
         builder.Services.AddSingleton<GenerateFileThumbnailsOperation>();
+        builder.Services.AddSingleton<GetThumbnailGenerationStatusQuery>();
         builder.Services.AddSingleton<DownloadFileConvertedOperation>();
         builder.Services.AddSingleton<IQueueLongRunningJobExecutor, SendAiMessageQueueJobExecutor>();
         builder.Services.AddSingleton<IQueueNormalJobExecutor, DeleteAiConversationQueueJobExecutor>();

@@ -100,6 +100,7 @@ public class RejectWorkspaceInvitationQuery(
                     },
                     debounceId: null,
                     sagaId: null,
+                    batchId: null,
                     executeAfterDate: clock.UtcNow,
                     dbWriteContext: dbWriteContext,
                     transaction: transaction);

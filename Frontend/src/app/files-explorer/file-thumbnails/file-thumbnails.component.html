@@ -125,6 +125,13 @@
                                     mode="indeterminate">
                                 </mat-progress-spinner>
                                 <span class="thumbnail-drop__hint">Generating...</span>
+                            } @else if (slot.error) {
+                                <span class="icon icon-lucide-circle-xmark thumbnail-drop__icon thumbnail-drop__icon--error"></span>
+                                <span
+                                    class="thumbnail-drop__hint thumbnail-drop__hint--error"
+                                    [matTooltip]="slot.error">
+                                    Generation failed — click or drop to upload
+                                </span>
                             } @else {
                                 <span class="icon icon-nucleo-upload-2 thumbnail-drop__icon"></span>
                                 <span class="thumbnail-drop__hint">Click or drop to upload</span>

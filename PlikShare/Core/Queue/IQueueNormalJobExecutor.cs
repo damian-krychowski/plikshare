@@ -55,10 +55,20 @@ public enum QueueJobResultCode
 public readonly record struct QueueJobResult(
     QueueJobResultCode Code,
     TimeSpan RetryDelay = default,
-    int SoftRetryMaxAttempts = 0)
+    int SoftRetryMaxAttempts = 0,
+    string? ResultJson = null)
 {
     public static QueueJobResult Success => new(
         QueueJobResultCode.Success);
+
+    /// <summary>
+    /// Job finished successfully but produced an outcome payload worth keeping — persisted into
+    /// <c>qc_queue_completed.qc_result</c>. Use for partial outcomes (eg. some thumbnail variants
+    /// failed) that should surface to the user without failing the job on the queue.
+    /// </summary>
+    public static QueueJobResult SuccessWithResult(string resultJson) => new(
+        QueueJobResultCode.Success,
+        ResultJson: resultJson);
 
     public static QueueJobResult Blocked => new(
         QueueJobResultCode.Blocked);

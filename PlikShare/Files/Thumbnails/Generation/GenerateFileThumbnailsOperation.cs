@@ -55,6 +55,8 @@ public class GenerateFileThumbnailsOperation(
             ? (Guid?)null
             : keyStore.Store(workspaceEncryptionSession);
 
+        var batchId = Guid.NewGuid();
+
         var definition = new ProcessImageQueueJobDefinition
         {
             WorkspaceId = workspace.Id,
@@ -70,7 +72,8 @@ public class GenerateFileThumbnailsOperation(
                 operationToEnqueue: context => EnqueueJob(
                     dbWriteContext: context,
                     definition: definition,
-                    correlationId: correlationId),
+                    correlationId: correlationId,
+                    batchId: batchId),
                 cancellationToken: cancellationToken);
         }
         catch
@@ -83,13 +86,16 @@ public class GenerateFileThumbnailsOperation(
             throw;
         }
 
-        return new Result(Code: ResultCode.Ok);
+        return new Result(
+            Code: ResultCode.Ok, 
+            BatchId: batchId);
     }
 
     private void EnqueueJob(
         SqliteWriteContext dbWriteContext,
         ProcessImageQueueJobDefinition definition,
-        Guid correlationId)
+        Guid correlationId,
+        Guid batchId)
     {
         var transaction = dbWriteContext.Connection.BeginTransaction();
 
@@ -103,7 +109,8 @@ public class GenerateFileThumbnailsOperation(
                 debounceId: null,
                 sagaId: null,
                 dbWriteContext: dbWriteContext,
-                transaction: transaction);
+                transaction: transaction,
+                batchId: batchId);
 
             transaction.Commit();
         }
@@ -114,7 +121,9 @@ public class GenerateFileThumbnailsOperation(
         }
     }
 
-    public record Result(ResultCode Code);
+    public record Result(
+        ResultCode Code, 
+        Guid? BatchId = null);
 
     public enum ResultCode
     {

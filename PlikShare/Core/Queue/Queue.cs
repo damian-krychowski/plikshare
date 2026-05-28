@@ -11,7 +11,8 @@ public class Queue(
     PlikShareDb plikShareDb,
     DbWriteQueue dbWriteQueue,
     IClock clock,
-    QueueJobStatusDecisionEngine queueJobStatusDecisionEngine) : IQueue
+    QueueJobStatusDecisionEngine queueJobStatusDecisionEngine,
+    QueueBatchNotifier batchNotifier) : IQueue
 {
     private static int MaxRetryCount { get; } = 3;
     private static int[] RetryDelaysInSeconds { get; } = [3 * 60, 5 * 60, 15 * 60];
@@ -119,6 +120,7 @@ public class Queue(
         DateTimeOffset executeAfterDate,
         string? debounceId,
         QueueSagaId? sagaId,
+        Guid? batchId,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction)
     {
@@ -129,6 +131,7 @@ public class Queue(
             executeAfterDate,
             debounceId,
             sagaId,
+            batchId,
             dbWriteContext,
             transaction);
 
@@ -142,13 +145,14 @@ public class Queue(
     }
 
     public SQLiteOneRowCommandResult<QueueJobId> Enqueue<T>(
-        Guid correlationId, 
-        string jobType, 
-        T definition, 
-        DateTimeOffset executeAfterDate, 
+        Guid correlationId,
+        string jobType,
+        T definition,
+        DateTimeOffset executeAfterDate,
         string? debounceId,
         QueueSagaId? sagaId,
-        SqliteWriteContext dbWriteContext, 
+        Guid? batchId,
+        SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction)
     {
         var status = queueJobStatusDecisionEngine.GetNewJobStatus(
@@ -161,31 +165,33 @@ public class Queue(
             .OneRowCmd(
                 sql: @"
                     INSERT INTO q_queue (
-                        q_job_type, 
-                        q_definition, 
-                        q_status, 
-                        q_failed_retries_count, 
+                        q_job_type,
+                        q_definition,
+                        q_status,
+                        q_failed_retries_count,
                         q_execute_after_date,
-                        q_enqueued_at, 
+                        q_enqueued_at,
                         q_correlation_id,
                         q_debounce_id,
-                        q_saga_id
-                    ) 
+                        q_saga_id,
+                        q_batch_id
+                    )
                     VALUES (
                         $jobType,
                         $definition,
                         $status,
-                        0,     
-                        $executeAfterDate,      
-                        $enqueuedAt,              
+                        0,
+                        $executeAfterDate,
+                        $enqueuedAt,
                         $correlationId,
                         $debounceId,
-                        $sagaId
-                    )  
+                        $sagaId,
+                        $batchId
+                    )
                     ON CONFLICT (q_debounce_id)
-                    DO UPDATE SET 
+                    DO UPDATE SET
                             q_execute_after_date = MAX(
-                                EXCLUDED.q_execute_after_date, 
+                                EXCLUDED.q_execute_after_date,
                                 q_queue.q_execute_after_date)
                     RETURNING
                         q_id;
@@ -201,6 +207,7 @@ public class Queue(
             .WithParameter("$correlationId", correlationId)
             .WithParameter("$debounceId", debounceId)
             .WithParameter("$sagaId", sagaId?.Value)
+            .WithParameter("$batchId", batchId)
             .Execute();
     }
 
@@ -318,6 +325,26 @@ public class Queue(
             default:
                 throw new ArgumentOutOfRangeException(
                     $"Unknown QueueStatus: '{newStatus}' (DbOnly Queue Consumer)");
+        }
+
+        NotifyBatch(job);
+    }
+
+    private void NotifyBatch(in QueueJob job)
+    {
+        // Push batch progress to any SSE subscriber. Best-effort: a failed notification must never
+        // affect job processing.
+        if (job.BatchId is not null)
+        {
+            try
+            {
+                batchNotifier.Notify(
+                    job.BatchId.Value);
+            }
+            catch (Exception e)
+            {
+                Log.Warning(e, "Failed to notify batch {BatchId} subscribers", job.BatchId);
+            }
         }
     }
     
@@ -482,6 +509,7 @@ public class Queue(
             case QueueJobResultCode.Success:
                 MarkJobAsCompleted(
                     jobId: job.Id,
+                    resultJson: result.ResultJson,
                     dbWriteContext: dbWriteContext,
                     transaction: transaction,
                     consumerIdentity: consumerIdentity);
@@ -511,13 +539,13 @@ public class Queue(
         }
     }
 
-    public Task HandleJobSuccess(
+    public async Task HandleJobSuccess(
         QueueJob job,
         QueueJobResult result,
         string consumerIdentity,
         CancellationToken cancellationToken)
     {
-        return dbWriteQueue.Execute(
+        await dbWriteQueue.Execute(
             operationToEnqueue: dbWriteContext =>
             {
                 using var transaction = dbWriteContext.Connection.BeginTransaction();
@@ -541,6 +569,8 @@ public class Queue(
                 }
             },
             cancellationToken: cancellationToken);
+
+        NotifyBatch(job);
     }
 
     private void HandleSoftRetry(
@@ -705,6 +735,7 @@ public class Queue(
 
     private void MarkJobAsCompleted(
         int jobId,
+        string? resultJson,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction,
         string consumerIdentity)
@@ -720,9 +751,11 @@ public class Queue(
                         qc_enqueued_at,
                         qc_execute_after_date,
                         qc_completed_at,
-                        qc_correlation_id                         
+                        qc_correlation_id,
+                        qc_batch_id,
+                        qc_result
                     )
-                    SELECT 
+                    SELECT
                         q_id,
                         q_job_type,
                         q_definition,
@@ -730,10 +763,12 @@ public class Queue(
                         q_enqueued_at,
                         q_execute_after_date,
                         $completedAt,
-                        q_correlation_id
-                    FROM 
+                        q_correlation_id,
+                        q_batch_id,
+                        $result
+                    FROM
                         q_queue
-                    WHERE 
+                    WHERE
                         q_id = $jobId
                     RETURNING
                         qc_id
@@ -742,6 +777,7 @@ public class Queue(
                 transaction: transaction)
             .WithParameter("$jobId", jobId)
             .WithParameter("$completedAt", clock.UtcNow)
+            .WithParameter("$result", resultJson)
             .Execute();
 
         if (insertQueueCompletedResult.IsEmpty)
