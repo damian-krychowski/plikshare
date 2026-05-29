@@ -42,6 +42,7 @@ using PlikShare.Files.Thumbnails.Generation.Contracts;
 using PlikShare.Files.UploadAttachment;
 using PlikShare.Storages;
 using PlikShare.Storages.Encryption.Authorization;
+using PlikShare.Storages.Exceptions;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Workspaces.Validation;
 using System.Globalization;
@@ -87,6 +88,9 @@ public static class FilesEndpoints
 
         group.MapGet("/thumbnail-batches/{batchId:guid}/events", GetThumbnailBatchEvents)
             .WithName("GetThumbnailBatchEvents");
+
+        group.MapGet("/{fileExternalId}/thumbnail", GetFileThumbnail)
+            .WithName("GetFileThumbnail");
 
         group.MapGet("/{fileExternalId}/download-converted", DownloadFileConverted)
             .WithName("DownloadFileConverted");
@@ -537,6 +541,91 @@ public static class FilesEndpoints
     {
         await response.WriteAsync($"data: {Json.Serialize(status)}\n\n", cancellationToken);
         await response.Body.FlushAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Streams a file's Mini thumbnail (decrypted) for use as an &lt;img src&gt; in the file list.
+    /// Cookie-authenticated like the rest of the workspace API, so a plain &lt;img&gt; works.
+    /// 404 when the file has no Mini thumbnail (the listing's HasMiniThumbnail flag means the
+    /// frontend normally only hits this for files that have one). The URL is stable (keyed by
+    /// the parent file) and the ETag is the thumbnail child's external id — regenerating a
+    /// thumbnail mints a new child id, so the ETag changes and stale caches revalidate.
+    /// </summary>
+    private static async Task<IResult> GetFileThumbnail(
+        [FromRoute] FileExtId fileExternalId,
+        HttpContext httpContext,
+        GetThumbnailDownloadDetailsQuery getThumbnailDownloadDetailsQuery,
+        CancellationToken cancellationToken)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspace = workspaceMembership.Workspace;
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
+        var thumbnail = getThumbnailDownloadDetailsQuery.Execute(
+            workspace: workspace,
+            parentFileExternalId: fileExternalId,
+            variant: ThumbnailVariant.Mini,
+            workspaceEncryptionSession: workspaceEncryptionSession);
+
+        if (thumbnail is null)
+            return HttpErrors.File.NotFound(fileExternalId);
+
+        var response = httpContext.Response;
+
+        var etag = $"\"{thumbnail.ExternalId.Value}\"";
+        response.Headers.CacheControl = "private, max-age=300";
+        response.Headers.ETag = etag;
+
+        if (string.Equals(
+                httpContext.Request.Headers.IfNoneMatch.ToString(),
+                etag,
+                StringComparison.Ordinal))
+        {
+            response.StatusCode = StatusCodes.Status304NotModified;
+            return Results.Empty;
+        }
+
+        try
+        {
+            var encryptionMode = thumbnail.EncryptionMetadata.ToEncryptionMode(
+                workspaceEncryptionSession: workspaceEncryptionSession,
+                storageClient: workspace.Storage);
+
+            await using var storageFile = await workspace.DownloadFile(
+                fileDetails: new DownloadFileDetails(
+                    FileKey: thumbnail.FileKey,
+                    FileSizeInBytes: thumbnail.SizeInBytes,
+                    EncryptionMode: encryptionMode),
+                cancellationToken: cancellationToken);
+
+            response.Headers.ContentType = thumbnail.ContentType;
+            response.Headers.ContentLength = thumbnail.SizeInBytes;
+
+            await storageFile.ReadTo(
+                output: response.BodyWriter,
+                cancellationToken: cancellationToken);
+
+            return Results.Empty;
+        }
+        catch (OperationCanceledException)
+        {
+            return Results.Empty;
+        }
+        catch (FileNotFoundInStorageException)
+        {
+            if (response.HasStarted)
+            {
+                httpContext.Abort();
+                return Results.Empty;
+            }
+
+            return HttpErrors.File.NotFound(fileExternalId);
+        }
+        finally
+        {
+            if (response.HasStarted)
+                await response.BodyWriter.CompleteAsync();
+        }
     }
 
     private static async Task<IResult> DownloadFileConverted(

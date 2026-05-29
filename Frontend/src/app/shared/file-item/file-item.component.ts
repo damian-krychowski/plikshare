@@ -32,6 +32,10 @@ export type AppFileItem = {
     createdAt: Date | null;
     position: WritableSignal<number>;
 
+    // Set only by the folder-listing mapper (mapFileDtosToItems); other construction sites
+    // leave it undefined (no thumbnails surfaced there).
+    hasMiniThumbnail?: boolean;
+
     isNameEditing: WritableSignal<boolean>;
     isSelected: WritableSignal<boolean>;
     isCut: WritableSignal<boolean>;
@@ -49,6 +53,9 @@ export interface FileOperations {
     saveFileNameFunc: (fileExternalId: string, newName: string) => Promise<void>;
     deleteFileFunc: (fileExternalId: string) => Promise<void>;
     getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => Promise<{downloadPreSignedUrl: string}>;
+    // Stable, cookie-authenticated URL of a file's Mini thumbnail for use as an <img src>.
+    // Optional — only providers that surface a workspace context (the routed explorer) supply it.
+    getThumbnailUrl?: (fileExternalId: string) => string;
     openFolderFunc: (folderExternalId: string | null, navigationExtras: NavigationExtras | null) => void;
     prefetchFolderFunc: (folderExternalId: string | null) => void;
     subscribeToLockStatus: (file: AppFileItem) => void;
@@ -85,6 +92,7 @@ export class FileItemComponent implements OnInit, OnDestroy {
     hideDownloadAction = input(false);
     hideSelectCheckbox = input(false);
     canReorder = input(false);
+    showThumbnails = input(false);
     highlightPhrase = input<string>('');
 
     permissions = input<AppFilePermissions>({
@@ -107,6 +115,28 @@ export class FileItemComponent implements OnInit, OnDestroy {
     });
 
     isHighlighted = observeIsHighlighted(this.file);
+
+    // URLs whose <img> failed to load (404 race after a delete, transient error). Once failed we
+    // fall back to the file-type icon. Keyed by URL so a virtualized row reused for another file
+    // is unaffected.
+    private _failedThumbnailUrls = signal<ReadonlySet<string>>(new Set<string>());
+
+    miniThumbnailUrl = computed(() => {
+        if (!this.showThumbnails())
+            return null;
+
+        const file = this.file();
+
+        if (!file.hasMiniThumbnail)
+            return null;
+
+        const url = this.operations().getThumbnailUrl?.(file.externalId) ?? null;
+
+        if (!url || this._failedThumbnailUrls().has(url))
+            return null;
+
+        return url;
+    });
 
     canEditFileName = computed(() => this.file().wasUploadedByUser || this.permissions().allowRename);
     canDeleteFile = computed(() => this.file().wasUploadedByUser || this.permissions().allowDelete);
@@ -248,6 +278,14 @@ export class FileItemComponent implements OnInit, OnDestroy {
             return;
 
         this.previewed.emit();
+    }
+
+    onThumbnailError(url: string) {
+        this._failedThumbnailUrls.update(failed => {
+            const next = new Set(failed);
+            next.add(url);
+            return next;
+        });
     }
 }
 

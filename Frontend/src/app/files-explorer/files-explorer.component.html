@@ -368,8 +368,11 @@
                         [sortDirection]="sortDirection()"
                         [allowDateSort]="allowDateSort()"
                         [allowList]="allowList()"
+                        [allowThumbnails]="workspaceExternalId() != null"
+                        [showThumbnails]="showThumbnails()"
                         (viewModeChanged)="setViewMode($event)"
-                        (sortChanged)="onSortChanged($event)">
+                        (sortChanged)="onSortChanged($event)"
+                        (showThumbnailsChanged)="onShowThumbnailsChanged($event)">
                     </app-display-menu>
                 }
 
@@ -640,6 +643,7 @@
                             [searchPhrase]="searchPhrase()"
                             [currentFolderExternalId]="selectedFolder()?.externalId ?? null"
                             [canReorder]="canReorder()"
+                            [showThumbnails]="showThumbnails()"
                             [operations]="operations"
                             [hideActions]="hideItemsActions()"
                             [hideSelectCheckboxes]="hideSelectCheckboxes()"

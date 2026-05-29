@@ -7,53 +7,76 @@
     <div class="display-menu__panel">
         @if(allowList()) {
             <div class="display-menu__section-label">View</div>
+
             <button type="button" class="display-menu__item"
                 [class.display-menu__item--active]="isViewActive('list-view')"
                 (click)="selectView('list-view')">
+                <span class="display-menu__item-label">List</span>
                 <i class="icon" [class.icon-lucide-check]="isViewActive('list-view')"></i>
-                List
             </button>
+
             <button type="button" class="display-menu__item"
                 [class.display-menu__item--active]="isViewActive('tree-view')"
                 (click)="selectView('tree-view')">
+                <span class="display-menu__item-label">Tree</span>
                 <i class="icon" [class.icon-lucide-check]="isViewActive('tree-view')"></i>
-                Tree
             </button>
 
             <div class="display-menu__divider"></div>
         }
 
         <div class="display-menu__section-label">Order</div>
+
         <button type="button" class="display-menu__item"
             [class.display-menu__item--active]="isSortActive('custom', 'asc')"
             (click)="selectSort('custom', 'asc')">
+            <span class="display-menu__item-label">Custom</span>
             <i class="icon" [class.icon-lucide-check]="isSortActive('custom', 'asc')"></i>
-            Custom
         </button>
+
         <button type="button" class="display-menu__item"
             [class.display-menu__item--active]="isSortActive('name', 'asc')"
             (click)="selectSort('name', 'asc')">
+            <span class="display-menu__item-label">Name &uarr;</span>
             <i class="icon" [class.icon-lucide-check]="isSortActive('name', 'asc')"></i>
-            Name &uarr;
         </button>
+
         <button type="button" class="display-menu__item"
             [class.display-menu__item--active]="isSortActive('name', 'desc')"
             (click)="selectSort('name', 'desc')">
+            <span class="display-menu__item-label">Name &darr;</span>
             <i class="icon" [class.icon-lucide-check]="isSortActive('name', 'desc')"></i>
-            Name &darr;
         </button>
+
         @if(allowDateSort()) {
             <button type="button" class="display-menu__item"
                 [class.display-menu__item--active]="isSortActive('date', 'asc')"
                 (click)="selectSort('date', 'asc')">
+                <span class="display-menu__item-label">Date &uarr;</span>
                 <i class="icon" [class.icon-lucide-check]="isSortActive('date', 'asc')"></i>
-                Date &uarr;
             </button>
+
             <button type="button" class="display-menu__item"
                 [class.display-menu__item--active]="isSortActive('date', 'desc')"
                 (click)="selectSort('date', 'desc')">
+                <span class="display-menu__item-label">Date &darr;</span>
                 <i class="icon" [class.icon-lucide-check]="isSortActive('date', 'desc')"></i>
-                Date &darr;
+            </button>
+        }
+
+        @if(allowThumbnails()) {
+            <div class="display-menu__divider"></div>
+
+            <div class="display-menu__section-label">Display</div>
+            <button type="button"
+                class="display-menu__item display-menu__toggle"
+                role="switch"
+                [attr.aria-checked]="showThumbnails()"
+                (click)="toggleThumbnails()">
+                <span class="display-menu__toggle-label">Show thumbnails</span>
+                <span class="display-menu__switch" [class.display-menu__switch--on]="showThumbnails()">
+                    <span class="display-menu__switch-knob"></span>
+                </span>
             </button>
         }
     </div>

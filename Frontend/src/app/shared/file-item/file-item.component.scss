@@ -5,3 +5,18 @@
     display: block;
 }
 
+// Mini thumbnail rendered in place of the file-type icon when the toggle is on. Fixed square
+// that fits inside the row's content box (72px row − 2×0.75rem padding) so the row height never
+// changes whether a thumbnail is shown or not.
+.item__thumb {
+    width: 2.5rem;
+    height: 2.5rem;
+    flex-shrink: 0;
+    // List-row convention: preserve aspect ratio inside a fixed square slot (no cropping), with
+    // the neutral background showing as letterbox for non-square images. Keeps name columns
+    // aligned while showing the whole thumbnail.
+    object-fit: contain;
+    border-radius: 4px;
+    background: var(--company-grey-accent-light);
+}
+

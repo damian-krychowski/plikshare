@@ -34,6 +34,7 @@ export class FilesListComponent implements OnDestroy {
     canReorder = input(false);
     hideActions = input(false);
     hideSelectCheckboxes = input(false);
+    showThumbnails = input(false);
 
     deleted = output<AppFileItem>();
     previewed = output<AppFileItem>();

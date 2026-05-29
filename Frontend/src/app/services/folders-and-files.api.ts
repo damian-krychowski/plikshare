@@ -101,6 +101,7 @@ export interface FileDto {
     isLocked: boolean;
     createdAt: string | null;
     position: number;
+    hasMiniThumbnail: boolean;
 }
 
 export interface UpdatePositionsRequest {
@@ -1021,6 +1022,7 @@ export function mapFileDtosToItems(files: FileDto[], folderExternalId: string | 
             isLocked: signal(f.isLocked),
             createdAt: f.createdAt == null ? null : new Date(f.createdAt),
             position: signal(f.position),
+            hasMiniThumbnail: f.hasMiniThumbnail ?? false,
 
             isSelected: signal(false),
             isNameEditing: signal(false),

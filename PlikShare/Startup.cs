@@ -774,6 +774,7 @@ public class Startup
         builder.Services.AddSingleton<InsertFileAttachmentQuery>();
         builder.Services.AddSingleton<MarkFileAsUploadedQuery>();
         builder.Services.AddSingleton<GetThumbnailsQuery>();
+        builder.Services.AddSingleton<GetThumbnailDownloadDetailsQuery>();
         builder.Services.AddSingleton<HardDeleteFilesWithStorageCleanupSubQuery>();
         builder.Services.AddSingleton<FinalizeThumbnailUploadQuery>();
         builder.Services.AddSingleton<DeleteThumbnailsQuery>();

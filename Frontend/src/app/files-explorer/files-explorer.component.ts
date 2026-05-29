@@ -233,7 +233,12 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     sortMode = signal<SortMode>('custom');
     sortDirection = signal<SortDirection>('asc');
 
+    // Opt-in mini-thumbnail rendering on list rows. Defaults off (BC) and persists per workspace,
+    // mirroring the sort-mode persistence below.
+    showThumbnails = signal(false);
+
     private static readonly SORT_MODE_STORAGE_PREFIX = 'plikshare:sort-mode:';
+    private static readonly SHOW_THUMBNAILS_STORAGE_PREFIX = 'plikshare:show-thumbnails:';
 
     folderSelected = output<AppFolderItem | null>();
     boxCreated = output<AppFolderItem>();
@@ -571,8 +576,18 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             }
         },
 
-        getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => 
+        getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) =>
             this.filesApi().getDownloadLink(fileExternalId, contentDisposition),
+
+        // Stable, cookie-authenticated URL of a file's Mini thumbnail — bound straight to an
+        // <img src> in the list row. Browser HTTP-caches it; the backend keys it by the parent
+        // file and ETags by the thumbnail child id (see GetFileThumbnail endpoint).
+        getThumbnailUrl: (fileExternalId: string) => {
+            const wsId = this.workspaceExternalId();
+            return wsId
+                ? `/api/workspaces/${wsId}/files/${fileExternalId}/thumbnail`
+                : '';
+        },
 
         getFilePreviewDetails: (fileExternalId: string, fields: FilePreviewDetailsField[] | null) => 
             this.filesApi().getFilePreviewDetails(fileExternalId, fields),
@@ -698,6 +713,12 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         });
 
         effect(() => {
+            const key = this.thumbnailsStorageKey();
+            const stored = key ? localStorage.getItem(key) : null;
+            this.showThumbnails.set(stored === 'true');
+        });
+
+        effect(() => {
             if (this.isDragging() && this.canUpload()) {
                 this.expandFilesSection();
             }
@@ -745,6 +766,18 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         if (!key) return;
         const value = mode === 'custom' ? 'custom' : `${mode}-${direction}`;
         localStorage.setItem(key, value);
+    }
+
+    private thumbnailsStorageKey(): string | null {
+        const wsId = this.workspaceExternalId();
+        if (!wsId) return null;
+        return `${FilesExplorerComponent.SHOW_THUMBNAILS_STORAGE_PREFIX}${wsId}`;
+    }
+
+    onShowThumbnailsChanged(value: boolean) {
+        this.showThumbnails.set(value);
+        const key = this.thumbnailsStorageKey();
+        if (key) localStorage.setItem(key, value ? 'true' : 'false');
     }
 
 

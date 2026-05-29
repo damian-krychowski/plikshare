@@ -20,9 +20,12 @@ export class DisplayMenuComponent {
     sortDirection = input.required<SortDirection>();
     allowDateSort = input(false);
     allowList = input(true);
+    showThumbnails = input(false);
+    allowThumbnails = input(false);
 
     viewModeChanged = output<ViewMode>();
     sortChanged = output<SortChange>();
+    showThumbnailsChanged = output<boolean>();
 
     isOpen = signal(false);
 
@@ -55,6 +58,11 @@ export class DisplayMenuComponent {
         if (mode === 'date' && !this.allowDateSort()) return;
         this.sortChanged.emit({ mode, direction });
         this.isOpen.set(false);
+    }
+
+    toggleThumbnails() {
+        this.showThumbnailsChanged.emit(!this.showThumbnails());
+        // Keep the menu open — toggling is a setting the user may flip back and forth.
     }
 
     isViewActive(mode: ViewMode): boolean {

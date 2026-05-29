@@ -20,8 +20,17 @@
                 (click)="!($event.ctrlKey || $event.metaKey || $event.shiftKey) && $event.stopPropagation()"></i>
         }
         
-        <i class="icon icon-xl icon-{{ fileVal.extension| fileIcon }}"></i>
-    
+        @if(miniThumbnailUrl(); as thumbUrl) {
+            <img class="item__thumb"
+                [src]="thumbUrl"
+                loading="lazy"
+                decoding="async"
+                alt=""
+                (error)="onThumbnailError(thumbUrl)" />
+        } @else {
+            <i class="icon icon-xl icon-{{ fileVal.extension| fileIcon }}"></i>
+        }
+
         <div class="item__details">                   
             <app-editable-txt #nameTxt
                 [text]="fileVal.name()"

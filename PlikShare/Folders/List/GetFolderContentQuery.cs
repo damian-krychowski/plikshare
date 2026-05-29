@@ -3,6 +3,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
+using PlikShare.Files.Thumbnails;
 using PlikShare.Folders.Id;
 using PlikShare.Folders.List.Contracts;
 using PlikShare.Workspaces.Cache;
@@ -173,7 +174,16 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 							TRUE AS fi_was_uploaded_by_user,
                             NOT fi_is_upload_completed,
                             fi_position,
-                            CASE WHEN $exposeCreatedAt THEN fi_created_at END AS fi_created_at
+                            CASE WHEN $exposeCreatedAt THEN fi_created_at END AS fi_created_at,
+                            (
+                                SELECT json_group_array(CAST(child_fi.fi_metadata AS TEXT))
+                                FROM fi_files AS child_fi
+                                WHERE child_fi.fi_parent_file_id = fi_files.fi_id
+                                    AND child_fi.fi_workspace_id = $workspaceId
+                                    AND child_fi.fi_deleted_at IS NULL
+                                    AND child_fi.fi_is_upload_completed = TRUE
+                                    AND child_fi.fi_metadata IS NOT NULL
+                            ) AS child_thumbnail_metadata
 				        FROM fi_files
 				        WHERE
 				            fi_workspace_id = $workspaceId
@@ -201,7 +211,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
                         WasUploadedByUser = reader.GetBoolean(4),
                         IsLocked = reader.GetBoolean(5),
                         CreatedAt = reader.GetDateTimeOffsetOrNull(7)?.UtcDateTime,
-                        Position = position
+                        Position = position,
+                        HasMiniThumbnail = MiniThumbnailMetadata.HasMini(reader, 8, workspaceEncryptionSession)
                     };
                 })
 		    .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
@@ -240,7 +251,16 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 						) AS fi_was_uploaded_by_user,
                         NOT fi_is_upload_completed,
                         fi_position,
-                        CASE WHEN $exposeCreatedAt THEN fi_created_at END AS fi_created_at
+                        CASE WHEN $exposeCreatedAt THEN fi_created_at END AS fi_created_at,
+                        (
+                            SELECT json_group_array(CAST(child_fi.fi_metadata AS TEXT))
+                            FROM fi_files AS child_fi
+                            WHERE child_fi.fi_parent_file_id = fi_files.fi_id
+                                AND child_fi.fi_workspace_id = $workspaceId
+                                AND child_fi.fi_deleted_at IS NULL
+                                AND child_fi.fi_is_upload_completed = TRUE
+                                AND child_fi.fi_metadata IS NOT NULL
+                        ) AS child_thumbnail_metadata
 				    FROM fi_files
 				    WHERE
 				        fi_workspace_id = $workspaceId
@@ -267,7 +287,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
                         WasUploadedByUser = reader.GetBoolean(4),
                         IsLocked = reader.GetBoolean(5),
                         CreatedAt = reader.GetDateTimeOffsetOrNull(7)?.UtcDateTime,
-                        Position = position
+                        Position = position,
+                        HasMiniThumbnail = MiniThumbnailMetadata.HasMini(reader, 8, workspaceEncryptionSession)
                     };
                 })
 		    .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)

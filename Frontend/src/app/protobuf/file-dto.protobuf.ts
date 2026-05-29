@@ -11,5 +11,6 @@ export function getFileDtoProtobuf() {
         .add(new protobuf.Field("wasUploadedByUser", 6, "bool"))
         .add(new protobuf.Field("createdAt", 7, "appDateTime"))
         .add(new protobuf.Field("position", 8, "int64"))
+        .add(new protobuf.Field("hasMiniThumbnail", 9, "bool"))
         .add(getDateTimeProtobuf());
 }
