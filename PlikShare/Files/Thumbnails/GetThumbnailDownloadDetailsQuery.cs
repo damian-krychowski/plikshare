@@ -16,7 +16,9 @@ namespace PlikShare.Files.Thumbnails;
 // thumbnail (or the parent doesn't exist / is deleted).
 public class GetThumbnailDownloadDetailsQuery(PlikShareDb plikShareDb)
 {
-    public FileRecord? Execute(
+    public sealed record Result(FileRecord File, string Etag);
+
+    public Result? Execute(
         WorkspaceContext workspace,
         FileExtId parentFileExternalId,
         ThumbnailVariant variant,
@@ -25,7 +27,7 @@ public class GetThumbnailDownloadDetailsQuery(PlikShareDb plikShareDb)
         using var connection = plikShareDb.OpenConnection();
 
         return connection
-            .AggregateRows(
+            .AggregateRowsUntil(
                 sql: @"
                     SELECT
                         child_fi.fi_external_id,
@@ -54,30 +56,26 @@ public class GetThumbnailDownloadDetailsQuery(PlikShareDb plikShareDb)
                         AND child_fi.fi_metadata IS NOT NULL
                     ORDER BY child_fi.fi_id DESC
                 ",
-                seed: (FileRecord?)null,
+                seed: (Result?)null,
                 aggregateRowFunc: (acc, reader) =>
                 {
-                    // Newest matching child wins; once found, ignore the rest.
-                    if (acc is not null)
-                        return acc;
-
                     var metadataJson = reader.DecodeEncryptableBlobOrNull(
                         12,
                         workspaceEncryptionSession);
 
                     if (metadataJson is null)
-                        return acc;
+                        return (acc, false);
 
                     if (Json.Deserialize<FileMetadata>(metadataJson)
                         is not ThumbnailFileMetadata thumbnailMetadata
                         || thumbnailMetadata.Variant != variant)
                     {
-                        return acc;
+                        return (acc, false);
                     }
 
                     var encryptionKeyVersion = reader.GetByteOrNull(7);
 
-                    return new FileRecord
+                    var file = new FileRecord
                     {
                         ExternalId = reader.GetExtId<FileExtId>(0),
                         Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
@@ -99,6 +97,8 @@ public class GetThumbnailDownloadDetailsQuery(PlikShareDb plikShareDb)
                             },
                         FolderAncestors = []
                     };
+
+                    return (new Result(file, thumbnailMetadata.Etag), true);
                 })
             .WithParameter("$parentExternalId", parentFileExternalId.Value)
             .WithParameter("$workspaceId", workspace.Id)

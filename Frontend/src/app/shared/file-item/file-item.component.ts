@@ -32,9 +32,7 @@ export type AppFileItem = {
     createdAt: Date | null;
     position: WritableSignal<number>;
 
-    // Set only by the folder-listing mapper (mapFileDtosToItems); other construction sites
-    // leave it undefined (no thumbnails surfaced there).
-    hasMiniThumbnail?: boolean;
+    miniThumbnailEtag?: WritableSignal<string | null>;
 
     isNameEditing: WritableSignal<boolean>;
     isSelected: WritableSignal<boolean>;
@@ -116,9 +114,6 @@ export class FileItemComponent implements OnInit, OnDestroy {
 
     isHighlighted = observeIsHighlighted(this.file);
 
-    // URLs whose <img> failed to load (404 race after a delete, transient error). Once failed we
-    // fall back to the file-type icon. Keyed by URL so a virtualized row reused for another file
-    // is unaffected.
     private _failedThumbnailUrls = signal<ReadonlySet<string>>(new Set<string>());
 
     miniThumbnailUrl = computed(() => {
@@ -126,16 +121,19 @@ export class FileItemComponent implements OnInit, OnDestroy {
             return null;
 
         const file = this.file();
+        const etag = file.miniThumbnailEtag?.();
 
-        if (!file.hasMiniThumbnail)
+        if (!etag)
             return null;
 
-        const url = this.operations().getThumbnailUrl?.(file.externalId) ?? null;
+        const base = this.operations().getThumbnailUrl?.(file.externalId);
 
-        if (!url || this._failedThumbnailUrls().has(url))
+        if (!base)
             return null;
 
-        return url;
+        const url = `${base}?v=${etag}`;
+
+        return this._failedThumbnailUrls().has(url) ? null : url;
     });
 
     canEditFileName = computed(() => this.file().wasUploadedByUser || this.permissions().allowRename);

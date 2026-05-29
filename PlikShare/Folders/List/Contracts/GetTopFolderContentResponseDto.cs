@@ -63,11 +63,8 @@ public class FileDto
     [ProtoMember(8)]
     public required long Position { get; init; }
 
-    // Whether this file has a Mini thumbnail child generated. Not required so the
-    // box-link/external listing path (which doesn't surface thumbnails) keeps compiling
-    // and defaults to false.
     [ProtoMember(9)]
-    public bool HasMiniThumbnail { get; init; }
+    public string? MiniThumbnailEtag { get; init; }
 }
 
 [ProtoContract]

@@ -3,6 +3,7 @@ namespace PlikShare.Files.Metadata;
 public class ThumbnailFileMetadata : FileMetadata
 {
     public required ThumbnailVariant Variant { get; init; }
+    public required string Etag { get; init; }
 }
 
 public enum ThumbnailVariant

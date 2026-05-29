@@ -37,13 +37,17 @@ export class ThumbnailBatchProgressService {
 
     private _unsubscribes = new Map<string, () => void>();
     private _dismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    private _onCompleted = new Map<string, () => void>();
 
     constructor() {
         for (const persisted of this.loadPersisted())
             this.startTracking(persisted, false);
     }
 
-    track(workspaceExternalId: string, batchId: string, name: string, totalFiles: number): void {
+    track(workspaceExternalId: string, batchId: string, name: string, totalFiles: number, onCompleted?: () => void): void {
+        if (onCompleted)
+            this._onCompleted.set(batchId, onCompleted);
+
         this.startTracking(
             { batchId, workspaceExternalId, name, total: totalFiles },
             true);
@@ -112,6 +116,12 @@ export class ThumbnailBatchProgressService {
         }
         this.persist();
 
+        const onCompleted = this._onCompleted.get(batchId);
+        if (onCompleted) {
+            this._onCompleted.delete(batchId);
+            onCompleted();
+        }
+
         if (this._dismissTimers.has(batchId))
             return;
 
@@ -137,6 +147,8 @@ export class ThumbnailBatchProgressService {
             clearTimeout(timer);
             this._dismissTimers.delete(batchId);
         }
+
+        this._onCompleted.delete(batchId);
     }
 
     private persist(): void {

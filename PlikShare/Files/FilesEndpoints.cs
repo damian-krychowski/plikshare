@@ -570,9 +570,10 @@ public static class FilesEndpoints
         if (thumbnail is null)
             return HttpErrors.File.NotFound(fileExternalId);
 
+        var file = thumbnail.File;
         var response = httpContext.Response;
 
-        var etag = $"\"{thumbnail.ExternalId.Value}\"";
+        var etag = $"\"{thumbnail.Etag}\"";
         response.Headers.CacheControl = "private, max-age=300";
         response.Headers.ETag = etag;
 
@@ -587,19 +588,19 @@ public static class FilesEndpoints
 
         try
         {
-            var encryptionMode = thumbnail.EncryptionMetadata.ToEncryptionMode(
+            var encryptionMode = file.EncryptionMetadata.ToEncryptionMode(
                 workspaceEncryptionSession: workspaceEncryptionSession,
                 storageClient: workspace.Storage);
 
             await using var storageFile = await workspace.DownloadFile(
                 fileDetails: new DownloadFileDetails(
-                    FileKey: thumbnail.FileKey,
-                    FileSizeInBytes: thumbnail.SizeInBytes,
+                    FileKey: file.FileKey,
+                    FileSizeInBytes: file.SizeInBytes,
                     EncryptionMode: encryptionMode),
                 cancellationToken: cancellationToken);
 
-            response.Headers.ContentType = thumbnail.ContentType;
-            response.Headers.ContentLength = thumbnail.SizeInBytes;
+            response.Headers.ContentType = file.ContentType;
+            response.Headers.ContentLength = file.SizeInBytes;
 
             await storageFile.ReadTo(
                 output: response.BodyWriter,

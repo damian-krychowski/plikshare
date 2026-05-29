@@ -1,4 +1,5 @@
 using System.IO.Pipelines;
+using System.Security.Cryptography;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
@@ -60,12 +61,6 @@ public class UploadFileThumbnailOperation(
             .Select(t => t.Id)
             .ToList();
 
-        var thumbnailMetadataJson = Json.Serialize<FileMetadata>(
-            new ThumbnailFileMetadata
-            {
-                Variant = variant
-            });
-
         var attachment = new InsertFileAttachmentQuery.AttachmentFile
         {
             ExternalId = thumbnailFileExternalId,
@@ -86,8 +81,7 @@ public class UploadFileThumbnailOperation(
             EncryptionMetadata = workspace.Storage.GenerateFileEncryptionMetadata(
                 workspace.EncryptionMetadata),
 
-            Metadata = workspaceEncryptionSession.ToEncryptableMetadata(
-                thumbnailMetadataJson)
+            Metadata = null
         };
 
         var insertResult = await insertFileAttachmentQuery.Execute(
@@ -116,17 +110,28 @@ public class UploadFileThumbnailOperation(
             UploadAlgorithm: UploadAlgorithm.DirectUpload,
             EncryptionMode: encryptionMode);
 
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+
         await workspace.UploadFilePart(
             input: PipeReader.Create(
-                stream: thumbnailContent),
+                stream: new HashingReadStream(thumbnailContent, hash)),
             uploadDetails: uploadDetails,
             cancellationToken: cancellationToken);
 
-        // Storage upload succeeded — atomic switchover: mark new as completed + hard-delete
-        // old thumbnails of same variant + enqueue storage cleanup jobs, all in one transaction.
+        var etag = Convert.ToHexString(hash.GetHashAndReset());
+
+        var thumbnailMetadata = workspaceEncryptionSession.ToEncryptableMetadata(
+            Json.Serialize<FileMetadata>(
+                new ThumbnailFileMetadata
+                {
+                    Variant = variant,
+                    Etag = etag
+                }));
+
         await finalizeThumbnailUploadQuery.Execute(
             workspace: workspace,
             newThumbnailExternalId: attachment.ExternalId,
+            thumbnailMetadata: thumbnailMetadata,
             oldThumbnailFileIds: oldThumbnailFileIds,
             correlationId: correlationId,
             cancellationToken: cancellationToken);

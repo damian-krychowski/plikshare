@@ -1,4 +1,6 @@
+using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Delete;
 using PlikShare.Files.Id;
@@ -23,6 +25,7 @@ public class FinalizeThumbnailUploadQuery(
     public Task Execute(
         WorkspaceContext workspace,
         FileExtId newThumbnailExternalId,
+        EncryptableMetadata thumbnailMetadata,
         List<int> oldThumbnailFileIds,
         Guid correlationId,
         CancellationToken cancellationToken)
@@ -32,6 +35,7 @@ public class FinalizeThumbnailUploadQuery(
                 dbWriteContext: context,
                 workspace: workspace,
                 newThumbnailExternalId: newThumbnailExternalId,
+                thumbnailMetadata: thumbnailMetadata,
                 oldThumbnailFileIds: oldThumbnailFileIds,
                 correlationId: correlationId),
             cancellationToken: cancellationToken);
@@ -41,6 +45,7 @@ public class FinalizeThumbnailUploadQuery(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FileExtId newThumbnailExternalId,
+        EncryptableMetadata thumbnailMetadata,
         List<int> oldThumbnailFileIds,
         Guid correlationId)
     {
@@ -48,6 +53,13 @@ public class FinalizeThumbnailUploadQuery(
 
         try
         {
+            UpdateThumbnailMetadata(
+                dbWriteContext: dbWriteContext,
+                transaction: transaction,
+                workspace: workspace,
+                thumbnailExternalId: newThumbnailExternalId,
+                thumbnailMetadata: thumbnailMetadata);
+
             markFileAsUploadedQuery.ExecuteInTransaction(
                 dbWriteContext: dbWriteContext,
                 transaction: transaction,
@@ -73,5 +85,28 @@ public class FinalizeThumbnailUploadQuery(
             transaction.Rollback();
             throw;
         }
+    }
+
+    private static void UpdateThumbnailMetadata(
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction,
+        WorkspaceContext workspace,
+        FileExtId thumbnailExternalId,
+        EncryptableMetadata thumbnailMetadata)
+    {
+        dbWriteContext
+            .OneRowCmd(
+                sql: @"
+                    UPDATE fi_files
+                    SET fi_metadata = $metadata
+                    WHERE fi_external_id = $externalId
+                        AND fi_workspace_id = $workspaceId
+                    RETURNING fi_id",
+                readRowFunc: reader => reader.GetInt32(0),
+                transaction: transaction)
+            .WithParameter("$externalId", thumbnailExternalId.Value)
+            .WithParameter("$workspaceId", workspace.Id)
+            .WithEncryptableBlobParameter("$metadata", thumbnailMetadata)
+            .Execute();
     }
 }

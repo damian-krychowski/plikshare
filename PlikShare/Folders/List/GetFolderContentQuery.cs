@@ -212,7 +212,7 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
                         IsLocked = reader.GetBoolean(5),
                         CreatedAt = reader.GetDateTimeOffsetOrNull(7)?.UtcDateTime,
                         Position = position,
-                        HasMiniThumbnail = MiniThumbnailMetadata.HasMini(reader, 8, workspaceEncryptionSession)
+                        MiniThumbnailEtag = MiniThumbnailMetadata.GetMiniEtag(reader, 8, workspaceEncryptionSession)
                     };
                 })
 		    .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
@@ -288,7 +288,7 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
                         IsLocked = reader.GetBoolean(5),
                         CreatedAt = reader.GetDateTimeOffsetOrNull(7)?.UtcDateTime,
                         Position = position,
-                        HasMiniThumbnail = MiniThumbnailMetadata.HasMini(reader, 8, workspaceEncryptionSession)
+                        MiniThumbnailEtag = MiniThumbnailMetadata.GetMiniEtag(reader, 8, workspaceEncryptionSession)
                     };
                 })
 		    .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
