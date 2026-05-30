@@ -4,7 +4,7 @@ using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Metadata;
 
-namespace PlikShare.Files.Thumbnails;
+namespace PlikShare.MediaProcessing;
 
 public static class MiniThumbnailMetadata
 {

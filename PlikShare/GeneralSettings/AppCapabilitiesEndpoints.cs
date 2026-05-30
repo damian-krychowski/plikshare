@@ -1,5 +1,5 @@
 using PlikShare.Core.Authorization;
-using PlikShare.Files.Thumbnails.Generation;
+using PlikShare.MediaProcessing.Generation;
 
 namespace PlikShare.GeneralSettings;
 

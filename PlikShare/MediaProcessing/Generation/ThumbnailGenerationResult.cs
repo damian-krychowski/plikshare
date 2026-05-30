@@ -1,7 +1,7 @@
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 
-namespace PlikShare.Files.Thumbnails.Generation;
+namespace PlikShare.MediaProcessing.Generation;
 
 /// <summary>
 /// Outcome payload for a <c>process-image-thumbnails</c> job, persisted into

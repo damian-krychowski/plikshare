@@ -750,7 +750,7 @@ export class FoldersAndFilesSetApi {
         formData.append('variant', request.variant);
 
         const call = this._http.post<void>(
-            `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/thumbnails`,
+            `/api/workspaces/${workspaceExternalId}/media/thumbnails/${fileExternalId}`,
             formData
         );
 
@@ -762,7 +762,7 @@ export class FoldersAndFilesSetApi {
         fileExternalId: string,
         variant: ThumbnailVariant): Promise<void> {
         const call = this._http.delete<void>(
-            `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/thumbnails/${variant}`
+            `/api/workspaces/${workspaceExternalId}/media/thumbnails/${fileExternalId}/${variant}`
         );
 
         await firstValueFrom(call);
@@ -773,7 +773,7 @@ export class FoldersAndFilesSetApi {
         fileExternalId: string,
         variants: ThumbnailVariant[]): Promise<GenerateFileThumbnailsResponse> {
         const call = this._http.post<GenerateFileThumbnailsResponse>(
-            `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/thumbnails/generate`,
+            `/api/workspaces/${workspaceExternalId}/media/thumbnails/${fileExternalId}/generate`,
             { variants }
         );
 
@@ -784,7 +784,7 @@ export class FoldersAndFilesSetApi {
         workspaceExternalId: string,
         request: GenerateThumbnailsBulkRequest): Promise<GenerateThumbnailsBulkResponse> {
         const call = this._http.post<GenerateThumbnailsBulkResponse>(
-            `/api/workspaces/${workspaceExternalId}/files/thumbnails/generate-bulk`,
+            `/api/workspaces/${workspaceExternalId}/media/thumbnails/generate-bulk`,
             request
         );
 
@@ -795,7 +795,7 @@ export class FoldersAndFilesSetApi {
         workspaceExternalId: string,
         batchId: string): Promise<ThumbnailGenerationStatus> {
         const call = this._http.get<ThumbnailGenerationStatus>(
-            `/api/workspaces/${workspaceExternalId}/files/thumbnail-batches/${batchId}/status`
+            `/api/workspaces/${workspaceExternalId}/media/thumbnails/batches/${batchId}/status`
         );
 
         return await firstValueFrom(call);
@@ -810,7 +810,7 @@ export class FoldersAndFilesSetApi {
         batchId: string,
         onStatus: (status: ThumbnailGenerationStatus) => void): () => void {
         const eventSource = new EventSource(
-            `/api/workspaces/${workspaceExternalId}/files/thumbnail-batches/${batchId}/events`,
+            `/api/workspaces/${workspaceExternalId}/media/thumbnails/batches/${batchId}/events`,
             { withCredentials: true }
         );
 
@@ -840,7 +840,7 @@ export class FoldersAndFilesSetApi {
         // HttpClient interceptors and lose the requested filename on cross-origin headers.
         const blob = await firstValueFrom(
             this._http.get(
-                `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/download-converted`,
+                `/api/workspaces/${workspaceExternalId}/media/${fileExternalId}/convert`,
                 {
                     params: { format },
                     responseType: 'blob'

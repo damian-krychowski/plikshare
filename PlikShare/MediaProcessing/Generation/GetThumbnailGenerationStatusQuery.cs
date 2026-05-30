@@ -4,10 +4,10 @@ using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Metadata;
-using PlikShare.Files.Thumbnails.Generation.Contracts;
+using PlikShare.MediaProcessing.Generation.Contracts;
 using PlikShare.Workspaces.Cache;
 
-namespace PlikShare.Files.Thumbnails.Generation;
+namespace PlikShare.MediaProcessing.Generation;
 
 public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
 {

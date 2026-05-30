@@ -4,7 +4,7 @@ using PlikShare.Files.Delete;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 
-namespace PlikShare.Files.Thumbnails;
+namespace PlikShare.MediaProcessing;
 
 /// <summary>
 /// Atomic hard-delete of a batch of thumbnail rows for a single workspace, with storage

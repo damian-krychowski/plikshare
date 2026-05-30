@@ -8,7 +8,7 @@ using PlikShare.Files.UploadAttachment;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 
-namespace PlikShare.Files.Thumbnails;
+namespace PlikShare.MediaProcessing;
 
 /// <summary>
 /// Atomic switchover at the end of a thumbnail upload: marks the freshly-uploaded thumbnail

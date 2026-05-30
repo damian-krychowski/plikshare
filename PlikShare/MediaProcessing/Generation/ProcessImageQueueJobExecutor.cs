@@ -9,7 +9,7 @@ using PlikShare.Storages;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 
-namespace PlikShare.Files.Thumbnails.Generation;
+namespace PlikShare.MediaProcessing.Generation;
 
 /// <summary>
 /// Background worker that takes a parent file + variant list, decrypts the original through

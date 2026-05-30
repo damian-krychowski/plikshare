@@ -1,6 +1,6 @@
 using PlikShare.Files.Metadata;
 
-namespace PlikShare.Files.Thumbnails.Generation.Contracts;
+namespace PlikShare.MediaProcessing.Generation.Contracts;
 
 /// <summary>
 /// Per-file thumbnail generation status, derived purely from the queue tables (q_queue +

@@ -10,7 +10,7 @@ using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Cache;
 
-namespace PlikShare.Files.Thumbnails.Generation;
+namespace PlikShare.MediaProcessing.Generation;
 
 public class GenerateFileThumbnailsOperation(
     IClock clock,

@@ -12,7 +12,7 @@ using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Files.Preview.Comment;
 using PlikShare.Files.Preview.GetDetails.Contracts;
-using PlikShare.Files.Thumbnails;
+using PlikShare.MediaProcessing;
 using PlikShare.Integrations.Aws.Textract;
 using PlikShare.Integrations.Aws.Textract.Id;
 using PlikShare.Integrations.Aws.Textract.Jobs;

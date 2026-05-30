@@ -2,7 +2,7 @@ using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Users.Id;
 
-namespace PlikShare.Files.Thumbnails.Generation;
+namespace PlikShare.MediaProcessing.Generation;
 
 public class ProcessImageQueueJobDefinition
 {

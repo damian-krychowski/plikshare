@@ -3,7 +3,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
-using PlikShare.Files.Thumbnails;
+using PlikShare.MediaProcessing;
 using PlikShare.Folders.Id;
 using PlikShare.Folders.List.Contracts;
 using PlikShare.Workspaces.Cache;

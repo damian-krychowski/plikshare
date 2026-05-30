@@ -13,7 +13,7 @@ using System.Buffers.Text;
 using System.IO.Pipelines;
 using System.Security.Cryptography;
 
-namespace PlikShare.Files.Thumbnails;
+namespace PlikShare.MediaProcessing;
 
 public class UploadFileThumbnailOperation(
     GetFilePreSignedDownloadLinkDetailsQuery getParentFileDetailsQuery,

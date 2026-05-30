@@ -1,4 +1,4 @@
-namespace PlikShare.Files.Thumbnails.Generation;
+namespace PlikShare.MediaProcessing.Generation;
 
 public static class ProcessImageQueueJobType
 {

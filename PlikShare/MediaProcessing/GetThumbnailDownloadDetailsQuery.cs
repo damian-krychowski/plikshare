@@ -7,7 +7,7 @@ using PlikShare.Files.Metadata;
 using PlikShare.Files.Records;
 using PlikShare.Workspaces.Cache;
 
-namespace PlikShare.Files.Thumbnails;
+namespace PlikShare.MediaProcessing;
 
 // Resolves the download details (key, size, content type, encryption metadata) of a parent
 // file's thumbnail child for a given variant. The variant lives in the encrypted fi_metadata,

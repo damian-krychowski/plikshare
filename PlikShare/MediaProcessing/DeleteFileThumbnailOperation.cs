@@ -4,7 +4,7 @@ using PlikShare.Files.Metadata;
 using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Workspaces.Cache;
 
-namespace PlikShare.Files.Thumbnails;
+namespace PlikShare.MediaProcessing;
 
 public class DeleteFileThumbnailOperation(
     GetFilePreSignedDownloadLinkDetailsQuery getParentFileDetailsQuery,

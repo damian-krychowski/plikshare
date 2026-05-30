@@ -124,8 +124,8 @@ using PlikShare.Files.Preview.SaveNote;
 using PlikShare.Files.Rename;
 using PlikShare.Files.Rename.Contracts;
 using PlikShare.Files.UpdateSize;
-using PlikShare.Files.Thumbnails;
-using PlikShare.Files.Thumbnails.Generation;
+using PlikShare.MediaProcessing;
+using PlikShare.MediaProcessing.Generation;
 using PlikShare.Files.UploadAttachment;
 using PlikShare.Folders;
 using PlikShare.Folders.Create;
@@ -860,6 +860,7 @@ public class Startup
         app.MapAppCapabilitiesEndpoints();
         app.MapWorkspacesAdminEndpoints();
         app.MapFilesEndpoints();
+        app.MapMediaProcessingEndpoints();
         app.MapEntryPageEndpoints();
         app.MapLegalFilesEndpoints();
         app.MapHealthCheckEndpoints();

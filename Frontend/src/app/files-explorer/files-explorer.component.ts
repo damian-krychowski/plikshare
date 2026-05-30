@@ -585,7 +585,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         getThumbnailUrl: (fileExternalId: string) => {
             const wsId = this.workspaceExternalId();
             return wsId
-                ? `/api/workspaces/${wsId}/files/${fileExternalId}/thumbnail`
+                ? `/api/workspaces/${wsId}/media/thumbnails/${fileExternalId}`
                 : '';
         },
 

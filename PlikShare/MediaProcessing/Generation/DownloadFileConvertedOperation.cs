@@ -6,7 +6,7 @@ using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Storages;
 using PlikShare.Workspaces.Cache;
 
-namespace PlikShare.Files.Thumbnails.Generation;
+namespace PlikShare.MediaProcessing.Generation;
 
 public class DownloadFileConvertedOperation(
     GetFilePreSignedDownloadLinkDetailsQuery getFileDetailsQuery,

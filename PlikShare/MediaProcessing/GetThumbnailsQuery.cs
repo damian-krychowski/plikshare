@@ -7,7 +7,7 @@ using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Workspaces.Cache;
 
-namespace PlikShare.Files.Thumbnails;
+namespace PlikShare.MediaProcessing;
 
 public class GetThumbnailsQuery(PlikShareDb plikShareDb)
 {

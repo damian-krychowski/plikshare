@@ -4,7 +4,7 @@ using PlikShare.Core.Configuration;
 using PlikShare.Files.Metadata;
 using Serilog;
 
-namespace PlikShare.Files.Thumbnails.Generation;
+namespace PlikShare.MediaProcessing.Generation;
 
 /// <summary>
 /// Single-source-of-truth for everything PlikShare does with ffmpeg: detection at startup

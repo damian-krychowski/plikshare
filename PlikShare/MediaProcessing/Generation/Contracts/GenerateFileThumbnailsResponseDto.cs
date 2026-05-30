@@ -1,4 +1,4 @@
-namespace PlikShare.Files.Thumbnails.Generation.Contracts;
+namespace PlikShare.MediaProcessing.Generation.Contracts;
 
 public class GenerateFileThumbnailsResponseDto
 {
