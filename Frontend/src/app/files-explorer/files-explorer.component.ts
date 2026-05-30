@@ -18,7 +18,7 @@ import { FileInlinePreviewComponent, FilePreviewOperations, ZipPreviewDetails } 
 import { StorageSizePipe } from '../shared/storage-size.pipe';
 import { EditableTxtComponent } from '../shared/editable-txt/editable-txt.component';
 import { BulkUploadPreviewComponent, BulkFileUpload, SingleBulkFileUpload, CreatedFolder } from './bulk-upload-preview/bulk-upload-preview.component';
-import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, DownloadImageFormat, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GenerateFileThumbnailsResponse, GenerateThumbnailsBulkResponse, GetFilePreviewDetailsResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../services/folders-and-files.api';
+import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, DownloadImageFormat, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GenerateFileThumbnailsResponse, GenerateThumbnailsBulkResponse, GetFilePreviewDetailsResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, ReadyThumbnail, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../services/folders-and-files.api';
 import { ZipEntry } from '../services/zip';
 import { FileSlicer } from '../services/file-upload-manager/file-slicer';
 import { TextractJobStatusService } from '../services/textract-job-status.service';
@@ -1415,6 +1415,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             isLocked: signal(true),
             createdAt: new Date(),
             position: signal(0),
+            miniThumbnailEtag: signal(null),
 
             isSelected: signal(false),
             isNameEditing: signal(false),
@@ -1553,12 +1554,26 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                 workspaceExternalId,
                 response.batchId,
                 `Generating thumbnails — ${response.totalFiles} file(s)`,
-                response.totalFiles);
+                response.totalFiles,
+                ready => this.applyReadyThumbnails(ready));
 
             // Selection has done its job — clear it so the toolbar returns to its default actions.
             this.files().forEach(f => f.isSelected.set(false));
         } catch (err) {
             console.error('Bulk thumbnail generation failed:', err);
+        }
+    }
+
+    private applyReadyThumbnails(ready: ReadyThumbnail[]) {
+        if (ready.length === 0)
+            return;
+
+        const byExternalId = new Map(this.files().map(f => [f.externalId, f]));
+
+        for (const item of ready) {
+            const mini = item.variants.find(v => v.variant === 'Mini');
+            if (mini)
+                byExternalId.get(item.fileExternalId)?.miniThumbnailEtag?.set(mini.etag);
         }
     }
 

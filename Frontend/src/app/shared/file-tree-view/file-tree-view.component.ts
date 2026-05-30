@@ -1690,6 +1690,7 @@ export class FileTreeViewComponent implements OnChanges {
                 wasUploadedByUser: file.wasUploadedByUser,
                 createdAt: file.createdAt == null ? null : new Date(file.createdAt),
                 position: signal(file.position),
+                miniThumbnailEtag: signal(null),
 
                 isCut: signal(false),
                 isHighlighted: signal(false),

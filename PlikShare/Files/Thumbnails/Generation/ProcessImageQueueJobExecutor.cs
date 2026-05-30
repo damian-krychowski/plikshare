@@ -122,6 +122,7 @@ public class ProcessImageQueueJobExecutor(
         // fail the queue job (and, for bulk, must not block the rest of the batch). The collected
         // failures are returned as the job's result payload so the user can see what didn't work.
         var failedVariants = new List<ThumbnailGenerationResult.FailedVariant>();
+        var generatedVariants = new List<ThumbnailGenerationResult.GeneratedVariant>();
 
         try
         {
@@ -196,6 +197,14 @@ public class ProcessImageQueueJobExecutor(
                             Error = $"Upload failed: {uploadResult.Code}"
                         });
                     }
+                    else
+                    {
+                        generatedVariants.Add(new ThumbnailGenerationResult.GeneratedVariant
+                        {
+                            Variant = output.Variant,
+                            Etag = uploadResult.Etag!
+                        });
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -218,15 +227,13 @@ public class ProcessImageQueueJobExecutor(
             ReleaseKey(definition.TempEncryptionKeyId);
         }
 
-        // NULL result on full success — the generated thumbnails are the proof. Only persist a
-        // payload when there's something the user needs to know about.
-        return failedVariants.Count == 0
-            ? QueueJobResult.Success
-            : QueueJobResult.SuccessWithResult(
-                Json.Serialize(new ThumbnailGenerationResult
-                {
-                    FailedVariants = failedVariants
-                }));
+        return QueueJobResult.SuccessWithResult(
+            Json.Serialize(new ThumbnailGenerationResult
+            {
+                ParentFileExternalId = definition.ParentFileExternalId,
+                GeneratedVariants = generatedVariants,
+                FailedVariants = failedVariants
+            }));
     }
 
     private static string Truncate(string value, int maxLength)

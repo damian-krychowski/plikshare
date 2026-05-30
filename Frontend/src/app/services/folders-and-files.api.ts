@@ -231,6 +231,17 @@ export type ThumbnailGenerationStatus = {
     completed: number;
     failed: number;
     pending: number;
+    readyThumbnails: ReadyThumbnail[];
+}
+
+export type ReadyThumbnail = {
+    fileExternalId: string;
+    variants: ReadyThumbnailVariant[];
+}
+
+export type ReadyThumbnailVariant = {
+    variant: ThumbnailVariant;
+    etag: string;
 }
 
 export type FilePreviewComment = {

@@ -1,5 +1,5 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { FoldersAndFilesSetApi, ThumbnailGenerationStatus } from './folders-and-files.api';
+import { FoldersAndFilesSetApi, ReadyThumbnail, ThumbnailGenerationStatus } from './folders-and-files.api';
 
 export type ThumbnailBatch = {
     batchId: string;
@@ -37,16 +37,16 @@ export class ThumbnailBatchProgressService {
 
     private _unsubscribes = new Map<string, () => void>();
     private _dismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
-    private _onCompleted = new Map<string, () => void>();
+    private _onReadyThumbnails = new Map<string, (ready: ReadyThumbnail[]) => void>();
 
     constructor() {
         for (const persisted of this.loadPersisted())
             this.startTracking(persisted, false);
     }
 
-    track(workspaceExternalId: string, batchId: string, name: string, totalFiles: number, onCompleted?: () => void): void {
-        if (onCompleted)
-            this._onCompleted.set(batchId, onCompleted);
+    track(workspaceExternalId: string, batchId: string, name: string, totalFiles: number, onReadyThumbnails?: (ready: ReadyThumbnail[]) => void): void {
+        if (onReadyThumbnails)
+            this._onReadyThumbnails.set(batchId, onReadyThumbnails);
 
         this.startTracking(
             { batchId, workspaceExternalId, name, total: totalFiles },
@@ -102,6 +102,9 @@ export class ThumbnailBatchProgressService {
             }
             : batch));
 
+        if (status.readyThumbnails?.length)
+            this._onReadyThumbnails.get(batchId)?.(status.readyThumbnails);
+
         if (status.pending === 0)
             this.onBatchDone(batchId);
     }
@@ -116,11 +119,7 @@ export class ThumbnailBatchProgressService {
         }
         this.persist();
 
-        const onCompleted = this._onCompleted.get(batchId);
-        if (onCompleted) {
-            this._onCompleted.delete(batchId);
-            onCompleted();
-        }
+        this._onReadyThumbnails.delete(batchId);
 
         if (this._dismissTimers.has(batchId))
             return;
@@ -148,7 +147,7 @@ export class ThumbnailBatchProgressService {
             this._dismissTimers.delete(batchId);
         }
 
-        this._onCompleted.delete(batchId);
+        this._onReadyThumbnails.delete(batchId);
     }
 
     private persist(): void {

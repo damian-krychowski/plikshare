@@ -477,9 +477,43 @@ public static class FilesEndpoints
         using var subscription = queueBatchNotifier.Subscribe(
             batchId);
 
-        var status = getThumbnailGenerationStatusQuery.Execute(
-            workspace, 
-            batchId);
+        // Per-connection running state: each signal reads only jobs completed at/after this cursor
+        // (so a 1000-job batch isn't re-read every time), deduped by qc_id since the cursor is
+        // inclusive. Per-variant errors accumulate across signals; ReadyThumbnails in each push is
+        // therefore already a delta.
+        DateTimeOffset? lastCompletedAt = null;
+        var sentQcIds = new HashSet<long>();
+        var failedByVariant = new Dictionary<ThumbnailVariant, string?>();
+
+        ThumbnailGenerationStatusResponseDto NextStatus()
+        {
+            var snapshot = getThumbnailGenerationStatusQuery.GetSnapshot(
+                workspace,
+                batchId,
+                lastCompletedAt);
+
+            var fresh = snapshot.NewCompleted
+                .Where(job => sentQcIds.Add(job.QcId))
+                .ToList();
+
+            var ready = new List<ReadyThumbnailDto>();
+
+            GetThumbnailGenerationStatusQuery.Apply(
+                fresh,
+                failedByVariant,
+                ready);
+
+            if (snapshot.NewCompleted.Count > 0)
+                lastCompletedAt = snapshot.NewCompleted.Max(job => job.CompletedAt);
+
+            return GetThumbnailGenerationStatusQuery.BuildStatus(
+                snapshot.Counts,
+                snapshot.GeneratingVariants,
+                failedByVariant,
+                ready);
+        }
+
+        var status = NextStatus();
 
         await WriteSseStatus(
             response,
@@ -520,9 +554,7 @@ public static class FilesEndpoints
             if (!signalled)
                 break;
 
-            status = getThumbnailGenerationStatusQuery.Execute(
-                workspace, 
-                batchId);
+            status = NextStatus();
 
             await WriteSseStatus(
                 response,

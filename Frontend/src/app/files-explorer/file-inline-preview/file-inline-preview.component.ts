@@ -683,7 +683,8 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
                     isNameEditing: signal(false),
                     isSelected: signal(false),
                     createdAt: null,
-                    position: signal(0)
+                    position: signal(0),
+                    miniThumbnailEtag: signal(null),
                 };
 
                 return file;
@@ -716,7 +717,8 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
                     isNameEditing: signal(false),
                     isSelected: signal(false),
                     createdAt: null,
-                    position: signal(0)
+                    position: signal(0),                    
+                    miniThumbnailEtag: signal(null),
                 };
 
                 return file;
@@ -1144,7 +1146,8 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
             isSelected: signal(false),
             wasUploadedByUser: true,
             createdAt: null,
-            position: signal(0)
+            position: signal(0),
+            miniThumbnailEtag: signal(null),
         };
 
         this.attachments.update(attachments => [...attachments, file]);

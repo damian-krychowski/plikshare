@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
@@ -8,107 +9,99 @@ using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.Files.Thumbnails.Generation;
 
-/// <summary>
-/// Reconstructs a thumbnail generation batch's status from the queue tables alone, serving both
-/// the single-file view (per-variant generating/failed) and the bulk view (per-file counts).
-/// In-flight work comes from <c>q_queue</c> (pending/processing/failed), finished work from
-/// <c>qc_queue_completed</c>; both keyed by the <c>q_batch_id</c> / <c>qc_batch_id</c> column and
-/// confined to the caller's workspace in SQL so a batch id can never cross a tenant boundary.
-/// </summary>
 public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
 {
+    public sealed record Counts(int Completed, int Outstanding, int Failed);
+
+    public sealed record CompletedJob(
+        long QcId,
+        DateTimeOffset CompletedAt,
+        List<ThumbnailVariant> Variants,
+        ThumbnailGenerationResult? Result);
+
+    public sealed record Snapshot(
+        Counts Counts,
+        List<CompletedJob> NewCompleted,
+        HashSet<ThumbnailVariant> GeneratingVariants);
+
     public ThumbnailGenerationStatusResponseDto Execute(
         WorkspaceContext workspace,
         Guid batchId)
     {
+        var snapshot = GetSnapshot(
+            workspace,
+            batchId,
+            afterCompletedAt: null);
+
+        var failedByVariant = new Dictionary<ThumbnailVariant, string?>();
+        var ready = new List<ReadyThumbnailDto>();
+
+        Apply(
+            snapshot.NewCompleted, 
+            failedByVariant, 
+            ready);
+
+        return BuildStatus(
+            snapshot.Counts, 
+            snapshot.GeneratingVariants, 
+            failedByVariant, 
+            ready);
+    }
+
+    public Snapshot GetSnapshot(
+        WorkspaceContext workspace,
+        Guid batchId,
+        DateTimeOffset? afterCompletedAt)
+    {
         using var connection = plikShareDb.OpenConnection();
 
-        var outstanding = connection
-            .AggregateRows(
-                sql: """
-                    SELECT q_status, q_definition
-                    FROM q_queue
-                    WHERE
-                        q_batch_id = $batchId
-                        AND json_extract(q_definition, '$.workspaceId') = $workspaceId
-                    """,
-                seed: new OutstandingAccumulator(),
-                aggregateRowFunc: (acc, reader) =>
+        return new Snapshot(
+            Counts: GetCounts(connection, workspace, batchId),
+            NewCompleted: GetCompletedSince(connection, workspace, batchId, afterCompletedAt),
+            GeneratingVariants: GetGeneratingVariants(connection, workspace, batchId));
+    }
+
+    public static void Apply(
+        List<CompletedJob> completedJobs,
+        Dictionary<ThumbnailVariant, string?> failedByVariant,
+        List<ReadyThumbnailDto> ready)
+    {
+        foreach (var job in completedJobs)
+        {
+            foreach (var variant in job.Variants)
+            {
+                failedByVariant[variant] = job
+                    .Result
+                    ?.FailedVariants
+                    .FirstOrDefault(failed => failed.Variant == variant)
+                    ?.Error;
+            }
+
+            if (job.Result is { GeneratedVariants.Count: > 0 } result)
+            {
+                ready.Add(new ReadyThumbnailDto
                 {
-                    var status = reader.GetString(0);
+                    FileExternalId = result.ParentFileExternalId.Value,
+                    Variants = result.GeneratedVariants
+                        .Select(generated => new ReadyThumbnailVariantDto
+                        {
+                            Variant = generated.Variant,
+                            Etag = generated.Etag
+                        })
+                        .ToList()
+                });
+            }
+        }
+    }
 
-                    var definition = Json.Deserialize<ProcessImageQueueJobDefinition>(
-                        reader.GetString(1));
-
-                    if (definition is null)
-                        return acc;
-
-                    if (status == QueueStatus.Failed)
-                    {
-                        acc.Failed++;
-                        return acc;
-                    }
-
-                    // pending / processing / blocked — still outstanding.
-                    acc.Pending++;
-
-                    if (status is QueueStatus.Pending or QueueStatus.Processing)
-                    {
-                        foreach (var variant in definition.Variants)
-                            acc.GeneratingVariants.Add(variant);
-                    }
-
-                    return acc;
-                })
-            .WithParameter("$batchId", batchId)
-            .WithParameter("$workspaceId", workspace.Id)
-            .Execute();
-
-        var completed = connection
-            .AggregateRows(
-                sql: """
-                    SELECT qc_definition, qc_result
-                    FROM qc_queue_completed
-                    WHERE
-                        qc_batch_id = $batchId
-                        AND json_extract(qc_definition, '$.workspaceId') = $workspaceId
-                    ORDER BY qc_id ASC
-                    """,
-                seed: new CompletedAccumulator(),
-                aggregateRowFunc: (acc, reader) =>
-                {
-                    var definition = Json.Deserialize<ProcessImageQueueJobDefinition>(
-                        reader.GetString(0));
-
-                    if (definition is null)
-                        return acc;
-
-                    acc.Count++;
-
-                    var resultJson = reader.GetStringOrNull(1);
-
-                    var failures = resultJson is null
-                        ? null
-                        : Json.Deserialize<ThumbnailGenerationResult>(resultJson);
-
-                    // Rows are ascending by qc_id, so a later job overrides an earlier one per
-                    // variant: absent from failures = succeeded (null), present = failed (error).
-                    foreach (var variant in definition.Variants)
-                    {
-                        acc.LatestErrorByVariant[variant] = failures?
-                            .FailedVariants
-                            .FirstOrDefault(failed => failed.Variant == variant)?
-                            .Error;
-                    }
-
-                    return acc;
-                })
-            .WithParameter("$batchId", batchId)
-            .WithParameter("$workspaceId", workspace.Id)
-            .Execute();
-
-        var failedVariants = completed.LatestErrorByVariant
-            .Where(entry => entry.Value is not null && !outstanding.GeneratingVariants.Contains(entry.Key))
+    public static ThumbnailGenerationStatusResponseDto BuildStatus(
+        Counts counts,
+        HashSet<ThumbnailVariant> generatingVariants,
+        Dictionary<ThumbnailVariant, string?> failedByVariant,
+        List<ReadyThumbnailDto> ready)
+    {
+        var failedVariants = failedByVariant
+            .Where(entry => entry.Value is not null && !generatingVariants.Contains(entry.Key))
             .Select(entry => new FailedThumbnailVariantDto
             {
                 Variant = entry.Key,
@@ -118,25 +111,129 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
 
         return new ThumbnailGenerationStatusResponseDto
         {
-            GeneratingVariants = outstanding.GeneratingVariants.ToList(),
+            GeneratingVariants = generatingVariants.ToList(),
             FailedVariants = failedVariants,
-            Total = outstanding.Pending + outstanding.Failed + completed.Count,
-            Completed = completed.Count,
-            Failed = outstanding.Failed,
-            Pending = outstanding.Pending
+            Total = counts.Completed + counts.Outstanding,
+            Completed = counts.Completed,
+            Failed = counts.Failed,
+            Pending = counts.Outstanding - counts.Failed,
+            ReadyThumbnails = ready
         };
     }
 
-    private sealed class OutstandingAccumulator
+    private static Counts GetCounts(
+        SqliteConnection connection,
+        WorkspaceContext workspace,
+        Guid batchId)
     {
-        public HashSet<ThumbnailVariant> GeneratingVariants { get; } = [];
-        public int Pending { get; set; }
-        public int Failed { get; set; }
+        var result = connection
+            .OneRowCmd(
+                sql: """
+                    SELECT
+                        (
+                            SELECT COUNT(*)
+                            FROM qc_queue_completed
+                            WHERE qc_batch_id = $batchId
+                                AND json_extract(qc_definition, '$.workspaceId') = $workspaceId
+                        ),
+                        (
+                            SELECT COUNT(*)
+                            FROM q_queue
+                            WHERE q_batch_id = $batchId
+                                AND json_extract(q_definition, '$.workspaceId') = $workspaceId
+                        ),
+                        (
+                            SELECT COUNT(*)
+                            FROM q_queue
+                            WHERE q_batch_id = $batchId
+                                AND json_extract(q_definition, '$.workspaceId') = $workspaceId
+                                AND q_status = $failedStatus
+                        )
+                    """,
+                readRowFunc: reader => new Counts(
+                    Completed: reader.GetInt32(0),
+                    Outstanding: reader.GetInt32(1),
+                    Failed: reader.GetInt32(2)))
+            .WithParameter("$batchId", batchId)
+            .WithParameter("$workspaceId", workspace.Id)
+            .WithParameter("$failedStatus", QueueStatus.Failed)
+            .Execute();
+
+        return result.Value;
     }
 
-    private sealed class CompletedAccumulator
+    private static List<CompletedJob> GetCompletedSince(
+        SqliteConnection connection,
+        WorkspaceContext workspace,
+        Guid batchId,
+        DateTimeOffset? afterCompletedAt)
     {
-        public Dictionary<ThumbnailVariant, string?> LatestErrorByVariant { get; } = [];
-        public int Count { get; set; }
+        // qc_id is the original enqueue id (q_id), not completion order, so jobs finishing
+        // out-of-order can't be cursored by it. qc_completed_at is the completion clock; the
+        // caller dedups by qc_id because $afterCompletedAt is inclusive (>=) to not drop ties.
+        return connection
+            .Cmd(
+                sql: """
+                    SELECT qc_id, qc_completed_at, qc_definition, qc_result
+                    FROM qc_queue_completed
+                    WHERE
+                        qc_batch_id = $batchId
+                        AND json_extract(qc_definition, '$.workspaceId') = $workspaceId
+                        AND ($afterCompletedAt IS NULL OR qc_completed_at >= $afterCompletedAt)
+                    ORDER BY qc_completed_at ASC
+                    """,
+                readRowFunc: reader =>
+                {
+                    var definition = Json.Deserialize<ProcessImageQueueJobDefinition>(
+                        reader.GetString(2));
+
+                    var resultJson = reader.GetStringOrNull(3);
+
+                    return new CompletedJob(
+                        QcId: reader.GetInt64(0),
+                        CompletedAt: reader.GetFieldValue<DateTimeOffset>(1),
+                        Variants: definition?.Variants ?? [],
+                        Result: resultJson is null
+                            ? null
+                            : Json.Deserialize<ThumbnailGenerationResult>(resultJson));
+                })
+            .WithParameter("$batchId", batchId)
+            .WithParameter("$workspaceId", workspace.Id)
+            .WithParameter("$afterCompletedAt", afterCompletedAt)
+            .Execute();
+    }
+
+    private static HashSet<ThumbnailVariant> GetGeneratingVariants(
+        SqliteConnection connection,
+        WorkspaceContext workspace,
+        Guid batchId)
+    {
+        return connection
+            .AggregateRows(
+                sql: """
+                    SELECT q_definition
+                    FROM q_queue
+                    WHERE
+                        q_batch_id = $batchId
+                        AND json_extract(q_definition, '$.workspaceId') = $workspaceId
+                        AND q_status IN ($pending, $processing)
+                    """,
+                seed: new HashSet<ThumbnailVariant>(),
+                aggregateRowFunc: (acc, reader) =>
+                {
+                    var definition = Json.Deserialize<ProcessImageQueueJobDefinition>(
+                        reader.GetString(0));
+
+                    if (definition is not null)
+                        foreach (var variant in definition.Variants)
+                            acc.Add(variant);
+
+                    return acc;
+                })
+            .WithParameter("$batchId", batchId)
+            .WithParameter("$workspaceId", workspace.Id)
+            .WithParameter("$pending", QueueStatus.Pending)
+            .WithParameter("$processing", QueueStatus.Processing)
+            .Execute();
     }
 }

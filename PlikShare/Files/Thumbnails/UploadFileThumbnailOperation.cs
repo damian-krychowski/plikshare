@@ -1,5 +1,3 @@
-using System.IO.Pipelines;
-using System.Security.Cryptography;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
@@ -11,6 +9,9 @@ using PlikShare.Files.UploadAttachment;
 using PlikShare.Storages;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Workspaces.Cache;
+using System.Buffers.Text;
+using System.IO.Pipelines;
+using System.Security.Cryptography;
 
 namespace PlikShare.Files.Thumbnails;
 
@@ -110,15 +111,18 @@ public class UploadFileThumbnailOperation(
             UploadAlgorithm: UploadAlgorithm.DirectUpload,
             EncryptionMode: encryptionMode);
 
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var hashingStream = new XxHashingReadStream(
+            thumbnailContent);
 
         await workspace.UploadFilePart(
             input: PipeReader.Create(
-                stream: new HashingReadStream(thumbnailContent, hash)),
+                stream: hashingStream),
             uploadDetails: uploadDetails,
             cancellationToken: cancellationToken);
 
-        var etag = Convert.ToHexString(hash.GetHashAndReset());
+        Span<byte> hashBytes = stackalloc byte[16];
+        hashingStream.Hash.GetCurrentHash(hashBytes);
+        var etag = Base64Url.EncodeToString(hashBytes);
 
         var thumbnailMetadata = workspaceEncryptionSession.ToEncryptableMetadata(
             Json.Serialize<FileMetadata>(
@@ -138,12 +142,14 @@ public class UploadFileThumbnailOperation(
 
         return new Result(
             Code: ResultCode.Ok,
-            Attachment: attachment);
+            Attachment: attachment,
+            Etag: etag);
     }
 
     public record Result(
         ResultCode Code,
-        InsertFileAttachmentQuery.AttachmentFile? Attachment = null);
+        InsertFileAttachmentQuery.AttachmentFile? Attachment = null,
+        string? Etag = null);
 
     public enum ResultCode
     {

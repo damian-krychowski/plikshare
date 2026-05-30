@@ -32,7 +32,7 @@ export type AppFileItem = {
     createdAt: Date | null;
     position: WritableSignal<number>;
 
-    miniThumbnailEtag?: WritableSignal<string | null>;
+    miniThumbnailEtag: WritableSignal<string | null>;
 
     isNameEditing: WritableSignal<boolean>;
     isSelected: WritableSignal<boolean>;
@@ -121,7 +121,7 @@ export class FileItemComponent implements OnInit, OnDestroy {
             return null;
 
         const file = this.file();
-        const etag = file.miniThumbnailEtag?.();
+        const etag = file.miniThumbnailEtag();
 
         if (!etag)
             return null;

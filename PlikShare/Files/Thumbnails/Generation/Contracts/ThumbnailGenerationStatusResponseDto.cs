@@ -29,10 +29,29 @@ public class ThumbnailGenerationStatusResponseDto
 
     /// <summary>Jobs still outstanding (pending / processing / blocked). Batch is done when 0.</summary>
     public required int Pending { get; init; }
+
+    /// <summary>
+    /// Files whose thumbnails finished generating, each with the generated variants' etags. Lets the
+    /// frontend show thumbnails live without a reload. Settable so the SSE stream can trim it to a
+    /// per-connection delta (only newly-ready files); the one-shot status endpoint returns the full set.
+    /// </summary>
+    public List<ReadyThumbnailDto> ReadyThumbnails { get; set; } = [];
 }
 
 public class FailedThumbnailVariantDto
 {
     public required ThumbnailVariant Variant { get; init; }
     public required string Error { get; init; }
+}
+
+public class ReadyThumbnailDto
+{
+    public required string FileExternalId { get; init; }
+    public required List<ReadyThumbnailVariantDto> Variants { get; init; }
+}
+
+public class ReadyThumbnailVariantDto
+{
+    public required ThumbnailVariant Variant { get; init; }
+    public required string Etag { get; init; }
 }
