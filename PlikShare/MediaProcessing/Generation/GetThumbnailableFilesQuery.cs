@@ -9,12 +9,13 @@ namespace PlikShare.MediaProcessing.Generation;
 
 /// <summary>
 /// Resolves which of the requested files actually exist in the workspace AND are thumbnailable —
-/// in a SINGLE query on ONE connection, instead of a per-file lookup. Only <c>fi_extension</c> is
-/// decrypted app-side (the ciphertext can't be filtered in SQL); name/ancestors are never touched.
+/// in a SINGLE query on ONE connection, instead of a per-file lookup. <c>fi_extension</c> is
+/// decrypted app-side (the ciphertext can't be filtered in SQL) and returned alongside the id so
+/// the caller can route image vs video processing without a second lookup.
 /// </summary>
 public class GetThumbnailableFilesQuery(PlikShareDb plikShareDb)
 {
-    public List<FileExtId> Execute(
+    public List<ThumbnailableFile> Execute(
         WorkspaceContext workspace,
         List<string> fileExternalIds,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
@@ -35,13 +36,17 @@ public class GetThumbnailableFilesQuery(PlikShareDb plikShareDb)
                             SELECT value FROM json_each($fileExternalIds)
                         )
                     """,
-                seed: new List<FileExtId>(fileExternalIds.Count),
+                seed: new List<ThumbnailableFile>(fileExternalIds.Count),
                 aggregateRowFunc: (acc, reader) =>
                 {
                     var extension = reader.DecodeEncryptableString(1, workspaceEncryptionSession);
 
                     if (ContentTypeHelper.IsThumbnailable(extension))
-                        acc.Add(reader.GetExtId<FileExtId>(0));
+                    {
+                        acc.Add(new ThumbnailableFile(
+                            ExternalId: reader.GetExtId<FileExtId>(0),
+                            Extension: extension));
+                    }
 
                     return acc;
                 })
@@ -49,4 +54,8 @@ public class GetThumbnailableFilesQuery(PlikShareDb plikShareDb)
             .WithJsonParameter("$fileExternalIds", fileExternalIds)
             .Execute();
     }
+
+    public sealed record ThumbnailableFile(
+        FileExtId ExternalId,
+        string Extension);
 }

@@ -22,23 +22,35 @@ public class CancelThumbnailBatchOperation(
         Guid batchId,
         CancellationToken cancellationToken)
     {
-        var releasedKeyIds = await dbWriteQueue.Execute(
+        var deletedDefinitions = await dbWriteQueue.Execute(
             operationToEnqueue: context => DeletePendingJobs(
                 context: context,
                 workspace: workspace,
                 batchId: batchId),
             cancellationToken: cancellationToken);
 
-        foreach (var keyId in releasedKeyIds)
-            if (keyId is { } id)
-                keyStore.Remove(id);
+        // Each pending job carries up to BatchSize files, each with its own temp encryption key.
+        // Release them all so they don't linger to TTL.
+        var releasedFiles = 0;
+
+        foreach (var definition in deletedDefinitions)
+        {
+            if (definition is null)
+                continue;
+
+            releasedFiles += definition.Files.Count;
+
+            foreach (var file in definition.Files)
+                if (file.TempEncryptionKeyId is { } id)
+                    keyStore.Remove(id);
+        }
 
         batchNotifier.Notify(batchId);
 
-        return releasedKeyIds.Count;
+        return releasedFiles;
     }
 
-    private static List<Guid?> DeletePendingJobs(
+    private static List<ProcessImageQueueJobDefinition?> DeletePendingJobs(
         SqliteWriteContext context,
         WorkspaceContext workspace,
         Guid batchId)
@@ -52,13 +64,8 @@ public class CancelThumbnailBatchOperation(
                         AND q_status = $pendingStatus
                     RETURNING q_definition
                     """,
-                readRowFunc: reader =>
-                {
-                    var definition = Json.Deserialize<ProcessImageQueueJobDefinition>(
-                        reader.GetString(0));
-
-                    return definition?.TempEncryptionKeyId;
-                })
+                readRowFunc: reader => Json.Deserialize<ProcessImageQueueJobDefinition>(
+                    reader.GetString(0)))
             .WithParameter("$batchId", batchId)
             .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$pendingStatus", QueueStatus.Pending)

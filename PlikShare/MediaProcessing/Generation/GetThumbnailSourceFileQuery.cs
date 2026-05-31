@@ -11,7 +11,7 @@ namespace PlikShare.MediaProcessing.Generation;
 /// job. Returns only the four fields the executor actually consumes to open the source stream —
 /// <see cref="GetFilePreSignedDownloadLinkDetailsQuery"/> additionally fetches name, content type,
 /// extension and the folder-ancestor JSON tree (an expensive subquery), none of which this path
-/// needs. Trimming the projection cuts ~1 ancestor-JSON aggregation per job.
+/// needs. The batched <see cref="ExecuteBatch"/> resolves N files in one SQL round-trip.
 /// </summary>
 public class GetThumbnailSourceFileQuery(PlikShareDb plikShareDb)
 {
@@ -74,6 +74,69 @@ public class GetThumbnailSourceFileQuery(PlikShareDb plikShareDb)
         return new Result(
             Code: ResultCode.Ok,
             Details: result.Value);
+    }
+
+    /// <summary>
+    /// Batch variant: resolves the parents of every <see cref="FileExtId"/> in one SQL query
+    /// (<c>WHERE fi_external_id IN (json_each($ids))</c>). Returns a map keyed by external id;
+    /// missing entries indicate a deleted-or-never-existed parent (race), to be handled by the
+    /// caller per file.
+    /// </summary>
+    public Dictionary<FileExtId, ThumbnailSourceFile> ExecuteBatch(
+        IReadOnlyList<FileExtId> fileExternalIds)
+    {
+        if (fileExternalIds.Count == 0)
+            return [];
+
+        using var connection = plikShareDb.OpenConnection();
+
+        return connection
+            .AggregateRows(
+                sql: """
+                    SELECT
+                        fi.fi_external_id,
+                        fi.fi_workspace_id,
+                        fi.fi_key_secret_part,
+                        fi.fi_size_in_bytes,
+                        fi.fi_encryption_key_version,
+                        fi.fi_encryption_salt,
+                        fi.fi_encryption_nonce_prefix,
+                        fi.fi_encryption_chain_salts,
+                        fi.fi_encryption_format_version
+                    FROM fi_files AS fi
+                    WHERE fi.fi_external_id IN (
+                            SELECT value FROM json_each($externalIds)
+                        )
+                      AND fi.fi_deleted_at IS NULL
+                """,
+                seed: new Dictionary<FileExtId, ThumbnailSourceFile>(fileExternalIds.Count),
+                aggregateRowFunc: (acc, reader) =>
+                {
+                    var externalId = reader.GetExtId<FileExtId>(0);
+
+                    var source = new ThumbnailSourceFile
+                    {
+                        WorkspaceId = reader.GetInt32(1),
+                        KeySecretPart = reader.GetString(2),
+                        SizeInBytes = reader.GetInt64(3),
+                        EncryptionMetadata = reader.GetByteOrNull(4) is { } keyVersion
+                            ? new FileEncryptionMetadata
+                            {
+                                KeyVersion = keyVersion,
+                                Salt = reader.GetFieldValue<byte[]>(5),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(6),
+                                ChainStepSalts = KeyDerivationChain.Deserialize(
+                                    reader.GetFieldValueOrNull<byte[]>(7)),
+                                FormatVersion = reader.GetByteOrNull(8) ?? 1
+                            }
+                            : null
+                    };
+
+                    acc[externalId] = source;
+                    return acc;
+                })
+            .WithJsonParameter("$externalIds", fileExternalIds.Select(id => id.Value).ToList())
+            .Execute();
     }
 
     public sealed record ThumbnailSourceFile

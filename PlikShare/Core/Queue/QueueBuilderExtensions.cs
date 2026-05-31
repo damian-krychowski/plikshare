@@ -13,7 +13,7 @@ public static class QueueBuilderExtensions
         app.Services.AddSingleton<QueueBatchNotifier>();
 
         app.Services.AddSingleton(new QueueChannels(
-            capacity: parallelConsumersCount * 4));
+            capacity: parallelConsumersCount * 3));
 
         // QueueJobInfoProvider is registered in Startup.RegisterServices with a pre-built job map
         // (see AddNormalQueueJob / AddLongRunningQueueJob / AddDbOnlyQueueJob) — not here, because the

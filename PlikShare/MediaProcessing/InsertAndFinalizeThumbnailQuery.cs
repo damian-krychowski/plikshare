@@ -48,21 +48,99 @@ public class InsertAndFinalizeThumbnailQuery(
             cancellationToken: cancellationToken);
     }
 
-    private ResultCode ExecuteOperation(
+    /// <summary>
+    /// Batched insert+finalize: inserts every <see cref="BatchItem"/> and hard-deletes every
+    /// item's old-thumbnail file IDs in a SINGLE transaction. Returns the per-item result code
+    /// in the same order as <paramref name="items"/> — caller maps back to its own slots.
+    /// </summary>
+    public Task<List<ResultCode>> ExecuteBatch(
+        WorkspaceContext workspace,
+        IUserIdentity uploader,
+        List<BatchItem> items,
+        Guid correlationId,
+        CancellationToken cancellationToken)
+    {
+        return dbWriteQueue.Execute(
+            operationToEnqueue: context => ExecuteBatchOperation(
+                dbWriteContext: context,
+                workspace: workspace,
+                uploader: uploader,
+                items: items,
+                correlationId: correlationId),
+            cancellationToken: cancellationToken);
+    }
+
+    private List<ResultCode> ExecuteBatchOperation(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
-        FileExtId parentFileExternalId,
-        InsertFileAttachmentQuery.AttachmentFile attachment,
-        List<int> oldThumbnailFileIds,
         IUserIdentity uploader,
+        List<BatchItem> items,
         Guid correlationId)
     {
+        var resultCodes = new List<ResultCode>(items.Count);
+
+        if (items.Count == 0)
+            return resultCodes;
+
         var transaction = dbWriteContext.Connection.BeginTransaction();
 
         try
         {
-            // Insert as COMPLETED with metadata set in one shot — no second pass to flip the
-            // flag and write metadata, which is the whole point of this query.
+            var allOldThumbnailIds = new List<int>();
+
+            foreach (var item in items)
+            {
+                var rc = InsertOne(
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction,
+                    workspace: workspace,
+                    parentFileExternalId: item.ParentFileExternalId,
+                    attachment: item.Attachment,
+                    uploader: uploader);
+
+                resultCodes.Add(rc);
+
+                if (rc == ResultCode.Ok && item.OldThumbnailFileIds.Count > 0)
+                    allOldThumbnailIds.AddRange(item.OldThumbnailFileIds);
+            }
+
+            // One sub-query call for the whole batch — internal Execute is a no-op when the
+            // list is empty (no extra DB roundtrip).
+            hardDeleteFilesWithStorageCleanupSubQuery.Execute(
+                workspaceId: workspace.Id,
+                fileIds: allOldThumbnailIds,
+                correlationId: correlationId,
+                dbWriteContext: dbWriteContext,
+                transaction: transaction);
+
+            transaction.Commit();
+
+            Log.Information(
+                "Batched insert+finalize: {InsertedCount} thumbnails ({BatchSize} items), {OldCount} old thumbnails replaced in Workspace#{WorkspaceId}.",
+                resultCodes.Count(rc => rc == ResultCode.Ok),
+                items.Count,
+                allOldThumbnailIds.Count,
+                workspace.Id);
+
+            return resultCodes;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    private ResultCode InsertOne(
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction,
+        WorkspaceContext workspace,
+        FileExtId parentFileExternalId,
+        InsertFileAttachmentQuery.AttachmentFile attachment,
+        IUserIdentity uploader)
+    {
+        try
+        {
             var result = dbWriteContext
                 .OneRowCmd(
                     sql: """
@@ -149,8 +227,6 @@ public class InsertAndFinalizeThumbnailQuery(
 
             if (result.ParentId is null)
             {
-                transaction.Rollback();
-
                 Log.Warning(
                     "Parent file not found during thumbnail insert. ThumbnailExternalId='{ThumbnailExternalId}', ParentFileExternalId='{ParentFileExternalId}', WorkspaceExternalId='{WorkspaceExternalId}'",
                     attachment.ExternalId,
@@ -158,6 +234,53 @@ public class InsertAndFinalizeThumbnailQuery(
                     workspace.ExternalId);
 
                 return ResultCode.ParentNotFound;
+            }
+
+            return ResultCode.Ok;
+        }
+        catch (SqliteException ex) when (ex.HasForeignKeyFailed())
+        {
+            Log.Error(
+                ex,
+                "Foreign Key constraint failed while inserting thumbnail. ThumbnailExternalId='{ThumbnailExternalId}', ParentFileExternalId='{ParentFileExternalId}', WorkspaceExternalId='{WorkspaceExternalId}'",
+                attachment.ExternalId,
+                parentFileExternalId,
+                workspace.ExternalId);
+
+            return ResultCode.ParentNotFound;
+        }
+    }
+
+    public sealed record BatchItem(
+        FileExtId ParentFileExternalId,
+        InsertFileAttachmentQuery.AttachmentFile Attachment,
+        List<int> OldThumbnailFileIds);
+
+    private ResultCode ExecuteOperation(
+        SqliteWriteContext dbWriteContext,
+        WorkspaceContext workspace,
+        FileExtId parentFileExternalId,
+        InsertFileAttachmentQuery.AttachmentFile attachment,
+        List<int> oldThumbnailFileIds,
+        IUserIdentity uploader,
+        Guid correlationId)
+    {
+        var transaction = dbWriteContext.Connection.BeginTransaction();
+
+        try
+        {
+            var rc = InsertOne(
+                dbWriteContext: dbWriteContext,
+                transaction: transaction,
+                workspace: workspace,
+                parentFileExternalId: parentFileExternalId,
+                attachment: attachment,
+                uploader: uploader);
+
+            if (rc != ResultCode.Ok)
+            {
+                transaction.Rollback();
+                return rc;
             }
 
             hardDeleteFilesWithStorageCleanupSubQuery.Execute(

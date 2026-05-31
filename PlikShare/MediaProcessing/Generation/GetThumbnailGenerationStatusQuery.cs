@@ -9,6 +9,12 @@ using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.MediaProcessing.Generation;
 
+/// <summary>
+/// Reads batched-thumbnail-generation progress from the queue tables. Counts are expressed in
+/// FILES (not jobs), because one job now covers up to <c>BatchSize</c> parents — the UI cares
+/// about file-level progress. File counts are derived from <c>json_array_length(... '$.files')</c>
+/// on each row.
+/// </summary>
 public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
 {
     public sealed record Counts(int Completed, int Outstanding, int Failed);
@@ -38,8 +44,8 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
         var ready = new List<ReadyThumbnailDto>();
 
         Apply(
-            snapshot.NewCompleted, 
-            failedByVariant, 
+            snapshot.NewCompleted,
+            failedByVariant,
             ready);
 
         return BuildStatus(
@@ -66,9 +72,6 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                 NewCompleted: [],
                 ProcessingFileExternalIds: []);
 
-        // The full outstanding list is the INITIAL spinner set — large for a big batch, so it's only
-        // computed/sent on the first push. Subsequent pushes carry just the readyThumbnails delta;
-        // the client removes each completed file from its own spinner set.
         return new Snapshot(
             Counts: GetCounts(connection, batchId),
             NewCompleted: GetCompletedSince(connection, batchId, afterCompletedAt),
@@ -77,9 +80,6 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                 : []);
     }
 
-    // One indexed lookup (q_batch_id) per batch: does any of its jobs — outstanding or completed —
-    // belong to this workspace? The single json_extract here replaces the per-row one that used to
-    // run on every COUNT/scan of the whole batch on every SSE push.
     private static bool BatchBelongsToWorkspace(
         SqliteConnection connection,
         WorkspaceContext workspace,
@@ -102,7 +102,6 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
         if (!outstanding.IsEmpty)
             return true;
 
-        // q_queue may be empty already (whole batch finished) — check the completed archive.
         var completed = connection
             .OneRowCmd(
                 sql: """
@@ -127,28 +126,33 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
     {
         foreach (var job in completedJobs)
         {
-            foreach (var variant in job.Variants)
-            {
-                failedByVariant[variant] = job
-                    .Result
-                    ?.FailedVariants
-                    .FirstOrDefault(failed => failed.Variant == variant)
-                    ?.Error;
-            }
+            if (job.Result is null)
+                continue;
 
-            if (job.Result is { GeneratedVariants.Count: > 0 } result)
+            foreach (var fileResult in job.Result.Files)
             {
-                ready.Add(new ReadyThumbnailDto
+                foreach (var variant in job.Variants)
                 {
-                    FileExternalId = result.ParentFileExternalId.Value,
-                    Variants = result.GeneratedVariants
-                        .Select(generated => new ReadyThumbnailVariantDto
-                        {
-                            Variant = generated.Variant,
-                            Etag = generated.Etag
-                        })
-                        .ToList()
-                });
+                    failedByVariant[variant] = fileResult
+                        .FailedVariants
+                        .FirstOrDefault(failed => failed.Variant == variant)
+                        ?.Error;
+                }
+
+                if (fileResult.GeneratedVariants.Count > 0)
+                {
+                    ready.Add(new ReadyThumbnailDto
+                    {
+                        FileExternalId = fileResult.ParentFileExternalId.Value,
+                        Variants = fileResult.GeneratedVariants
+                            .Select(generated => new ReadyThumbnailVariantDto
+                            {
+                                Variant = generated.Variant,
+                                Etag = generated.Etag
+                            })
+                            .ToList()
+                    });
+                }
             }
         }
     }
@@ -184,24 +188,25 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
         SqliteConnection connection,
         Guid batchId)
     {
-        // batchId ownership is checked once in GetSnapshot; every count here filters by the indexed
-        // q_batch_id / qc_batch_id alone (all of a batch's jobs share one workspace anyway).
+        // SUM(json_array_length(... files)) turns job-row counts into FILE counts. Indexed by
+        // q_batch_id / qc_batch_id; per-row JSON parse is small (each row has at most BatchSize
+        // entries in $.files). For 1000-file batch with BatchSize=10 → 100 rows × json scan.
         var result = connection
             .OneRowCmd(
                 sql: """
                     SELECT
                         (
-                            SELECT COUNT(*)
+                            SELECT COALESCE(SUM(json_array_length(json_extract(qc_definition, '$.files'))), 0)
                             FROM qc_queue_completed
                             WHERE qc_batch_id = $batchId
                         ),
                         (
-                            SELECT COUNT(*)
+                            SELECT COALESCE(SUM(json_array_length(json_extract(q_definition, '$.files'))), 0)
                             FROM q_queue
                             WHERE q_batch_id = $batchId
                         ),
                         (
-                            SELECT COUNT(*)
+                            SELECT COALESCE(SUM(json_array_length(json_extract(q_definition, '$.files'))), 0)
                             FROM q_queue
                             WHERE q_batch_id = $batchId
                                 AND q_status = $failedStatus
@@ -223,9 +228,6 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
         Guid batchId,
         DateTimeOffset? afterCompletedAt)
     {
-        // qc_id is the original enqueue id (q_id), not completion order, so jobs finishing
-        // out-of-order can't be cursored by it. qc_completed_at is the completion clock; the
-        // caller dedups by qc_id because $afterCompletedAt is inclusive (>=) to not drop ties.
         return connection
             .Cmd(
                 sql: """
@@ -275,8 +277,11 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                     var definition = Json.Deserialize<ProcessImageQueueJobDefinition>(
                         reader.GetString(0));
 
-                    if (definition is not null)
-                        acc.Add(definition.ParentFileExternalId.Value);
+                    if (definition is null)
+                        return acc;
+
+                    foreach (var file in definition.Files)
+                        acc.Add(file.ParentFileExternalId.Value);
 
                     return acc;
                 })

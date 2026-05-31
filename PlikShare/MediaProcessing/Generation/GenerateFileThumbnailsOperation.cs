@@ -12,6 +12,11 @@ using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.MediaProcessing.Generation;
 
+/// <summary>
+/// Enqueues thumbnail generation for one parent file. Wraps the file in a one-element
+/// <see cref="ProcessImageQueueJobDefinition"/> batch so the worker handles single-file and bulk
+/// uniformly.
+/// </summary>
 public class GenerateFileThumbnailsOperation(
     IClock clock,
     IQueue queue,
@@ -60,9 +65,16 @@ public class GenerateFileThumbnailsOperation(
         var definition = new ProcessImageQueueJobDefinition
         {
             WorkspaceId = workspace.Id,
-            ParentFileExternalId = parentFileExternalId,
+            Files =
+            [
+                new ProcessImageQueueJobDefinition.BatchItem
+                {
+                    ParentFileExternalId = parentFileExternalId,
+                    Extension = parentLookup.Details.Extension,
+                    TempEncryptionKeyId = tempKeyId
+                }
+            ],
             Variants = variants.ToList(),
-            TempEncryptionKeyId = tempKeyId,
             TriggeredByUserExternalId = triggeredByUserExternalId
         };
 
@@ -78,16 +90,14 @@ public class GenerateFileThumbnailsOperation(
         }
         catch
         {
-            // Enqueue failed — release the temp key immediately rather than leaking until TTL.
-            if (tempKeyId is { } id) {
+            if (tempKeyId is { } id)
                 keyStore.Remove(id);
-            }
-            
+
             throw;
         }
 
         return new Result(
-            Code: ResultCode.Ok, 
+            Code: ResultCode.Ok,
             BatchId: batchId);
     }
 
@@ -122,7 +132,7 @@ public class GenerateFileThumbnailsOperation(
     }
 
     public record Result(
-        ResultCode Code, 
+        ResultCode Code,
         Guid? BatchId = null);
 
     public enum ResultCode

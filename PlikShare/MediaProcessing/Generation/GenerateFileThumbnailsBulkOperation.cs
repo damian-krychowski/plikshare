@@ -11,10 +11,10 @@ using PlikShare.Workspaces.Cache;
 namespace PlikShare.MediaProcessing.Generation;
 
 /// <summary>
-/// Enqueues thumbnail generation for many files under a single <c>batchId</c> — one queue job per
-/// file (variants inside), inserted in one bulk write. Files that no longer exist or aren't
-/// thumbnailable are silently skipped; the returned <c>TotalFiles</c> reflects only the jobs
-/// actually enqueued, so the UI's progress denominator matches the real work.
+/// Enqueues thumbnail generation for many files under a single <c>batchId</c>. Files are grouped
+/// into chunks of <see cref="BatchSize"/>; each chunk becomes ONE queue job that processes all its
+/// parents together. Lets the executor batch the per-file DB inserts into a single transaction
+/// per queue job. Files that no longer exist or aren't thumbnailable are silently skipped.
 /// </summary>
 public class GenerateFileThumbnailsBulkOperation(
     IClock clock,
@@ -24,6 +24,10 @@ public class GenerateFileThumbnailsBulkOperation(
     TemporaryWorkspaceEncryptionKeyStore keyStore,
     FfmpegService ffmpegService)
 {
+    // How many parent files to fold into one queue job. Higher = fewer DbWriteQueue trips but
+    // larger per-job memory + coarser cancellation/progress granularity.
+    public const int BatchSize = 10;
+
     public async Task<Result> Execute(
         WorkspaceContext workspace,
         List<string> parentFileExternalIds,
@@ -42,40 +46,51 @@ public class GenerateFileThumbnailsBulkOperation(
         if (parentFileExternalIds.Count == 0)
             return new Result(Code: ResultCode.NoThumbnailableFiles);
 
-        var thumbnailableFileIds = getThumbnailableFilesQuery.Execute(
+        var thumbnailableFiles = getThumbnailableFilesQuery.Execute(
             workspace: workspace,
             fileExternalIds: parentFileExternalIds,
             workspaceEncryptionSession: workspaceEncryptionSession);
 
-        if (thumbnailableFileIds.Count == 0)
+        if (thumbnailableFiles.Count == 0)
             return new Result(Code: ResultCode.NoThumbnailableFiles);
 
         var batchId = Guid.NewGuid();
         var variantList = variants.ToList();
 
-        var entities = new List<BulkQueueJobEntity>(thumbnailableFileIds.Count);
+        var entities = new List<BulkQueueJobEntity>();
 
-        // One temp encryption key per job — the worker releases its own key, so a single shared
-        // key would be freed by the first finished job and starve the rest of the batch.
+        // One temp encryption key PER FILE — the worker releases per-key, so a single shared key
+        // would be freed by the first finished file and starve the rest.
         var storedKeyIds = new List<Guid>();
 
         try
         {
-            foreach (var parentFileExternalId in thumbnailableFileIds)
+            foreach (var chunk in thumbnailableFiles.Chunk(BatchSize))
             {
-                var tempKeyId = workspaceEncryptionSession is null
-                    ? (Guid?)null
-                    : keyStore.Store(workspaceEncryptionSession);
+                var batchItems = new List<ProcessImageQueueJobDefinition.BatchItem>(chunk.Length);
 
-                if (tempKeyId is { } id)
-                    storedKeyIds.Add(id);
+                foreach (var file in chunk)
+                {
+                    var tempKeyId = workspaceEncryptionSession is null
+                        ? (Guid?)null
+                        : keyStore.Store(workspaceEncryptionSession);
+
+                    if (tempKeyId is { } id)
+                        storedKeyIds.Add(id);
+
+                    batchItems.Add(new ProcessImageQueueJobDefinition.BatchItem
+                    {
+                        ParentFileExternalId = file.ExternalId,
+                        Extension = file.Extension,
+                        TempEncryptionKeyId = tempKeyId
+                    });
+                }
 
                 var definition = new ProcessImageQueueJobDefinition
                 {
                     WorkspaceId = workspace.Id,
-                    ParentFileExternalId = parentFileExternalId,
+                    Files = batchItems,
                     Variants = variantList,
-                    TempEncryptionKeyId = tempKeyId,
                     TriggeredByUserExternalId = triggeredByUserExternalId
                 };
 
@@ -95,7 +110,6 @@ public class GenerateFileThumbnailsBulkOperation(
         }
         catch
         {
-            // Enqueue failed — release the temp keys immediately rather than leaking until TTL.
             ReleaseKeys(storedKeyIds);
             throw;
         }
@@ -103,7 +117,7 @@ public class GenerateFileThumbnailsBulkOperation(
         return new Result(
             Code: ResultCode.Ok,
             BatchId: batchId,
-            TotalFiles: entities.Count);
+            TotalFiles: thumbnailableFiles.Count);
     }
 
     private void EnqueueJobs(

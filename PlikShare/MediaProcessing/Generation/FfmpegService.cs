@@ -95,6 +95,44 @@ public class FfmpegService
         }
     }
 
+    /// <summary>
+    /// Same outcome as <see cref="GenerateThumbnails"/>, but with the source already at a SEEKABLE
+    /// path on disk. Each ffmpeg worker reads the file directly (<c>-i &lt;path&gt;</c>), so the
+    /// demuxer can do random-access reads for moov-at-end mp4s — the case where stdin causes
+    /// in-RAM buffering of the whole input plus a 100-frame thumbnail-filter window and blows up.
+    /// Caller owns the temp file's lifecycle (typically delete in <c>finally</c>).
+    /// </summary>
+    public async Task<IReadOnlyList<VariantResult>> GenerateThumbnailsFromFile(
+        string filePath,
+        IReadOnlyList<ThumbnailVariant> variants,
+        CancellationToken cancellationToken)
+    {
+        var workers = variants
+            .Select(variant => StartFileWorker(variant, filePath, cancellationToken))
+            .ToList();
+
+        try
+        {
+            var results = new List<VariantResult>(workers.Count);
+
+            foreach (var worker in workers)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                results.Add(await CollectWorkerAsResult(
+                    worker,
+                    cancellationToken));
+            }
+
+            return results;
+        }
+        finally
+        {
+            foreach (var worker in workers)
+                worker.Process.Dispose();
+        }
+    }
+
     private static async Task RunSourceFanOut(
         Func<PipeWriter, CancellationToken, ValueTask> writeSourceTo,
         List<Worker> workers,
@@ -157,20 +195,30 @@ public class FfmpegService
         };
 
         // -i pipe:0 = read source from stdin (fed by the shared pump).
+        // -an/-dn/-sn = drop audio/data/subtitle streams that mp4 containers ship — ffmpeg would
+        //   otherwise spin them up just to discard, and for some inputs that path leaks memory.
         // thumbnail = pick a representative frame (works on a non-seekable stdin, unlike -ss), so a
         //   video's black fade-in start isn't used; for a static image it just passes the one frame.
         // -frames:v 1 = emit a single frame.
         // scale=N:N:force_original_aspect_ratio=decrease = fit within NxN preserving aspect ratio.
+        // -c:v libwebp = FORCE the static-image WebP encoder. Without it the webp muxer picks
+        //   libwebp_anim for multi-frame sources (mp4/gif), which buffers all frames and OOMs
+        //   ("Cannot allocate memory" / WebPAnimEncoderAssemble failure) for larger inputs.
         // -f webp -y pipe:1 = write WebP to stdout.
         psi.ArgumentList.Add("-hide_banner");
         psi.ArgumentList.Add("-loglevel");
         psi.ArgumentList.Add("error");
         psi.ArgumentList.Add("-i");
         psi.ArgumentList.Add("pipe:0");
+        psi.ArgumentList.Add("-an");
+        psi.ArgumentList.Add("-dn");
+        psi.ArgumentList.Add("-sn");
         psi.ArgumentList.Add("-vf");
-        psi.ArgumentList.Add($"thumbnail,scale={targetPixelSize}:{targetPixelSize}:force_original_aspect_ratio=decrease");
+        psi.ArgumentList.Add($"thumbnail=n=25,scale={targetPixelSize}:{targetPixelSize}:force_original_aspect_ratio=decrease");
         psi.ArgumentList.Add("-frames:v");
         psi.ArgumentList.Add("1");
+        psi.ArgumentList.Add("-c:v");
+        psi.ArgumentList.Add("libwebp");
         psi.ArgumentList.Add("-f");
         psi.ArgumentList.Add("webp");
         psi.ArgumentList.Add("-y");
@@ -198,6 +246,67 @@ public class FfmpegService
             StdoutBuffer = stdoutBuffer,
             StdoutTask = stdoutTask,
             StderrTask = stderrTask
+        };
+    }
+
+    private Worker StartFileWorker(
+        ThumbnailVariant variant,
+        string filePath,
+        CancellationToken cancellationToken)
+    {
+        var targetPixelSize = GetTargetPixelSize(variant);
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = _ffmpegPath,
+            // No stdin redirection — ffmpeg reads the source from disk and can seek freely
+            // (matters for mp4 moov-at-end).
+            RedirectStandardInput = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        psi.ArgumentList.Add("-hide_banner");
+        psi.ArgumentList.Add("-loglevel");
+        psi.ArgumentList.Add("error");
+        psi.ArgumentList.Add("-i");
+        psi.ArgumentList.Add(filePath);
+        psi.ArgumentList.Add("-an");
+        psi.ArgumentList.Add("-dn");
+        psi.ArgumentList.Add("-sn");
+        psi.ArgumentList.Add("-vf");
+        psi.ArgumentList.Add($"thumbnail=n=25,scale={targetPixelSize}:{targetPixelSize}:force_original_aspect_ratio=decrease");
+        psi.ArgumentList.Add("-frames:v");
+        psi.ArgumentList.Add("1");
+        psi.ArgumentList.Add("-c:v");
+        psi.ArgumentList.Add("libwebp");
+        psi.ArgumentList.Add("-f");
+        psi.ArgumentList.Add("webp");
+        psi.ArgumentList.Add("-y");
+        psi.ArgumentList.Add("pipe:1");
+
+        var process = Process.Start(psi)
+            ?? throw new InvalidOperationException("ffmpeg failed to start.");
+
+        var stdoutBuffer = new MemoryStream();
+
+        var stdoutTask = process.StandardOutput.BaseStream.CopyToAsync(
+            stdoutBuffer,
+            cancellationToken);
+
+        var stderrTask = process.StandardError.ReadToEndAsync(
+            cancellationToken);
+
+        return new Worker
+        {
+            Variant = variant,
+            Process = process,
+            StdoutBuffer = stdoutBuffer,
+            StdoutTask = stdoutTask,
+            StderrTask = stderrTask,
+            // No stdin for file-based — the pump never touches StdinAlive, so leave default true.
         };
     }
 

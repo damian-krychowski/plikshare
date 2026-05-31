@@ -16,9 +16,15 @@ namespace PlikShare.MediaProcessing;
 /// <summary>
 /// Writes one thumbnail attachment to storage and registers it in the DB. The CALLER vouches for
 /// parent existence, workspace ownership and thumbnailability — this operation does NOT re-check.
-/// Sequence: read existing thumbnails of this variant (1 read, off DbWriteQueue) → storage upload
-/// → single DbWriteQueue transaction that inserts the new row as completed AND hard-deletes the
-/// old ones. A crash between storage and insert leaves an orphan blob — accepted trade-off
+///
+/// <para>HTTP path: <see cref="Execute"/> — storage write then a dedicated <see cref="DbWriteQueue"/>
+/// transaction (insert + replace-old).</para>
+///
+/// <para>Queue (batched) path: <see cref="Prepare"/> — storage write + attachment build, returns
+/// a <see cref="PreparedUpload"/> the caller folds into <see cref="InsertAndFinalizeThumbnailQuery.ExecuteBatch"/>
+/// so N variants across M files share ONE DB transaction.</para>
+///
+/// A crash between storage and insert leaves an orphan blob — accepted trade-off
 /// (see <see cref="InsertAndFinalizeThumbnailQuery"/>).
 /// </summary>
 public class UploadFileThumbnailOperation(
@@ -35,9 +41,54 @@ public class UploadFileThumbnailOperation(
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        // Snapshot which existing thumbnails of this variant will be replaced. Off DbWriteQueue —
-        // this is a read. The replacement happens later, atomically inside the insert+delete tx.
-        var existingThumbnails = getThumbnailsQuery.Execute(
+        var prepared = await Prepare(
+            workspace: workspace,
+            parentFileExternalId: parentFileExternalId,
+            thumbnail: thumbnail,
+            content: content,
+            workspaceEncryptionSession: workspaceEncryptionSession,
+            existingThumbnails: null,
+            cancellationToken: cancellationToken);
+
+        var insertResult = await insertAndFinalizeThumbnailQuery.Execute(
+            workspace: workspace,
+            parentFileExternalId: parentFileExternalId,
+            attachment: prepared.Attachment,
+            oldThumbnailFileIds: prepared.OldThumbnailFileIds,
+            uploader: uploader,
+            correlationId: correlationId,
+            cancellationToken: cancellationToken);
+
+        if (insertResult == InsertAndFinalizeThumbnailQuery.ResultCode.ParentNotFound)
+            return new Result(Code: ResultCode.ParentNotFound);
+
+        return new Result(
+            Code: ResultCode.Ok,
+            Attachment: prepared.Attachment,
+            Etag: prepared.Etag);
+    }
+
+    /// <summary>
+    /// Storage write + attachment build, without the DB insert. The caller persists via
+    /// <see cref="InsertAndFinalizeThumbnailQuery.ExecuteBatch"/> (queue executor — N items in
+    /// one tx) or <see cref="InsertAndFinalizeThumbnailQuery.Execute"/> (HTTP path — wrapped by
+    /// <see cref="Execute"/>).
+    ///
+    /// <para><paramref name="existingThumbnails"/> is the pre-fetched list of this parent's
+    /// completed thumbnails (across variants). Pass <c>null</c> to make this method run its own
+    /// lookup; the queue executor passes a list it already fetched once per parent so we don't
+    /// repeat the SELECT for each of the 3 variants.</para>
+    /// </summary>
+    public async Task<PreparedUpload> Prepare(
+        WorkspaceContext workspace,
+        FileExtId parentFileExternalId,
+        ThumbnailDescriptor thumbnail,
+        Stream content,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
+        IReadOnlyList<GetThumbnailsQuery.Thumbnail>? existingThumbnails,
+        CancellationToken cancellationToken)
+    {
+        existingThumbnails ??= getThumbnailsQuery.Execute(
             workspace: workspace,
             parentFileExternalId: parentFileExternalId,
             workspaceEncryptionSession: workspaceEncryptionSession);
@@ -107,23 +158,16 @@ public class UploadFileThumbnailOperation(
             Metadata = thumbnailMetadata
         };
 
-        var insertResult = await insertAndFinalizeThumbnailQuery.Execute(
-            workspace: workspace,
-            parentFileExternalId: parentFileExternalId,
-            attachment: attachment,
-            oldThumbnailFileIds: oldThumbnailFileIds,
-            uploader: uploader,
-            correlationId: correlationId,
-            cancellationToken: cancellationToken);
-
-        if (insertResult == InsertAndFinalizeThumbnailQuery.ResultCode.ParentNotFound)
-            return new Result(Code: ResultCode.ParentNotFound);
-
-        return new Result(
-            Code: ResultCode.Ok,
+        return new PreparedUpload(
+            Etag: etag,
             Attachment: attachment,
-            Etag: etag);
+            OldThumbnailFileIds: oldThumbnailFileIds);
     }
+
+    public sealed record PreparedUpload(
+        string Etag,
+        InsertFileAttachmentQuery.AttachmentFile Attachment,
+        List<int> OldThumbnailFileIds);
 
     public record Result(
         ResultCode Code,
