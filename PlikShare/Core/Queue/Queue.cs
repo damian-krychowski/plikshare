@@ -12,6 +12,7 @@ public class Queue(
     DbWriteQueue dbWriteQueue,
     IClock clock,
     QueueJobStatusDecisionEngine queueJobStatusDecisionEngine,
+    QueueJobInfoProvider queueJobInfoProvider,
     QueueBatchNotifier batchNotifier) : IQueue
 {
     private static int MaxRetryCount { get; } = 3;
@@ -174,7 +175,9 @@ public class Queue(
                         q_correlation_id,
                         q_debounce_id,
                         q_saga_id,
-                        q_batch_id
+                        q_batch_id,
+                        q_job_category,
+                        q_job_priority
                     )
                     VALUES (
                         $jobType,
@@ -186,7 +189,9 @@ public class Queue(
                         $correlationId,
                         $debounceId,
                         $sagaId,
-                        $batchId
+                        $batchId,
+                        $jobCategory,
+                        $jobPriority
                     )
                     ON CONFLICT (q_debounce_id)
                     DO UPDATE SET
@@ -208,6 +213,8 @@ public class Queue(
             .WithParameter("$debounceId", debounceId)
             .WithParameter("$sagaId", sagaId?.Value)
             .WithParameter("$batchId", batchId)
+            .WithParameter("$jobCategory", (int)queueJobInfoProvider.GetJobCategory(jobType))
+            .WithParameter("$jobPriority", queueJobInfoProvider.GetJobPriority(jobType))
             .Execute();
     }
 
@@ -234,7 +241,9 @@ public class Queue(
                         q_correlation_id,
                         q_debounce_id,
                         q_saga_id,
-                        q_batch_id
+                        q_batch_id,
+                        q_job_category,
+                        q_job_priority
                     )
                     SELECT
                         json_extract(value, '$.jobType'),
@@ -246,7 +255,9 @@ public class Queue(
                         $correlationId,
                         NULL,
                         json_extract(value, '$.sagaId'),
-                        json_extract(value, '$.batchId')
+                        json_extract(value, '$.batchId'),
+                        json_extract(value, '$.jobCategory'),
+                        json_extract(value, '$.jobPriority')
                     FROM
                         json_each($definitions)
                     RETURNING
@@ -290,6 +301,10 @@ public class Queue(
                 .Value,
 
             SagaId = sagaId?.Value,
+
+            JobCategory = (int)queueJobInfoProvider.GetJobCategory(jobType),
+
+            JobPriority = queueJobInfoProvider.GetJobPriority(jobType),
 
             BatchId = batchId
         };

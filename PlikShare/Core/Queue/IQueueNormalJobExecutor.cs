@@ -5,17 +5,29 @@ namespace PlikShare.Core.Queue;
 
 public interface IQueueNormalJobExecutor
 {
+    // Static twins of JobType/Priority so the job map can be built from the TYPE at registration time
+    // (no instance, no IQueue dependency) — see Startup.RegisterServices (AddNormalQueueJob etc.).
+    // They are `static virtual` (not abstract) so the interface still has a most-specific
+    // implementation and can be used as a type argument elsewhere (GetServices<IQueueNormalJobExecutor>,
+    // IEnumerable<...>). Every executor overrides them; the default throws so a missing override fails
+    // loudly. TODO: collapse to static-only after refactor.
+    static virtual string StaticJobType => throw new NotSupportedException();
+    static virtual int StaticPriority => throw new NotSupportedException();
+
     string JobType { get; }
     int Priority { get; }
-    
+
     Task<QueueJobResult> Execute(
-        string definitionJson, 
-        Guid correlationId, 
+        string definitionJson,
+        Guid correlationId,
         CancellationToken cancellationToken);
 }
 
 public interface IQueueLongRunningJobExecutor
 {
+    static virtual string StaticJobType => throw new NotSupportedException();
+    static virtual int StaticPriority => throw new NotSupportedException();
+
     string JobType { get; }
     int Priority { get; }
 
@@ -27,11 +39,14 @@ public interface IQueueLongRunningJobExecutor
 
 public interface IQueueDbOnlyJobExecutor
 {
+    static virtual string StaticJobType => throw new NotSupportedException();
+    static virtual int StaticPriority => throw new NotSupportedException();
+
     string JobType { get; }
     int Priority { get; }
 
     (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
-        string definitionJson, 
+        string definitionJson,
         Guid correlationId,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction);

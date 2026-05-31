@@ -27,4 +27,6 @@ public class QueueSagaJob
     public required string Definition { get; init; }
     public required Guid CorrelationId { get; init; }
     public required string Status { get; init; }
+    public required int JobCategory { get; init; }
+    public required int JobPriority { get; init; }
 }

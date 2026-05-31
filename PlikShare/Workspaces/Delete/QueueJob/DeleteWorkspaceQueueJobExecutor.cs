@@ -15,8 +15,11 @@ public class DeleteWorkspaceQueueJobExecutor(
     UserCache userCache,
     WorkspaceCache workspaceCache) : IQueueDbOnlyJobExecutor
 {
-    public string JobType => DeleteWorkspaceQueueJobType.Value;
-    public int Priority => QueueJobPriority.Normal;
+    public static string StaticJobType => DeleteWorkspaceQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.Normal;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
         string definitionJson,

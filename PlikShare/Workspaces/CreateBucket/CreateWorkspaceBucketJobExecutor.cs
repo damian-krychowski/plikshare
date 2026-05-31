@@ -11,8 +11,11 @@ public class CreateWorkspaceBucketJobExecutor(
     UpdateWorkspaceIsBucketCreatedQuery updateWorkspaceIsBucketCreatedQuery,
     WorkspaceCache workspaceCache) : IQueueNormalJobExecutor
 {
-    public string JobType => CreateWorkspaceBucketQueueJobType.Value;
-    public int Priority => QueueJobPriority.ExtremelyHigh;
+    public static string StaticJobType => CreateWorkspaceBucketQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.ExtremelyHigh;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public async Task<QueueJobResult> Execute(
         string definitionJson, 

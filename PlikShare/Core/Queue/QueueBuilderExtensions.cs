@@ -15,7 +15,9 @@ public static class QueueBuilderExtensions
         app.Services.AddSingleton(new QueueChannels(
             capacity: parallelConsumersCount * 4));
 
-        app.Services.AddSingleton<QueueJobInfoProvider>();
+        // QueueJobInfoProvider is registered in Startup.RegisterServices with a pre-built job map
+        // (see AddNormalQueueJob / AddLongRunningQueueJob / AddDbOnlyQueueJob) — not here, because the
+        // executor-driven constructor would form an IQueue -> Queue -> provider dependency cycle.
         app.Services.AddHostedService<QueueProducer>();
         
         app.Services.AddSingleton<IHostedService>(serviceProvider => new DbOnlyQueueConsumer(

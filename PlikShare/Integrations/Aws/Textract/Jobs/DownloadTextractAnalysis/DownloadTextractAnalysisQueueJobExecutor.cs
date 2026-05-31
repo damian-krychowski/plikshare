@@ -39,8 +39,11 @@ public class DownloadTextractAnalysisQueueJobExecutor(
     public const string TextractAnalysisRawResult = "textract-analysis-raw-result";
     public const string TextractMarkdown = "textract-markdown";
 
-    public string JobType => DownloadTextractAnalysisQueueJobType.Value;
-    public int Priority => QueueJobPriority.Normal;
+    public static string StaticJobType => DownloadTextractAnalysisQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.Normal;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public async Task<QueueJobResult> Execute(
         string definitionJson, 

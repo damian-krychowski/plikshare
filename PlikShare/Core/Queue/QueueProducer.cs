@@ -45,7 +45,6 @@ public sealed class QueueProducer : BackgroundService
         _gracefulShutdownCts = new CancellationTokenSource();
 
         _connection = plikShareDb.OpenConnection();
-        RegisterCustomSqliteFunctions(_connection);
 
         _selectJobsBatchCommand = PrepareSelectJobsBatchCommand(_connection);
         _markJobsProcessingCommand = PrepareMarkJobsProcessingCommand(_connection);
@@ -220,13 +219,15 @@ public sealed class QueueProducer : BackgroundService
                     JobType = jobType,
                     Definition = definition,
                     CorrelationId = correlationId,
-                    Status = _queue.GetNewJobStatus(jobType).Value
+                    Status = _queue.GetNewJobStatus(jobType).Value,
+                    JobCategory = (int)_queueJobInfoProvider.GetJobCategory(jobType),
+                    JobPriority = _queueJobInfoProvider.GetJobPriority(jobType)
                 };
             });
 
             _insertQueueSagaJobsCommand.Parameters.Clear();
             _insertQueueSagaJobsCommand.WithParameter("$now", _clock.UtcNow);
-            _insertQueueSagaJobsCommand.WithParameter("$definitions", Json.Serialize(sagas));
+            _insertQueueSagaJobsCommand.WithJsonParameter("$definitions", sagas);
             _insertQueueSagaJobsCommand.Transaction = transaction;
 
             var insertedSagaJobs = _insertQueueSagaJobsCommand.GetRows(reader =>
@@ -300,15 +301,15 @@ public sealed class QueueProducer : BackgroundService
 
     public List<QueueJob> GetBatchOfJobsAndMarkAsProcessing()
     {
-        //we are using capacity in custom sqlite function, we need to update it before the query
+        // Per-category capacity is passed into the SELECT as parameters (snapshot taken now).
         var capacitySnapshot = _channels.GetCapacitySnapshot();
 
         try
         {
             // Two-step to avoid holding the single SQLite write-lock during the O(N) selection.
-            // Step 1 — SELECT the eligible job ids: this scans/sorts all pending jobs and calls the
-            // per-row custom functions, but it's a READ, so it doesn't block the workers writing
-            // their completions (WAL: readers don't block writers).
+            // Step 1 — SELECT the eligible job ids: scans/sorts pending jobs by the materialized
+            // q_job_category / q_job_priority columns. It's a READ, so it doesn't block the workers
+            // writing their completions (WAL: readers don't block writers).
             _selectJobsBatchCommand.Parameters.Clear();
             _selectJobsBatchCommand.WithParameter("$pendingStatus", QueueStatus.Pending);
             _selectJobsBatchCommand.WithParameter("$now", _clock.UtcNow);
@@ -349,10 +350,9 @@ public sealed class QueueProducer : BackgroundService
         }
     }
 
-    // Step 1 (READ): pick the eligible job ids honoring per-category capacity + priority. This is the
-    // heavy O(N) scan/sort with per-row custom functions, but as a SELECT it never holds the write
-    // lock — workers can write their completions concurrently (WAL).
-    //todo that probably would work better if job_category would be stored inside table rather than being calculated on the flight
+    // Step 1 (READ): pick the eligible job ids honoring per-category capacity + priority, reading the
+    // materialized q_job_category / q_job_priority columns (capacity passed in as parameters). As a
+    // SELECT it never holds the write lock — workers can write their completions concurrently (WAL).
     private SqliteCommand PrepareSelectJobsBatchCommand(
         SqliteConnection connection)
     {
@@ -363,10 +363,10 @@ public sealed class QueueProducer : BackgroundService
             WITH ranked_jobs AS (
                 SELECT
                     q_id,
-                    app_get_job_category(q_job_type) AS job_category,
+                    q_job_category,
                     ROW_NUMBER() OVER (
-                        PARTITION BY app_get_job_category(q_job_type)
-                        ORDER BY app_get_job_priority(q_job_type) ASC
+                        PARTITION BY q_job_category
+                        ORDER BY q_job_priority ASC
                     ) as category_rank
                 FROM q_queue
                 WHERE
@@ -376,7 +376,7 @@ public sealed class QueueProducer : BackgroundService
             eligible_jobs AS (
                 SELECT q_id
                 FROM ranked_jobs
-                WHERE category_rank <= CASE job_category
+                WHERE category_rank <= CASE q_job_category
                     WHEN 0 THEN $dbOnlyCapacity
                     WHEN 1 THEN $normalCapacity
                     WHEN 2 THEN $longRunningCapacity
@@ -455,26 +455,30 @@ public sealed class QueueProducer : BackgroundService
 
         command.CommandText = @"
             INSERT INTO q_queue (
-                q_job_type, 
-                q_definition, 
-                q_status, 
-                q_failed_retries_count, 
+                q_job_type,
+                q_definition,
+                q_status,
+                q_failed_retries_count,
                 q_execute_after_date,
-                q_enqueued_at, 
+                q_enqueued_at,
                 q_correlation_id,
                 q_debounce_id,
-                q_saga_id
-            ) 
+                q_saga_id,
+                q_job_category,
+                q_job_priority
+            )
             SELECT
                 json_extract(value, '$.jobType'),
                 json_extract(value, '$.definition'),
                 json_extract(value, '$.status'),
-                0,     
-                $now,      
-                $now,              
+                0,
+                $now,
+                $now,
                 json_extract(value, '$.correlationId'),
                 NULL,
-                NULL
+                NULL,
+                json_extract(value, '$.jobCategory'),
+                json_extract(value, '$.jobPriority')
             FROM
                 json_each($definitions)
             RETURNING
@@ -482,30 +486,5 @@ public sealed class QueueProducer : BackgroundService
         ";
 
         return command;
-    }
-
-    public void RegisterCustomSqliteFunctions(SqliteConnection connection)
-    {
-        connection.CreateFunction(
-            "app_get_job_category",
-            (string? jobType) =>
-            {
-                if (string.IsNullOrWhiteSpace(jobType))
-                    return -1;
-
-                return (int) _queueJobInfoProvider.GetJobCategory(
-                    jobType);
-            });
-
-        connection.CreateFunction(
-            "app_get_job_priority",
-            (string? jobType) =>
-            {
-                if (string.IsNullOrWhiteSpace(jobType))
-                    return -1;
-
-                return _queueJobInfoProvider.GetJobPriority(
-                    jobType);
-            });
     }
 }

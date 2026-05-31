@@ -9,8 +9,11 @@ namespace PlikShare.Workspaces.DeleteBucket;
 public class DeleteBucketJobExecutor(
     StorageClientStore storageClientStore) : IQueueNormalJobExecutor
 {
-    public string JobType => DeleteBucketQueueJobType.Value;
-    public int Priority => QueueJobPriority.ExtremelyLow;
+    public static string StaticJobType => DeleteBucketQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.ExtremelyLow;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public async Task<QueueJobResult> Execute(
         string definitionJson,

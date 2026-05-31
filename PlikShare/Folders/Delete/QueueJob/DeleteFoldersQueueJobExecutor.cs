@@ -11,8 +11,11 @@ public class DeleteFoldersQueueJobExecutor(
     BulkDeleteFoldersWithDependenciesQuery bulkDeleteFoldersWithDependenciesQuery,
     BoxCache boxCache) : IQueueDbOnlyJobExecutor
 {
-    public string JobType => DeleteFoldersQueueJobType.Value;
-    public int Priority => QueueJobPriority.Normal;
+    public static string StaticJobType => DeleteFoldersQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.Normal;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
         string definitionJson, 

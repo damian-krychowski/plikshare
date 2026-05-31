@@ -1,51 +1,19 @@
-﻿namespace PlikShare.Core.Queue;
+namespace PlikShare.Core.Queue;
 
 public class QueueJobInfoProvider
 {
-    private readonly Dictionary<string, QueueJobCategory> _jobTypesMap =
-        new(comparer: StringComparer.InvariantCultureIgnoreCase);
+    private readonly IReadOnlyDictionary<string, QueueJobCategory> _jobTypesMap;
+    private readonly IReadOnlyDictionary<string, int> _jobPriorityMap;
 
-
-    private readonly Dictionary<string, int> _jobPriorityMap =
-        new(comparer: StringComparer.InvariantCultureIgnoreCase);
-
+    // Maps are built once at registration time from the executor TYPES (see QueueJobInfoBuilder) and
+    // injected ready-made — the provider has no dependency on the executors, so it can't take part in
+    // the IQueue -> Queue -> provider dependency cycle.
     public QueueJobInfoProvider(
-        IEnumerable<IQueueNormalJobExecutor> normalJobExecutors,
-        IEnumerable<IQueueDbOnlyJobExecutor> dbOnlyJobExecutors,
-        IEnumerable<IQueueLongRunningJobExecutor> longRunningJobExecutors)
+        IReadOnlyDictionary<string, QueueJobCategory> jobTypesMap,
+        IReadOnlyDictionary<string, int> jobPriorityMap)
     {
-        foreach (var queueJobExecutor in normalJobExecutors)
-        {
-            _jobTypesMap.Add(
-                key: queueJobExecutor.JobType,
-                value: QueueJobCategory.Normal);
-
-            _jobPriorityMap.Add(
-                key: queueJobExecutor.JobType,
-                value: queueJobExecutor.Priority);
-        }
-
-        foreach (var queueDbOnlyJobExecutor in dbOnlyJobExecutors)
-        {
-            _jobTypesMap.Add(
-                key: queueDbOnlyJobExecutor.JobType,
-                value: QueueJobCategory.DbOnly);
-
-            _jobPriorityMap.Add(
-                key: queueDbOnlyJobExecutor.JobType,
-                value: queueDbOnlyJobExecutor.Priority);
-        }
-
-        foreach (var queueLongRunningJobExecutor in longRunningJobExecutors)
-        {
-            _jobTypesMap.Add(
-                key: queueLongRunningJobExecutor.JobType,
-                value: QueueJobCategory.LongRunning);
-
-            _jobPriorityMap.Add(
-                key: queueLongRunningJobExecutor.JobType,
-                value: queueLongRunningJobExecutor.Priority);
-        }
+        _jobTypesMap = jobTypesMap;
+        _jobPriorityMap = jobPriorityMap;
     }
 
     public QueueJobCategory GetJobCategory(string jobType)

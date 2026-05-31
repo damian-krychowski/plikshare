@@ -15,8 +15,11 @@ namespace PlikShare.Workspaces.Members.GrantEncryptionAccess.Cleanup;
 /// </summary>
 public class DeleteEphemeralWorkspaceEncryptionKeysQueueJobExecutor : IQueueDbOnlyJobExecutor
 {
-    public string JobType => DeleteEphemeralWorkspaceEncryptionKeysQueueJobType.Value;
-    public int Priority => QueueJobPriority.ExtremelyLow;
+    public static string StaticJobType => DeleteEphemeralWorkspaceEncryptionKeysQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.ExtremelyLow;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
         string definitionJson,

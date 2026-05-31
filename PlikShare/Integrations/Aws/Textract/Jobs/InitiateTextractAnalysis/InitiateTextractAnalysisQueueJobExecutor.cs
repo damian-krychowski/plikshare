@@ -21,8 +21,11 @@ public class InitiateTextractAnalysisQueueJobExecutor(
 {
     public const int CheckStatusDelayInSeconds = 5;
 
-    public string JobType => InitiateTextractAnalysisQueueJobType.Value;
-    public int Priority => QueueJobPriority.Normal;
+    public static string StaticJobType => InitiateTextractAnalysisQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.Normal;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public async Task<QueueJobResult> Execute(
         string definitionJson, 

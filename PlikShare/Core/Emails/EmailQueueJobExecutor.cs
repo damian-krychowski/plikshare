@@ -15,8 +15,11 @@ namespace PlikShare.Core.Emails
         EmailProviderStore emailProviderStore,
         GenericEmailTemplate genericEmailTemplate) : IQueueNormalJobExecutor
     {
-        public string JobType => EmailQueueJobType.Value;
-        public int Priority => QueueJobPriority.High;
+        public static string StaticJobType => EmailQueueJobType.Value;
+        public static int StaticPriority => QueueJobPriority.High;
+
+        public string JobType => StaticJobType;
+        public int Priority => StaticPriority;
 
         public async Task<QueueJobResult> Execute(
             string definitionJson,

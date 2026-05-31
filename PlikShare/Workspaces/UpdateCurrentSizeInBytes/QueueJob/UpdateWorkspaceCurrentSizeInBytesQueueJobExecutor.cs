@@ -11,8 +11,11 @@ namespace PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
 public class UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor(
     WorkspaceCache workspaceCache) : IQueueDbOnlyJobExecutor
 {
-    public string JobType => UpdateWorkspaceCurrentSizeInBytesQueueJobType.Value;
-    public int Priority => QueueJobPriority.Normal;
+    public static string StaticJobType => UpdateWorkspaceCurrentSizeInBytesQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.Normal;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
         string definitionJson, 

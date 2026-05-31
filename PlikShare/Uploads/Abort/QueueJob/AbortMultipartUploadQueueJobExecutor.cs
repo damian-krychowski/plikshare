@@ -8,8 +8,11 @@ namespace PlikShare.Uploads.Abort.QueueJob;
 public class AbortMultipartUploadQueueJobExecutor(
     StorageClientStore storageClientStore) : IQueueNormalJobExecutor
 {
-    public string JobType => AbortMultipartUploadQueueJobType.Value;
-    public int Priority => QueueJobPriority.ExtremelyLow;
+    public static string StaticJobType => AbortMultipartUploadQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.ExtremelyLow;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public async Task<QueueJobResult> Execute(
         string definitionJson,

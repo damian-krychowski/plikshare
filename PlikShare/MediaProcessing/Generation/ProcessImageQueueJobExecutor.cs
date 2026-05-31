@@ -35,8 +35,11 @@ public class ProcessImageQueueJobExecutor(
 {
     private static readonly Serilog.ILogger Logger = Log.ForContext<ProcessImageQueueJobExecutor>();
 
-    public string JobType => ProcessImageQueueJobType.Value;
-    public int Priority => QueueJobPriority.Normal;
+    public static string StaticJobType => ProcessImageQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.Normal;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public async Task<QueueJobResult> Execute(
         string definitionJson,

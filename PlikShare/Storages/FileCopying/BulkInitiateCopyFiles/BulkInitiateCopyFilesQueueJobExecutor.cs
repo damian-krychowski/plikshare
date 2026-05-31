@@ -10,8 +10,11 @@ public class BulkInitiateCopyFilesQueueJobExecutor(
     WorkspaceCache workspaceCache,
     BulkInitiateCopyFileUploadOperation bulkInitiateCopyFileUploadOperation) : IQueueNormalJobExecutor
 {
-    public string JobType => BulkInitiateCopyFilesQueueJobType.Value;
-    public int Priority => QueueJobPriority.High;
+    public static string StaticJobType => BulkInitiateCopyFilesQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.High;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public async Task<QueueJobResult> Execute(
         string definitionJson,

@@ -10,8 +10,11 @@ namespace PlikShare.ArtificialIntelligence.DeleteConversation.QueueJob;
 public class DeleteAiConversationQueueJobExecutor(
     AiDbWriteQueue aiDbWriteQueue): IQueueNormalJobExecutor
 {
-    public string JobType => DeleteAiConversationQueueJobType.Value;
-    public int Priority => QueueJobPriority.Low;
+    public static string StaticJobType => DeleteAiConversationQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.Low;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public async Task<QueueJobResult> Execute(
         string definitionJson,

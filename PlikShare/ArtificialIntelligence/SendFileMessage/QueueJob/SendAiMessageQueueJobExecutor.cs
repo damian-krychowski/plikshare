@@ -20,8 +20,11 @@ public class SendAiMessageQueueJobExecutor(
     GetFilesToIncludeDetailsQuery getFilesToIncludeDetailsQuery,
     ChatGptClientStore chatGptClientStore) : IQueueLongRunningJobExecutor
 {
-    public string JobType => SendAiMessageQueueJobType.Value;
-    public int Priority => QueueJobPriority.Normal;
+    public static string StaticJobType => SendAiMessageQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.Normal;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public async Task<QueueJobResult> Execute(
         string definitionJson, 

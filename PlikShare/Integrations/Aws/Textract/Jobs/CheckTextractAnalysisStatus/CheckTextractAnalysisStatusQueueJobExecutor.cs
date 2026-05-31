@@ -17,8 +17,11 @@ public class CheckTextractAnalysisStatusQueueJobExecutor(
     IClock clock,
     TextractResultTemporaryStore textractResultTemporaryStore) : IQueueLongRunningJobExecutor
 {
-    public string JobType => CheckTextractAnalysisStatusQueueJobType.Value;
-    public int Priority => QueueJobPriority.Normal;
+    public static string StaticJobType => CheckTextractAnalysisStatusQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.Normal;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public async Task<QueueJobResult> Execute(
         string definitionJson, 

@@ -360,6 +360,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_38_QuickSharesIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_39_TrashIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_40_QueueResultAndThumbnailIndexesIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_41_QueueJobCategoryAndPriorityColumns>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -475,19 +476,47 @@ public class Startup
     private static void RegisterServices(
         WebApplicationBuilder builder)
     {
+        // Queue job category/priority map, built from the executor TYPES (static members) as they are
+        // registered — no instance is constructed here, so nothing pulls in IQueue. The finished map
+        // is handed to QueueJobInfoProvider at the end of this method (see registration below), which
+        // is why the provider has no DI dependency on the executors and can't form a cycle.
+        var queueJobCategory = new Dictionary<string, QueueJobCategory>(StringComparer.InvariantCultureIgnoreCase);
+        var queueJobPriority = new Dictionary<string, int>(StringComparer.InvariantCultureIgnoreCase);
+
+        void AddNormalQueueJob<T>() where T : class, IQueueNormalJobExecutor
+        {
+            builder.Services.AddSingleton<IQueueNormalJobExecutor, T>();
+            queueJobCategory.Add(T.StaticJobType, QueueJobCategory.Normal);
+            queueJobPriority.Add(T.StaticJobType, T.StaticPriority);
+        }
+
+        void AddLongRunningQueueJob<T>() where T : class, IQueueLongRunningJobExecutor
+        {
+            builder.Services.AddSingleton<IQueueLongRunningJobExecutor, T>();
+            queueJobCategory.Add(T.StaticJobType, QueueJobCategory.LongRunning);
+            queueJobPriority.Add(T.StaticJobType, T.StaticPriority);
+        }
+
+        void AddDbOnlyQueueJob<T>() where T : class, IQueueDbOnlyJobExecutor
+        {
+            builder.Services.AddSingleton<IQueueDbOnlyJobExecutor, T>();
+            queueJobCategory.Add(T.StaticJobType, QueueJobCategory.DbOnly);
+            queueJobPriority.Add(T.StaticJobType, T.StaticPriority);
+        }
+
         builder.Services.AddSingleton<BoxLinkTokenService>();
 
         builder.Services.AddSingleton<IOneTimeCode, OneTimeCode>();
         builder.Services.AddSingleton<IConfig, AppConfig>();
         builder.Services.AddSingleton<IClock, Clock>();  
-        builder.Services.AddSingleton<IQueueNormalJobExecutor, EmailQueueJobExecutor>();
+        AddNormalQueueJob<EmailQueueJobExecutor>();
         builder.Services.AddSingleton<EmailProviderStore>();
         builder.Services.AddSingleton<AlertsService>();
         builder.Services.AddSingleton<QueueJobStatusDecisionEngine>();
 
         builder.Services.AddSingleton<GenericEmailTemplate>();
 
-        builder.Services.AddSingleton<IQueueNormalJobExecutor, CreateWorkspaceBucketJobExecutor>();
+        AddNormalQueueJob<CreateWorkspaceBucketJobExecutor>();
         builder.Services.AddSingleton<CreateWorkspaceQuery>();
         builder.Services.AddSingleton<UpsertStorageEncryptionKeyQuery>();
         builder.Services.AddSingleton<RevokeStorageEncryptionKeyQuery>();
@@ -513,14 +542,14 @@ public class Startup
         builder.Services.AddSingleton<UpsertEphemeralWorkspaceEncryptionKeyQuery>();
         builder.Services.AddSingleton<CreateOrGetEphemeralUserKeyPairQuery>();
         builder.Services.AddSingleton<PromoteEphemeralWorkspaceEncryptionKeysQuery>();
-        builder.Services.AddSingleton<IQueueDbOnlyJobExecutor, DeleteEphemeralWorkspaceEncryptionKeysQueueJobExecutor>();
+        AddDbOnlyQueueJob<DeleteEphemeralWorkspaceEncryptionKeysQueueJobExecutor>();
         builder.Services.AddSingleton<WorkspaceCache>();
         builder.Services.AddSingleton<WorkspaceMembershipCache>();
         builder.Services.AddSingleton<ScheduleWorkspaceDeleteQuery>();
         builder.Services.AddSingleton<DeleteWorkspaceWithDependenciesQuery>();
-        builder.Services.AddSingleton<IQueueDbOnlyJobExecutor, DeleteWorkspaceQueueJobExecutor>();
-        builder.Services.AddSingleton<IQueueNormalJobExecutor, DeleteBucketJobExecutor>();
-        builder.Services.AddSingleton<IQueueDbOnlyJobExecutor, UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor>();
+        AddDbOnlyQueueJob<DeleteWorkspaceQueueJobExecutor>();
+        AddNormalQueueJob<DeleteBucketJobExecutor>();
+        AddDbOnlyQueueJob<UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor>();
         builder.Services.AddSingleton<BulkDeleteQuery>();
         builder.Services.AddSingleton<ChangeWorkspaceOwnerQuery>();
         builder.Services.AddSingleton<GetWorkspaceSizeQuery>();
@@ -551,7 +580,7 @@ public class Startup
         builder.Services.AddScoped<IValidator<UpdateFolderNameRequestDto>, UpdateFolderNameRequestValidator>();
 
         builder.Services.AddSingleton<ConvertFileUploadToFileOperation>();
-        builder.Services.AddSingleton<IQueueNormalJobExecutor, CompleteMultipartUploadQueueJobExecutor>();
+        AddNormalQueueJob<CompleteMultipartUploadQueueJobExecutor>();
 
         builder.Services.AddSingleton<FileUploadCache>();
         builder.Services.AddSingleton<CompleteFilePartUploadQuery>();
@@ -576,12 +605,12 @@ public class Startup
         builder.Services.AddSingleton<GetTopFolderContentQuery>();
         builder.Services.AddSingleton<GetFolderContentQuery>();
         builder.Services.AddSingleton<BulkDeleteFoldersWithDependenciesQuery>();
-        builder.Services.AddSingleton<IQueueDbOnlyJobExecutor, DeleteFoldersQueueJobExecutor>();
+        AddDbOnlyQueueJob<DeleteFoldersQueueJobExecutor>();
 
         builder.Services.AddSingleton<GetUploadsListQuery>();
-        builder.Services.AddSingleton<IQueueNormalJobExecutor, AbortMultipartUploadQueueJobExecutor>();
-        builder.Services.AddSingleton<IQueueNormalJobExecutor, DeleteFileQueueJobExecutor>();
-        builder.Services.AddSingleton<IQueueLongRunningJobExecutor, BulkDeleteFilesQueueJobExecutor>();
+        AddNormalQueueJob<AbortMultipartUploadQueueJobExecutor>();
+        AddNormalQueueJob<DeleteFileQueueJobExecutor>();
+        AddLongRunningQueueJob<BulkDeleteFilesQueueJobExecutor>();
         builder.Services.AddSingleton<MoveItemsToFolderQuery>();
         builder.Services.AddSingleton<UpdatePositionsQuery>();
         builder.Services.AddSingleton<GetBoxQuery>();
@@ -618,7 +647,7 @@ public class Startup
         builder.Services.AddSingleton<UpdateBoxFooterQuery>();
         builder.Services.AddSingleton<UpdateBoxHeaderIsEnabledQuery>();
         builder.Services.AddSingleton<UpdateBoxFooterIsEnabledQuery>();
-        builder.Services.AddSingleton<IQueueDbOnlyJobExecutor, DeleteBoxesQueueJobExecutor>();
+        AddDbOnlyQueueJob<DeleteBoxesQueueJobExecutor>();
 
         builder.Services.AddSingleton<CreateBoxLinkQuery>();
         builder.Services.AddSingleton<UpdateBoxLinkNameQuery>();
@@ -746,16 +775,16 @@ public class Startup
         builder.Services.AddSingleton<StartTextractJobOperation>();
         builder.Services.AddSingleton<TextractResultTemporaryStore>();
         builder.Services.AddSingleton<DeleteTextractJobsSubQuery>();
-        builder.Services.AddSingleton<IQueueNormalJobExecutor, InitiateTextractAnalysisQueueJobExecutor>();
-        builder.Services.AddSingleton<IQueueLongRunningJobExecutor, CheckTextractAnalysisStatusQueueJobExecutor>();
-        builder.Services.AddSingleton<IQueueLongRunningJobExecutor, DownloadTextractAnalysisQueueJobExecutor>();
+        AddNormalQueueJob<InitiateTextractAnalysisQueueJobExecutor>();
+        AddLongRunningQueueJob<CheckTextractAnalysisStatusQueueJobExecutor>();
+        AddLongRunningQueueJob<DownloadTextractAnalysisQueueJobExecutor>();
 
-        builder.Services.AddSingleton<IQueueNormalJobExecutor, BulkInitiateCopyFilesQueueJobExecutor>();
+        AddNormalQueueJob<BulkInitiateCopyFilesQueueJobExecutor>();
 
         builder.Services.AddSingleton<FinalizeCopyFileUploadQuery>();
         builder.Services.AddSingleton<DeleteCopyFileQueueJobsSubQuery>();
         builder.Services.AddSingleton<ICopyFileQueueCompletedActionHandler, UpdateTextractJobFileAndStatusOnCompletedFileCopyHandler>();
-        builder.Services.AddSingleton<IQueueLongRunningJobExecutor, CopyFileQueueJobExecutor>();
+        AddLongRunningQueueJob<CopyFileQueueJobExecutor>();
 
         builder.Services.AddSingleton<SearchFilesTreeQuery>();
         builder.Services.AddSingleton<TestChatGptConfigurationOperation>();
@@ -782,15 +811,15 @@ public class Startup
         builder.Services.AddSingleton<DeleteFileThumbnailOperation>();
         builder.Services.AddSingleton<FfmpegService>();
         builder.Services.AddSingleton<TemporaryWorkspaceEncryptionKeyStore>();
-        builder.Services.AddSingleton<IQueueLongRunningJobExecutor, ProcessImageQueueJobExecutor>();
+        AddLongRunningQueueJob<ProcessImageQueueJobExecutor>();
         builder.Services.AddSingleton<GenerateFileThumbnailsOperation>();
         builder.Services.AddSingleton<GenerateFileThumbnailsBulkOperation>();
         builder.Services.AddSingleton<GetThumbnailableFilesQuery>();
         builder.Services.AddSingleton<GetThumbnailGenerationStatusQuery>();
         builder.Services.AddSingleton<CancelThumbnailBatchOperation>();
         builder.Services.AddSingleton<DownloadFileConvertedOperation>();
-        builder.Services.AddSingleton<IQueueLongRunningJobExecutor, SendAiMessageQueueJobExecutor>();
-        builder.Services.AddSingleton<IQueueNormalJobExecutor, DeleteAiConversationQueueJobExecutor>();
+        AddLongRunningQueueJob<SendAiMessageQueueJobExecutor>();
+        AddNormalQueueJob<DeleteAiConversationQueueJobExecutor>();
 
         builder.Services.AddSingleton<CreateOrUpdateSignUpCheckboxQuery>();
         builder.Services.AddSingleton<DeleteSignUpCheckboxQuery>();
@@ -821,6 +850,11 @@ public class Startup
         builder.Services.AddSingleton<GenerateQuickShareZipFileDetailsOperation>();
         builder.Services.AddSingleton<GenerateQuickShareZipContentDownloadLinkOperation>();
         builder.Services.AddSingleton<GenerateQuickShareZipBulkDownloadLinkOperation>();
+
+        // Job-type maps were built (above) from the executor types as they were registered. Hand the
+        // finished maps to the provider as a ready instance — no DI dependency on the executors, so no
+        // IQueue -> Queue -> provider cycle.
+        builder.Services.AddSingleton(new QueueJobInfoProvider(queueJobCategory, queueJobPriority));
     }
 
     public static void InitializeWebApp(WebApplication app)

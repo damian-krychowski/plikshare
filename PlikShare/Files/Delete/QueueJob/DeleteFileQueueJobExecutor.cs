@@ -7,8 +7,11 @@ namespace PlikShare.Files.Delete.QueueJob;
 
 public class DeleteFileQueueJobExecutor(StorageClientStore storageClientStore) : IQueueNormalJobExecutor
 {
-    public string JobType => DeleteFileQueueJobType.Value;
-    public int Priority => QueueJobPriority.Low;
+    public static string StaticJobType => DeleteFileQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.Low;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public async Task<QueueJobResult> Execute(
         string definitionJson,

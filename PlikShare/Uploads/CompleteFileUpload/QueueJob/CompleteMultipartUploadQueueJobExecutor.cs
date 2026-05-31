@@ -14,8 +14,11 @@ public class CompleteMultipartUploadQueueJobExecutor(
     MarkFileAsUploadedAndDeleteUploadQuery markFileAsUploadedAndDeleteUploadQuery) : IQueueNormalJobExecutor
 {
     private readonly Serilog.ILogger _logger = Log.ForContext<CompleteMultipartUploadQueueJobExecutor>();
-    public string JobType => CompleteMultipartUploadQueueJobType.Value;
-    public int Priority => QueueJobPriority.High;
+    public static string StaticJobType => CompleteMultipartUploadQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.High;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public async Task<QueueJobResult> Execute(
         string definitionJson,

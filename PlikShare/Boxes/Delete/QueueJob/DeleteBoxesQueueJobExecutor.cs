@@ -12,8 +12,11 @@ public class DeleteBoxesQueueJobExecutor(
     BoxCache boxCache,
     BoxMembershipCache boxMembershipCache) : IQueueDbOnlyJobExecutor
 {
-    public string JobType => DeleteBoxesQueueJobType.Value;
-    public int Priority => QueueJobPriority.Low;
+    public static string StaticJobType => DeleteBoxesQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.Low;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
         string definitionJson, 

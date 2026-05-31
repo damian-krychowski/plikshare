@@ -22,8 +22,11 @@ public class CopyFileQueueJobExecutor(
     FinalizeCopyFileUploadQuery finalizeCopyFileUploadQuery,
     InsertFileUploadPartQuery insertFileUploadPartQuery) : IQueueLongRunningJobExecutor
 {
-    public string JobType => CopyFileQueueJobType.Value;
-    public int Priority => QueueJobPriority.Normal;
+    public static string StaticJobType => CopyFileQueueJobType.Value;
+    public static int StaticPriority => QueueJobPriority.Normal;
+
+    public string JobType => StaticJobType;
+    public int Priority => StaticPriority;
 
     public async Task<QueueJobResult> Execute(
         string definitionJson,
