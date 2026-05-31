@@ -16,18 +16,10 @@ namespace PlikShare.MediaProcessing;
 /// <summary>
 /// Writes one thumbnail attachment to storage and registers it in the DB. The CALLER vouches for
 /// parent existence, workspace ownership and thumbnailability — this operation does NOT re-check.
-/// Callers:
-/// <list type="bullet">
-///   <item>HTTP endpoint <c>UploadFileThumbnail</c> — validates upfront via <see cref="ValidateThumbnailParentQuery"/>.</item>
-///   <item><see cref="Generation.ProcessImageQueueJobExecutor"/> — already looked the parent up
-///         via <see cref="Generation.GetThumbnailSourceFileQuery"/>.</item>
-/// </list>
-///
 /// Sequence: read existing thumbnails of this variant (1 read, off DbWriteQueue) → storage upload
 /// → single DbWriteQueue transaction that inserts the new row as completed AND hard-deletes the
-/// old ones. Previously two DbWriteQueue transactions per call; now one. Race between the
-/// caller's parent-check and this insert is caught via <see cref="InsertAndFinalizeThumbnailQuery.ResultCode.ParentNotFound"/>;
-/// in that case the storage bytes become an orphan blob (rare for thumbnails, low impact).
+/// old ones. A crash between storage and insert leaves an orphan blob — accepted trade-off
+/// (see <see cref="InsertAndFinalizeThumbnailQuery"/>).
 /// </summary>
 public class UploadFileThumbnailOperation(
     GetThumbnailsQuery getThumbnailsQuery,
@@ -36,13 +28,8 @@ public class UploadFileThumbnailOperation(
     public async Task<Result> Execute(
         WorkspaceContext workspace,
         FileExtId parentFileExternalId,
-        FileExtId thumbnailFileExternalId,
-        ThumbnailVariant variant,
-        Stream thumbnailContent,
-        long thumbnailSizeInBytes,
-        string thumbnailContentType,
-        string thumbnailFileName,
-        string thumbnailFileExtension,
+        ThumbnailDescriptor thumbnail,
+        Stream content,
         IUserIdentity uploader,
         WorkspaceEncryptionSession? workspaceEncryptionSession,
         Guid correlationId,
@@ -56,7 +43,7 @@ public class UploadFileThumbnailOperation(
             workspaceEncryptionSession: workspaceEncryptionSession);
 
         var oldThumbnailFileIds = existingThumbnails
-            .Where(t => t.Variant == variant)
+            .Where(t => t.Variant == thumbnail.Variant)
             .Select(t => t.Id)
             .ToList();
 
@@ -76,19 +63,17 @@ public class UploadFileThumbnailOperation(
             FileKey: new FileKey
             {
                 KeySecretPart = keySecretPart,
-                FileExternalId = thumbnailFileExternalId
+                FileExternalId = thumbnail.ExternalId
             },
             MultipartUploadId: null,
-            FileSizeInBytes: thumbnailSizeInBytes,
-            Part: FilePart.First((int)thumbnailSizeInBytes),
+            FileSizeInBytes: thumbnail.SizeInBytes,
+            Part: FilePart.First((int)thumbnail.SizeInBytes),
             UploadAlgorithm: UploadAlgorithm.DirectUpload,
             EncryptionMode: encryptionMode);
 
         var hashingStream = new XxHashingReadStream(
-            thumbnailContent);
+            content);
 
-        // Storage write FIRST. On crash between this and the insert below the bytes become an
-        // orphan blob (see class doc) — traded for halving DbWriteQueue contention.
         await workspace.UploadFilePart(
             input: PipeReader.Create(
                 stream: hashingStream),
@@ -103,20 +88,20 @@ public class UploadFileThumbnailOperation(
             Json.Serialize<FileMetadata>(
                 new ThumbnailFileMetadata
                 {
-                    Variant = variant,
+                    Variant = thumbnail.Variant,
                     Etag = etag
                 }));
 
         var attachment = new InsertFileAttachmentQuery.AttachmentFile
         {
-            ExternalId = thumbnailFileExternalId,
+            ExternalId = thumbnail.ExternalId,
             ContentType = workspaceEncryptionSession.ToEncryptableMetadata(
-                thumbnailContentType),
+                thumbnail.ContentType),
             Name = workspaceEncryptionSession.ToEncryptableMetadata(
-                thumbnailFileName),
+                thumbnail.FileName),
             Extension = workspaceEncryptionSession.ToEncryptableMetadata(
-                thumbnailFileExtension),
-            SizeInBytes = thumbnailSizeInBytes,
+                thumbnail.FileExtension),
+            SizeInBytes = thumbnail.SizeInBytes,
             KeySecretPart = keySecretPart,
             EncryptionMetadata = encryptionMetadata,
             Metadata = thumbnailMetadata

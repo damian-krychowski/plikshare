@@ -136,16 +136,19 @@ public static class MediaProcessingEndpoints
 
         await using var fileStream = file.OpenReadStream();
 
+        var descriptor = new ThumbnailDescriptor(
+            ExternalId: thumbnailFileExternalId,
+            Variant: variant,
+            SizeInBytes: file.Length,
+            ContentType: file.ContentType,
+            FileName: fileName.Name,
+            FileExtension: fileName.Extension);
+
         var result = await uploadFileThumbnailOperation.Execute(
             workspace: workspaceMembership.Workspace,
             parentFileExternalId: fileExternalId,
-            thumbnailFileExternalId: thumbnailFileExternalId,
-            variant: variant,
-            thumbnailContent: fileStream,
-            thumbnailSizeInBytes: file.Length,
-            thumbnailContentType: file.ContentType,
-            thumbnailFileName: fileName.Name,
-            thumbnailFileExtension: fileName.Extension,
+            thumbnail: descriptor,
+            content: fileStream,
             uploader: new UserIdentity(
                 UserExternalId: workspaceMembership.User.ExternalId),
             workspaceEncryptionSession: workspaceEncryptionSession,
@@ -404,6 +407,13 @@ public static class MediaProcessingEndpoints
 
         var keepAlive = TimeSpan.FromSeconds(20);
 
+        // Time-based push throttle. The notifier's channel (cap=1, drop-oldest) already coalesces
+        // bursts WHILE we're busy, but a fast consumer would still push per signal. 1 push/s is
+        // plenty for a progress bar — anything faster the eye can't follow anyway. First push
+        // (above) and final push (when Pending==0) go immediately so start and end stay snappy.
+        var minPushInterval = TimeSpan.FromSeconds(1);
+        var lastPushAt = DateTime.UtcNow;
+
         while (!cancellationToken.IsCancellationRequested)
         {
             subscription.DrainPending();
@@ -432,6 +442,27 @@ public static class MediaProcessingEndpoints
             if (!signalled)
                 break;
 
+            // Sleep the remainder of the throttle window. Signals arriving in the meantime get
+            // coalesced into the channel's single slot — we drain them on wake and produce ONE
+            // status push for the whole burst.
+            var elapsed = DateTime.UtcNow - lastPushAt;
+
+            if (elapsed < minPushInterval)
+            {
+                try
+                {
+                    await Task.Delay(
+                        minPushInterval - elapsed,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                subscription.DrainPending();
+            }
+
             // Later pushes are deltas only — readyThumbnails carries the just-completed files.
             status = NextStatus(includeOutstandingFileIds: false);
 
@@ -439,6 +470,8 @@ public static class MediaProcessingEndpoints
                 response,
                 status,
                 cancellationToken);
+
+            lastPushAt = DateTime.UtcNow;
 
             if (status.Pending == 0)
                 break;

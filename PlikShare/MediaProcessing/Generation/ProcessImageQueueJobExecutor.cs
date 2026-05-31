@@ -166,16 +166,16 @@ public class ProcessImageQueueJobExecutor(
 
                 try
                 {
+                    var descriptor = ThumbnailDescriptor.ForGeneratedWebp(
+                        externalId: FileExtId.NewId(),
+                        variant: result.Variant,
+                        sizeInBytes: thumbnail.SizeInBytes);
+
                     var uploadResult = await uploadFileThumbnailOperation.Execute(
                         workspace: workspace,
                         parentFileExternalId: definition.ParentFileExternalId,
-                        thumbnailFileExternalId: FileExtId.NewId(),
-                        variant: result.Variant,
-                        thumbnailContent: thumbnail.Content,
-                        thumbnailSizeInBytes: thumbnail.SizeInBytes,
-                        thumbnailContentType: "image/webp",
-                        thumbnailFileName: $"thumb-{result.Variant.ToString().ToLowerInvariant()}",
-                        thumbnailFileExtension: ".webp",
+                        thumbnail: descriptor,
+                        content: thumbnail.Content,
                         uploader: uploader,
                         workspaceEncryptionSession: session,
                         correlationId: correlationId,

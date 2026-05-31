@@ -45,12 +45,17 @@ public class LongRunningQueueConsumer : BackgroundService
         {
             try
             {
-                var job = await _channels.ReadLongRunningJobAsync(stoppingToken);
+                var job = await _channels.ReadLongRunningJobAsync(
+                    stoppingToken);
 
                 Log.Debug("Queue message was obtained to processing (Long Running Consumer {ConsumerId})", _consumerId);
 
                 stopWatch.Restart();
-                await ProcessJob(job, stopWatch, stoppingToken);
+
+                await ProcessJob(
+                    job, 
+                    stopWatch, 
+                    stoppingToken);
             }
             catch (OperationCanceledException ex)
             {
