@@ -91,6 +91,7 @@ export class FileItemComponent implements OnInit, OnDestroy {
     hideSelectCheckbox = input(false);
     canReorder = input(false);
     showThumbnails = input(false);
+    isProcessing = input(false);
     highlightPhrase = input<string>('');
 
     permissions = input<AppFilePermissions>({

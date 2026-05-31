@@ -8,7 +8,7 @@ export type FileDetails = {
 export function getFileDetails(fileExtension: string): FileDetails {
     const fileTypes: Record<FileType, string[]> = {
         image: ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'],
-        video: ['.mp4', '.mov', '.webm', '.ogg', '.m4v', '.mkv'],
+        video: ['.mp4', '.mov', '.webm', '.ogg', '.m4v', '.mkv', '.avi', '.wmv', '.flv', '.mpeg', '.mpg'],
         pdf: ['.pdf'],
         other: [],
         archive: ['.zip'],
@@ -68,6 +68,8 @@ export function getMimeType(fileExtension: string | null): string {
         '.wmv': 'video/x-ms-wmv',
         '.flv': 'video/x-flv',
         '.mkv': 'video/x-matroska',
+        '.mpeg': 'video/mpeg',
+        '.mpg': 'video/mpeg',
 
         // Documents
         '.txt': 'text/plain',

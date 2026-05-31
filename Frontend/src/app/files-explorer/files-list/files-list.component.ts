@@ -35,6 +35,7 @@ export class FilesListComponent implements OnDestroy {
     hideActions = input(false);
     hideSelectCheckboxes = input(false);
     showThumbnails = input(false);
+    processingFileIds = input<ReadonlySet<string>>(new Set());
 
     deleted = output<AppFileItem>();
     previewed = output<AppFileItem>();
@@ -321,7 +322,7 @@ export class FilesListComponent implements OnDestroy {
             return;
         }
 
-        const firstSelected = this.localFiles().find(f => f.isSelected());
+        const firstSelected = this.visibleFiles().find(f => f.isSelected());
         this.selectionAnchorExternalId = firstSelected?.externalId ?? null;
     }
 
@@ -334,7 +335,9 @@ export class FilesListComponent implements OnDestroy {
             return;
         }
 
-        const files = this.localFiles();
+        // Range spans the search-filtered list, not the full one — shift-clicking two rows in a
+        // filtered view must not select everything between them in the unfiltered list.
+        const files = this.visibleFiles();
         const anchorIdx = files.findIndex(i => i.externalId === anchorId);
         const targetIdx = files.findIndex(i => i.externalId === file.externalId);
 

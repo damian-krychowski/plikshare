@@ -1,0 +1,21 @@
+<span class="selection-count__count">
+    @if(isFiltered()) {
+        <span class="selection-count__num" [class.selection-count__num--clickable]="visibleCount() > 0"
+            [matTooltip]="visibleCount() > 0 ? ('Select visible ' + noun()) : ''"
+            (click)="$event.stopPropagation(); visibleCount() > 0 && selectVisible.emit()">{{visibleCount()}}</span><span class="selection-count__separator">/</span><span class="selection-count__num" [class.selection-count__num--clickable]="totalCount() > 0"
+            [matTooltip]="totalCount() > 0 ? ('Select all ' + noun()) : ''"
+            (click)="$event.stopPropagation(); totalCount() > 0 && selectAll.emit()">{{totalCount()}}</span>
+    } @else {
+        <span class="selection-count__num" [class.selection-count__num--clickable]="totalCount() > 0"
+            [matTooltip]="totalCount() > 0 ? ('Select all ' + noun()) : ''"
+            (click)="$event.stopPropagation(); totalCount() > 0 && selectAll.emit()">{{totalCount()}}</span>
+    }
+</span>
+
+@if(selectedCount() > 0) {
+    <span class="selection-count__selected"
+        [matTooltip]="'Clear ' + noun() + ' selection'"
+        (click)="$event.stopPropagation(); clearSelection.emit()">
+        <i class="icon icon-lucide-check"></i>{{selectedCount()}}
+    </span>
+}

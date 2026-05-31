@@ -3,10 +3,8 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
-using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
-using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Cache;
 
@@ -22,7 +20,7 @@ public class GenerateFileThumbnailsBulkOperation(
     IClock clock,
     IQueue queue,
     DbWriteQueue dbWriteQueue,
-    GetFilePreSignedDownloadLinkDetailsQuery getParentFileDetailsQuery,
+    GetThumbnailableFilesQuery getThumbnailableFilesQuery,
     TemporaryWorkspaceEncryptionKeyStore keyStore,
     FfmpegService ffmpegService)
 {
@@ -44,10 +42,18 @@ public class GenerateFileThumbnailsBulkOperation(
         if (parentFileExternalIds.Count == 0)
             return new Result(Code: ResultCode.NoThumbnailableFiles);
 
+        var thumbnailableFileIds = getThumbnailableFilesQuery.Execute(
+            workspace: workspace,
+            fileExternalIds: parentFileExternalIds,
+            workspaceEncryptionSession: workspaceEncryptionSession);
+
+        if (thumbnailableFileIds.Count == 0)
+            return new Result(Code: ResultCode.NoThumbnailableFiles);
+
         var batchId = Guid.NewGuid();
         var variantList = variants.ToList();
 
-        var entities = new List<BulkQueueJobEntity>(parentFileExternalIds.Count);
+        var entities = new List<BulkQueueJobEntity>(thumbnailableFileIds.Count);
 
         // One temp encryption key per job — the worker releases its own key, so a single shared
         // key would be freed by the first finished job and starve the rest of the batch.
@@ -55,21 +61,8 @@ public class GenerateFileThumbnailsBulkOperation(
 
         try
         {
-            foreach (var parentFileExternalId in parentFileExternalIds)
+            foreach (var parentFileExternalId in thumbnailableFileIds)
             {
-                var parentLookup = getParentFileDetailsQuery.Execute(
-                    fileExternalId: parentFileExternalId,
-                    workspaceEncryptionSession: workspaceEncryptionSession);
-
-                if (parentLookup.Code == GetFilePreSignedDownloadLinkDetailsQuery.ResultCode.NotFound
-                    || parentLookup.Details?.WorkspaceId != workspace.Id)
-                {
-                    continue;
-                }
-
-                if (!ContentTypeHelper.IsThumbnailable(parentLookup.Details.Extension))
-                    continue;
-
                 var tempKeyId = workspaceEncryptionSession is null
                     ? (Guid?)null
                     : keyStore.Store(workspaceEncryptionSession);
@@ -91,12 +84,6 @@ public class GenerateFileThumbnailsBulkOperation(
                     definition: definition,
                     sagaId: null,
                     batchId: batchId));
-            }
-
-            if (entities.Count == 0)
-            {
-                ReleaseKeys(storedKeyIds);
-                return new Result(Code: ResultCode.NoThumbnailableFiles);
             }
 
             await dbWriteQueue.Execute(

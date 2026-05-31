@@ -1,6 +1,6 @@
 import { Component, computed, ElementRef, input, OnChanges, OnDestroy, output, signal, SimpleChanges, viewChild } from "@angular/core";
 import { ImageDimensions, ImageExif } from "../../file-inline-preview/file-inline-preview.component";
-import { getMimeType } from "../../../services/filte-type";
+import { getMimeType } from "../../../services/file-type";
 import exifr from "exifr";
 import { HttpHeadersFactory } from "../../http-headers-factory";
 

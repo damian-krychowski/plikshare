@@ -24,7 +24,7 @@ public static class ContentTypeHelper
 
     private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".mp4", ".mov", ".webm", ".ogg", ".m4v", ".mkv"
+        ".mp4", ".mov", ".webm", ".ogg", ".m4v", ".mkv", ".avi", ".wmv", ".flv", ".mpeg", ".mpg"
     };
 
     private static readonly HashSet<string> AudioExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -57,6 +57,11 @@ public static class ContentTypeHelper
         { ".ogg", "video/ogg" },
         { ".m4v", "video/x-m4v" },
         { ".mkv", "video/x-matroska" },
+        { ".avi", "video/x-msvideo" },
+        { ".wmv", "video/x-ms-wmv" },
+        { ".flv", "video/x-flv" },
+        { ".mpeg", "video/mpeg" },
+        { ".mpg", "video/mpeg" },
         // PDF
         { ".pdf", "application/pdf" },
         // Archive

@@ -10,7 +10,6 @@
     multiple="multiple"
     (change)="onFilesSelected($event, fileUpload)">
 
-<app-thumbnail-batches-bar></app-thumbnail-batches-bar>
 
 <div #stickyWrapper class="sticky-wrapper">
     @if(fileInPreviewVal) {
@@ -376,6 +375,38 @@
                     </app-display-menu>
                 }
 
+                @if(isListViewMode && allowList() && stuckSection() === 'folders') {
+                    <span class="context-bar__stuck">
+                        <span class="context-bar__stuck-sep">|</span>
+                        <span class="context-bar__stuck-name">Folders</span>
+                        <app-selection-count
+                            [visibleCount]="filteredFoldersCount()"
+                            [totalCount]="foldersCount()"
+                            [selectedCount]="selectedFoldersCount()"
+                            [isFiltered]="isSearchActive()"
+                            noun="folders"
+                            (selectVisible)="toggleVisibleFolders()"
+                            (selectAll)="toggleAllFolders()"
+                            (clearSelection)="clearFoldersSelection()">
+                        </app-selection-count>
+                    </span>
+                } @else if(isListViewMode && allowList() && stuckSection() === 'files') {
+                    <span class="context-bar__stuck">
+                        <span class="context-bar__stuck-sep">|</span>
+                        <span class="context-bar__stuck-name">Files</span>
+                        <app-selection-count
+                            [visibleCount]="filteredFilesCount()"
+                            [totalCount]="filesCount()"
+                            [selectedCount]="selectedFilesCount()"
+                            [isFiltered]="isSearchActive()"
+                            noun="files"
+                            (selectVisible)="toggleVisibleFiles()"
+                            (selectAll)="toggleAllFiles()"
+                            (clearSelection)="clearFilesSelection()">
+                        </app-selection-count>
+                    </span>
+                }
+
                 <div class="ml-auto context-counts">
                     @if(isListViewMode) {
                         @if(fileUploadManager.pendingQueueSize() > 0) {
@@ -386,50 +417,7 @@
                             </span>
                         }
 
-                        @if(foldersCount() > 0) {
-                            <span class="context-item context-item--btn context-count"
-                                matTooltip="Folders"
-                                (click)="toggleAllFolders()">
-                                <i class="icon icon-nucleo-folder context-count__icon"></i>
-                                <span class="context-count__value">
-                                    @if(isAnyItemSelected()) {
-                                        {{selectedFoldersCount()}}/{{foldersCount()}}
-                                    } @else {
-                                        {{foldersCount()}}
-                                    }
-                                </span>
-                            </span>
-                        }
-
-                        @if(filesCount() > 0) {
-                            <span class="context-item context-item--btn context-count"
-                                matTooltip="Files"
-                                (click)="toggleAllFiles()">
-                                <i class="icon icon-nucleo-file context-count__icon"></i>
-                                <span class="context-count__value">
-                                    @if(isAnyItemSelected()) {
-                                        {{selectedFilesCount()}}/{{filesCount()}}
-                                    } @else {
-                                        {{filesCount()}}
-                                    }
-                                </span>
-                            </span>
-                        }
-
-                        @if(uploadsCount() > 0) {
-                            <span class="context-item context-item--btn context-count"
-                                matTooltip="Uploads"
-                                (click)="toggleAllUploads()">
-                                <i class="icon icon-nucleo-upload context-count__icon"></i>
-                                <span class="context-count__value">
-                                    @if(isAnyItemSelected()) {
-                                        {{selectedUploadsCount()}}/{{uploadsCount()}}
-                                    } @else {
-                                        {{uploadsCount()}}
-                                    }
-                                </span>
-                            </span>
-                        }
+                        <app-thumbnail-progress></app-thumbnail-progress>
                     } @else {
                         @let selectionSummary = treeSelectionSummary();
 
@@ -519,7 +507,7 @@
             @let isFoldersExpandedVal = isFoldersExpanded();
             <section class="files-section">
                 @if(showFolderBar()) {
-                    <div class="files-section__header" role="button" tabindex="0"
+                    <div #foldersHeader class="files-section__header" role="button" tabindex="0"
                         [attr.aria-expanded]="isFoldersExpandedVal"
                         (click)="toggleFoldersExpanded()"
                         (keydown.enter)="toggleFoldersExpanded()"
@@ -528,23 +516,16 @@
                         (appDragOverStay)="expandFoldersSection()">
                         <span class="files-section__title">Folders</span>
 
-                        <span class="files-section__count files-section__count--clickable"
-                            [matTooltip]="hasFolders() ? 'Select all folders' : ''"
-                            (click)="$event.stopPropagation(); hasFolders() && toggleAllFolders()">
-                            @if(isSearchActive()) {
-                                {{filteredFoldersCount()}}/{{foldersCount()}}
-                            } @else {
-                                {{foldersCount()}}
-                            }
-                        </span>
-
-                        @if(selectedFoldersCount() > 0) {
-                            <span class="files-section__selected"
-                                [matTooltip]="'Clear folders selection'"
-                                (click)="$event.stopPropagation(); toggleAllFolders()">
-                                <i class="icon icon-lucide-check"></i>{{selectedFoldersCount()}}
-                            </span>
-                        }
+                        <app-selection-count
+                            [visibleCount]="filteredFoldersCount()"
+                            [totalCount]="foldersCount()"
+                            [selectedCount]="selectedFoldersCount()"
+                            [isFiltered]="isSearchActive()"
+                            noun="folders"
+                            (selectVisible)="toggleVisibleFolders()"
+                            (selectAll)="toggleAllFolders()"
+                            (clearSelection)="clearFoldersSelection()">
+                        </app-selection-count>
 
                         <i class="files-section__chevron icon"
                             [class.icon-lucide-chevron-down]="isFoldersExpandedVal"
@@ -588,7 +569,7 @@
         @if(showFilesSection()) {
             @let isFilesExpandedVal = isFilesExpanded();
             <section class="files-section" [class.drop-area__anchor]="allowUpload() && isFilesExpandedVal">
-                <div class="files-section__header" role="button" tabindex="0"
+                <div #filesHeader class="files-section__header" role="button" tabindex="0"
                     [attr.aria-expanded]="isFilesExpandedVal"
                     (click)="toggleFilesExpanded()"
                     (keydown.enter)="toggleFilesExpanded()"
@@ -596,23 +577,16 @@
                     appDragOverStay
                     (appDragOverStay)="expandFilesSection()">
                     <span class="files-section__title">Files</span>
-                    <span class="files-section__count files-section__count--clickable"
-                        [matTooltip]="hasFiles() ? 'Select all files' : ''"
-                        (click)="$event.stopPropagation(); hasFiles() && toggleAllFiles()">
-                        @if(isSearchActive()) {
-                            {{filteredFilesCount()}}/{{filesCount()}}
-                        } @else {
-                            {{filesCount()}}
-                        }
-                    </span>
-
-                    @if(selectedFilesCount() > 0) {
-                        <span class="files-section__selected"
-                            [matTooltip]="'Clear files selection'"
-                            (click)="$event.stopPropagation(); toggleAllFiles()">
-                            <i class="icon icon-lucide-check"></i>{{selectedFilesCount()}}
-                        </span>
-                    }
+                    <app-selection-count
+                        [visibleCount]="filteredFilesCount()"
+                        [totalCount]="filesCount()"
+                        [selectedCount]="selectedFilesCount()"
+                        [isFiltered]="isSearchActive()"
+                        noun="files"
+                        (selectVisible)="toggleVisibleFiles()"
+                        (selectAll)="toggleAllFiles()"
+                        (clearSelection)="clearFilesSelection()">
+                    </app-selection-count>
 
                     @if(hasUploads()) {
                         <span class="files-section__count-extra files-section__count--clickable"
@@ -644,6 +618,7 @@
                             [currentFolderExternalId]="selectedFolder()?.externalId ?? null"
                             [canReorder]="canReorder()"
                             [showThumbnails]="showThumbnails()"
+                            [processingFileIds]="processingFileIds()"
                             [operations]="operations"
                             [hideActions]="hideItemsActions()"
                             [hideSelectCheckboxes]="hideSelectCheckboxes()"

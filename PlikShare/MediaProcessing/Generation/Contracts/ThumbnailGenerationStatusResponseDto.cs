@@ -9,12 +9,9 @@ namespace PlikShare.MediaProcessing.Generation.Contracts;
 /// </summary>
 public class ThumbnailGenerationStatusResponseDto
 {
-    /// <summary>Variants with a pending/processing job right now (single-file view).</summary>
-    public required List<ThumbnailVariant> GeneratingVariants { get; init; }
-
     /// <summary>
-    /// Variants whose most recent completed generation failed (and which are not currently being
-    /// regenerated). Each carries the recorded error for display (single-file view).
+    /// Variants whose most recent completed generation failed. Each carries the recorded error for
+    /// display (single-file view).
     /// </summary>
     public required List<FailedThumbnailVariantDto> FailedVariants { get; init; }
 
@@ -36,6 +33,13 @@ public class ThumbnailGenerationStatusResponseDto
     /// per-connection delta (only newly-ready files); the one-shot status endpoint returns the full set.
     /// </summary>
     public List<ReadyThumbnailDto> ReadyThumbnails { get; set; } = [];
+
+    /// <summary>
+    /// External ids of the parent files still outstanding (pending/processing/blocked). Drives the
+    /// per-file "processing" indicator; survives reload because it's recomputed from the queue on
+    /// every push, not tracked client-side.
+    /// </summary>
+    public required List<string> ProcessingFileExternalIds { get; init; }
 }
 
 public class FailedThumbnailVariantDto

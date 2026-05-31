@@ -219,6 +219,10 @@ export type GenerateThumbnailsBulkResponse = {
     totalFiles: number;
 }
 
+export type CancelThumbnailBatchResponse = {
+    cancelledCount: number;
+}
+
 export type FailedThumbnailVariant = {
     variant: ThumbnailVariant;
     error: string;
@@ -232,6 +236,7 @@ export type ThumbnailGenerationStatus = {
     failed: number;
     pending: number;
     readyThumbnails: ReadyThumbnail[];
+    processingFileExternalIds: string[];
 }
 
 export type ReadyThumbnail = {
@@ -801,6 +806,19 @@ export class FoldersAndFilesSetApi {
         return await firstValueFrom(call);
     }
 
+    // Cancels a thumbnail batch: deletes its not-yet-started jobs. Files already being processed
+    // finish, and completed thumbnails stay. Returns how many jobs were cancelled.
+    public async cancelThumbnailBatch(
+        workspaceExternalId: string,
+        batchId: string): Promise<CancelThumbnailBatchResponse> {
+        const call = this._http.post<CancelThumbnailBatchResponse>(
+            `/api/workspaces/${workspaceExternalId}/media/thumbnails/batches/${batchId}/cancel`,
+            {}
+        );
+
+        return await firstValueFrom(call);
+    }
+
     // Server-pushed batch status over SSE (replaces client polling). The server sends an initial
     // snapshot, then a fresh status on every change, and closes once nothing is still generating.
     // Returns an unsubscribe that closes the connection. Cookie auth flows automatically via
@@ -808,9 +826,13 @@ export class FoldersAndFilesSetApi {
     public subscribeThumbnailBatch(
         workspaceExternalId: string,
         batchId: string,
-        onStatus: (status: ThumbnailGenerationStatus) => void): () => void {
+        onStatus: (status: ThumbnailGenerationStatus) => void,
+        // Only a reload/resubscribe needs the server's full outstanding list in the first event; a
+        // fresh start knows its own file ids and lights spinners locally, so it asks for none.
+        includeOutstandingFileIds: boolean): () => void {
         const eventSource = new EventSource(
-            `/api/workspaces/${workspaceExternalId}/media/thumbnails/batches/${batchId}/events`,
+            `/api/workspaces/${workspaceExternalId}/media/thumbnails/batches/${batchId}/events`
+                + `?includeOutstandingFileIds=${includeOutstandingFileIds}`,
             { withCredentials: true }
         );
 

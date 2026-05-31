@@ -4,7 +4,7 @@
 //the only information we MUST read from here is extraFieldLength, becuase it is not present
 
 import { computed, Signal, signal } from "@angular/core";
-import { toNameAndExtension } from "./filte-type";
+import { toNameAndExtension } from "./file-type";
 import { collectSelectionFromChildren, EMPTY_TREE_SELECTION, StaticTreeNode, StaticFolderNode, StaticFileNode, StaticSearchCorpusEntry, StaticTreeSelection } from "../shared/static-file-tree-view/static-file-tree-view.component";
 
 //anywhere else, and the one from Central Directory Record may be different than this one

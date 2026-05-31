@@ -16,7 +16,8 @@ public sealed class QueueProducer : BackgroundService
 
     private readonly SqliteConnection _connection;
 
-    private readonly SqliteCommand _getJobsBatchCommand;
+    private readonly SqliteCommand _selectJobsBatchCommand;
+    private readonly SqliteCommand _markJobsProcessingCommand;
     private readonly SqliteCommand _deleteCompletedSagasCommand;
     private readonly SqliteCommand _insertQueueSagaJobsCommand;
 
@@ -27,7 +28,6 @@ public sealed class QueueProducer : BackgroundService
     private readonly QueueJobInfoProvider _queueJobInfoProvider;
     private readonly CancellationTokenSource _gracefulShutdownCts;
     private bool _disposed;
-    private QueueChannels.CapacitySnapshot _capacitySnapshot;
 
     public QueueProducer(
         PlikShareDb plikShareDb,
@@ -47,7 +47,8 @@ public sealed class QueueProducer : BackgroundService
         _connection = plikShareDb.OpenConnection();
         RegisterCustomSqliteFunctions(_connection);
 
-        _getJobsBatchCommand = PrepareGetJobsBatchCommand(_connection);
+        _selectJobsBatchCommand = PrepareSelectJobsBatchCommand(_connection);
+        _markJobsProcessingCommand = PrepareMarkJobsProcessingCommand(_connection);
         _deleteCompletedSagasCommand = PrepareDeleteCompletedSagasCommand(_connection);
         _insertQueueSagaJobsCommand = PrepareInsertQueueSagaJobsCommand(_connection);
     }
@@ -135,7 +136,8 @@ public sealed class QueueProducer : BackgroundService
         if (disposing)
         {
             _gracefulShutdownCts.Dispose();
-            _getJobsBatchCommand.Dispose();
+            _selectJobsBatchCommand.Dispose();
+            _markJobsProcessingCommand.Dispose();
             _deleteCompletedSagasCommand.Dispose();
             _insertQueueSagaJobsCommand.Dispose();
             _connection.Dispose();
@@ -165,30 +167,38 @@ public sealed class QueueProducer : BackgroundService
 
     private async Task ProcessQueue(CancellationToken stoppingToken)
     {
-        var areAllJobsProcessed = false;
+        bool sagasCreatedJobs;
 
         do
         {
-            if (stoppingToken.IsCancellationRequested)
-                return;
+            var allJobsProcessed = false;
 
-            ProcessQueueSagas();
-            var jobsBatchResult = GetBatchOfJobsAndMarkAsProcessing();
+            do
+            {
+                if (stoppingToken.IsCancellationRequested)
+                    return;
 
-            if (jobsBatchResult.Count == 0)
-            {
-                areAllJobsProcessed = true;
-            }
-            else
-            {
-                await PushAllJobsThroughChannel(
-                    jobsBatch: jobsBatchResult, 
-                    stoppingToken: stoppingToken);
-            }
-        } while (!areAllJobsProcessed);
+                var jobsBatchResult = GetBatchOfJobsAndMarkAsProcessing();
+
+                if (jobsBatchResult.Count == 0)
+                {
+                    allJobsProcessed = true;
+                }
+                else
+                {
+                    await PushAllJobsThroughChannel(
+                        jobsBatch: jobsBatchResult,
+                        stoppingToken: stoppingToken);
+                }
+            } while (!allJobsProcessed);
+
+            var newSagaJobs = ProcessQueueSagas();
+            sagasCreatedJobs = newSagaJobs > 0;
+
+        } while (sagasCreatedJobs);
     }
 
-    private void ProcessQueueSagas()
+    private int ProcessQueueSagas()
     {
         using var transaction = _connection.BeginTransaction();
 
@@ -209,7 +219,7 @@ public sealed class QueueProducer : BackgroundService
                     Id = id,
                     JobType = jobType,
                     Definition = definition,
-                    CorrelationId =  correlationId,
+                    CorrelationId = correlationId,
                     Status = _queue.GetNewJobStatus(jobType).Value
                 };
             });
@@ -240,12 +250,16 @@ public sealed class QueueProducer : BackgroundService
                     insertedSagaJobs.Count,
                     queueJobIds);
             }
+
+            return insertedSagaJobs.Count;
         }
         catch (Exception e)
         {
             transaction.Rollback();
 
             Log.Error(e, "Something went wrong while processing completed Queue Sagas.");
+
+            return 0;
         }
     }
 
@@ -287,13 +301,37 @@ public sealed class QueueProducer : BackgroundService
     public List<QueueJob> GetBatchOfJobsAndMarkAsProcessing()
     {
         //we are using capacity in custom sqlite function, we need to update it before the query
-        _capacitySnapshot = _channels.GetCapacitySnapshot();
+        var capacitySnapshot = _channels.GetCapacitySnapshot();
 
         try
         {
-            SetGetJobsBatchParameters(_getJobsBatchCommand);
+            // Two-step to avoid holding the single SQLite write-lock during the O(N) selection.
+            // Step 1 — SELECT the eligible job ids: this scans/sorts all pending jobs and calls the
+            // per-row custom functions, but it's a READ, so it doesn't block the workers writing
+            // their completions (WAL: readers don't block writers).
+            _selectJobsBatchCommand.Parameters.Clear();
+            _selectJobsBatchCommand.WithParameter("$pendingStatus", QueueStatus.Pending);
+            _selectJobsBatchCommand.WithParameter("$now", _clock.UtcNow);
+            _selectJobsBatchCommand.WithParameter("$batchSize", _config.QueueProcessingBatchSize);
+            _selectJobsBatchCommand.WithParameter("$dbOnlyCapacity", capacitySnapshot.DbOnlyJobs);
+            _selectJobsBatchCommand.WithParameter("$normalCapacity", capacitySnapshot.NormalJobs);
+            _selectJobsBatchCommand.WithParameter("$longRunningCapacity", capacitySnapshot.LongRunningJobs);
 
-            return _getJobsBatchCommand.GetRows(reader => new QueueJob(
+            var jobIds = _selectJobsBatchCommand.GetRows(
+                reader => reader.GetInt32(0));
+
+            if (jobIds.Count == 0)
+                return [];
+
+            // Step 2 — mark exactly those ids as Processing. The write-lock is held only for this
+            // tiny UPDATE keyed by primary id (O(batchSize)), not for the heavy scan above.
+            _markJobsProcessingCommand.Parameters.Clear();
+            _markJobsProcessingCommand.WithParameter("$processingStatus", QueueStatus.Processing);
+            _markJobsProcessingCommand.WithParameter("$pendingStatus", QueueStatus.Pending);
+            _markJobsProcessingCommand.WithParameter("$now", _clock.UtcNow);
+            _markJobsProcessingCommand.WithJsonParameter("$jobIds", jobIds);
+
+            return _markJobsProcessingCommand.GetRows(reader => new QueueJob(
                 Id: reader.GetInt32(0),
                 CorrelationId: reader.GetGuid(1),
                 JobType: reader.GetString(2),
@@ -311,45 +349,68 @@ public sealed class QueueProducer : BackgroundService
         }
     }
 
+    // Step 1 (READ): pick the eligible job ids honoring per-category capacity + priority. This is the
+    // heavy O(N) scan/sort with per-row custom functions, but as a SELECT it never holds the write
+    // lock — workers can write their completions concurrently (WAL).
     //todo that probably would work better if job_category would be stored inside table rather than being calculated on the flight
-    private SqliteCommand PrepareGetJobsBatchCommand(
+    private SqliteCommand PrepareSelectJobsBatchCommand(
+        SqliteConnection connection)
+    {
+        var command = connection.CreateCommand();
+
+        command.CommandText =
+            """
+            WITH ranked_jobs AS (
+                SELECT
+                    q_id,
+                    app_get_job_category(q_job_type) AS job_category,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY app_get_job_category(q_job_type)
+                        ORDER BY app_get_job_priority(q_job_type) ASC
+                    ) as category_rank
+                FROM q_queue
+                WHERE
+                    q_status = $pendingStatus
+                    AND q_execute_after_date <= $now
+            ),
+            eligible_jobs AS (
+                SELECT q_id
+                FROM ranked_jobs
+                WHERE category_rank <= CASE job_category
+                    WHEN 0 THEN $dbOnlyCapacity
+                    WHEN 1 THEN $normalCapacity
+                    WHEN 2 THEN $longRunningCapacity
+                    ELSE 0
+                END
+            )
+            SELECT q_id
+            FROM (
+                SELECT q_id, ROW_NUMBER() OVER (ORDER BY q_id) as overall_rank
+                FROM eligible_jobs
+            ) ranked
+            WHERE overall_rank <= $batchSize
+            """;
+
+        return command;
+    }
+
+    // Step 2 (WRITE): mark exactly the chosen ids as Processing. Keyed by primary id via json_each,
+    // so the write lock is held only for this O(batchSize) update — never for the scan above. The
+    // extra q_status = $pendingStatus guard keeps it idempotent if a job changed since step 1.
+    private SqliteCommand PrepareMarkJobsProcessingCommand(
         SqliteConnection connection)
     {
         var command = connection.CreateCommand();
 
         command.CommandText = @"
-            WITH ranked_jobs AS (
-                SELECT 
-                    q_id,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY app_get_job_category(q_job_type) 
-                        ORDER BY app_get_job_priority(q_job_type) ASC
-                    ) as category_rank,
-                    app_get_capacity_left(app_get_job_category(q_job_type)) as capacity_left
-                FROM q_queue
-                WHERE 
-                    q_status = $pendingStatus 
-                    AND q_execute_after_date <= $now
-                    AND app_get_capacity_left(app_get_job_category(q_job_type)) > 0
-            ),
-            eligible_jobs AS (
-                SELECT q_id, q_job_type
-                FROM ranked_jobs
-                WHERE category_rank <= capacity_left
-            )
             UPDATE q_queue
-            SET 
-                q_processing_started_at = $now, 
+            SET
+                q_processing_started_at = $now,
                 q_status = $processingStatus,
                 q_debounce_id = NULL
-            WHERE q_id IN (
-                SELECT q_id
-                FROM (
-                    SELECT q_id, ROW_NUMBER() OVER (ORDER BY q_id) as overall_rank
-                    FROM eligible_jobs
-                ) ranked
-                WHERE overall_rank <= $batchSize
-            )
+            WHERE
+                q_id IN (SELECT value FROM json_each($jobIds))
+                AND q_status = $pendingStatus
             RETURNING
                 q_id,
                 q_correlation_id,
@@ -423,16 +484,6 @@ public sealed class QueueProducer : BackgroundService
         return command;
     }
 
-    private void SetGetJobsBatchParameters(
-        SqliteCommand command)
-    {
-        command.Parameters.Clear();
-        command.WithParameter("$pendingStatus", QueueStatus.Pending);
-        command.WithParameter("$processingStatus", QueueStatus.Processing);
-        command.WithParameter("$now", _clock.UtcNow);
-        command.WithParameter("$batchSize", _config.QueueProcessingBatchSize);
-    }
-
     public void RegisterCustomSqliteFunctions(SqliteConnection connection)
     {
         connection.CreateFunction(
@@ -455,21 +506,6 @@ public sealed class QueueProducer : BackgroundService
 
                 return _queueJobInfoProvider.GetJobPriority(
                     jobType);
-            });
-
-        connection.CreateFunction(
-            "" +
-            "app_get_capacity_left" +
-            "",
-            (int? jobCategory) =>
-            {
-                return jobCategory switch
-                {
-                    (int) QueueJobCategory.DbOnly => _capacitySnapshot.DbOnlyJobs,
-                    (int) QueueJobCategory.Normal => _capacitySnapshot.NormalJobs,
-                    (int) QueueJobCategory.LongRunning => _capacitySnapshot.LongRunningJobs,
-                    _ => 0
-                };
             });
     }
 }

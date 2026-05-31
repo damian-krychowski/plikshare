@@ -18,7 +18,7 @@ import { FileInlinePreviewComponent, FilePreviewOperations, ZipPreviewDetails } 
 import { StorageSizePipe } from '../shared/storage-size.pipe';
 import { EditableTxtComponent } from '../shared/editable-txt/editable-txt.component';
 import { BulkUploadPreviewComponent, BulkFileUpload, SingleBulkFileUpload, CreatedFolder } from './bulk-upload-preview/bulk-upload-preview.component';
-import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, DownloadImageFormat, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GenerateFileThumbnailsResponse, GenerateThumbnailsBulkResponse, GetFilePreviewDetailsResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, ReadyThumbnail, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../services/folders-and-files.api';
+import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, DownloadImageFormat, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GenerateFileThumbnailsResponse, GenerateThumbnailsBulkResponse, GetFilePreviewDetailsResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../services/folders-and-files.api';
 import { ZipEntry } from '../services/zip';
 import { FileSlicer } from '../services/file-upload-manager/file-slicer';
 import { TextractJobStatusService } from '../services/textract-job-status.service';
@@ -35,10 +35,13 @@ import { SortChange } from './sort-menu/sort-menu.component';
 import { DisplayMenuComponent } from './display-menu/display-menu.component';
 import { computePositionForInsertion } from '../shared/drag-drop/item-positioning.utils';
 import { FilesListComponent } from './files-list/files-list.component';
-import { ThumbnailBatchesBarComponent } from './thumbnail-batches-bar/thumbnail-batches-bar.component';
+import { ThumbnailProgressComponent } from './thumbnail-progress/thumbnail-progress.component';
+import { SelectionCountComponent } from './selection-count/selection-count.component';
+import { thumbnailListDisplay } from '../services/thumbnail-list-display';
+import { trackStuckSection } from '../services/track-stuck-section';
 import { ThumbnailBatchProgressService } from '../services/thumbnail-batch-progress.service';
 import { AppCapabilitiesService } from '../services/app-capabilities.service';
-import { getFileDetails } from '../services/filte-type';
+import { getFileDetails } from '../services/file-type';
 
 export interface FilesExplorerApi {
     invalidatePrefetchedFolderDependentEntries: (folderExternalId: string) => void;
@@ -151,7 +154,8 @@ type ViewMode = 'list-view' | 'tree-view';
         FileTreeViewComponent,
         ItemSearchComponent,
         DisplayMenuComponent,
-        ThumbnailBatchesBarComponent
+        ThumbnailProgressComponent,
+        SelectionCountComponent
     ],
     templateUrl: './files-explorer.component.html',
     styleUrl: './files-explorer.component.scss'
@@ -233,12 +237,14 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     sortMode = signal<SortMode>('custom');
     sortDirection = signal<SortDirection>('asc');
 
-    // Opt-in mini-thumbnail rendering on list rows. Defaults off (BC) and persists per workspace,
-    // mirroring the sort-mode persistence below.
-    showThumbnails = signal(false);
+    // Opt-in mini-thumbnail rendering on list rows (persisted per workspace) + thumbnail URL builder.
+    private _thumbnailDisplay = thumbnailListDisplay(this.workspaceExternalId);
+    readonly showThumbnails = this._thumbnailDisplay.showThumbnails;
+
+    // Files with thumbnail generation in flight (any tracked batch) — drives the per-row spinner.
+    readonly processingFileIds = computed(() => this._thumbnailBatches.processingFileIds());
 
     private static readonly SORT_MODE_STORAGE_PREFIX = 'plikshare:sort-mode:';
-    private static readonly SHOW_THUMBNAILS_STORAGE_PREFIX = 'plikshare:show-thumbnails:';
 
     folderSelected = output<AppFolderItem | null>();
     boxCreated = output<AppFolderItem>();
@@ -579,15 +585,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) =>
             this.filesApi().getDownloadLink(fileExternalId, contentDisposition),
 
-        // Stable, cookie-authenticated URL of a file's Mini thumbnail — bound straight to an
-        // <img src> in the list row. Browser HTTP-caches it; the backend keys it by the parent
-        // file and ETags by the thumbnail child id (see GetFileThumbnail endpoint).
-        getThumbnailUrl: (fileExternalId: string) => {
-            const wsId = this.workspaceExternalId();
-            return wsId
-                ? `/api/workspaces/${wsId}/media/thumbnails/${fileExternalId}`
-                : '';
-        },
+        getThumbnailUrl: (fileExternalId: string) =>
+            this._thumbnailDisplay.getThumbnailUrl(fileExternalId),
 
         getFilePreviewDetails: (fileExternalId: string, fields: FilePreviewDetailsField[] | null) => 
             this.filesApi().getFilePreviewDetails(fileExternalId, fields),
@@ -685,9 +684,21 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     @ViewChild(FileTreeViewComponent) fileTreeView!: FileTreeViewComponent;
     @ViewChild(ItemSearchComponent) itemSearch?: ItemSearchComponent;
     @ViewChild('toolbarHeaderEl') toolbarHeaderEl?: ElementRef<HTMLElement>;
+    @ViewChild('stickyWrapper') stickyWrapperEl?: ElementRef<HTMLElement>;
+    @ViewChild('foldersHeader') foldersHeaderEl?: ElementRef<HTMLElement>;
+    @ViewChild('filesHeader') filesHeaderEl?: ElementRef<HTMLElement>;
 
     isToolbarStacked = signal(false);
     private _toolbarResizeObserver?: ResizeObserver;
+
+    // Which section header has scrolled up under the sticky toolbar — surfaced as a context chip in
+    // the toolbar so the active section + its counts stay visible while scrolling a long list.
+    readonly stuckSection = trackStuckSection(
+        () => this.stickyWrapperEl?.nativeElement,
+        [
+            { id: 'folders', getElement: () => this.foldersHeaderEl?.nativeElement },
+            { id: 'files', getElement: () => this.filesHeaderEl?.nativeElement }
+        ]);
 
     constructor(
         public fileUploadManager: FileUploadManager,
@@ -712,10 +723,19 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             this.sortDirection.set(dir);
         });
 
+        // Apply freshly-generated Mini etags (live, and after reload) onto the current file items.
+        // Service is the source of truth for in-flight batches, so this works regardless of which
+        // session started the generation.
         effect(() => {
-            const key = this.thumbnailsStorageKey();
-            const stored = key ? localStorage.getItem(key) : null;
-            this.showThumbnails.set(stored === 'true');
+            const etags = this._thumbnailBatches.readyMiniEtags();
+            if (etags.size === 0)
+                return;
+
+            for (const file of this.files()) {
+                const etag = etags.get(file.externalId);
+                if (etag && file.miniThumbnailEtag() !== etag)
+                    file.miniThumbnailEtag.set(etag);
+            }
         });
 
         effect(() => {
@@ -768,16 +788,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         localStorage.setItem(key, value);
     }
 
-    private thumbnailsStorageKey(): string | null {
-        const wsId = this.workspaceExternalId();
-        if (!wsId) return null;
-        return `${FilesExplorerComponent.SHOW_THUMBNAILS_STORAGE_PREFIX}${wsId}`;
-    }
-
     onShowThumbnailsChanged(value: boolean) {
-        this.showThumbnails.set(value);
-        const key = this.thumbnailsStorageKey();
-        if (key) localStorage.setItem(key, value ? 'true' : 'false');
+        this._thumbnailDisplay.setShowThumbnails(value);
     }
 
 
@@ -1543,7 +1555,9 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         if (fileExternalIds.length === 0)
             return;
 
-        const variants: ThumbnailVariant[] = ['Mini', 'Small', 'Large'];
+        // Only the Mini variant is rendered today (list rows). Small/Large are reserved for the
+        // future gallery mode and would just triple ffmpeg work + storage with nothing reading them.
+        const variants: ThumbnailVariant[] = ['Mini'];
 
         try {
             const response = await this.filesApi().generateBulkThumbnails(
@@ -1554,26 +1568,12 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                 workspaceExternalId,
                 response.batchId,
                 `Generating thumbnails — ${response.totalFiles} file(s)`,
-                response.totalFiles,
-                ready => this.applyReadyThumbnails(ready));
+                fileExternalIds);
 
             // Selection has done its job — clear it so the toolbar returns to its default actions.
             this.files().forEach(f => f.isSelected.set(false));
         } catch (err) {
             console.error('Bulk thumbnail generation failed:', err);
-        }
-    }
-
-    private applyReadyThumbnails(ready: ReadyThumbnail[]) {
-        if (ready.length === 0)
-            return;
-
-        const byExternalId = new Map(this.files().map(f => [f.externalId, f]));
-
-        for (const item of ready) {
-            const mini = item.variants.find(v => v.variant === 'Mini');
-            if (mini)
-                byExternalId.get(item.fileExternalId)?.miniThumbnailEtag?.set(mini.etag);
         }
     }
 
@@ -1735,6 +1735,34 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
     public clearFilesSelection() {
         this.files().forEach(fi => fi.isSelected.set(false));
+    }
+
+    // Toggle selection of only the search-visible folders/files — the "visible" count segment in
+    // the section header. Leaves hidden (filtered-out) selections untouched.
+    public toggleVisibleFolders() {
+        this.toggleSelectionOf(this.searchVisibleFolders());
+    }
+
+    public toggleVisibleFiles() {
+        this.toggleSelectionOf(this.searchVisibleFiles());
+    }
+
+    private searchVisibleFolders(): AppFolderItem[] {
+        const phrase = this.searchPhrase().toLowerCase();
+        if (!phrase) return this.folders();
+        return this.folders().filter(f => f.name().toLowerCase().includes(phrase));
+    }
+
+    private searchVisibleFiles(): AppFileItem[] {
+        const phrase = this.searchPhrase().toLowerCase();
+        if (!phrase) return this.files();
+        return this.files().filter(f => (f.name() + f.extension).toLowerCase().includes(phrase));
+    }
+
+    private toggleSelectionOf(items: { isSelected: WritableSignal<boolean> }[]) {
+        if (items.length === 0) return;
+        const allSelected = items.every(i => i.isSelected());
+        items.forEach(i => i.isSelected.set(!allSelected));
     }
 
     public toggleAllUploads() {

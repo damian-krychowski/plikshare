@@ -20,6 +20,7 @@
             [highlightPhrase]="searchPhrase()"
             [canReorder]="canReorder()"
             [showThumbnails]="showThumbnails()"
+            [isProcessing]="processingFileIds().has(row.file.externalId)"
             [operations]="operations()"
             [hideActions]="hideActions()"
             [hideDownloadAction]="true"

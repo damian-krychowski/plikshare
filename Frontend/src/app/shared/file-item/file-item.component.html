@@ -20,7 +20,11 @@
                 (click)="!($event.ctrlKey || $event.metaKey || $event.shiftKey) && $event.stopPropagation()"></i>
         }
         
-        @if(miniThumbnailUrl(); as thumbUrl) {
+        @if(isProcessing()) {
+            <span class="item__thumb item__thumb--loading" matTooltip="Processing…">
+                <span class="item__spinner"></span>
+            </span>
+        } @else if(miniThumbnailUrl(); as thumbUrl) {
             <img class="item__thumb"
                 [src]="thumbUrl"
                 loading="lazy"

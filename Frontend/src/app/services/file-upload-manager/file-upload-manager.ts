@@ -5,7 +5,7 @@ import { BulkInitiateFileUploadRequest, BulkInitiateFileUploadResponse, Initiate
 import { FileUploadDetails, MAXIMUM_PENDING_UPLOADS } from "./file-upload-utils";
 import { MultiStepChunkFileUpload } from "./multi-step-chunk-file-upload";
 import { SingleChunkFileUpload } from "./single-chunk-file-upload";
-import { toNameAndExtension } from "../filte-type";
+import { toNameAndExtension } from "../file-type";
 import { getBase62Guid } from "../guid-base-62";
 import { MultiFileDirectFileUpload } from "./multi-file-direct-file-upload";
 import { GenericDialogService } from "../../shared/generic-message-dialog/generic-dialog-service";

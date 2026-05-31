@@ -785,7 +785,9 @@ public class Startup
         builder.Services.AddSingleton<IQueueLongRunningJobExecutor, ProcessImageQueueJobExecutor>();
         builder.Services.AddSingleton<GenerateFileThumbnailsOperation>();
         builder.Services.AddSingleton<GenerateFileThumbnailsBulkOperation>();
+        builder.Services.AddSingleton<GetThumbnailableFilesQuery>();
         builder.Services.AddSingleton<GetThumbnailGenerationStatusQuery>();
+        builder.Services.AddSingleton<CancelThumbnailBatchOperation>();
         builder.Services.AddSingleton<DownloadFileConvertedOperation>();
         builder.Services.AddSingleton<IQueueLongRunningJobExecutor, SendAiMessageQueueJobExecutor>();
         builder.Services.AddSingleton<IQueueNormalJobExecutor, DeleteAiConversationQueueJobExecutor>();

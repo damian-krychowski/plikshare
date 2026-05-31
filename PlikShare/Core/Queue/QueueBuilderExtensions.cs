@@ -13,12 +13,12 @@ public static class QueueBuilderExtensions
         app.Services.AddSingleton<QueueBatchNotifier>();
 
         app.Services.AddSingleton(new QueueChannels(
-            capacity: parallelConsumersCount * 3));
+            capacity: parallelConsumersCount * 4));
 
         app.Services.AddSingleton<QueueJobInfoProvider>();
         app.Services.AddHostedService<QueueProducer>();
         
-        app.Services.AddSingleton<IHostedService>((serviceProvider) => new DbOnlyQueueConsumer(
+        app.Services.AddSingleton<IHostedService>(serviceProvider => new DbOnlyQueueConsumer(
             queue: serviceProvider.GetRequiredService<IQueue>(),
             dbWriteQueue: serviceProvider.GetRequiredService<DbWriteQueue>(),
             channels: serviceProvider.GetRequiredService<QueueChannels>(),
@@ -28,13 +28,13 @@ public static class QueueBuilderExtensions
         {
             var consumerIndex = i + 1;
             
-            app.Services.AddSingleton<IHostedService>((serviceProvider) => new NormalQueueConsumer(
+            app.Services.AddSingleton<IHostedService>(serviceProvider => new NormalQueueConsumer(
                 queue: serviceProvider.GetRequiredService<IQueue>(),
                 channels: serviceProvider.GetRequiredService<QueueChannels>(),
                 executors: serviceProvider.GetServices<IQueueNormalJobExecutor>(),
                 consumerId: consumerIndex));
 
-            app.Services.AddSingleton<IHostedService>((serviceProvider) => new LongRunningQueueConsumer(
+            app.Services.AddSingleton<IHostedService>(serviceProvider => new LongRunningQueueConsumer(
                 queue: serviceProvider.GetRequiredService<IQueue>(),
                 channels: serviceProvider.GetRequiredService<QueueChannels>(),
                 executors: serviceProvider.GetServices<IQueueLongRunningJobExecutor>(),

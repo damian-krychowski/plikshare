@@ -1,7 +1,7 @@
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
-import { FileType } from "./filte-type";
+import { FileType } from "./file-type";
 import { AppStorageEncryptionType } from "./storages.api";
 
 export type GetWorkspaceDetailsResponse = WorkspaceDto;

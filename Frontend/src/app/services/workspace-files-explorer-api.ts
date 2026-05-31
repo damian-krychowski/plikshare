@@ -249,7 +249,8 @@ export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
         return this._setApi.subscribeThumbnailBatch(
             this._workspaceExternalId,
             batchId,
-            onStatus
+            onStatus,
+            true
         );
     }
 

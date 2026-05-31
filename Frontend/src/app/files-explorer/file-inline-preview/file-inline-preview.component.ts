@@ -18,7 +18,7 @@ import { TextractJobStatusService } from '../../services/textract-job-status.ser
 import { AppTextractJobItem, AppTextractJobItemExtensions } from '../../shared/app-textract-job-item';
 import { FileContentComponent, FileContentOperations, FileToPreview } from "../file-content/file-content.component";
 import { containsItem, insertItem, pushItems, removeItem, unshiftItems } from '../../shared/signal-utils';
-import { getFileDetails } from '../../services/filte-type';
+import { getFileDetails } from '../../services/file-type';
 import { FileInlinePreviewCommandsPipeline } from './file-inline-preview-commands-pipeline';
 import { ChatGptIntegration, WorkspaceIntegrations } from '../../services/workspaces.api';
 import { getBase62Guid } from '../../services/guid-base-62';

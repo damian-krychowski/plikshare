@@ -22,7 +22,7 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
     public sealed record Snapshot(
         Counts Counts,
         List<CompletedJob> NewCompleted,
-        HashSet<ThumbnailVariant> GeneratingVariants);
+        List<string> ProcessingFileExternalIds);
 
     public ThumbnailGenerationStatusResponseDto Execute(
         WorkspaceContext workspace,
@@ -31,7 +31,8 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
         var snapshot = GetSnapshot(
             workspace,
             batchId,
-            afterCompletedAt: null);
+            afterCompletedAt: null,
+            includeOutstandingFileIds: true);
 
         var failedByVariant = new Dictionary<ThumbnailVariant, string?>();
         var ready = new List<ReadyThumbnailDto>();
@@ -42,23 +43,81 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
             ready);
 
         return BuildStatus(
-            snapshot.Counts, 
-            snapshot.GeneratingVariants, 
-            failedByVariant, 
-            ready);
+            snapshot.Counts,
+            failedByVariant,
+            ready,
+            snapshot.ProcessingFileExternalIds);
     }
 
     public Snapshot GetSnapshot(
         WorkspaceContext workspace,
         Guid batchId,
-        DateTimeOffset? afterCompletedAt)
+        DateTimeOffset? afterCompletedAt,
+        bool includeOutstandingFileIds)
     {
         using var connection = plikShareDb.OpenConnection();
 
+        // Authorize ONCE that the batch belongs to this workspace (batchId is a random GUID, so this
+        // guards against a member of workspace A peeking at a batch of workspace B). After this, the
+        // per-event counts/scans filter by the indexed q_batch_id alone — no per-row json_extract.
+        if (!BatchBelongsToWorkspace(connection, workspace, batchId))
+            return new Snapshot(
+                Counts: new Counts(Completed: 0, Outstanding: 0, Failed: 0),
+                NewCompleted: [],
+                ProcessingFileExternalIds: []);
+
+        // The full outstanding list is the INITIAL spinner set — large for a big batch, so it's only
+        // computed/sent on the first push. Subsequent pushes carry just the readyThumbnails delta;
+        // the client removes each completed file from its own spinner set.
         return new Snapshot(
-            Counts: GetCounts(connection, workspace, batchId),
-            NewCompleted: GetCompletedSince(connection, workspace, batchId, afterCompletedAt),
-            GeneratingVariants: GetGeneratingVariants(connection, workspace, batchId));
+            Counts: GetCounts(connection, batchId),
+            NewCompleted: GetCompletedSince(connection, batchId, afterCompletedAt),
+            ProcessingFileExternalIds: includeOutstandingFileIds
+                ? GetUnprocessedFileExternalIds(connection, batchId)
+                : []);
+    }
+
+    // One indexed lookup (q_batch_id) per batch: does any of its jobs — outstanding or completed —
+    // belong to this workspace? The single json_extract here replaces the per-row one that used to
+    // run on every COUNT/scan of the whole batch on every SSE push.
+    private static bool BatchBelongsToWorkspace(
+        SqliteConnection connection,
+        WorkspaceContext workspace,
+        Guid batchId)
+    {
+        var outstanding = connection
+            .OneRowCmd(
+                sql: """
+                    SELECT 1
+                    FROM q_queue
+                    WHERE q_batch_id = $batchId
+                        AND json_extract(q_definition, '$.workspaceId') = $workspaceId
+                    LIMIT 1
+                    """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$batchId", batchId)
+            .WithParameter("$workspaceId", workspace.Id)
+            .Execute();
+
+        if (!outstanding.IsEmpty)
+            return true;
+
+        // q_queue may be empty already (whole batch finished) — check the completed archive.
+        var completed = connection
+            .OneRowCmd(
+                sql: """
+                    SELECT 1
+                    FROM qc_queue_completed
+                    WHERE qc_batch_id = $batchId
+                        AND json_extract(qc_definition, '$.workspaceId') = $workspaceId
+                    LIMIT 1
+                    """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$batchId", batchId)
+            .WithParameter("$workspaceId", workspace.Id)
+            .Execute();
+
+        return !completed.IsEmpty;
     }
 
     public static void Apply(
@@ -96,12 +155,12 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
 
     public static ThumbnailGenerationStatusResponseDto BuildStatus(
         Counts counts,
-        HashSet<ThumbnailVariant> generatingVariants,
         Dictionary<ThumbnailVariant, string?> failedByVariant,
-        List<ReadyThumbnailDto> ready)
+        List<ReadyThumbnailDto> ready,
+        List<string> processingFileExternalIds)
     {
         var failedVariants = failedByVariant
-            .Where(entry => entry.Value is not null && !generatingVariants.Contains(entry.Key))
+            .Where(entry => entry.Value is not null)
             .Select(entry => new FailedThumbnailVariantDto
             {
                 Variant = entry.Key,
@@ -111,21 +170,22 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
 
         return new ThumbnailGenerationStatusResponseDto
         {
-            GeneratingVariants = generatingVariants.ToList(),
             FailedVariants = failedVariants,
             Total = counts.Completed + counts.Outstanding,
             Completed = counts.Completed,
             Failed = counts.Failed,
             Pending = counts.Outstanding - counts.Failed,
-            ReadyThumbnails = ready
+            ReadyThumbnails = ready,
+            ProcessingFileExternalIds = processingFileExternalIds
         };
     }
 
     private static Counts GetCounts(
         SqliteConnection connection,
-        WorkspaceContext workspace,
         Guid batchId)
     {
+        // batchId ownership is checked once in GetSnapshot; every count here filters by the indexed
+        // q_batch_id / qc_batch_id alone (all of a batch's jobs share one workspace anyway).
         var result = connection
             .OneRowCmd(
                 sql: """
@@ -134,19 +194,16 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                             SELECT COUNT(*)
                             FROM qc_queue_completed
                             WHERE qc_batch_id = $batchId
-                                AND json_extract(qc_definition, '$.workspaceId') = $workspaceId
                         ),
                         (
                             SELECT COUNT(*)
                             FROM q_queue
                             WHERE q_batch_id = $batchId
-                                AND json_extract(q_definition, '$.workspaceId') = $workspaceId
                         ),
                         (
                             SELECT COUNT(*)
                             FROM q_queue
                             WHERE q_batch_id = $batchId
-                                AND json_extract(q_definition, '$.workspaceId') = $workspaceId
                                 AND q_status = $failedStatus
                         )
                     """,
@@ -155,7 +212,6 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                     Outstanding: reader.GetInt32(1),
                     Failed: reader.GetInt32(2)))
             .WithParameter("$batchId", batchId)
-            .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$failedStatus", QueueStatus.Failed)
             .Execute();
 
@@ -164,7 +220,6 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
 
     private static List<CompletedJob> GetCompletedSince(
         SqliteConnection connection,
-        WorkspaceContext workspace,
         Guid batchId,
         DateTimeOffset? afterCompletedAt)
     {
@@ -178,7 +233,6 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                     FROM qc_queue_completed
                     WHERE
                         qc_batch_id = $batchId
-                        AND json_extract(qc_definition, '$.workspaceId') = $workspaceId
                         AND ($afterCompletedAt IS NULL OR qc_completed_at >= $afterCompletedAt)
                     ORDER BY qc_completed_at ASC
                     """,
@@ -198,14 +252,12 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                             : Json.Deserialize<ThumbnailGenerationResult>(resultJson));
                 })
             .WithParameter("$batchId", batchId)
-            .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$afterCompletedAt", afterCompletedAt)
             .Execute();
     }
 
-    private static HashSet<ThumbnailVariant> GetGeneratingVariants(
+    private static List<string> GetUnprocessedFileExternalIds(
         SqliteConnection connection,
-        WorkspaceContext workspace,
         Guid batchId)
     {
         return connection
@@ -215,25 +267,21 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                     FROM q_queue
                     WHERE
                         q_batch_id = $batchId
-                        AND json_extract(q_definition, '$.workspaceId') = $workspaceId
-                        AND q_status IN ($pending, $processing)
+                        AND q_status != $failedStatus
                     """,
-                seed: new HashSet<ThumbnailVariant>(),
+                seed: new List<string>(),
                 aggregateRowFunc: (acc, reader) =>
                 {
                     var definition = Json.Deserialize<ProcessImageQueueJobDefinition>(
                         reader.GetString(0));
 
                     if (definition is not null)
-                        foreach (var variant in definition.Variants)
-                            acc.Add(variant);
+                        acc.Add(definition.ParentFileExternalId.Value);
 
                     return acc;
                 })
             .WithParameter("$batchId", batchId)
-            .WithParameter("$workspaceId", workspace.Id)
-            .WithParameter("$pending", QueueStatus.Pending)
-            .WithParameter("$processing", QueueStatus.Processing)
+            .WithParameter("$failedStatus", QueueStatus.Failed)
             .Execute();
     }
 }

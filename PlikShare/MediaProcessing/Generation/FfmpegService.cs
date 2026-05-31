@@ -146,7 +146,9 @@ public class FfmpegService
         };
 
         // -i pipe:0 = read source from stdin (fed by the shared pump).
-        // -vframes 1 = single frame (image or first frame of video).
+        // thumbnail = pick a representative frame (works on a non-seekable stdin, unlike -ss), so a
+        //   video's black fade-in start isn't used; for a static image it just passes the one frame.
+        // -frames:v 1 = emit a single frame.
         // scale=N:N:force_original_aspect_ratio=decrease = fit within NxN preserving aspect ratio.
         // -f webp -y pipe:1 = write WebP to stdout.
         psi.ArgumentList.Add("-hide_banner");
@@ -154,10 +156,10 @@ public class FfmpegService
         psi.ArgumentList.Add("error");
         psi.ArgumentList.Add("-i");
         psi.ArgumentList.Add("pipe:0");
-        psi.ArgumentList.Add("-vframes");
-        psi.ArgumentList.Add("1");
         psi.ArgumentList.Add("-vf");
-        psi.ArgumentList.Add($"scale={targetPixelSize}:{targetPixelSize}:force_original_aspect_ratio=decrease");
+        psi.ArgumentList.Add($"thumbnail,scale={targetPixelSize}:{targetPixelSize}:force_original_aspect_ratio=decrease");
+        psi.ArgumentList.Add("-frames:v");
+        psi.ArgumentList.Add("1");
         psi.ArgumentList.Add("-f");
         psi.ArgumentList.Add("webp");
         psi.ArgumentList.Add("-y");
@@ -370,7 +372,7 @@ public class FfmpegService
 
     private static int GetTargetPixelSize(ThumbnailVariant variant) => variant switch
     {
-        ThumbnailVariant.Mini => 128,
+        ThumbnailVariant.Mini => 96,
         ThumbnailVariant.Small => 400,
         ThumbnailVariant.Large => 1600,
         _ => throw new ArgumentOutOfRangeException(nameof(variant), variant, null)

@@ -51,6 +51,9 @@ public static class MediaProcessingEndpoints
         group.MapGet("/thumbnails/batches/{batchId:guid}/status", GetThumbnailGenerationStatus)
             .WithName("GetThumbnailGenerationStatus");
 
+        group.MapPost("/thumbnails/batches/{batchId:guid}/cancel", CancelThumbnailBatch)
+            .WithName("CancelThumbnailBatch");
+
         group.MapGet("/thumbnails/batches/{batchId:guid}/events", GetThumbnailBatchEvents)
             .WithName("GetThumbnailBatchEvents");
 
@@ -276,6 +279,25 @@ public static class MediaProcessingEndpoints
         return TypedResults.Ok(response);
     }
 
+    private static async Task<Ok<CancelThumbnailBatchResponseDto>> CancelThumbnailBatch(
+        [FromRoute] Guid batchId,
+        HttpContext httpContext,
+        CancelThumbnailBatchOperation cancelThumbnailBatchOperation,
+        CancellationToken cancellationToken)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+
+        var cancelledCount = await cancelThumbnailBatchOperation.Execute(
+            workspace: workspaceMembership.Workspace,
+            batchId: batchId,
+            cancellationToken: cancellationToken);
+
+        return TypedResults.Ok(new CancelThumbnailBatchResponseDto
+        {
+            CancelledCount = cancelledCount
+        });
+    }
+
     /// <summary>
     /// Server-Sent Events stream of a thumbnail batch's status. Pushes an initial snapshot, then a
     /// fresh status on every queue notification for the batch, and closes once no variant is still
@@ -287,7 +309,11 @@ public static class MediaProcessingEndpoints
         HttpContext httpContext,
         GetThumbnailGenerationStatusQuery getThumbnailGenerationStatusQuery,
         QueueBatchNotifier queueBatchNotifier,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        // On a fresh start the client already knows the file ids it triggered, so it lights up the
+        // spinners locally and asks for no outstanding list. Only a reload/resubscribe (client lost
+        // that state) needs the server to send the full outstanding set in the first event.
+        [FromQuery] bool includeOutstandingFileIds)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
         var workspace = workspaceMembership.Workspace;
@@ -309,12 +335,13 @@ public static class MediaProcessingEndpoints
         var sentQcIds = new HashSet<long>();
         var failedByVariant = new Dictionary<ThumbnailVariant, string?>();
 
-        ThumbnailGenerationStatusResponseDto NextStatus()
+        ThumbnailGenerationStatusResponseDto NextStatus(bool includeOutstandingFileIds)
         {
             var snapshot = getThumbnailGenerationStatusQuery.GetSnapshot(
                 workspace,
                 batchId,
-                lastCompletedAt);
+                lastCompletedAt,
+                includeOutstandingFileIds);
 
             var fresh = snapshot.NewCompleted
                 .Where(job => sentQcIds.Add(job.QcId))
@@ -332,12 +359,14 @@ public static class MediaProcessingEndpoints
 
             return GetThumbnailGenerationStatusQuery.BuildStatus(
                 snapshot.Counts,
-                snapshot.GeneratingVariants,
                 failedByVariant,
-                ready);
+                ready,
+                snapshot.ProcessingFileExternalIds);
         }
 
-        var status = NextStatus();
+        // First push carries the full outstanding set only when the client asked for it (reload /
+        // resubscribe). A fresh start already knows its file ids and lights up spinners locally.
+        var status = NextStatus(includeOutstandingFileIds: includeOutstandingFileIds);
 
         await WriteSseStatus(
             response,
@@ -378,7 +407,8 @@ public static class MediaProcessingEndpoints
             if (!signalled)
                 break;
 
-            status = NextStatus();
+            // Later pushes are deltas only — readyThumbnails carries the just-completed files.
+            status = NextStatus(includeOutstandingFileIds: false);
 
             await WriteSseStatus(
                 response,

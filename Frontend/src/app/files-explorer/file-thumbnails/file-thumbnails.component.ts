@@ -37,7 +37,7 @@ type SlotState = {
 };
 
 const SLOT_DEFS: { variant: ThumbnailVariant; label: string; targetSize: string; description: string }[] = [
-    { variant: 'Mini', label: 'Mini thumbnail', targetSize: '~128px', description: 'File-list rows and other compact spots.' },
+    { variant: 'Mini', label: 'Mini thumbnail', targetSize: '~96px', description: 'File-list rows and other compact spots.' },
     { variant: 'Small', label: 'Small thumbnail', targetSize: '~400px', description: 'Gallery tiles and grid previews.' },
     { variant: 'Large', label: 'Large thumbnail', targetSize: '~1600px', description: 'Full-size preview and high-DPI screens.' },
 ];

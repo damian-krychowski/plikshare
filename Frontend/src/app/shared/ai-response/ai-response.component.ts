@@ -4,7 +4,7 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { RelativeTimeComponent } from "../relative-time/relative-time.component";
 import { MarkdownComponent } from "ngx-markdown";
 import { ActionButtonComponent } from "../buttons/action-btn/action-btn.component";
-import { getExtensionFromLanguage, getMimeType } from "../../services/filte-type";
+import { getExtensionFromLanguage, getMimeType } from "../../services/file-type";
 import { UploadFileAttachmentRequest } from "../../services/folders-and-files.api";
 import { getBase62Guid } from "../../services/guid-base-62";
 import { AppFileItem } from "../file-item/file-item.component";

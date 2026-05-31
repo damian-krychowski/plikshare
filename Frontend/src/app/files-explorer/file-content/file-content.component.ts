@@ -8,7 +8,7 @@ import { AppFileItem } from "../../shared/file-item/file-item.component";
 import { FileIconPipe } from "../file-icon-pipe/file-icon.pipe";
 import { TextPreviewComponent } from "./text-preview/text-preview.component";
 import { ContentDisposition, GetFileDownloadLinkResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse } from "../../services/folders-and-files.api";
-import { getFileDetails } from "../../services/filte-type";
+import { getFileDetails } from "../../services/file-type";
 import { ImageDimensions, ImageExif, ZipPreviewDetails } from "../file-inline-preview/file-inline-preview.component";
 import { ZipEntry } from "../../services/zip";
 import { ImagePreviewComponent } from "./image-preview/image-preview.component";

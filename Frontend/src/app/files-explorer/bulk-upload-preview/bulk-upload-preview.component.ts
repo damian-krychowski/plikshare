@@ -5,7 +5,7 @@ import { FileIconPipe } from '../file-icon-pipe/file-icon.pipe';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
 import { ItemSearchComponent } from '../../shared/item-search/item-search.component';
 import { ItemButtonComponent } from '../../shared/buttons/item-btn/item-btn.component';
-import { getMimeType, toNameAndExtension } from '../../services/filte-type';
+import { getMimeType, toNameAndExtension } from '../../services/file-type';
 import { getBase62Guid } from '../../services/guid-base-62';
 import { FileUploadManager, FileUploadApi, FileToUpload } from '../../services/file-upload-manager/file-upload-manager';
 import { Zip, ZipArchive, ZipArchives, ZipCdfhRecord, ZipEntry, ZipFolder } from '../../services/zip';

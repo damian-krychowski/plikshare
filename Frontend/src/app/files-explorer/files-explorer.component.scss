@@ -44,7 +44,22 @@ a.drag-over {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 0.5rem;
+}
+
+.context-bar__stuck {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    &-sep {
+        opacity: 0.4;
+    }
+
+    &-name {
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
 }
 
 .context-label {
@@ -144,7 +159,7 @@ a.drag-over {
         padding-top: 0.4rem;
         padding-bottom: 0.4rem;
         padding-left: 0.5rem;
-        padding-right: 1.3rem;
+        padding-right: 1.2rem;
         font-size: var(--company-small-font);
         color: var(--company-grey-font);
         border-bottom: 1px solid var(--company-grey-accent-light);
@@ -190,10 +205,16 @@ a.drag-over {
 
         &--clickable {
             cursor: pointer;
+            // Subtle "this text is clickable" affordance at rest; the hover background takes over
+            // on interaction so it never reads as a hard underline.
+            text-decoration: underline dotted;
+            text-decoration-color: var(--company-grey-accent);
+            text-underline-offset: 3px;
 
             &:hover {
                 background: var(--company-grey-accent);
                 color: var(--company-font);
+                text-decoration-color: transparent;
             }
         }
     }

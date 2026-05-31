@@ -1,0 +1,18 @@
+@if(progress(); as p) {
+    <span class="thumb-progress">
+        <i class="icon icon-nucleo-image-scale thumb-progress__icon"></i>
+        <span class="thumb-progress__bar">
+            <span class="thumb-progress__fill" [style.width.%]="p.percent"></span>
+        </span>
+        <span class="thumb-progress__value">{{ p.done }}/{{ p.total }}</span>
+
+        @if(activeBatchIds().length > 0) {
+            <button
+                type="button"
+                class="thumb-progress__cancel"
+                (click)="cancel()"
+                matTooltip="Cancel"
+                aria-label="Cancel thumbnail generation">×</button>
+        }
+    </span>
+}

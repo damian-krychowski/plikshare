@@ -1,0 +1,61 @@
+:host {
+    display: inline-flex;
+    align-items: center;
+    padding-right: 0.5rem;
+}
+
+.thumb-progress {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--company-grey-font);
+    font-size: var(--company-small-font);
+
+    &__icon {
+        font-size: 0.85rem;
+        flex-shrink: 0;
+    }
+
+    &__bar {
+        width: 3rem;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--company-grey-accent);
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    &__fill {
+        display: block;
+        height: 100%;
+        background: var(--company-grey-font);
+        transition: width 0.3s ease;
+    }
+
+    &__value {
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__cancel {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.1rem;
+        height: 1.1rem;
+        padding: 0;
+        margin: 0;
+        border: none;
+        border-radius: 50%;
+        background: transparent;
+        color: var(--company-grey-font);
+        font-size: 1rem;
+        line-height: 1;
+        cursor: pointer;
+        opacity: 0.7;
+
+        &:hover {
+            opacity: 1;
+            color: var(--company-danger);
+        }
+    }
+}

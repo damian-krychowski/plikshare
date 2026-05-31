@@ -1,0 +1,59 @@
+// One vertically-centered flex item in the header row; the inner gap matches the header's so the
+// count and the selected badge keep their spacing.
+:host {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.selection-count__count {
+    color: var(--company-grey-font);
+    font-variant-numeric: tabular-nums;
+}
+
+// Layout shared by every number (incl. a non-clickable "0") so they line up identically; a bit
+// of padding also enlarges the click target.
+.selection-count__num {
+    padding: 0.15rem 0.3rem;
+    border-radius: 3px;
+
+    &--clickable {
+        cursor: pointer;
+        // Subtle "this text is clickable" affordance at rest; the hover background takes over on
+        // interaction so it never reads as a hard underline.
+        text-decoration: underline dotted;
+        text-decoration-color: var(--company-grey-accent);
+        text-underline-offset: 3px;
+
+        &:hover {
+            background: var(--company-grey-accent);
+            color: var(--company-font);
+            text-decoration-color: transparent;
+        }
+    }
+}
+
+.selection-count__separator {
+    padding: 0 0.1rem;
+}
+
+.selection-count__selected {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1rem;
+    padding: 0 0.35rem;
+    border-radius: 3px;
+    cursor: pointer;
+    color: var(--company-blue-selected-font, var(--company-font));
+    background: var(--company-blue-selected);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+
+    i {
+        font-size: 0.85rem;
+    }
+
+    &:hover {
+        filter: brightness(0.95);
+    }
+}
