@@ -26,7 +26,7 @@ public class GenerateFileThumbnailsBulkOperation(
 {
     public async Task<Result> Execute(
         WorkspaceContext workspace,
-        IReadOnlyList<FileExtId> parentFileExternalIds,
+        List<string> parentFileExternalIds,
         IReadOnlyList<ThumbnailVariant> variants,
         UserExtId triggeredByUserExternalId,
         WorkspaceEncryptionSession? workspaceEncryptionSession,

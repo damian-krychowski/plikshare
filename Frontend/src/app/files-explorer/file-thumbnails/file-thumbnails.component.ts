@@ -196,29 +196,37 @@ export class FileThumbnailsComponent implements OnDestroy {
     }
 
     private onBatchStatus(batchId: string, status: ThumbnailGenerationStatus): void {
-        const generating = new Set<ThumbnailVariant>(status.generatingVariants);
+        // Per-event deltas: readyThumbnails carries each just-completed file's generated variants,
+        // failedVariants carries the per-variant errors. We clear `isGenerating` on any variant that
+        // appears in either set — generating state was set locally when we POSTed the request.
+        const completed = new Set<ThumbnailVariant>();
+        for (const ready of status.readyThumbnails ?? [])
+            for (const variant of ready.variants)
+                completed.add(variant.variant);
+
         const failedByVariant = new Map<ThumbnailVariant, string>(
-            status.failedVariants.map(failed => [failed.variant, failed.error]));
+            (status.failedVariants ?? []).map(failed => [failed.variant, failed.error]));
 
         this.slots.update(slots => slots.map(slot => {
-            const isGenerating = generating.has(slot.variant);
             const freshError = failedByVariant.get(slot.variant);
+            const isDone = completed.has(slot.variant) || freshError !== undefined;
+
+            if (!isDone) return slot;
 
             return {
                 ...slot,
-                isGenerating,
-                // A fresh failure wins; otherwise keep the existing error unless the variant is
-                // (re)generating, in which case clear it.
-                error: freshError ?? (isGenerating ? null : slot.error),
+                isGenerating: false,
+                // A fresh failure wins; a fresh success clears any prior error.
+                error: freshError ?? null,
             };
         }));
 
         // Pull the freshly generated thumbnails into the preview.
         this.changed.emit();
 
-        // No variant still generating -> the batch is done (success and/or failure captured
-        // above). Close its stream so the server can stop and we don't reconnect.
-        if (status.generatingVariants.length === 0)
+        // Batch is done when nothing is outstanding server-side — close the stream so the server can
+        // stop and we don't reconnect.
+        if (status.pending === 0)
             this.endBatch(batchId);
     }
 

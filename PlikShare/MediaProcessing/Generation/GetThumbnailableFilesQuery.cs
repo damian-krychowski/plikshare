@@ -16,7 +16,7 @@ public class GetThumbnailableFilesQuery(PlikShareDb plikShareDb)
 {
     public List<FileExtId> Execute(
         WorkspaceContext workspace,
-        IReadOnlyList<FileExtId> fileExternalIds,
+        List<string> fileExternalIds,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         if (fileExternalIds.Count == 0)
@@ -46,7 +46,7 @@ public class GetThumbnailableFilesQuery(PlikShareDb plikShareDb)
                     return acc;
                 })
             .WithParameter("$workspaceId", workspace.Id)
-            .WithJsonParameter("$fileExternalIds", fileExternalIds.Select(id => id.Value).ToList())
+            .WithJsonParameter("$fileExternalIds", fileExternalIds)
             .Execute();
     }
 }

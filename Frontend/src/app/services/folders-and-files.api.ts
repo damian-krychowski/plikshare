@@ -7,6 +7,8 @@ import { ZipEntry } from "./zip";
 import { getTopFolderContetDtoProtobuf } from "../protobuf/top-folder-content-dto.protobuf";
 import { getFolderContentDtoProtobuf } from "../protobuf/folder-content-dto.protobuf";
 import { getZipFileDetailsDtoProtobuf } from "../protobuf/zip-file-details-dto.protobuf";
+import { getGenerateFileThumbnailsBulkRequestDtoProtobuf } from "../protobuf/generate-file-thumbnails-bulk-request-dto.protobuf";
+import { getGenerateFileThumbnailsBulkResponseDtoProtobuf } from "../protobuf/generate-file-thumbnails-bulk-response-dto.protobuf";
 import { ProtoHttp } from "./protobuf-http.service";
 import { getBulkCreateFolderResponseDtoProtobuf } from "../protobuf/bulk-create-folder-response-dto.protobuf";
 import { getBulkCreateFolderRequestDtoProtobuf } from "../protobuf/bulk-create-folder-request-dto.protobuf";
@@ -214,6 +216,19 @@ export type GenerateThumbnailsBulkRequest = {
     variants: ThumbnailVariant[];
 }
 
+// Wire shape sent over protobuf. The fields/types match the C# DTO exactly (no enums, no ExtId
+// wrappers) — variants travel as their string names ("Mini" / "Small" / "Large"); both sides
+// Enum.Parse to the real enum.
+export type GenerateFileThumbnailsBulkRequestDto = {
+    fileExternalIds: string[];
+    variants: string[];
+}
+
+export type GenerateFileThumbnailsBulkResponseDto = {
+    batchId: string;
+    totalFiles: number;
+}
+
 export type GenerateThumbnailsBulkResponse = {
     batchId: string;
     totalFiles: number;
@@ -229,7 +244,6 @@ export type FailedThumbnailVariant = {
 }
 
 export type ThumbnailGenerationStatus = {
-    generatingVariants: ThumbnailVariant[];
     failedVariants: FailedThumbnailVariant[];
     total: number;
     completed: number;
@@ -788,12 +802,27 @@ export class FoldersAndFilesSetApi {
     public async generateBulkThumbnails(
         workspaceExternalId: string,
         request: GenerateThumbnailsBulkRequest): Promise<GenerateThumbnailsBulkResponse> {
-        const call = this._http.post<GenerateThumbnailsBulkResponse>(
-            `/api/workspaces/${workspaceExternalId}/media/thumbnails/generate-bulk`,
-            request
-        );
+        // Both directions protobuf — request body is dominated by the file id list (cheap on the
+        // wire), and staying on proto for the response keeps us on the same well-trodden path as
+        // bulkCreateFolders / bulkInitiateFileUpload.
+        const wireRequest: GenerateFileThumbnailsBulkRequestDto = {
+            fileExternalIds: request.fileExternalIds,
+            // ThumbnailVariant is a string union — its names match the C# enum, so we send the
+            // strings as-is and the server Enum.Parse-es them.
+            variants: request.variants,
+        };
 
-        return await firstValueFrom(call);
+        const wireResponse = await this._protoHttp.post<GenerateFileThumbnailsBulkRequestDto, GenerateFileThumbnailsBulkResponseDto>({
+            route: `/api/workspaces/${workspaceExternalId}/media/thumbnails/generate-bulk`,
+            request: wireRequest,
+            requestProtoType: getGenerateFileThumbnailsBulkRequestDtoProtobuf(),
+            responseProtoType: getGenerateFileThumbnailsBulkResponseDtoProtobuf(),
+        });
+
+        return {
+            batchId: wireResponse.batchId,
+            totalFiles: wireResponse.totalFiles,
+        };
     }
 
     public async getThumbnailGenerationStatus(

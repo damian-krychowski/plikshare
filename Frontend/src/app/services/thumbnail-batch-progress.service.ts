@@ -1,9 +1,9 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
-import { FoldersAndFilesSetApi, ThumbnailGenerationStatus } from './folders-and-files.api';
+import { computed, Injectable, signal } from '@angular/core';
+import { ThumbnailGenerationStatus } from './folders-and-files.api';
 
 // Per-batch live state derived from the SSE stream. Aggregated app-wide (file external ids are
 // globally unique) so any explorer can read it reactively — including after a reload, where the
-// service re-subscribes the persisted batches and this state simply re-fills.
+// owning component resubscribes the persisted batches and this state simply re-fills.
 type BatchLiveState = {
     processingFileIds: ReadonlySet<string>;
     readyMiniEtagByFileId: ReadonlyMap<string, string>;
@@ -20,7 +20,21 @@ export type ThumbnailBatch = {
     isDone: boolean;
 };
 
-type PersistedBatch = {
+// Transport handlers the owning component injects per batch. The service stays transport-agnostic
+// so explorers backed by different APIs (workspace, box, external-link, ...) can each plug in their
+// own implementation — instead of the service hardcoding one (workspace-only) API and silently
+// breaking everywhere else.
+export type ThumbnailBatchHandlers = {
+    subscribe: (
+        batchId: string,
+        onStatus: (status: ThumbnailGenerationStatus) => void,
+        includeOutstandingFileIds: boolean
+    ) => () => void;
+
+    cancel: (batchId: string) => Promise<unknown>;
+};
+
+export type PersistedBatch = {
     batchId: string;
     workspaceExternalId: string;
     name: string;
@@ -34,13 +48,13 @@ const AUTO_DISMISS_MS = 2500;
 
 /**
  * App-wide tracker for thumbnail generation batches. Each batch is followed over SSE; progress
- * updates arrive even while the user navigates elsewhere. Active batches are persisted to
- * localStorage and re-subscribed on construction, so an in-flight batch survives a page reload.
+ * updates arrive even while the user navigates elsewhere. The service is transport-agnostic — the
+ * owning component supplies `subscribe` / `cancel` handlers per batch. Active batches are persisted
+ * to localStorage; the owning component resurrects them after a reload by reading
+ * `getPersistedBatches()` and calling `resume(...)` with handlers from its own API.
  */
 @Injectable({ providedIn: 'root' })
 export class ThumbnailBatchProgressService {
-    private _api = inject(FoldersAndFilesSetApi);
-
     readonly batches = signal<ThumbnailBatch[]>([]);
 
     private _liveByBatch = signal<ReadonlyMap<string, BatchLiveState>>(new Map());
@@ -67,20 +81,49 @@ export class ThumbnailBatchProgressService {
 
     private _unsubscribes = new Map<string, () => void>();
     private _dismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    private _handlersByBatch = new Map<string, ThumbnailBatchHandlers>();
 
-    constructor() {
-        // Reload: we no longer know which files were outstanding, so ask the server for the full
-        // outstanding list in the first event to repopulate the spinners.
-        for (const persisted of this.loadPersisted())
-            this.startTracking(persisted, { persist: false, includeOutstandingFileIds: true });
+    // Persisted batches the caller may want to resurrect after a reload. Pure read — the caller
+    // decides which ones it owns (e.g. by matching workspaceExternalId) and calls `resume(...)`.
+    getPersistedBatches(): PersistedBatch[] {
+        return this.loadPersisted();
     }
 
     // Fresh start: the caller knows exactly which files it triggered, so we seed the spinner set
     // locally and tell the server not to resend that (potentially huge) outstanding list.
-    track(workspaceExternalId: string, batchId: string, name: string, fileExternalIds: readonly string[]): void {
+    track(args: {
+        workspaceExternalId: string;
+        batchId: string;
+        name: string;
+        fileExternalIds: readonly string[];
+        handlers: ThumbnailBatchHandlers;
+    }): void {
         this.startTracking(
-            { batchId, workspaceExternalId, name, total: fileExternalIds.length },
-            { persist: true, includeOutstandingFileIds: false, initialProcessingIds: fileExternalIds });
+            { batchId: args.batchId, workspaceExternalId: args.workspaceExternalId, name: args.name, total: args.fileExternalIds.length },
+            {
+                persist: true,
+                includeOutstandingFileIds: false,
+                initialProcessingIds: args.fileExternalIds,
+                handlers: args.handlers,
+            });
+    }
+
+    // Resume after reload: we no longer know which files were outstanding, so we ask the server for
+    // the full outstanding list in the first event to repopulate the spinners.
+    resume(args: {
+        batchId: string;
+        workspaceExternalId: string;
+        name: string;
+        total: number;
+        handlers: ThumbnailBatchHandlers;
+    }): void {
+        this.startTracking(
+            { batchId: args.batchId, workspaceExternalId: args.workspaceExternalId, name: args.name, total: args.total },
+            {
+                persist: false,
+                includeOutstandingFileIds: true,
+                handlers: args.handlers,
+            });
     }
 
     dismiss(batchId: string): void {
@@ -89,15 +132,15 @@ export class ThumbnailBatchProgressService {
         this.persist();
     }
 
-    // Cancels not-yet-started jobs of a batch. Files already in flight finish (and still show their
-    // thumbnail); the server notifies, so the SSE push updates counts and drives the batch to done
-    // as usual — no local teardown needed here.
+    // Cancels not-yet-started jobs of a batch through the handler the owner registered. Files
+    // already in flight finish (and still show their thumbnail); the server notifies, so the SSE
+    // push updates counts and drives the batch to done as usual — no local teardown needed here.
     async cancel(batchId: string): Promise<void> {
-        const batch = this.batches().find(b => b.batchId === batchId);
-        if (!batch)
+        const handlers = this._handlersByBatch.get(batchId);
+        if (!handlers)
             return;
 
-        await this._api.cancelThumbnailBatch(batch.workspaceExternalId, batchId);
+        await handlers.cancel(batchId);
     }
 
     private startTracking(
@@ -106,9 +149,12 @@ export class ThumbnailBatchProgressService {
             persist: boolean;
             includeOutstandingFileIds: boolean;
             initialProcessingIds?: readonly string[];
+            handlers: ThumbnailBatchHandlers;
         }): void {
         if (this._unsubscribes.has(persisted.batchId))
             return;
+
+        this._handlersByBatch.set(persisted.batchId, options.handlers);
 
         this.batches.update(list => {
             if (list.some(b => b.batchId === persisted.batchId))
@@ -142,8 +188,7 @@ export class ThumbnailBatchProgressService {
         if (options.persist)
             this.persist();
 
-        const unsubscribe = this._api.subscribeThumbnailBatch(
-            persisted.workspaceExternalId,
+        const unsubscribe = options.handlers.subscribe(
             persisted.batchId,
             status => this.onStatus(persisted.batchId, status),
             options.includeOutstandingFileIds);
@@ -167,9 +212,10 @@ export class ThumbnailBatchProgressService {
             const next = new Map(map);
             const previous = next.get(batchId);
 
-            // processingFileExternalIds is sent ONLY on the first event (the full outstanding set);
-            // later events omit it. So seed the spinner set from it, then remove each file that
-            // completes (readyThumbnails is a per-event delta). Both accumulate across events.
+            // processingFileExternalIds is sent ONLY on the first event when the subscriber asked
+            // for it (reload case); later events omit it. So seed the spinner set from it, then
+            // remove each file that completes (readyThumbnails is a per-event delta). Both
+            // accumulate across events.
             const processing = new Set(previous?.processingFileIds ?? []);
             for (const fileId of status.processingFileExternalIds ?? [])
                 processing.add(fileId);
@@ -215,6 +261,7 @@ export class ThumbnailBatchProgressService {
                 this._dismissTimers.delete(batchId);
                 this.batches.update(list => list.filter(b => b.batchId !== batchId));
                 this.removeLiveState(batchId);
+                this._handlersByBatch.delete(batchId);
             },
             AUTO_DISMISS_MS);
 
@@ -235,6 +282,7 @@ export class ThumbnailBatchProgressService {
         }
 
         this.removeLiveState(batchId);
+        this._handlersByBatch.delete(batchId);
     }
 
     private removeLiveState(batchId: string): void {

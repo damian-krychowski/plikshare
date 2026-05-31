@@ -68,7 +68,11 @@ export type FilePreviewOperations = {
     uploadFileThumbnail: (fileExternalId: string, request: UploadFileThumbnailRequest) => Promise<void>;
     deleteFileThumbnail: (fileExternalId: string, variant: ThumbnailVariant) => Promise<void>;
     generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) => Promise<GenerateFileThumbnailsResponse>;
-    subscribeThumbnailBatch: (batchId: string, onStatus: (status: ThumbnailGenerationStatus) => void) => () => void;
+    subscribeThumbnailBatch: (
+        batchId: string,
+        onStatus: (status: ThumbnailGenerationStatus) => void,
+        includeOutstandingFileIds: boolean) => () => void;
+    cancelThumbnailBatch: (batchId: string) => Promise<unknown>;
     downloadFileConverted: (fileExternalId: string, format: DownloadImageFormat, downloadFileName: string) => Promise<void>;
 
     sendAiFileMessage(fileExternalId: string, request: SendAiFileMessageRequest): Promise<void>;
@@ -93,6 +97,32 @@ export type AppFileForPreview = {
 type OtherAiContentType = 'notes' | 'comments';
 type FileAiContentType = `file:${string}`; // string will be the file.externalId
 type AiContentType = OtherAiContentType | FileAiContentType;
+
+// Per-section expand/collapse preference, persisted on desktop (mobile always starts collapsed).
+// Metadata is intentionally absent — it's always collapsed on open.
+const SECTION_PREF_KEYS = {
+    notes: 'plikshare:preview-section-expanded:notes',
+    comments: 'plikshare:preview-section-expanded:comments',
+    thumbnails: 'plikshare:preview-section-expanded:thumbnails',
+} as const;
+
+function readSectionPref(key: string): boolean {
+    try {
+        const raw = localStorage.getItem(key);
+        // Default to expanded on desktop when nothing is stored yet.
+        return raw === null ? true : raw === 'true';
+    } catch {
+        return true;
+    }
+}
+
+function writeSectionPref(key: string, value: boolean): void {
+    try {
+        localStorage.setItem(key, value ? 'true' : 'false');
+    } catch {
+        // Storage unavailable (private mode / quota) — preference just won't survive a reload.
+    }
+}
 
 @Component({
     selector: 'app-file-inline-preview',
@@ -408,6 +438,20 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
     isCommentsExpanded = signal(false);
     isThumbnailsExpanded = signal(false);
 
+    // Title of the thumbnails/metadata section adapts to the actual content type — Image for static
+    // images, Video for clips, Media as a neutral fallback.
+    mediaSectionTitle = computed(() => {
+        const type = getFileDetails(this.file().extension).type;
+        if (type === 'image') return 'Image';
+        if (type === 'video') return 'Video';
+        return 'Media';
+    });
+
+    // Download-as (jpeg/png/webp) only makes sense for static images — for a video it would silently
+    // extract a single frame and pass it off as a "downloaded video", which is misleading.
+    isImageDownloadable = computed(() =>
+        getFileDetails(this.file().extension).type === 'image');
+
     private _capabilities = inject(AppCapabilitiesService);
     isFfmpegAvailable = computed(() => this._capabilities.capabilities().isFfmpegAvailable);
 
@@ -492,9 +536,12 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
                 parentExtId,
                 variants),
 
+            // Single-file dialog: it tracks its own variants locally, so it never needs the server
+            // to echo back the outstanding list — pass `false`.
             subscribeThumbnailBatch: (batchId, onStatus) => previewOps.subscribeThumbnailBatch(
                 batchId,
-                onStatus),
+                onStatus,
+                false),
 
             getDownloadLink: (thumbExternalId, contentDisposition) => fileOps.getDownloadLink(
                 thumbExternalId,
@@ -582,11 +629,34 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
         this.noteChangedBy.set(null);
         this.comments.set([]);
 
+        // Mobile: always collapsed on open (small screens — preview-first), no preference persisted.
+        // Desktop: restore the per-section toggle from localStorage (defaults to expanded if absent).
+        // Metadata is intentionally NOT persisted — it always starts collapsed.
         // keep mobile breakpoint in sync with $mobile-breakpoint in styles/variables.scss
-        const expandedByDefault = !window.matchMedia('(max-width: 500px)').matches;
-        this.isNotesExpanded.set(expandedByDefault);
-        this.isCommentsExpanded.set(expandedByDefault);
-        this.isThumbnailsExpanded.set(expandedByDefault);
+        const isMobile = window.matchMedia('(max-width: 500px)').matches;
+
+        this.isNotesExpanded.set(isMobile ? false : readSectionPref(SECTION_PREF_KEYS.notes));
+        this.isCommentsExpanded.set(isMobile ? false : readSectionPref(SECTION_PREF_KEYS.comments));
+        this.isThumbnailsExpanded.set(isMobile ? false : readSectionPref(SECTION_PREF_KEYS.thumbnails));
+        this.isMetadataExpanded.set(false);
+    }
+
+    onNotesExpandedToggled(): void {
+        const next = !this.isNotesExpanded();
+        this.isNotesExpanded.set(next);
+        writeSectionPref(SECTION_PREF_KEYS.notes, next);
+    }
+
+    onCommentsExpandedToggled(): void {
+        const next = !this.isCommentsExpanded();
+        this.isCommentsExpanded.set(next);
+        writeSectionPref(SECTION_PREF_KEYS.comments, next);
+    }
+
+    onThumbnailsExpandedToggled(): void {
+        const next = !this.isThumbnailsExpanded();
+        this.isThumbnailsExpanded.set(next);
+        writeSectionPref(SECTION_PREF_KEYS.thumbnails, next);
     }
 
     private async loadFilePreviewDetails() {

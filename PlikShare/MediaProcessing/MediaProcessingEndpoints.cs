@@ -9,6 +9,7 @@ using PlikShare.Core.Queue;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Download.Contracts;
+using PlikShare.Core.Protobuf;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Files.Records;
@@ -46,7 +47,8 @@ public static class MediaProcessingEndpoints
             .WithName("GenerateFileThumbnails");
 
         group.MapPost("/thumbnails/generate-bulk", GenerateFileThumbnailsBulk)
-            .WithName("GenerateFileThumbnailsBulk");
+            .WithName("GenerateFileThumbnailsBulk")
+            .WithProtobufResponse();
 
         group.MapGet("/thumbnails/batches/{batchId:guid}/status", GetThumbnailGenerationStatus)
             .WithName("GetThumbnailGenerationStatus");
@@ -228,11 +230,13 @@ public static class MediaProcessingEndpoints
     }
 
     private static async Task<Results<Ok<GenerateFileThumbnailsBulkResponseDto>, BadRequest<HttpError>, JsonHttpResult<HttpError>>> GenerateFileThumbnailsBulk(
-        [FromBody] GenerateFileThumbnailsBulkRequestDto request,
         HttpContext httpContext,
         GenerateFileThumbnailsBulkOperation generateFileThumbnailsBulkOperation,
         CancellationToken cancellationToken)
     {
+        // Proto body — far cheaper than JSON when the file list is large (thousands of ids).
+        var request = httpContext.GetProtobufRequest<GenerateFileThumbnailsBulkRequestDto>();
+
         if (request.Variants is null || request.Variants.Count == 0)
             return HttpErrors.File.NoThumbnailVariantsRequested();
 
@@ -241,11 +245,20 @@ public static class MediaProcessingEndpoints
 
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+        
+        var variants = new List<ThumbnailVariant>(request.Variants.Count);
+        foreach (var raw in request.Variants)
+        {
+            if (!Enum.TryParse<ThumbnailVariant>(raw, ignoreCase: true, out var parsed))
+                return HttpErrors.File.InvalidThumbnailVariant();
+
+            variants.Add(parsed);
+        }
 
         var result = await generateFileThumbnailsBulkOperation.Execute(
             workspace: workspaceMembership.Workspace,
             parentFileExternalIds: request.FileExternalIds,
-            variants: request.Variants,
+            variants: variants,
             triggeredByUserExternalId: workspaceMembership.User.ExternalId,
             workspaceEncryptionSession: workspaceEncryptionSession,
             correlationId: httpContext.GetCorrelationId(),
@@ -255,7 +268,7 @@ public static class MediaProcessingEndpoints
         {
             GenerateFileThumbnailsBulkOperation.ResultCode.Ok => TypedResults.Ok(new GenerateFileThumbnailsBulkResponseDto
             {
-                BatchId = result.BatchId!.Value,
+                BatchId = result.BatchId!.Value.ToString(),
                 TotalFiles = result.TotalFiles
             }),
             GenerateFileThumbnailsBulkOperation.ResultCode.FfmpegUnavailable => HttpErrors.File.FfmpegUnavailable(),

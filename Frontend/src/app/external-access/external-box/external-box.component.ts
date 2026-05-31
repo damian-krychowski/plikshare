@@ -425,6 +425,9 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
             subscribeThumbnailBatch: () => {
                 throw new Error("not implemented");
             },
+            cancelThumbnailBatch: () => {
+                throw new Error("not implemented");
+            },
 
             downloadFileConverted: async () => {
                 throw new Error("not implemented");

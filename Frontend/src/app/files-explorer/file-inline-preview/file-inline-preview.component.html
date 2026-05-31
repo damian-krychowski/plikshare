@@ -122,7 +122,7 @@
 
 @if(activeAiConversationVal) {
     <div class="preview-bottom-section">
-        <div class="subtitle-header">
+        <div class="subtitle-header subtitle-header--config-card">
             <div class="item">
                 <div class="item__details">
                     <div class="item__title">
@@ -272,7 +272,7 @@
 @if(aiConversationsVal.length || isAiAvailableVal) {
     <div class="preview-bottom-section">
         <div>
-            <div class="subtitle-header">
+            <div class="subtitle-header subtitle-header--config-card">
                 <div class="item">
                     <div class="item__details">
                         <div class="item__title">
@@ -315,7 +315,7 @@
 
 @if(isTextractModeActiveVal) {
     <div class="preview-bottom-section">
-        <div class="subtitle-header">
+        <div class="subtitle-header subtitle-header--config-card">
             <div class="item">
                 <div class="item__details">
                     <div class="item__title">
@@ -436,13 +436,13 @@
                 <div class="item">
                     <div class="item__details">
                         <div class="item__title">
-                            Image:
+                            {{ mediaSectionTitle() }}:
                         </div>
                     </div>
                 </div>
 
                 <div class="flex-row flex-gap-05 ml-auto">
-                    @if(isThumbnailsExpandedVal && isFfmpegAvailable()) {
+                    @if(isThumbnailsExpandedVal && isFfmpegAvailable() && isImageDownloadable()) {
                         <button
                             type="button"
                             class="action-btn"
@@ -463,7 +463,7 @@
                     <app-action-btn
                         [tooltip]="isThumbnailsExpandedVal ? 'Collapse' : 'Expand'"
                         [icon]="isThumbnailsExpandedVal ? 'icon-lucide-chevron-up' : 'icon-lucide-chevron-down'"
-                        (clicked)="isThumbnailsExpanded.set(!isThumbnailsExpandedVal)">
+                        (clicked)="onThumbnailsExpandedToggled()">
                     </app-action-btn>
                 </div>
             </div>
@@ -519,7 +519,7 @@
 @if(allAttachmentFilesVal.length || isTextractAvailableVal) {
     <div class="preview-bottom-section">
         <div>
-            <div class="subtitle-header">
+            <div class="subtitle-header subtitle-header--config-card">
                 <div class="item">
                     <div class="item__details">
                         <div class="item__title">
@@ -562,85 +562,87 @@
     </div>
 }
 
-@if(allowNotesVal || allowCommentsVal) { 
+@if(allowNotesVal) { 
     <div class="preview-bottom-section">
         <div>            
-            @if(allowNotesVal) {
-                @let isNotesExpandedVal = isNotesExpanded();
+           @let isNotesExpandedVal = isNotesExpanded();
 
-                <div class="subtitle-header">
-                    <div class="item">
-                        <div class="item__details">
-                            <div class="item__title">
-                                Notes:
-                            </div>
+            <div class="subtitle-header subtitle-header--config-card">
+                <div class="item">
+                    <div class="item__details">
+                        <div class="item__title">
+                            Notes:
                         </div>
-                    </div>
-
-                    <div class="flex-row flex-gap-05 ml-auto">
-                        @if(noteJsonVal) {
-                            <div class="note-header">
-                                Last change: {{noteChangedBy()}} | {{noteChangedWhen()}}
-                            </div>
-                        }
-
-                        <app-action-btn
-                            [tooltip]="isNotesExpandedVal ? 'Collapse' : 'Expand'"
-                            [icon]="isNotesExpandedVal ? 'icon-lucide-chevron-up' : 'icon-lucide-chevron-down'"
-                            (clicked)="isNotesExpanded.set(!isNotesExpandedVal)">
-                        </app-action-btn>
                     </div>
                 </div>
 
-                @if(isNotesExpandedVal) {
-                    <div class="mt-2"></div>
-
-                    <app-rich-text-editor
-                        [placeholder]="'Add notes...'"
-                        [json]="noteJsonVal"
-                        [updateOperation]="fileNoteUpdateOperation()">
-                    </app-rich-text-editor>
-                }
-            }
-
-            @if(allowCommentsVal) {
-                @let isCommentsExpandedVal = isCommentsExpanded();
-
-                <div class="subtitle-header">
-                    <div class="item">
-                        <div class="item__details">
-                            <div class="item__title">
-                                Comments:
-                            </div>
+                <div class="flex-row flex-gap-05 ml-auto">
+                    @if(noteJsonVal) {
+                        <div class="note-header">
+                            Last change: {{noteChangedBy()}} | {{noteChangedWhen()}}
                         </div>
-                    </div>
-
-                    <div class="flex-row flex-gap-05 ml-auto">
-                        <app-action-btn
-                            [tooltip]="isCommentsExpandedVal ? 'Collapse' : 'Expand'"
-                            [icon]="isCommentsExpandedVal ? 'icon-lucide-chevron-up' : 'icon-lucide-chevron-down'"
-                            (clicked)="isCommentsExpanded.set(!isCommentsExpandedVal)">
-                        </app-action-btn>
-                    </div>
-                </div>
-
-                @if(isCommentsExpandedVal) {
-                    <div class="mt-2"></div>
-
-                    @for (comment of comments(); track comment.externalId) {
-                        <app-comment
-                            [comment]="comment"
-                            (edited)="commentEdited(comment)"
-                            (deleted)="commentDeleted(comment)">
-                        </app-comment>
-
-                        <div class="mt-2"></div>
                     }
 
+                    <app-action-btn
+                        [tooltip]="isNotesExpandedVal ? 'Collapse' : 'Expand'"
+                        [icon]="isNotesExpandedVal ? 'icon-lucide-chevron-up' : 'icon-lucide-chevron-down'"
+                        (clicked)="onNotesExpandedToggled()">
+                    </app-action-btn>
+                </div>
+            </div>
+
+            @if(isNotesExpandedVal) {
+                <div class="mt-2"></div>
+
+                <app-rich-text-editor
+                    [placeholder]="'Add notes...'"
+                    [json]="noteJsonVal"
+                    [updateOperation]="fileNoteUpdateOperation()">
+                </app-rich-text-editor>
+            }            
+        </div>
+    </div>
+}
+
+@if(allowCommentsVal) { 
+    <div class="preview-bottom-section">
+        <div>            
+            @let isCommentsExpandedVal = isCommentsExpanded();
+
+            <div class="subtitle-header subtitle-header--config-card">
+                <div class="item">
+                    <div class="item__details">
+                        <div class="item__title">
+                            Comments:
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-row flex-gap-05 ml-auto">
+                    <app-action-btn
+                        [tooltip]="isCommentsExpandedVal ? 'Collapse' : 'Expand'"
+                        [icon]="isCommentsExpandedVal ? 'icon-lucide-chevron-up' : 'icon-lucide-chevron-down'"
+                        (clicked)="onCommentsExpandedToggled()">
+                    </app-action-btn>
+                </div>
+            </div>
+
+            @if(isCommentsExpandedVal) {
+                <div class="mt-2"></div>
+
+                @for (comment of comments(); track comment.externalId) {
                     <app-comment
-                        (sent)="commentSent($event)">
+                        [comment]="comment"
+                        (edited)="commentEdited(comment)"
+                        (deleted)="commentDeleted(comment)">
                     </app-comment>
+
+                    <div class="mt-2"></div>
                 }
+
+                <app-comment
+                    (sent)="commentSent($event)">
+                </app-comment>
             }
         </div>
     </div>

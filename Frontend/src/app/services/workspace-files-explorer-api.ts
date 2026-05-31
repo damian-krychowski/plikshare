@@ -245,12 +245,22 @@ export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
         );
     }
 
-    subscribeThumbnailBatch(batchId: string, onStatus: (status: ThumbnailGenerationStatus) => void): () => void {
+    subscribeThumbnailBatch(
+        batchId: string,
+        onStatus: (status: ThumbnailGenerationStatus) => void,
+        includeOutstandingFileIds: boolean): () => void {
         return this._setApi.subscribeThumbnailBatch(
             this._workspaceExternalId,
             batchId,
             onStatus,
-            true
+            includeOutstandingFileIds
+        );
+    }
+
+    cancelThumbnailBatch(batchId: string): Promise<unknown> {
+        return this._setApi.cancelThumbnailBatch(
+            this._workspaceExternalId,
+            batchId
         );
     }
 

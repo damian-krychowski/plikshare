@@ -84,7 +84,11 @@ export interface FilesExplorerApi {
     deleteFileThumbnail: (fileExternalId: string, variant: ThumbnailVariant) => Promise<void>;
     generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) => Promise<GenerateFileThumbnailsResponse>;
     generateBulkThumbnails: (fileExternalIds: string[], variants: ThumbnailVariant[]) => Promise<GenerateThumbnailsBulkResponse>;
-    subscribeThumbnailBatch: (batchId: string, onStatus: (status: ThumbnailGenerationStatus) => void) => () => void;
+    subscribeThumbnailBatch: (
+        batchId: string,
+        onStatus: (status: ThumbnailGenerationStatus) => void,
+        includeOutstandingFileIds: boolean) => () => void;
+    cancelThumbnailBatch: (batchId: string) => Promise<unknown>;
     downloadFileConverted: (fileExternalId: string, format: DownloadImageFormat, downloadFileName: string) => Promise<void>;
 
     getZipPreviewDetails: (fileExternalId: string) => Promise<ZipPreviewDetails>;
@@ -630,8 +634,10 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) =>
             this.filesApi().generateFileThumbnails(fileExternalId, variants),
 
-        subscribeThumbnailBatch: (batchId: string, onStatus) =>
-            this.filesApi().subscribeThumbnailBatch(batchId, onStatus),
+        subscribeThumbnailBatch: (batchId: string, onStatus, includeOutstandingFileIds) =>
+            this.filesApi().subscribeThumbnailBatch(batchId, onStatus, includeOutstandingFileIds),
+        cancelThumbnailBatch: (batchId: string) =>
+            this.filesApi().cancelThumbnailBatch(batchId),
 
         downloadFileConverted: (fileExternalId: string, format: DownloadImageFormat, downloadFileName: string) =>
             this.filesApi().downloadFileConverted(fileExternalId, format, downloadFileName),
@@ -820,6 +826,19 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         this._uploadsCompletedSubscription = this.fileUploadManager.uploadCompleted.subscribe({
             next: (uploadCompletedEvent) => this.onUploadCompleted(uploadCompletedEvent)
         });
+
+        // Resurrect bulk thumbnail batches persisted before a page reload — but only ones that
+        // belong to THIS explorer's workspace. The service is transport-agnostic, so each owning
+        // explorer wires in its own handlers (subscribe / cancel).
+        const wsId = this.workspaceExternalId();
+        if (wsId != null) {
+            const handlers = this.thumbnailBatchHandlers();
+            for (const persisted of this._thumbnailBatches.getPersistedBatches()) {
+                if (persisted.workspaceExternalId === wsId) {
+                    this._thumbnailBatches.resume({ ...persisted, handlers });
+                }
+            }
+        }
 
         this._uploadsInitiatedSubscription = this.fileUploadManager.uploadsInitiated.subscribe({
             next: (uploadsInitiatedEvent) => this.onUploadsInitiated(uploadsInitiatedEvent)
@@ -1541,6 +1560,22 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         }
     }
 
+    // Handlers the ThumbnailBatchProgressService uses per batch — keeps the service transport-agnostic
+    // so each explorer (workspace / box / external-link) can plug in its own API. The handlers
+    // capture the current filesApi(), which is stable for the lifetime of an open explorer.
+    private thumbnailBatchHandlers() {
+        const api = this.filesApi();
+
+        return {
+            subscribe: (
+                batchId: string,
+                onStatus: (status: ThumbnailGenerationStatus) => void,
+                includeOutstandingFileIds: boolean) =>
+                api.subscribeThumbnailBatch(batchId, onStatus, includeOutstandingFileIds),
+            cancel: (batchId: string) => api.cancelThumbnailBatch(batchId),
+        };
+    }
+
     async generateThumbnailsForSelectedItems() {
         const workspaceExternalId = this.workspaceExternalId();
 
@@ -1564,11 +1599,13 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                 fileExternalIds,
                 variants);
 
-            this._thumbnailBatches.track(
+            this._thumbnailBatches.track({
                 workspaceExternalId,
-                response.batchId,
-                `Generating thumbnails — ${response.totalFiles} file(s)`,
-                fileExternalIds);
+                batchId: response.batchId,
+                name: `Generating thumbnails — ${response.totalFiles} file(s)`,
+                fileExternalIds,
+                handlers: this.thumbnailBatchHandlers(),
+            });
 
             // Selection has done its job — clear it so the toolbar returns to its default actions.
             this.files().forEach(f => f.isSelected.set(false));
