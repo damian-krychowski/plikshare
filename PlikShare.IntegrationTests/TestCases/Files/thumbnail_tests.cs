@@ -12,8 +12,8 @@ namespace PlikShare.IntegrationTests.TestCases.Files;
 /// <summary>
 /// End-to-end coverage of the manual-thumbnail flow:
 /// <list type="bullet">
-///   <item>UploadFileThumbnailOperation — insert + storage upload + atomic finalize.</item>
-///   <item>FinalizeThumbnailUploadQuery — mark-uploaded + hard-delete-old + enqueue cleanup.</item>
+///   <item>UploadFileThumbnailOperation — storage upload + single-tx insert-completed + replace-old.</item>
+///   <item>InsertAndFinalizeThumbnailQuery — atomic insert (as completed) + hard-delete-old + enqueue cleanup.</item>
 ///   <item>DeleteFileThumbnailOperation — explicit delete of a variant.</item>
 ///   <item>GetThumbnailsQuery + GetFilePreviewDetailsQuery projection — read with latest-wins dedup.</item>
 /// </list>

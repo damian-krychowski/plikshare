@@ -56,10 +56,10 @@ public class FfmpegService
     /// read ONCE (eg. straight from S3 via <paramref name="writeSourceTo"/>) and fanned out to one
     /// ffmpeg process per variant over stdin — nothing is buffered in the managed heap or on disk,
     /// and the source is downloaded only once. Each variant succeeds or fails independently; a
-    /// failure is reported in its <see cref="ThumbnailOutput.Error"/> rather than thrown, so one
-    /// bad variant never sinks the others.
+    /// failure is reported in <see cref="VariantResult.Error"/> rather than thrown, so one bad
+    /// variant never sinks the others.
     /// </summary>
-    public async Task<List<ThumbnailOutput>> GenerateThumbnails(
+    public async Task<IReadOnlyList<VariantResult>> GenerateThumbnails(
         Func<PipeWriter, CancellationToken, ValueTask> writeSourceTo,
         IReadOnlyList<ThumbnailVariant> variants,
         CancellationToken cancellationToken)
@@ -70,36 +70,54 @@ public class FfmpegService
 
         try
         {
-            // Read the source once into a pipe; broadcast every chunk to all still-alive stdins.
-            var sourcePipe = new Pipe();
-
-            var produceTask = ProduceSource(
-                writeSourceTo, 
-                sourcePipe.Writer, 
+            await RunSourceFanOut(
+                writeSourceTo,
+                workers,
                 cancellationToken);
 
-            var pumpTask = PumpToWorkers(
-                sourcePipe.Reader, 
-                workers, 
-                cancellationToken);
-
-            await Task.WhenAll(
-                produceTask, 
-                pumpTask);
-
-            var outputs = new List<ThumbnailOutput>(
-                workers.Count);
+            var results = new List<VariantResult>(workers.Count);
 
             foreach (var worker in workers)
             {
-                var output = await CollectWorker(
-                    worker,
-                    cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
 
-                outputs.Add(output);
+                results.Add(await CollectWorkerAsResult(
+                    worker,
+                    cancellationToken));
             }
 
-            return outputs;
+            return results;
+        }
+        finally
+        {
+            foreach (var worker in workers)
+                worker.Process.Dispose();
+        }
+    }
+
+    private static async Task RunSourceFanOut(
+        Func<PipeWriter, CancellationToken, ValueTask> writeSourceTo,
+        List<Worker> workers,
+        CancellationToken cancellationToken)
+    {
+        // Read the source once into a pipe; broadcast every chunk to all still-alive stdins.
+        var sourcePipe = new Pipe();
+
+        var produceTask = ProduceSource(
+            writeSourceTo,
+            sourcePipe.Writer,
+            cancellationToken);
+
+        var pumpTask = PumpToWorkers(
+            sourcePipe.Reader,
+            workers,
+            cancellationToken);
+
+        try
+        {
+            await Task.WhenAll(
+                produceTask,
+                pumpTask);
         }
         catch
         {
@@ -119,13 +137,6 @@ public class FfmpegService
             }
 
             throw;
-        }
-        finally
-        {
-            foreach (var worker in workers)
-            {
-                worker.Process.Dispose();
-            }
         }
     }
 
@@ -284,7 +295,7 @@ public class FfmpegService
         }
     }
 
-    private static async Task<ThumbnailOutput> CollectWorker(
+    private static async Task<VariantResult> CollectWorkerAsResult(
         Worker worker,
         CancellationToken cancellationToken)
     {
@@ -298,35 +309,45 @@ public class FfmpegService
             if (worker.Process.ExitCode != 0)
             {
                 worker.StdoutBuffer.Dispose();
-                return new ThumbnailOutput(
+
+                return new VariantResult(
                     worker.Variant,
-                    null,
-                    $"ffmpeg exited with code {worker.Process.ExitCode}: {stderr}");
+                    Thumbnail: null,
+                    Error: $"ffmpeg exited with code {worker.Process.ExitCode}: {stderr}");
             }
 
             if (worker.StdoutBuffer.Length == 0)
             {
                 worker.StdoutBuffer.Dispose();
-                return new ThumbnailOutput(
+
+                return new VariantResult(
                     worker.Variant,
-                    null,
-                    $"ffmpeg produced empty output. stderr: {stderr}");
+                    Thumbnail: null,
+                    Error: $"ffmpeg produced empty output. stderr: {stderr}");
             }
 
-            // Hand the buffer to the caller as the upload source. Rewind, since CopyToAsync left
-            // the position at the end. Ownership (and disposal) transfers with the returned output.
-            worker.StdoutBuffer.Position = 0;
-
-            return new ThumbnailOutput(
+            // Hand the buffer to the caller wrapped as IThumbnail — ownership transfers; the
+            // consumer disposes via `await using` after the upload finishes.
+            return new VariantResult(
                 worker.Variant,
-                worker.StdoutBuffer,
+                Thumbnail: new FfmpegThumbnail(worker.StdoutBuffer),
                 Error: null);
+        }
+        catch (OperationCanceledException)
+        {
+            TryKill(worker.Process);
+            worker.StdoutBuffer.Dispose();
+            throw;
         }
         catch (Exception ex)
         {
             TryKill(worker.Process);
             worker.StdoutBuffer.Dispose();
-            return new ThumbnailOutput(worker.Variant, null, ex.Message);
+            
+            return new VariantResult(
+                worker.Variant,
+                Thumbnail: null,
+                Error: ex.Message);
         }
     }
 
@@ -347,26 +368,44 @@ public class FfmpegService
     {
         public required ThumbnailVariant Variant { get; init; }
         public required Process Process { get; init; }
-        public required MemoryStream StdoutBuffer { get; init; } //should not be disposed as its lifecycle is manages outside of this file
+        public required MemoryStream StdoutBuffer { get; init; } //ownership transfers into FfmpegThumbnail on success; freed inline on failure
         public required Task StdoutTask { get; init; }
         public required Task<string> StderrTask { get; init; }
         public bool StdinAlive { get; set; } = true;
     }
 
-    public sealed record ThumbnailOutput(
-        ThumbnailVariant Variant,
-        MemoryStream? DataStream,
-        string? Error): IDisposable, IAsyncDisposable
+    /// <summary>
+    /// Owns the <see cref="MemoryStream"/> that ffmpeg's stdout was drained into. <see cref="Dispose"/>
+    /// frees the buffer; <c>await using</c> in the consumer guarantees release after upload.
+    /// </summary>
+    private sealed class FfmpegThumbnail : IThumbnail
     {
-        public void Dispose()
+        private readonly MemoryStream _buffer;
+        private int _disposed;
+
+        public long SizeInBytes => _buffer.Length;
+        public Stream Content => _buffer;
+
+        public FfmpegThumbnail(MemoryStream buffer)
         {
-            DataStream?.Dispose();
+            _buffer = buffer;
+            _buffer.Position = 0;
         }
 
-        public async ValueTask DisposeAsync()
+        public void Dispose()
         {
-            if (DataStream != null) 
-                await DataStream.DisposeAsync();
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+
+            _buffer.Dispose();
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return ValueTask.CompletedTask;
+
+            return _buffer.DisposeAsync();
         }
     }
 

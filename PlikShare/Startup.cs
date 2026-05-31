@@ -805,9 +805,10 @@ public class Startup
         builder.Services.AddSingleton<GetThumbnailsQuery>();
         builder.Services.AddSingleton<GetThumbnailDownloadDetailsQuery>();
         builder.Services.AddSingleton<HardDeleteFilesWithStorageCleanupSubQuery>();
-        builder.Services.AddSingleton<FinalizeThumbnailUploadQuery>();
+        builder.Services.AddSingleton<InsertAndFinalizeThumbnailQuery>();
         builder.Services.AddSingleton<DeleteThumbnailsQuery>();
         builder.Services.AddSingleton<UploadFileThumbnailOperation>();
+        builder.Services.AddSingleton<ValidateThumbnailParentQuery>();
         builder.Services.AddSingleton<DeleteFileThumbnailOperation>();
         builder.Services.AddSingleton<FfmpegService>();
         builder.Services.AddSingleton<TemporaryWorkspaceEncryptionKeyStore>();
@@ -815,6 +816,7 @@ public class Startup
         builder.Services.AddSingleton<GenerateFileThumbnailsOperation>();
         builder.Services.AddSingleton<GenerateFileThumbnailsBulkOperation>();
         builder.Services.AddSingleton<GetThumbnailableFilesQuery>();
+        builder.Services.AddSingleton<GetThumbnailSourceFileQuery>();
         builder.Services.AddSingleton<GetThumbnailGenerationStatusQuery>();
         builder.Services.AddSingleton<CancelThumbnailBatchOperation>();
         builder.Services.AddSingleton<DownloadFileConvertedOperation>();

@@ -36,6 +36,11 @@
         font-variant-numeric: tabular-nums;
     }
 
+    &__elapsed {
+        font-variant-numeric: tabular-nums;
+        opacity: 0.7;
+    }
+
     &__cancel {
         display: inline-flex;
         align-items: center;

@@ -3,8 +3,6 @@ using PlikShare.Core.Queue;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
-using PlikShare.Files.PreSignedLinks.Validation;
-using PlikShare.Files.Records;
 using PlikShare.Storages;
 using PlikShare.Workspaces.Cache;
 using Serilog;
@@ -28,7 +26,7 @@ namespace PlikShare.MediaProcessing.Generation;
 /// </summary>
 public class ProcessImageQueueJobExecutor(
     WorkspaceCache workspaceCache,
-    GetFilePreSignedDownloadLinkDetailsQuery getFileDetailsQuery,
+    GetThumbnailSourceFileQuery getSourceFileQuery,
     TemporaryWorkspaceEncryptionKeyStore keyStore,
     UploadFileThumbnailOperation uploadFileThumbnailOperation,
     FfmpegService ffmpegService) : IQueueLongRunningJobExecutor
@@ -96,11 +94,10 @@ public class ProcessImageQueueJobExecutor(
             }
         }
 
-        var parentLookup = getFileDetailsQuery.Execute(
-            fileExternalId: definition.ParentFileExternalId,
-            workspaceEncryptionSession: session);
+        var parentLookup = getSourceFileQuery.Execute(
+            fileExternalId: definition.ParentFileExternalId);
 
-        if (parentLookup.Code == GetFilePreSignedDownloadLinkDetailsQuery.ResultCode.NotFound
+        if (parentLookup.Code == GetThumbnailSourceFileQuery.ResultCode.NotFound
             || parentLookup.Details?.WorkspaceId != workspace.Id)
         {
             Logger.Warning(
@@ -133,7 +130,7 @@ public class ProcessImageQueueJobExecutor(
                 fileDetails: new DownloadFileDetails(
                     FileKey: new FileKey
                     {
-                        FileExternalId = parent.ExternalId,
+                        FileExternalId = definition.ParentFileExternalId,
                         KeySecretPart = parent.KeySecretPart
                     },
                     FileSizeInBytes: parent.SizeInBytes,
@@ -141,45 +138,43 @@ public class ProcessImageQueueJobExecutor(
                 bucketName: workspace.BucketName,
                 cancellationToken: cancellationToken);
 
-            // Stream the source ONCE from storage and fan it out to one ffmpeg process per variant
-            // over stdin — the original is never buffered in memory or on disk.
-            var outputs = await ffmpegService.GenerateThumbnails(
+            var results = await ffmpegService.GenerateThumbnails(
                 writeSourceTo: (writer, ct) => storageFile.ReadTo(writer, ct),
                 variants: definition.Variants,
                 cancellationToken: cancellationToken);
 
-            foreach (var output in outputs)
+            foreach (var result in results)
             {
-                if (output.Error is not null)
+                if (result.Error is not null)
                 {
                     Logger.Error(
                         "Failed to generate {Variant} thumbnail for File '{ParentFileExternalId}': {Error}",
-                        output.Variant,
+                        result.Variant,
                         definition.ParentFileExternalId,
-                        output.Error);
+                        result.Error);
 
                     failedVariants.Add(new ThumbnailGenerationResult.FailedVariant
                     {
-                        Variant = output.Variant,
-                        Error = Truncate(output.Error, maxLength: 500)
+                        Variant = result.Variant,
+                        Error = Truncate(result.Error, maxLength: 500)
                     });
 
                     continue;
                 }
 
+                await using var thumbnail = result.Thumbnail!;
+
                 try
                 {
-                    await using var thumbStream = output.DataStream!;
-
                     var uploadResult = await uploadFileThumbnailOperation.Execute(
                         workspace: workspace,
                         parentFileExternalId: definition.ParentFileExternalId,
                         thumbnailFileExternalId: FileExtId.NewId(),
-                        variant: output.Variant,
-                        thumbnailContent: thumbStream,
-                        thumbnailSizeInBytes: output.DataStream!.Length,
+                        variant: result.Variant,
+                        thumbnailContent: thumbnail.Content,
+                        thumbnailSizeInBytes: thumbnail.SizeInBytes,
                         thumbnailContentType: "image/webp",
-                        thumbnailFileName: $"thumb-{output.Variant.ToString().ToLowerInvariant()}",
+                        thumbnailFileName: $"thumb-{result.Variant.ToString().ToLowerInvariant()}",
                         thumbnailFileExtension: ".webp",
                         uploader: uploader,
                         workspaceEncryptionSession: session,
@@ -190,13 +185,13 @@ public class ProcessImageQueueJobExecutor(
                     {
                         Logger.Warning(
                             "Upload of generated {Variant} thumbnail returned {Code} for File '{ParentFileExternalId}'.",
-                            output.Variant,
+                            result.Variant,
                             uploadResult.Code,
                             definition.ParentFileExternalId);
 
                         failedVariants.Add(new ThumbnailGenerationResult.FailedVariant
                         {
-                            Variant = output.Variant,
+                            Variant = result.Variant,
                             Error = $"Upload failed: {uploadResult.Code}"
                         });
                     }
@@ -204,7 +199,7 @@ public class ProcessImageQueueJobExecutor(
                     {
                         generatedVariants.Add(new ThumbnailGenerationResult.GeneratedVariant
                         {
-                            Variant = output.Variant,
+                            Variant = result.Variant,
                             Etag = uploadResult.Etag!
                         });
                     }
@@ -214,12 +209,12 @@ public class ProcessImageQueueJobExecutor(
                     Logger.Error(
                         ex,
                         "Failed to upload {Variant} thumbnail for File '{ParentFileExternalId}'.",
-                        output.Variant,
+                        result.Variant,
                         definition.ParentFileExternalId);
 
                     failedVariants.Add(new ThumbnailGenerationResult.FailedVariant
                     {
-                        Variant = output.Variant,
+                        Variant = result.Variant,
                         Error = Truncate(ex.Message, maxLength: 500)
                     });
                 }

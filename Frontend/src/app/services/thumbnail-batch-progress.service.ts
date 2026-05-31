@@ -18,6 +18,10 @@ export type ThumbnailBatch = {
     failed: number;
     pending: number;
     isDone: boolean;
+    // TEMP: wall-clock measurement for the ffmpeg-vs-Skia A/B comparison. Drop these fields and
+    // the elapsed display in <app-thumbnail-progress> once we settle on the winner.
+    startedAt: number;
+    finishedAt: number | null;
 };
 
 // Transport handlers the owning component injects per batch. The service stays transport-agnostic
@@ -169,6 +173,8 @@ export class ThumbnailBatchProgressService {
                 failed: 0,
                 pending: persisted.total,
                 isDone: false,
+                startedAt: Date.now(),
+                finishedAt: null,
             }];
         });
 
@@ -205,6 +211,9 @@ export class ThumbnailBatchProgressService {
                 failed: status.failed,
                 pending: status.pending,
                 isDone: status.pending === 0,
+                finishedAt: status.pending === 0 && batch.finishedAt === null
+                    ? Date.now()
+                    : batch.finishedAt,
             }
             : batch));
 

@@ -70,6 +70,7 @@ public static class MediaProcessingEndpoints
         [FromRoute] FileExtId fileExternalId,
         HttpContext httpContext,
         UploadFileThumbnailOperation uploadFileThumbnailOperation,
+        ValidateThumbnailParentQuery validateThumbnailParentQuery,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
@@ -119,6 +120,20 @@ public static class MediaProcessingEndpoints
 
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
 
+        // Parent existence + ownership + thumbnailable check moved out of UploadFileThumbnailOperation
+        // so the queue executor can skip it (it already vouches for the parent). Race between this
+        // check and the insert below is still caught by the insert's ParentFileNotFound code.
+        var validation = validateThumbnailParentQuery.Execute(
+            workspace: workspaceMembership.Workspace,
+            parentFileExternalId: fileExternalId,
+            workspaceEncryptionSession: workspaceEncryptionSession);
+
+        if (validation == ValidateThumbnailParentQuery.ResultCode.NotFound)
+            return HttpErrors.File.NotFound(fileExternalId);
+
+        if (validation == ValidateThumbnailParentQuery.ResultCode.NotThumbnailable)
+            return HttpErrors.File.ParentNotThumbnailable();
+
         await using var fileStream = file.OpenReadStream();
 
         var result = await uploadFileThumbnailOperation.Execute(
@@ -139,9 +154,6 @@ public static class MediaProcessingEndpoints
 
         if (result.Code == UploadFileThumbnailOperation.ResultCode.ParentNotFound)
             return HttpErrors.File.NotFound(fileExternalId);
-
-        if (result.Code == UploadFileThumbnailOperation.ResultCode.ParentNotThumbnailable)
-            return HttpErrors.File.ParentNotThumbnailable();
 
         await auditLogService.LogWithFileContext(
             fileExternalId: fileExternalId,
