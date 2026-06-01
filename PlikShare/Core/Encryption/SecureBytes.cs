@@ -323,4 +323,5 @@ public sealed class SecureBytes : IDisposable
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool VirtualUnlock(IntPtr lpAddress, nuint dwSize);
     }
+
 }

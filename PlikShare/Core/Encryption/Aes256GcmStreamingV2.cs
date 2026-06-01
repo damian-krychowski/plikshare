@@ -34,7 +34,7 @@ public static class Aes256GcmStreamingV2
     public const int SegmentsPerFilePart = 10;
     public const int MaximumPayloadSize = SegmentsPerFilePart * SegmentSize;
 
-    private const int DerivedKeySize = 32;
+    public const int DerivedKeySize = 32;
 
     private const int NoncePrefixSize = 7;
     private const int SaltSize = DerivedKeySize;
@@ -235,9 +235,16 @@ public static class Aes256GcmStreamingV2
         Memory<byte> inputOutputBuffer,
         CancellationToken cancellationToken)
     {
-        var (ikm, storageDekVersion, chainStepSalts, salt, noncePrefix) = fileAesInputs;
+        // Single-use inputs: zero the FileKey on every exit path (success or any throw — including
+        // the pre-loop verify-* calls below). Re-entry against the same instance trips the sentinel
+        // in ThrowIfFileKeyDisposed.
+        using var inputsScope = fileAesInputs;
 
-        VerifyInputKeyMaterialSize(ikm.Length);
+        var (fileKey, storageDekVersion, chainStepSalts, salt, noncePrefix) = inputsScope;
+
+        ThrowIfFileKeyDisposed(fileKey);
+
+        VerifyFileKeySize(fileKey.Length);
         VerifyPartNumberSize(filePart, fullFileSizeInBytes, chainStepSalts.Count);
         VerifyBufferSize(inputOutputBuffer, filePart, chainStepSalts.Count);
 
@@ -248,23 +255,17 @@ public static class Aes256GcmStreamingV2
             SegmentsCiphertextSize,
             filePart.SizeInBytes);
 
-        var encryptionHeapBufferSize = DerivedKeySize + IvSize + plaintextSegmentBufferSize;
-
         var heapBuffer = ArrayPool<byte>.Shared.Rent(
-            minimumLength: encryptionHeapBufferSize);
+            minimumLength: IvSize + plaintextSegmentBufferSize);
 
         Memory<byte> heapBufferMemory = heapBuffer.AsMemory();
-
-        Memory<byte> derivedKeyBuffer = heapBufferMemory.Slice(
-            start: 0,
-            length: DerivedKeySize);
-
+        
         Memory<byte> ivBuffer = heapBufferMemory.Slice(
-            start: DerivedKeySize,
+            start: 0,
             length: IvSize);
 
         Memory<byte> plaintextSegmentBuffer = heapBufferMemory.Slice(
-            start: DerivedKeySize + IvSize,
+            start: IvSize,
             length: plaintextSegmentBufferSize);
 
         try
@@ -279,11 +280,10 @@ public static class Aes256GcmStreamingV2
                     output: inputOutputBuffer);
             }
 
-            using var aesGcm = PrepareAesGcm(
-                ikm: ikm,
-                fileSalt: salt.AsSpan(),
-                deriveKeyBuffer: derivedKeyBuffer.Span);
-
+            using var aesGcm = new AesGcm(
+                key: fileKey,
+                tagSizeInBytes: TagSize);
+            
             var expectedLastSegmentNumber = GetExpectedLastSegmentNumber(
                 fullFileSizeInBytes,
                 chainStepsCount);
@@ -347,38 +347,6 @@ public static class Aes256GcmStreamingV2
             ArrayPool<byte>.Shared.Return(
                 array: heapBuffer);
         }
-    }
-    
-    private static AesGcm PrepareAesGcm(
-        SecureBytes ikm,
-        ReadOnlySpan<byte> fileSalt,
-        Span<byte> deriveKeyBuffer)
-    {
-        ikm.Use(
-            state: new HkdfInput
-            {
-                FileSalt = fileSalt, 
-                Output = deriveKeyBuffer
-            },
-            action: static (ikmSpan, input) =>
-            {
-                HKDF.DeriveKey(
-                    hashAlgorithmName: HashAlgorithmName.SHA256,
-                    ikm: ikmSpan,
-                    output: input.Output,
-                    salt: input.FileSalt,
-                    info: null);
-            });
-
-        return new AesGcm(
-            key: deriveKeyBuffer,
-            tagSizeInBytes: TagSize);
-    }
-
-    private readonly ref struct HkdfInput
-    {
-        public ReadOnlySpan<byte> FileSalt { get; init; }
-        public Span<byte> Output { get; init; }
     }
 
     private static void WriteHeader(
@@ -477,38 +445,37 @@ public static class Aes256GcmStreamingV2
         PipeWriter output,
         CancellationToken cancellationToken = default)
     {
-        var (ikm, _, chainStepSalts, salt, noncePrefix) = fileAesInputs;
+        // Single-use inputs: zero the FileKey on every exit path. See EncryptFilePartInPlace.
+        using var inputsScope = fileAesInputs;
+
+        var (fileKey, _, chainStepSalts, _, noncePrefix) = inputsScope;
+
+        ThrowIfFileKeyDisposed(fileKey);
+
         var chainStepsCount = chainStepSalts.Count;
 
         var inputBufferSize = (int)Math.Min(
             fileSizeInBytes + TagSize,
             SegmentSize);
 
-        var decryptionHeapBufferSize = DerivedKeySize + IvSize + inputBufferSize;
-
         var heapBuffer = ArrayPool<byte>.Shared.Rent(
-            minimumLength: decryptionHeapBufferSize);
+            minimumLength: IvSize + inputBufferSize);
 
         Memory<byte> heapBufferMemory = heapBuffer.AsMemory();
-
-        Memory<byte> derivedKeyBuffer = heapBufferMemory.Slice(
-            start: 0,
-            length: DerivedKeySize);
-
+        
         Memory<byte> ivBuffer = heapBufferMemory.Slice(
-            start: DerivedKeySize,
+            start: 0,
             length: IvSize);
 
         Memory<byte> inputBuffer = heapBufferMemory.Slice(
-            start: DerivedKeySize + IvSize,
+            start: IvSize,
             length: inputBufferSize);
 
         try
         {
-            using var aesGcm = PrepareAesGcm(
-                ikm: ikm,
-                fileSalt: salt.AsSpan(),
-                deriveKeyBuffer: derivedKeyBuffer.Span);
+            using var aesGcm = new AesGcm(
+                key: fileKey,
+                tagSizeInBytes: TagSize);
 
             var segmentNumber = range.FirstSegment.Number;
 
@@ -627,7 +594,13 @@ public static class Aes256GcmStreamingV2
         PipeWriter output,
         CancellationToken cancellationToken = default)
     {
-        var (ikm, _, chainStepSalts, salt, noncePrefix) = fileAesInputs;
+        // Single-use inputs: zero the FileKey on every exit path. See EncryptFilePartInPlace.
+        using var inputsScope = fileAesInputs;
+
+        var (fileKey, _, chainStepSalts, _, noncePrefix) = inputsScope;
+
+        ThrowIfFileKeyDisposed(fileKey);
+
         var chainStepsCount = chainStepSalts.Count;
 
         var inputBufferSize = (int)Math.Min(
@@ -637,7 +610,7 @@ public static class Aes256GcmStreamingV2
         // Header buffer sized to the file's actual chain length — header is read past
         // (to advance the pipe) but its content is discarded; AES inputs come from FileAesInputs.
         var headerBufferSize = GetHeaderSize(chainStepsCount);
-        var decryptionHeapBufferSize = headerBufferSize + DerivedKeySize + IvSize + inputBufferSize;
+        var decryptionHeapBufferSize = headerBufferSize + IvSize + inputBufferSize;
 
         var heapBuffer = ArrayPool<byte>.Shared.Rent(
             minimumLength: decryptionHeapBufferSize);
@@ -647,17 +620,13 @@ public static class Aes256GcmStreamingV2
         Memory<byte> headerBuffer = heapBufferMemory.Slice(
             start: 0,
             length: headerBufferSize);
-
-        Memory<byte> derivedKeyBuffer = heapBufferMemory.Slice(
-            start: headerBufferSize,
-            length: DerivedKeySize);
-
+        
         Memory<byte> ivBuffer = heapBufferMemory.Slice(
-            start: headerBufferSize + DerivedKeySize,
+            start: headerBufferSize,
             length: IvSize);
 
         Memory<byte> inputBuffer = heapBufferMemory.Slice(
-            start: headerBufferSize + DerivedKeySize + IvSize,
+            start: headerBufferSize + IvSize,
             length: inputBufferSize);
 
         try
@@ -668,10 +637,9 @@ public static class Aes256GcmStreamingV2
                 headerBuffer,
                 cancellationToken);
 
-            using var aesGcm = PrepareAesGcm(
-                ikm: ikm,
-                fileSalt: salt.AsSpan(),
-                deriveKeyBuffer: derivedKeyBuffer.Span);
+            using var aesGcm = new AesGcm(
+                key: fileKey,
+                tagSizeInBytes: TagSize);
 
             var expectedLastSegmentNumber = GetExpectedLastSegmentNumber(
                 fullFileSizeInBytes: fileSizeInBytes,
@@ -822,12 +790,26 @@ public static class Aes256GcmStreamingV2
             NoncePrefix: headerBuffer.Slice(noncePrefixOffset, NoncePrefixSize));
     }
 
-    private static void VerifyInputKeyMaterialSize(int size)
+    private static void VerifyFileKeySize(int size)
     {
-        if (size < DerivedKeySize)
+        if (size == DerivedKeySize)
         {
-            throw new ArgumentException($"The key material must be at least {DerivedKeySize} bytes long.");
+            throw new ArgumentException($"The file key must be {DerivedKeySize} bytes long.");
         }
+    }
+    
+    private static void ThrowIfFileKeyDisposed(byte[] fileKey)
+    {
+        for (var i = 0; i < fileKey.Length; i++)
+        {
+            if (fileKey[i] != 0)
+                return;
+        }
+
+        throw new ObjectDisposedException(
+            objectName: nameof(FileAesInputsV2),
+            message: "FileKey is all zeros — this FileAesInputsV2 instance has already been consumed by an encrypt/decrypt call. " +
+                     "FileAesInputsV2 is single-use; rebuild it from FileEncryptionMetadata.ToEncryptionMode for the next operation.");
     }
 
     public static void VerifyBufferSize(

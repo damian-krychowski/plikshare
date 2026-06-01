@@ -1,6 +1,9 @@
-﻿namespace PlikShare.Core.Encryption;
+﻿using PlikShare.Storages;
+using System.Security.Cryptography;
 
-public static class SecureBytesSerializationExtensions
+namespace PlikShare.Core.Encryption;
+
+public static class SecureBytesExtensions
 {
     extension(SecureBytes secureBytes)
     {
@@ -16,6 +19,25 @@ public static class SecureBytesSerializationExtensions
             return secureBytes.Use(
                 masterEncryption,
                 static (span, enc) => enc.EncryptBytes(span));
+        }
+
+        public void HkdfDeriveKey(ReadOnlySpan<byte> salt, Span<byte> output)
+        {
+            secureBytes.Use(
+                state: new HkdfInput
+                {
+                    Salt = salt,
+                    Output = output
+                },
+                action: static (ikmSpan, state) =>
+                {
+                    HKDF.DeriveKey(
+                        hashAlgorithmName: HashAlgorithmName.SHA256,
+                        ikm: ikmSpan,
+                        output: state.Output,
+                        salt: state.Salt,
+                        info: null);
+                });
         }
     }
 
@@ -51,5 +73,11 @@ public static class SecureBytesSerializationExtensions
     {
         public required IMasterDataEncryption Encryption { get; init; }
         public required byte[] EncryptedDek { get; init; }
+    }
+
+    private readonly ref struct HkdfInput
+    {
+        public ReadOnlySpan<byte> Salt { get; init; }
+        public Span<byte> Output { get; init; }
     }
 }

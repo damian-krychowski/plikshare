@@ -52,14 +52,13 @@ public static class FileEncryptionMetadataExtensions
                     throw new InvalidOperationException(
                         "Cannot resolve IKM for V2 file: workspace encryption session is null.");
 
+                var fileAesInputs = FileAesInputsV2.Prepare(
+                    ikm: workspaceEncryptionSession.GetDekForVersion(
+                        metadata.KeyVersion),
+                    metadata: metadata);
+
                 return new AesGcmV2Encryption(
-                    Input: new FileAesInputsV2(
-                        Ikm: workspaceEncryptionSession.GetDekForVersion(
-                            metadata.KeyVersion),
-                        KeyVersion: metadata.KeyVersion,
-                        ChainStepSalts: metadata.ChainStepSalts,
-                        Salt: metadata.Salt,
-                        NoncePrefix: metadata.NoncePrefix));
+                    Input: fileAesInputs);
             }
 
             throw new InvalidOperationException(

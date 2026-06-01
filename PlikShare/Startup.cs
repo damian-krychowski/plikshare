@@ -813,6 +813,14 @@ public class Startup
         builder.Services.AddSingleton<DeleteFileThumbnailOperation>();
         builder.Services.AddSingleton<FfmpegService>();
         builder.Services.AddSingleton<TemporaryWorkspaceEncryptionKeyStore>();
+
+        builder.Services.AddSingleton<TemporaryEncryptionStore>();
+
+        builder.Services.AddSingleton(_ =>
+            builder.Configuration.GetSection("TemporaryEncryptionStoreSweeper").Get<TemporaryEncryptionStoreSweeperOptions>()
+            ?? new TemporaryEncryptionStoreSweeperOptions());
+
+        builder.Services.AddHostedService<TemporaryEncryptionStoreSweeperHostedService>();
         AddLongRunningQueueJob<ProcessImageQueueJobExecutor>();
         builder.Services.AddSingleton<GenerateFileThumbnailsOperation>();
         builder.Services.AddSingleton<GenerateFileThumbnailsBulkOperation>();
