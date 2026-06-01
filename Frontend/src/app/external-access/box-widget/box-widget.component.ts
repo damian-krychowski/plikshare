@@ -191,9 +191,22 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
                 request),
 
             getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => this._boxWidgetApi.getDownloadLink(
-                this.url(), 
+                this.url(),
                 fileExternalId,
                 contentDisposition),
+
+            // <img src> can't carry the BoxLink token in a custom header — fall back to a query
+            // parameter the backend's auth handler accepts as a header alternative.
+            getThumbnailUrl: (fileExternalId: string) => {
+                const token = this._boxLinkTokenService.get();
+                const base = `/api/access-codes/${this.url()}/files/${fileExternalId}/thumbnail`;
+                return token
+                    ? `${base}?boxLinkToken=${encodeURIComponent(token)}`
+                    : base;
+            },
+
+            // Box-widget context is read-only — hide the "Image" / "Video" preview section.
+            isMediaSectionAvailable: false,
 
             bulkDelete: (fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[]) => this._boxWidgetApi.bulkDelete(this.url(), {
                 fileExternalIds: fileExternalIds,

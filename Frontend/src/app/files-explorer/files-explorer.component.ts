@@ -66,6 +66,14 @@ export interface FilesExplorerApi {
     updatePositions: ((request: UpdatePositionsRequest) => Promise<void>) | null;
     updateFileName: (fileExternalId: string, request: { name: string }) => Promise<void>;
     getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => Promise<GetFileDownloadLinkResponse>;
+    // Override the default workspace-scoped thumbnail URL. Box/external contexts supply their own
+    // path (eg. `/api/access-codes/{code}/files/{id}/thumbnail`); workspace leaves this undefined
+    // and falls back to the per-workspace builder in `thumbnailListDisplay`.
+    getThumbnailUrl?: (fileExternalId: string) => string;
+    // Toggles the "Image" / "Video" preview section (thumbnails grid, metadata, download-as,
+    // generate). False in read-only box/external contexts where thumbnail management isn't
+    // exposed; true in workspace where the owner manages them.
+    isMediaSectionAvailable: boolean;
     getFilePreviewDetails: (fileExternalId: string, fields: FilePreviewDetailsField[] | null) => Promise<GetFilePreviewDetailsResponse>;
     bulkDelete: (fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[]) => Promise<BulkDeleteResponse>;
     getBulkDownloadLink: (request: GetBulkDownloadLinkRequest) => Promise<GetBulkDownloadLinkResponse>;    
@@ -590,7 +598,10 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             this.filesApi().getDownloadLink(fileExternalId, contentDisposition),
 
         getThumbnailUrl: (fileExternalId: string) =>
-            this._thumbnailDisplay.getThumbnailUrl(fileExternalId),
+            this.filesApi().getThumbnailUrl?.(fileExternalId)
+                ?? this._thumbnailDisplay.getThumbnailUrl(fileExternalId),
+
+        isMediaSectionAvailable: () => this.filesApi().isMediaSectionAvailable,
 
         getFilePreviewDetails: (fileExternalId: string, fields: FilePreviewDetailsField[] | null) => 
             this.filesApi().getFilePreviewDetails(fileExternalId, fields),

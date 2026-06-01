@@ -297,9 +297,22 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
                 request),
 
             getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => this._accessCodesApi.getDownloadLink(
-                this._accessCodeValue, 
+                this._accessCodeValue,
                 fileExternalId,
                 contentDisposition),
+
+            // <img src> can't carry the BoxLink token in a custom header — fall back to a query
+            // parameter the backend's auth handler accepts as a header alternative.
+            getThumbnailUrl: (fileExternalId: string) => {
+                const token = this._boxLinkTokenService.get();
+                const base = `/api/access-codes/${this._accessCodeValue}/files/${fileExternalId}/thumbnail`;
+                return token
+                    ? `${base}?boxLinkToken=${encodeURIComponent(token)}`
+                    : base;
+            },
+
+            // External-link context is read-only — hide the "Image" / "Video" preview section.
+            isMediaSectionAvailable: false,
 
             bulkDelete: (fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[]) => this._accessCodesApi.bulkDelete({
                 accessCode: this._accessCodeValue,

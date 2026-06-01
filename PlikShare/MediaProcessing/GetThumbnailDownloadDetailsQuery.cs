@@ -22,7 +22,8 @@ public class GetThumbnailDownloadDetailsQuery(PlikShareDb plikShareDb)
         WorkspaceContext workspace,
         FileExtId parentFileExternalId,
         ThumbnailVariant variant,
-        WorkspaceEncryptionSession? workspaceEncryptionSession)
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
+        int? boxFolderId = null)
     {
         using var connection = plikShareDb.OpenConnection();
 
@@ -54,6 +55,23 @@ public class GetThumbnailDownloadDetailsQuery(PlikShareDb plikShareDb)
                         AND child_fi.fi_deleted_at IS NULL
                         AND child_fi.fi_is_upload_completed = TRUE
                         AND child_fi.fi_metadata IS NOT NULL
+                        AND (
+                            $boxFolderId IS NULL
+                            OR EXISTS (
+                                SELECT 1
+                                FROM fo_folders
+                                WHERE
+                                    fo_workspace_id = $workspaceId
+                                    AND fo_id = parent_fi.fi_folder_id
+                                    AND fo_is_being_deleted = FALSE
+                                    AND (
+                                        fo_id = $boxFolderId
+                                        OR $boxFolderId IN (
+                                            SELECT value FROM json_each(fo_ancestor_folder_ids)
+                                        )
+                                    )
+                            )
+                        )
                     ORDER BY child_fi.fi_id DESC
                 ",
                 seed: (Result?)null,
@@ -102,6 +120,7 @@ public class GetThumbnailDownloadDetailsQuery(PlikShareDb plikShareDb)
                 })
             .WithParameter("$parentExternalId", parentFileExternalId.Value)
             .WithParameter("$workspaceId", workspace.Id)
+            .WithParameter("$boxFolderId", boxFolderId)
             .Execute();
     }
 }

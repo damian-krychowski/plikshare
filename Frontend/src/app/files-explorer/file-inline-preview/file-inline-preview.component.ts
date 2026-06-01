@@ -84,6 +84,12 @@ export type FilePreviewOperations = {
     prefetchAiMessages(fileExternalId: string, fileArtifactExternalId: string): void;
     
     prepareAdditionalHttpHeaders: () => Record<string, string> | undefined;
+
+    // Hides the "Image" / "Video" preview section (thumbnails grid, metadata, download-as,
+    // generate) when the host can't manage media — eg. box / external-link / box-widget. Lazy
+    // because the host (files-explorer) reads this from a signal input that isn't yet set when
+    // its operations object initializes.
+    isMediaSectionAvailable: () => boolean;
 }
 
 
@@ -384,6 +390,12 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
         const details = getFileDetails(ext);
         return details.type === 'image' || details.type === 'video';
     });
+
+    // File type makes thumbnails meaningful AND the host actually supports media management.
+    // Box / external-link contexts set isMediaSectionAvailable=false so the whole section is
+    // hidden even when the file IS an image/video.
+    showMediaSection = computed(() =>
+        this.isFileThumbnailable() && this.operations().isMediaSectionAvailable());
 
     // Lifted out of <app-image-preview> so this component can render the metadata config-card
     // in the same "Image" section as the thumbnail slots. The image-preview component still

@@ -15,14 +15,31 @@ public class BoxLinkTokenAuthenticationHandler(
     ILoggerFactory logger,
     UrlEncoder encoder) : AuthenticationHandler<BoxLinkTokenAuthenticationOptions>(options, logger, encoder)
 {
+    /// <summary>
+    /// Query-string parameter name accepted as a fallback for the <c>X-BOX-LINK-TOKEN</c> header.
+    /// Browsers don't send custom headers on <c>&lt;img src&gt;</c> / <c>&lt;a href&gt;</c> /
+    /// pre-signed-link requests, so URL-embedded auth is the only way to keep those flows working
+    /// without re-architecting to cookies. Query takes precedence after header is checked.
+    /// </summary>
+    public const string QueryParameterName = "boxLinkToken";
+
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (!Request.Headers.TryGetValue(HeaderName.BoxLinkToken, out var boxLinkHeader))
+        string? tokenStr = null;
+
+        if (Request.Headers.TryGetValue(HeaderName.BoxLinkToken, out var boxLinkHeader))
+        {
+            tokenStr = boxLinkHeader.ToString();
+        }
+        else if (Request.Query.TryGetValue(QueryParameterName, out var queryToken))
+        {
+            tokenStr = queryToken.ToString();
+        }
+
+        if (tokenStr is null)
         {
             return Task.FromResult(AuthenticateResult.NoResult());
         }
-
-        var tokenStr = boxLinkHeader.ToString();
 
         if (string.IsNullOrEmpty(tokenStr))
         {

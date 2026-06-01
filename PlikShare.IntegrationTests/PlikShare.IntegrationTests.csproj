@@ -49,6 +49,13 @@
     </ItemGroup>
 
     <ItemGroup>
+      <EmbeddedResource Include="TestAssets\test_video_red_1s.mp4" />
+      <EmbeddedResource Include="TestAssets\illustartion_1.jpg" />
+      <EmbeddedResource Include="TestAssets\illustration_2.jpg" />
+      <EmbeddedResource Include="TestAssets\illustration_3.jpg" />
+    </ItemGroup>
+
+    <ItemGroup>
       <AssemblyAttribute Include="Xunit.CollectionBehaviorAttribute">
           <_Parameter1>DisableTestParallelization = true</_Parameter1>
           <_Parameter1_IsLiteral>true</_Parameter1_IsLiteral>

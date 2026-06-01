@@ -69,7 +69,7 @@ public class thumbnail_tests : TestFixture
         var thumbnailContent = RandomBytes(512);
 
         //when
-        var thumbnailExternalId = await Api.Files.UploadThumbnail(
+        var thumbnailExternalId = await Api.MediaProcessing.UploadThumbnail(
             workspaceExternalId: setup.Workspace.ExternalId,
             parentFileExternalId: parentFile.ExternalId,
             thumbnailContent: thumbnailContent,
@@ -127,7 +127,7 @@ public class thumbnail_tests : TestFixture
         var thumbnailContent = RandomBytes(4096);
 
         //when
-        var thumbnailExternalId = await Api.Files.UploadThumbnail(
+        var thumbnailExternalId = await Api.MediaProcessing.UploadThumbnail(
             workspaceExternalId: setup.Workspace.ExternalId,
             parentFileExternalId: parentFile.ExternalId,
             thumbnailContent: thumbnailContent,
@@ -182,7 +182,7 @@ public class thumbnail_tests : TestFixture
         await WaitForFileUnlocked(parentFile.ExternalId, AppOwner);
 
         //when
-        var smallExternalId = await Api.Files.UploadThumbnail(
+        var smallExternalId = await Api.MediaProcessing.UploadThumbnail(
             workspaceExternalId: setup.Workspace.ExternalId,
             parentFileExternalId: parentFile.ExternalId,
             thumbnailContent: RandomBytes(512),
@@ -193,7 +193,7 @@ public class thumbnail_tests : TestFixture
             antiforgery: AppOwner.Antiforgery,
             workspaceEncryptionSession: setup.Workspace.WorkspaceEncryptionSession);
 
-        var largeExternalId = await Api.Files.UploadThumbnail(
+        var largeExternalId = await Api.MediaProcessing.UploadThumbnail(
             workspaceExternalId: setup.Workspace.ExternalId,
             parentFileExternalId: parentFile.ExternalId,
             thumbnailContent: RandomBytes(4096),
@@ -253,7 +253,7 @@ public class thumbnail_tests : TestFixture
         var secondThumbnailContent = RandomBytes(1024);
 
         //when
-        var firstExternalId = await Api.Files.UploadThumbnail(
+        var firstExternalId = await Api.MediaProcessing.UploadThumbnail(
             workspaceExternalId: setup.Workspace.ExternalId,
             parentFileExternalId: parentFile.ExternalId,
             thumbnailContent: firstThumbnailContent,
@@ -264,7 +264,7 @@ public class thumbnail_tests : TestFixture
             antiforgery: AppOwner.Antiforgery,
             workspaceEncryptionSession: setup.Workspace.WorkspaceEncryptionSession);
 
-        var secondExternalId = await Api.Files.UploadThumbnail(
+        var secondExternalId = await Api.MediaProcessing.UploadThumbnail(
             workspaceExternalId: setup.Workspace.ExternalId,
             parentFileExternalId: parentFile.ExternalId,
             thumbnailContent: secondThumbnailContent,
@@ -330,7 +330,7 @@ public class thumbnail_tests : TestFixture
 
         await WaitForFileUnlocked(parentFile.ExternalId, AppOwner);
 
-        await Api.Files.UploadThumbnail(
+        await Api.MediaProcessing.UploadThumbnail(
             workspaceExternalId: setup.Workspace.ExternalId,
             parentFileExternalId: parentFile.ExternalId,
             thumbnailContent: RandomBytes(512),
@@ -341,7 +341,7 @@ public class thumbnail_tests : TestFixture
             antiforgery: AppOwner.Antiforgery,
             workspaceEncryptionSession: setup.Workspace.WorkspaceEncryptionSession);
 
-        var largeExternalId = await Api.Files.UploadThumbnail(
+        var largeExternalId = await Api.MediaProcessing.UploadThumbnail(
             workspaceExternalId: setup.Workspace.ExternalId,
             parentFileExternalId: parentFile.ExternalId,
             thumbnailContent: RandomBytes(4096),
@@ -353,7 +353,7 @@ public class thumbnail_tests : TestFixture
             workspaceEncryptionSession: setup.Workspace.WorkspaceEncryptionSession);
 
         //when — delete only the Small variant
-        await Api.Files.DeleteThumbnail(
+        await Api.MediaProcessing.DeleteThumbnail(
             workspaceExternalId: setup.Workspace.ExternalId,
             parentFileExternalId: parentFile.ExternalId,
             variant: ThumbnailVariant.Small,
@@ -405,7 +405,7 @@ public class thumbnail_tests : TestFixture
         await WaitForFileUnlocked(parentFile.ExternalId, AppOwner);
 
         //when — delete Small even though no thumbnail exists
-        await Api.Files.DeleteThumbnail(
+        await Api.MediaProcessing.DeleteThumbnail(
             workspaceExternalId: setup.Workspace.ExternalId,
             parentFileExternalId: parentFile.ExternalId,
             variant: ThumbnailVariant.Small,
@@ -455,7 +455,7 @@ public class thumbnail_tests : TestFixture
         await WaitForFileUnlocked(parentFile.ExternalId, AppOwner);
 
         //when + then
-        var act = async () => await Api.Files.UploadThumbnail(
+        var act = async () => await Api.MediaProcessing.UploadThumbnail(
             workspaceExternalId: workspace.ExternalId,
             parentFileExternalId: parentFile.ExternalId,
             thumbnailContent: RandomBytes(512),
@@ -498,7 +498,7 @@ public class thumbnail_tests : TestFixture
         await WaitForFileUnlocked(parentFile.ExternalId, AppOwner);
 
         //when + then
-        var act = async () => await Api.Files.UploadThumbnail(
+        var act = async () => await Api.MediaProcessing.UploadThumbnail(
             workspaceExternalId: workspace.ExternalId,
             parentFileExternalId: parentFile.ExternalId,
             thumbnailContent: RandomBytes(256),

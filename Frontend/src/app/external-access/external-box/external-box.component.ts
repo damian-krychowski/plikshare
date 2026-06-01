@@ -358,9 +358,16 @@ export class ExternalBoxComponent implements OnInit, OnDestroy  {
                 request),
 
             getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => this._externalBoxesGetApi.getDownloadLink(
-                this._boxExternalIdValue, 
+                this._boxExternalIdValue,
                 fileExternalId,
                 contentDisposition),
+
+            getThumbnailUrl: (fileExternalId: string) =>
+                `/api/boxes/${this._boxExternalIdValue}/files/${fileExternalId}/thumbnail`,
+
+            // Box context is read-only for media management — hide the "Image" / "Video"
+            // preview section (thumbnails grid, metadata, download-as, generate buttons).
+            isMediaSectionAvailable: false,
 
             bulkDelete: (fileExternalIds: string[], folderExternalIds: string[], fileUploadExternalIds: string[]) => this._externalBoxesSetApi.bulkDelete({
                 boxExternalId: this._boxExternalIdValue,

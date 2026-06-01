@@ -132,7 +132,10 @@ export class FileItemComponent implements OnInit, OnDestroy {
         if (!base)
             return null;
 
-        const url = `${base}?v=${etag}`;
+        // base may already carry a query string (eg. BoxLink token); pick the right separator
+        // so we don't produce an invalid URL with two '?'.
+        const separator = base.includes('?') ? '&' : '?';
+        const url = `${base}${separator}v=${etag}`;
 
         return this._failedThumbnailUrls().has(url) ? null : url;
     });

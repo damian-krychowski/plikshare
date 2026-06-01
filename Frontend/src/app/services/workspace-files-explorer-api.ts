@@ -6,6 +6,8 @@ import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, CheckTextractJ
 import { ZipEntry } from "./zip";
 
 export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
+    // Workspace owner manages thumbnails — show the "Image" / "Video" section in file preview.
+    readonly isMediaSectionAvailable = true;
 
     constructor(
         private _setApi: FoldersAndFilesSetApi,

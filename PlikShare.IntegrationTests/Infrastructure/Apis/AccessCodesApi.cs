@@ -42,6 +42,35 @@ public class AccessCodesApi(IFlurlClient flurlClient, string appUrl)
             boxLinkTokenHeader.Value);
     }
 
+    /// <summary>
+    /// Streams a Mini thumbnail bytes for a file in the box behind this access code. If
+    /// <paramref name="boxLinkToken"/> is non-null it is sent as a query parameter (the
+    /// auth handler accepts the same value in either header or query — &lt;img src&gt; can't
+    /// carry custom headers, so query is the realistic path). Returns (statusCode, bytes);
+    /// bytes is empty on non-200.
+    /// </summary>
+    public async Task<(int StatusCode, byte[] Body)> GetFileThumbnail(
+        string accessCode,
+        FileExtId fileExternalId,
+        BoxLinkToken? boxLinkToken)
+    {
+        var path = $"api/access-codes/{accessCode}/files/{fileExternalId}/thumbnail";
+
+        if (boxLinkToken is not null)
+            path += $"?boxLinkToken={Uri.EscapeDataString(boxLinkToken.Value)}";
+
+        var response = await flurlClient
+            .Request(appUrl, path)
+            .AllowAnyHttpStatus()
+            .GetAsync();
+
+        var body = response.ResponseMessage.IsSuccessStatusCode
+            ? await response.GetBytesAsync()
+            : [];
+
+        return (response.StatusCode, body);
+    }
+
     public async Task<GetBoxDetailsAndContentResponseDto> GetBoxDetailsAndContent(
         string accessCode,
         BoxLinkToken? boxLinkToken)

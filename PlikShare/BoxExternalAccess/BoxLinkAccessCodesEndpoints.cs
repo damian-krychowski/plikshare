@@ -15,6 +15,7 @@ using PlikShare.Core.Protobuf;
 using PlikShare.Core.Utils;
 using PlikShare.Files.BulkDownload.Contracts;
 using PlikShare.Files.Id;
+using PlikShare.MediaProcessing;
 using PlikShare.Files.Preview.GetZipBulkDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipContentDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipDetails.Contracts;
@@ -75,6 +76,11 @@ public static class BoxLinkAccessCodesEndpoints
             .AddEndpointFilter(new ValidateAccessCodeFilter(
                 BoxPermission.AllowList,
                 BoxPermission.AllowDownload));
+
+        group.MapGet("/{accessCode}/files/{fileExternalId}/thumbnail", GetFileThumbnail)
+            .WithName("BoxLink_GetFileThumbnail")
+            .AddEndpointFilter(new ValidateAccessCodeFilter(
+                BoxPermission.AllowList));
 
         group.MapPost("/{accessCode}/files/bulk-download-link", GetBulkDownloadLink)
             .WithName("BoxLink_GetBulkDownloadLink")
@@ -425,6 +431,19 @@ public static class BoxLinkAccessCodesEndpoints
             request: request,
             boxAccess: httpContext.GetBoxAccess(),
             correlationId: httpContext.GetCorrelationId(),
+            cancellationToken: cancellationToken);
+    }
+
+    private static Task<IResult> GetFileThumbnail(
+        [FromRoute] FileExtId fileExternalId,
+        HttpContext httpContext,
+        BoxFileThumbnailHandler boxFileThumbnailHandler,
+        CancellationToken cancellationToken)
+    {
+        return boxFileThumbnailHandler.Handle(
+            fileExternalId: fileExternalId,
+            boxAccess: httpContext.GetBoxAccess(),
+            httpContext: httpContext,
             cancellationToken: cancellationToken);
     }
 
