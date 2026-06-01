@@ -792,9 +792,9 @@ public static class Aes256GcmStreamingV2
 
     private static void VerifyFileKeySize(int size)
     {
-        if (size == DerivedKeySize)
+        if (size != DerivedKeySize)
         {
-            throw new ArgumentException($"The file key must be {DerivedKeySize} bytes long.");
+            throw new ArgumentException($"The file key must be {DerivedKeySize} bytes long but found {size}.");
         }
     }
     

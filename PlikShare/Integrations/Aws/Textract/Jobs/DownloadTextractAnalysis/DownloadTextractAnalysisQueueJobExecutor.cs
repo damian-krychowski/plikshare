@@ -395,17 +395,13 @@ public class DownloadTextractAnalysisQueueJobExecutor(
             FileExternalId = FileExtId.NewId().Value,
             FolderId = null, //todo think where it should go
 
-            FileName = new EncryptableMetadata(
-                file.Name, 
-                NoMetadataEncryption.Instance),
+            FileName = new EncodedMetadataValue(file.Name),
 
-            FileContentType = new EncryptableMetadata(
-                ContentTypeHelper.GetContentTypeFromExtension(file.Extension),
-                NoMetadataEncryption.Instance),
+            FileContentType = new EncodedMetadataValue(
+                ContentTypeHelper.GetContentTypeFromExtension(file.Extension)),
 
-            FileExtension = new EncryptableMetadata(
-                file.Extension, 
-                NoMetadataEncryption.Instance),
+            FileExtension = new EncodedMetadataValue(
+                file.Extension),
 
             FileSizeInBytes = file.SizeInBytes,
             KeySecretPart = storage.GenerateFileKeySecretPart(),
@@ -420,12 +416,11 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 encryptionMetadata?.ChainStepSalts),
 
             ParentFileId = textractJob.OriginalFileId,
-            FileMetadata = new EncryptableMetadata(
-                Value: Json.Serialize<FileMetadata>(new TextractResultFileMetadata
+            FileMetadata = new EncodedMetadataValue(
+                Json.Serialize<FileMetadata>(new TextractResultFileMetadata
                 {
                     Features = textractJob.Features
-                }),
-                EncryptionMode: NoMetadataEncryption.Instance)
+                }))
         };
     }
 

@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using PlikShare.Core.Encryption;
 
 /// <summary>
@@ -24,7 +25,7 @@ public abstract record MetadataEncryptionMode;
 /// Store the plaintext value verbatim as TEXT. Used whenever the workspace is NOT
 /// full-encrypted (managed-encryption or no-encryption storage) — the DB already sees
 /// no user content in cleartext elsewhere, so the DB admin hardening that
-/// <see cref="AesGcmV1MetadataEncryption"/> provides would be cosmetic there.
+/// <see cref="AesGcmMetadataV1Encryption"/> provides would be cosmetic there.
 /// </summary>
 public sealed record NoMetadataEncryption: MetadataEncryptionMode
 {
@@ -40,8 +41,7 @@ public sealed record NoMetadataEncryption: MetadataEncryptionMode
 /// base64-encoded when bound to the TEXT column. The leading <c>format_version</c> byte
 /// (currently <c>0x01</c>) leaves room for future envelope format upgrades; the
 /// <c>key_version</c> byte records which Workspace DEK version the payload was sealed
-/// under, so decrypt can pick the matching DEK from the session without trial-decrypting
-/// every known version.
+/// under, so decrypt can pick the matching DEK from the session
 ///
 /// Nonce and envelope bytes are produced transiently at encrypt time (stackalloc /
 /// ArrayPool) rather than stored on this record — the record only carries the inputs
@@ -51,7 +51,57 @@ public sealed record NoMetadataEncryption: MetadataEncryptionMode
 /// <see cref="Ikm"/> is NOT owned by this record: it is borrowed from the enclosing
 /// <see cref="WorkspaceEncryptionSession"/> and must not be disposed here.
 /// </summary>
-public sealed record AesGcmV1MetadataEncryption(
-    SecureBytes Ikm,
-    byte KeyVersion
-): MetadataEncryptionMode;
+public sealed record AesGcmMetadataV1Encryption(
+    MetadataAesInputsV1 Input) : MetadataEncryptionMode;
+
+public sealed class MetadataAesInputsV1 : IDisposable
+{
+    private int _disposed;
+
+    public required byte[] MetadataKey { get; init; }
+    public required byte KeyVersion { get; init; }
+
+    //this chain in contrary to file aes inputs does not contain workspace salt,
+    //but it does contain metadata salt - that is a small inconsistency but yeap, sorry :)
+    //workspace salt is not here because there is no point to copy it into every metadata
+    //when db is lost we cannot reproduce metadata anyway, and that was the only reason
+    //why all salts are included in files version of this property
+    public required IReadOnlyList<byte[]> ChainStepSalts { get; init; }
+
+    public void Deconstruct(
+        out byte[] fileKey,
+        out byte keyVersion,
+        out IReadOnlyList<byte[]> chainStepSalts)
+    {
+        fileKey = MetadataKey;
+        keyVersion = KeyVersion;
+        chainStepSalts = ChainStepSalts;
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+            return;
+
+        CryptographicOperations.ZeroMemory(MetadataKey);
+    }
+
+    public static MetadataAesInputsV1 Prepare(
+        SecureBytes ikm,
+        byte keyVersion,
+        IReadOnlyList<byte[]> chainStepSalts)
+    {
+        var fileKey = new byte[Aes256GcmStreamingV2.DerivedKeySize];
+
+        ikm.DeriveKey(
+            chainStepSalts: chainStepSalts,
+            output: fileKey);
+
+        return new MetadataAesInputsV1
+        {
+            MetadataKey = fileKey,
+            KeyVersion = keyVersion,
+            ChainStepSalts = chainStepSalts,
+        };
+    }
+}

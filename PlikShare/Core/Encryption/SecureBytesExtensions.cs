@@ -1,5 +1,4 @@
-﻿using PlikShare.Storages;
-using System.Security.Cryptography;
+﻿using System.Buffers;
 
 namespace PlikShare.Core.Encryption;
 
@@ -21,22 +20,56 @@ public static class SecureBytesExtensions
                 static (span, enc) => enc.EncryptBytes(span));
         }
 
-        public void HkdfDeriveKey(ReadOnlySpan<byte> salt, Span<byte> output)
+        public void DeriveKey(IReadOnlyList<byte[]> chainStepSalts, Span<byte> output)
+        {
+            var totalLength = 0;
+            for (var i = 0; i < chainStepSalts.Count; i++)
+                totalLength += chainStepSalts[i].Length;
+
+            var rented = totalLength > 512
+                ? ArrayPool<byte>.Shared.Rent(totalLength)
+                : null;
+
+            try
+            {
+                var flattened = rented is null
+                    ? stackalloc byte[totalLength]
+                    : rented.AsSpan(0, totalLength);
+
+                var offset = 0;
+                for (var i = 0; i < chainStepSalts.Count; i++)
+                {
+                    chainStepSalts[i].CopyTo(flattened[offset..]);
+                    offset += chainStepSalts[i].Length;
+                }
+
+                secureBytes.DeriveKey(
+                    flattened, 
+                    output);
+            }
+            finally
+            {
+                if (rented is not null)
+                {
+                    ArrayPool<byte>.Shared.Return(rented);
+                }
+            }
+        }
+
+        public void DeriveKey(ReadOnlySpan<byte> chainStepSalts, Span<byte> output)
         {
             secureBytes.Use(
                 state: new HkdfInput
                 {
-                    Salt = salt,
+                    ChainStepSalts = chainStepSalts,
                     Output = output
                 },
                 action: static (ikmSpan, state) =>
                 {
-                    HKDF.DeriveKey(
-                        hashAlgorithmName: HashAlgorithmName.SHA256,
-                        ikm: ikmSpan,
-                        output: state.Output,
-                        salt: state.Salt,
-                        info: null);
+                    KeyDerivationChain.Derive(
+                        startingDek: ikmSpan,
+                        chainSalts: state.ChainStepSalts,
+                        output: state.Output);
                 });
         }
     }
@@ -77,7 +110,7 @@ public static class SecureBytesExtensions
 
     private readonly ref struct HkdfInput
     {
-        public ReadOnlySpan<byte> Salt { get; init; }
+        public ReadOnlySpan<byte> ChainStepSalts { get; init; }
         public Span<byte> Output { get; init; }
     }
 }

@@ -60,8 +60,8 @@ public sealed class FileAesInputsV2 : IDisposable
     {
         var fileKey = new byte[Aes256GcmStreamingV2.DerivedKeySize];
 
-        ikm.HkdfDeriveKey(
-            salt: metadata.Salt,
+        ikm.DeriveKey(
+            chainStepSalts: metadata.Salt,
             output: fileKey);
         
         return new FileAesInputsV2
@@ -126,8 +126,8 @@ public sealed class FileAesInputsV2Wire
 
         try
         {
-            ikm.HkdfDeriveKey(
-                salt: metadata.Salt,
+            ikm.DeriveKey(
+                chainStepSalts: metadata.Salt,
                 output: fileKey);
 
             return new FileAesInputsV2Wire

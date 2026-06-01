@@ -30,7 +30,11 @@ public class storage_multipart_upload_tests : TestFixture
         StorageEncryptionType encryptionType)
     {
         //given
-        var setup = await _liveFixture.GetOrCreate(this, provider, encryptionType, AppOwner);
+        var setup = await _liveFixture.GetOrCreate(
+            this, 
+            provider, 
+            encryptionType, 
+            AppOwner);
 
         var folder = await CreateFolder(
             parent: null,

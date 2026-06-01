@@ -192,9 +192,9 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
         public required string MultipartUploadId { get; init; }
         public required string KeySecretPart { get; init; }
         public required int? FolderId { get; init; }
-        public required EncryptableMetadata FileName { get; init; }
-        public required EncryptableMetadata FileExtension { get; init; }
-        public required EncryptableMetadata FileContentType { get; init; }
+        public required EncodedMetadataValue FileName { get; init; }
+        public required EncodedMetadataValue FileExtension { get; init; }
+        public required EncodedMetadataValue FileContentType { get; init; }
         public required long FileSizeInBytes { get; init; }
         public required byte? EncryptionKeyVersion { get; init; }
         public required byte[]? EncryptionSalt { get; init; }
@@ -202,6 +202,6 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
         public required byte[]? EncryptionChainSalts { get; init; }
         public required byte? EncryptionFormatVersion { get; init; }
         public required int? ParentFileId { get; init; }
-        public required EncryptableMetadata? FileMetadata { get; init; }
+        public required EncodedMetadataValue? FileMetadata { get; init; }
     }
 }

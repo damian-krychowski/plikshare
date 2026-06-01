@@ -35,7 +35,7 @@ public static class StorageDekEntryExtensions
             {
                 Dek = storageDekEntry.Dek.Use(span => KeyDerivationChain.Derive(
                     startingDek: span,
-                    stepSalts: workspaceDekSalts)),
+                    chainSalts: workspaceDekSalts)),
 
                 StorageDekVersion = storageDekEntry.DekVersion
             };

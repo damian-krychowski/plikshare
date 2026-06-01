@@ -106,8 +106,8 @@ public static class UploadsEndpoints
                         {
                             ExternalId = f.FileUploadExternalId,
                             FileExternalId = f.FileExternalId,
-                            Name = f.FileName.Encode(),
-                            Extension = f.FileExtension.Encode(),
+                            Name = f.FileName,
+                            Extension = f.FileExtension,
                             SizeInBytes = f.SizeInBytes,
                             FolderPath = f.FolderPath
                         }).ToList()),

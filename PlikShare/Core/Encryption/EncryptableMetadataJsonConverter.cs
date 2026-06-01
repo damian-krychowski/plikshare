@@ -6,7 +6,7 @@ namespace PlikShare.Core.Encryption;
 /// <summary>
 /// Serializes <see cref="EncryptableMetadata"/> by emitting <see cref="EncryptableMetadataExtensions.Encode"/>:
 /// plaintext for <see cref="NoMetadataEncryption"/>, base64 envelope (with <see cref="EncryptableMetadataExtensions.ReservedPrefix"/>)
-/// for <see cref="AesGcmV1MetadataEncryption"/>.
+/// for <see cref="AesGcmMetadataV1Encryption"/>.
 ///
 /// Used at JSON write boundaries that ultimately land in a SQLite TEXT column via
 /// <c>json_extract</c> bulk-insert paths (e.g. <c>WithJsonParameter</c> + bulk INSERT). The struct

@@ -281,11 +281,11 @@ public class BulkInitiateFileUploadOperation(
                 {
                     FileUploadExternalId = fileDetails.FileUploadExternalId,
 
-                    Name = workspaceEncryptionSession.ToEncryptableMetadata(name),
-                    Extension = workspaceEncryptionSession.ToEncryptableMetadata(extension),
+                    Name = workspaceEncryptionSession.Encode(name),
+                    Extension = workspaceEncryptionSession.Encode(extension),
                     SizeInBytes = fileDetails.FileSizeInBytes,
                     FolderExternalId = fileDetails.FolderExternalId,
-                    ContentType = workspaceEncryptionSession.ToEncryptableMetadata(fileDetails.FileContentType),
+                    ContentType = workspaceEncryptionSession.Encode(fileDetails.FileContentType),
 
                     StorageUploadDetails = hardDriveStorage.GetStorageUploadDetails(
                         fileUploadExternalId: FileUploadExtId.Parse(fileDetails.FileUploadExternalId),
@@ -330,10 +330,10 @@ public class BulkInitiateFileUploadOperation(
                 {
                     FileUploadExternalId = fileDetails.FileUploadExternalId,
 
-                    Name = workspaceEncryptionSession.ToEncryptableMetadata(name),
-                    Extension = workspaceEncryptionSession.ToEncryptableMetadata(extension),
+                    Name = workspaceEncryptionSession.Encode(name),
+                    Extension = workspaceEncryptionSession.Encode(extension),
 
-                    ContentType = workspaceEncryptionSession.ToEncryptableMetadata(fileDetails.FileContentType),
+                    ContentType = workspaceEncryptionSession.Encode(fileDetails.FileContentType),
                     SizeInBytes = fileDetails.FileSizeInBytes,
                     FolderExternalId = fileDetails.FolderExternalId,
                     S3Key = FileKey.NewKey(),
@@ -413,10 +413,10 @@ public class BulkInitiateFileUploadOperation(
                     {
                         FileUploadExternalId = fileDetails.FileUploadExternalId,
 
-                        Name = workspaceEncryptionSession.ToEncryptableMetadata(name),
-                        Extension = workspaceEncryptionSession.ToEncryptableMetadata(extension),
+                        Name = workspaceEncryptionSession.Encode(name),
+                        Extension = workspaceEncryptionSession.Encode(extension),
 
-                        ContentType = workspaceEncryptionSession.ToEncryptableMetadata(fileDetails.FileContentType),
+                        ContentType = workspaceEncryptionSession.Encode(fileDetails.FileContentType),
                         SizeInBytes = fileDetails.FileSizeInBytes,
                         FolderExternalId = fileDetails.FolderExternalId,
                         S3Key = s3Key,
@@ -545,12 +545,12 @@ public class BulkInitiateFileUploadOperation(
                         FileKey = upload.S3Key,
                         MultipartUploadId = upload.StorageUploadDetails.MultipartUploadId,
                     },
-                    ContentType = upload.ContentType.Encode(),
+                    ContentType = upload.ContentType,
                     WorkspaceId = workspace.Id,
                     OwnerIdentity = userIdentity.Identity,
                     OwnerIdentityType = userIdentity.IdentityType,
-                    FileName = upload.Name.Encode(),
-                    FileExtension = upload.Extension.Encode(),
+                    FileName = upload.Name,
+                    FileExtension = upload.Extension,
                     FolderAncestors = folderAncestors
                 },
                 cancellationToken: cancellationToken);
@@ -748,8 +748,8 @@ public class BulkInitiateFileUploadOperation(
     public record InitiatedFile(
         Files.Id.FileExtId FileExternalId,
         FileUploadExtId FileUploadExternalId,
-        EncryptableMetadata FileName,
-        EncryptableMetadata FileExtension,
+        EncodedMetadataValue FileName,
+        EncodedMetadataValue FileExtension,
         long SizeInBytes,
         List<EncodedMetadataValue>? FolderPath);
 
@@ -784,10 +784,10 @@ public class BulkInitiateFileUploadOperation(
     private class UploadDetails
     {
         public required string FileUploadExternalId { get; init; }
-        public required EncryptableMetadata Name { get; init; }
-        public required EncryptableMetadata Extension { get; init; }
+        public required EncodedMetadataValue Name { get; init; }
+        public required EncodedMetadataValue Extension { get; init; }
         public required long SizeInBytes { get; init; }
-        public required EncryptableMetadata ContentType { get; init; }
+        public required EncodedMetadataValue ContentType { get; init; }
         public required string? FolderExternalId { get; init; }
         public required FileKey S3Key { get; init; }
         public required StorageUploadDetails StorageUploadDetails { get; init; }
