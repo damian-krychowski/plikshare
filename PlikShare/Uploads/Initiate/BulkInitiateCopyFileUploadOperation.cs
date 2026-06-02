@@ -38,8 +38,7 @@ public class BulkInitiateCopyFileUploadOperation(
         // mechanism pending in the invitation/rotation work.
         var filesToCopy = GetFilesToCopy(
             fileIds: definition.Files.Select(file => file.Id).ToArray(),
-            storageClient: destinationWorkspace.Storage,
-            workspaceEncryption: destinationWorkspace.EncryptionMetadata);
+            workspace: destinationWorkspace);
 
         if (destinationWorkspace.Storage is IObjectStorageClient objectStorageClient)
         {
@@ -92,8 +91,7 @@ public class BulkInitiateCopyFileUploadOperation(
     
     private List<FileToCopy> GetFilesToCopy(
         int[] fileIds,
-        IStorageClient storageClient,
-        WorkspaceEncryptionMetadata? workspaceEncryption)
+        WorkspaceContext workspace)
     {
         using var connection = plikShareDb.OpenConnection();
 
@@ -117,10 +115,9 @@ public class BulkInitiateCopyFileUploadOperation(
                     var fileId = reader.GetInt32(0);
                     var fileSizeInBytes = reader.GetInt64(1);
 
-                    var encryptionDetails = storageClient.GenerateFileEncryptionMetadata(
-                        workspaceEncryption);
+                    var encryptionDetails = workspace.GenerateFileEncryptionMetadata();
 
-                    var (algorithm, filePartsCount) = storageClient.ResolveCopyUploadAlgorithm(
+                    var (algorithm, filePartsCount) = workspace.Storage.ResolveCopyUploadAlgorithm(
                         fileSizeInBytes: fileSizeInBytes,
                         ikmChainStepsCount: encryptionDetails?.ChainStepSalts.Count ?? 0);
 
@@ -138,7 +135,7 @@ public class BulkInitiateCopyFileUploadOperation(
                         MultipartUploadId = string.Empty,
 
                         NewFileExternalId = FileExtId.NewId(),
-                        NewFileKeySecretPart = storageClient.GenerateFileKeySecretPart(),
+                        NewFileKeySecretPart = workspace.GenerateFileKeySecretPart(),
 
                         NewFileEncryptionKeyVersion = encryptionDetails?.KeyVersion,
                         NewFileEncryptionSalt = encryptionDetails?.Salt,

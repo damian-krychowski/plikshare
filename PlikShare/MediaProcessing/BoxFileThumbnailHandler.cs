@@ -64,9 +64,9 @@ public class BoxFileThumbnailHandler(
 
         try
         {
-            var encryptionMode = file.EncryptionMetadata.ToEncryptionMode(
-                workspaceEncryptionSession: null,
-                storageClient: workspace.Storage);
+            var encryptionMode = workspace.GetFileEncryptionMode(
+                fileEncryptionMetadata: file.EncryptionMetadata,
+                workspaceEncryptionSession: null);
 
             await using var storageFile = await workspace.DownloadFile(
                 fileDetails: new DownloadFileDetails(

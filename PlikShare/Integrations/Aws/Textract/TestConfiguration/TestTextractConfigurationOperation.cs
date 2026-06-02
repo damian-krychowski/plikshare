@@ -44,7 +44,7 @@ public class TestTextractConfigurationOperation(
                 bucketName: bucketName,
                 cancellationToken: cancellationToken);
 
-            var imageFileKey = FileKey.NewKey();
+            var imageFileKey = s3StorageClient.GenerateFileKey();
 
             await UploadTestImageToS3(
                 imageFileKey, 

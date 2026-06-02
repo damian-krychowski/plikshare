@@ -14,7 +14,7 @@ namespace PlikShare.MediaProcessing.Generation;
 /// </summary>
 public class CancelThumbnailBatchOperation(
     DbWriteQueue dbWriteQueue,
-    TemporaryWorkspaceEncryptionKeyStore keyStore,
+    TemporaryEncryptionStore temporaryEncryptionStore,
     QueueBatchNotifier batchNotifier)
 {
     public async Task<int> Execute(
@@ -29,8 +29,9 @@ public class CancelThumbnailBatchOperation(
                 batchId: batchId),
             cancellationToken: cancellationToken);
 
-        // Each pending job carries up to BatchSize files, each with its own temp encryption key.
-        // Release them all so they don't linger to TTL.
+        // Each pending job carries up to BatchSize files, each with its own temporary encryption
+        // package handle (parent decryption wire + per-variant encryption wires + metadata seed).
+        // Release them all from the store so they don't linger to TTL.
         var releasedFiles = 0;
 
         foreach (var definition in deletedDefinitions)
@@ -42,7 +43,7 @@ public class CancelThumbnailBatchOperation(
 
             foreach (var file in definition.Files)
                 if (file.TempEncryptionKeyId is { } id)
-                    keyStore.Remove(id);
+                    temporaryEncryptionStore.Remove(id);
         }
 
         batchNotifier.Notify(batchId);

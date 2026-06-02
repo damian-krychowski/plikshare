@@ -104,4 +104,47 @@ public sealed class MetadataAesInputsV1 : IDisposable
             ChainStepSalts = chainStepSalts,
         };
     }
+
+    /// <summary>
+    /// Builds the inputs from a pre-derived <see cref="EncryptionSeed"/> instead of the
+    /// workspace DEK directly. Adds one more HKDF step:
+    /// <c>metadata_key = HKDF(seed, metadataSalt)</c>. The resulting envelope's chain salts
+    /// list both <c>[seed.Salt, metadataSalt]</c> so a decoder walking from the workspace
+    /// DEK arrives at the same metadata_key without ever needing the seed.
+    /// </summary>
+    public static MetadataAesInputsV1 Prepare(
+        EncryptionSeed seed)
+    {
+        var metadataSalt = RandomNumberGenerator.GetBytes(
+            KeyDerivationChain.StepSaltSize);
+            
+        var metadataKey = new byte[KeyDerivationChain.DerivedKeySize];
+
+        HKDF.DeriveKey(
+            hashAlgorithmName: HashAlgorithmName.SHA256,
+            ikm: seed.Seed,
+            output: metadataKey,
+            salt: metadataSalt,
+            info: null);
+
+        return new MetadataAesInputsV1
+        {
+            MetadataKey = metadataKey,
+            KeyVersion = seed.KeyVersion,
+            ChainStepSalts = [seed.Salt, metadataSalt]
+        };
+    }
+}
+
+public static class NoMetadataEncryptionExtensions
+{
+    extension(NoMetadataEncryption)
+    {
+        public static EncryptableMetadata Prepare(string value)
+        {
+            return new EncryptableMetadata(
+                Value: value,
+                EncryptionMode: NoMetadataEncryption.Instance);
+        }
+    }
 }

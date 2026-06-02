@@ -7,6 +7,7 @@ using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Files.PreSignedLinks.Validation;
+using PlikShare.Storages;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Cache;
 
@@ -22,7 +23,8 @@ public class GenerateFileThumbnailsOperation(
     IQueue queue,
     DbWriteQueue dbWriteQueue,
     GetFilePreSignedDownloadLinkDetailsQuery getParentFileDetailsQuery,
-    TemporaryWorkspaceEncryptionKeyStore keyStore,
+    TemporaryEncryptionStore temporaryEncryptionStore,
+    IMasterDataEncryption masterEncryption,
     FfmpegService ffmpegService)
 {
     public async Task<Result> Execute(
@@ -53,12 +55,14 @@ public class GenerateFileThumbnailsOperation(
         if (!ContentTypeHelper.IsThumbnailable(parentLookup.Details.Extension))
             return new Result(Code: ResultCode.ParentNotThumbnailable);
 
-        // For full-encrypted workspaces we hand the queue worker a clone of the request-bound
-        // session via the in-memory keystore. None/Managed needs no session — the worker
-        // decrypts those without it.
-        var tempKeyId = workspaceEncryptionSession is null
-            ? (Guid?)null
-            : keyStore.Store(workspaceEncryptionSession);
+        // Pre-derive every wire the worker will need for this one file: parent decryption,
+        // per-variant thumbnail encryption, metadata seed. Wrapped in one Package; the queue
+        // payload carries only the handle. Null for None/Managed workspaces (no encryption).
+        var handle = ProvisionPackage(
+            workspace: workspace,
+            workspaceEncryptionSession: workspaceEncryptionSession,
+            parentEncryptionMetadata: parentLookup.Details.EncryptionMetadata,
+            variants: variants);
 
         var batchId = Guid.NewGuid();
 
@@ -71,7 +75,7 @@ public class GenerateFileThumbnailsOperation(
                 {
                     ParentFileExternalId = parentFileExternalId,
                     Extension = parentLookup.Details.Extension,
-                    TempEncryptionKeyId = tempKeyId
+                    TempEncryptionKeyId = handle
                 }
             ],
             Variants = variants.ToList(),
@@ -90,8 +94,8 @@ public class GenerateFileThumbnailsOperation(
         }
         catch
         {
-            if (tempKeyId is { } id)
-                keyStore.Remove(id);
+            if (handle is { } id)
+                temporaryEncryptionStore.Remove(id);
 
             throw;
         }
@@ -99,6 +103,49 @@ public class GenerateFileThumbnailsOperation(
         return new Result(
             Code: ResultCode.Ok,
             BatchId: batchId);
+    }
+
+    private Guid? ProvisionPackage(
+        WorkspaceContext workspace,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
+        FileEncryptionMetadata? parentEncryptionMetadata,
+        IReadOnlyList<ThumbnailVariant> variants)
+    {
+        if (workspaceEncryptionSession is null)
+            return null;
+
+        var latest = workspaceEncryptionSession.GetLatestDek();
+
+        var decryptionInput = parentEncryptionMetadata is null
+            ? null
+            : FileAesInputsV2Wire.Prepare(
+                ikm: latest.Dek,
+                metadata: parentEncryptionMetadata,
+                masterEncryption: masterEncryption);
+
+        var encryptionInputs = new List<FileAesInputsV2Wire>(variants.Count);
+
+        foreach (var _ in variants)
+        {
+            var newMetadata = workspace.GenerateFileEncryptionMetadata();
+
+            if (newMetadata is null)
+                continue;
+
+            encryptionInputs.Add(FileAesInputsV2Wire.Prepare(
+                ikm: latest.Dek,
+                metadata: newMetadata,
+                masterEncryption: masterEncryption));
+        }
+
+        var metadataEncryptionSeed = EncryptionSeedWire.Prepare(
+            session: workspaceEncryptionSession,
+            masterEncryption: masterEncryption);
+
+        return temporaryEncryptionStore.Store(
+            decryptionInput: decryptionInput,
+            encryptionInputs: encryptionInputs,
+            metadataEncryptionSeed: metadataEncryptionSeed);
     }
 
     private void EnqueueJob(

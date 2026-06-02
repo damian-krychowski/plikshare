@@ -5,6 +5,7 @@ using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
+using PlikShare.Storages;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Cache;
 
@@ -21,7 +22,9 @@ public class GenerateFileThumbnailsBulkOperation(
     IQueue queue,
     DbWriteQueue dbWriteQueue,
     GetThumbnailableFilesQuery getThumbnailableFilesQuery,
-    TemporaryWorkspaceEncryptionKeyStore keyStore,
+    GetThumbnailSourceFileQuery getSourceFileQuery,
+    TemporaryEncryptionStore temporaryEncryptionStore,
+    IMasterDataEncryption masterEncryption,
     FfmpegService ffmpegService)
 {
     // How many parent files to fold into one queue job. Higher = fewer DbWriteQueue trips but
@@ -54,14 +57,24 @@ public class GenerateFileThumbnailsBulkOperation(
         if (thumbnailableFiles.Count == 0)
             return new Result(Code: ResultCode.NoThumbnailableFiles);
 
+        // For full-encrypted workspaces we need each parent's stored encryption metadata to
+        // pre-derive the decryption wire on trigger time (worker no longer holds a workspace
+        // session). Skipped for None/Managed — those routes don't need a keystore detour.
+        var parentDetails = workspaceEncryptionSession is null
+            ? new Dictionary<FileExtId, GetThumbnailSourceFileQuery.ThumbnailSourceFile>()
+            : getSourceFileQuery.ExecuteBatch(
+                thumbnailableFiles.Select(f => f.ExternalId).ToList());
+
         var batchId = Guid.NewGuid();
         var variantList = variants.ToList();
 
         var entities = new List<BulkQueueJobEntity>();
 
-        // One temp encryption key PER FILE — the worker releases per-key, so a single shared key
-        // would be freed by the first finished file and starve the rest.
-        var storedKeyIds = new List<Guid>();
+        // One Package per file — Package holds decryption + encryption + metadata-seed wires
+        // (all master-encrypted) for a single parent file's thumbnail generation. Per-file
+        // (not per-batch) granularity matches the worker's per-file lifecycle: a Package is
+        // taken and consumed for its file then removed.
+        var storedHandles = new List<Guid>();
 
         try
         {
@@ -71,18 +84,21 @@ public class GenerateFileThumbnailsBulkOperation(
 
                 foreach (var file in chunk)
                 {
-                    var tempKeyId = workspaceEncryptionSession is null
-                        ? (Guid?)null
-                        : keyStore.Store(workspaceEncryptionSession);
+                    var handle = ProvisionPackage(
+                        workspace: workspace,
+                        workspaceEncryptionSession: workspaceEncryptionSession,
+                        parentDetails: parentDetails,
+                        file: file,
+                        variants: variantList);
 
-                    if (tempKeyId is { } id)
-                        storedKeyIds.Add(id);
+                    if (handle is { } id)
+                        storedHandles.Add(id);
 
                     batchItems.Add(new ProcessImageQueueJobDefinition.BatchItem
                     {
                         ParentFileExternalId = file.ExternalId,
                         Extension = file.Extension,
-                        TempEncryptionKeyId = tempKeyId
+                        TempEncryptionKeyId = handle
                     });
                 }
 
@@ -110,7 +126,7 @@ public class GenerateFileThumbnailsBulkOperation(
         }
         catch
         {
-            ReleaseKeys(storedKeyIds);
+            ReleaseHandles(storedHandles);
             throw;
         }
 
@@ -118,6 +134,66 @@ public class GenerateFileThumbnailsBulkOperation(
             Code: ResultCode.Ok,
             BatchId: batchId,
             TotalFiles: thumbnailableFiles.Count);
+    }
+
+    /// <summary>
+    /// Per-file: build every wire the worker will need (parent decryption, per-variant
+    /// thumbnail encryption, metadata seed), stash them as a Package, return the handle. Null
+    /// when the workspace isn't full-encrypted — there's nothing to wrap.
+    /// </summary>
+    private Guid? ProvisionPackage(
+        WorkspaceContext workspace,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
+        Dictionary<FileExtId, GetThumbnailSourceFileQuery.ThumbnailSourceFile> parentDetails,
+        GetThumbnailableFilesQuery.ThumbnailableFile file,
+        List<ThumbnailVariant> variants)
+    {
+        if (workspaceEncryptionSession is null)
+            return null;
+
+        var latest = workspaceEncryptionSession.GetLatestDek();
+
+        // Decryption wire for the parent body — only built when the parent actually has
+        // encryption metadata. Worker uses it via FileAesInputsV2.Prepare(wire, masterEnc).
+        FileAesInputsV2Wire? decryptionInput = null;
+        if (parentDetails.TryGetValue(file.ExternalId, out var parent)
+            && parent.EncryptionMetadata is not null)
+        {
+            decryptionInput = FileAesInputsV2Wire.Prepare(
+                ikm: latest.Dek,
+                metadata: parent.EncryptionMetadata,
+                masterEncryption: masterEncryption);
+        }
+
+        // Per-variant encryption wires — one per future thumbnail body. Fresh
+        // FileEncryptionMetadata generated up-front so the wire carries everything the worker
+        // needs to write the body AND populate the new fi_files row's fi_encryption_* columns.
+        var encryptionInputs = new List<FileAesInputsV2Wire>(variants.Count);
+
+        foreach (var _ in variants)
+        {
+            var newMetadata = workspace.GenerateFileEncryptionMetadata();
+
+            if (newMetadata is null)
+                continue;
+
+            encryptionInputs.Add(FileAesInputsV2Wire.Prepare(
+                ikm: latest.Dek,
+                metadata: newMetadata,
+                masterEncryption: masterEncryption));
+        }
+
+        // One seed per file, reused for every attachment metadata value across every variant
+        // — each Prepare(seed) call inside the worker generates a fresh per-value metadata
+        // salt internally.
+        var metadataEncryptionSeed = EncryptionSeedWire.Prepare(
+            session: workspaceEncryptionSession,
+            masterEncryption: masterEncryption);
+
+        return temporaryEncryptionStore.Store(
+            decryptionInput: decryptionInput,
+            encryptionInputs: encryptionInputs,
+            metadataEncryptionSeed: metadataEncryptionSeed);
     }
 
     private void EnqueueJobs(
@@ -145,10 +221,10 @@ public class GenerateFileThumbnailsBulkOperation(
         }
     }
 
-    private void ReleaseKeys(List<Guid> keyIds)
+    private void ReleaseHandles(List<Guid> handles)
     {
-        foreach (var keyId in keyIds)
-            keyStore.Remove(keyId);
+        foreach (var handle in handles)
+            temporaryEncryptionStore.Remove(handle);
     }
 
     public record Result(

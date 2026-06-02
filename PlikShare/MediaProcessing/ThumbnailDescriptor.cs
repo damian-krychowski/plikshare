@@ -1,5 +1,12 @@
-using PlikShare.Files.Id;
+using System.Buffers.Text;
+using System.IO.Pipelines;
+using PlikShare.Core.Encryption;
+using PlikShare.Core.Utils;
 using PlikShare.Files.Metadata;
+using PlikShare.Files.Records;
+using PlikShare.Storages;
+using PlikShare.Uploads.Algorithm;
+using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.MediaProcessing;
 
@@ -9,7 +16,7 @@ namespace PlikShare.MediaProcessing;
 /// this immutable record (same convention as <c>InsertFileAttachmentQuery.AttachmentFile</c>).
 /// </summary>
 public sealed record ThumbnailDescriptor(
-    FileExtId ExternalId,
+    FileKey FileKey,
     ThumbnailVariant Variant,
     long SizeInBytes,
     string ContentType,
@@ -22,13 +29,46 @@ public sealed record ThumbnailDescriptor(
     /// trio at each call site (or drift if we ever change them).
     /// </summary>
     public static ThumbnailDescriptor ForGeneratedWebp(
-        FileExtId externalId,
+        FileKey fileKey,
         ThumbnailVariant variant,
         long sizeInBytes) => new(
-            ExternalId: externalId,
+            FileKey: fileKey,
             Variant: variant,
             SizeInBytes: sizeInBytes,
             ContentType: "image/webp",
             FileName: $"thumb-{variant.ToString().ToLowerInvariant()}",
             FileExtension: ".webp");
+}
+
+public static class ThumbnailDescriptorExtensions
+{
+    extension(ThumbnailDescriptor thumbnail)
+    {
+        public async Task<string> UploadAndHash(
+            WorkspaceContext workspace,
+            Stream content,
+            FileEncryptionMode encryptionMode,
+            CancellationToken cancellationToken)
+        {
+            var hashingStream = new XxHashingReadStream(
+                content);
+
+            await workspace.UploadFilePart(
+                input: PipeReader.Create(
+                    stream: hashingStream),
+                uploadDetails: new UploadFilePartDetails(
+                    FileKey: thumbnail.FileKey,
+                    MultipartUploadId: null,
+                    FileSizeInBytes: thumbnail.SizeInBytes,
+                    Part: FilePart.First((int)thumbnail.SizeInBytes),
+                    UploadAlgorithm: UploadAlgorithm.DirectUpload,
+                    EncryptionMode: encryptionMode),
+                cancellationToken: cancellationToken);
+
+            Span<byte> hashBytes = stackalloc byte[16];
+            hashingStream.Hash.GetCurrentHash(hashBytes);
+
+            return Base64Url.EncodeToString(hashBytes);
+        }
+    }
 }

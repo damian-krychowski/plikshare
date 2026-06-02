@@ -18,6 +18,7 @@ using PlikShare.Folders.Rename.Contracts;
 using PlikShare.Folders.UpdatePositions;
 using PlikShare.Folders.UpdatePositions.Contracts;
 using PlikShare.Storages.Encryption.Authorization;
+using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Validation;
 
 namespace PlikShare.Folders;
@@ -64,6 +65,8 @@ public static class FoldersEndpoints
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspace = workspaceMembership.Workspace;
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
 
         var request = httpContext.GetProtobufRequest<BulkCreateFolderRequestDto>();
 
@@ -72,13 +75,13 @@ public static class FoldersEndpoints
             : FolderExtId.Parse(request.ParentExternalId);
 
         var result = await getOrCreateFolderQuery.Execute(
-            workspace: workspaceMembership.Workspace,
+            workspace: workspace,
             parentFolderExternalId: parentFolderExternalId,
             boxFolderId: null,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             folderTreeItems: request.FolderTrees ?? [],
             ensureUniqueNames: request.EnsureUniqueNames,
-            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
+            workspaceEncryptionSession: workspaceEncryptionSession,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -87,9 +90,10 @@ public static class FoldersEndpoints
                 await auditLogService.Log(
                     Audit.Folder.BulkCreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
+                        workspace: workspace.ToAuditLogWorkspaceRef(),
                         folders: result.CreatedFolders.ToAuditLogFolderRefs(
-                            httpContext.TryGetWorkspaceEncryptionSession())),
+                            workspace,
+                            workspaceEncryptionSession)),
                     cancellationToken);
 
                 return TypedResults.Ok(
@@ -122,12 +126,16 @@ public static class FoldersEndpoints
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspace = workspaceMembership.Workspace;
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
 
         var result = await createFolderQuery.Execute(
-            workspace: workspaceMembership.Workspace,
+            workspace: workspace,
             folderExternalId: request.ExternalId,
             parentFolderExternalId: request.ParentExternalId,
-            name: httpContext.ToEncryptable(value: request.Name),
+            name: workspace.ToEncryptableMetadata(
+                value: request.Name,
+                workspaceEncryptionSession: workspaceEncryptionSession),
             boxFolderId: null,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             cancellationToken: cancellationToken);
@@ -139,7 +147,7 @@ public static class FoldersEndpoints
                     folderExternalId: request.ExternalId,
                     buildEntry: folderRef => Audit.Folder.CreatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
+                        workspace: workspace.ToAuditLogWorkspaceRef(),
                         folder: folderRef),
                     cancellationToken);
 
@@ -209,11 +217,15 @@ public static class FoldersEndpoints
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspace = workspaceMembership.Workspace;
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
 
         var resultCode = await updateFolderNameQuery.Execute(
-            workspace: workspaceMembership.Workspace,
+            workspace: workspace,
             folderExternalId: folderExternalId,
-            name: httpContext.ToEncryptable(request.Name),
+            name: workspace.ToEncryptableMetadata(
+                request.Name,
+                workspaceEncryptionSession),
             boxFolderId: null,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             isOperationAllowedByBoxPermissions: true,
@@ -226,7 +238,7 @@ public static class FoldersEndpoints
                     folderExternalId: folderExternalId,
                     buildEntry: folderRef => Audit.Folder.NameUpdatedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
-                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
+                        workspace: workspace.ToAuditLogWorkspaceRef(),
                         folder: folderRef),
                     cancellationToken);
 

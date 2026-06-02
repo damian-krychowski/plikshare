@@ -1,7 +1,4 @@
-﻿using PlikShare.Storages.Encryption;
-using PlikShare.Storages;
-
-namespace PlikShare.Core.Encryption;
+﻿namespace PlikShare.Core.Encryption;
 
 public sealed class FileEncryptionMetadata
 {
@@ -18,51 +15,4 @@ public sealed class FileEncryptionMetadata
     /// scope as the schema evolves.
     /// </summary>
     public required IReadOnlyList<byte[]> ChainStepSalts { get; init; }
-}
-
-public static class FileEncryptionMetadataExtensions
-{
-    extension(FileEncryptionMetadata? metadata)
-    {
-        public FileEncryptionMode ToEncryptionMode(
-            WorkspaceEncryptionSession? workspaceEncryptionSession,
-            IStorageClient storageClient)
-        {
-            if (metadata is null)
-                return NoEncryption.Instance;
-            
-            if (metadata.FormatVersion == 1)
-            {
-                if (storageClient.Encryption is not ManagedStorageEncryption managed)
-                    throw new InvalidOperationException(
-                        $"Cannot resolve IKM for V1 file: storage encryption must be Managed, " +
-                        $"but was '{storageClient.Encryption.GetType().Name}'.");
-
-                return new AesGcmV1Encryption(
-                    Input: new FileAesInputsV1(
-                        Ikm: managed.GetEncryptionKey(metadata.KeyVersion),
-                        KeyVersion: metadata.KeyVersion,
-                        Salt: metadata.Salt,
-                        NoncePrefix: metadata.NoncePrefix));
-            }
-
-            if (metadata.FormatVersion == 2)
-            {
-                if (workspaceEncryptionSession is null)
-                    throw new InvalidOperationException(
-                        "Cannot resolve IKM for V2 file: workspace encryption session is null.");
-
-                var fileAesInputs = FileAesInputsV2.Prepare(
-                    ikm: workspaceEncryptionSession.GetDekForVersion(
-                        metadata.KeyVersion),
-                    metadata: metadata);
-
-                return new AesGcmV2Encryption(
-                    Input: fileAesInputs);
-            }
-
-            throw new InvalidOperationException(
-                $"Unsupported file encryption format version '{metadata.FormatVersion}'.");
-        }
-    }
 }

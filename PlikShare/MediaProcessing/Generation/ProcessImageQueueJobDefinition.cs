@@ -38,11 +38,13 @@ public class ProcessImageQueueJobDefinition
         public required string Extension { get; init; }
 
         /// <summary>
-        /// Handle into <see cref="PlikShare.Core.Encryption.TemporaryWorkspaceEncryptionKeyStore"/>
-        /// for full-encrypted workspaces. Null when the parent's workspace uses None or Managed
-        /// encryption — the worker decrypts those without a user session. PER FILE (not per
-        /// batch) because the keystore releases per-key, so a single shared key would be freed by
-        /// the first finished file and starve the rest.
+        /// Handle into <see cref="PlikShare.Core.Encryption.TemporaryEncryptionStore"/> resolving
+        /// to a <see cref="PlikShare.Core.Encryption.TemporaryEncryptionStore.Package"/> that
+        /// carries every encryption input the worker needs for this parent file: the decryption
+        /// input (master-encrypted wire) for the parent body, the encryption inputs (one per
+        /// variant) for the thumbnail bodies, and the metadata encryption seed for the per-value
+        /// attachment metadata. Null when the parent's workspace uses None or Managed encryption
+        /// — the worker handles those without any keystore detour.
         /// </summary>
         public required Guid? TempEncryptionKeyId { get; init; }
     }

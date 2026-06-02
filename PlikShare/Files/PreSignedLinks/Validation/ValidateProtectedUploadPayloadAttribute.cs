@@ -2,6 +2,7 @@ using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Cache;
+using PlikShare.Workspaces.Cache;
 using Serilog;
 
 namespace PlikShare.Files.PreSignedLinks.Validation;
@@ -62,8 +63,7 @@ public class ValidateProtectedUploadPayloadFilter : IEndpointFilter
         if (extractionResult != PreSignedUrlsService.ExtractionResult.Ok)
             throw new InvalidOperationException(
                 $"Unrecognized ExtractionResul value: '{extractionResult}'");
-
-
+        
         var fileUploadCache = context
             .HttpContext
             .RequestServices
@@ -92,9 +92,27 @@ public class ValidateProtectedUploadPayloadFilter : IEndpointFilter
                 expected: fileUpload.FileToUpload.SizeInBytes);
         }
 
+        var workspaceCache = context
+            .HttpContext
+            .RequestServices
+            .GetRequiredService<WorkspaceCache>();
+
+        var workspace = await workspaceCache.TryGetWorkspace(
+            fileUpload.WorkspaceId,
+            context.HttpContext.RequestAborted);
+
+        if (workspace is null)
+        {
+            Log.Warning("Could not execute file part upload with pre-signed url because Workspace#{WorkspaceId} was not found.",
+                fileUpload.WorkspaceId);
+
+            return HttpErrors.Workspace.NotFound();
+        }
+
         context.HttpContext.Items[ProtectedUploadPayloadContext] = new ProtectedUploadPayload(
             Payload: payload,
-            FileUpload: fileUpload);
+            FileUpload: fileUpload,
+            Workspace: workspace);
 
         if (payload.WorkspaceDeks is {Length: >0})
         {
@@ -132,4 +150,5 @@ public static class ProtectedUploadPayloadHttpContextExtensions
 
 public record ProtectedUploadPayload(
     PreSignedUrlsService.UploadPayload Payload,
-    FileUploadContext FileUpload);
+    FileUploadContext FileUpload,
+    WorkspaceContext Workspace);

@@ -5,34 +5,18 @@ using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
+using PlikShare.Files.UploadAttachment;
 using PlikShare.Storages;
-using PlikShare.Storages.FileReading;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 
 namespace PlikShare.MediaProcessing.Generation;
 
-/// <summary>
-/// Background worker that takes a BATCH of parent files (1..N from <see cref="ProcessImageQueueJobDefinition.Files"/>),
-/// decrypts each through its own temporary encryption session, runs ffmpeg per variant, and uploads
-/// every generated WebP. The DB inserts for ALL variants of ALL files in the batch land in ONE
-/// <see cref="DbWriteQueue"/> transaction (via <see cref="InsertAndFinalizeThumbnailQuery.ExecuteBatch"/>) —
-/// cutting per-file DbWriteQueue contention.
-///
-/// Failure handling:
-/// <list type="bullet">
-///   <item>Workspace gone → drop the whole job (Success).</item>
-///   <item>ffmpeg unavailable → soft retry the whole job.</item>
-///   <item>Single file's temp key gone, parent gone, ffmpeg fail, storage fail — recorded as
-///         that file's failure inside the batch result; the rest of the batch continues.</item>
-/// </list>
-/// </summary>
 public class ProcessImageQueueJobExecutor(
     WorkspaceCache workspaceCache,
     GetThumbnailSourceFileQuery getSourceFileQuery,
-    GetThumbnailsQuery getThumbnailsQuery,
-    TemporaryWorkspaceEncryptionKeyStore keyStore,
-    UploadFileThumbnailOperation uploadFileThumbnailOperation,
+    TemporaryEncryptionStore temporaryEncryptionStore,
+    IMasterDataEncryption masterEncryption,
     InsertAndFinalizeThumbnailQuery insertAndFinalizeThumbnailQuery,
     FfmpegService ffmpegService) : IQueueLongRunningJobExecutor
 {
@@ -84,24 +68,22 @@ public class ProcessImageQueueJobExecutor(
                 definition.Files.Count);
 
             foreach (var item in definition.Files)
-                ReleaseKey(item.TempEncryptionKeyId);
+                ReleasePackage(item.TempEncryptionKeyId);
 
             return QueueJobResult.Success;
         }
 
-        var uploader = new UserIdentity(
-            UserExternalId: definition.TriggeredByUserExternalId);
-
-        // Batched parent lookup — one SELECT IN (json_each(...)) for the whole batch instead of
-        // one SELECT per file.
         var parentExternalIds = definition
             .Files
             .Select(f => f.ParentFileExternalId)
             .ToList();
 
-        var parents = getSourceFileQuery.ExecuteBatch(parentExternalIds);
+        var parents = getSourceFileQuery.ExecuteBatch(
+            parentExternalIds);
 
-        var perFileResults = new List<ThumbnailGenerationResult.FileResult>(definition.Files.Count);
+        var perFileResults = new List<ThumbnailGenerationResult.FileResult>(
+            definition.Files.Count);
+
         var batchInsertItems = new List<InsertAndFinalizeThumbnailQuery.BatchItem>();
 
         try
@@ -119,25 +101,21 @@ public class ProcessImageQueueJobExecutor(
                 perFileResults.Add(fileResult);
             }
 
-            // ONE DbWriteQueue tx for every variant of every file in the batch.
             if (batchInsertItems.Count > 0)
             {
                 await insertAndFinalizeThumbnailQuery.ExecuteBatch(
                     workspace: workspace,
-                    uploader: uploader,
+                    uploader: new UserIdentity(
+                        UserExternalId: definition.TriggeredByUserExternalId),
                     items: batchInsertItems,
                     correlationId: correlationId,
                     cancellationToken: cancellationToken);
-
-                // Per-item ParentNotFound (race between storage upload and insert) is logged inside
-                // ExecuteBatch and surfaces only as a missing fi_files row. The result JSON keeps the
-                // upbeat "generated" entry for that variant — frontend reads the truth from fresh DB.
             }
         }
         finally
         {
             foreach (var file in definition.Files)
-                ReleaseKey(file.TempEncryptionKeyId);
+                ReleasePackage(file.TempEncryptionKeyId);
         }
 
         return QueueJobResult.SuccessWithResult(
@@ -166,136 +144,39 @@ public class ProcessImageQueueJobExecutor(
                 file.ParentFileExternalId,
                 workspace.Id);
 
-            foreach (var variant in variants)
-            {
-                failedVariants.Add(new ThumbnailGenerationResult.FailedVariant
-                {
-                    Variant = variant,
-                    Error = "Parent file not found."
-                });
-            }
-
-            return BuildFileResult(file, generatedVariants, failedVariants);
+            return BuildFailedResult(file, variants, "Parent file not found.");
         }
 
-        WorkspaceEncryptionSession? session = null;
-
-        if (file.TempEncryptionKeyId is { } keyId)
+        TemporaryEncryptionStore.Package? encryptionPackage = null;
+        if (file.TempEncryptionKeyId is { } handleId)
         {
-            session = keyStore.TryRetrieve(keyId);
+            encryptionPackage = temporaryEncryptionStore.TryRetrieve(
+                handleId);
 
-            if (session is null)
+            if (encryptionPackage is null)
             {
                 Logger.Warning(
-                    "Temporary workspace encryption key {KeyId} not found for File '{ParentFileExternalId}'.",
-                    keyId,
+                    "Temporary encryption package {HandleId} not found for File '{ParentFileExternalId}'.",
+                    handleId,
                     file.ParentFileExternalId);
 
-                foreach (var variant in variants)
-                {
-                    failedVariants.Add(new ThumbnailGenerationResult.FailedVariant
-                    {
-                        Variant = variant,
-                        Error = "Temporary encryption key not found."
-                    });
-                }
-
-                return BuildFileResult(file, generatedVariants, failedVariants);
+                return BuildFailedResult(file, variants, "Temporary encryption package not found.");
             }
         }
-
-        // One existing-thumbnails read per parent file (not per variant) — passed into each
-        // Prepare call below as a precomputed list.
-        var existingThumbnails = getThumbnailsQuery.Execute(
-            workspace: workspace,
-            parentFileExternalId: file.ParentFileExternalId,
-            workspaceEncryptionSession: session);
-
-        var encryptionMode = parent.EncryptionMetadata.ToEncryptionMode(
-            workspaceEncryptionSession: session,
-            storageClient: workspace.Storage);
-
-        // Video sources route through a temp file (seekable disk) instead of stdin. mp4 with a
-        // moov-at-end blows up memory on non-seekable input; on a real file ffmpeg seeks freely.
-        // Plus we only pull the FIRST ~VideoRangeLimit bytes via DownloadFileRange — enough for
-        // moov + first samples on fast-start mp4, regardless of full file size (so a 4 GB DSLR
-        // recording downloads ~32 MB, not 4 GB). Non-fast-start mp4 (moov at end) will fail to
-        // demux and that variant is recorded as failed — acceptable trade-off vs hauling gigabytes.
-        var isVideo = ContentTypeHelper.GetFileTypeFromExtension(file.Extension) == FileType.Video;
-        string? videoTempPath = null;
+       
+        string? tempFilePath = null;
 
         try
         {
-            IReadOnlyList<VariantResult> results;
-
-            if (isVideo)
-            {
-                var fileKey = new FileKey
-                {
-                    FileExternalId = file.ParentFileExternalId,
-                    KeySecretPart = parent.KeySecretPart
-                };
-
-                // Files that fit entirely within the range cap go through the plain DownloadFile —
-                // ranged read adds an offset/length round-trip + encryption-segment alignment work
-                // that's pure overhead when we'd take the whole file anyway.
-                IStorageFile videoSource = parent.SizeInBytes <= VideoRangeLimit
-                    ? await workspace.Storage.DownloadFile(
-                        fileDetails: new DownloadFileDetails(
-                            FileKey: fileKey,
-                            FileSizeInBytes: parent.SizeInBytes,
-                            EncryptionMode: encryptionMode),
-                        bucketName: workspace.BucketName,
-                        cancellationToken: cancellationToken)
-                    : await workspace.Storage.DownloadFileRange(
-                        fileDetails: new DownloadFileRangeDetails(
-                            Range: new BytesRange(
-                                Start: 0,
-                                End: VideoRangeLimit - 1),
-                            FileKey: fileKey,
-                            FileSizeInBytes: parent.SizeInBytes,
-                            EncryptionMode: encryptionMode),
-                        bucketName: workspace.BucketName,
-                        cancellationToken: cancellationToken);
-
-                await using (videoSource)
-                {
-                    videoTempPath = Path.Combine(
-                        Path.GetTempPath(),
-                        $"plikshare-thumb-{Guid.NewGuid():N}");
-
-                    await using (var fs = File.Create(videoTempPath))
-                        await videoSource.ReadTo(
-                            System.IO.Pipelines.PipeWriter.Create(fs),
-                            cancellationToken);
-                }
-
-                results = await ffmpegService.GenerateThumbnailsFromFile(
-                    filePath: videoTempPath,
-                    variants: variants,
-                    cancellationToken: cancellationToken);
-            }
-            else
-            {
-                await using var storageFile = await workspace.Storage.DownloadFile(
-                    fileDetails: new DownloadFileDetails(
-                        FileKey: new FileKey
-                        {
-                            FileExternalId = file.ParentFileExternalId,
-                            KeySecretPart = parent.KeySecretPart
-                        },
-                        FileSizeInBytes: parent.SizeInBytes,
-                        EncryptionMode: encryptionMode),
-                    bucketName: workspace.BucketName,
-                    cancellationToken: cancellationToken);
-
-                results = await ffmpegService.GenerateThumbnails(
-                    writeSourceTo: (writer, ct) => storageFile.ReadTo(writer, ct),
-                    variants: variants,
-                    cancellationToken: cancellationToken);
-            }
-
-            foreach (var result in results)
+            (var variantResults, tempFilePath) = await PrepareThumbnailVariants(
+                workspace, 
+                file, 
+                variants,
+                parent, 
+                encryptionPackage, 
+                cancellationToken);
+            
+            foreach (var result in variantResults)
             {
                 if (result.Error is not null)
                 {
@@ -319,23 +200,21 @@ public class ProcessImageQueueJobExecutor(
                 try
                 {
                     var descriptor = ThumbnailDescriptor.ForGeneratedWebp(
-                        externalId: FileExtId.NewId(),
+                        fileKey: workspace.GenerateFileKey(),
                         variant: result.Variant,
                         sizeInBytes: thumbnail.SizeInBytes);
 
-                    var prepared = await uploadFileThumbnailOperation.Prepare(
+                    var prepared = await BuildPreparedUpload(
                         workspace: workspace,
-                        parentFileExternalId: file.ParentFileExternalId,
+                        encryptionPackage: encryptionPackage,
                         thumbnail: descriptor,
-                        content: thumbnail.Content,
-                        workspaceEncryptionSession: session,
-                        existingThumbnails: existingThumbnails,
+                        thumbnailContent: thumbnail.Content,
                         cancellationToken: cancellationToken);
 
                     batchInsertItems.Add(new InsertAndFinalizeThumbnailQuery.BatchItem(
                         ParentFileExternalId: file.ParentFileExternalId,
                         Attachment: prepared.Attachment,
-                        OldThumbnailFileIds: prepared.OldThumbnailFileIds));
+                        OldThumbnailFileIds: []));
 
                     generatedVariants.Add(new ThumbnailGenerationResult.GeneratedVariant
                     {
@@ -381,20 +260,227 @@ public class ProcessImageQueueJobExecutor(
         }
         finally
         {
-            if (videoTempPath is not null)
+            if (tempFilePath is not null)
             {
-                try { File.Delete(videoTempPath); }
+                try
+                {
+                    File.Delete(tempFilePath);
+                }
                 catch (Exception ex)
                 {
                     Logger.Warning(
                         ex,
                         "Failed to delete video temp file '{TempPath}'.",
-                        videoTempPath);
+                        tempFilePath);
                 }
             }
         }
 
         return BuildFileResult(file, generatedVariants, failedVariants);
+    }
+
+    private async Task<VariantResults> PrepareThumbnailVariants(
+        WorkspaceContext workspace, 
+        ProcessImageQueueJobDefinition.BatchItem file, 
+        List<ThumbnailVariant> variants,
+        GetThumbnailSourceFileQuery.ThumbnailSourceFile parent,
+        TemporaryEncryptionStore.Package? encryptionPackage,
+        CancellationToken cancellationToken)
+    {
+        var parentDecryptionMode = encryptionPackage is null
+            ? workspace.GetFileEncryptionMode(
+                fileEncryptionMetadata: parent.EncryptionMetadata,
+                workspaceEncryptionSession: null)
+            : encryptionPackage.TakeDecryptionInput().ToEncryptionMode(
+                masterEncryption);
+        
+        var isVideo = ContentTypeHelper.GetFileTypeFromExtension(file.Extension) == FileType.Video;
+
+        if (isVideo)
+        {
+            var fileKey = new FileKey
+            {
+                FileExternalId = file.ParentFileExternalId,
+                KeySecretPart = parent.KeySecretPart
+            };
+
+            var videoSource = parent.SizeInBytes <= VideoRangeLimit
+                ? await workspace.Storage.DownloadFile(
+                    fileDetails: new DownloadFileDetails(
+                        FileKey: fileKey,
+                        FileSizeInBytes: parent.SizeInBytes,
+                        EncryptionMode: parentDecryptionMode),
+                    bucketName: workspace.BucketName,
+                    cancellationToken: cancellationToken)
+                : await workspace.Storage.DownloadFileRange(
+                    fileDetails: new DownloadFileRangeDetails(
+                        Range: new BytesRange(
+                            Start: 0,
+                            End: VideoRangeLimit - 1),
+                        FileKey: fileKey,
+                        FileSizeInBytes: parent.SizeInBytes,
+                        EncryptionMode: parentDecryptionMode),
+                    bucketName: workspace.BucketName,
+                    cancellationToken: cancellationToken);
+
+            string? videoTempPath = null;
+
+            await using (videoSource)
+            {
+                videoTempPath = Path.Combine(
+                    Path.GetTempPath(),
+                    $"plikshare-thumb-{Guid.NewGuid():N}");
+
+                await using (var fs = File.Create(videoTempPath))
+                    await videoSource.ReadTo(
+                        System.IO.Pipelines.PipeWriter.Create(fs),
+                        cancellationToken);
+            }
+            
+            var variantResults = await ffmpegService.GenerateThumbnailsFromFile(
+                filePath: videoTempPath,
+                variants: variants,
+                cancellationToken: cancellationToken);
+
+            return new VariantResults(
+                Variants: variantResults,
+                TempFilePath: videoTempPath);
+        }
+
+        await using var storageFile = await workspace.Storage.DownloadFile(
+            fileDetails: new DownloadFileDetails(
+                FileKey: new FileKey
+                {
+                    FileExternalId = file.ParentFileExternalId,
+                    KeySecretPart = parent.KeySecretPart
+                },
+                FileSizeInBytes: parent.SizeInBytes,
+                EncryptionMode: parentDecryptionMode),
+            bucketName: workspace.BucketName,
+            cancellationToken: cancellationToken);
+
+        var results = await ffmpegService.GenerateThumbnails(
+            writeSourceTo: (writer, ct) => storageFile.ReadTo(writer, ct),
+            variants: variants,
+            cancellationToken: cancellationToken);
+        
+        return new VariantResults(
+            Variants: results,
+            TempFilePath: null);
+    }
+
+    private async Task<PreparedUpload> BuildPreparedUpload(
+        WorkspaceContext workspace,
+        TemporaryEncryptionStore.Package? encryptionPackage,
+        ThumbnailDescriptor thumbnail,
+        Stream thumbnailContent,
+        CancellationToken cancellationToken)
+    {
+        if (encryptionPackage is not null)
+        {
+            using var metadataSeed = encryptionPackage
+                .TakeMetadataEncryptionSeed()
+                .Unwrap(masterEncryption);
+
+            var encryptionWire = encryptionPackage.TakeNextEncryptionInput();
+            
+            var etag = await thumbnail.UploadAndHash(
+                workspace: workspace,
+                content: thumbnailContent,
+                encryptionMode: encryptionWire.ToEncryptionMode(
+                    masterEncryption),
+                cancellationToken: cancellationToken);
+
+            var attachment = new InsertFileAttachmentQuery.AttachmentFile
+            {
+                ExternalId = thumbnail.FileKey.FileExternalId,
+                KeySecretPart = thumbnail.FileKey.KeySecretPart,
+                SizeInBytes = thumbnail.SizeInBytes,
+
+                EncryptionMetadata = encryptionWire.ToMetadata(),
+
+                ContentType = metadataSeed.ToEncryptableMetadata(
+                    thumbnail.ContentType),
+
+                Name = metadataSeed.ToEncryptableMetadata(
+                    thumbnail.FileName),
+
+                Extension = metadataSeed.ToEncryptableMetadata(
+                    thumbnail.FileExtension),
+
+                Metadata = metadataSeed.ToEncryptableMetadata(Json.Serialize<FileMetadata>(
+                    new ThumbnailFileMetadata
+                    {
+                        Variant = thumbnail.Variant,
+                        Etag = etag
+                    }))
+            };
+
+            return new PreparedUpload(
+                Etag: etag,
+                Attachment: attachment);
+        }
+        else
+        {
+            var encryptionMetadata = workspace.GenerateFileEncryptionMetadata();
+
+            var etag = await thumbnail.UploadAndHash(
+                workspace: workspace,
+                content: thumbnailContent,
+                encryptionMode: workspace.GetFileEncryptionMode(
+                    fileEncryptionMetadata: encryptionMetadata,
+                    workspaceEncryptionSession: null),
+                cancellationToken: cancellationToken);
+
+            var attachment = new InsertFileAttachmentQuery.AttachmentFile
+            {
+                ExternalId = thumbnail.FileKey.FileExternalId,
+                KeySecretPart = thumbnail.FileKey.KeySecretPart,
+                SizeInBytes = thumbnail.SizeInBytes,
+
+                EncryptionMetadata = encryptionMetadata,
+
+                ContentType = NoMetadataEncryption.Prepare(
+                    thumbnail.ContentType),
+
+                Name = NoMetadataEncryption.Prepare(
+                    thumbnail.FileName),
+
+                Extension = NoMetadataEncryption.Prepare(
+                    thumbnail.FileExtension),
+
+                Metadata = NoMetadataEncryption.Prepare(Json.Serialize<FileMetadata>(
+                    new ThumbnailFileMetadata
+                    {
+                        Variant = thumbnail.Variant,
+                        Etag = etag
+                    }))
+            };
+
+            return new PreparedUpload(
+                Etag: etag,
+                Attachment: attachment);
+
+        }
+    }
+
+    private static ThumbnailGenerationResult.FileResult BuildFailedResult(
+        ProcessImageQueueJobDefinition.BatchItem file,
+        List<ThumbnailVariant> variants,
+        string error)
+    {
+        var failed = new List<ThumbnailGenerationResult.FailedVariant>(variants.Count);
+
+        foreach (var variant in variants)
+        {
+            failed.Add(new ThumbnailGenerationResult.FailedVariant
+            {
+                Variant = variant,
+                Error = error
+            });
+        }
+
+        return BuildFileResult(file, [], failed);
     }
 
     private static ThumbnailGenerationResult.FileResult BuildFileResult(
@@ -414,9 +500,17 @@ public class ProcessImageQueueJobExecutor(
             : value[..maxLength];
     }
 
-    private void ReleaseKey(Guid? keyId)
+    private void ReleasePackage(Guid? handleId)
     {
-        if (keyId is { } id)
-            keyStore.Remove(id);
+        if (handleId is { } id)
+            temporaryEncryptionStore.Remove(id);
     }
+
+    private record PreparedUpload(
+        string Etag,
+        InsertFileAttachmentQuery.AttachmentFile Attachment);
+
+    private record VariantResults(
+        IReadOnlyList<ThumbnailVariantResult> Variants,
+        string? TempFilePath);
 }

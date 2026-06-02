@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 namespace PlikShare.Core.Encryption;
 
 /// <summary>

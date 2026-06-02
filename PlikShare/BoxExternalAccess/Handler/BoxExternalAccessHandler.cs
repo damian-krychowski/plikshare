@@ -443,6 +443,7 @@ public class BoxExternalAccessHandler(
                     actor: boxAccess.ToAuditLogActorContext(correlationId),
                     workspace: boxAccess.Box.Workspace.ToAuditLogWorkspaceRef(),
                     folders: result.CreatedFolders.ToAuditLogFolderRefs(
+                        workspace: boxAccess.Box.Workspace,
                         workspaceEncryptionSession: null), //todo: box external access to full-encryption storage not supported yet
                     box: boxAccess.ToAuditLogBoxRef()),
                 cancellationToken);

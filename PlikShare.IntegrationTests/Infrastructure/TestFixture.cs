@@ -9,6 +9,7 @@ using PlikShare.BoxLinks.Id;
 using PlikShare.BoxLinks.UpdatePermissions.Contracts;
 using PlikShare.Core.Database.AuditLogDatabase;
 using PlikShare.Core.Emails;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.EmailProviders.Confirm.Contracts;
@@ -1677,7 +1678,7 @@ public class TestFixture: IAsyncLifetime
     /// presence/absence of this prefix on persisted columns to verify that full-encryption
     /// workspaces actually write ciphertext (and that non-encrypted workspaces do not).
     /// </summary>
-    protected const string EncryptedMetadataPrefix = PlikShare.Core.Encryption.EncryptableMetadataExtensions.ReservedPrefix;
+    protected const string EncryptedMetadataPrefix = AesGcmMetadataV1.ReservedPrefix;
 
     protected record FilePersistedRow(
         string Name,

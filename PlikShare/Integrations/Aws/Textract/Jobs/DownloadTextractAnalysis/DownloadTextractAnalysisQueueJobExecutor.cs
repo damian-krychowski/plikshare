@@ -231,10 +231,10 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                     fileInsertEntity.EncryptionChainSalts)
             };
 
-        var encryptionMode = fileEncryptionMetadata.ToEncryptionMode(
-            workspaceEncryptionSession: null, //todo not yet implemented (KEK not available in queue jobs)
-            storageClient: originalFileWorkspace.Storage);
-        
+        var encryptionMode = originalFileWorkspace.GetFileEncryptionMode(
+            fileEncryptionMetadata: fileEncryptionMetadata,
+            workspaceEncryptionSession: null); //todo not yet implemented (KEK not available in queue jobs)
+
         var uploadDetails = new UploadFilePartDetails(
             FileKey: new FileKey
             {
@@ -338,14 +338,12 @@ public class DownloadTextractAnalysisQueueJobExecutor(
         var markdownFileUploadToInsert = MapToBulkInsertEntity(
             markdownFile,
             textractJob,
-            originalFileWorkspace.Storage,
-            originalFileWorkspace.EncryptionMetadata);
+            originalFileWorkspace);
 
         var fullJsonFileUploadToInsert = MapToBulkInsertEntity(
             fullJsonFile,
             textractJob,
-            originalFileWorkspace.Storage,
-            originalFileWorkspace.EncryptionMetadata);
+            originalFileWorkspace);
 
         var workspaceSize = getWorkspaceSizeQuery.Execute(
             workspace: originalFileWorkspace);
@@ -383,11 +381,9 @@ public class DownloadTextractAnalysisQueueJobExecutor(
     private static BulkInsertFileUploadQuery.InsertEntity MapToBulkInsertEntity(
         ResultFile file,
         TextractJob textractJob,
-        IStorageClient storage,
-        WorkspaceEncryptionMetadata? workspaceEncryption)
+        WorkspaceContext workspace)
     {
-        var encryptionMetadata = storage.GenerateFileEncryptionMetadata(
-            workspaceEncryption);
+        var encryptionMetadata = workspace.GenerateFileEncryptionMetadata();
         
         return new BulkInsertFileUploadQuery.InsertEntity
         {
@@ -404,7 +400,7 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 file.Extension),
 
             FileSizeInBytes = file.SizeInBytes,
-            KeySecretPart = storage.GenerateFileKeySecretPart(),
+            KeySecretPart = workspace.GenerateFileKeySecretPart(),
 
             MultipartUploadId = string.Empty,
 

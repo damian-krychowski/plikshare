@@ -21,12 +21,11 @@ public class IsFileInQuickShareQuery(
             quickShareId: quickShare.Id);
 
         var details = bulkDownloadDetailsQuery.GetDetailsFromDb(
-            workspaceId: quickShare.Workspace.Id,
             selectedFileIds: dbIds.SelectedFileIds,
             excludedFileIds: dbIds.ExcludedFileIds,
             selectedFolderIds: dbIds.SelectedFolderIds,
             excludedFolderIds: dbIds.ExcludedFolderIds,
-            storageClient: quickShare.Workspace.Storage,
+            workspace: quickShare.Workspace,
             workspaceEncryptionSession: null);
 
         return details.Files.Any(f => f.ExternalId == fileExternalId);

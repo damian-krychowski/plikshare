@@ -148,11 +148,11 @@ public static class PreSignedFilesEndpoints
                 var fileSize = (int) fileUpload.FileToUpload.SizeInBytes;
                 
                 var uploadTask = ProcessDirectFileUploadAsync(
-                    heapBufferMemory.Slice(fileOffset, fileSize),
-                    fileUpload,
-                    httpContext.TryGetWorkspaceEncryptionSession(),
-                    workspace.Storage,
-                    cancellationToken);
+                    fileBytes: heapBufferMemory.Slice(fileOffset, fileSize),
+                    fileUpload: fileUpload,
+                    workspace: workspace,
+                    workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
+                    cancellationToken: cancellationToken);
 
                 uploadTasks.Add(uploadTask);
 
@@ -261,15 +261,15 @@ public static class PreSignedFilesEndpoints
     private static async Task<FileUploadContext?> ProcessDirectFileUploadAsync(
         Memory<byte> fileBytes,
         FileUploadContext fileUpload,
+        WorkspaceContext workspace,
         WorkspaceEncryptionSession? workspaceEncryptionSession,
-        IStorageClient storageClient,
         CancellationToken cancellationToken)
     {
         try
         {
-            var encryptionMode = fileUpload.FileToUpload.EncryptionMetadata.ToEncryptionMode(
-                workspaceEncryptionSession: workspaceEncryptionSession,
-                storageClient: storageClient);
+            var encryptionMode = workspace.GetFileEncryptionMode(
+                fileEncryptionMetadata: fileUpload.FileToUpload.EncryptionMetadata,
+                workspaceEncryptionSession: workspaceEncryptionSession);
 
             var uploadDetails = new UploadFilePartDetails(
                 FileKey: fileUpload.FileToUpload.FileKey,
@@ -279,10 +279,9 @@ public static class PreSignedFilesEndpoints
                 UploadAlgorithm: UploadAlgorithm.DirectUpload,
                 EncryptionMode: encryptionMode);
 
-            var result = await storageClient.UploadFilePart(
+            var result = await workspace.UploadFilePart(
                 input: fileBytes,
                 uploadDetails: uploadDetails,
-                bucketName: fileUpload.Workspace.BucketName,
                 cancellationToken: cancellationToken);
 
             Log.Debug(
@@ -305,7 +304,7 @@ public static class PreSignedFilesEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
-        var (payload, fileUpload) = httpContext.GetProtectedUploadPayload();
+        var (payload, fileUpload, workspace) = httpContext.GetProtectedUploadPayload();
 
         Log.Debug("File part upload with pre-signed url started: {Payload}", payload);
 
@@ -316,9 +315,9 @@ public static class PreSignedFilesEndpoints
 
         try
         {
-            var encryptionMode = fileUpload.FileToUpload.EncryptionMetadata.ToEncryptionMode(
-                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
-                storageClient: fileUpload.Workspace.Storage);
+            var encryptionMode = workspace.GetFileEncryptionMode(
+                fileEncryptionMetadata: fileUpload.FileToUpload.EncryptionMetadata,
+                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
             var uploadDetails = new UploadFilePartDetails(
                 FileKey: fileUpload.FileToUpload.FileKey,
@@ -328,7 +327,7 @@ public static class PreSignedFilesEndpoints
                 UploadAlgorithm: fileUpload.UploadAlgorithm,
                 EncryptionMode: encryptionMode);
 
-            var result = await fileUpload.Workspace.UploadFilePart(
+            var result = await workspace.UploadFilePart(
                 input: httpContext.Request.BodyReader,
                 uploadDetails: uploadDetails,
                 cancellationToken: cancellationToken);
@@ -396,10 +395,23 @@ public static class PreSignedFilesEndpoints
                 file: new Audit.FileRef
                 {
                     ExternalId = payload.FileExternalId,
-                    Name = workspaceEncryptionSession.Encode(file.Name),
-                    Extension = workspaceEncryptionSession.Encode(file.Extension),
+
+                    Name = workspace.EncodeMetadata(
+                        file.Name,
+                        workspaceEncryptionSession),
+
+                    Extension = workspace.EncodeMetadata(
+                        file.Extension,
+                        workspaceEncryptionSession),
+
                     SizeInBytes = file.SizeInBytes,
-                    FolderPath = file.FolderPath?.Select(workspaceEncryptionSession.Encode).ToList()
+
+                    FolderPath = file
+                        .FolderPath
+                        ?.Select(value => workspace.EncodeMetadata(
+                            value, 
+                            workspaceEncryptionSession))
+                        .ToList()
                 }),
             cancellationToken);
 
@@ -442,9 +454,9 @@ public static class PreSignedFilesEndpoints
 
         try
         {
-            var encryptionMode = file.EncryptionMetadata.ToEncryptionMode(
-                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
-                storageClient: workspace.Storage);
+            var encryptionMode = workspace.GetFileEncryptionMode(
+                fileEncryptionMetadata: file.EncryptionMetadata,
+                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
             await using var storageFileRange = await workspace.DownloadFileRange(
                 fileDetails: new DownloadFileRangeDetails(
@@ -518,9 +530,9 @@ public static class PreSignedFilesEndpoints
 
         try
         {
-            var encryptionMode = file.EncryptionMetadata.ToEncryptionMode(
-                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
-                storageClient: workspace.Storage);
+            var encryptionMode = workspace.GetFileEncryptionMode(
+                fileEncryptionMetadata: file.EncryptionMetadata,
+                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
             await using var storageFile = await workspace.DownloadFile(
                 fileDetails: new DownloadFileDetails(
@@ -606,8 +618,8 @@ public static class PreSignedFilesEndpoints
         {
             await ZipEntryReader.ReadEntryAsync(
                 file: file.Resolve(
-                    workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
-                    storageClient: workspace.Storage),
+                    workspace: workspace,
+                    workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession()),
                 entry: payload.ZipEntry,
                 workspace: workspace,
                 output: httpContext.Response.BodyWriter,
@@ -661,8 +673,8 @@ public static class PreSignedFilesEndpoints
         try
         {
             var resolvedFile = file.Resolve(
-                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
-                storageClient: workspace.Storage);
+                workspace: workspace,
+                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
             // CDFH must be read before any response bytes go out — both because the
             // decoded entries drive the selection plan and because a broken zip has

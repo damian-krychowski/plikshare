@@ -15,7 +15,7 @@ public static class EncryptableMetadataValidationExtensions
         this IRuleBuilder<T, string> ruleBuilder)
     {
         return ruleBuilder
-            .Must(value => !value.StartsWith(EncryptableMetadataExtensions.ReservedPrefix, StringComparison.Ordinal))
-            .WithMessage($"Name must not start with reserved prefix '{EncryptableMetadataExtensions.ReservedPrefix}'.");
+            .Must(value => !value.StartsWith(AesGcmMetadataV1.ReservedPrefix, StringComparison.Ordinal))
+            .WithMessage($"Name must not start with reserved prefix '{AesGcmMetadataV1.ReservedPrefix}'.");
     }
 }

@@ -20,7 +20,7 @@ namespace PlikShare.Core.Encryption;
 public readonly record struct EncodedMetadataValue(string Encoded)
 {
     public bool IsEncrypted => Encoded.StartsWith(
-        EncryptableMetadataExtensions.ReservedPrefix, 
+        AesGcmMetadataV1.ReservedPrefix, 
         StringComparison.Ordinal);
 
     public override string ToString() => IsEncrypted

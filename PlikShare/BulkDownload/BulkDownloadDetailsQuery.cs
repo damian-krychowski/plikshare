@@ -4,7 +4,7 @@ using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
-using PlikShare.Storages;
+using PlikShare.Workspaces.Cache;
 
 //todo: handle situation when some files or folders from the request
 //todo: does not exist in the database
@@ -15,20 +15,18 @@ namespace PlikShare.BulkDownload;
 public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
 {
     public BulkDownloadDetails GetDetailsFromDb(
-        int workspaceId,
         int[] selectedFileIds,
         int[] excludedFileIds,
         int[] selectedFolderIds,
         int[] excludedFolderIds,
-        IStorageClient storageClient,
+        WorkspaceContext workspace,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         using var connection = plikShareDb.OpenConnection();
 
         var selectedFiles = GetSelectedFiles(
-            workspaceId: workspaceId,
             fileIds: selectedFileIds,
-            storageClient: storageClient, 
+            workspace: workspace, 
             workspaceEncryptionSession: workspaceEncryptionSession,
             connection: connection);
 
@@ -39,7 +37,7 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
             .ToArray();
 
         var folders = GetAllFolders(
-            workspaceId: workspaceId,
+            workspaceId: workspace.Id,
             selectedFolderIds: selectedFolderIds,
             excludedFolderIds: excludedFolderIds,
             selectedFileFolderIds: selectedFileFolderIds,
@@ -47,10 +45,9 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
             workspaceEncryptionSession: workspaceEncryptionSession);
 
         var nestedFiles = GetFilesFromFolders(
-            workspaceId: workspaceId,
             allFolderIds: folders.GetAllIds(), 
             excludedFileIds: excludedFileIds,
-            storageClient: storageClient,
+            workspace: workspace,
             workspaceEncryptionSession: workspaceEncryptionSession,
             connection: connection);
         
@@ -62,9 +59,8 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
     }
 
     private static List<ResolvedBulkDownloadFile> GetSelectedFiles(
-        int workspaceId,
         int[] fileIds,
-        IStorageClient storageClient,
+        WorkspaceContext workspace,
         WorkspaceEncryptionSession? workspaceEncryptionSession, 
         SqliteConnection connection)
     {
@@ -120,21 +116,21 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                         KeySecretPart = reader.GetString(4),
                         SizeInBytes = reader.GetInt64(5),
                         FolderId = reader.GetInt32OrNull(6),
-                        EncryptionMode = fileEncryptionMetadata.ToEncryptionMode(
-                            workspaceEncryptionSession,
-                            storageClient)
+
+                        EncryptionMode = workspace.GetFileEncryptionMode(
+                            fileEncryptionMetadata, 
+                            workspaceEncryptionSession)
                     };
                 })
-            .WithParameter("$workspaceId", workspaceId)
+            .WithParameter("$workspaceId", workspace.Id)
             .WithJsonParameter("$fileIds", fileIds)
             .Execute();
     }
 
     private static List<ResolvedBulkDownloadFile> GetFilesFromFolders(
-        int workspaceId,
         int[] allFolderIds,
         int[] excludedFileIds,
-        IStorageClient storageClient,
+        WorkspaceContext workspace,
         WorkspaceEncryptionSession? workspaceEncryptionSession,
         SqliteConnection connection)
     {
@@ -193,12 +189,13 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                         KeySecretPart = reader.GetString(4),
                         FolderId = reader.GetInt32(5),
                         SizeInBytes = reader.GetInt64(6),
-                        EncryptionMode = fileEncryptionMetadata.ToEncryptionMode(
-                            workspaceEncryptionSession,
-                            storageClient)
+
+                        EncryptionMode = workspace.GetFileEncryptionMode(
+                            fileEncryptionMetadata, 
+                            workspaceEncryptionSession)
                     };
                 })
-            .WithParameter("$workspaceId", workspaceId)
+            .WithParameter("$workspaceId", workspace.Id)
             .WithJsonParameter("$folderIds", allFolderIds)
             .WithJsonParameter("$excludedFileIds", excludedFileIds)
             .Execute();

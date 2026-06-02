@@ -81,7 +81,6 @@ public class BulkInitiateFileUploadOperation(
         var batchUploadResults = await HandleMultipleUploads(
             fileDetailsList: fileDetailsList,
             workspace,
-            userIdentity,
             workspaceEncryptionSession,
             cancellationToken);
 
@@ -240,7 +239,6 @@ public class BulkInitiateFileUploadOperation(
     private async ValueTask<List<UploadDetails>> HandleMultipleUploads(
         BulkInitiateFileUploadItemDto[] fileDetailsList,
         WorkspaceContext workspace,
-        IUserIdentity userIdentity,
         WorkspaceEncryptionSession? workspaceEncryptionSession,
         CancellationToken cancellationToken)
     {
@@ -249,8 +247,7 @@ public class BulkInitiateFileUploadOperation(
             HardDriveStorageClient hardDriveStorageClient => HandleMultipleHardDriveUploads(
                 hardDriveStorage: hardDriveStorageClient,
                 fileDetailsList: fileDetailsList,
-                userIdentity: userIdentity,
-                workspaceEncryption: workspace.EncryptionMetadata,
+                workspace: workspace,
                 workspaceEncryptionSession: workspaceEncryptionSession),
 
             IObjectStorageClient objectStorageClient => await HandleMultipleObjectStoreUploads(
@@ -267,8 +264,7 @@ public class BulkInitiateFileUploadOperation(
     private List<UploadDetails> HandleMultipleHardDriveUploads(
         HardDriveStorageClient hardDriveStorage,
         BulkInitiateFileUploadItemDto[] fileDetailsList,
-        IUserIdentity userIdentity,
-        WorkspaceEncryptionMetadata? workspaceEncryption,
+        WorkspaceContext workspace,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         return fileDetailsList
@@ -277,25 +273,43 @@ public class BulkInitiateFileUploadOperation(
                 var (name, extension) = FileNames.ToNameAndExtension(
                     fileDetails.FileNameWithExtension);
 
+                var fileEncryptionMetadata = workspace.GenerateFileEncryptionMetadata();
+
+                var (algorithm, filePartsCount) = hardDriveStorage.ResolveUploadAlgorithm(
+                    fileSizeInBytes: fileDetails.FileSizeInBytes,
+                    ikmChainStepsCount: fileEncryptionMetadata?.ChainStepSalts.Count ?? 0);
+
                 return new UploadDetails
                 {
                     FileUploadExternalId = fileDetails.FileUploadExternalId,
-
-                    Name = workspaceEncryptionSession.Encode(name),
-                    Extension = workspaceEncryptionSession.Encode(extension),
                     SizeInBytes = fileDetails.FileSizeInBytes,
                     FolderExternalId = fileDetails.FolderExternalId,
-                    ContentType = workspaceEncryptionSession.Encode(fileDetails.FileContentType),
 
-                    StorageUploadDetails = hardDriveStorage.GetStorageUploadDetails(
-                        fileUploadExternalId: FileUploadExtId.Parse(fileDetails.FileUploadExternalId),
-                        fileSizeInBytes: fileDetails.FileSizeInBytes,
-                        contentType: fileDetails.FileContentType,
-                        userIdentity: userIdentity,
-                        workspaceEncryption: workspaceEncryption),
+                    Name = workspace.EncodeMetadata(
+                        name,
+                        workspaceEncryptionSession),
 
-                    S3Key = FileKey.NewKey(
-                        secretPart: string.Empty),
+                    Extension = workspace.EncodeMetadata(
+                        extension,
+                        workspaceEncryptionSession),
+
+                    ContentType = workspace.EncodeMetadata(
+                        fileDetails.FileContentType,
+                        workspaceEncryptionSession),
+
+                    StorageUploadDetails = new StorageUploadDetails
+                    {
+                        Algorithm = algorithm,
+                        FilePartsCount = filePartsCount,
+                        FileEncryptionMetadata = fileEncryptionMetadata,
+
+                        PreSignedUploadLink = null,
+                        PreSignedUploadLinkRequiredHeaders = [],
+                        MultipartUploadId = string.Empty,
+                        WasMultiPartUploadInitiated = false,
+                    },
+
+                    S3Key = hardDriveStorage.GenerateFileKey()
                 };
             })
             .ToList();
@@ -315,7 +329,7 @@ public class BulkInitiateFileUploadOperation(
         {
             var fileDetails = fileDetailsList[i];
 
-            var fileEncryptionMetadata = objectStorageClient.GenerateFileEncryptionMetadata(workspace.EncryptionMetadata);
+            var fileEncryptionMetadata = workspace.GenerateFileEncryptionMetadata();
 
             var (algorithm, filePartsCount) = objectStorageClient.ResolveUploadAlgorithm(
                 fileSizeInBytes: fileDetails.FileSizeInBytes,
@@ -329,14 +343,22 @@ public class BulkInitiateFileUploadOperation(
                 results.Add(new UploadDetails
                 {
                     FileUploadExternalId = fileDetails.FileUploadExternalId,
-
-                    Name = workspaceEncryptionSession.Encode(name),
-                    Extension = workspaceEncryptionSession.Encode(extension),
-
-                    ContentType = workspaceEncryptionSession.Encode(fileDetails.FileContentType),
                     SizeInBytes = fileDetails.FileSizeInBytes,
                     FolderExternalId = fileDetails.FolderExternalId,
-                    S3Key = FileKey.NewKey(),
+
+                    Name = workspace.EncodeMetadata(
+                        name,
+                        workspaceEncryptionSession),
+
+                    Extension = workspace.EncodeMetadata(
+                        extension,
+                        workspaceEncryptionSession),
+
+                    ContentType = workspace.EncodeMetadata(
+                        fileDetails.FileContentType,
+                        workspaceEncryptionSession),
+                    
+                    S3Key = objectStorageClient.GenerateFileKey(),
 
                     StorageUploadDetails = new StorageUploadDetails
                     {
@@ -365,9 +387,8 @@ public class BulkInitiateFileUploadOperation(
             {
                 var tasks = batch.Select(async fileDetails =>
                 {
-                    var s3Key = FileKey.NewKey();
-                    var fileEncryptionMetadata = objectStorageClient.GenerateFileEncryptionMetadata(
-                        workspace.EncryptionMetadata);
+                    var s3Key = objectStorageClient.GenerateFileKey();
+                    var fileEncryptionMetadata = workspace.GenerateFileEncryptionMetadata();
 
                     var (algorithm, filePartsCount) = objectStorageClient.ResolveUploadAlgorithm(
                         fileSizeInBytes: fileDetails.FileSizeInBytes,
@@ -412,14 +433,21 @@ public class BulkInitiateFileUploadOperation(
                     return new UploadDetails
                     {
                         FileUploadExternalId = fileDetails.FileUploadExternalId,
-
-                        Name = workspaceEncryptionSession.Encode(name),
-                        Extension = workspaceEncryptionSession.Encode(extension),
-
-                        ContentType = workspaceEncryptionSession.Encode(fileDetails.FileContentType),
                         SizeInBytes = fileDetails.FileSizeInBytes,
                         FolderExternalId = fileDetails.FolderExternalId,
                         S3Key = s3Key,
+
+                        Name = workspace.EncodeMetadata(
+                            name,
+                            workspaceEncryptionSession),
+
+                        Extension = workspace.EncodeMetadata(
+                            extension,
+                            workspaceEncryptionSession),
+
+                        ContentType = workspace.EncodeMetadata(
+                            fileDetails.FileContentType,
+                            workspaceEncryptionSession),
 
                         StorageUploadDetails = new StorageUploadDetails
                         {

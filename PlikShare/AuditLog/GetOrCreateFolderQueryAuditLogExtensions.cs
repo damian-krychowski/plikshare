@@ -2,6 +2,7 @@ using PlikShare.AuditLog.Details;
 using PlikShare.Core.Encryption;
 using PlikShare.Folders.Create;
 using PlikShare.Folders.Id;
+using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.AuditLog;
 
@@ -26,14 +27,21 @@ static class GetOrCreateFolderQueryAuditLogExtensions
         /// is a plaintext passthrough, so this call is a no-op cost-wise.
         /// </summary>
         public Audit.FolderRef ToAuditLogFolderRef(
+            WorkspaceContext workspace,
             WorkspaceEncryptionSession? workspaceEncryptionSession) => new()
         {
             ExternalId = FolderExtId.Parse(folder.ExternalId),
-            Name = workspaceEncryptionSession.Encode(folder.Name),
+            
+            Name = workspace.EncodeMetadata(
+                folder.Name, 
+                workspaceEncryptionSession),
+
             FolderPath = folder.Ancestors.Length == 0
                 ? null
                 : folder.Ancestors
-                    .Select(a => workspaceEncryptionSession.Encode(a.Name))
+                    .Select(a => workspace.EncodeMetadata(
+                        a.Name,
+                        workspaceEncryptionSession))
                     .ToList()
         };
     }
@@ -41,8 +49,12 @@ static class GetOrCreateFolderQueryAuditLogExtensions
     extension(IEnumerable<GetOrCreateFolderQuery.Folder>? folders)
     {
         public List<Audit.FolderRef> ToAuditLogFolderRefs(
-            WorkspaceEncryptionSession? workspaceEncryptionSession) => folders
-            ?.Select(f => f.ToAuditLogFolderRef(workspaceEncryptionSession))
-            .ToList() ?? [];
+            WorkspaceContext workspace,
+            WorkspaceEncryptionSession? workspaceEncryptionSession)
+        {
+            return folders
+                ?.Select(f => f.ToAuditLogFolderRef(workspace, workspaceEncryptionSession))
+                .ToList() ?? [];
+        }
     }
 }

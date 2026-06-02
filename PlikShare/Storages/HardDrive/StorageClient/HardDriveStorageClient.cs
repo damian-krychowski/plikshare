@@ -359,39 +359,20 @@ public class HardDriveStorageClient(
         return ResolveUploadAlgorithm(fileSizeInBytes, ikmChainStepsCount);
     }
 
+    public FileKey GenerateFileKey()
+    {
+        return new FileKey
+        {
+            FileExternalId = FileExtId.NewId(),
+            KeySecretPart = GenerateFileKeySecretPart()
+        };
+    }
+
     public string GenerateFileKeySecretPart()
     {
         return string.Empty;
     }
-
-    public StorageUploadDetails GetStorageUploadDetails(
-        FileUploadExtId fileUploadExternalId,
-        long fileSizeInBytes,
-        string contentType,
-        IUserIdentity userIdentity,
-        WorkspaceEncryptionMetadata? workspaceEncryption)
-    {
-        var fileEncryptionMetadata = this.GenerateFileEncryptionMetadata(
-            workspaceEncryption);
-
-        var (algorithm, filePartsCount) = ResolveUploadAlgorithm(
-            fileSizeInBytes: fileSizeInBytes,
-            ikmChainStepsCount: fileEncryptionMetadata?.ChainStepSalts.Count ?? 0);
-
-        return new StorageUploadDetails
-        {
-            Algorithm = algorithm,
-            FilePartsCount = filePartsCount,
-
-            FileEncryptionMetadata = fileEncryptionMetadata,
-
-            PreSignedUploadLink = null,
-            PreSignedUploadLinkRequiredHeaders = [],
-            MultipartUploadId = string.Empty,
-            WasMultiPartUploadInitiated = false,
-        };
-    }
-
+    
     public ValueTask<IStorageFile> DownloadFile(
         DownloadFileDetails details,
         string bucketName,

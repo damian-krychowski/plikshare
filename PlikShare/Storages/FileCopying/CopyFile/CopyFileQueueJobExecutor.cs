@@ -325,9 +325,9 @@ public class CopyFileQueueJobExecutor(
     {
         try
         {
-            var encryptionMode = job.SourceFileEncryptionMetadata.ToEncryptionMode(
-                workspaceEncryptionSession: null, //todo: background jobs cannot access full-encryption sessions yet
-                storageClient: sourceWorkspace.Storage);
+            var encryptionMode = sourceWorkspace.GetFileEncryptionMode(
+                fileEncryptionMetadata: job.SourceFileEncryptionMetadata,
+                workspaceEncryptionSession: null); //todo: background jobs cannot access full-encryption sessions yet
 
             await using var storageFile = await sourceWorkspace.DownloadFile(
                 fileDetails: new DownloadFileDetails(
@@ -354,9 +354,9 @@ public class CopyFileQueueJobExecutor(
     {
         try
         {
-            var encryptionMode = job.NewFileEncryptionMetadata.ToEncryptionMode(
-                workspaceEncryptionSession: null, //todo KEK not available in queue jobs yet
-                storageClient: destinationWorkspace.Storage);
+            var encryptionMode = destinationWorkspace.GetFileEncryptionMode(
+                fileEncryptionMetadata: job.NewFileEncryptionMetadata,
+                workspaceEncryptionSession: null); //todo KEK not available in queue jobs yet
 
             var uploadDetails = new UploadFilePartDetails(
                 FileKey: job.NewFileKey,
@@ -404,9 +404,9 @@ public class CopyFileQueueJobExecutor(
                     storageEncryptionType: destinationWorkspace.Storage.Encryption.Type,
                     ikmChainStepsCount: ikmChainStepsCount);
 
-                var encryptionMode = job.NewFileEncryptionMetadata.ToEncryptionMode(
-                    workspaceEncryptionSession: null, //todo full encryption session not available (KEK not available in queue jobs yet)
-                    storageClient: destinationWorkspace.Storage);
+                var encryptionMode = destinationWorkspace.GetFileEncryptionMode(
+                    fileEncryptionMetadata: job.NewFileEncryptionMetadata,
+                    workspaceEncryptionSession: null); //todo full encryption session not available (KEK not available in queue jobs yet)
 
                 var uploadDetails = new UploadFilePartDetails(
                     FileKey: job.NewFileKey,

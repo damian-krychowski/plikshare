@@ -80,7 +80,7 @@ public class SqliteEncryptableMetadataExtensionsTests
         {
             var encoded = ((WorkspaceEncryptionSession?)session).Encode("secret-name").Encoded;
 
-            Assert.StartsWith(EncryptableMetadataExtensions.ReservedPrefix, encoded);
+            Assert.StartsWith(AesGcmMetadataV1.ReservedPrefix, encoded);
 
             Assert.Equal("secret-name", Decrypt(connection, encoded, WorkspaceId));
         }

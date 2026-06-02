@@ -249,7 +249,7 @@ public class InitiateFilePartUploadOperation(
         if (upload is null)
             return null;
 
-        if (upload.Workspace.Id != workspace.Id)
+        if (upload.WorkspaceId != workspace.Id)
             return null;
 
         if (!(upload.OwnerIdentity == owner.Identity && upload.OwnerIdentityType == owner.IdentityType))

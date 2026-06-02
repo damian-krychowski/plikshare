@@ -94,6 +94,7 @@ public interface IStorageClient
         long fileSizeInBytes,
         int ikmChainStepsCount);
 
+    FileKey GenerateFileKey();
     string GenerateFileKeySecretPart();
 }
 

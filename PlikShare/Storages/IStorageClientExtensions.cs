@@ -16,54 +16,6 @@ public static class IStorageClientExtensions
     {
         public StorageEncryptionType EncryptionType => client.Encryption.Type;
 
-        public FileEncryptionMetadata? GenerateFileEncryptionMetadata(
-            WorkspaceEncryptionMetadata? workspaceEncryption)
-        {
-            if (client.Encryption is NoStorageEncryption)
-                return null;
-
-            if (client.Encryption is ManagedStorageEncryption managed)
-            {
-                return new FileEncryptionMetadata
-                {
-                    FormatVersion = 1,
-                    KeyVersion = managed.LatestKeyVersion,
-                    Salt = Aes256GcmStreamingV1.GenerateSalt(),
-                    NoncePrefix = Aes256GcmStreamingV1.GenerateNoncePrefix(),
-                    ChainStepSalts = []
-                };
-            }
-
-            if (client.Encryption is FullStorageEncryption full)
-            {
-                // Chain salts record the derivation path a recovery tool must walk from the
-                // recovery seed to the IKM that V2 actually uses (the Workspace DEK). For a
-                // full-encrypted workspace that path is one HKDF step:
-                //   Storage DEK v N  --HKDF(workspace_salt)-->  Workspace DEK
-                // The runtime encryption path ignores these salts (V2 takes IKM = Workspace
-                // DEK directly); they only matter when offline recovery reconstructs the
-                // Workspace DEK from the seed + file header alone, with no DB lookup.
-                if (workspaceEncryption is null)
-                    throw new InvalidOperationException(
-                        $"WorkspaceEncryptionMetadata is required to generate file metadata for " +
-                        $"full-encrypted storage '{client.ExternalId}' — the workspace salt " +
-                        $"must be recorded in the file header's chain-step salts.");
-
-                return new FileEncryptionMetadata
-                {
-                    FormatVersion = 2,
-                    KeyVersion = checked((byte) full.Details.LatestStorageDekVersion),
-                    Salt = Aes256GcmStreamingV2.GenerateSalt(),
-                    NoncePrefix = Aes256GcmStreamingV2.GenerateNoncePrefix(),
-                    ChainStepSalts = [workspaceEncryption.Salt]
-                };
-            }
-
-            throw new InvalidOperationException(
-                $"Unsupported encryption type '{client.Encryption.Type}' " +
-                $"for storage '{client.ExternalId}'.");
-        }
-
         public async Task DownloadFilesInBulk(
             BulkDownloadDetails bulkDownloadDetails,
             string bucketName,

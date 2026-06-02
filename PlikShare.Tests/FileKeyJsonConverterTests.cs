@@ -1,7 +1,8 @@
-using System.Text.Json;
 using FluentAssertions;
+using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Storages;
+using System.Text.Json;
 
 namespace PlikShare.Tests;
 
@@ -130,7 +131,11 @@ public class FileKeyJsonConverterTests
     public void round_trip_complex_key_preserves_all_data()
     {
         //given
-        var originalKey = FileKey.NewKey();
+        var originalKey = new FileKey
+        {
+            FileExternalId = FileExtId.NewId(),
+            KeySecretPart = Guid.NewGuid().ToBase62()
+        };
 
         //when
         string json = JsonSerializer.Serialize(originalKey, _options);

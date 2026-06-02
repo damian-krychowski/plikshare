@@ -26,29 +26,25 @@ namespace PlikShare.Core.Encryption;
 /// <para>Lifecycle is process-scoped — entries do not survive a restart. Queue jobs whose
 /// handle no longer resolves should fail cleanly and let the user retrigger.</para>
 /// </summary>
-public sealed class TemporaryEncryptionStore : IDisposable
+public sealed class TemporaryEncryptionStore(IClock clock) : IDisposable
 {
     private static readonly Serilog.ILogger Logger = Log.ForContext<TemporaryEncryptionStore>();
 
     public static readonly TimeSpan DefaultTtl = TimeSpan.FromHours(24);
 
     private readonly ConcurrentDictionary<Guid, Entry> _entries = new();
-    private readonly IClock _clock;
     private volatile bool _disposed;
-
-    public TemporaryEncryptionStore(IClock clock)
-    {
-        _clock = clock;
-    }
 
     /// <summary>
     /// Stores a package of encryption inputs and returns a handle the queue payload can carry.
-    /// At least one of <paramref name="decryptionInput"/> or <paramref name="encryptionInputs"/>
-    /// should be non-empty — an empty package is legal but useless.
+    /// At least one of <paramref name="decryptionInput"/> / <paramref name="encryptionInputs"/>
+    /// / <paramref name="metadataEncryptionSeed"/> should be non-null/non-empty — an empty
+    /// package is legal but useless.
     /// </summary>
     public Guid Store(
         FileAesInputsV2Wire? decryptionInput,
         IReadOnlyList<FileAesInputsV2Wire> encryptionInputs,
+        EncryptionSeedWire? metadataEncryptionSeed,
         TimeSpan? ttl = null)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -56,20 +52,22 @@ public sealed class TemporaryEncryptionStore : IDisposable
 
         var package = new Package(
             decryptionInput: decryptionInput,
-            encryptionInputs: encryptionInputs);
+            encryptionInputs: encryptionInputs,
+            metadataEncryptionSeed: metadataEncryptionSeed);
 
         var id = Guid.NewGuid();
-        var expiresAt = _clock.UtcNow.Add(ttl ?? DefaultTtl);
+        var expiresAt = clock.UtcNow.Add(ttl ?? DefaultTtl);
 
         _entries[id] = new Entry(
             package: package,
             expiresAt: expiresAt);
 
         Logger.Debug(
-            "Stored temporary file encryption inputs {Id} (hasDecryptionInput: {HasDecryptionInput}, encryptionInputs: {EncryptionInputsCount}, expires: {ExpiresAt:O})",
+            "Stored temporary file encryption inputs {Id} (hasDecryptionInput: {HasDecryptionInput}, encryptionInputs: {EncryptionInputsCount}, hasMetadataSeed: {HasMetadataSeed}, expires: {ExpiresAt:O})",
             id,
             decryptionInput is not null,
             encryptionInputs.Count,
+            metadataEncryptionSeed is not null,
             expiresAt);
 
         return id;
@@ -87,7 +85,7 @@ public sealed class TemporaryEncryptionStore : IDisposable
         if (!_entries.TryGetValue(id, out var entry))
             return null;
 
-        if (entry.ExpiresAt <= _clock.UtcNow)
+        if (entry.ExpiresAt <= clock.UtcNow)
         {
             // Expired between sweeps — clean up here too so the next caller sees a clean miss.
             _entries.TryRemove(id, out _);
@@ -113,7 +111,7 @@ public sealed class TemporaryEncryptionStore : IDisposable
     {
         if (_disposed) return;
 
-        var now = _clock.UtcNow;
+        var now = clock.UtcNow;
         var swept = 0;
 
         foreach (var (id, entry) in _entries)
@@ -156,14 +154,17 @@ public sealed class TemporaryEncryptionStore : IDisposable
     /// </summary>
     public sealed class Package
     {
-        private readonly FileAesInputsV2Wire? _decryptionInput;
+        private readonly FileAesInputsV2Wire _decryptionInput;
         private readonly FileAesInputsV2Wire[] _encryptionInputs;
+        private readonly EncryptionSeedWire _metadataEncryptionSeed;
         private int _decryptionInputTaken;
         private int _nextEncryptionInputIndex;
+        private int _metadataEncryptionSeedTaken;
 
         public Package(
-            FileAesInputsV2Wire? decryptionInput,
-            IReadOnlyList<FileAesInputsV2Wire> encryptionInputs)
+            FileAesInputsV2Wire decryptionInput,
+            IReadOnlyList<FileAesInputsV2Wire> encryptionInputs,
+            EncryptionSeedWire metadataEncryptionSeed)
         {
             ArgumentNullException.ThrowIfNull(encryptionInputs);
 
@@ -171,15 +172,9 @@ public sealed class TemporaryEncryptionStore : IDisposable
             // Defensive copy — the caller's list is theirs to mutate, the package's slot count
             // (EncryptionInputsCount) must be a stable invariant for the lifetime of this entry.
             _encryptionInputs = encryptionInputs.ToArray();
+            _metadataEncryptionSeed = metadataEncryptionSeed;
         }
-
-        public bool HasDecryptionInput => _decryptionInput is not null;
-        public int EncryptionInputsCount => _encryptionInputs.Length;
-
-        /// <summary>How many encryption inputs are still available to <see cref="TakeNextEncryptionInput"/>.</summary>
-        public int EncryptionInputsRemaining =>
-            Math.Max(0, _encryptionInputs.Length - Volatile.Read(ref _nextEncryptionInputIndex));
-
+        
         /// <summary>
         /// Returns the decryption input and marks it consumed. Throws if there is no decryption
         /// input or if it was already taken — both are programmer errors, not recoverable
@@ -215,6 +210,26 @@ public sealed class TemporaryEncryptionStore : IDisposable
                     $"All {_encryptionInputs.Length} encryption inputs have already been taken from this package — requested {oneBasedIndex}-th.");
 
             return _encryptionInputs[oneBasedIndex - 1];
+        }
+
+        /// <summary>
+        /// Returns the metadata encryption seed wire and marks it consumed. The worker is
+        /// expected to unwrap this once via <see cref="EncryptionSeedWire.Unwrap"/> and reuse the
+        /// resulting <see cref="EncryptionSeed"/> across every metadata field it encrypts in
+        /// this job — each <c>MetadataAesInputsV1.Prepare(seed)</c> generates a fresh per-value
+        /// salt internally. Throws if there is no seed or if it was already taken.
+        /// </summary>
+        public EncryptionSeedWire TakeMetadataEncryptionSeed()
+        {
+            if (_metadataEncryptionSeed is null)
+                throw new InvalidOperationException(
+                    "This package has no metadata encryption seed — caller asked for one where none was provisioned at trigger time.");
+
+            if (Interlocked.Exchange(ref _metadataEncryptionSeedTaken, 1) != 0)
+                throw new InvalidOperationException(
+                    "Metadata encryption seed has already been taken from this package — single-use violated.");
+
+            return _metadataEncryptionSeed;
         }
     }
 }

@@ -812,7 +812,6 @@ public class Startup
         builder.Services.AddSingleton<ValidateThumbnailParentQuery>();
         builder.Services.AddSingleton<DeleteFileThumbnailOperation>();
         builder.Services.AddSingleton<FfmpegService>();
-        builder.Services.AddSingleton<TemporaryWorkspaceEncryptionKeyStore>();
 
         builder.Services.AddSingleton<TemporaryEncryptionStore>();
 

@@ -21,6 +21,17 @@ public class EncryptableMetadataExtensionsTests
 {
     private const byte StorageDekVersion = 0;
 
+    /// <summary>
+    /// Shared master-encryption instance for wire-form tests. PBKDF2 stretch costs ~500ms
+    /// per password at startup; lazy class-static keeps the cost paid exactly once for the
+    /// whole test class instead of per [Fact].
+    /// </summary>
+    private static readonly Lazy<IMasterDataEncryption> SharedMasterEncryption = new(
+        () => new AesGcmMasterDataEncryption(
+            new MasterEncryptionKeyProvider(["test-master-password"])));
+
+    private static IMasterDataEncryption MasterEncryption => SharedMasterEncryption.Value;
+
     private static WorkspaceEncryptionSession CreateSession(byte[]? dekBytes = null)
     {
         var bytes = dekBytes ?? RandomBytes(32);
@@ -46,9 +57,9 @@ public class EncryptableMetadataExtensionsTests
 
     private static byte[] DecodeEnvelope(string encoded)
     {
-        Assert.StartsWith(EncryptableMetadataExtensions.ReservedPrefix, encoded);
+        Assert.StartsWith(AesGcmMetadataV1.ReservedPrefix, encoded);
 
-        var base64 = encoded[EncryptableMetadataExtensions.ReservedPrefix.Length..];
+        var base64 = encoded[AesGcmMetadataV1.ReservedPrefix.Length..];
 
         return Convert.FromBase64String(base64);
     }
@@ -140,7 +151,7 @@ public class EncryptableMetadataExtensionsTests
 
         var encoded = session.Encode("anything").Encoded;
 
-        Assert.StartsWith(EncryptableMetadataExtensions.ReservedPrefix, encoded);
+        Assert.StartsWith(AesGcmMetadataV1.ReservedPrefix, encoded);
     }
 
     [Fact]
@@ -360,7 +371,7 @@ public class EncryptableMetadataExtensionsTests
         var envelope = DecodeEnvelope(session.Encode("x").Encoded);
         envelope[0] = 0xFF;
 
-        var tampered = EncryptableMetadataExtensions.ReservedPrefix + Convert.ToBase64String(envelope);
+        var tampered = AesGcmMetadataV1.ReservedPrefix + Convert.ToBase64String(envelope);
 
         Assert.Throws<InvalidOperationException>(
             () => session.DecodeEncryptableMetadata(tampered));
@@ -375,7 +386,7 @@ public class EncryptableMetadataExtensionsTests
         // Key version 0 is what the session has; bump to 99 so the lookup throws.
         envelope[1] = 99;
 
-        var tampered = EncryptableMetadataExtensions.ReservedPrefix + Convert.ToBase64String(envelope);
+        var tampered = AesGcmMetadataV1.ReservedPrefix + Convert.ToBase64String(envelope);
 
         Assert.ThrowsAny<Exception>(
             () => session.DecodeEncryptableMetadata(tampered));
@@ -392,7 +403,7 @@ public class EncryptableMetadataExtensionsTests
         // header(3) + chainSalt(32) + nonce(12) = 47. First ciphertext byte at offset 47.
         envelope[47] ^= 0x01;
 
-        var tampered = EncryptableMetadataExtensions.ReservedPrefix + Convert.ToBase64String(envelope);
+        var tampered = AesGcmMetadataV1.ReservedPrefix + Convert.ToBase64String(envelope);
 
         Assert.ThrowsAny<Exception>(
             () => session.DecodeEncryptableMetadata(tampered));
@@ -411,7 +422,7 @@ public class EncryptableMetadataExtensionsTests
         // First chain salt byte at offset 3.
         envelope[3] ^= 0x01;
 
-        var tampered = EncryptableMetadataExtensions.ReservedPrefix + Convert.ToBase64String(envelope);
+        var tampered = AesGcmMetadataV1.ReservedPrefix + Convert.ToBase64String(envelope);
 
         Assert.ThrowsAny<Exception>(
             () => session.DecodeEncryptableMetadata(tampered));
@@ -488,5 +499,424 @@ public class EncryptableMetadataExtensionsTests
         Assert.Equal(threePolishEnv.Length - threeAsciiEnv.Length, 3);
 
         Assert.Equal(6, Encoding.UTF8.GetByteCount("ąść"));
+    }
+
+    // ---- EncryptionSeed: encrypt via pre-derived seed, decrypt via session ----
+
+    [Fact]
+    public void EncryptionSeed_DeriveNew_produces_random_salt()
+    {
+        // Two derivations from the same workspace DEK must produce different salts and seeds.
+        // Without that, "fresh seed per trigger" guarantee is broken.
+        using var session = CreateSession();
+
+        using var first = EncryptionSeed.DeriveNew(session);
+        using var second = EncryptionSeed.DeriveNew(session);
+
+        Assert.NotEqual(first.Salt, second.Salt);
+        Assert.NotEqual(first.Seed, second.Seed);
+    }
+
+    [Fact]
+    public void EncryptionSeed_DeriveNew_preserves_workspace_dek_version()
+    {
+        using var session = CreateSession();
+
+        using var seed = EncryptionSeed.DeriveNew(session);
+
+        Assert.Equal(StorageDekVersion, seed.KeyVersion);
+    }
+
+    [Fact]
+    public void EncryptionSeed_salt_and_seed_are_32_bytes()
+    {
+        using var session = CreateSession();
+
+        using var seed = EncryptionSeed.DeriveNew(session);
+
+        Assert.Equal(32, seed.Salt.Length);
+        Assert.Equal(32, seed.Seed.Length);
+    }
+
+    [Fact]
+    public void EncryptionSeed_Dispose_zeroes_seed_bytes()
+    {
+        using var session = CreateSession();
+        var seed = EncryptionSeed.DeriveNew(session);
+
+        // Capture reference before dispose so we can inspect the buffer afterwards.
+        var seedBytes = seed.Seed;
+
+        // Sanity: HKDF output is overwhelmingly unlikely to be all-zeros pre-dispose.
+        Assert.Contains(seedBytes, b => b != 0);
+
+        seed.Dispose();
+
+        Assert.All(seedBytes, b => Assert.Equal(0, b));
+    }
+
+    [Fact]
+    public void EncryptionSeed_Dispose_is_idempotent()
+    {
+        using var session = CreateSession();
+        var seed = EncryptionSeed.DeriveNew(session);
+
+        seed.Dispose();
+        seed.Dispose();
+        // Implicit assertion: second dispose did not throw.
+    }
+
+    [Fact]
+    public void Encode_via_seed_then_Decode_via_session_recovers_original()
+    {
+        // The whole point of the seed primitive: a holder of the seed (no workspace DEK)
+        // can produce metadata keys, and a holder of the workspace DEK (via session) can
+        // decode them by walking the embedded chain salts.
+        using var session = CreateSession();
+        using var seed = EncryptionSeed.DeriveNew(session);
+
+        var input = MetadataAesInputsV1.Prepare(seed);
+
+        var metadata = new EncryptableMetadata(
+            Value: "secret-name.png",
+            EncryptionMode: new AesGcmMetadataV1Encryption(Input: input));
+
+        var encoded = metadata.Encode();
+        var decoded = session.DecodeEncryptableMetadata(encoded);
+
+        Assert.Equal("secret-name.png", decoded);
+    }
+
+    [Fact]
+    public void Encode_via_seed_envelope_has_two_chain_steps()
+    {
+        using var session = CreateSession();
+        using var seed = EncryptionSeed.DeriveNew(session);
+
+        var input = MetadataAesInputsV1.Prepare(seed);
+
+        var metadata = new EncryptableMetadata(
+            Value: "x",
+            EncryptionMode: new AesGcmMetadataV1Encryption(Input: input));
+
+        var envelope = DecodeEnvelope(metadata.Encode().Encoded);
+
+        // [format(1) | key_version(1) | chain_steps_count(1) | salts(2*32) | nonce(12) | ct | tag(16)]
+        Assert.Equal(0x01, envelope[0]);
+        Assert.Equal(StorageDekVersion, envelope[1]);
+        Assert.Equal(2, envelope[2]);
+        Assert.Equal(3 + 64 + 12 + 1 + 16, envelope.Length);
+    }
+
+    [Fact]
+    public void Encode_via_seed_envelope_first_chain_step_equals_seed_salt()
+    {
+        // The decoder reconstructs metadata_key by walking [seed.Salt, metadataSalt] from
+        // the workspace DEK. The first 32 bytes of chain salts in the envelope therefore
+        // MUST equal seed.Salt — anything else and the derivation diverges and the tag fails.
+        using var session = CreateSession();
+        using var seed = EncryptionSeed.DeriveNew(session);
+
+        var input = MetadataAesInputsV1.Prepare(seed);
+
+        var metadata = new EncryptableMetadata(
+            Value: "anything",
+            EncryptionMode: new AesGcmMetadataV1Encryption(Input: input));
+
+        var envelope = DecodeEnvelope(metadata.Encode().Encoded);
+
+        // Bytes 3..35 are the first chain step salt.
+        var firstStepInEnvelope = envelope.AsSpan(3, 32).ToArray();
+
+        Assert.Equal(seed.Salt, firstStepInEnvelope);
+    }
+
+    [Fact]
+    public void Encode_via_seed_envelope_second_chain_step_is_random_per_value()
+    {
+        // Each encode through the seed must use a FRESH metadataSalt — otherwise two values
+        // sharing the same seed would share AES keys and nonces independently, weakening
+        // GCM security guarantees per-value.
+        using var session = CreateSession();
+        using var seed = EncryptionSeed.DeriveNew(session);
+
+        var firstInput = MetadataAesInputsV1.Prepare(seed);
+        var firstEnv = DecodeEnvelope(new EncryptableMetadata(
+            Value: "v1",
+            EncryptionMode: new AesGcmMetadataV1Encryption(Input: firstInput))
+            .Encode().Encoded);
+
+        var secondInput = MetadataAesInputsV1.Prepare(seed);
+        var secondEnv = DecodeEnvelope(new EncryptableMetadata(
+            Value: "v2",
+            EncryptionMode: new AesGcmMetadataV1Encryption(Input: secondInput))
+            .Encode().Encoded);
+
+        // Bytes 35..67 are the second chain step salt.
+        var firstMetadataSalt = firstEnv.AsSpan(35, 32).ToArray();
+        var secondMetadataSalt = secondEnv.AsSpan(35, 32).ToArray();
+
+        Assert.NotEqual(firstMetadataSalt, secondMetadataSalt);
+
+        // ... but the first chain step (seed salt) is shared, since the seed is shared.
+        Assert.Equal(
+            firstEnv.AsSpan(3, 32).ToArray(),
+            secondEnv.AsSpan(3, 32).ToArray());
+    }
+
+    [Fact]
+    public void Encode_via_seed_multiple_values_all_roundtrip_with_same_seed()
+    {
+        // The actual workflow: trigger time derives ONE seed, hands it to a worker that
+        // encrypts N pieces of metadata. Each Prepare(seed) call produces a fresh per-value
+        // MetadataAesInputsV1 — the seed itself is reused. The session then decodes them all.
+        using var session = CreateSession();
+        using var seed = EncryptionSeed.DeriveNew(session);
+
+        var inputs = new[]
+        {
+            "content-type",
+            "filename.webp",
+            ".webp",
+            "{\"variant\":\"Mini\",\"etag\":\"abc\"}"
+        };
+
+        var encoded = new List<EncodedMetadataValue>();
+        foreach (var value in inputs)
+        {
+            var aes = MetadataAesInputsV1.Prepare(seed);
+            var metadata = new EncryptableMetadata(
+                Value: value,
+                EncryptionMode: new AesGcmMetadataV1Encryption(Input: aes));
+
+            encoded.Add(metadata.Encode());
+        }
+
+        for (var i = 0; i < inputs.Length; i++)
+        {
+            Assert.Equal(inputs[i], session.DecodeEncryptableMetadata(encoded[i]));
+        }
+    }
+
+    [Fact]
+    public void Encode_via_seed_can_be_decoded_by_a_different_session_with_same_dek()
+    {
+        // Encrypt with a worker that built a seed from workspace DEK X, decrypt with a
+        // separate session also seeded with byte-identical DEK X — the two sessions are
+        // independent objects but share material, so decode works end-to-end.
+        var dekBytes = RandomBytes(32);
+
+        using var writerSession = CreateSession(dekBytes);
+        using var readerSession = CreateSession(dekBytes);
+
+        using var seed = EncryptionSeed.DeriveNew(writerSession);
+
+        var input = MetadataAesInputsV1.Prepare(seed);
+        var metadata = new EncryptableMetadata(
+            Value: "cross-session.png",
+            EncryptionMode: new AesGcmMetadataV1Encryption(Input: input));
+
+        var encoded = metadata.Encode();
+        var decoded = readerSession.DecodeEncryptableMetadata(encoded);
+
+        Assert.Equal("cross-session.png", decoded);
+    }
+
+    [Fact]
+    public void Encode_via_seed_then_Decode_via_session_with_different_dek_throws_tag_mismatch()
+    {
+        // A reader holding a different workspace DEK walks the chain from a different
+        // starting point and arrives at a different metadata_key — AES-GCM tag check fails.
+        // Confirms the security boundary: a leaked seed alone is useless against an envelope
+        // whose decoder reconstructs the chain from a different workspace DEK.
+        using var writerSession = CreateSession();
+        using var attackerSession = CreateSession();
+
+        using var seed = EncryptionSeed.DeriveNew(writerSession);
+
+        var input = MetadataAesInputsV1.Prepare(seed);
+        var metadata = new EncryptableMetadata(
+            Value: "secret",
+            EncryptionMode: new AesGcmMetadataV1Encryption(Input: input));
+
+        var encoded = metadata.Encode();
+
+        Assert.ThrowsAny<Exception>(
+            () => attackerSession.DecodeEncryptableMetadata(encoded));
+    }
+
+    [Fact]
+    public void Two_different_seeds_produce_envelopes_that_each_decode_independently()
+    {
+        // No cross-contamination: seed A's envelope must NOT accidentally decode under
+        // seed B's chain (which it can't, since the envelope carries its own salts) — but
+        // both must decode under the same workspace session because the chain anchors at
+        // the workspace DEK.
+        using var session = CreateSession();
+        using var seedA = EncryptionSeed.DeriveNew(session);
+        using var seedB = EncryptionSeed.DeriveNew(session);
+
+        var inputA = MetadataAesInputsV1.Prepare(seedA);
+        var encodedA = new EncryptableMetadata(
+            Value: "from-seed-A",
+            EncryptionMode: new AesGcmMetadataV1Encryption(Input: inputA))
+            .Encode();
+
+        var inputB = MetadataAesInputsV1.Prepare(seedB);
+        var encodedB = new EncryptableMetadata(
+            Value: "from-seed-B",
+            EncryptionMode: new AesGcmMetadataV1Encryption(Input: inputB))
+            .Encode();
+
+        Assert.Equal("from-seed-A", session.DecodeEncryptableMetadata(encodedA));
+        Assert.Equal("from-seed-B", session.DecodeEncryptableMetadata(encodedB));
+    }
+
+    // ---- EncryptionSeedWire: master-encrypted wire form ----
+
+    [Fact]
+    public void EncryptionSeedWire_Prepare_does_not_leak_plaintext_seed_into_the_wire()
+    {
+        // EncryptedSeed must NOT be the raw seed bytes — it's the ciphertext frame. We
+        // can't directly compare to the plaintext (we never see it on the heap), but the
+        // wire payload has a fixed envelope around the seed (format byte, master key id,
+        // nonce, ciphertext, tag), so it MUST be larger than the bare 32 bytes.
+        using var session = CreateSession();
+
+        var wire = EncryptionSeedWire.Prepare(session, MasterEncryption);
+
+        Assert.Equal(32, wire.Salt.Length);
+        Assert.True(wire.EncryptedSeed.Length > 32);
+    }
+
+    [Fact]
+    public void EncryptionSeedWire_Prepare_preserves_workspace_dek_version()
+    {
+        using var session = CreateSession();
+
+        var wire = EncryptionSeedWire.Prepare(session, MasterEncryption);
+
+        Assert.Equal(StorageDekVersion, wire.KeyVersion);
+    }
+
+    [Fact]
+    public void EncryptionSeedWire_two_Prepare_calls_produce_different_wires()
+    {
+        // Different seed salts AND different master-encryption nonces — every byte of
+        // EncryptedSeed must differ. If they ever match the RNG is broken.
+        using var session = CreateSession();
+
+        var first = EncryptionSeedWire.Prepare(session, MasterEncryption);
+        var second = EncryptionSeedWire.Prepare(session, MasterEncryption);
+
+        Assert.NotEqual(first.Salt, second.Salt);
+        Assert.NotEqual(first.EncryptedSeed, second.EncryptedSeed);
+    }
+
+    [Fact]
+    public void EncryptionSeed_Prepare_to_wire_then_FromWire_recovers_same_seed_bytes()
+    {
+        // The whole wire roundtrip: take a workspace DEK, prepare a wire (master-encrypted),
+        // unwrap via FromWire, and confirm the recovered seed bytes match what an in-memory
+        // EncryptionSeed produced under the same salt would have given us.
+        using var session = CreateSession();
+
+        var wire = EncryptionSeedWire.Prepare(session, MasterEncryption);
+
+        using var unwrapped = wire.Unwrap(MasterEncryption);
+
+        Assert.Equal(wire.KeyVersion, unwrapped.KeyVersion);
+        Assert.Equal(wire.Salt, unwrapped.Salt);
+
+        // Reproduce the same derivation independently and compare seed bytes.
+        var latest = session.GetLatestDek();
+        var expectedSeed = new byte[32];
+        latest.Dek.DeriveKey(
+            chainStepSalts: wire.Salt,
+            output: expectedSeed);
+
+        Assert.Equal(expectedSeed, unwrapped.Seed);
+    }
+
+    [Fact]
+    public void EncryptionSeed_FromWire_with_wrong_master_encryption_throws()
+    {
+        // A reader holding a different master password — its stretched key differs, AES-GCM
+        // tag check on the wire fails. Confirms the wire's security boundary: ciphertext is
+        // useless without the original master key.
+        using var session = CreateSession();
+
+        var wire = EncryptionSeedWire.Prepare(session, MasterEncryption);
+
+        var attackerMaster = new AesGcmMasterDataEncryption(
+            new MasterEncryptionKeyProvider(["different-master-password"]));
+
+        Assert.ThrowsAny<Exception>(
+            () => wire.Unwrap(attackerMaster));
+    }
+
+    [Fact]
+    public void Full_pipeline_wire_to_seed_to_metadata_input_to_decode_via_session()
+    {
+        // End-to-end: trigger time builds the WIRE (master-encrypted), passes it through
+        // a queue payload (simulated by holding the wire object), worker unwraps via
+        // FromWire, builds metadata inputs, encrypts a value. Application later reads it
+        // back via the workspace session. Exercises every link in the chain.
+        using var session = CreateSession();
+
+        // Trigger-time: derive wire (master-encrypted seed).
+        var wire = EncryptionSeedWire.Prepare(session, MasterEncryption);
+
+        // "Worker-time": unwrap, encrypt — NO workspace session here, only the wire
+        // and the master encryption (which the worker has via DI as a process singleton).
+        using var workerSeed = wire.Unwrap(MasterEncryption);
+
+        var input = MetadataAesInputsV1.Prepare(workerSeed);
+        var metadata = new EncryptableMetadata(
+            Value: "shared-via-wire.png",
+            EncryptionMode: new AesGcmMetadataV1Encryption(Input: input));
+
+        var encoded = metadata.Encode();
+
+        // Application-time: decode via session (workspace DEK), no seed/wire involved.
+        var decoded = session.DecodeEncryptableMetadata(encoded);
+
+        Assert.Equal("shared-via-wire.png", decoded);
+    }
+
+    [Fact]
+    public void Full_pipeline_wire_seed_can_encrypt_multiple_metadatas_all_decoded_by_session()
+    {
+        // Matches the real worker workflow: ONE wire unwrapped to ONE seed, the seed reused
+        // for N per-value metadata encryptions, all decoded later by the session.
+        using var session = CreateSession();
+
+        var wire = EncryptionSeedWire.Prepare(session, MasterEncryption);
+
+        var inputs = new[]
+        {
+            "image/webp",
+            "thumb-mini.webp",
+            ".webp"
+        };
+
+        var encoded = new List<EncodedMetadataValue>();
+        using (var workerSeed = wire.Unwrap(MasterEncryption))
+        {
+            foreach (var value in inputs)
+            {
+                var aes = MetadataAesInputsV1.Prepare(workerSeed);
+                var metadata = new EncryptableMetadata(
+                    Value: value,
+                    EncryptionMode: new AesGcmMetadataV1Encryption(Input: aes));
+
+                encoded.Add(metadata.Encode());
+            }
+        }
+
+        for (var i = 0; i < inputs.Length; i++)
+        {
+            Assert.Equal(inputs[i], session.DecodeEncryptableMetadata(encoded[i]));
+        }
     }
 }

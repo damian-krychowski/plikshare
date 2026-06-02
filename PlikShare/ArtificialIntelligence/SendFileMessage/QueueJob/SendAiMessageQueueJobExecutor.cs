@@ -9,6 +9,7 @@ using PlikShare.Core.Queue;
 using PlikShare.Core.Utils;
 using PlikShare.Integrations.OpenAi.ChatGpt;
 using PlikShare.Storages;
+using PlikShare.Workspaces.Cache;
 using Serilog;
 
 namespace PlikShare.ArtificialIntelligence.SendFileMessage.QueueJob;
@@ -16,7 +17,7 @@ namespace PlikShare.ArtificialIntelligence.SendFileMessage.QueueJob;
 public class SendAiMessageQueueJobExecutor(
     SaveAiChatCompletionQuery saveAiChatCompletionQuery,
     GetFullAiConversationQuery getFullAiConversationQuery,
-    StorageClientStore storageClientStore,
+    WorkspaceCache workspaceCache,
     GetFilesToIncludeDetailsQuery getFilesToIncludeDetailsQuery,
     ChatGptClientStore chatGptClientStore) : IQueueLongRunningJobExecutor
 {
@@ -281,13 +282,16 @@ public class SendAiMessageQueueJobExecutor(
                 continue;
             }
 
+            var workspace = await workspaceCache.TryGetWorkspace(
+                fileToInclude.WorkspaceId,
+                cancellationToken);
 
-            if (!storageClientStore.TryGetClient(fileToInclude.StorageId, out var storage))
+            if (workspace is null)
             {
                 Log.Warning(
-                    "File '{FileExternalId}' Storage#{StorageId} was not found and thus it will not be included into AiConversation '{AiConversationExternalId}'",
+                    "File '{FileExternalId}' Workspace#{WorkspaceId} was not found and thus it will not be included into AiConversation '{AiConversationExternalId}'",
                     fileToInclude.ExternalId,
-                    fileToInclude.StorageId,
+                    fileToInclude.WorkspaceId,
                     conversationExternalId);
 
                 continue;
@@ -295,7 +299,7 @@ public class SendAiMessageQueueJobExecutor(
 
             var downloadFileTask = DownloadFileContent(
                 file: fileToInclude,
-                storage: storage,
+                workspace: workspace,
                 cancellationToken: cancellationToken);
 
             downloadFileTasks.Add(downloadFileTask);
@@ -309,7 +313,7 @@ public class SendAiMessageQueueJobExecutor(
 
     private async Task<AiIncludeContent> DownloadFileContent(
         FileToInclude file,
-        IStorageClient storage,
+        WorkspaceContext workspace,
         CancellationToken cancellationToken)
     {
         //file has a small size limit so this casting is ok
@@ -324,11 +328,11 @@ public class SendAiMessageQueueJobExecutor(
 
         try
         {
-            var encryptionMode = file.EncryptionMetadata.ToEncryptionMode(
-                workspaceEncryptionSession: null,
-                storageClient: storage);
+            var encryptionMode = workspace.GetFileEncryptionMode(
+                fileEncryptionMetadata: file.EncryptionMetadata,
+                workspaceEncryptionSession: null);
 
-            await using var storageFile = await storage.DownloadFile(
+            await using var storageFile = await workspace.DownloadFile(
                 fileDetails: new DownloadFileDetails(
                     FileKey: new FileKey
                     {
@@ -337,7 +341,6 @@ public class SendAiMessageQueueJobExecutor(
                     },
                     FileSizeInBytes: file.SizeInBytes,
                     EncryptionMode: encryptionMode),
-                bucketName: file.BucketName,
                 cancellationToken: cancellationToken);
 
             using var outputStream = new MemoryStream(

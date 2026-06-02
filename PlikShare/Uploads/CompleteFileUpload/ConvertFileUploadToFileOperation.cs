@@ -37,7 +37,7 @@ public class ConvertFileUploadToFileOperation(
                 UploadAlgorithm: fileUpload.UploadAlgorithm,
                 FileSizeInBytes: fileUpload.FileToUpload.SizeInBytes,
                 FileEncryptionMetadata: fileUpload.FileToUpload.EncryptionMetadata),
-            workspace: fileUpload.Workspace,
+            workspace: workspace,
             correlationId: correlationId,
             cancellationToken: cancellationToken);
 

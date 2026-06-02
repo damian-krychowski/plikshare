@@ -21,7 +21,7 @@ internal static class AuditNameMask
     public const string EncryptedMarker = "[encrypted]";
 
     public static string MaskIfEncrypted(string name) =>
-        name.StartsWith(EncryptableMetadataExtensions.ReservedPrefix, StringComparison.Ordinal)
+        name.StartsWith(AesGcmMetadataV1.ReservedPrefix, StringComparison.Ordinal)
             ? EncryptedMarker
             : name;
 

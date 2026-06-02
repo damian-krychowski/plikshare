@@ -7,6 +7,7 @@ using Azure.Storage.Sas;
 using CommunityToolkit.HighPerformance;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
+using PlikShare.Files.Id;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Storages.Encryption;
@@ -291,6 +292,15 @@ public class AzureBlobStorageClient(
         return filePartsCount == 1
             ? (UploadAlgorithm.DirectUpload, filePartsCount)
             : (UploadAlgorithm.MultiStepChunkUpload, filePartsCount);
+    }
+    
+    public FileKey GenerateFileKey()
+    {
+        return new FileKey
+        {
+            FileExternalId = FileExtId.NewId(),
+            KeySecretPart = GenerateFileKeySecretPart()
+        };
     }
 
     public string GenerateFileKeySecretPart()

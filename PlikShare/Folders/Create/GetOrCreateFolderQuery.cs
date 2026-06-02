@@ -401,7 +401,9 @@ public class GetOrCreateFolderQuery(
                         AncestorFolderIds = node.Parent?.AncestorFolderIdsForSubfolders ?? [],
                         ParentId = node.Parent?.Id,
 
-                        Name = workspaceEncryptionSession.ToEncryptableMetadata(subfolder.Name),
+                        Name = workspace.ToEncryptableMetadata(
+                            subfolder.Name,
+                            workspaceEncryptionSession),
                     });
                 }
             }

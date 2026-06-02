@@ -56,10 +56,10 @@ public class FfmpegService
     /// read ONCE (eg. straight from S3 via <paramref name="writeSourceTo"/>) and fanned out to one
     /// ffmpeg process per variant over stdin — nothing is buffered in the managed heap or on disk,
     /// and the source is downloaded only once. Each variant succeeds or fails independently; a
-    /// failure is reported in <see cref="VariantResult.Error"/> rather than thrown, so one bad
+    /// failure is reported in <see cref="ThumbnailVariantResult.Error"/> rather than thrown, so one bad
     /// variant never sinks the others.
     /// </summary>
-    public async Task<IReadOnlyList<VariantResult>> GenerateThumbnails(
+    public async Task<IReadOnlyList<ThumbnailVariantResult>> GenerateThumbnails(
         Func<PipeWriter, CancellationToken, ValueTask> writeSourceTo,
         IReadOnlyList<ThumbnailVariant> variants,
         CancellationToken cancellationToken)
@@ -75,7 +75,7 @@ public class FfmpegService
                 workers,
                 cancellationToken);
 
-            var results = new List<VariantResult>(workers.Count);
+            var results = new List<ThumbnailVariantResult>(workers.Count);
 
             foreach (var worker in workers)
             {
@@ -102,7 +102,7 @@ public class FfmpegService
     /// in-RAM buffering of the whole input plus a 100-frame thumbnail-filter window and blows up.
     /// Caller owns the temp file's lifecycle (typically delete in <c>finally</c>).
     /// </summary>
-    public async Task<IReadOnlyList<VariantResult>> GenerateThumbnailsFromFile(
+    public async Task<IReadOnlyList<ThumbnailVariantResult>> GenerateThumbnailsFromFile(
         string filePath,
         IReadOnlyList<ThumbnailVariant> variants,
         CancellationToken cancellationToken)
@@ -113,7 +113,7 @@ public class FfmpegService
 
         try
         {
-            var results = new List<VariantResult>(workers.Count);
+            var results = new List<ThumbnailVariantResult>(workers.Count);
 
             foreach (var worker in workers)
             {
@@ -404,7 +404,7 @@ public class FfmpegService
         }
     }
 
-    private static async Task<VariantResult> CollectWorkerAsResult(
+    private static async Task<ThumbnailVariantResult> CollectWorkerAsResult(
         Worker worker,
         CancellationToken cancellationToken)
     {
@@ -419,7 +419,7 @@ public class FfmpegService
             {
                 worker.StdoutBuffer.Dispose();
 
-                return new VariantResult(
+                return new ThumbnailVariantResult(
                     worker.Variant,
                     Thumbnail: null,
                     Error: $"ffmpeg exited with code {worker.Process.ExitCode}: {stderr}");
@@ -429,7 +429,7 @@ public class FfmpegService
             {
                 worker.StdoutBuffer.Dispose();
 
-                return new VariantResult(
+                return new ThumbnailVariantResult(
                     worker.Variant,
                     Thumbnail: null,
                     Error: $"ffmpeg produced empty output. stderr: {stderr}");
@@ -437,7 +437,7 @@ public class FfmpegService
 
             // Hand the buffer to the caller wrapped as IThumbnail — ownership transfers; the
             // consumer disposes via `await using` after the upload finishes.
-            return new VariantResult(
+            return new ThumbnailVariantResult(
                 worker.Variant,
                 Thumbnail: new FfmpegThumbnail(worker.StdoutBuffer),
                 Error: null);
@@ -453,7 +453,7 @@ public class FfmpegService
             TryKill(worker.Process);
             worker.StdoutBuffer.Dispose();
             
-            return new VariantResult(
+            return new ThumbnailVariantResult(
                 worker.Variant,
                 Thumbnail: null,
                 Error: ex.Message);

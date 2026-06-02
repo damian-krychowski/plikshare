@@ -76,7 +76,7 @@ public class AuditLogDetailsDecryptor
         if (!value.TryGetValue<string>(out var s) || s is null)
             return false;
 
-        if (!s.StartsWith(EncryptableMetadataExtensions.ReservedPrefix, StringComparison.Ordinal))
+        if (!s.StartsWith(AesGcmMetadataV1.ReservedPrefix, StringComparison.Ordinal))
             return false;
 
         string rewritten;

@@ -36,8 +36,8 @@ public class GetZipFileDetailsOperation(
         {
             var decodingResult = await ZipDecoder.ReadZipEntries(
                 file: file.Resolve(
-                    workspaceEncryptionSession: workspaceEncryptionSession,
-                    storageClient: workspace.Storage),
+                    workspace: workspace,
+                    workspaceEncryptionSession: workspaceEncryptionSession),
                 workspace: workspace,
                 cancellationToken: cancellationToken);
 

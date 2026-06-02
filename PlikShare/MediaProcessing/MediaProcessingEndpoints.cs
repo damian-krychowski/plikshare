@@ -8,7 +8,6 @@ using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
-using PlikShare.Files.Download.Contracts;
 using PlikShare.Core.Protobuf;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
@@ -70,22 +69,24 @@ public static class MediaProcessingEndpoints
         [FromRoute] FileExtId fileExternalId,
         HttpContext httpContext,
         UploadFileThumbnailOperation uploadFileThumbnailOperation,
-        ValidateThumbnailParentQuery validateThumbnailParentQuery,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspace = workspaceMembership.Workspace;
 
         if (!httpContext.Request.HasFormContentType)
             return HttpErrors.File.ExpectedMultipartFormDataContent();
 
-        var form = await httpContext.Request.ReadFormAsync(cancellationToken);
+        var form = await httpContext.Request.ReadFormAsync(
+            cancellationToken);
 
         if (!form.Files.Any())
             return HttpErrors.File.MissingFile();
 
         var file = form.Files[0];
-        var fileName = FileNames.TryGetNameAndExtension(file.FileName);
+        var fileName = FileNames.TryGetNameAndExtension(
+            file.FileName);
 
         if (fileName is null)
             return HttpErrors.File.MissingFileName();
@@ -119,41 +120,30 @@ public static class MediaProcessingEndpoints
         }
 
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
-
-        // Parent existence + ownership + thumbnailable check moved out of UploadFileThumbnailOperation
-        // so the queue executor can skip it (it already vouches for the parent). Race between this
-        // check and the insert below is still caught by the insert's ParentFileNotFound code.
-        var validation = validateThumbnailParentQuery.Execute(
-            workspace: workspaceMembership.Workspace,
-            parentFileExternalId: fileExternalId,
-            workspaceEncryptionSession: workspaceEncryptionSession);
-
-        if (validation == ValidateThumbnailParentQuery.ResultCode.NotFound)
-            return HttpErrors.File.NotFound(fileExternalId);
-
-        if (validation == ValidateThumbnailParentQuery.ResultCode.NotThumbnailable)
-            return HttpErrors.File.ParentNotThumbnailable();
-
-        await using var fileStream = file.OpenReadStream();
-
-        var descriptor = new ThumbnailDescriptor(
-            ExternalId: thumbnailFileExternalId,
-            Variant: variant,
-            SizeInBytes: file.Length,
-            ContentType: file.ContentType,
-            FileName: fileName.Name,
-            FileExtension: fileName.Extension);
-
+        
         var result = await uploadFileThumbnailOperation.Execute(
-            workspace: workspaceMembership.Workspace,
+            workspace: workspace,
             parentFileExternalId: fileExternalId,
-            thumbnail: descriptor,
-            content: fileStream,
+            thumbnail: new ThumbnailDescriptor(
+                FileKey: new FileKey
+                {
+                    FileExternalId = thumbnailFileExternalId,
+                    KeySecretPart = workspace.GenerateFileKeySecretPart()
+                },
+                Variant: variant,
+                SizeInBytes: file.Length,
+                ContentType: file.ContentType,
+                FileName: fileName.Name,
+                FileExtension: fileName.Extension),
+            getContent: () => file.OpenReadStream(),
             uploader: new UserIdentity(
                 UserExternalId: workspaceMembership.User.ExternalId),
             workspaceEncryptionSession: workspaceEncryptionSession,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
+        
+        if (result.Code == UploadFileThumbnailOperation.ResultCode.ParentNotThumbnailable)
+            return HttpErrors.File.ParentNotThumbnailable();
 
         if (result.Code == UploadFileThumbnailOperation.ResultCode.ParentNotFound)
             return HttpErrors.File.NotFound(fileExternalId);
@@ -162,14 +152,20 @@ public static class MediaProcessingEndpoints
             fileExternalId: fileExternalId,
             buildEntry: fileRef => Audit.File.AttachmentUploadedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
-                workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
+                workspace: workspace.ToAuditLogWorkspaceRef(),
                 parentFile: fileRef,
                 attachment: new Audit.FileRef
                 {
                     ExternalId = result.Attachment!.ExternalId,
-                    Name = workspaceEncryptionSession.Encode(fileName.Name),
-                    Extension = workspaceEncryptionSession.Encode(fileName.Extension),
-                    SizeInBytes = result.Attachment.SizeInBytes
+                    SizeInBytes = result.Attachment.SizeInBytes,
+                    
+                    Name = workspace.EncodeMetadata(
+                        fileName.Name,
+                        workspaceEncryptionSession),
+
+                    Extension = workspace.EncodeMetadata(
+                        fileName.Extension,
+                        workspaceEncryptionSession)
                 }),
             cancellationToken);
 
@@ -530,9 +526,9 @@ public static class MediaProcessingEndpoints
 
         try
         {
-            var encryptionMode = file.EncryptionMetadata.ToEncryptionMode(
-                workspaceEncryptionSession: workspaceEncryptionSession,
-                storageClient: workspace.Storage);
+            var encryptionMode = workspace.GetFileEncryptionMode(
+                fileEncryptionMetadata: file.EncryptionMetadata,
+                workspaceEncryptionSession: workspaceEncryptionSession);
 
             await using var storageFile = await workspace.DownloadFile(
                 fileDetails: new DownloadFileDetails(

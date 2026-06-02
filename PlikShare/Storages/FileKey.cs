@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 
 namespace PlikShare.Storages;
@@ -11,15 +10,6 @@ public sealed class FileKey
     public required string KeySecretPart { get; init; }
 
     public string Value => $"{FileExternalId.Value}_{KeySecretPart}";
-
-    public static FileKey NewKey(string? secretPart = default)
-    {
-        return new FileKey
-        {
-            FileExternalId = FileExtId.NewId(),
-            KeySecretPart = secretPart ?? Guid.NewGuid().ToBase62()
-        };
-    }
 }
 
 public class FileKeyJsonConverter : JsonConverter<FileKey>

@@ -15,13 +15,7 @@ public static class HttpContextWorkspaceEncryptionSessionExtensions
             return httpContext.Items[WorkspaceEncryptionSession.HttpContextName]
                 as WorkspaceEncryptionSession;
         }
-
-        public EncryptableMetadata ToEncryptable(string value)
-        {
-            var wes = httpContext.TryGetWorkspaceEncryptionSession();
-            return wes.ToEncryptableMetadata(value);
-        }
-
+        
         public async ValueTask<StartWorkspaceEncryptionSessionResult> TryStartWorkspaceEncryptionSession(
             WorkspaceContext workspace)
         {

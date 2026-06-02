@@ -71,7 +71,7 @@ public class FileUploadCache(
             FileExtension = cached.FileExtension,
             FolderAncestors = cached.FolderAncestors,
 
-            Workspace = workspace,
+            WorkspaceId = workspace.Id
         };
     }
 
@@ -237,7 +237,7 @@ public sealed class FileUploadContext
     public required EncodedMetadataValue FileExtension { get; init; }
     public required CachedFolderAncestor[] FolderAncestors { get; init; }
 
-    public required WorkspaceContext Workspace { get; init; }
+    public required int WorkspaceId { get; init; }
 }
 
 public sealed class FileToUploadDetails
@@ -255,7 +255,7 @@ public static class FileUploadContextExtensions
         int workspaceId,
         IUserIdentity userIdentity)
     {
-        return fileUpload.Workspace.Id== workspaceId
+        return fileUpload.WorkspaceId== workspaceId
                && userIdentity.IsEqual(
                    identity: fileUpload.OwnerIdentity,
                    identityType: fileUpload.OwnerIdentityType);

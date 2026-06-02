@@ -64,7 +64,7 @@ public static class SqliteEncryptableMetadataExtensions
                 if (value is null)
                     return null;
 
-                if (!value.StartsWith(EncryptableMetadataExtensions.ReservedPrefix, StringComparison.Ordinal))
+                if (!value.StartsWith(AesGcmMetadataV1.ReservedPrefix, StringComparison.Ordinal))
                     return value;
 
                 if (!scope.TryGetWorkspaceSession((int)workspaceId, out var session))

@@ -166,6 +166,7 @@ public class RestoreFromTrashQuery(
             fileId: trashed.Id,
             folderId: destinationFolderId,
             finalName: finalName,
+            workspace: workspace,
             workspaceEncryptionSession: workspaceEncryptionSession,
             dbWriteContext: dbWriteContext,
             transaction: transaction);
@@ -278,15 +279,14 @@ public class RestoreFromTrashQuery(
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);
 
-            currentParentId = resolved
-                ?? CreateFolder(
-                    workspaceId: workspace.Id,
-                    parentId: currentParentId,
-                    plainName: segment.Name,
-                    userIdentity: userIdentity,
-                    workspaceEncryptionSession: workspaceEncryptionSession,
-                    dbWriteContext: dbWriteContext,
-                    transaction: transaction);
+            currentParentId = resolved ?? CreateFolder(
+                workspace: workspace,
+                parentId: currentParentId,
+                plainName: segment.Name,
+                userIdentity: userIdentity,
+                workspaceEncryptionSession: workspaceEncryptionSession,
+                dbWriteContext: dbWriteContext,
+                transaction: transaction);
         }
 
         return currentParentId;
@@ -356,7 +356,7 @@ public class RestoreFromTrashQuery(
     }
 
     private int CreateFolder(
-        int workspaceId,
+        WorkspaceContext workspace,
         int? parentId,
         string plainName,
         IUserIdentity userIdentity,
@@ -379,7 +379,7 @@ public class RestoreFromTrashQuery(
                     readRowFunc: reader => reader.GetFromJson<int[]>(0),
                     transaction: transaction)
                 .WithParameter("$parentId", parentId.Value)
-                .WithParameter("$workspaceId", workspaceId)
+                .WithParameter("$workspaceId", workspace.Id)
                 .Execute();
 
             if (!parentAncestors.IsEmpty)
@@ -417,10 +417,12 @@ public class RestoreFromTrashQuery(
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
             .WithParameter("$externalId", externalId.Value)
-            .WithParameter("$workspaceId", workspaceId)
+            .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$parentId", parentId)
             .WithJsonParameter("$ancestorFolderIds", ancestorFolderIds)
-            .WithEncryptableParameter("$name", workspaceEncryptionSession.ToEncryptableMetadata(plainName))
+            .WithEncryptableParameter("$name", workspace.ToEncryptableMetadata(
+                plainName,
+                workspaceEncryptionSession))
             .WithParameter("$creatorIdentityType", userIdentity.IdentityType)
             .WithParameter("$creatorIdentity", userIdentity.Identity)
             .WithParameter("$createdAt", clock.UtcNow)
@@ -492,6 +494,7 @@ public class RestoreFromTrashQuery(
         int fileId,
         int? folderId,
         string finalName,
+        WorkspaceContext workspace,
         WorkspaceEncryptionSession? workspaceEncryptionSession,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
@@ -511,7 +514,9 @@ public class RestoreFromTrashQuery(
                 transaction: transaction)
             .WithParameter("$fileId", fileId)
             .WithParameter("$folderId", folderId)
-            .WithEncryptableParameter("$name", workspaceEncryptionSession.ToEncryptableMetadata(finalName))
+            .WithEncryptableParameter("$name", workspace.ToEncryptableMetadata(
+                finalName, 
+                workspaceEncryptionSession))
             .ExecuteOrThrow();
     }
 

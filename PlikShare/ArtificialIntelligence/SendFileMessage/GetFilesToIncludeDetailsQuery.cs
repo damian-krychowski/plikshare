@@ -27,11 +27,8 @@ public class GetFilesToIncludeDetailsQuery(PlikShareDb plikShareDb)
                         fi_encryption_nonce_prefix,
                         fi_encryption_chain_salts,
                         fi_encryption_format_version,
-                        w_storage_id,
-                        w_bucket_name
+                        fi_workspace_id
                      FROM fi_files
-                     INNER JOIN w_workspaces
-                        ON w_id = fi_workspace_id
                      WHERE fi_external_id IN (
                             SELECT value FROM json_each($externalIds)
                         )
@@ -59,9 +56,7 @@ public class GetFilesToIncludeDetailsQuery(PlikShareDb plikShareDb)
                                     reader.GetFieldValueOrNull<byte[]>(8)),
                                 FormatVersion = reader.GetByteOrNull(9) ?? 1
                             },
-
-                        StorageId = reader.GetInt32(10),
-                        BucketName = reader.GetString(11)
+                        WorkspaceId = reader.GetInt32(10)
                     };
                 })
             .WithJsonParameter("$externalIds", externalIds)
@@ -76,7 +71,6 @@ public class FileToInclude
     public required string Extension { get; init; }
     public required long SizeInBytes { get; init; }
     public required string KeySecretPart { get; init; }
-    public required int StorageId { get; init; }
-    public required string BucketName { get; init; }
+    public required int WorkspaceId { get; init; }
     public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
 }

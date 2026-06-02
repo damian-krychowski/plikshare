@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using PlikShare.AuditLog;
 using PlikShare.Core.Clock;
 using PlikShare.Core.CORS;
-using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Storages.Encryption.Authorization;
@@ -41,11 +40,11 @@ public static class BulkDownloadEndpoints
 
         Log.Debug("Bulk download started: {@Payload}", payload);
         
-        var workspaceContext = await workspaceCache.TryGetWorkspace(
+        var workspace = await workspaceCache.TryGetWorkspace(
             payload.WorkspaceId,
             cancellationToken);
 
-        if (workspaceContext is null)
+        if (workspace is null)
         {
             Log.Warning("Could not execute bulk download with pre-signed url because Workspace#{WorkspaceId} was not found.",
                 payload.WorkspaceId);
@@ -56,12 +55,11 @@ public static class BulkDownloadEndpoints
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
 
         var bulkDownloadDetails = bulkDownloadDetailsQuery.GetDetailsFromDb(
-            workspaceId: payload.WorkspaceId,
             selectedFileIds: payload.SelectedFileIds,
             excludedFileIds: payload.ExcludedFileIds,
             selectedFolderIds: payload.SelectedFolderIds,
             excludedFolderIds: payload.ExcludedFolderIds,
-            storageClient: workspaceContext.Storage,
+            workspace: workspace,
             workspaceEncryptionSession: workspaceEncryptionSession);
 
         if (Log.IsEnabled(LogEventLevel.Debug))
@@ -73,15 +71,27 @@ public static class BulkDownloadEndpoints
         await auditLogService.Log(
             Audit.File.BulkDownloadedEntry(
                 actor: httpContext.GetAuditLogActorContext(),
-                workspace: workspaceContext.ToAuditLogWorkspaceRef(),
+                workspace: workspace.ToAuditLogWorkspaceRef(),
                 files: bulkDownloadDetails.Files.Select(f => new Audit.FileRef
                 {
                     ExternalId = f.ExternalId,
-                    Name = workspaceEncryptionSession.Encode(f.Name),
-                    Extension = workspaceEncryptionSession.Encode(f.Extension),
                     SizeInBytes = f.SizeInBytes,
-                    FolderPath = bulkDownloadDetails.FolderSubtree.GetFullPath(f.FolderId)
-                        ?.Select(workspaceEncryptionSession.Encode).ToList()
+
+                    Name = workspace.EncodeMetadata(
+                        f.Name,
+                        workspaceEncryptionSession),
+
+                    Extension = workspace.EncodeMetadata(
+                        f.Extension,
+                        workspaceEncryptionSession),
+                    
+                    FolderPath = bulkDownloadDetails
+                        .FolderSubtree
+                        .GetFullPath(f.FolderId)
+                        ?.Select(value => workspace.EncodeMetadata(
+                            value, 
+                            workspaceEncryptionSession))
+                        .ToList()
                 }).ToList()),
             cancellationToken);
 
@@ -90,7 +100,7 @@ public static class BulkDownloadEndpoints
 
         try
         {
-            await workspaceContext.DownloadFilesInBulk(
+            await workspace.DownloadFilesInBulk(
                 bulkDownloadDetails: bulkDownloadDetails,
                 responsePipeWriter: httpContext.Response.BodyWriter,
                 cancellationToken: cancellationToken);

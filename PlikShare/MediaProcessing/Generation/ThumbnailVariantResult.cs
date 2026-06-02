@@ -7,7 +7,7 @@ namespace PlikShare.MediaProcessing.Generation;
 /// <see cref="Error"/> is non-null. The caller disposes <see cref="Thumbnail"/> via
 /// <c>await using</c> after consuming its content.
 /// </summary>
-public sealed record VariantResult(
+public sealed record ThumbnailVariantResult(
     ThumbnailVariant Variant,
     IThumbnail? Thumbnail,
     string? Error);

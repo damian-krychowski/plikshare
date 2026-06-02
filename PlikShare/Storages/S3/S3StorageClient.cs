@@ -3,6 +3,7 @@ using Amazon.S3.Model;
 using CommunityToolkit.HighPerformance;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
+using PlikShare.Files.Id;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Storages.Encryption;
@@ -501,6 +502,15 @@ public class S3StorageClient(
         return filePartsCount == 1
             ? (UploadAlgorithm.DirectUpload, filePartsCount)
             : (UploadAlgorithm.MultiStepChunkUpload, filePartsCount);
+    }
+    
+    public FileKey GenerateFileKey()
+    {
+        return new FileKey
+        {
+            FileExternalId = FileExtId.NewId(),
+            KeySecretPart = GenerateFileKeySecretPart()
+        };
     }
 
     public string GenerateFileKeySecretPart()

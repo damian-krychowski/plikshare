@@ -2,6 +2,7 @@
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
 using PlikShare.Storages;
+using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.Files.Records;
 
@@ -47,9 +48,8 @@ static class FileRecordExtensions
         };
 
         public ResolvedFileRecord Resolve(
-            WorkspaceEncryptionSession? workspaceEncryptionSession,
-            IStorageClient storageClient) =>
-            new()
+            WorkspaceContext workspace,
+            WorkspaceEncryptionSession? workspaceEncryptionSession) => new()
             {
                 FileKey = new FileKey
                 {
@@ -62,9 +62,9 @@ static class FileRecordExtensions
                 SizeInBytes = file.SizeInBytes,
                 WorkspaceId = file.WorkspaceId,
                 FolderAncestors = file.FolderAncestors,
-                EncryptionMode = file.EncryptionMetadata.ToEncryptionMode(
-                    workspaceEncryptionSession,
-                    storageClient)
+                EncryptionMode = workspace.GetFileEncryptionMode(
+                    fileEncryptionMetadata: file.EncryptionMetadata,
+                    workspaceEncryptionSession: workspaceEncryptionSession)
             };
     }
 

@@ -45,9 +45,10 @@ public class DownloadFileConvertedOperation(
             return new Result(Code: ResultCode.ParentNotThumbnailable);
 
         var parent = parentLookup.Details;
-        var encryptionMode = parent.EncryptionMetadata.ToEncryptionMode(
-            workspaceEncryptionSession: workspaceEncryptionSession,
-            storageClient: workspace.Storage);
+
+        var encryptionMode = workspace.GetFileEncryptionMode(
+            fileEncryptionMetadata: parent.EncryptionMetadata,
+            workspaceEncryptionSession: workspaceEncryptionSession);
 
         // Source already matches target format — skip ffmpeg, stream the original bytes back.
         // Avoids an unnecessary re-encode (quality loss for JPEG → JPEG, CPU waste in general).

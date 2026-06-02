@@ -73,35 +73,6 @@ public sealed class FileAesInputsV2 : IDisposable
             NoncePrefix = metadata.NoncePrefix
         };
     }
-
-    public static FileAesInputsV2 Prepare(
-        FileAesInputsV2Wire wire,
-        IMasterDataEncryption masterEncryption)
-    {
-        var fileKey = new byte[Aes256GcmStreamingV2.DerivedKeySize];
-
-        masterEncryption.DecryptBytes(
-            versionedEncryptedBytes: wire.EncryptedFileKey,
-            destination: fileKey);
-
-        return new FileAesInputsV2
-        {
-            FileKey = fileKey,
-            KeyVersion = wire.KeyVersion,
-            ChainStepSalts = wire.ChainStepSalts,
-            Salt = wire.Salt,
-            NoncePrefix = wire.NoncePrefix
-        };
-    }
-
-    public FileEncryptionMetadata ToMetadata() => new()
-    {
-        FormatVersion = 2,
-        Salt = Salt,
-        KeyVersion = KeyVersion,
-        ChainStepSalts = ChainStepSalts,
-        NoncePrefix = NoncePrefix
-    };
 }
 
 public sealed class FileAesInputsV2Wire
@@ -144,6 +115,36 @@ public sealed class FileAesInputsV2Wire
             CryptographicOperations.ZeroMemory(fileKey);
         }
     }
+
+    public FileEncryptionMode ToEncryptionMode(
+        IMasterDataEncryption masterEncryption)
+    {
+        var fileKey = new byte[Aes256GcmStreamingV2.DerivedKeySize];
+
+        masterEncryption.DecryptBytes(
+            versionedEncryptedBytes: EncryptedFileKey,
+            destination: fileKey);
+
+        var input = new FileAesInputsV2
+        {
+            FileKey = fileKey,
+            KeyVersion = KeyVersion,
+            ChainStepSalts = ChainStepSalts,
+            Salt = Salt,
+            NoncePrefix = NoncePrefix
+        };
+
+        return new AesGcmV2Encryption(input);
+    }
+
+    public FileEncryptionMetadata ToMetadata() => new()
+    {
+        FormatVersion = 2,
+        Salt = Salt,
+        KeyVersion = KeyVersion,
+        ChainStepSalts = ChainStepSalts,
+        NoncePrefix = NoncePrefix
+    };
 }
 
 public static class FileEncryptionModeExtensions

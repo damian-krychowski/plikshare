@@ -16,12 +16,11 @@ public class GetQuickShareContentOperation(
             quickShareId: quickShare.Id);
 
         var details = bulkDownloadDetailsQuery.GetDetailsFromDb(
-            workspaceId: quickShare.Workspace.Id,
             selectedFileIds: dbIds.SelectedFileIds,
             excludedFileIds: dbIds.ExcludedFileIds,
             selectedFolderIds: dbIds.SelectedFolderIds,
             excludedFolderIds: dbIds.ExcludedFolderIds,
-            storageClient: quickShare.Workspace.Storage,
+            workspace: quickShare.Workspace,
             workspaceEncryptionSession: null);
 
         // Order so the client can wire parent refs in a single pass — every parent
