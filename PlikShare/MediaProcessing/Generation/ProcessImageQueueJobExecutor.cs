@@ -2,7 +2,6 @@ using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Core.Utils;
-using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Files.UploadAttachment;
@@ -75,11 +74,11 @@ public class ProcessImageQueueJobExecutor(
 
         var parentExternalIds = definition
             .Files
-            .Select(f => f.ParentFileExternalId)
+            .Select(f => f.ParentFileExternalId.Value)
             .ToList();
 
         var parents = getSourceFileQuery.ExecuteBatch(
-            parentExternalIds);
+            fileExternalIds: parentExternalIds);
 
         var perFileResults = new List<ThumbnailGenerationResult.FileResult>(
             definition.Files.Count);
@@ -129,15 +128,17 @@ public class ProcessImageQueueJobExecutor(
         WorkspaceContext workspace,
         ProcessImageQueueJobDefinition.BatchItem file,
         List<ThumbnailVariant> variants,
-        Dictionary<FileExtId, GetThumbnailSourceFileQuery.ThumbnailSourceFile> parents,
+        List<GetThumbnailSourceFileQuery.ThumbnailSourceFile> parents,
         List<InsertAndFinalizeThumbnailQuery.BatchItem> batchInsertItems,
         CancellationToken cancellationToken)
     {
         var failedVariants = new List<ThumbnailGenerationResult.FailedVariant>();
         var generatedVariants = new List<ThumbnailGenerationResult.GeneratedVariant>();
 
-        if (!parents.TryGetValue(file.ParentFileExternalId, out var parent)
-            || parent.WorkspaceId != workspace.Id)
+        var parent = parents.FirstOrDefault(
+            f => f.ExternalId == file.ParentFileExternalId);
+
+        if (parent is null || parent.WorkspaceId != workspace.Id)
         {
             Logger.Warning(
                 "Parent File '{ParentFileExternalId}' not found in Workspace#{WorkspaceId} — skipping.",

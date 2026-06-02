@@ -20,19 +20,6 @@ public class FileRecord
     public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
 }
 
-public class ResolvedFileRecord
-{
-    public required FileKey FileKey { get; init; }
-    public required string Name { get; init; }
-    public required string ContentType { get; init; }
-    public required string Extension { get; init; }
-    public required long SizeInBytes { get; init; }
-    public required int WorkspaceId { get; init; }
-    public required FileRecordFolderAncestor[] FolderAncestors { get; init; }
-
-    public required FileEncryptionMode EncryptionMode { get; init; }
-}
-
 static class FileRecordExtensions
 {
     extension(FileRecord file)
@@ -46,35 +33,6 @@ static class FileRecordExtensions
             KeySecretPart = file.KeySecretPart,
             FileExternalId = file.ExternalId,
         };
-
-        public ResolvedFileRecord Resolve(
-            WorkspaceContext workspace,
-            WorkspaceEncryptionSession? workspaceEncryptionSession) => new()
-            {
-                FileKey = new FileKey
-                {
-                    KeySecretPart = file.KeySecretPart,
-                    FileExternalId = file.ExternalId,
-                },
-                Name = file.Name,
-                ContentType = file.ContentType,
-                Extension = file.Extension,
-                SizeInBytes = file.SizeInBytes,
-                WorkspaceId = file.WorkspaceId,
-                FolderAncestors = file.FolderAncestors,
-                EncryptionMode = workspace.GetFileEncryptionMode(
-                    fileEncryptionMetadata: file.EncryptionMetadata,
-                    workspaceEncryptionSession: workspaceEncryptionSession)
-            };
-    }
-
-    extension(ResolvedFileRecord file)
-    {
-        public string FullName => $"{file.Name}{file.Extension}";
-
-        public List<string>? FolderPath => file.FolderAncestors.ToFolderPath();
-
-        public FileExtId ExternalId => file.FileKey.FileExternalId;
     }
 
     extension(FileRecordFolderAncestor[] ancestors)

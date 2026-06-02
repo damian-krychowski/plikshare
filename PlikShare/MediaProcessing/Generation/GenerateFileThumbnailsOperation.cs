@@ -6,8 +6,6 @@ using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
-using PlikShare.Files.PreSignedLinks.Validation;
-using PlikShare.Storages;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Cache;
 
@@ -22,7 +20,7 @@ public class GenerateFileThumbnailsOperation(
     IClock clock,
     IQueue queue,
     DbWriteQueue dbWriteQueue,
-    GetFilePreSignedDownloadLinkDetailsQuery getParentFileDetailsQuery,
+    GetThumbnailSourceFileQuery getSourceFileQuery,
     TemporaryEncryptionStore temporaryEncryptionStore,
     IMasterDataEncryption masterEncryption,
     FfmpegService ffmpegService)
@@ -42,11 +40,11 @@ public class GenerateFileThumbnailsOperation(
         if (variants.Count == 0)
             return new Result(Code: ResultCode.NoVariants);
 
-        var parentLookup = getParentFileDetailsQuery.Execute(
+        var parentLookup = getSourceFileQuery.Execute(
             fileExternalId: parentFileExternalId,
             workspaceEncryptionSession: workspaceEncryptionSession);
 
-        if (parentLookup.Code == GetFilePreSignedDownloadLinkDetailsQuery.ResultCode.NotFound
+        if (parentLookup.Code == GetThumbnailSourceFileQuery.ResultCode.NotFound
             || parentLookup.Details?.WorkspaceId != workspace.Id)
         {
             return new Result(Code: ResultCode.ParentNotFound);
@@ -104,7 +102,6 @@ public class GenerateFileThumbnailsOperation(
             Code: ResultCode.Ok,
             BatchId: batchId);
     }
-
     private Guid? ProvisionPackage(
         WorkspaceContext workspace,
         WorkspaceEncryptionSession? workspaceEncryptionSession,

@@ -112,7 +112,9 @@ public sealed class EncryptionSeedWire
         // Same trick as FileAesInputsV2Wire.Prepare — plaintext seed lives ONLY on this
         // stack frame: HKDF writes it, master encryption reads it, finally zeroes it.
         // No heap, no SecureBytes alloc. 32 bytes — well within stack budget.
-        var salt = RandomNumberGenerator.GetBytes(KeyDerivationChain.StepSaltSize);
+        var salt = RandomNumberGenerator.GetBytes(
+            KeyDerivationChain.StepSaltSize);
+
         Span<byte> seed = stackalloc byte[KeyDerivationChain.DerivedKeySize];
 
         try

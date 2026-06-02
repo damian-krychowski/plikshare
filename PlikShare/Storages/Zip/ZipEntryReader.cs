@@ -1,6 +1,7 @@
 ﻿using System.Buffers;
 using System.IO.Compression;
 using System.IO.Pipelines;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Files.Records;
@@ -26,82 +27,103 @@ public static class ZipEntryReader
     /// <exception cref="FileNotFoundInStorageException"></exception>
     /// <exception cref="OperationCanceledException"></exception>
     public static async Task ReadEntryAsync(
-        ResolvedFileRecord file,
+        FileRecord file,
         ZipEntryPayload entry,
         WorkspaceContext workspace,        
         PipeWriter output,
+        Func<FileRecord, FileEncryptionMode> getFileEncryptionMode,
         CancellationToken cancellationToken = default)
     {
         var pipe = new Pipe();
 
         var (readTask, zipLfh) = await ReadFileData(
-            file, 
-            entry, 
-            workspace,
-            pipe,
-            cancellationToken);
+            file: file, 
+            entry: entry, 
+            workspace: workspace, 
+            pipe: pipe, 
+            getFileEncryptionMode: getFileEncryptionMode, 
+            cancellationToken: cancellationToken);
 
-        if (entry.CompressionMethod == NoCompression)
+        switch (entry.CompressionMethod)
         {
-            var extractFileDataTask = Try.Execute(
-                @try: () => ExtractFileData(
-                    file: file,
-                    entry: entry,
-                    extraFieldLength: zipLfh.ExtraFieldLength,
-                    reader: pipe.Reader,
-                    output: output,
-                    cancellationToken: cancellationToken),
-                @finally: () => pipe.Reader.CompleteAsync());
+            case NoCompression:
+            {
+                await Task.WhenAll(
+                    readTask, 
+                    Extract(output));
 
-            await Task.WhenAll(
-                readTask,
-                extractFileDataTask);
-        } 
-        else if (entry.CompressionMethod == DeflateCompressionMethod)
-        {
-            //we are working with inner pipe so we need to make sure we complete reader and writer after operations are finished
-            //not to cause any memory leaks
+                break;
+            }
 
-            var decompressionPipe = new Pipe();
+            case DeflateCompressionMethod:
+            {
+                var decompressionPipe = new Pipe();
+                
+                await Task.WhenAll(
+                    readTask, 
+                    Extract(
+                        decompressionPipe.Writer,
+                        () => decompressionPipe.Writer.CompleteAsync()), 
+                    Decompress(
+                        decompressionPipe.Reader));
 
-            var extractFileDataTask = Try.Execute(
-                @try: () => ExtractFileData(
-                    file: file,
-                    entry: entry,
-                    reader: pipe.Reader,
-                    extraFieldLength: zipLfh.ExtraFieldLength,
-                    output: decompressionPipe.Writer,
-                    cancellationToken: cancellationToken),
-                @finally: async () =>
-                {
-                    await pipe.Reader.CompleteAsync();
-                    await decompressionPipe.Writer.CompleteAsync();
-                });
+                break;
+            }
 
-            var decompressionTask = Try.Execute(
-                @try: () => DecompressZipEntry(
-                    file: file,
-                    entry: entry,
-                    reader: decompressionPipe.Reader,
-                    output: output),
-                @finally: () => decompressionPipe.Reader.CompleteAsync());
-
-            await Task.WhenAll(
-                readTask,
-                extractFileDataTask,
-                decompressionTask);
+            default:
+                throw new NotSupportedException(
+                    $"Compression method {entry.CompressionMethod} not supported");
         }
-        else
+
+        return;
+
+        async Task Extract(
+            PipeWriter extractOutput,
+            Func<ValueTask>? finalization = null)
         {
-            throw new NotSupportedException($"Compression method {entry.CompressionMethod} not supported");
+            try
+            {
+                await ExtractFileData(
+                    file: file,
+                    entry: entry,
+                    extraFieldLength: zipLfh.ExtraFieldLength,
+                    reader: pipe.Reader,
+                    output: extractOutput,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                await pipe.Reader.CompleteAsync();
+                
+                if(finalization is not null)
+                    await finalization();
+            }
+        }
+
+        async Task Decompress(
+            PipeReader decompressionReader)
+        {
+            try
+            {
+                await DecompressZipEntry(
+                    file: file,
+                    entry: entry,
+                    reader: decompressionReader,
+                    output: output);
+            }
+            finally
+            {
+                await decompressionReader.CompleteAsync();
+            }
         }
     }
 
     private static async Task<(Task readTask, ZipLfhRecord zipLfh)> ReadFileData(
-        ResolvedFileRecord file, 
+        FileRecord file, 
         ZipEntryPayload entry, 
         WorkspaceContext workspace,
         Pipe pipe,
+        Func<FileRecord, FileEncryptionMode> getFileEncryptionMode,
         CancellationToken cancellationToken)
     {
         var reasonableFileRange = CalculateRangeIncludingLfhWithReasonableExtraFieldAndFileData(
@@ -116,7 +138,7 @@ public static class ZipEntryReader
                     Range: reasonableFileRange,
                     FileKey: file.FileKey,
                     FileSizeInBytes: file.SizeInBytes,
-                    EncryptionMode: file.EncryptionMode),
+                    EncryptionMode: getFileEncryptionMode(file)),
                 output: pipe.Writer,
                 cancellationToken: cancellationToken),
             @finally: () => pipe.Writer.CompleteAsync());
@@ -155,7 +177,7 @@ public static class ZipEntryReader
                             Range: missingBytesRange,
                             FileKey: file.FileKey,
                             FileSizeInBytes: file.SizeInBytes,
-                            EncryptionMode: file.EncryptionMode),
+                            EncryptionMode: getFileEncryptionMode(file)),
                         output: pipe.Writer,
                         cancellationToken: cancellationToken),
                     cancellationToken: cancellationToken);
@@ -169,7 +191,7 @@ public static class ZipEntryReader
     }
 
     private static BytesRange CalculateRangeIncludingLfhWithReasonableExtraFieldAndFileData(
-        ResolvedFileRecord file, 
+        FileRecord file, 
         ZipEntryPayload entry)
     {
         return FileBytesRange.Create(
@@ -184,7 +206,7 @@ public static class ZipEntryReader
     }
     
     private static async Task ExtractFileData(
-        ResolvedFileRecord file,
+        FileRecord file,
         ZipEntryPayload entry,
         ushort extraFieldLength,
         PipeReader reader,
@@ -244,6 +266,7 @@ public static class ZipEntryReader
                     readResult.Buffer.GetPosition(bytesToCopy));
 
                 output.Advance(bytesToCopy);
+                remainingBytes -= bytesToCopy;
 
                 var flushResult = await output.FlushAsync(
                     CancellationToken.None);
@@ -258,8 +281,6 @@ public static class ZipEntryReader
                 
                 if(readResult.IsCompleted)
                     break;
-                
-                remainingBytes -= bytesToCopy;
             }
         }
         catch (OperationCanceledException)
@@ -277,7 +298,7 @@ public static class ZipEntryReader
     }
 
     private static async Task DecompressZipEntry(
-        ResolvedFileRecord file,
+        FileRecord file,
         ZipEntryPayload entry,
         PipeReader reader,
         PipeWriter output)

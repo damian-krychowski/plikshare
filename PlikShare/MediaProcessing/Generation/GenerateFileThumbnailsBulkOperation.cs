@@ -5,7 +5,6 @@ using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
-using PlikShare.Storages;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Cache;
 
@@ -21,7 +20,6 @@ public class GenerateFileThumbnailsBulkOperation(
     IClock clock,
     IQueue queue,
     DbWriteQueue dbWriteQueue,
-    GetThumbnailableFilesQuery getThumbnailableFilesQuery,
     GetThumbnailSourceFileQuery getSourceFileQuery,
     TemporaryEncryptionStore temporaryEncryptionStore,
     IMasterDataEncryption masterEncryption,
@@ -49,22 +47,13 @@ public class GenerateFileThumbnailsBulkOperation(
         if (parentFileExternalIds.Count == 0)
             return new Result(Code: ResultCode.NoThumbnailableFiles);
 
-        var thumbnailableFiles = getThumbnailableFilesQuery.Execute(
-            workspace: workspace,
-            fileExternalIds: parentFileExternalIds,
-            workspaceEncryptionSession: workspaceEncryptionSession);
-
+        var thumbnailableFiles = getSourceFileQuery.ExecuteBatch(
+            parentFileExternalIds,
+            workspaceEncryptionSession);
+        
         if (thumbnailableFiles.Count == 0)
             return new Result(Code: ResultCode.NoThumbnailableFiles);
-
-        // For full-encrypted workspaces we need each parent's stored encryption metadata to
-        // pre-derive the decryption wire on trigger time (worker no longer holds a workspace
-        // session). Skipped for None/Managed — those routes don't need a keystore detour.
-        var parentDetails = workspaceEncryptionSession is null
-            ? new Dictionary<FileExtId, GetThumbnailSourceFileQuery.ThumbnailSourceFile>()
-            : getSourceFileQuery.ExecuteBatch(
-                thumbnailableFiles.Select(f => f.ExternalId).ToList());
-
+        
         var batchId = Guid.NewGuid();
         var variantList = variants.ToList();
 
@@ -80,14 +69,14 @@ public class GenerateFileThumbnailsBulkOperation(
         {
             foreach (var chunk in thumbnailableFiles.Chunk(BatchSize))
             {
-                var batchItems = new List<ProcessImageQueueJobDefinition.BatchItem>(chunk.Length);
+                var batchItems = new List<ProcessImageQueueJobDefinition.BatchItem>(
+                    chunk.Length);
 
                 foreach (var file in chunk)
                 {
                     var handle = ProvisionPackage(
                         workspace: workspace,
                         workspaceEncryptionSession: workspaceEncryptionSession,
-                        parentDetails: parentDetails,
                         file: file,
                         variants: variantList);
 
@@ -144,8 +133,7 @@ public class GenerateFileThumbnailsBulkOperation(
     private Guid? ProvisionPackage(
         WorkspaceContext workspace,
         WorkspaceEncryptionSession? workspaceEncryptionSession,
-        Dictionary<FileExtId, GetThumbnailSourceFileQuery.ThumbnailSourceFile> parentDetails,
-        GetThumbnailableFilesQuery.ThumbnailableFile file,
+        GetThumbnailSourceFileQuery.ThumbnailSourceFileWithExtensions file,
         List<ThumbnailVariant> variants)
     {
         if (workspaceEncryptionSession is null)
@@ -156,12 +144,11 @@ public class GenerateFileThumbnailsBulkOperation(
         // Decryption wire for the parent body — only built when the parent actually has
         // encryption metadata. Worker uses it via FileAesInputsV2.Prepare(wire, masterEnc).
         FileAesInputsV2Wire? decryptionInput = null;
-        if (parentDetails.TryGetValue(file.ExternalId, out var parent)
-            && parent.EncryptionMetadata is not null)
+        if (file.EncryptionMetadata is not null)
         {
             decryptionInput = FileAesInputsV2Wire.Prepare(
                 ikm: latest.Dek,
-                metadata: parent.EncryptionMetadata,
+                metadata: file.EncryptionMetadata,
                 masterEncryption: masterEncryption);
         }
 

@@ -1,24 +1,22 @@
-using System.Buffers;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Net.Http.Headers;
 using PlikShare.Antiforgery;
-using PlikShare.Core.CorrelationId;
+using PlikShare.AuditLog;
 using PlikShare.Core.CORS;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
-using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Files.Id;
 using PlikShare.Files.PreSignedLinks.Contracts;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Files.PreSignedLinks.Validation;
+using PlikShare.Files.Preview.GetZipBulkDownloadLink;
 using PlikShare.Files.Records;
 using PlikShare.Storages;
+using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Storages.Exceptions;
-using PlikShare.Files.Preview.GetZipBulkDownloadLink;
 using PlikShare.Storages.Zip;
-using PlikShare.AuditLog;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.CompleteFileUpload;
@@ -26,6 +24,7 @@ using PlikShare.Uploads.FilePartUpload.Complete;
 using PlikShare.Uploads.Id;
 using PlikShare.Workspaces.Cache;
 using Serilog;
+using System.Buffers;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
 // ReSharper disable PossibleMultipleEnumeration
@@ -616,13 +615,16 @@ public static class PreSignedFilesEndpoints
 
         try
         {
+            var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
             await ZipEntryReader.ReadEntryAsync(
-                file: file.Resolve(
-                    workspace: workspace,
-                    workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession()),
+                file: file,
                 entry: payload.ZipEntry,
                 workspace: workspace,
                 output: httpContext.Response.BodyWriter,
+                getFileEncryptionMode: f => workspace.GetFileEncryptionMode(
+                    fileEncryptionMetadata: f.EncryptionMetadata,
+                    workspaceEncryptionSession: workspaceEncryptionSession),
                 cancellationToken: cancellationToken);
 
             return TypedResults.Empty;
@@ -672,16 +674,17 @@ public static class PreSignedFilesEndpoints
 
         try
         {
-            var resolvedFile = file.Resolve(
-                workspace: workspace,
-                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
-
+            var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+            
             // CDFH must be read before any response bytes go out — both because the
             // decoded entries drive the selection plan and because a broken zip has
             // to surface as an error while we can still write headers.
             var decodingResult = await ZipDecoder.ReadZipEntries(
-                file: resolvedFile,
+                file: file,
                 workspace: workspace,
+                getFileEncryptionMode: f => workspace.GetFileEncryptionMode(
+                    fileEncryptionMetadata: f.EncryptionMetadata,
+                    workspaceEncryptionSession: workspaceEncryptionSession),
                 cancellationToken: cancellationToken);
 
             if (decodingResult.Code == ZipDecoder.ZipDecodingResultCode.ZipFileBroken)
@@ -705,11 +708,14 @@ public static class PreSignedFilesEndpoints
                 disposition: ContentDispositionType.Attachment);
 
             await ZipBulkDownloadStreamer.StreamAsync(
-                sourceFile: resolvedFile,
+                sourceFile: file,
                 workspace: workspace,
                 payload: payload,
                 cdfhEntries: decodingResult.Entries!,
                 output: httpContext.Response.BodyWriter,
+                getFileEncryptionMode: f => workspace.GetFileEncryptionMode(
+                    fileEncryptionMetadata: f.EncryptionMetadata,
+                    workspaceEncryptionSession: workspaceEncryptionSession),
                 cancellationToken: cancellationToken);
 
             return TypedResults.Empty;

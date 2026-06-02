@@ -22,11 +22,12 @@ public static class ZipBulkDownloadStreamer
     // happens on the fly via ZipArchive(Create) — pass-through deflate is a
     // possible later optimization but not needed for first cut.
     public static async Task StreamAsync(
-        ResolvedFileRecord sourceFile,
+        FileRecord sourceFile,
         WorkspaceContext workspace,
         ZipBulkDownloadPayload payload,
         IReadOnlyList<ZipCdfhRecord> cdfhEntries,
         PipeWriter output,
+        Func<FileRecord, FileEncryptionMode> getFileEncryptionMode,
         CancellationToken cancellationToken)
     {
         var preview = ZipPreviewResponseBuilder.Build(cdfhEntries);
@@ -114,6 +115,7 @@ public static class ZipBulkDownloadStreamer
                     },
                     workspace: workspace,
                     output: entryWriter,
+                    getFileEncryptionMode: getFileEncryptionMode,
                     cancellationToken: cancellationToken);
 
                 processedFiles++;

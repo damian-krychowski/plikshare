@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Encryption;
+using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.Tests;
 
@@ -8,6 +9,12 @@ public class SqliteEncryptableMetadataExtensionsTests
 {
     private const int WorkspaceId = 42;
     private const byte StorageDekVersion = 0;
+
+    // Full-encrypted workspace used only to mint encrypted envelopes via the real
+    // WorkspaceContext.EncodeMetadata path; the SQLite app_decrypt_metadata function is the
+    // unit under test here. The envelope's key version comes from the session DEK, not this
+    // workspace, so one shared instance covers every case.
+    private static readonly WorkspaceContext EncryptedWorkspace = WorkspaceContextTestFactory.CreateEncrypted();
 
     private static (SqliteConnection Connection, WorkspaceEncryptionSession Session, DecryptMetadataFunctionScope Scope)
         OpenConnectionWithRegisteredSession()
@@ -78,7 +85,7 @@ public class SqliteEncryptableMetadataExtensionsTests
         using (connection)
         using (scope)
         {
-            var encoded = ((WorkspaceEncryptionSession?)session).Encode("secret-name").Encoded;
+            var encoded = EncryptedWorkspace.EncodeMetadata("secret-name", session).Encoded;
 
             Assert.StartsWith(AesGcmMetadataV1.ReservedPrefix, encoded);
 
@@ -93,7 +100,7 @@ public class SqliteEncryptableMetadataExtensionsTests
         using (connection)
         using (scope)
         {
-            var encoded = ((WorkspaceEncryptionSession?)session).Encode("secret-name").Encoded;
+            var encoded = EncryptedWorkspace.EncodeMetadata("secret-name", session).Encoded;
 
             Assert.Null(Decrypt(connection, encoded, workspaceId: 9999));
         }
@@ -128,7 +135,7 @@ public class SqliteEncryptableMetadataExtensionsTests
                 }
             ]);
 
-        var encodedV7 = ((WorkspaceEncryptionSession?)fakeSession).Encode("secret-name").Encoded;
+        var encodedV7 = EncryptedWorkspace.EncodeMetadata("secret-name", fakeSession).Encoded;
 
         using var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
@@ -165,7 +172,7 @@ public class SqliteEncryptableMetadataExtensionsTests
                     Dek = SecureBytes.CopyFrom(dekBytes)
                 }
             ]);
-        var encoded = ((WorkspaceEncryptionSession?)session).Encode("secret-name").Encoded;
+        var encoded = EncryptedWorkspace.EncodeMetadata("secret-name", session).Encoded;
 
         using var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
@@ -181,7 +188,7 @@ public class SqliteEncryptableMetadataExtensionsTests
         var (connection, session, scope) = OpenConnectionWithRegisteredSession();
         using (connection)
         {
-            var encoded = ((WorkspaceEncryptionSession?)session).Encode("x").Encoded;
+            var encoded = EncryptedWorkspace.EncodeMetadata("x", session).Encoded;
 
             scope.Dispose();
 

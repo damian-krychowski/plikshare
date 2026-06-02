@@ -35,10 +35,11 @@ public class GetZipFileDetailsOperation(
         try
         {
             var decodingResult = await ZipDecoder.ReadZipEntries(
-                file: file.Resolve(
-                    workspace: workspace,
-                    workspaceEncryptionSession: workspaceEncryptionSession),
+                file: file,
                 workspace: workspace,
+                getFileEncryptionMode: f => workspace.GetFileEncryptionMode(
+                    fileEncryptionMetadata: f.EncryptionMetadata,
+                    workspaceEncryptionSession: workspaceEncryptionSession),
                 cancellationToken: cancellationToken);
 
             if (decodingResult.Code == ZipDecoder.ZipDecodingResultCode.ZipFileBroken)

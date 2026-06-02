@@ -1,7 +1,6 @@
 using PlikShare.BulkDownload;
 using PlikShare.Core.Encryption;
 using PlikShare.Files.PreSignedLinks;
-using PlikShare.Search.Get;
 using PlikShare.Storages;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.FileReading;

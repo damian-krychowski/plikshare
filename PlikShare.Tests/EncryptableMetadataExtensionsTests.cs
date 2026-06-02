@@ -1,14 +1,17 @@
 using System.Security.Cryptography;
 using System.Text;
 using PlikShare.Core.Encryption;
+using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.Tests;
 
 /// <summary>
 /// Black-box round-trip coverage for the metadata encrypt/decrypt path. Each test seeds a
 /// <see cref="WorkspaceEncryptionSession"/> with a known 32-byte DEK, encodes a plaintext
-/// through <see cref="EncryptableMetadataExtensions.Encode"/> (or via the
-/// <see cref="EncryptableMetadata"/> abstraction), then decodes through
+/// through <see cref="WorkspaceContextExtensions.EncodeMetadata"/> /
+/// <see cref="WorkspaceContextExtensions.ToEncryptableMetadata"/> on a full-encrypted
+/// <see cref="WorkspaceContext"/> (the real production path; the convenience that used to
+/// hang off the session moved to <see cref="WorkspaceContext"/>), then decodes through
 /// <see cref="EncryptableMetadataExtensions.DecodeEncryptableMetadata"/> and asserts the
 /// recovered string is byte-for-byte identical to the original.
 ///
@@ -31,6 +34,21 @@ public class EncryptableMetadataExtensionsTests
             new MasterEncryptionKeyProvider(["test-master-password"])));
 
     private static IMasterDataEncryption MasterEncryption => SharedMasterEncryption.Value;
+
+    /// <summary>
+    /// A full-encrypted workspace. Its <see cref="WorkspaceContext.Storage"/> reports
+    /// <c>FullStorageEncryption</c>, so <c>EncodeMetadata</c> / <c>ToEncryptableMetadata</c>
+    /// take the single-chain-step branch keyed off the session DEK. The workspace itself is
+    /// stateless for these methods (they only read <c>Storage.Encryption</c>), so a single
+    /// shared instance is reused across tests — the per-test DEK comes from the session arg.
+    /// </summary>
+    private static readonly WorkspaceContext EncryptedWorkspace = WorkspaceContextTestFactory.CreateEncrypted();
+
+    /// <summary>
+    /// An unencrypted workspace, used for the null-session passthrough cases where
+    /// <c>EncodeMetadata</c> / <c>ToEncryptableMetadata</c> must hand the value back verbatim.
+    /// </summary>
+    private static readonly WorkspaceContext PlainWorkspace = WorkspaceContextTestFactory.CreatePlain();
 
     private static WorkspaceEncryptionSession CreateSession(byte[]? dekBytes = null)
     {
@@ -71,7 +89,7 @@ public class EncryptableMetadataExtensionsTests
     {
         using var session = CreateSession();
 
-        var encoded = session.Encode("photo.jpg");
+        var encoded = EncryptedWorkspace.EncodeMetadata("photo.jpg", session);
 
         var decoded = session.DecodeEncryptableMetadata(encoded);
 
@@ -83,7 +101,7 @@ public class EncryptableMetadataExtensionsTests
     {
         using var session = CreateSession();
 
-        var encoded = session.Encode("");
+        var encoded = EncryptedWorkspace.EncodeMetadata("", session);
 
         var decoded = session.DecodeEncryptableMetadata(encoded);
 
@@ -95,7 +113,7 @@ public class EncryptableMetadataExtensionsTests
     {
         using var session = CreateSession();
 
-        var encoded = session.Encode("x");
+        var encoded = EncryptedWorkspace.EncodeMetadata("x", session);
 
         var decoded = session.DecodeEncryptableMetadata(encoded);
 
@@ -110,7 +128,7 @@ public class EncryptableMetadataExtensionsTests
         // 400 bytes UTF-8 — well below the 512-byte stackalloc threshold inside Encode.
         var original = new string('a', 400);
 
-        var encoded = session.Encode(original);
+        var encoded = EncryptedWorkspace.EncodeMetadata(original, session);
 
         Assert.Equal(original, session.DecodeEncryptableMetadata(encoded));
     }
@@ -124,7 +142,7 @@ public class EncryptableMetadataExtensionsTests
         // on the encode side. Catches any slice-length / offset mismatch on the heap path.
         var original = new string('Z', 4096);
 
-        var encoded = session.Encode(original);
+        var encoded = EncryptedWorkspace.EncodeMetadata(original, session);
 
         Assert.Equal(original, session.DecodeEncryptableMetadata(encoded));
     }
@@ -137,7 +155,7 @@ public class EncryptableMetadataExtensionsTests
         // 1 MiB — note/comment-sized payload.
         var original = new string('!', 1 * 1024 * 1024);
 
-        var encoded = session.Encode(original);
+        var encoded = EncryptedWorkspace.EncodeMetadata(original, session);
 
         Assert.Equal(original, session.DecodeEncryptableMetadata(encoded));
     }
@@ -149,7 +167,7 @@ public class EncryptableMetadataExtensionsTests
     {
         using var session = CreateSession();
 
-        var encoded = session.Encode("anything").Encoded;
+        var encoded = EncryptedWorkspace.EncodeMetadata("anything", session).Encoded;
 
         Assert.StartsWith(AesGcmMetadataV1.ReservedPrefix, encoded);
     }
@@ -159,7 +177,7 @@ public class EncryptableMetadataExtensionsTests
     {
         using var session = CreateSession();
 
-        var envelope = DecodeEnvelope(session.Encode("hello").Encoded);
+        var envelope = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("hello", session).Encoded);
 
         // [format(1) | key_version(1) | chain_steps_count(1) | salts(N*32) | nonce(12) | ct | tag(16)]
         Assert.Equal(0x01, envelope[0]);
@@ -172,7 +190,7 @@ public class EncryptableMetadataExtensionsTests
     {
         using var session = CreateSession();
 
-        var envelope = DecodeEnvelope(session.Encode("hello").Encoded);
+        var envelope = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("hello", session).Encoded);
 
         // header (3) + chain salt (32) + nonce (12) + ciphertext (5 = "hello") + tag (16) = 68
         Assert.Equal(3 + 32 + 12 + 5 + 16, envelope.Length);
@@ -186,8 +204,8 @@ public class EncryptableMetadataExtensionsTests
         // plaintext. If this ever passes by accident the RNG is broken.
         using var session = CreateSession();
 
-        var first = session.Encode("same-value").Encoded;
-        var second = session.Encode("same-value").Encoded;
+        var first = EncryptedWorkspace.EncodeMetadata("same-value", session).Encoded;
+        var second = EncryptedWorkspace.EncodeMetadata("same-value", session).Encoded;
 
         Assert.NotEqual(first, second);
     }
@@ -197,8 +215,8 @@ public class EncryptableMetadataExtensionsTests
     {
         using var session = CreateSession();
 
-        var first = DecodeEnvelope(session.Encode("same").Encoded);
-        var second = DecodeEnvelope(session.Encode("same").Encoded);
+        var first = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("same", session).Encoded);
+        var second = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("same", session).Encoded);
 
         // Bytes 3..35 are the chain salt.
         Assert.NotEqual(
@@ -211,8 +229,8 @@ public class EncryptableMetadataExtensionsTests
     {
         using var session = CreateSession();
 
-        var first = DecodeEnvelope(session.Encode("same").Encoded);
-        var second = DecodeEnvelope(session.Encode("same").Encoded);
+        var first = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("same", session).Encoded);
+        var second = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("same", session).Encoded);
 
         // Nonce sits right after the 32-byte chain salt: bytes 35..47.
         Assert.NotEqual(
@@ -227,7 +245,7 @@ public class EncryptableMetadataExtensionsTests
     {
         WorkspaceEncryptionSession? session = null;
 
-        var encoded = session.Encode("plain").Encoded;
+        var encoded = PlainWorkspace.EncodeMetadata("plain", session).Encoded;
 
         Assert.Equal("plain", encoded);
     }
@@ -250,7 +268,7 @@ public class EncryptableMetadataExtensionsTests
         using var session = CreateSession();
 
         Assert.Throws<InvalidOperationException>(
-            () => session.Encode("pse:smuggled"));
+            () => EncryptedWorkspace.EncodeMetadata("pse:smuggled", session));
     }
 
     [Fact]
@@ -259,7 +277,7 @@ public class EncryptableMetadataExtensionsTests
         using var session = CreateSession();
 
         Assert.Throws<InvalidOperationException>(
-            () => session.ToEncryptableMetadata("pse:smuggled"));
+            () => EncryptedWorkspace.ToEncryptableMetadata("pse:smuggled", session));
     }
 
     // ---- EncryptableMetadata abstraction roundtrip ----
@@ -269,7 +287,7 @@ public class EncryptableMetadataExtensionsTests
     {
         using var session = CreateSession();
 
-        var metadata = session.ToEncryptableMetadata("file.png");
+        var metadata = EncryptedWorkspace.ToEncryptableMetadata("file.png", session);
 
         var encoded = metadata.Encode();
         var decoded = session.DecodeEncryptableMetadata(encoded);
@@ -282,7 +300,7 @@ public class EncryptableMetadataExtensionsTests
     {
         WorkspaceEncryptionSession? session = null;
 
-        var metadata = session.ToEncryptableMetadata("plain");
+        var metadata = PlainWorkspace.ToEncryptableMetadata("plain", session);
 
         Assert.IsType<NoMetadataEncryption>(metadata.EncryptionMode);
         Assert.Equal("plain", metadata.Encode().Encoded);
@@ -300,7 +318,7 @@ public class EncryptableMetadataExtensionsTests
         // here instead of silently producing a broken ciphertext.
         using var session = CreateSession();
 
-        var metadata = session.ToEncryptableMetadata("repeat");
+        var metadata = EncryptedWorkspace.ToEncryptableMetadata("repeat", session);
 
         _ = metadata.Encode();
 
@@ -321,7 +339,7 @@ public class EncryptableMetadataExtensionsTests
         using var writer = CreateSession(dekBytes);
         using var reader = CreateSession(dekBytes);
 
-        var encoded = writer.Encode("shared.txt");
+        var encoded = EncryptedWorkspace.EncodeMetadata("shared.txt", writer);
         var decoded = reader.DecodeEncryptableMetadata(encoded);
 
         Assert.Equal("shared.txt", decoded);
@@ -338,7 +356,7 @@ public class EncryptableMetadataExtensionsTests
         using var writer = CreateSession();
         using var attacker = CreateSession();
 
-        var encoded = writer.Encode("secret");
+        var encoded = EncryptedWorkspace.EncodeMetadata("secret", writer);
 
         Assert.ThrowsAny<Exception>(
             () => attacker.DecodeEncryptableMetadata(encoded));
@@ -368,7 +386,7 @@ public class EncryptableMetadataExtensionsTests
         using var session = CreateSession();
 
         // Build a syntactically valid envelope but flip the format byte to 0xFF.
-        var envelope = DecodeEnvelope(session.Encode("x").Encoded);
+        var envelope = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("x", session).Encoded);
         envelope[0] = 0xFF;
 
         var tampered = AesGcmMetadataV1.ReservedPrefix + Convert.ToBase64String(envelope);
@@ -382,7 +400,7 @@ public class EncryptableMetadataExtensionsTests
     {
         using var session = CreateSession();
 
-        var envelope = DecodeEnvelope(session.Encode("x").Encoded);
+        var envelope = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("x", session).Encoded);
         // Key version 0 is what the session has; bump to 99 so the lookup throws.
         envelope[1] = 99;
 
@@ -398,7 +416,7 @@ public class EncryptableMetadataExtensionsTests
         // Flip one bit of the ciphertext — AES-GCM's authenticator must reject the envelope.
         using var session = CreateSession();
 
-        var envelope = DecodeEnvelope(session.Encode("hello").Encoded);
+        var envelope = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("hello", session).Encoded);
 
         // header(3) + chainSalt(32) + nonce(12) = 47. First ciphertext byte at offset 47.
         envelope[47] ^= 0x01;
@@ -417,7 +435,7 @@ public class EncryptableMetadataExtensionsTests
         // from the envelope and fed into key derivation, not ignored.
         using var session = CreateSession();
 
-        var envelope = DecodeEnvelope(session.Encode("hello").Encoded);
+        var envelope = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("hello", session).Encoded);
 
         // First chain salt byte at offset 3.
         envelope[3] ^= 0x01;
@@ -442,7 +460,7 @@ public class EncryptableMetadataExtensionsTests
         {
             var original = $"item-{i}-{Guid.NewGuid()}";
 
-            var encoded = session.Encode(original);
+            var encoded = EncryptedWorkspace.EncodeMetadata(original, session);
             var decoded = session.DecodeEncryptableMetadata(encoded);
 
             Assert.Equal(original, decoded);
@@ -460,7 +478,7 @@ public class EncryptableMetadataExtensionsTests
         {
             var original = $"abs-{i}";
 
-            var metadata = session.ToEncryptableMetadata(original);
+            var metadata = EncryptedWorkspace.ToEncryptableMetadata(original, session);
             var encoded = metadata.Encode();
             var decoded = session.DecodeEncryptableMetadata(encoded);
 
@@ -475,8 +493,8 @@ public class EncryptableMetadataExtensionsTests
     {
         using var session = CreateSession();
 
-        var shortEnv = DecodeEnvelope(session.Encode("a").Encoded);          // 1 utf8 byte
-        var longerEnv = DecodeEnvelope(session.Encode("aaaaaa").Encoded);    // 6 utf8 bytes
+        var shortEnv = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("a", session).Encoded);          // 1 utf8 byte
+        var longerEnv = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("aaaaaa", session).Encoded);    // 6 utf8 bytes
 
         Assert.Equal(longerEnv.Length - shortEnv.Length, 5);
     }
@@ -488,14 +506,14 @@ public class EncryptableMetadataExtensionsTests
 
         // "ą" is 2 bytes UTF-8 — envelope ciphertext region must reflect that, not the
         // string's char count.
-        var asciiEnv = DecodeEnvelope(session.Encode("a").Encoded);
-        var polishEnv = DecodeEnvelope(session.Encode("ą").Encoded);
+        var asciiEnv = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("a", session).Encoded);
+        var polishEnv = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("ą", session).Encoded);
 
         Assert.Equal(polishEnv.Length - asciiEnv.Length, 1);
 
         // Sanity: ąść is 6 UTF-8 bytes, "abc" is 3 — diff = 3.
-        var threeAsciiEnv = DecodeEnvelope(session.Encode("abc").Encoded);
-        var threePolishEnv = DecodeEnvelope(session.Encode("ąść").Encoded);
+        var threeAsciiEnv = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("abc", session).Encoded);
+        var threePolishEnv = DecodeEnvelope(EncryptedWorkspace.EncodeMetadata("ąść", session).Encoded);
         Assert.Equal(threePolishEnv.Length - threeAsciiEnv.Length, 3);
 
         Assert.Equal(6, Encoding.UTF8.GetByteCount("ąść"));

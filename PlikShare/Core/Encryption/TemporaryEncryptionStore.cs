@@ -4,28 +4,7 @@ using Serilog;
 
 namespace PlikShare.Core.Encryption;
 
-/// <summary>
-/// Process-local store for pre-derived file-scoped encryption inputs handed off from an
-/// authenticated HTTP request to background queue work.
-///
-/// <para>Each entry is a <see cref="Package"/> containing an optional decryption input (used
-/// to decrypt one existing file — e.g. a thumbnail's parent) plus zero-or-more encryption
-/// inputs (used to encrypt new files the job will produce — e.g. each thumbnail variant).
-/// The wires are <see cref="FileAesInputsV2Wire"/>: the file keys are AES-GCM ciphertext
-/// under the process master key, so a heap scrape of the store on its own yields nothing
-/// usable.</para>
-///
-/// <para>Encryption inputs are one-shot: each <see cref="Package.TakeNextEncryptionInput"/>
-/// consumes the next wire and exhausting the package throws — a positive signal that the
-/// worker asked for more outputs than the trigger time provisioned. The decryption input
-/// follows the same one-shot discipline via <see cref="Package.TakeDecryptionInput"/>.</para>
-///
-/// <para>The store does NOT sweep on its own. Pair it with a hosted background sweeper that
-/// calls <see cref="SweepExpired"/> on a fixed cadence. Default TTL is 24 hours.</para>
-///
-/// <para>Lifecycle is process-scoped — entries do not survive a restart. Queue jobs whose
-/// handle no longer resolves should fail cleanly and let the user retrigger.</para>
-/// </summary>
+//i don't have better idea now how to approach this problem for full-encrypted storages...
 public sealed class TemporaryEncryptionStore(IClock clock) : IDisposable
 {
     private static readonly Serilog.ILogger Logger = Log.ForContext<TemporaryEncryptionStore>();

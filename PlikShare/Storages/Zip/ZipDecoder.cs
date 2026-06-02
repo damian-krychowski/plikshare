@@ -1,13 +1,14 @@
-﻿using System.Buffers;
-using System.Buffers.Binary;
-using System.IO.Pipelines;
-using System.Text;
+﻿using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Files.Records;
 using PlikShare.Storages.Exceptions;
 using PlikShare.Workspaces.Cache;
 using Serilog;
+using System.Buffers;
+using System.Buffers.Binary;
+using System.IO.Pipelines;
+using System.Text;
 
 namespace PlikShare.Storages.Zip;
 
@@ -89,8 +90,9 @@ public static class ZipDecoder
     /// <exception cref="FileNotFoundInStorageException"></exception>
     /// <exception cref="OperationCanceledException"></exception>
     public static async Task<ZipEntriesLookupResult> ReadZipEntries(
-        ResolvedFileRecord file,
+        FileRecord file,
         WorkspaceContext workspace,
+        Func<FileRecord, FileEncryptionMode> getFileEncryptionMode,
         CancellationToken cancellationToken)
     {
         if (file.SizeInBytes < ZipEocdRecord.MinimumSize)
@@ -111,6 +113,7 @@ public static class ZipDecoder
             file,
             workspace,
             pipe, 
+            getFileEncryptionMode,
             cancellationToken);
 
         if (zipEocdLookupResult.Code == ZipEocdLookupResultCode.EocdRecordNotFound)
@@ -127,6 +130,7 @@ public static class ZipDecoder
                 file,
                 workspace,
                 pipe,
+                getFileEncryptionMode,
                 cancellationToken);
         }
 
@@ -163,6 +167,7 @@ public static class ZipDecoder
                 workspace,
                 zip64Locator, 
                 pipe, 
+                getFileEncryptionMode,
                 cancellationToken);
 
             if(zip64EocdLookupResultCode == Zip64EocdLookupResultCode.InvalidSignature)
@@ -189,6 +194,7 @@ public static class ZipDecoder
             workspace,
             zipFinalEocd, 
             pipe, 
+            getFileEncryptionMode,
             cancellationToken);
 
         return new ZipEntriesLookupResult
@@ -199,29 +205,15 @@ public static class ZipDecoder
     }
 
     private static async Task<List<ZipCdfhRecord>> ReadZipEntries(
-        ResolvedFileRecord file,
+        FileRecord file,
         WorkspaceContext workspace,
         ZipFinalEocdRecord zipFinalEocd, 
-        Pipe pipe, 
+        Pipe pipe,
+        Func<FileRecord, FileEncryptionMode> getFileEncryptionMode,
         CancellationToken cancellationToken)
     {
-        var zipCentralDirectoryFileReading = Try.Execute(
-            @try: () => workspace.ReadRange(
-                details: new DownloadFileRangeDetails(
-                    Range: zipFinalEocd.CentralDirectoryBytesRange,
-                    FileKey: file.FileKey,
-                    FileSizeInBytes: file.SizeInBytes,
-                    EncryptionMode: file.EncryptionMode),
-                output: pipe.Writer,
-                cancellationToken: cancellationToken),
-            @finally: () => pipe.Writer.CompleteAsync());
-
-        var zipEntriesReading = Try.Execute(
-            @try: ()=> ReadZipEntries(
-                centralDir: zipFinalEocd,
-                input: pipe.Reader,
-                cancellationToken: cancellationToken),
-            @finally: () => pipe.Reader.CompleteAsync());
+        var zipCentralDirectoryFileReading = ReadCentralDirectory();
+        var zipEntriesReading = ReadEntries();
 
         await Task.WhenAll(
             zipCentralDirectoryFileReading,
@@ -230,71 +222,107 @@ public static class ZipDecoder
         pipe.Reset();
 
         return await zipEntriesReading;
+        
+        async Task ReadCentralDirectory()
+        {
+            try
+            {
+                await workspace.ReadRange(
+                    details: new DownloadFileRangeDetails(
+                        Range: zipFinalEocd.CentralDirectoryBytesRange,
+                        FileKey: file.FileKey,
+                        FileSizeInBytes: file.SizeInBytes,
+                        EncryptionMode: getFileEncryptionMode(file)),
+                    output: pipe.Writer,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                await pipe.Writer.CompleteAsync();
+            }
+        }
+
+        async Task<List<ZipCdfhRecord>> ReadEntries()
+        {
+            try
+            {
+                return await ReadZipEntries(
+                    centralDir: zipFinalEocd,
+                    input: pipe.Reader,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                await pipe.Reader.CompleteAsync();
+            }
+        }
     }
-    
+
     private static async Task<Zip64EocdLookupResult> TryReadZip64Eocd(
-        ResolvedFileRecord file,
+        FileRecord file,
         WorkspaceContext workspace,
         Zip64LocatorRecord zip64Locator,
-        Pipe pipe, 
+        Pipe pipe,
+        Func<FileRecord, FileEncryptionMode> getFileEncryptionMode,
         CancellationToken cancellationToken)
     {
-        var zip64EocdFileReading = Try.Execute(
-            @try: () => workspace.ReadRange(
-                details: new DownloadFileRangeDetails(
-                    Range: new BytesRange(
-                        zip64Locator.Zip64EocdOffset,
-                        zip64Locator.Zip64EocdOffset + Zip64EocdRecord.MinimumSize - 1),
-                    FileKey: file.FileKey,
-                    FileSizeInBytes: file.SizeInBytes,
-                    EncryptionMode: file.EncryptionMode),
-                output: pipe.Writer,
-                cancellationToken: cancellationToken),
-            @finally: () => pipe.Writer.CompleteAsync());
-
-        var zip64EocdLookup = Try.Execute(
-            @try: () => ReadZip64EocdRecord(
-                input: pipe.Reader,
-                cancellationToken: cancellationToken),
-            @finally: () => pipe.Reader.CompleteAsync());
+        var zip64EocdFileReading = ReadZip64EocdFile();
+        var zip64EocdLookup = ReadZip64Eocd();
 
         await Task.WhenAll(
             zip64EocdFileReading,
             zip64EocdLookup);
 
         pipe.Reset();
-        
+
         return await zip64EocdLookup;
+        
+        async Task ReadZip64EocdFile()
+        {
+            try
+            {
+                await workspace.ReadRange(
+                    details: new DownloadFileRangeDetails(
+                        Range: new BytesRange(
+                            zip64Locator.Zip64EocdOffset,
+                            zip64Locator.Zip64EocdOffset + Zip64EocdRecord.MinimumSize - 1),
+                        FileKey: file.FileKey,
+                        FileSizeInBytes: file.SizeInBytes,
+                        EncryptionMode: getFileEncryptionMode(file)),
+                    output: pipe.Writer,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                await pipe.Writer.CompleteAsync();
+            }
+        }
+
+        async Task<Zip64EocdLookupResult> ReadZip64Eocd()
+        {
+            try
+            {
+                return await ReadZip64EocdRecord(
+                    input: pipe.Reader,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                await pipe.Reader.CompleteAsync();
+            }
+        }
     }
 
 
     private static async Task<ZipEocdLookupResult> TryReadZipEocdAssumingNoComment(
-        ResolvedFileRecord file,
+        FileRecord file,
         WorkspaceContext workspace,
-        Pipe pipe, 
+        Pipe pipe,
+        Func<FileRecord, FileEncryptionMode> getFileEncryptionMode,
         CancellationToken cancellationToken)
     {
-        var zipEocdFileReading = Try.Execute(
-            @try: () => workspace.ReadRange(
-                details: new DownloadFileRangeDetails(
-                    Range: new BytesRange(
-                        //we assume that someone could have used zip64 so we are getting ready to read its locator
-                        //for files smaller than EocdMinimumSize (e.g. empty ZIPs with just the 22-byte EOCD
-                        //and no ZIP64 locator), we read from the start of the file to avoid a negative offset
-                        Math.Max(0, file.SizeInBytes - EocdMinimumSize),
-                        file.SizeInBytes - 1),
-                    FileSizeInBytes: file.SizeInBytes,
-                    FileKey: file.FileKey,
-                    EncryptionMode: file.EncryptionMode),
-                output: pipe.Writer,
-                cancellationToken: cancellationToken),
-            @finally: () => pipe.Writer.CompleteAsync());
-            
-        var zipEocdLookup = Try.Execute(
-            @try: () => FindAndReadZipEocdAndZip64LocatorRecords(
-                input: pipe.Reader,
-                cancellationToken: cancellationToken),
-            @finally: () => pipe.Reader.CompleteAsync());
+        var zipEocdFileReading = ReadZipEocdFile();
+        var zipEocdLookup = ReadZipEocd();
 
         await Task.WhenAll(
             zipEocdFileReading,
@@ -303,37 +331,60 @@ public static class ZipDecoder
         pipe.Reset();
 
         return await zipEocdLookup;
+        
+        async Task ReadZipEocdFile()
+        {
+            try
+            {
+                await workspace.ReadRange(
+                    details: new DownloadFileRangeDetails(
+                        Range: new BytesRange(
+                            //we assume that someone could have used zip64 so we are getting ready to read its locator
+                            //for files smaller than EocdMinimumSize (e.g. empty ZIPs with just the 22-byte EOCD
+                            //and no ZIP64 locator), we read from the start of the file to avoid a negative offset
+                            Math.Max(0, file.SizeInBytes - EocdMinimumSize),
+                            file.SizeInBytes - 1),
+                        FileSizeInBytes: file.SizeInBytes,
+                        FileKey: file.FileKey,
+                        EncryptionMode: getFileEncryptionMode(file)),
+                    output: pipe.Writer,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                await pipe.Writer.CompleteAsync();
+            }
+        }
+
+        async Task<ZipEocdLookupResult> ReadZipEocd()
+        {
+            try
+            {
+                return await FindAndReadZipEocdAndZip64LocatorRecords(
+                    input: pipe.Reader,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                await pipe.Reader.CompleteAsync();
+            }
+        }
     }
-    
+
     private static async Task<ZipEocdLookupResult> TryReadZipEocdAssumingLongestComment(
-        ResolvedFileRecord file,
+        FileRecord file,
         WorkspaceContext workspace,
         Pipe pipe,
+        Func<FileRecord, FileEncryptionMode> getFileEncryptionMode,
         CancellationToken cancellationToken)
     {
         // Read the last 64KB or the whole file if smaller
         // (EOCD could be anywhere in the last 64KB due to optional zip file comment)
         var endBytes = Math.Min(EocdMaximumSize, file.SizeInBytes);
         var eocdPossibleStartPosition = file.SizeInBytes - endBytes;
-
-        var zipEocdWithCommentFileReading = Try.Execute(
-            @try: () => workspace.ReadRange(
-                details: new DownloadFileRangeDetails(
-                    Range: new BytesRange(
-                        eocdPossibleStartPosition,
-                        file.SizeInBytes - 1),
-                    FileKey: file.FileKey,
-                    FileSizeInBytes: file.SizeInBytes,
-                    EncryptionMode: file.EncryptionMode),
-                output: pipe.Writer,
-                cancellationToken: cancellationToken),
-            @finally: () => pipe.Writer.CompleteAsync());
-
-        var zipEocdWithCommentLookup = Try.Execute(
-            @try: () => FindAndReadZipEocdAndZip64LocatorRecords(
-                input: pipe.Reader,
-                cancellationToken: cancellationToken),
-            @finally: () => pipe.Reader.CompleteAsync());
+        
+        var zipEocdWithCommentFileReading = ReadZipEocdWithCommentFile();
+        var zipEocdWithCommentLookup = ReadZipEocdWithComment();
 
         await Task.WhenAll(
             zipEocdWithCommentFileReading,
@@ -342,6 +393,41 @@ public static class ZipDecoder
         pipe.Reset();
 
         return await zipEocdWithCommentLookup;
+
+        async Task ReadZipEocdWithCommentFile()
+        {
+            try
+            {
+                await workspace.ReadRange(
+                    details: new DownloadFileRangeDetails(
+                        Range: new BytesRange(
+                            eocdPossibleStartPosition,
+                            file.SizeInBytes - 1),
+                        FileKey: file.FileKey,
+                        FileSizeInBytes: file.SizeInBytes,
+                        EncryptionMode: getFileEncryptionMode(file)),
+                    output: pipe.Writer,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                await pipe.Writer.CompleteAsync();
+            }
+        }
+
+        async Task<ZipEocdLookupResult> ReadZipEocdWithComment()
+        {
+            try
+            {
+                return await FindAndReadZipEocdAndZip64LocatorRecords(
+                    input: pipe.Reader,
+                    cancellationToken: cancellationToken);
+            }
+            finally
+            {
+                await pipe.Reader.CompleteAsync();
+            }
+        }
     }
 
     /// <exception cref="OperationCanceledException"></exception>
