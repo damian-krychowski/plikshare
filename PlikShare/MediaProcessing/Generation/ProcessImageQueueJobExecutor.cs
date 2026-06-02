@@ -6,6 +6,7 @@ using PlikShare.Files.Metadata;
 using PlikShare.Files.PreSignedLinks.RangeRequests;
 using PlikShare.Files.UploadAttachment;
 using PlikShare.Storages;
+using PlikShare.Storages.Encryption;
 using PlikShare.Workspaces.Cache;
 using Serilog;
 
@@ -17,6 +18,7 @@ public class ProcessImageQueueJobExecutor(
     TemporaryEncryptionStore temporaryEncryptionStore,
     IMasterDataEncryption masterEncryption,
     InsertAndFinalizeThumbnailQuery insertAndFinalizeThumbnailQuery,
+    GetThumbnailsQuery getThumbnailsQuery,
     FfmpegService ffmpegService) : IQueueLongRunningJobExecutor
 {
     private static readonly Serilog.ILogger Logger = Log.ForContext<ProcessImageQueueJobExecutor>();
@@ -170,13 +172,26 @@ public class ProcessImageQueueJobExecutor(
         try
         {
             (var variantResults, tempFilePath) = await PrepareThumbnailVariants(
-                workspace, 
-                file, 
+                workspace,
+                file,
                 variants,
-                parent, 
-                encryptionPackage, 
+                parent,
+                encryptionPackage,
                 cancellationToken);
-            
+
+            // Old-duplicate cleanup is wired only for workspaces whose thumbnail metadata is
+            // readable here WITHOUT a live WorkspaceEncryptionSession — None/Managed, where the
+            // variant lives in plaintext fi_metadata. Full-encryption metadata can't be decoded
+            // in the worker (the session never crosses the queue boundary), so we skip dedup for
+            // those and let duplicates accumulate / be reaped elsewhere.
+            List<GetThumbnailsQuery.Thumbnail> existingThumbnails =
+                workspace.Storage.Encryption is FullStorageEncryption
+                    ? []
+                    : getThumbnailsQuery.Execute(
+                        workspace: workspace,
+                        parentFileExternalId: file.ParentFileExternalId,
+                        workspaceEncryptionSession: null);
+
             foreach (var result in variantResults)
             {
                 if (result.Error is not null)
@@ -215,7 +230,10 @@ public class ProcessImageQueueJobExecutor(
                     batchInsertItems.Add(new InsertAndFinalizeThumbnailQuery.BatchItem(
                         ParentFileExternalId: file.ParentFileExternalId,
                         Attachment: prepared.Attachment,
-                        OldThumbnailFileIds: []));
+                        OldThumbnailFileIds: existingThumbnails
+                            .Where(t => t.Variant == result.Variant)
+                            .Select(t => t.Id)
+                            .ToList()));
 
                     generatedVariants.Add(new ThumbnailGenerationResult.GeneratedVariant
                     {

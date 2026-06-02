@@ -18,14 +18,12 @@ public class CancelThumbnailBatchOperation(
     QueueBatchNotifier batchNotifier)
 {
     public async Task<int> Execute(
-        WorkspaceContext workspace,
         Guid batchId,
         CancellationToken cancellationToken)
     {
         var deletedDefinitions = await dbWriteQueue.Execute(
             operationToEnqueue: context => DeletePendingJobs(
                 context: context,
-                workspace: workspace,
                 batchId: batchId),
             cancellationToken: cancellationToken);
 
@@ -53,7 +51,6 @@ public class CancelThumbnailBatchOperation(
 
     private static List<ProcessImageQueueJobDefinition?> DeletePendingJobs(
         SqliteWriteContext context,
-        WorkspaceContext workspace,
         Guid batchId)
     {
         return context
@@ -61,14 +58,12 @@ public class CancelThumbnailBatchOperation(
                 sql: """
                     DELETE FROM q_queue
                     WHERE q_batch_id = $batchId
-                        AND json_extract(q_definition, '$.workspaceId') = $workspaceId
                         AND q_status = $pendingStatus
                     RETURNING q_definition
                     """,
                 readRowFunc: reader => Json.Deserialize<ProcessImageQueueJobDefinition>(
                     reader.GetString(0)))
             .WithParameter("$batchId", batchId)
-            .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$pendingStatus", QueueStatus.Pending)
             .Execute();
     }

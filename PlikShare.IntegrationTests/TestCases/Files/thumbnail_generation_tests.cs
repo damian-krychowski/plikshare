@@ -1,6 +1,8 @@
 using FluentAssertions;
 using PlikShare.Boxes.Members.CreateInvitation.Contracts;
 using PlikShare.Boxes.Members.UpdatePermissions.Contracts;
+using PlikShare.Core.SQLite;
+using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Integrations.Aws.Textract.TestConfiguration;
 using PlikShare.IntegrationTests.Infrastructure;
@@ -613,6 +615,171 @@ public class thumbnail_generation_tests : TestFixture
             var variants = ready.Variants.Select(v => v.Variant).ToHashSet();
             variants.Should().Contain([ThumbnailVariant.Mini, ThumbnailVariant.Small]);
         }
+    }
+
+    [Fact]
+    public async Task regenerating_same_variant_should_hard_delete_the_previous_thumbnail()
+    {
+        //given — a (default None-encryption) workspace whose file already has a queue-generated
+        // Mini. Duplicate cleanup is wired only for None/Managed, where the worker can read the
+        // thumbnail's variant from plaintext fi_metadata without a WorkspaceEncryptionSession.
+        var workspace = await CreateWorkspace(user: AppOwner);
+        var folder = await CreateFolder(workspace: workspace, user: AppOwner);
+
+        var parentFile = await UploadFile(
+            content: TextractTestImage.GetBytes(),
+            fileName: "sample.png",
+            contentType: "image/png",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        await WaitForFileUnlocked(parentFile.ExternalId, AppOwner);
+
+        var firstBatchId = await Api.MediaProcessing.GenerateFileThumbnails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: parentFile.ExternalId,
+            variants: [ThumbnailVariant.Mini],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        await Api.MediaProcessing.WaitForBatchDone(
+            workspaceExternalId: workspace.ExternalId,
+            batchId: firstBatchId,
+            cookie: AppOwner.Cookie);
+
+        var firstDetails = await Api.Files.GetPreviewDetails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: parentFile.ExternalId,
+            fields: ["thumbnails"],
+            cookie: AppOwner.Cookie);
+
+        var firstThumbnailExternalId = firstDetails.Thumbnails!.Single().ExternalId;
+        CountThumbnailRows(parentFile.ExternalId).Should().Be(1);
+
+        //when — regenerate the SAME variant
+        var secondBatchId = await Api.MediaProcessing.GenerateFileThumbnails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: parentFile.ExternalId,
+            variants: [ThumbnailVariant.Mini],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        await Api.MediaProcessing.WaitForBatchDone(
+            workspaceExternalId: workspace.ExternalId,
+            batchId: secondBatchId,
+            cookie: AppOwner.Cookie);
+
+        //then — exactly one Mini row survives in the DB. Asserting against the raw rows (not the
+        // preview) matters: GetFilePreviewDetailsQuery dedupes by variant and would report 1 even
+        // if the old duplicate were still present. The surviving row is a brand-new file.
+        CountThumbnailRows(parentFile.ExternalId).Should().Be(1);
+
+        var secondDetails = await Api.Files.GetPreviewDetails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: parentFile.ExternalId,
+            fields: ["thumbnails"],
+            cookie: AppOwner.Cookie);
+
+        var secondThumbnail = secondDetails.Thumbnails!.Single();
+        secondThumbnail.Variant.Should().Be(ThumbnailVariant.Mini);
+        secondThumbnail.ExternalId.Should().NotBe(firstThumbnailExternalId);
+    }
+
+    [Fact]
+    public async Task regenerating_one_variant_should_not_delete_the_other_variants()
+    {
+        //given — a file with BOTH Mini and Small generated
+        var workspace = await CreateWorkspace(user: AppOwner);
+        var folder = await CreateFolder(workspace: workspace, user: AppOwner);
+
+        var parentFile = await UploadFile(
+            content: TextractTestImage.GetBytes(),
+            fileName: "sample.png",
+            contentType: "image/png",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        await WaitForFileUnlocked(parentFile.ExternalId, AppOwner);
+
+        var firstBatchId = await Api.MediaProcessing.GenerateFileThumbnails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: parentFile.ExternalId,
+            variants: [ThumbnailVariant.Mini, ThumbnailVariant.Small],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        await Api.MediaProcessing.WaitForBatchDone(
+            workspaceExternalId: workspace.ExternalId,
+            batchId: firstBatchId,
+            cookie: AppOwner.Cookie);
+
+        CountThumbnailRows(parentFile.ExternalId).Should().Be(2);
+
+        var firstDetails = await Api.Files.GetPreviewDetails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: parentFile.ExternalId,
+            fields: ["thumbnails"],
+            cookie: AppOwner.Cookie);
+
+        var smallExternalId = firstDetails.Thumbnails!
+            .Single(t => t.Variant == ThumbnailVariant.Small)
+            .ExternalId;
+
+        //when — regenerate ONLY the Mini variant
+        var secondBatchId = await Api.MediaProcessing.GenerateFileThumbnails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: parentFile.ExternalId,
+            variants: [ThumbnailVariant.Mini],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        await Api.MediaProcessing.WaitForBatchDone(
+            workspaceExternalId: workspace.ExternalId,
+            batchId: secondBatchId,
+            cookie: AppOwner.Cookie);
+
+        //then — still two rows (per-variant scoping replaced Mini only); Small is the same row,
+        // Mini is a new one.
+        CountThumbnailRows(parentFile.ExternalId).Should().Be(2);
+
+        var secondDetails = await Api.Files.GetPreviewDetails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: parentFile.ExternalId,
+            fields: ["thumbnails"],
+            cookie: AppOwner.Cookie);
+
+        secondDetails.Thumbnails.Should().HaveCount(2);
+        secondDetails.Thumbnails!
+            .Single(t => t.Variant == ThumbnailVariant.Small)
+            .ExternalId.Should().Be(smallExternalId, "regenerating Mini must not touch Small");
+    }
+
+    // Counts the live thumbnail child rows of a parent straight from the DB — bypassing the
+    // preview's by-variant dedup so a leaked duplicate is actually visible to the assertion.
+    private int CountThumbnailRows(FileExtId parentFileExternalId)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        var counts = connection
+            .Cmd(
+                sql: """
+                     SELECT COUNT(*)
+                     FROM fi_files AS child_fi
+                     INNER JOIN fi_files AS parent_fi
+                         ON parent_fi.fi_id = child_fi.fi_parent_file_id
+                     WHERE
+                         parent_fi.fi_external_id = $parentExternalId
+                         AND child_fi.fi_deleted_at IS NULL
+                         AND child_fi.fi_is_upload_completed = TRUE
+                         AND child_fi.fi_metadata IS NOT NULL
+                     """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$parentExternalId", parentFileExternalId.Value)
+            .Execute();
+
+        return counts[0];
     }
 
     // WebP file signature: bytes 0..3 = "RIFF", bytes 8..11 = "WEBP". Detects whether the queue

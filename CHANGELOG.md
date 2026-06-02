@@ -3,6 +3,16 @@
 
 Release notes for PlikShare.
 
+## 1.1.32
+
+- [FEATURE] Thumbnails for images and videos — preview thumbnails (Mini / Small / Large) are generated server-side via ffmpeg for image and video files; generation runs on the background queue with live per-batch progress pushed over SSE, can be triggered for a single file or in bulk, and the thumbnails show up inline in the file-explorer list view as well as in box-link and quick-share previews
+- [FEATURE] Download images as a different type — image files can be downloaded converted on the fly to JPEG, PNG or WebP
+- [IMPROVEMENT] In-browser image preview reworked for a smoother, higher-quality view
+- [IMPROVEMENT] Large-folder performance — the file explorer, the folder tree, the box/quick-share file tree and the trash list are now virtualized and load lazily, so workspaces with thousands of items scroll smoothly instead of stuttering
+- [IMPROVEMENT] Long file names that don't fit scroll horizontally (marquee) on hover/selection instead of being silently truncated
+- [IMPROVEMENT] Docker image now ships in two variants — the default `latest` stays slim, and a `latest-ffmpeg` (and `<version>-ffmpeg`) variant bundles a static ffmpeg so thumbnail generation works out of the box; the slim image runs fine without it (thumbnail generation simply stays off until an ffmpeg binary is available)
+- [FIX] Bulk-uploading large compressed zip archives no longer crashes Chrome with an out-of-memory error
+
 ## 1.1.31
 
 - [FEATURE] Quick-share file preview — recipients can preview individual files in the browser and browse nested zip archives before downloading, instead of having to grab the bundle blindly

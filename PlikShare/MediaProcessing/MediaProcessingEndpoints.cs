@@ -309,10 +309,7 @@ public static class MediaProcessingEndpoints
         CancelThumbnailBatchOperation cancelThumbnailBatchOperation,
         CancellationToken cancellationToken)
     {
-        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
-
         var cancelledCount = await cancelThumbnailBatchOperation.Execute(
-            workspace: workspaceMembership.Workspace,
             batchId: batchId,
             cancellationToken: cancellationToken);
 

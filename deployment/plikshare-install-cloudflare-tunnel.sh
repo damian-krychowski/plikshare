@@ -343,6 +343,25 @@ Plikshare Main Volume Path:
     echo "" >&2
     echo "..........[SETUP] PLIKSHARE_MAIN_VOLUME_PATH is set to: $PLIKSHARE_MAIN_VOLUME_PATH" >&2
 
+    # Image variant: with or without bundled ffmpeg for thumbnail generation
+    echo "
+Thumbnail Generation (ffmpeg):
+    PlikShare can generate image and video thumbnails using ffmpeg, which ships in a dedicated
+    image variant (~115 MB larger than the slim one). If you decline, PlikShare still runs
+    normally and thumbnail generation simply stays disabled — you can switch the image tag later.
+    " >&2
+    read -p "Enable thumbnail generation? (Y/n): " enable_thumbnails
+    case "${enable_thumbnails:-y}" in
+        [Nn]* )
+            PLIKSHARE_IMAGE_TAG="latest"
+            echo "..........[SETUP] Using slim image 'damiankrychowski/plikshare:latest' (no ffmpeg)." >&2
+            ;;
+        * )
+            PLIKSHARE_IMAGE_TAG="latest-ffmpeg"
+            echo "..........[SETUP] Using 'damiankrychowski/plikshare:latest-ffmpeg' (thumbnail generation enabled)." >&2
+            ;;
+    esac
+
     echo "
 Additional Volumes:
     Optional volumes for the 'Hard Drive' storage type in PlikShare.
@@ -420,7 +439,7 @@ generate_docker_compose() {
     cat > docker-compose.yml <<EOF
 services:
   plikshare:
-    image: damiankrychowski/plikshare:latest
+    image: damiankrychowski/plikshare:${PLIKSHARE_IMAGE_TAG:-latest-ffmpeg}
     restart: always
     env_file:
       - ./plikshare.env

@@ -21,7 +21,9 @@ FROM build-backend-prod AS publish
 ARG BUILD_CONFIGURATION=Release
 RUN dotnet publish "PlikShare.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
-# Copy frontend build artifacts to wwwroot directory
+# Slim variant (default): no ffmpeg — thumbnail auto-generation stays disabled at runtime
+# (FfmpegService probes at startup and the feature gracefully no-ops when the binary is absent).
+# Copy frontend build artifacts to wwwroot directory.
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
@@ -32,3 +34,13 @@ RUN useradd -u 5678 --no-create-home --shell /bin/false appuser && chown -R appu
 USER appuser
 EXPOSE 8080 8081
 ENTRYPOINT ["dotnet", "PlikShare.dll"]
+
+# ffmpeg variant: identical to `final` plus a pinned, multi-arch static ffmpeg/ffprobe dropped
+# onto PATH. /usr/local/bin is on PATH, so FfmpegService resolves the literal "ffmpeg" without any
+# Ffmpeg__Path config and enables thumbnail generation. mwader/static-ffmpeg ships amd64+arm64, so
+# COPY --from picks the right binary under buildx multi-platform builds. Build with
+# `--target final-ffmpeg`.
+FROM final AS final-ffmpeg
+USER root
+COPY --from=mwader/static-ffmpeg:8.1.1 /ffmpeg /ffprobe /usr/local/bin/
+USER appuser
