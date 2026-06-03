@@ -1,4 +1,5 @@
-import { GetFolderResponse } from "../../services/folders-and-files.api";
+import { GetFolderResponse, SortDirection, SortMode } from "../../services/folders-and-files.api";
+import { ViewMode } from "../../files-explorer/display-menu/display-menu.component";
 
 export interface GetBoxDetailsAndFolderResponse extends GetFolderResponse {
     details: GetBoxDetails;
@@ -18,6 +19,10 @@ export interface GetBoxDetails {
     allowRenameFolder: boolean;
     allowMoveItems: boolean;
     allowCreateFolder: boolean;
+    defaultViewMode: ViewMode;
+    defaultSortMode: SortMode;
+    defaultSortDirection: SortDirection;
+    defaultThumbnailsEnabled: boolean;
 }
 
 export interface GetBoxHtmlResponse {

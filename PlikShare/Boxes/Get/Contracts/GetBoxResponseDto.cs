@@ -18,6 +18,15 @@ public class GetBoxResponseDto
         public required Section? Header { get; set; }
         public required Section? Footer { get; set; }
         public required List<FolderItem> FolderPath { get; set; }
+        public required DefaultDisplayConfiguration DefaultDisplayConfiguration { get; set; }
+    }
+
+    public class DefaultDisplayConfiguration
+    {
+        public required BoxViewMode ViewMode { get; set; }
+        public required BoxSortMode SortMode { get; set; }
+        public required BoxSortDirection SortDirection { get; set; }
+        public required bool ThumbnailsEnabled { get; set; }
     }
     
     public class FolderItem

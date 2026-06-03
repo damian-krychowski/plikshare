@@ -174,10 +174,26 @@
     <app-box-rich-text-editor
         name="footer"
         [richText]="boxFooter()"
-        (isLoadingChanged)="isBoxFooterLoading.set($event)">        
+        (isLoadingChanged)="isBoxFooterLoading.set($event)">
     </app-box-rich-text-editor>
 
     <div class="mt-5"></div>
+
+    @if(isBoxLoaded()) {
+        @if(defaultDisplayConfiguration(); as displayConfig) {
+            <app-config-card
+                title="Default display settings"
+                description="How this box appears when opened — initial view, sorting and thumbnails. Visitors can still change these for themselves."
+                [collapsible]="true">
+                <app-box-default-display-config
+                    [configuration]="displayConfig"
+                    (configChanged)="saveDefaultDisplayConfiguration($event)">
+                </app-box-default-display-config>
+            </app-config-card>
+
+            <div class="mt-5"></div>
+        }
+    }
 }
 
 @if(isLinksActive()) {

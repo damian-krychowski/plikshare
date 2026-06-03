@@ -14,6 +14,11 @@
 
                     [initialContent]="initialBoxContent()"
 
+                    [initialViewMode]="details()?.defaultViewMode ?? 'list-view'"
+                    [initialSortMode]="details()?.defaultSortMode ?? 'custom'"
+                    [initialSortDirection]="details()?.defaultSortDirection ?? 'asc'"
+                    [initialShowThumbnails]="details()?.defaultThumbnailsEnabled ?? false"
+
                     [allowList]="allowList()"
                     [allowCreateFolder]="allowCreateFolder()"
                     [allowUpload]="allowUpload()"

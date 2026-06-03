@@ -234,6 +234,11 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     workspaceExternalId = input<string | null>(null);
     allowDateSort = input(false);
 
+    initialViewMode = input<ViewMode>('list-view');
+    initialSortMode = input<SortMode>('custom');
+    initialSortDirection = input<SortDirection>('asc');
+    initialShowThumbnails = input<boolean>(false);
+
     // Opt-in: when true this explorer reflects/restores the list/tree view in
     // the page URL (?view=). Only the routed workspace explorer should set it —
     // embedded instances (dialogs, external access) must not touch the URL.
@@ -251,7 +256,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     sortDirection = signal<SortDirection>('asc');
 
     // Opt-in mini-thumbnail rendering on list rows (persisted per workspace) + thumbnail URL builder.
-    private _thumbnailDisplay = thumbnailListDisplay(this.workspaceExternalId);
+    private _thumbnailDisplay = thumbnailListDisplay(this.workspaceExternalId, this.initialShowThumbnails);
     readonly showThumbnails = this._thumbnailDisplay.showThumbnails;
 
     // Files with thumbnail generation in flight (any tracked batch) — drives the per-row spinner.
@@ -734,7 +739,10 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
         effect(() => {
             const key = this.sortStorageKey();
-            const parsed = this.parseStoredSortMode(key ? localStorage.getItem(key) : null);
+            const stored = key ? localStorage.getItem(key) : null;
+            const parsed = stored
+                ? this.parseStoredSortMode(stored)
+                : { mode: this.initialSortMode(), direction: this.initialSortDirection() };
             const dateAllowed = this.allowDateSort();
             const mode = (parsed.mode === 'date' && !dateAllowed) ? 'custom' : parsed.mode;
             const dir = (parsed.mode === 'date' && !dateAllowed) ? 'asc' : parsed.direction;
@@ -823,12 +831,14 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         // Restore the list/tree view from the URL on load (survives refresh).
         // Guarded by syncViewModeToUrl so embedded instances ignore the page's
         // query params.
-        if (this.syncViewModeToUrl()) {
-            const view = this._route.snapshot.queryParamMap.get('view');
-            if (view === 'tree-view' || view === 'list-view') {
-                this.viewMode.set(view);
-            }
-        }
+        const urlView = this.syncViewModeToUrl()
+            ? this._route.snapshot.queryParamMap.get('view')
+            : null;
+
+        this.viewMode.set(
+            urlView === 'tree-view' || urlView === 'list-view'
+                ? urlView
+                : this.initialViewMode());
 
         this._renderer.listen('window', 'dragenter', this.onDragEnter.bind(this));
         this._renderer.listen('window', 'dragleave', this.onDragLeave.bind(this));

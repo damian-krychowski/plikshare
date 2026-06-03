@@ -2,7 +2,15 @@ import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 import { DataStore } from "./data-store.service";
-import { FileDto, SubfolderDto } from "./folders-and-files.api";
+import { FileDto, SortDirection, SortMode, SubfolderDto } from "./folders-and-files.api";
+import { ViewMode } from "../files-explorer/display-menu/display-menu.component";
+
+export interface BoxDefaultDisplayConfiguration {
+    viewMode: ViewMode;
+    sortMode: SortMode;
+    sortDirection: SortDirection;
+    thumbnailsEnabled: boolean;
+}
 
 export interface GetBoxListResponse {
     items: BoxListItemDto[];
@@ -47,8 +55,9 @@ export interface GetBoxResponse {
             name: string;
             externalId: string;
         }[];
+        defaultDisplayConfiguration: BoxDefaultDisplayConfiguration;
     };
-    
+
     links: BoxLink[];
     members: BoxMember[];    
 
@@ -75,6 +84,13 @@ export interface UpdateBoxFolderRequest {
 
 export interface UpdateBoxIsEnabled {
     isEnabled: boolean;
+}
+
+export interface UpdateBoxDefaultDisplayConfigurationRequest {
+    viewMode: ViewMode;
+    sortMode: SortMode;
+    sortDirection: SortDirection;
+    thumbnailsEnabled: boolean;
 }
 
 export interface GetBoxLinksResponse {
@@ -308,6 +324,22 @@ export class BoxesSetApi {
 
         this._dataStore.invalidateEntries(
             key => key == this._dataStore.boxesKey(workspaceExternalId));
+    }
+
+    public async updateBoxDefaultDisplayConfiguration(workspaceExternalId: string, boxExternalId: string, request: UpdateBoxDefaultDisplayConfigurationRequest): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/workspaces/${workspaceExternalId}/boxes/${boxExternalId}/default-display-configuration`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+
+        this._dataStore.invalidateEntries(
+            key => key == this._dataStore.boxKey(workspaceExternalId, boxExternalId));
     }
 
     public async deleteBox(workspaceExternalId: string, boxExternalId: string): Promise<void> {

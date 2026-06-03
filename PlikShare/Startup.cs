@@ -35,6 +35,7 @@ using PlikShare.Boxes.List;
 using PlikShare.Boxes.Members.CreateInvitation;
 using PlikShare.Boxes.Members.Revoke;
 using PlikShare.Boxes.Members.UpdatePermissions;
+using PlikShare.Boxes.UpdateDefaultDisplayConfiguration;
 using PlikShare.Boxes.UpdateFolder;
 using PlikShare.Boxes.UpdateFooter;
 using PlikShare.Boxes.UpdateFooterIsEnabled;
@@ -361,6 +362,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_39_TrashIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_40_QueueResultAndThumbnailIndexesIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_41_QueueJobCategoryAndPriorityColumns>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_42_BoxDefaultDisplayConfigurationIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -647,6 +649,7 @@ public class Startup
         builder.Services.AddSingleton<UpdateBoxFooterQuery>();
         builder.Services.AddSingleton<UpdateBoxHeaderIsEnabledQuery>();
         builder.Services.AddSingleton<UpdateBoxFooterIsEnabledQuery>();
+        builder.Services.AddSingleton<UpdateBoxDefaultDisplayConfigurationQuery>();
         AddDbOnlyQueueJob<DeleteBoxesQueueJobExecutor>();
 
         builder.Services.AddSingleton<CreateBoxLinkQuery>();

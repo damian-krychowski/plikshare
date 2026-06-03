@@ -1,0 +1,15 @@
+@forward "./../../../../../styles/config-row.scss";
+
+.config-row {
+    flex-wrap: wrap;
+}
+
+.config-row__select--wide {
+    width: 220px;
+    max-width: 220px;
+    flex-shrink: 0;
+}
+
+.config-row--toggle {
+    margin-top: 0.75rem;
+}

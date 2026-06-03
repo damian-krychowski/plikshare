@@ -1,5 +1,6 @@
 using FluentAssertions;
 using PlikShare.AuditLog;
+using PlikShare.Boxes;
 using PlikShare.Boxes.Create.Contracts;
 using PlikShare.Boxes.Get.Contracts;
 using PlikShare.Boxes.List.Contracts;
@@ -124,6 +125,13 @@ public class create_box_tests: TestFixture
                 {
                     IsEnabled = false,
                     Json = null
+                },
+                DefaultDisplayConfiguration = new GetBoxResponseDto.DefaultDisplayConfiguration
+                {
+                    ViewMode = BoxViewMode.ListView,
+                    SortMode = BoxSortMode.Custom,
+                    SortDirection = BoxSortDirection.Asc,
+                    ThumbnailsEnabled = false
                 }
             },
             Files = [],

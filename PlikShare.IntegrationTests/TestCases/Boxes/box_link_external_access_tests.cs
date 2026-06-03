@@ -80,7 +80,12 @@ public class box_link_external_access_tests: TestFixture
                 AllowMoveItems = false,
                 AllowRenameFile = false,
                 AllowRenameFolder = false,
-                AllowUpload = false
+                AllowUpload = false,
+
+                DefaultViewMode = "list-view",
+                DefaultSortMode = "custom",
+                DefaultSortDirection = "asc",
+                DefaultThumbnailsEnabled = false
             },
             Files = null,
             Folder = null,
@@ -173,7 +178,12 @@ public class box_link_external_access_tests: TestFixture
                 AllowMoveItems = false,
                 AllowRenameFile = false,
                 AllowRenameFolder = false,
-                AllowUpload = false
+                AllowUpload = false,
+
+                DefaultViewMode = "list-view",
+                DefaultSortMode = "custom",
+                DefaultSortDirection = "asc",
+                DefaultThumbnailsEnabled = false
             },
             Files = null,
             Folder = null,

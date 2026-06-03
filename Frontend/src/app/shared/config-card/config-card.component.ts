@@ -1,4 +1,5 @@
-import { Component, input } from '@angular/core';
+import { Component, OnInit, input, signal } from '@angular/core';
+import { ActionButtonComponent } from '../buttons/action-btn/action-btn.component';
 
 /**
  * Self-contained config section card: a title + description block plus projected
@@ -24,16 +25,30 @@ import { Component, input } from '@angular/core';
 @Component({
     selector: 'app-config-card',
     standalone: true,
-    imports: [],
+    imports: [
+        ActionButtonComponent
+    ],
     templateUrl: './config-card.component.html',
     styleUrl: './config-card.component.scss',
     host: {
         '[class.app-config-card--stretch]': 'stretch()'
     }
 })
-export class ConfigCardComponent {
+export class ConfigCardComponent implements OnInit {
     title = input.required<string>();
     description = input.required<string>();
     mode = input<'stacked' | 'side'>('stacked');
     stretch = input<boolean>(false);
+    collapsible = input<boolean>(false);
+    initiallyCollapsed = input<boolean>(false);
+
+    isCollapsed = signal(false);
+
+    ngOnInit() {
+        this.isCollapsed.set(this.collapsible() && this.initiallyCollapsed());
+    }
+
+    toggleCollapsed() {
+        this.isCollapsed.set(!this.isCollapsed());
+    }
 }

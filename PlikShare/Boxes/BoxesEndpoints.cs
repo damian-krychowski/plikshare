@@ -17,6 +17,8 @@ using PlikShare.Boxes.Members.Revoke;
 using PlikShare.Boxes.Members.UpdatePermissions;
 using PlikShare.Boxes.Members.UpdatePermissions.Contracts;
 using PlikShare.Boxes.Permissions;
+using PlikShare.Boxes.UpdateDefaultDisplayConfiguration;
+using PlikShare.Boxes.UpdateDefaultDisplayConfiguration.Contracts;
 using PlikShare.Boxes.UpdateFolder;
 using PlikShare.Boxes.UpdateFolder.Contracts;
 using PlikShare.Boxes.UpdateFooter;
@@ -91,6 +93,10 @@ public static class BoxesEndpoints
 
         group.MapPatch("/{boxExternalId}/is-enabled", UpdateBoxIsEnabled)
             .WithName("UpdateBoxIsEnabled")
+            .AddEndpointFilter<ValidateBoxFilter>();
+
+        group.MapPatch("/{boxExternalId}/default-display-configuration", UpdateBoxDefaultDisplayConfiguration)
+            .WithName("UpdateBoxDefaultDisplayConfiguration")
             .AddEndpointFilter<ValidateBoxFilter>();
 
         group.MapDelete("/{boxExternalId}", DeleteBox)
@@ -512,6 +518,59 @@ public static class BoxesEndpoints
             default:
                 throw new UnexpectedOperationResultException(
                     operationName: nameof(UpdateBoxIsEnabledQuery),
+                    resultValueStr: result.ToString());
+        }
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>>> UpdateBoxDefaultDisplayConfiguration(
+        [FromRoute] BoxExtId boxExternalId,
+        [FromBody] UpdateBoxDefaultDisplayConfigurationRequestDto request,
+        HttpContext httpContext,
+        BoxCache boxCache,
+        UpdateBoxDefaultDisplayConfigurationQuery updateBoxDefaultDisplayConfigurationQuery,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var boxContext = httpContext.GetBoxContext();
+
+        var result = await updateBoxDefaultDisplayConfigurationQuery.Execute(
+            box: boxContext,
+            viewMode: request.ViewMode,
+            sortMode: request.SortMode,
+            sortDirection: request.SortDirection,
+            thumbnailsEnabled: request.ThumbnailsEnabled,
+            cancellationToken: cancellationToken);
+
+        switch (result)
+        {
+            case UpdateBoxDefaultDisplayConfigurationQuery.ResultCode.Ok:
+                await boxCache.InvalidateEntry(boxExternalId, cancellationToken);
+
+                await auditLogService.LogWithFolderContext(
+                    folderExternalId: boxContext.Folder?.ExternalId,
+                    buildEntry: folderRef => Audit.Box.DefaultDisplayConfigurationUpdatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        workspace: boxContext.Workspace.ToAuditLogWorkspaceRef(),
+                        box: new Audit.BoxRef
+                        {
+                            ExternalId = boxContext.ExternalId,
+                            Name = boxContext.Name,
+                            Folder = folderRef
+                        },
+                        viewMode: request.ViewMode,
+                        sortMode: request.SortMode,
+                        sortDirection: request.SortDirection,
+                        thumbnailsEnabled: request.ThumbnailsEnabled),
+                    cancellationToken);
+
+                return TypedResults.Ok();
+
+            case UpdateBoxDefaultDisplayConfigurationQuery.ResultCode.BoxNotFound:
+                return HttpErrors.Box.NotFound(boxExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateBoxDefaultDisplayConfigurationQuery),
                     resultValueStr: result.ToString());
         }
     }

@@ -1,0 +1,33 @@
+<div class="config-row">
+    <mat-select
+        class="config-row__select config-row__select--wide"
+        [(ngModel)]="selectedViewMode"
+        (selectionChange)="onChange()">
+
+        @for (item of viewModeOptions; track item.value) {
+            <mat-option [value]="item.value">
+                {{ item.label }}
+            </mat-option>
+        }
+    </mat-select>
+
+    <mat-select
+        class="config-row__select config-row__select--wide"
+        [(ngModel)]="selectedSort"
+        (selectionChange)="onChange()">
+
+        @for (item of sortOptions; track item.value) {
+            <mat-option [value]="item.value">
+                {{ item.label }}
+            </mat-option>
+        }
+    </mat-select>
+</div>
+
+<div class="config-row config-row--toggle">
+    <mat-slide-toggle
+        [(ngModel)]="thumbnailsEnabled"
+        (change)="onChange()">
+        Show thumbnails by default
+    </mat-slide-toggle>
+</div>

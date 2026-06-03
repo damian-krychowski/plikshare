@@ -1,3 +1,4 @@
+using PlikShare.Boxes;
 using PlikShare.Boxes.Permissions;
 using PlikShare.BoxLinks.Id;
 using PlikShare.Core.Utils;
@@ -66,6 +67,16 @@ public static partial class Audit
             public required WorkspaceRef Workspace { get; init; }
             public required BoxRef Box { get; init; }
             public required bool IsEnabled { get; init; }
+        }
+
+        public class DefaultDisplayConfigurationUpdated
+        {
+            public required WorkspaceRef Workspace { get; init; }
+            public required BoxRef Box { get; init; }
+            public required BoxViewMode ViewMode { get; init; }
+            public required BoxSortMode SortMode { get; init; }
+            public required BoxSortDirection SortDirection { get; init; }
+            public required bool ThumbnailsEnabled { get; init; }
         }
 
         public class MemberInvited
@@ -297,6 +308,33 @@ public static partial class Audit
                 Workspace = workspace,
                 Box = box,
                 IsEnabled = isEnabled })
+        };
+
+        public static AuditLogEntry DefaultDisplayConfigurationUpdatedEntry(
+            AuditLogActorContext actor,
+            WorkspaceRef workspace,
+            BoxRef box,
+            BoxViewMode viewMode,
+            BoxSortMode sortMode,
+            BoxSortDirection sortDirection,
+            bool thumbnailsEnabled) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Box,
+            EventType = AuditLogEventTypes.Box.DefaultDisplayConfigurationUpdated,
+            Severity = AuditLogSeverities.Info,
+            WorkspaceExternalId = workspace.ExternalId.Value,
+            BoxExternalId = box.ExternalId.Value,
+            DetailsJson = Json.Serialize(new DefaultDisplayConfigurationUpdated {
+                Workspace = workspace,
+                Box = box,
+                ViewMode = viewMode,
+                SortMode = sortMode,
+                SortDirection = sortDirection,
+                ThumbnailsEnabled = thumbnailsEnabled })
         };
 
         public static AuditLogEntry MemberInvitedEntry(

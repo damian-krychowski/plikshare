@@ -76,6 +76,10 @@ public class GetBoxContentHandler(
             OwnerEmail = boxAccess.IsAccessedThroughLink
                 ? null
                 : boxAccess.Box.Workspace.Owner.Email.Value,
+            DefaultViewMode = boxAccess.Box.DefaultViewMode.ToKebabCase(),
+            DefaultSortMode = boxAccess.Box.DefaultSortMode.ToKebabCase(),
+            DefaultSortDirection = boxAccess.Box.DefaultSortDirection.ToKebabCase(),
+            DefaultThumbnailsEnabled = boxAccess.Box.DefaultThumbnailsEnabled,
         };
     }
 

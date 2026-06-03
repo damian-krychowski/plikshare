@@ -14,5 +14,9 @@ export function getBoxDetailsDtoProtobuf() {
         .add(new protobuf.Field("allowMoveItems", 10, "bool"))
         .add(new protobuf.Field("allowCreateFolder", 11, "bool"))
         .add(new protobuf.Field("allowRenameFolder", 12, "bool"))
-        .add(new protobuf.Field("allowDeleteFolder", 13, "bool"));
+        .add(new protobuf.Field("allowDeleteFolder", 13, "bool"))
+        .add(new protobuf.Field("defaultViewMode", 14, "string"))
+        .add(new protobuf.Field("defaultSortMode", 15, "string"))
+        .add(new protobuf.Field("defaultSortDirection", 16, "string"))
+        .add(new protobuf.Field("defaultThumbnailsEnabled", 17, "bool"));
 }

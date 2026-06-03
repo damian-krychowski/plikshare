@@ -11,7 +11,11 @@ public record BoxContext(
     bool IsEnabled,
     bool IsBeingDeleted,
     WorkspaceContext Workspace,
-    FolderContext? Folder);
+    FolderContext? Folder,
+    BoxViewMode DefaultViewMode,
+    BoxSortMode DefaultSortMode,
+    BoxSortDirection DefaultSortDirection,
+    bool DefaultThumbnailsEnabled);
     
 public record FolderContext(
     int Id,

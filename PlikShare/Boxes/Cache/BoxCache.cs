@@ -124,7 +124,11 @@ public class BoxCache(
                 ? null
                 : new FolderContext(
                     Id: box.FolderId.Value,
-                    ExternalId: box.FolderExternalId!.Value));
+                    ExternalId: box.FolderExternalId!.Value),
+            DefaultViewMode: box.DefaultViewMode,
+            DefaultSortMode: box.DefaultSortMode,
+            DefaultSortDirection: box.DefaultSortDirection,
+            DefaultThumbnailsEnabled: box.DefaultThumbnailsEnabled);
     }
 
     public ValueTask InvalidateEntry(
@@ -183,7 +187,11 @@ public class BoxCache(
                          bo_is_enabled,
                          bo_is_being_deleted,
                          bo_folder_id,
-                         fo_external_id
+                         fo_external_id,
+                         bo_default_view_mode,
+                         bo_default_sort_mode,
+                         bo_default_sort_direction,
+                         bo_default_thumbnails_enabled
                      FROM bo_boxes
                      LEFT JOIN fo_folders
                          ON fo_id = bo_folder_id
@@ -198,7 +206,11 @@ public class BoxCache(
                     IsEnabled: reader.GetBoolean(4),
                     IsBeingDeleted: reader.GetBoolean(5),
                     FolderId: reader.GetInt32OrNull(6),
-                    FolderExternalId: reader.GetExtIdOrNull<FolderExtId>(7)))
+                    FolderExternalId: reader.GetExtIdOrNull<FolderExtId>(7),
+                    DefaultViewMode: reader.GetEnum<BoxViewMode>(8),
+                    DefaultSortMode: reader.GetEnum<BoxSortMode>(9),
+                    DefaultSortDirection: reader.GetEnum<BoxSortDirection>(10),
+                    DefaultThumbnailsEnabled: reader.GetBoolean(11)))
             .WithParameter(lookup.ParamName, lookup.ParamValue)
             .Execute();
 
@@ -226,5 +238,9 @@ public class BoxCache(
         bool IsEnabled,
         bool IsBeingDeleted,
         int? FolderId,
-        FolderExtId? FolderExternalId);
+        FolderExtId? FolderExternalId,
+        BoxViewMode DefaultViewMode,
+        BoxSortMode DefaultSortMode,
+        BoxSortDirection DefaultSortDirection,
+        bool DefaultThumbnailsEnabled);
 }

@@ -225,6 +225,7 @@ public static class AuditLogEventTypes
         public const string FooterUpdated = "box.footer-updated";
         public const string FolderUpdated = "box.folder-updated";
         public const string IsEnabledUpdated = "box.is-enabled-updated";
+        public const string DefaultDisplayConfigurationUpdated = "box.default-display-configuration-updated";
         public const string MemberInvited = "box.member-invited";
         public const string MemberRevoked = "box.member-revoked";
         public const string MemberPermissionsUpdated = "box.member-permissions-updated";
@@ -238,7 +239,7 @@ public static class AuditLogEventTypes
             Created, Deleted, NameUpdated,
             HeaderIsEnabledUpdated, HeaderUpdated,
             FooterIsEnabledUpdated, FooterUpdated,
-            FolderUpdated, IsEnabledUpdated,
+            FolderUpdated, IsEnabledUpdated, DefaultDisplayConfigurationUpdated,
             MemberInvited, MemberRevoked, MemberPermissionsUpdated,
             LinkCreated,
             InvitationAccepted, InvitationRejected, MemberLeft

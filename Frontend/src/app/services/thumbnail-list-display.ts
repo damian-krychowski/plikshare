@@ -5,13 +5,21 @@ const STORAGE_PREFIX = 'plikshare:show-thumbnails:';
 // Per-workspace "show thumbnails on list rows" state: a persisted toggle plus the URL builder for a
 // file's Mini thumbnail. Call from an injection context (field initializer / constructor); the
 // toggle reloads whenever the workspace changes.
-export function thumbnailListDisplay(workspaceExternalId: Signal<string | null>) {
+export function thumbnailListDisplay(
+    workspaceExternalId: Signal<string | null>,
+    defaultShowThumbnails?: Signal<boolean>) {
     const showThumbnails = signal(false);
 
     effect(() => {
         const wsId = workspaceExternalId();
         const stored = wsId ? localStorage.getItem(STORAGE_PREFIX + wsId) : null;
-        showThumbnails.set(stored === 'true');
+
+        if (stored === 'true')
+            showThumbnails.set(true);
+        else if (stored === 'false')
+            showThumbnails.set(false);
+        else
+            showThumbnails.set(defaultShowThumbnails?.() ?? false);
     });
 
     function setShowThumbnails(value: boolean): void {

@@ -7,10 +7,19 @@
 
         <div class="config-card__header-actions">
             <ng-content select="[configCardActions]"></ng-content>
+
+            @if (collapsible()) {
+                <app-action-btn
+                    [tooltip]="isCollapsed() ? 'Expand' : 'Collapse'"
+                    [icon]="isCollapsed() ? 'icon-lucide-chevron-down' : 'icon-lucide-chevron-up'"
+                    (clicked)="toggleCollapsed()">
+                </app-action-btn>
+            }
         </div>
     </div>
 
-    <div class="config-card__content">
+    <div class="config-card__content"
+        [class.config-card__content--collapsed]="collapsible() && isCollapsed()">
         <ng-content></ng-content>
     </div>
 </div>

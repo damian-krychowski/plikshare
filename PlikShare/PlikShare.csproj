@@ -116,6 +116,9 @@
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\40_queue_result_and_thumbnail_indexes_introduced.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\42_box_default_display_configuration_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\26_workspace_encryption_keys_introduced.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>

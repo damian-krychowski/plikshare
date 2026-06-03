@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using PlikShare.ArtificialIntelligence.GetMessages;
 using PlikShare.ArtificialIntelligence.Id;
+using PlikShare.Boxes;
 using PlikShare.Boxes.Id;
 using PlikShare.BoxLinks.Id;
 using PlikShare.Core.Emails;
@@ -123,6 +124,9 @@ public static class JsonConverters
         options.Converters.Add(new JsonStringEnumConverter<QuickShareMode>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<Trash.Restore.Contracts.RestoreMode>(JsonNamingPolicy.KebabCaseLower));
         options.Converters.Add(new JsonStringEnumConverter<Trash.Restore.Contracts.RestoreStatus>(JsonNamingPolicy.KebabCaseLower));
+        options.Converters.Add(new JsonStringEnumConverter<BoxViewMode>(JsonNamingPolicy.KebabCaseLower));
+        options.Converters.Add(new JsonStringEnumConverter<BoxSortMode>(JsonNamingPolicy.KebabCaseLower));
+        options.Converters.Add(new JsonStringEnumConverter<BoxSortDirection>(JsonNamingPolicy.KebabCaseLower));
 
         options.Converters.Add(new NullableByteArrayJsonConverter());
         options.Converters.Add(new FileKeyJsonConverter());

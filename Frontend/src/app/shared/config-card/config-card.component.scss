@@ -68,6 +68,10 @@
         &:empty {
             display: none;
         }
+
+        &.config-card__content--collapsed {
+            display: none;
+        }
     }
 
     // Opt-in via `[stretch]="true"` on the host. The host element gets the

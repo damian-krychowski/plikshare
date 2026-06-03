@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit, WritableSignal, computed, signal } from '@angular/core';
-import { BoxPermissions, BoxesSetApi } from '../../../services/boxes.api';
+import { BoxDefaultDisplayConfiguration, BoxPermissions, BoxesSetApi } from '../../../services/boxes.api';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -28,6 +28,8 @@ import { AppBoxRichTextItem, BoxRichTextEditorComponent } from './box-rich-text-
 import { WorkspacesApi } from '../../../services/workspaces.api';
 import { GenericDialogService } from '../../../shared/generic-message-dialog/generic-dialog-service';
 import { FileLockService } from '../../../services/file-lock.service';
+import { ConfigCardComponent } from '../../../shared/config-card/config-card.component';
+import { BoxDefaultDisplayConfigComponent } from './box-default-display-config/box-default-display-config.component';
 
 type BoxFolder = {
     externalId: string;
@@ -53,7 +55,9 @@ type BoxFolder = {
         BoxTeamInvitationComponent,
         ItemButtonComponent,
         ActionButtonComponent,
-        BoxRichTextEditorComponent
+        BoxRichTextEditorComponent,
+        ConfigCardComponent,
+        BoxDefaultDisplayConfigComponent
     ],
     templateUrl: './box-details.component.html',
     styleUrl: './box-details.component.scss'
@@ -103,6 +107,8 @@ export class BoxDetailsComponent implements OnInit, OnDestroy {
     });
 
     folder: WritableSignal<BoxFolder | null> = signal(null);
+
+    defaultDisplayConfiguration: WritableSignal<BoxDefaultDisplayConfiguration | null> = signal(null);
 
     initialBoxContent: WritableSignal<GetFolderResponse | null> = signal(null);
 
@@ -204,6 +210,8 @@ export class BoxDetailsComponent implements OnInit, OnDestroy {
                 response.details.folderPath);
 
             this.folder.set(boxFolder);
+
+            this.defaultDisplayConfiguration.set(response.details.defaultDisplayConfiguration);
 
             this.boxHeader.set({
                  isEnabled: signal(response.details.header.isEnabled),
@@ -356,6 +364,20 @@ export class BoxDetailsComponent implements OnInit, OnDestroy {
                 await this._boxesApi.updateBoxFolder(this.workspaceExternalIdValue, this._boxExternalId, {
                     folderExternalId: folderToShare.externalId
                 });                
+        });
+    }
+
+    async saveDefaultDisplayConfiguration(configuration: BoxDefaultDisplayConfiguration) {
+        if(!this._boxExternalId)
+            return;
+
+        this.defaultDisplayConfiguration.set(configuration);
+
+        await this._boxesApi.updateBoxDefaultDisplayConfiguration(this.workspaceExternalIdValue, this._boxExternalId, {
+            viewMode: configuration.viewMode,
+            sortMode: configuration.sortMode,
+            sortDirection: configuration.sortDirection,
+            thumbnailsEnabled: configuration.thumbnailsEnabled
         });
     }
 

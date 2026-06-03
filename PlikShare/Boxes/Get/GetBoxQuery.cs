@@ -237,6 +237,10 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
                      	    bo_header_json,
                      	    bo_footer_is_enabled,
                      	    bo_footer_json,
+                     	    bo_default_view_mode,
+                     	    bo_default_sort_mode,
+                     	    bo_default_sort_direction,
+                     	    bo_default_thumbnails_enabled,
                      	    (CASE
                      		    WHEN bo_folder_id IS NULL THEN '[]'
                                  ELSE (
@@ -272,7 +276,11 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
                     var headerJson = reader.GetStringOrNull(4);
                     var isFooterEnabled = reader.GetBoolean(5);
                     var footerJson = reader.GetStringOrNull(6);
-                    var folderPath = reader.GetFromJson<List<GetBoxResponseDto.FolderItem>>(7, workspaceEncryptionSession);
+                    var defaultViewMode = reader.GetEnum<BoxViewMode>(7);
+                    var defaultSortMode = reader.GetEnum<BoxSortMode>(8);
+                    var defaultSortDirection = reader.GetEnum<BoxSortDirection>(9);
+                    var defaultThumbnailsEnabled = reader.GetBoolean(10);
+                    var folderPath = reader.GetFromJson<List<GetBoxResponseDto.FolderItem>>(11, workspaceEncryptionSession);
 
                     return new GetBoxResponseDto.BoxDetails
                     {
@@ -289,7 +297,14 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
                             IsEnabled = isFooterEnabled,
 							Json = footerJson
                         },
-						FolderPath = folderPath
+						FolderPath = folderPath,
+                        DefaultDisplayConfiguration = new GetBoxResponseDto.DefaultDisplayConfiguration
+                        {
+                            ViewMode = defaultViewMode,
+                            SortMode = defaultSortMode,
+                            SortDirection = defaultSortDirection,
+                            ThumbnailsEnabled = defaultThumbnailsEnabled
+                        }
                     };
                 })
 		    .WithParameter("$boxId", box.Id)

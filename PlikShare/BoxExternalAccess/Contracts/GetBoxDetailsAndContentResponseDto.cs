@@ -65,4 +65,16 @@ public class BoxDetailsDto
 
     [ProtoMember(13)]
     public required bool AllowDeleteFolder { get; init; }
+
+    [ProtoMember(14)]
+    public required string DefaultViewMode { get; init; }
+
+    [ProtoMember(15)]
+    public required string DefaultSortMode { get; init; }
+
+    [ProtoMember(16)]
+    public required string DefaultSortDirection { get; init; }
+
+    [ProtoMember(17)]
+    public required bool DefaultThumbnailsEnabled { get; init; }
 }
