@@ -5,8 +5,12 @@ import { BoxWidgetComponent } from './app/external-access/box-widget/box-widget.
 import { provideHttpClient, withFetch } from '@angular/common/http';
 import { provideMarkdown } from 'ngx-markdown';
 import { ToastrModule } from 'ngx-toastr';
+import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
+import { environment } from './environments/environment';
 
-enableProdMode();
+if (environment.production) {
+  enableProdMode();
+}
 
 const bootstrap = async () => {
   // Create a mini application just for custom elements
@@ -14,6 +18,7 @@ const bootstrap = async () => {
     providers: [
       provideZonelessChangeDetection(),
       provideHttpClient(withFetch()),
+      provideRouter([], withDisabledInitialNavigation()),
       importProvidersFrom([
         ToastrModule.forRoot(),
       ]),

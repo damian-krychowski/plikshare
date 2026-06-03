@@ -10,7 +10,8 @@
     "build-prod-dev": "ng build --configuration production --output-path=../PlikShare/wwwroot",
     "update": "ng update @angular/cli @angular/core",
     "build-elements-prod": "ng run PlikShare:build-elements:production --output-path=./dist/browser/elements && node merge-elements.js \"./dist/browser/elements\"",
-    "build-elements-prod-dev": "ng run PlikShare:build-elements:production --output-path=../PlikShare/wwwroot/browser/elements && node merge-elements.js \"../PlikShare/wwwroot/browser/elements\""
+    "build-elements-prod-dev": "ng run PlikShare:build-elements:production --output-path=../PlikShare/wwwroot/browser/elements && node merge-elements.js \"../PlikShare/wwwroot/browser/elements\"",
+    "build-elements-dev": "ng run PlikShare:build-elements:development --output-path=../PlikShare/wwwroot/browser/elements && node merge-elements.js \"../PlikShare/wwwroot/browser/elements\""
   },
   "private": true,
   "dependencies": {

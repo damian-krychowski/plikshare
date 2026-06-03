@@ -98,24 +98,12 @@
                     <div class="mt-4"></div>
                 }
             } @else {
-                <div class="warning-header-container">
-                    <div class="warning">
-                        <div class="warning__details">
-                            <i class="icon icon-xl icon-danger"></i>   
-
-                            <div class="warning__content">
-                                <b>{{name()}}</b> <span class="ml-1">was temporarily disabled by the owner</span>
-                            </div>
-                        </div>
+                <div class="empty-state">
+                    <div class="empty-state__icon-wrap">
+                        <i class="icon icon-nucleo-lock empty-state__icon"></i>
                     </div>
-                </div>
-                
-                <div class="mt-3"></div>
-
-                <div class="nothing-to-show nothing-to-show--danger">
-                    <div class="nothing-to-show__label">
-                        This box was disabled
-                    </div>
+                    <div class="empty-state__title">This box is disabled</div>
+                    <div class="empty-state__text"><b>{{name()}}</b> was temporarily disabled by the owner.</div>
                 </div>
             }
         }

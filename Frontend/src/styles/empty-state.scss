@@ -1,0 +1,42 @@
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: var(--company-grey-font);
+    border: 1px solid var(--company-grey-accent-light);
+    border-radius: var(--mdc-filled-button-container-shape);
+    background: white;
+
+    &__icon-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 5.5rem;
+        height: 5.5rem;
+        border-radius: 50%;
+        background-color: var(--company-grey-accent-light);
+        border: 1px dashed var(--company-grey-accent);
+        margin-bottom: 1.25rem;
+    }
+
+    &__icon {
+        font-size: 2.5rem;
+        opacity: 0.55;
+    }
+
+    &__title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--company-font);
+        margin-bottom: 0.4rem;
+    }
+
+    &__text {
+        font-size: var(--company-medium-font);
+        opacity: 0.85;
+        max-width: 420px;
+        line-height: 1.5;
+    }
+}

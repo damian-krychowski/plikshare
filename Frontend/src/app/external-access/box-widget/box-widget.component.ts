@@ -1,4 +1,4 @@
-import { Component, computed, input, OnDestroy, OnInit, Signal, signal, WritableSignal } from '@angular/core';
+import { Component, computed, ElementRef, input, OnDestroy, OnInit, Signal, signal, WritableSignal } from '@angular/core';
 import { FilesExplorerApi, FilesExplorerComponent } from '../../files-explorer/files-explorer.component';
 import { BoxWidgetApi } from './box-widget.api';
 import { FileUploadApi } from '../../services/file-upload-manager/file-upload-manager';
@@ -22,6 +22,9 @@ import { BOX_LINK_TOKEN_HEADER, BoxLinkTokenService } from '../../services/box-l
 })
 export class BoxWidgetComponent implements OnInit, OnDestroy {
     url = input.required<string>();
+
+    private _resizeObserver?: ResizeObserver;
+    private _observedContainer?: Element;
 
     currentFolderExternalId: WritableSignal<string | null> = signal(null);
     currentFileExternalIdInPreview: WritableSignal<string | null> = signal(null);
@@ -53,7 +56,8 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
         private _boxLinkTokenService: BoxLinkTokenService,
         private _boxWidgetApi: BoxWidgetApi,
         private _dataStore: DataStore,
-    ) { 
+        private _el: ElementRef<HTMLElement>,
+    ) {
         this.filesApi = signal(this.getFilesExplorerApi());
         this.uploadsApi = signal(this.getFileUploadApi());
 
@@ -62,13 +66,81 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
             this._boxWidgetApi);
     }
 
-    async ngOnInit() {        
+    async ngOnInit() {
         this._fileLockService.startPolling()
+        this.setupScrollModeObserver();
         await this.loadBox(this.url(), null);
     }
-    
+
     ngOnDestroy(): void {
         this._fileLockService.stopPolling();
+        this._resizeObserver?.disconnect();
+    }
+
+    private setupScrollModeObserver() {
+        if (typeof ResizeObserver === 'undefined')
+            return;
+
+        this._resizeObserver = new ResizeObserver(() => this.updateScrollMode());
+        this._resizeObserver.observe(this._el.nativeElement);
+    }
+
+    private updateScrollMode() {
+        const host = this._el.nativeElement;
+        const container = host.querySelector('.files-explorer-container') as HTMLElement | null;
+
+        if (!container)
+            return;
+
+        if (this._observedContainer !== container) {
+            if (this._observedContainer)
+                this._resizeObserver?.unobserve(this._observedContainer);
+
+            this._observedContainer = container;
+            this._resizeObserver?.observe(container);
+        }
+
+        const explorer = host.querySelector('app-files-explorer') as HTMLElement | null;
+        const content = host.querySelector('.explorer-content') as HTMLElement | null;
+        const poweredBy = host.querySelector('.powered-by') as HTMLElement | null;
+        const poweredByHeight = poweredBy?.offsetHeight ?? 0;
+
+        container.style.height = '';
+        container.style.display = '';
+        container.style.flexDirection = '';
+        container.style.paddingTop = '';
+
+        if (explorer) {
+            explorer.style.display = '';
+            explorer.style.flexDirection = '';
+            explorer.style.flex = '';
+            explorer.style.minHeight = '';
+        }
+
+        if (content) {
+            content.style.flex = '';
+            content.style.minHeight = '';
+            content.style.scrollbarWidth = '';
+        }
+
+        const available = host.clientHeight - poweredByHeight;
+        const needed = container.scrollHeight;
+
+        if (available > 0 && needed > available + 1 && explorer && content) {
+            container.style.height = `${available}px`;
+            container.style.display = 'flex';
+            container.style.flexDirection = 'column';
+            container.style.paddingTop = '0';
+
+            explorer.style.display = 'flex';
+            explorer.style.flexDirection = 'column';
+            explorer.style.flex = '1 1 auto';
+            explorer.style.minHeight = '0';
+
+            content.style.flex = '1 1 auto';
+            content.style.minHeight = '0';
+            content.style.scrollbarWidth = 'thin';
+        }
     }
 
     private async loadBox(url: string, folderExternalId: string | null) {
@@ -81,10 +153,44 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
             this.details.set(result.details);
             this.initialBoxContent.set(result);
         } catch (error) {
-            console.error('Failed to load box', error);            
+            console.error('Failed to load box', error);
         } finally {
             this.isBoxLoaded.set(true);
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                this.updateScrollMode();
+                this.applyBackgroundColor();
+            }));
         }
+    }
+
+    private applyBackgroundColor() {
+        const host = this._el.nativeElement;
+        const sticky = host.querySelector('.sticky-wrapper') as HTMLElement | null;
+
+        if (!sticky)
+            return;
+
+        const background = this.resolveBackgroundColor(host);
+
+        sticky.style.backgroundColor = background ?? '';
+    }
+
+    private resolveBackgroundColor(start: HTMLElement): string | null {
+        let element: HTMLElement | null = start;
+
+        while (element) {
+            const background = getComputedStyle(element).backgroundColor;
+
+            if (background
+                && background !== 'transparent'
+                && !background.startsWith('rgba(0, 0, 0, 0)')) {
+                return background;
+            }
+
+            element = element.parentElement;
+        }
+
+        return null;
     }
 
     public onFolderSelected(folder: AppFolderItem | null) {

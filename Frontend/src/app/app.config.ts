@@ -6,6 +6,7 @@ import { ToastrModule } from 'ngx-toastr';
 import { LoadingChunkFailedErrorHandler } from './services/loading-chunk-failed-error.handler';
 import { Routes } from '@angular/router';
 import { AdminGuardService } from './services/auth-guard.service';
+import { AuthenticatedGuardService } from './services/authenticated-guard.service';
 import { provideMarkdown } from 'ngx-markdown';
 
 export const routes: Routes = [{
@@ -132,6 +133,10 @@ export const routes: Routes = [{
 }, {
     path: 'full-encryption-sessions',
     loadComponent: () => import('./full-encryption-sessions/full-encryption-sessions.component').then(m => m.FullEncryptionSessionsComponent)
+}, {
+    path: 'widget-test',
+    loadComponent: () => import('./widget-test/widget-test.component').then(m => m.WidgetTestComponent),
+    canActivate: [AuthenticatedGuardService]
 }, {
     path: 'workspaces/:workspaceExternalId',
     loadComponent: () => import('./workspace-manager/workspace-manager.component').then(m => m.WorkspaceManagerComponent),

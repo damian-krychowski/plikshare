@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using PlikShare.Core.Configuration;
 namespace PlikShare.Widgets;
 public static class WidgetEndpoints

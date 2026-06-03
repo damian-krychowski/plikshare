@@ -86,6 +86,17 @@
 
                 <pre class="code-snippet"><code>{{ widgetTag() }}</code></pre>
             </app-config-card>
+
+            <app-config-card
+                title="Step 3 — Preview the widget"
+                description="Open a test page on this domain with the widget embedded live.">
+                <app-action-btn
+                    configCardActions
+                    tooltip="Open preview"
+                    icon="icon-nucleo-eye"
+                    (clicked)="openPreview()">
+                </app-action-btn>
+            </app-config-card>
         </div>
 
         <div class="questionaire__actions">

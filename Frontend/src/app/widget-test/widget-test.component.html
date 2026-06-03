@@ -1,0 +1,78 @@
+<div class="widget-test">
+    <div class="widget-test__header">
+        <div class="widget-test__title">Widget preview</div>
+        <div class="widget-test__subtitle">
+            Embeds the live &lt;plikshare-box-widget&gt; element. Same origin only — does not exercise cross-origin CORS.
+        </div>
+    </div>
+
+    <app-config-card
+        title="Preview settings"
+        description="Configure the embed and render the widget.">
+        <app-action-btn
+            configCardActions
+            [tooltip]="collapsed() ? 'Expand' : 'Collapse'"
+            [icon]="collapsed() ? 'icon-lucide-chevron-down' : 'icon-lucide-chevron-up'"
+            (clicked)="collapsed.set(!collapsed())">
+        </app-action-btn>
+
+        @if (!collapsed()) {
+            <mat-form-field class="widget-test__field" subscriptSizing="dynamic">
+                <mat-label>Box link URL</mat-label>
+                <input matInput
+                    [ngModel]="url()"
+                    (ngModelChange)="url.set($event)"
+                    type="text"
+                    data-lpignore="true"
+                    placeholder="https://your-domain/link/ACCESS_CODE">
+            </mat-form-field>
+
+            <div class="widget-test__row">
+                <mat-form-field class="widget-test__select" subscriptSizing="dynamic">
+                    <mat-label>Container</mat-label>
+                    <mat-select
+                        [ngModel]="heightMode()"
+                        (ngModelChange)="heightMode.set($event)">
+                        <mat-option value="fixed">Fixed height</mat-option>
+                        <mat-option value="page">Page scroll</mat-option>
+                    </mat-select>
+                </mat-form-field>
+
+                @if (heightMode() === 'fixed') {
+                    <mat-form-field class="widget-test__height" subscriptSizing="dynamic">
+                        <mat-label>Height (px)</mat-label>
+                        <input matInput
+                            [ngModel]="fixedHeight()"
+                            (ngModelChange)="fixedHeight.set($event)"
+                            type="number"
+                            min="200"
+                            step="50">
+                    </mat-form-field>
+                }
+            </div>
+
+            <div class="widget-test__actions">
+                <app-action-text-btn text="Render" (clicked)="render()"></app-action-text-btn>
+                <app-action-text-btn text="Clear" (clicked)="clear()"></app-action-text-btn>
+            </div>
+        }
+    </app-config-card>
+
+    <div class="widget-test__stage">
+        <div #stage class="widget-test__host"></div>
+
+        @if (!hasWidget()) {
+            <div class="nothing-to-show">
+                <div class="nothing-to-show__label">Press Render to load the widget</div>
+            </div>
+        }
+    </div>
+
+    @if (log().length) {
+        <div class="widget-test__log">
+            @for (entry of log(); track $index) {
+                <div class="widget-test__log-line" [class]="'widget-test__log-line--' + entry.kind">{{ entry.message }}</div>
+            }
+        </div>
+    }
+</div>

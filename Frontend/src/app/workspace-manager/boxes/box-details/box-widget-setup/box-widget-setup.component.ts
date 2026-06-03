@@ -82,6 +82,11 @@ export class BoxWidgetSetupComponent implements OnInit {
         this.origins.update(origins => origins.filter(o => o.id !== id));
     }
 
+    openPreview() {
+        const url = `/widget-test?url=${encodeURIComponent(this.widgetUrl())}`;
+        window.open(url, '_blank');
+    }
+
     copyWidgetTagToClipboard() {
         if(this._clipboard.copy(this.widgetTag())) {
             this._snackBar.open('Widget tag copied to clipboard', 'Close', { duration: 2000 });

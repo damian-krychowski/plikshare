@@ -3,6 +3,13 @@
 
 Release notes for PlikShare.
 
+## 1.1.33
+
+- [FIX] Embedded box-link widget — the widget stopped working after the last release; the custom element failed to register because the embedded mini-app no longer provided the router that the file explorer depends on. Widgets embedded on external pages work again
+- [IMPROVEMENT] Widget adapts to its container — when embedded in a fixed-height container the file list now scrolls internally with the header staying put, instead of overflowing and getting clipped; when given no fixed height it keeps growing with the page as before. The scrollbar is slim and the sticky header automatically blends into the background colour of the page it's placed on
+- [FEATURE] Live widget preview — a preview page (opened from the box widget setup) embeds the actual widget so you can see how it looks and behaves before installing it on your site
+- [IMPROVEMENT] Disabled-box screen redesigned — the box-link widget, external box and external link pages now show a clean centered empty state (icon, title, short note) instead of the previous red warning banner
+
 ## 1.1.32
 
 - [FEATURE] Thumbnails for images and videos — preview thumbnails (Mini / Small / Large) are generated server-side via ffmpeg for image and video files; generation runs on the background queue with live per-batch progress pushed over SSE, can be triggered for a single file or in bulk, and the thumbnails show up inline in the file-explorer list view as well as in box-link and quick-share previews

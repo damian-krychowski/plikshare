@@ -32,24 +32,12 @@
             Powered by: <a class="powered-by-link" href="https://plikshare.com" target="_blank">plikshare.com</a>
         </div>
     } @else {
-        <div class="mt-4"></div>
-
-        <div class="warning-header-container">
-            <div class="warning">
-                <div class="warning__details">
-                    <div class="warning__content">
-                        Box was temporarily disabled by the owner
-                    </div>
-                </div>
+        <div class="empty-state">
+            <div class="empty-state__icon-wrap">
+                <i class="icon icon-nucleo-lock empty-state__icon"></i>
             </div>
-        </div>
-        
-        <div class="mt-3"></div>
-
-        <div class="nothing-to-show nothing-to-show--danger">
-            <div class="nothing-to-show__label">
-                This box was disabled
-            </div>
+            <div class="empty-state__title">This box is disabled</div>
+            <div class="empty-state__text">It was temporarily disabled by the owner.</div>
         </div>
     }
 }
