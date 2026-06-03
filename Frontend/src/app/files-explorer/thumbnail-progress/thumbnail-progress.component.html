@@ -7,7 +7,7 @@
         <span class="thumb-progress__value">{{ p.done }}/{{ p.total }}</span>
 
         @if(elapsedLabel(); as label) {
-            <span class="thumb-progress__elapsed" matTooltip="Elapsed (temporary A/B measurement)">{{ label }}</span>
+            <span class="thumb-progress__elapsed">{{ label }}</span>
         }
 
         @if(activeBatchIds().length > 0) {

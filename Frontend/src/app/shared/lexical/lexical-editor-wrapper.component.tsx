@@ -54,6 +54,7 @@ export class LexicalEditorWrapperComponent implements OnDestroy, AfterViewInit, 
     isToolbarFloating = input.required<boolean>();
     placeholder = input<string | null | undefined>(null);
     isReadOnly = input(false);
+    autoFocus = input(false);
 
     private reactRoot: Root | null = null;
     private getMarkdown: () => string = () => '';
@@ -160,6 +161,7 @@ export class LexicalEditorWrapperComponent implements OnDestroy, AfterViewInit, 
                     onSetState={this.setSetStateMethod}
                     onSetStateFromMarkdown={this.setSetStateFromMarkdownMethod}
                     isReadOnly={this.isReadOnly()}
+                    autoFocus={this.autoFocus()}
                 />
             </React.StrictMode>
         );

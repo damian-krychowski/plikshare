@@ -304,8 +304,9 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
             // <img src> can't carry the BoxLink token in a custom header — fall back to a query
             // parameter the backend's auth handler accepts as a header alternative.
             getThumbnailUrl: (fileExternalId: string) => {
+                const { baseUrl, accessCode } = this._boxWidgetApi.extractUrlComponents(this.url());
                 const token = this._boxLinkTokenService.get();
-                const base = `/api/access-codes/${this.url()}/files/${fileExternalId}/thumbnail`;
+                const base = `${baseUrl}/api/access-codes/${accessCode}/files/${fileExternalId}/thumbnail`;
                 return token
                     ? `${base}?boxLinkToken=${encodeURIComponent(token)}`
                     : base;

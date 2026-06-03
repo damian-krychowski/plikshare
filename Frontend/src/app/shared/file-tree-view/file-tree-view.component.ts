@@ -155,6 +155,7 @@ export class FileTreeViewComponent implements OnChanges {
 
     searchRequested = output<FileTreeSearchRequest>();
     searchedFilesSelectionChanged = output<SearchedFilesSelection | null>();
+    searchActivated = output<void>();
 
     nodes = signal<TreeItem[]>([]);
     nodesCount = computed(() => this.nodes().length);
@@ -322,15 +323,11 @@ export class FileTreeViewComponent implements OnChanges {
             requestAnimationFrame(() => this.recomputeRange());
         });
 
-        // Scroll to top when search activates so the user lands on the first
-        // result. Only on the false→true transition — subsequent narrowing
-        // keystrokes preserve the current scroll position (user may already
-        // be browsing the result set).
         let wasSearchActive = false;
         effect(() => {
             const active = this.isSearchActive();
             if (active && !wasSearchActive) {
-                window.scrollTo({ top: 0 });
+                this.searchActivated.emit();
             }
             wasSearchActive = active;
         });

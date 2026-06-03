@@ -52,6 +52,7 @@ export interface ILexicalEditorProps {
     savedState: string | null | undefined;
     savedMarkdowState: string | null | undefined;
     isReadOnly: boolean;
+    autoFocus: boolean;
 
     onEditorStateChange: (state: EditorState) => void;
     onGetHtmlAndJson: (getHtml: () => LexicalSaveState) => void;
@@ -277,10 +278,10 @@ function EditorContent(props: ILexicalEditorProps) {
     useEffect(() => {
         editor.setEditable(!props.isReadOnly);
 
-        if(!props.isReadOnly) {
+        if(!props.isReadOnly && props.autoFocus) {
             setTimeout(() => editor.focus());
         }
-    }, [editor, props.isReadOnly]);
+    }, [editor, props.isReadOnly, props.autoFocus]);
 
     useEffect(() => {
         const removeUpdateListener = editor.registerUpdateListener(({ editorState }) => {
@@ -302,7 +303,7 @@ function EditorContent(props: ILexicalEditorProps) {
                     ErrorBoundary={LexicalErrorBoundary}
                 />
                 <HistoryPlugin />
-                <AutoFocusPlugin />
+                {props.autoFocus && <AutoFocusPlugin />}
                 <ListPlugin />
                 <LinkPlugin />
                 <AutoLinkPlugin />
@@ -331,6 +332,7 @@ export const Editor: FunctionComponent<ILexicalEditorProps> = (props: ILexicalEd
                     onSetState={props.onSetState}
                     onSetStateFromMarkdown={props.onSetStateFromMarkdown}
                     isReadOnly={props.isReadOnly}
+                    autoFocus={props.autoFocus}
                  />
             </div>
         </LexicalComposer>

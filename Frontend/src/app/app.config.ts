@@ -1,5 +1,6 @@
-import { ApplicationConfig, ErrorHandler, importProvidersFrom, provideZonelessChangeDetection } from '@angular/core';
-import { PreloadAllModules, provideRouter, withEnabledBlockingInitialNavigation, withInMemoryScrolling, withPreloading } from '@angular/router';
+import { ApplicationConfig, ENVIRONMENT_INITIALIZER, ErrorHandler, importProvidersFrom, inject, provideZonelessChangeDetection } from '@angular/core';
+import { NavigationEnd, PreloadAllModules, provideRouter, Router, withEnabledBlockingInitialNavigation, withInMemoryScrolling, withPreloading } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { HTTP_INTERCEPTORS, provideHttpClient, withFetch, withInterceptorsFromDi } from '@angular/common/http';
 import { AuthInterceptor } from './services/auth.interceptor';
 import { ToastrModule } from 'ngx-toastr';
@@ -206,9 +207,29 @@ export const appConfig: ApplicationConfig = {
             routes,
             withEnabledBlockingInitialNavigation(),
             withInMemoryScrolling({
-                scrollPositionRestoration: 'enabled'
+                scrollPositionRestoration: 'disabled'
             }),
             withPreloading(PreloadAllModules)),
+        {
+            provide: ENVIRONMENT_INITIALIZER,
+            multi: true,
+            useValue: () => {
+                const router = inject(Router);
+                let previousPath: string | null = null;
+
+                router.events
+                    .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+                    .subscribe(e => {
+                        const path = e.urlAfterRedirects.split('?')[0].split('#')[0];
+
+                        if (previousPath !== null && path !== previousPath) {
+                            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+                        }
+
+                        previousPath = path;
+                    });
+            }
+        },
         provideHttpClient(withInterceptorsFromDi(), withFetch()), {
             provide: HTTP_INTERCEPTORS,
             useClass: AuthInterceptor,

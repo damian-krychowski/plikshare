@@ -178,8 +178,9 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     currentFolderExternalId = input.required<string | null>();
     currentFileExternalIdInPreview = input.required<string | null>();
     initialContent = input.required<InitialContent | null>();
-    topFolderExternalId = input<string>();    
+    topFolderExternalId = input<string>();
     constHeightMode = input<boolean>(false);
+    scrollToTopOnOpen = input<boolean>(false);
 
     private _wasInitialContentLoaded = false;
 
@@ -724,7 +725,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         private _router: Router,
         private _route: ActivatedRoute,
         private _thumbnailBatches: ThumbnailBatchProgressService,
-        private _capabilities: AppCapabilitiesService) {
+        private _capabilities: AppCapabilitiesService,
+        private _elementRef: ElementRef<HTMLElement>) {
 
         // App-wide capability flag (drives the bulk "Generate thumbnails" action) — first consumer
         // triggers the fetch, others reuse it.
@@ -1203,6 +1205,10 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             this.closeFilePreview();
             this.closePendingBulkUpload();
         }
+
+        if(this.scrollToTopOnOpen()) {
+            this.scrollContainerToTop();
+        }
     }
 
     onFolderDeleted(folder: AppFolderItem) {
@@ -1283,6 +1289,10 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         this.fileInPreviewIsEditMode.set(false);
         this.fileInPreview.set(file);
         this.filePreviewed.emit(file);
+
+        if(file && this.scrollToTopOnOpen()) {
+            this.scrollContainerToTop();
+        }
     }
 
     private areFilesTheSame(file1: AppFileItem | null, file2: AppFileItem | null) {
@@ -2068,6 +2078,15 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         if(event == null) {
             this.searchPhrase.set('');
         }
+    }
+
+    onTreeSearchActivated() {
+        this.scrollContainerToTop();
+    }
+
+    private scrollContainerToTop() {
+        const container = this._elementRef.nativeElement;
+        requestAnimationFrame(() => container.scrollIntoView({ block: 'start', behavior: 'instant' }));
     }
 
     toggleTreeSearchedFilesSelection() {
