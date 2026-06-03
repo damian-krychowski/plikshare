@@ -107,7 +107,8 @@ export class FoldersListComponent {
                 this.filteredOutFolders.set(filteredOut);
             }
 
-            this._wasInitialized = true;
+            if (incoming.length > 0)
+                this._wasInitialized = true;
         });
     }
 

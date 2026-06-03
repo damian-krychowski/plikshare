@@ -239,6 +239,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     initialSortDirection = input<SortDirection>('asc');
     initialShowThumbnails = input<boolean>(false);
 
+    disablePreferencePersistence = input<boolean>(false);
+
     // Opt-in: when true this explorer reflects/restores the list/tree view in
     // the page URL (?view=). Only the routed workspace explorer should set it —
     // embedded instances (dialogs, external access) must not touch the URL.
@@ -256,7 +258,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     sortDirection = signal<SortDirection>('asc');
 
     // Opt-in mini-thumbnail rendering on list rows (persisted per workspace) + thumbnail URL builder.
-    private _thumbnailDisplay = thumbnailListDisplay(this.workspaceExternalId, this.initialShowThumbnails);
+    private _thumbnailDisplay = thumbnailListDisplay(this.workspaceExternalId, this.initialShowThumbnails, this.disablePreferencePersistence);
     readonly showThumbnails = this._thumbnailDisplay.showThumbnails;
 
     // Files with thumbnail generation in flight (any tracked batch) — drives the per-row spinner.
@@ -739,7 +741,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
         effect(() => {
             const key = this.sortStorageKey();
-            const stored = key ? localStorage.getItem(key) : null;
+            const stored = (!this.disablePreferencePersistence() && key) ? localStorage.getItem(key) : null;
             const parsed = stored
                 ? this.parseStoredSortMode(stored)
                 : { mode: this.initialSortMode(), direction: this.initialSortDirection() };
@@ -809,6 +811,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     }
 
     private persistSort(mode: SortMode, direction: SortDirection) {
+        if (this.disablePreferencePersistence()) return;
         const key = this.sortStorageKey();
         if (!key) return;
         const value = mode === 'custom' ? 'custom' : `${mode}-${direction}`;

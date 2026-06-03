@@ -368,17 +368,22 @@ export class BoxDetailsComponent implements OnInit, OnDestroy {
     }
 
     async saveDefaultDisplayConfiguration(configuration: BoxDefaultDisplayConfiguration) {
-        if(!this._boxExternalId)
+        const boxExternalId = this._boxExternalId;
+
+        if(!boxExternalId)
             return;
 
         this.defaultDisplayConfiguration.set(configuration);
 
-        await this._boxesApi.updateBoxDefaultDisplayConfiguration(this.workspaceExternalIdValue, this._boxExternalId, {
+        await this._boxesApi.updateBoxDefaultDisplayConfiguration(this.workspaceExternalIdValue, boxExternalId, {
             viewMode: configuration.viewMode,
             sortMode: configuration.sortMode,
             sortDirection: configuration.sortDirection,
             thumbnailsEnabled: configuration.thumbnailsEnabled
         });
+
+        this._dataStore.invalidateEntries(
+            key => key.startsWith(this._dataStore.externalBoxKeysPrefix(boxExternalId)));
     }
 
     async changeBoxIsEnabled() {

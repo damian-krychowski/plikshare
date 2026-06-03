@@ -260,7 +260,8 @@ export class FilesListComponent implements OnDestroy {
                 this.filteredOutFiles.set(filteredOut);
             }
 
-            this._wasInitialized = true;
+            if (incoming.length > 0)
+                this._wasInitialized = true;
         });
     }
 

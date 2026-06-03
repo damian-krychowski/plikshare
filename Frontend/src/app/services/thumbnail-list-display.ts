@@ -7,12 +7,13 @@ const STORAGE_PREFIX = 'plikshare:show-thumbnails:';
 // toggle reloads whenever the workspace changes.
 export function thumbnailListDisplay(
     workspaceExternalId: Signal<string | null>,
-    defaultShowThumbnails?: Signal<boolean>) {
+    defaultShowThumbnails?: Signal<boolean>,
+    disablePersistence?: Signal<boolean>) {
     const showThumbnails = signal(false);
 
     effect(() => {
         const wsId = workspaceExternalId();
-        const stored = wsId ? localStorage.getItem(STORAGE_PREFIX + wsId) : null;
+        const stored = (!disablePersistence?.() && wsId) ? localStorage.getItem(STORAGE_PREFIX + wsId) : null;
 
         if (stored === 'true')
             showThumbnails.set(true);
@@ -24,6 +25,10 @@ export function thumbnailListDisplay(
 
     function setShowThumbnails(value: boolean): void {
         showThumbnails.set(value);
+
+        if (disablePersistence?.())
+            return;
+
         const wsId = workspaceExternalId();
         if (wsId) localStorage.setItem(STORAGE_PREFIX + wsId, value ? 'true' : 'false');
     }

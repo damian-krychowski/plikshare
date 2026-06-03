@@ -30,9 +30,9 @@ export class BoxDefaultDisplayConfigComponent implements OnInit, OnChanges {
     selectedViewMode: ViewMode = 'list-view';
 
     sortOptions: { value: SortChoice, label: string }[] = [
-        { value: 'custom', label: 'Custom order' },
-        { value: 'name-asc', label: 'Name (A–Z)' },
-        { value: 'name-desc', label: 'Name (Z–A)' }
+        { value: 'custom', label: 'Custom' },
+        { value: 'name-asc', label: 'Name ↑' },
+        { value: 'name-desc', label: 'Name ↓' }
     ];
     selectedSort: SortChoice = 'custom';
 
