@@ -2099,7 +2099,12 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
     private scrollContainerToTop() {
         const container = this._elementRef.nativeElement;
-        requestAnimationFrame(() => container.scrollIntoView({ block: 'start', behavior: 'instant' }));
+        requestAnimationFrame(() => {
+            if (container.getBoundingClientRect().top < 0) {
+                container.style.scrollMarginTop = '16px';
+                container.scrollIntoView({ block: 'start', behavior: 'instant' });
+            }
+        });
     }
 
     toggleTreeSearchedFilesSelection() {
