@@ -7,7 +7,7 @@ Release notes for PlikShare.
 
 - [FEATURE] Per-box default display settings — each box now has a "Default display settings" card where the owner sets how the box looks when opened: initial view (list or tree), initial sorting (custom order, or name ascending/descending), and whether thumbnails start on. These defaults apply every time the box is opened through a shared link, an embedded widget, or the box preview
 - [IMPROVEMENT] Config cards can be collapsed — cards opt into a chevron button that folds the card down to just its title and description, keeping long settings pages tidy
-- [FIX] File and folder sorting now re-applies whenever the listing changes — opening a box preview with full permissions, or navigating into a subfolder, used to leave items in their raw order even though the sort indicator was set correctly; the chosen order is now applied consistently
+- [FIX] Box preview now respects the box's default sort — when opening a box you own (full permissions), files and folders showed in their raw order even though the sort indicator matched the configured default, because the list captured its order before the content finished loading; the configured sort is now applied correctly
 
 ## 1.1.33
 
