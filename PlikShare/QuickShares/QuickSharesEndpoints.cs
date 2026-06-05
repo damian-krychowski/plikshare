@@ -3,7 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Clock;
+using PlikShare.Core.Protobuf;
 using PlikShare.Core.Utils;
+using PlikShare.Files.Id;
+using PlikShare.Folders.Id;
 using PlikShare.QuickShares.Cache;
 using Audit = PlikShare.AuditLog.Details.Audit;
 using PlikShare.QuickShares.Create;
@@ -46,7 +49,8 @@ public static class QuickSharesEndpoints
             .AddEndpointFilter<ValidateWorkspaceFilter>();
 
         group.MapPost("/", CreateQuickShare)
-            .WithName("CreateQuickShare");
+            .WithName("CreateQuickShare")
+            .WithProtobufResponse();
 
         group.MapGet("/", GetQuickShares)
             .WithName("GetQuickShares");
@@ -89,7 +93,6 @@ public static class QuickSharesEndpoints
     }
 
     private static async Task<IResult> CreateQuickShare(
-        [FromBody] CreateQuickShareRequestDto request,
         HttpContext httpContext,
         CreateQuickShareQuery createQuickShareQuery,
         QuickSharePasswordHasher passwordHasher,
@@ -98,6 +101,8 @@ public static class QuickSharesEndpoints
         IClock clock,
         CancellationToken cancellationToken)
     {
+        var request = httpContext.GetProtobufRequest<CreateQuickShareRequestDto>();
+
         var workspace = httpContext.GetWorkspaceMembershipDetails().Workspace;
 
         if (workspace.EncryptionType == StorageEncryptionType.Full)
@@ -120,8 +125,14 @@ public static class QuickSharesEndpoints
         if (selectedFiles.Count == 0 && selectedFolders.Count == 0)
             return HttpErrors.QuickShare.NoItems();
 
-        if (request.ExpiresAt is not null && request.ExpiresAt <= clock.UtcNow)
+        var expiresAt = string.IsNullOrWhiteSpace(request.ExpiresAt)
+            ? (DateTimeOffset?)null
+            : DateTimeOffset.Parse(request.ExpiresAt);
+
+        if (expiresAt is not null && expiresAt <= clock.UtcNow)
             return HttpErrors.QuickShare.ExpirationInThePast();
+
+        var mode = EnumUtils.FromKebabCase<QuickShareMode>(request.Mode);
 
         if (request.MaxDownloads is <= 0)
             return TypedResults.BadRequest(new HttpError
@@ -151,13 +162,13 @@ public static class QuickSharesEndpoints
             creatorExternalId: creatorExternalId,
             name: name,
             customSlug: customSlug,
-            selectedFiles: selectedFiles,
-            selectedFolders: selectedFolders,
-            excludedFiles: excludedFiles,
-            excludedFolders: excludedFolders,
-            mode: request.Mode,
+            selectedFiles: selectedFiles ?? [],
+            selectedFolders: selectedFolders ?? [],
+            excludedFiles: excludedFiles ?? [],
+            excludedFolders: excludedFolders ?? [],
+            mode: mode,
             allowIndividualFileDownload: request.AllowIndividualFileDownload,
-            expiresAt: request.ExpiresAt,
+            expiresAt: expiresAt,
             passwordHashBase64: passwordHashBase64,
             passwordSalt: passwordSalt,
             maxDownloads: request.MaxDownloads,
@@ -185,21 +196,23 @@ public static class QuickSharesEndpoints
                             ExternalId = result.QuickShareExternalId,
                             Name = name
                         },
-                        mode: request.Mode,
+                        mode: mode,
                         allowIndividualFileDownload: request.AllowIndividualFileDownload,
                         hasPassword: passwordHashBase64 is not null,
                         maxDownloads: request.MaxDownloads,
-                        expiresAt: request.ExpiresAt,
+                        expiresAt: expiresAt,
                         selectedFiles: selectedCtx.Files,
                         selectedFolders: selectedCtx.Folders,
                         excludedFiles: excludedCtx.Files,
                         excludedFolders: excludedCtx.Folders),
                     cancellationToken);
 
-                return TypedResults.Ok(new CreateQuickShareResponseDto(
-                    ExternalId: result.QuickShareExternalId,
-                    Slug: result.Slug!,
-                    Url: urlBuilder.BuildUrl(result.Slug!)));
+                return TypedResults.Ok(new CreateQuickShareResponseDto
+                {
+                    ExternalId = result.QuickShareExternalId.Value,
+                    Slug = result.Slug!,
+                    Url = urlBuilder.BuildUrl(result.Slug!)
+                });
 
             case CreateQuickShareQuery.ResultCode.CreatorNotFound:
                 return HttpErrors.User.NotFound(creatorExternalId);

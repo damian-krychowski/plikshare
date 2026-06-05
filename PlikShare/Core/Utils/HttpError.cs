@@ -589,6 +589,13 @@ public static class HttpErrors
                 Message = $"Files with externalIds {string.Join(", ", notFoundFileExternalIds)} were not found."
             });
 
+        public static NotFound<HttpError> SomeFilesNotFound(IEnumerable<string> notFoundFileExternalIds) =>
+            TypedResults.NotFound(new HttpError
+            {
+                Code = "some-files-dont-exist",
+                Message = $"Files with externalIds {string.Join(", ", notFoundFileExternalIds)} were not found."
+            });
+
         public static BadRequest<HttpError> InvalidContentDisposition(string contentDisposition) =>
             TypedResults.BadRequest(new HttpError
             {

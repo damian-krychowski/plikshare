@@ -2,9 +2,7 @@ using PlikShare.Core.Clock;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Files.BulkDownload.Contracts;
-using PlikShare.Files.Id;
 using PlikShare.Files.PreSignedLinks;
-using PlikShare.Folders.Id;
 using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.Files.BulkDownload;
@@ -23,10 +21,10 @@ public class GetBulkDownloadLinkOperation(
         int? boxLinkId,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
-        var selectedFolders = request.SelectedFolders.Select(FolderExtId.Parse).ToList();
-        var selectedFiles = request.SelectedFiles.Select(FileExtId.Parse).ToList();
-        var excludedFolders = request.ExcludedFolders.Select(FolderExtId.Parse).ToList();
-        var excludedFiles = request.ExcludedFiles.Select(FileExtId.Parse).ToList();
+        var selectedFolders = request.SelectedFolders ?? [];
+        var selectedFiles = request.SelectedFiles ?? [];
+        var excludedFolders = request.ExcludedFolders ?? [];
+        var excludedFiles = request.ExcludedFiles ?? [];
 
         var downloadDetails = getBulkDownloadDetailsQuery.Execute(
             workspace: workspace,
@@ -40,28 +38,28 @@ public class GetBulkDownloadLinkOperation(
             return new Result(
                 Code: ResultCode.FilesNotFound,
                 NotFoundFileExternalIds: selectedFiles
-                    .Except(downloadDetails.SelectedFiles.Select(f => f.ExternalId))
+                    .Except(downloadDetails.SelectedFiles.Select(f => f.ExternalId.Value))
                     .ToList());
 
         if (downloadDetails.ExcludedFiles.Count != excludedFiles.Count)
             return new Result(
                 Code: ResultCode.FilesNotFound,
                 NotFoundFileExternalIds: selectedFiles
-                    .Except(downloadDetails.SelectedFiles.Select(f => f.ExternalId))
+                    .Except(downloadDetails.SelectedFiles.Select(f => f.ExternalId.Value))
                     .ToList());
 
         if (downloadDetails.SelectedFolders.Count != selectedFolders.Count)
             return new Result(
                 Code: ResultCode.FoldersNotFound,
                 NotFoundFolderExternalIds: selectedFolders
-                    .Except(downloadDetails.SelectedFolders.Select(f => f.ExternalId))
+                    .Except(downloadDetails.SelectedFolders.Select(f => f.ExternalId.Value))
                     .ToList());
 
         if (downloadDetails.ExcludedFolders.Count != excludedFolders.Count)
             return new Result(
                 Code: ResultCode.FoldersNotFound,
                 NotFoundFolderExternalIds: selectedFolders
-                    .Except(downloadDetails.SelectedFolders.Select(f => f.ExternalId))
+                    .Except(downloadDetails.SelectedFolders.Select(f => f.ExternalId.Value))
                     .ToList());
 
         var preSignedUrl = preSignedUrlsService.GeneratePreSignedBulkDownloadUrl(
@@ -90,8 +88,8 @@ public class GetBulkDownloadLinkOperation(
     public record Result(
         ResultCode Code,
         string? PreSignedUrl = default,
-        List<FileExtId>? NotFoundFileExternalIds = default,
-        List<FolderExtId>? NotFoundFolderExternalIds = default);
+        List<string>? NotFoundFileExternalIds = default,
+        List<string>? NotFoundFolderExternalIds = default);
     
     public enum ResultCode
     {

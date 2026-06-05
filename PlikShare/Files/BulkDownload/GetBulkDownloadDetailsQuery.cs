@@ -11,10 +11,10 @@ public class GetBulkDownloadDetailsQuery(PlikShareDb plikShareDb)
 {
     public Result Execute(
         WorkspaceContext workspace,
-        List<FolderExtId> selectedFolderExternalIds,
-        List<FolderExtId> excludedFolderExternalIds,
-        List<FileExtId> selectedFileExternalIds,
-        List<FileExtId> excludedFileExternalIds,
+        List<string> selectedFolderExternalIds,
+        List<string> excludedFolderExternalIds,
+        List<string> selectedFileExternalIds,
+        List<string> excludedFileExternalIds,
         int? boxFolderId)
     {
         using var connection = plikShareDb.OpenConnection();
@@ -44,8 +44,8 @@ public class GetBulkDownloadDetailsQuery(PlikShareDb plikShareDb)
 
     private static (List<Folder> SelectedFolders, List<Folder> ExcludedFolders) GetRequestFolders(
         WorkspaceContext workspace,
-        List<FolderExtId> selectedFolderExternalIds,
-        List<FolderExtId> excludedFolderExternalIds,
+        List<string> selectedFolderExternalIds,
+        List<string> excludedFolderExternalIds,
         int? boxFolderId,
         SqliteConnection connection)
     {
@@ -87,11 +87,11 @@ public class GetBulkDownloadDetailsQuery(PlikShareDb plikShareDb)
             .Execute();
 
         var selectedFolders = requestFolders
-            .Where(folder => selectedFolderExternalIds.Any(fId => fId == folder.ExternalId))
+            .Where(folder => selectedFolderExternalIds.Any(fId => fId == folder.ExternalId.Value))
             .ToList();
 
         var excludedFolders = requestFolders
-            .Where(folder => excludedFolderExternalIds.Any(fId => fId == folder.ExternalId))
+            .Where(folder => excludedFolderExternalIds.Any(fId => fId == folder.ExternalId.Value))
             .ToList();
 
         return (selectedFolders, excludedFolders);
@@ -99,8 +99,8 @@ public class GetBulkDownloadDetailsQuery(PlikShareDb plikShareDb)
 
     private static (List<File> SelectedFiles, List<File> ExcludedFiles) GetRequestFiles(
        WorkspaceContext workspace,
-       List<FileExtId> selectedFileExternalIds,
-       List<FileExtId> excludedFileExternalIds,
+       List<string> selectedFileExternalIds,
+       List<string> excludedFileExternalIds,
        int? boxFolderId,
        SqliteConnection connection)
     {
@@ -151,11 +151,11 @@ public class GetBulkDownloadDetailsQuery(PlikShareDb plikShareDb)
             .Execute();
 
         var selectedFiles = requestedFiles
-            .Where(folder => selectedFileExternalIds.Any(fId => fId == folder.ExternalId))
+            .Where(folder => selectedFileExternalIds.Any(fId => fId == folder.ExternalId.Value))
             .ToList();
 
         var excludedFiles = requestedFiles
-            .Where(folder => excludedFileExternalIds.Any(fId => fId == folder.ExternalId))
+            .Where(folder => excludedFileExternalIds.Any(fId => fId == folder.ExternalId.Value))
             .ToList();
 
         return (selectedFiles, excludedFiles);

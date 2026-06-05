@@ -24,6 +24,7 @@ public class GetZipBulkDownloadLinkOperation(
         IUserIdentity userIdentity,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
+
         var (isEmpty, file) = getFileDetailsQuery.Execute(
             workspaceId: workspace.Id,
             fileExternalId: fileExternalId,
@@ -36,19 +37,25 @@ public class GetZipBulkDownloadLinkOperation(
         if (file.Extension != ".zip")
             return new Result(Code: ResultCode.WrongFileExtension);
 
+
+        var selectedFolderIds = request.SelectedFolderIds ?? [];
+        var selectedEntryIndices = request.SelectedEntryIndices ?? [];
+        var excludedFolderIds = request.ExcludedFolderIds ?? [];
+        var excludedEntryIndices = request.ExcludedEntryIndices ?? [];
+
         // Empty selection would produce a zero-entry zip; reject it at the link
         // stage so the client cannot accidentally generate a useless download URL.
-        if (request.SelectedFolderIds.Length == 0 && request.SelectedEntryIndices.Length == 0)
+        if (selectedFolderIds.Length == 0 && selectedEntryIndices.Length == 0)
             return new Result(Code: ResultCode.EmptySelection);
 
         var preSignedUrl = preSignedUrlsService.GeneratePreSignedZipBulkDownloadUrl(
             payload: new PreSignedUrlsService.ZipBulkDownloadPayload
             {
                 FileExternalId = file.ExternalId,
-                SelectedFolderIds = request.SelectedFolderIds,
-                SelectedEntryIndices = request.SelectedEntryIndices,
-                ExcludedFolderIds = request.ExcludedFolderIds,
-                ExcludedEntryIndices = request.ExcludedEntryIndices,
+                SelectedFolderIds = selectedFolderIds,
+                SelectedEntryIndices = selectedEntryIndices,
+                ExcludedFolderIds = excludedFolderIds,
+                ExcludedEntryIndices = excludedEntryIndices,
                 PreSignedBy = new PreSignedUrlsService.PreSignedUrlOwner
                 {
                     Identity = userIdentity.Identity,
@@ -66,7 +73,7 @@ public class GetZipBulkDownloadLinkOperation(
 
     public record Result(
         ResultCode Code,
-        string? DownloadPreSignedUrl = default);
+        string? DownloadPreSignedUrl = null);
 
     public enum ResultCode
     {

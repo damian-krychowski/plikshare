@@ -10,7 +10,6 @@ using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.Integrations.Create.Contracts;
 using PlikShare.Integrations.Id;
 using PlikShare.QuickShares;
-using PlikShare.QuickShares.Create.Contracts;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.List.Contracts;
 using PlikShare.Workspaces.ChangeOwner.Contracts;
@@ -188,18 +187,17 @@ public class workspace_tests : TestFixture
 
         await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: new CreateQuickShareRequestDto(
-                Name: "share",
-                CustomSlug: null,
-                SelectedFiles: [file.ExternalId],
-                SelectedFolders: [],
-                ExcludedFiles: [],
-                ExcludedFolders: [],
-                Mode: QuickShareMode.Browser,
-                AllowIndividualFileDownload: true,
-                ExpiresAt: null,
-                Password: null,
-                MaxDownloads: null),
+            name: "share",
+            customSlug: null,
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            excludedFiles: [],
+            excludedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
+            expiresAt: null,
+            password: null,
+            maxDownloads: null,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 

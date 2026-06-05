@@ -8,7 +8,6 @@ using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.QuickShareExternalAccess.Contracts;
 using PlikShare.QuickShares;
-using PlikShare.QuickShares.Create.Contracts;
 using PlikShare.QuickShares.Id;
 using PlikShare.Storages.Encryption;
 using PlikShare.Workspaces.Id;
@@ -832,18 +831,17 @@ public class quick_share_external_access_tests : TestFixture
 
         var created = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: new CreateQuickShareRequestDto(
-                Name: name,
-                CustomSlug: null,
-                SelectedFiles: [file.ExternalId],
-                SelectedFolders: [],
-                ExcludedFiles: [],
-                ExcludedFolders: [],
-                Mode: QuickShareMode.Browser,
-                AllowIndividualFileDownload: allowIndividualFileDownload,
-                ExpiresAt: expiresAt,
-                Password: password,
-                MaxDownloads: maxDownloads),
+            name: name,
+            customSlug: null,
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            excludedFiles: [],
+            excludedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: allowIndividualFileDownload,
+            expiresAt: expiresAt,
+            password: password,
+            maxDownloads: maxDownloads,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -957,18 +955,17 @@ public class quick_share_external_access_tests : TestFixture
 
         var created = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: new CreateQuickShareRequestDto(
-                Name: "nested share",
-                CustomSlug: null,
-                SelectedFiles: [],
-                SelectedFolders: [root.ExternalId],
-                ExcludedFiles: [],
-                ExcludedFolders: [],
-                Mode: QuickShareMode.Browser,
-                AllowIndividualFileDownload: true,
-                ExpiresAt: null,
-                Password: null,
-                MaxDownloads: null),
+            name: "nested share",
+            customSlug: null,
+            selectedFiles: [],
+            selectedFolders: [root.ExternalId],
+            excludedFiles: [],
+            excludedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
+            expiresAt: null,
+            password: null,
+            maxDownloads: null,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 

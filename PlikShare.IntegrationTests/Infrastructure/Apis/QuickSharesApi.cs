@@ -1,4 +1,8 @@
 using Flurl.Http;
+using PlikShare.Core.Utils;
+using PlikShare.Files.Id;
+using PlikShare.Folders.Id;
+using PlikShare.QuickShares;
 using PlikShare.QuickShares.Create.Contracts;
 using PlikShare.QuickShares.Get.Contracts;
 using PlikShare.QuickShares.Id;
@@ -16,19 +20,54 @@ namespace PlikShare.IntegrationTests.Infrastructure.Apis;
 
 public class QuickSharesApi(IFlurlClient flurlClient, string appUrl)
 {
-    public async Task<CreateQuickShareResponseDto> Create(
+    public async Task<CreatedQuickShare> Create(
         WorkspaceExtId workspaceExternalId,
-        CreateQuickShareRequestDto request,
+        string name,
+        List<FileExtId> selectedFiles,
+        List<FolderExtId> selectedFolders,
+        QuickShareMode mode,
+        bool allowIndividualFileDownload,
         SessionAuthCookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies antiforgery,
+        string? customSlug = null,
+        List<FileExtId>? excludedFiles = null,
+        List<FolderExtId>? excludedFolders = null,
+        DateTimeOffset? expiresAt = null,
+        string? password = null,
+        int? maxDownloads = null)
     {
-        return await flurlClient.ExecutePost<CreateQuickShareResponseDto, CreateQuickShareRequestDto>(
+        var response = await flurlClient.ExecutePost<CreateQuickShareResponseDto, CreateQuickShareRequestDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/quick-shares",
-            request: request,
+            request: new CreateQuickShareRequestDto
+            {
+                Name = name,
+                CustomSlug = customSlug,
+                SelectedFiles = selectedFiles.Select(x => x.Value).ToList(),
+                SelectedFolders = selectedFolders.Select(x => x.Value).ToList(),
+                ExcludedFiles = (excludedFiles ?? []).Select(x => x.Value).ToList(),
+                ExcludedFolders = (excludedFolders ?? []).Select(x => x.Value).ToList(),
+                Mode = mode.ToKebabCase(),
+                AllowIndividualFileDownload = allowIndividualFileDownload,
+                ExpiresAt = expiresAt?.ToString("O"),
+                Password = password,
+                MaxDownloads = maxDownloads
+            },
             cookie: cookie,
-            antiforgery: antiforgery);
+            antiforgery: antiforgery,
+            isRequestInProtobuf: true,
+            isResponseInProtobuf: true);
+
+        return new CreatedQuickShare(
+            ExternalId: new QuickShareExtId(response.ExternalId),
+            Slug: response.Slug,
+            Url: response.Url);
     }
+
+    public record CreatedQuickShare(
+        QuickShareExtId ExternalId,
+        string Slug,
+        string Url);
 
     public async Task<GetQuickSharesResponseDto> GetList(
         WorkspaceExtId workspaceExternalId,

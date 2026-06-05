@@ -20,10 +20,10 @@ public class CreateQuickShareQuery(
         UserExtId creatorExternalId,
         string name,
         string? customSlug,
-        List<FileExtId> selectedFiles,
-        List<FolderExtId> selectedFolders,
-        List<FileExtId> excludedFiles,
-        List<FolderExtId> excludedFolders,
+        List<string> selectedFiles,
+        List<string> selectedFolders,
+        List<string> excludedFiles,
+        List<string> excludedFolders,
         QuickShareMode mode,
         bool allowIndividualFileDownload,
         DateTimeOffset? expiresAt,
@@ -58,10 +58,10 @@ public class CreateQuickShareQuery(
         UserExtId creatorExternalId,
         string name,
         string? customSlug,
-        List<FileExtId> selectedFiles,
-        List<FolderExtId> selectedFolders,
-        List<FileExtId> excludedFiles,
-        List<FolderExtId> excludedFolders,
+        List<string> selectedFiles,
+        List<string> selectedFolders,
+        List<string> excludedFiles,
+        List<string> excludedFolders,
         QuickShareMode mode,
         bool allowIndividualFileDownload,
         DateTimeOffset? expiresAt,
@@ -311,7 +311,7 @@ public class CreateQuickShareQuery(
 
     private static List<int> ResolveFiles(
         int workspaceId,
-        List<FileExtId> fileExternalIds,
+        List<string> fileExternalIds,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
@@ -338,7 +338,7 @@ public class CreateQuickShareQuery(
 
     private static List<int> ResolveFolders(
         int workspaceId,
-        List<FolderExtId> folderExternalIds,
+        List<string> folderExternalIds,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {

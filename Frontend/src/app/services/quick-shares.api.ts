@@ -1,6 +1,9 @@
 import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
+import { ProtoHttp } from "./protobuf-http.service";
+import { getCreateQuickShareRequestDtoProtobuf } from "../protobuf/create-quick-share-request-dto.protobuf";
+import { getCreateQuickShareResponseDtoProtobuf } from "../protobuf/create-quick-share-response-dto.protobuf";
 
 export type QuickShareMode = 'browser' | 'direct';
 
@@ -114,18 +117,21 @@ export interface UpdateQuickShareItemsRequest {
     providedIn: 'root'
 })
 export class QuickSharesApi {
-    constructor(private _http: HttpClient) {
+    constructor(
+        private _http: HttpClient,
+        private _protoHttp: ProtoHttp) {
     }
 
-    public async createQuickShare(
+    public createQuickShare(
         workspaceExternalId: string,
         request: CreateQuickShareRequest
     ): Promise<CreateQuickShareResponse> {
-        const call = this._http.post<CreateQuickShareResponse>(
-            `/api/workspaces/${workspaceExternalId}/quick-shares/`,
-            request);
-
-        return await firstValueFrom(call);
+        return this._protoHttp.post<CreateQuickShareRequest, CreateQuickShareResponse>({
+            route: `/api/workspaces/${workspaceExternalId}/quick-shares/`,
+            request: request,
+            requestProtoType: getCreateQuickShareRequestDtoProtobuf(),
+            responseProtoType: getCreateQuickShareResponseDtoProtobuf()
+        });
     }
 
     public async getQuickShares(

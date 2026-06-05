@@ -6,7 +6,6 @@ using PlikShare.Folders.Id;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.QuickShares;
-using PlikShare.QuickShares.Create.Contracts;
 using PlikShare.QuickShares.UpdateExpiration.Contracts;
 using PlikShare.QuickShares.UpdateItems.Contracts;
 using PlikShare.QuickShares.UpdateMaxDownloads.Contracts;
@@ -47,9 +46,11 @@ public class quick_share_management_tests : TestFixture
         //when
         var response = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "browser share",
-                selectedFiles: [file.ExternalId]),
+            name: "browser share",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -88,11 +89,11 @@ public class quick_share_management_tests : TestFixture
         //when
         var response = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "direct share",
-                selectedFiles: [file.ExternalId],
-                mode: QuickShareMode.Direct,
-                allowIndividualFileDownload: false),
+            name: "direct share",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Direct,
+            allowIndividualFileDownload: false,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -116,10 +117,12 @@ public class quick_share_management_tests : TestFixture
         //when
         var response = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "custom slug",
-                selectedFiles: [file.ExternalId],
-                customSlug: customSlug),
+            name: "custom slug",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
+            customSlug: customSlug,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -143,10 +146,12 @@ public class quick_share_management_tests : TestFixture
         //when
         var response = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "with password",
-                selectedFiles: [file.ExternalId],
-                password: "Secret123!"),
+            name: "with password",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
+            password: "Secret123!",
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -169,10 +174,12 @@ public class quick_share_management_tests : TestFixture
         //when
         var response = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "with expiration",
-                selectedFiles: [file.ExternalId],
-                expiresAt: expiresAt),
+            name: "with expiration",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
+            expiresAt: expiresAt,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -194,10 +201,12 @@ public class quick_share_management_tests : TestFixture
         //when
         var response = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "limited",
-                selectedFiles: [file.ExternalId],
-                maxDownloads: 5),
+            name: "limited",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
+            maxDownloads: 5,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -219,20 +228,24 @@ public class quick_share_management_tests : TestFixture
 
         await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "first",
-                selectedFiles: [file.ExternalId],
-                customSlug: customSlug),
+            name: "first",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
+            customSlug: customSlug,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
         //when
         var act = async () => await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "second",
-                selectedFiles: [file.ExternalId],
-                customSlug: customSlug),
+            name: "second",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
+            customSlug: customSlug,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -250,10 +263,12 @@ public class quick_share_management_tests : TestFixture
         //when
         var act = async () => await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "expired",
-                selectedFiles: [file.ExternalId],
-                expiresAt: Clock.UtcNow.AddHours(-1)),
+            name: "expired",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
+            expiresAt: Clock.UtcNow.AddHours(-1),
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -270,9 +285,11 @@ public class quick_share_management_tests : TestFixture
         //when
         var act = async () => await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "empty",
-                selectedFiles: []),
+            name: "empty",
+            selectedFiles: [],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -289,9 +306,11 @@ public class quick_share_management_tests : TestFixture
         //when
         var act = async () => await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "   ",
-                selectedFiles: [file.ExternalId]),
+            name: "   ",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -308,10 +327,12 @@ public class quick_share_management_tests : TestFixture
         //when
         var act = async () => await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "bad",
-                selectedFiles: [file.ExternalId],
-                maxDownloads: 0),
+            name: "bad",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
+            maxDownloads: 0,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -329,17 +350,21 @@ public class quick_share_management_tests : TestFixture
 
         var first = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "first",
-                selectedFiles: [file.ExternalId]),
+            name: "first",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
         var second = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "second",
-                selectedFiles: [file.ExternalId]),
+            name: "second",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -373,9 +398,11 @@ public class quick_share_management_tests : TestFixture
 
         var created = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "nested",
-                selectedFiles: [file.ExternalId]),
+            name: "nested",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -738,9 +765,11 @@ public class quick_share_management_tests : TestFixture
 
         var created = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "items test",
-                selectedFiles: [fileA.ExternalId]),
+            name: "items test",
+            selectedFiles: [fileA.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -821,10 +850,12 @@ public class quick_share_management_tests : TestFixture
         //when
         var response = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "audit-create",
-                selectedFiles: [file.ExternalId],
-                password: "p"),
+            name: "audit-create",
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
+            password: "p",
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -1027,9 +1058,11 @@ public class quick_share_management_tests : TestFixture
 
         var created = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: "items audit",
-                selectedFiles: [fileA.ExternalId]),
+            name: "items audit",
+            selectedFiles: [fileA.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
@@ -1083,30 +1116,6 @@ public class quick_share_management_tests : TestFixture
 
     // --- Helpers ---
 
-    private static CreateQuickShareRequestDto NewCreateRequest(
-        string name,
-        List<FileExtId> selectedFiles,
-        List<FolderExtId>? selectedFolders = null,
-        List<FileExtId>? excludedFiles = null,
-        List<FolderExtId>? excludedFolders = null,
-        string? customSlug = null,
-        QuickShareMode mode = QuickShareMode.Browser,
-        bool allowIndividualFileDownload = true,
-        DateTimeOffset? expiresAt = null,
-        string? password = null,
-        int? maxDownloads = null) => new(
-            Name: name,
-            CustomSlug: customSlug,
-            SelectedFiles: selectedFiles,
-            SelectedFolders: selectedFolders ?? [],
-            ExcludedFiles: excludedFiles ?? [],
-            ExcludedFolders: excludedFolders ?? [],
-            Mode: mode,
-            AllowIndividualFileDownload: allowIndividualFileDownload,
-            ExpiresAt: expiresAt,
-            Password: password,
-            MaxDownloads: maxDownloads);
-
     private async Task<(AppWorkspace Workspace, AppFolder Folder, AppFile File)> CreateWorkspaceWithFile()
     {
         var workspace = await CreateWorkspace(storage: Storage, user: AppOwner);
@@ -1133,12 +1142,14 @@ public class quick_share_management_tests : TestFixture
 
         var created = await Api.QuickShares.Create(
             workspaceExternalId: workspace.ExternalId,
-            request: NewCreateRequest(
-                name: name,
-                selectedFiles: [file.ExternalId],
-                password: password,
-                expiresAt: expiresAt,
-                maxDownloads: maxDownloads),
+            name: name,
+            selectedFiles: [file.ExternalId],
+            selectedFolders: [],
+            mode: QuickShareMode.Browser,
+            allowIndividualFileDownload: true,
+            expiresAt: expiresAt,
+            password: password,
+            maxDownloads: maxDownloads,
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 

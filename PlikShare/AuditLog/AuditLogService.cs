@@ -104,6 +104,17 @@ public class AuditLogService(
 
 
     public BulkItemsContext GetBulkItemsContext(
+        List<string> folderExternalIds,
+        List<string> fileExternalIds,
+        List<string> fileUploadExternalIds)
+    {
+        return GetBulkItemsContext(
+            folderExternalIds: folderExternalIds.Select(FolderExtId.Parse).ToList(),
+            fileExternalIds: fileExternalIds.Select(FileExtId.Parse).ToList(),
+            fileUploadExternalIds: fileUploadExternalIds.Select(FileUploadExtId.Parse).ToList());
+    }
+
+    public BulkItemsContext GetBulkItemsContext(
         List<FolderExtId> folderExternalIds,
         List<FileExtId> fileExternalIds,
         List<FileUploadExtId> fileUploadExternalIds)
