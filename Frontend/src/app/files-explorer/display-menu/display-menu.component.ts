@@ -14,7 +14,7 @@ export type ViewMode = 'list-view' | 'tree-view';
     templateUrl: './display-menu.component.html',
     styleUrl: './display-menu.component.scss'
 })
-export class DisplayMenuComponent {d
+export class DisplayMenuComponent {
     viewMode = input.required<ViewMode>();
     sortMode = input.required<SortMode>();
     sortDirection = input.required<SortDirection>();

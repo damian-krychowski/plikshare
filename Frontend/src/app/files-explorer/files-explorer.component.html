@@ -208,7 +208,11 @@
                         <app-action-btn
                             tooltip="Generate thumbnails"
                             icon="icon-nucleo-image-scale"
-                            (clicked)="generateThumbnailsForSelectedItems()">
+                            appConfirmOperation
+                            [operationItem]="'for the selected files'"
+                            [verb]="'generate thumbnails'"
+                            [operationSubtitle]="'Thumbnails will be generated in the background.'"
+                            (confirmedClick)="generateThumbnailsForSelectedItems()">
                         </app-action-btn>
                     }
 

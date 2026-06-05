@@ -1,13 +1,14 @@
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ThumbnailBatchProgressService } from '../../services/thumbnail-batch-progress.service';
+import { ConfirmOperationDirective } from '../../shared/operation-confirm/confirm-operation.directive';
 
 // Compact, self-contained thumbnail-generation indicator for the toolbar: reads the app-wide batch
 // tracker and renders an icon + mini bar + done/total. Renders nothing when no batch is tracked.
 @Component({
     selector: 'app-thumbnail-progress',
     standalone: true,
-    imports: [MatTooltipModule],
+    imports: [MatTooltipModule, ConfirmOperationDirective],
     templateUrl: './thumbnail-progress.component.html',
     styleUrl: './thumbnail-progress.component.scss'
 })

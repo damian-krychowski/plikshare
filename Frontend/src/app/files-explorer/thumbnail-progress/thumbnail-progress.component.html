@@ -14,7 +14,12 @@
             <button
                 type="button"
                 class="thumb-progress__cancel"
-                (click)="cancel()"
+                appConfirmOperation
+                [operationItem]="'thumbnail generation'"
+                [verb]="'stop'"
+                [isOperationDanger]="true"
+                [operationSubtitle]="'Files still in the queue will not be processed.'"
+                (confirmedClick)="cancel()"
                 matTooltip="Cancel"
                 aria-label="Cancel thumbnail generation">×</button>
         }
