@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using Serilog;
@@ -760,6 +761,11 @@ public class Queue(
         SqliteTransaction transaction,
         string consumerIdentity)
     {
+        dbWriteContext.Connection.CreateFunction(
+            "app_redact_ephemeral",
+            (string? json) => EphemeralValueRedactor.Redact(json),
+            isDeterministic: true);
+
         var insertQueueCompletedResult = dbWriteContext
             .OneRowCmd(
                 sql: @"
@@ -778,7 +784,7 @@ public class Queue(
                     SELECT
                         q_id,
                         q_job_type,
-                        q_definition,
+                        app_redact_ephemeral(q_definition),
                         q_failed_retries_count,
                         q_enqueued_at,
                         q_execute_after_date,

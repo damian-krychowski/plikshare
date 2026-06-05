@@ -211,7 +211,8 @@ public class ProcessImageQueueJobExecutorV2(
                 
                 var (details, error) = GetVariantFileEncryptionModeAndEncryptionSeed(
                     workspace: workspace,
-                    variantItem: variantBatchItem);
+                    variantItem: variantBatchItem,
+                    parentFileExternalId: batchItem.ParentFileExternalId);
 
                 if (error is not null)
                 {
@@ -360,23 +361,17 @@ public class ProcessImageQueueJobExecutorV2(
             return (encryptionMode, null);
         }
         
-        if (file.EncryptionSeed is null)
-        {
-            throw new InvalidOperationException("TODO");
-        }
+        var (seed, error) = ResolveEncryptionSeed(
+            ephemeralSeed: file.EncryptionSeed,
+            workspace: workspace,
+            parentFileExternalId: file.ExternalId);
 
-        var decodeResult = file.EncryptionSeed.TryDecode(
-            ephemeralKeyRing: ephemeralKeyRing,
-            out var seed);
-
-        if (decodeResult != EphemeralDecodeStatus.Ok || seed is null)
-        {
-            throw new InvalidOperationException("TODO"); //handle somehow, probably no point if expired, we need to gracefully end job then
-        }
+        if (error is not null)
+            return (null, error);
 
         using (seed)
         {
-            var fullEncryptionMode = seed.ToFileEncryptionMode(
+            var fullEncryptionMode = seed!.ToFileEncryptionMode(
                 metadata: file.EncryptionMetadata!);
 
             return (fullEncryptionMode, null);
@@ -385,7 +380,8 @@ public class ProcessImageQueueJobExecutorV2(
 
     private VariantFileDetailsResult GetVariantFileEncryptionModeAndEncryptionSeed(
         WorkspaceContext workspace,
-        ProcessImageQueueJobDefinitionV2.VariantItem variantItem)
+        ProcessImageQueueJobDefinitionV2.VariantItem variantItem,
+        FileExtId parentFileExternalId)
     {
         if (workspace.EncryptionType != StorageEncryptionType.Full)
         {
@@ -403,21 +399,17 @@ public class ProcessImageQueueJobExecutorV2(
                 Error: null);
         }
 
-        if (variantItem.EncryptionSeed is null)
-        {
-            throw new InvalidOperationException("TODO");
-        }
+        var (seed, error) = ResolveEncryptionSeed(
+            ephemeralSeed: variantItem.EncryptionSeed,
+            workspace: workspace,
+            parentFileExternalId: parentFileExternalId);
 
-        var decodeResult = variantItem.EncryptionSeed.TryDecode(
-            ephemeralKeyRing: ephemeralKeyRing,
-            out var seed);
+        if (error is not null)
+            return new VariantFileDetailsResult(
+                Details: null,
+                Error: error);
 
-        if (decodeResult != EphemeralDecodeStatus.Ok || seed is null)
-        {
-            throw new InvalidOperationException("TODO"); //handle somehow, probably no point if expired, we need to gracefully end job then
-        }
-
-        var fileEncryptionMetadata = seed.GenerateFileEncryptionMetadata();
+        var fileEncryptionMetadata = seed!.GenerateFileEncryptionMetadata();
 
         var fullEncryptionMode = seed.ToFileEncryptionMode(
             fileEncryptionMetadata);
@@ -428,6 +420,47 @@ public class ProcessImageQueueJobExecutorV2(
                 EncryptionMetadata: fileEncryptionMetadata,
                 EncryptionSeed: seed),
             Error: null);
+    }
+
+    private (FullEncryptionSeed? Seed, string? Error) ResolveEncryptionSeed(
+        FullEncryptionSeedEphemeral? ephemeralSeed,
+        WorkspaceContext workspace,
+        FileExtId parentFileExternalId)
+    {
+        if (ephemeralSeed is null)
+        {
+            Logger.Error(
+                "Full-encryption file '{ParentFileExternalId}' in workspace#{WorkspaceId} has no ephemeral encryption seed in the job definition.",
+                parentFileExternalId,
+                workspace.Id);
+
+            return (null, "encryption seed missing for full-encryption file");
+        }
+
+        var status = ephemeralSeed.TryDecode(
+            ephemeralKeyRing: ephemeralKeyRing,
+            out var seed);
+
+        if (status == EphemeralDecodeStatus.Ok && seed is not null)
+            return (seed, null);
+
+        if (status == EphemeralDecodeStatus.Expired)
+        {
+            Logger.Warning(
+                "Ephemeral encryption key expired for full-encryption file '{ParentFileExternalId}' in workspace#{WorkspaceId} — the job is older than the key TTL or the service was restarted. Skipping thumbnail generation.",
+                parentFileExternalId,
+                workspace.Id);
+
+            return (null, "encryption key no longer available");
+        }
+
+        Logger.Error(
+            "Ephemeral encryption key could not be decoded ({Status}) for full-encryption file '{ParentFileExternalId}' in workspace#{WorkspaceId}.",
+            status,
+            parentFileExternalId,
+            workspace.Id);
+
+        return (null, "encryption key could not be decoded");
     }
 
     private async Task<VariantResults> PrepareThumbnailVariants(

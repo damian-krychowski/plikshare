@@ -7,6 +7,7 @@ using PlikShare.Files.Metadata;
 using PlikShare.Integrations.Aws.Textract.TestConfiguration;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.TestAssets;
+using PlikShare.Storages.Encryption;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Files;
@@ -817,6 +818,84 @@ public class thumbnail_generation_tests : TestFixture
         sizeAfterThumbnail.Should().Be(
             expectedSize,
             "the freshly generated thumbnail's bytes must be reflected in the recalculated workspace size");
+    }
+
+    [Fact]
+    public async Task full_encryption_thumbnail_job_redacts_ephemeral_keys_in_completed_queue()
+    {
+        //given — a FULL-encryption workspace; its thumbnail jobs carry eph:-wrapped keys in
+        // q_definition. After completion those must be redacted in qc_queue_completed so the
+        // archived JSON never holds the (otherwise dead) ephemeral key ciphertext.
+        var storage = await CreateHardDriveStorage(
+            user: AppOwner,
+            encryptionType: StorageEncryptionType.Full);
+        
+        var workspace = await CreateWorkspace(
+            storage: storage,
+            user: AppOwner);
+
+        var folder = await CreateFolder(
+            workspace: workspace,
+            user: AppOwner);
+
+        var parentFile = await UploadFile(
+            content: TextractTestImage.GetBytes(),
+            fileName: "sample.png",
+            contentType: "image/png",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        await WaitForFileUnlocked(parentFile.ExternalId, AppOwner);
+
+        //when — generate a thumbnail (full encryption requires the workspace encryption session)
+        var batchId = await Api.MediaProcessing.GenerateFileThumbnails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: parentFile.ExternalId,
+            variants: [ThumbnailVariant.Mini],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery,
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
+
+        await Api.MediaProcessing.WaitForBatchDone(
+            workspaceExternalId: workspace.ExternalId,
+            batchId: batchId,
+            cookie: AppOwner.Cookie,
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
+
+        //then — the archived definition must carry redaction markers, never raw eph: ciphertext
+        var completedDefinitions = ReadCompletedQueueDefinitions(batchId);
+
+        completedDefinitions.Should().NotBeEmpty(
+            "the finished thumbnail job must be archived in qc_queue_completed");
+
+        var joined = string.Join("\n", completedDefinitions);
+
+        joined.Should().Contain(
+            "eph:[redacted]",
+            "full-encryption thumbnail jobs wrap keys as eph: values which must be redacted on completion");
+
+        joined.Should().NotMatchRegex(
+            "eph:[A-Za-z0-9+/=]",
+            "no raw eph: ciphertext may survive in the completed queue — only eph:[redacted]");
+    }
+
+    // Reads every qc_queue_completed.qc_definition archived for a batch straight from the DB,
+    // so the assertion sees exactly what persisted after the job left q_queue.
+    private List<string> ReadCompletedQueueDefinitions(Guid batchId)
+    {
+        using var connection = HostFixture.Db.OpenConnection();
+
+        return connection
+            .Cmd(
+                sql: """
+                     SELECT qc_definition
+                     FROM qc_queue_completed
+                     WHERE qc_batch_id = $batchId
+                     """,
+                readRowFunc: reader => reader.GetString(0))
+            .WithParameter("$batchId", batchId)
+            .Execute();
     }
 
     // Polls the workspace's reported CurrentSizeInBytes until it satisfies the predicate (or a
