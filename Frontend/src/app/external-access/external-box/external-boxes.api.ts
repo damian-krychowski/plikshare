@@ -16,6 +16,10 @@ import { getBulkInitiateFileUploadResponseDtoProtobuf } from "../../protobuf/bul
 import { getBulkCreateFolderRequestDtoProtobuf } from "../../protobuf/bulk-create-folder-request-dto.protobuf";
 import { getBulkCreateFolderResponseDtoProtobuf } from "../../protobuf/bulk-create-folder-response-dto.protobuf";
 import { getSearchFilesTreeResponseDtoProtobuf } from "../../protobuf/search-files-tree-response-dto.protobuf";
+import { getBulkDownloadLinkRequestDtoProtobuf } from "../../protobuf/get-bulk-download-link-request-dto.protobuf";
+import { getBulkDownloadLinkResponseDtoProtobuf } from "../../protobuf/get-bulk-download-link-response-dto.protobuf";
+import { getZipBulkDownloadLinkRequestDtoProtobuf } from "../../protobuf/get-zip-bulk-download-link-request-dto.protobuf";
+import { getZipBulkDownloadLinkResponseDtoProtobuf } from "../../protobuf/get-zip-bulk-download-link-response-dto.protobuf";
 
 
 const zipFileDetailsDtoProtobuf = getZipFileDetailsDtoProtobuf();
@@ -26,6 +30,10 @@ const bulkInitiateFileUploadResponseDtoProtobuf = getBulkInitiateFileUploadRespo
 const bulkCreateFolderRequestDtoProtobuf = getBulkCreateFolderRequestDtoProtobuf();
 const bulkCreateFolderResponseDtoProtobuf = getBulkCreateFolderResponseDtoProtobuf();
 const searchFilesTreeResponseDtoProtobuf = getSearchFilesTreeResponseDtoProtobuf();
+const bulkDownloadLinkRequestDtoProtobuf = getBulkDownloadLinkRequestDtoProtobuf();
+const bulkDownloadLinkResponseDtoProtobuf = getBulkDownloadLinkResponseDtoProtobuf();
+const zipBulkDownloadLinkRequestDtoProtobuf = getZipBulkDownloadLinkRequestDtoProtobuf();
+const zipBulkDownloadLinkResponseDtoProtobuf = getZipBulkDownloadLinkResponseDtoProtobuf();
 
 @Injectable({
     providedIn: 'root'
@@ -259,11 +267,12 @@ export class ExternalBoxesGetApi {
     }
 
     public getBulkDownloadLink(boxExternalId: string, request: GetBulkDownloadLinkRequest): Promise<GetBulkDownloadLinkResponse> {
-        const call = this
-            ._http
-            .post<GetBulkDownloadLinkResponse>(`/api/boxes/${boxExternalId}/files/bulk-download-link`, request);
-
-        return firstValueFrom(call);
+        return this._protoHttp.post<GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse>({
+            route: `/api/boxes/${boxExternalId}/files/bulk-download-link`,
+            request: request,
+            requestProtoType: bulkDownloadLinkRequestDtoProtobuf,
+            responseProtoType: bulkDownloadLinkResponseDtoProtobuf
+        });
     }
 
     public getDetailsAndContent(boxExternalId: string, folderExternalId: string | null): Promise<GetBoxDetailsAndFolderResponse> {
@@ -326,12 +335,12 @@ export class ExternalBoxesGetApi {
         fileExternalId: string,
         request: GetZipBulkDownloadLinkRequest
     ): Promise<GetZipBulkDownloadLinkResponse> {
-        const call = this
-            ._http
-            .post<GetZipBulkDownloadLinkResponse>(
-                `/api/boxes/${boxExternalId}/files/${fileExternalId}/preview/zip/bulk-download-link`, request);
-
-        return firstValueFrom(call);
+        return this._protoHttp.post<GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse>({
+            route: `/api/boxes/${boxExternalId}/files/${fileExternalId}/preview/zip/bulk-download-link`,
+            request: request,
+            requestProtoType: zipBulkDownloadLinkRequestDtoProtobuf,
+            responseProtoType: zipBulkDownloadLinkResponseDtoProtobuf
+        });
     }
     
     public async countSelectedItems(boxExternalId: string, request: CountSelectedItemsRequest): Promise<CountSelectedItemsResponse> {

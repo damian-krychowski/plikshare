@@ -100,7 +100,7 @@ public class box_link_pre_signed_url_tests : TestFixture
             accessCode: boxLink.AccessCode,
             request: new GetBulkDownloadLinkRequestDto
             {
-                SelectedFiles = [file1.ExternalId, file2.ExternalId],
+                SelectedFiles = [file1.ExternalId.Value, file2.ExternalId.Value],
                 SelectedFolders = [],
                 ExcludedFiles = [],
                 ExcludedFolders = []
@@ -434,7 +434,7 @@ public class box_link_pre_signed_url_tests : TestFixture
             accessCode: boxLink.AccessCode,
             request: new GetBulkDownloadLinkRequestDto
             {
-                SelectedFiles = [file.ExternalId],
+                SelectedFiles = [file.ExternalId.Value],
                 SelectedFolders = [],
                 ExcludedFiles = [],
                 ExcludedFolders = []
@@ -930,7 +930,7 @@ public class box_link_pre_signed_url_tests : TestFixture
             accessCode: boxLink.AccessCode,
             request: new GetBulkDownloadLinkRequestDto
             {
-                SelectedFiles = [keepFile.ExternalId, doomedFile.ExternalId],
+                SelectedFiles = [keepFile.ExternalId.Value, doomedFile.ExternalId.Value],
                 SelectedFolders = [],
                 ExcludedFiles = [],
                 ExcludedFolders = []

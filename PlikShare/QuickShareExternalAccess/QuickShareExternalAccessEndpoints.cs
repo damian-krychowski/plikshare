@@ -68,7 +68,8 @@ public static class QuickShareExternalAccessEndpoints
 
         group.MapPost("/{slug}/files/{fileExternalId}/zip-bulk-download-link", GetZipBulkDownloadLink)
             .WithName("QuickShareExternalAccess_GetZipBulkDownloadLink")
-            .AddEndpointFilter<ValidateQuickShareAccessFilter>();
+            .AddEndpointFilter<ValidateQuickShareAccessFilter>()
+            .WithProtobufResponse();
     }
 
     private static async Task<IResult> GetInfo(
@@ -608,7 +609,6 @@ public static class QuickShareExternalAccessEndpoints
     // generated archive arrives as a single download.
     private static async Task<IResult> GetZipBulkDownloadLink(
         [FromRoute] FileExtId fileExternalId,
-        [FromBody] PlikShare.Files.Preview.GetZipBulkDownloadLink.Contracts.GetZipBulkDownloadLinkRequestDto request,
         HttpContext httpContext,
         GenerateQuickShareZipBulkDownloadLinkOperation operation,
         TrackQuickShareDownloadQuery trackDownloadQuery,
@@ -616,6 +616,8 @@ public static class QuickShareExternalAccessEndpoints
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var request = httpContext.GetProtobufRequest<PlikShare.Files.Preview.GetZipBulkDownloadLink.Contracts.GetZipBulkDownloadLinkRequestDto>();
+
         var access = httpContext.GetQuickShareAccess();
         var correlationId = httpContext.GetCorrelationId();
 
@@ -683,7 +685,9 @@ public static class QuickShareExternalAccessEndpoints
                 cancellationToken);
         }
 
-        return Results.Ok(new PlikShare.Files.Preview.GetZipBulkDownloadLink.Contracts.GetZipBulkDownloadLinkResponseDto(
-            DownloadPreSignedUrl: result.DownloadPreSignedUrl!));
+        return Results.Ok(new PlikShare.Files.Preview.GetZipBulkDownloadLink.Contracts.GetZipBulkDownloadLinkResponseDto
+        {
+            DownloadPreSignedUrl = result.DownloadPreSignedUrl!
+        });
     }
 }

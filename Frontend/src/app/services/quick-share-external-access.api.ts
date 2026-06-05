@@ -7,8 +7,12 @@ import { ZipPreviewDetails } from "../files-explorer/file-inline-preview/file-in
 import { ZipEntry } from "./zip";
 import { ProtoHttp } from "./protobuf-http.service";
 import { getZipFileDetailsDtoProtobuf } from "../protobuf/zip-file-details-dto.protobuf";
+import { getZipBulkDownloadLinkRequestDtoProtobuf } from "../protobuf/get-zip-bulk-download-link-request-dto.protobuf";
+import { getZipBulkDownloadLinkResponseDtoProtobuf } from "../protobuf/get-zip-bulk-download-link-response-dto.protobuf";
 
 const zipFileDetailsDtoProtobuf = getZipFileDetailsDtoProtobuf();
+const zipBulkDownloadLinkRequestDtoProtobuf = getZipBulkDownloadLinkRequestDtoProtobuf();
+const zipBulkDownloadLinkResponseDtoProtobuf = getZipBulkDownloadLinkResponseDtoProtobuf();
 
 export interface GetQuickShareInfoResponse {
     name: string;
@@ -186,12 +190,14 @@ export class QuickShareExternalAccessApi {
         fileExternalId: string,
         request: GetZipBulkDownloadLinkRequest
     ): Promise<GetZipBulkDownloadLinkResponse> {
-        const call = this._http.post<GetZipBulkDownloadLinkResponse>(
-            `/api/quick-shares/${slug}/files/${fileExternalId}/zip-bulk-download-link`,
-            request,
-            { params: this.tokenParams(token) });
-
-        return firstValueFrom(call);
+        return this._protoHttp.post<GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse>({
+            route: this.withToken(
+                `/api/quick-shares/${slug}/files/${fileExternalId}/zip-bulk-download-link`,
+                token),
+            request: request,
+            requestProtoType: zipBulkDownloadLinkRequestDtoProtobuf,
+            responseProtoType: zipBulkDownloadLinkResponseDtoProtobuf
+        });
     }
 
     private tokenParams(token: string | null): HttpParams {

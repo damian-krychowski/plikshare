@@ -74,8 +74,8 @@ public static partial class Audit
         public class BulkDownloadLinkGenerated
         {
             public required WorkspaceRef Workspace { get; init; }
-            public required List<FileExtId> SelectedFileExternalIds { get; init; }
-            public required List<FolderExtId> SelectedFolderExternalIds { get; init; }
+            public required List<string> SelectedFileExternalIds { get; init; }
+            public required List<string> SelectedFolderExternalIds { get; init; }
             public BoxAccessRef? Box { get; init; }
         }
 
@@ -305,8 +305,8 @@ public static partial class Audit
         public static AuditLogEntry BulkDownloadLinkGeneratedEntry(
             AuditLogActorContext actor,
             WorkspaceRef workspace,
-            List<FileExtId> selectedFileExternalIds,
-            List<FolderExtId> selectedFolderExternalIds,
+            List<string> selectedFileExternalIds,
+            List<string> selectedFolderExternalIds,
             BoxAccessRef? box = null) => new()
         {
             Actor = actor.Identity,

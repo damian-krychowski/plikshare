@@ -86,7 +86,8 @@ public static class BoxLinkAccessCodesEndpoints
             .WithName("BoxLink_GetBulkDownloadLink")
             .AddEndpointFilter(new ValidateAccessCodeFilter(
                 BoxPermission.AllowList,
-                BoxPermission.AllowDownload));
+                BoxPermission.AllowDownload))
+            .WithProtobufResponse();
 
         group.MapPatch("/{accessCode}/files/{fileExternalId}/name", UpdateFileName)
             .WithName("BoxLink_UpdateFileName")
@@ -142,7 +143,8 @@ public static class BoxLinkAccessCodesEndpoints
             .WithName("BoxLink_GetZipBulkDownloadLink")
             .AddEndpointFilter(new ValidateAccessCodeFilter(
                 BoxPermission.AllowList,
-                BoxPermission.AllowDownload));
+                BoxPermission.AllowDownload))
+            .WithProtobufResponse();
 
         group.MapPatch("/{accessCode}/folders/move-items", MoveItemsToFolder)
             .WithName("BoxLink_MoveItemsToFolder")
@@ -336,13 +338,12 @@ public static class BoxLinkAccessCodesEndpoints
     private static Results<Ok<GetZipBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult>
         GetZipBulkDownloadLink(
             [FromRoute] FileExtId fileExternalId,
-            [FromBody] GetZipBulkDownloadLinkRequestDto request,
             HttpContext httpContext,
             BoxExternalAccessHandler boxExternalAccessHandler)
     {
         return boxExternalAccessHandler.GetZipBulkDownloadLink(
             fileExternalId: fileExternalId,
-            request: request,
+            request: httpContext.GetProtobufRequest<GetZipBulkDownloadLinkRequestDto>(),
             boxAccess: httpContext.GetBoxAccess());
     }
 
@@ -421,12 +422,13 @@ public static class BoxLinkAccessCodesEndpoints
     }
 
     private static Task<Results<Ok<GetBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>, StatusCodeHttpResult>> GetBulkDownloadLink(
-        [FromBody] GetBulkDownloadLinkRequestDto request,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
+        var request = httpContext.GetProtobufRequest<GetBulkDownloadLinkRequestDto>();
+
         return boxExternalAccessHandler.GetBulkDownloadLink(
             request: request,
             boxAccess: httpContext.GetBoxAccess(),

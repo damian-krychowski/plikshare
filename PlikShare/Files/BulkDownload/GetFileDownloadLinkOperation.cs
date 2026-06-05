@@ -23,43 +23,44 @@ public class GetBulkDownloadLinkOperation(
         int? boxLinkId,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
+        var selectedFolders = request.SelectedFolders.Select(FolderExtId.Parse).ToList();
+        var selectedFiles = request.SelectedFiles.Select(FileExtId.Parse).ToList();
+        var excludedFolders = request.ExcludedFolders.Select(FolderExtId.Parse).ToList();
+        var excludedFiles = request.ExcludedFiles.Select(FileExtId.Parse).ToList();
+
         var downloadDetails = getBulkDownloadDetailsQuery.Execute(
             workspace: workspace,
-            selectedFolderExternalIds: request.SelectedFolders,
-            excludedFolderExternalIds: request.ExcludedFolders,
-            selectedFileExternalIds: request.SelectedFiles,
-            excludedFileExternalIds: request.ExcludedFiles,
+            selectedFolderExternalIds: selectedFolders,
+            excludedFolderExternalIds: excludedFolders,
+            selectedFileExternalIds: selectedFiles,
+            excludedFileExternalIds: excludedFiles,
             boxFolderId: boxFolderId);
 
-        if (downloadDetails.SelectedFiles.Count != request.SelectedFiles.Count)
+        if (downloadDetails.SelectedFiles.Count != selectedFiles.Count)
             return new Result(
                 Code: ResultCode.FilesNotFound,
-                NotFoundFileExternalIds: request
-                    .SelectedFiles
+                NotFoundFileExternalIds: selectedFiles
                     .Except(downloadDetails.SelectedFiles.Select(f => f.ExternalId))
                     .ToList());
 
-        if (downloadDetails.ExcludedFiles.Count != request.ExcludedFiles.Count)
+        if (downloadDetails.ExcludedFiles.Count != excludedFiles.Count)
             return new Result(
                 Code: ResultCode.FilesNotFound,
-                NotFoundFileExternalIds: request
-                    .SelectedFiles
+                NotFoundFileExternalIds: selectedFiles
                     .Except(downloadDetails.SelectedFiles.Select(f => f.ExternalId))
                     .ToList());
 
-        if (downloadDetails.SelectedFolders.Count != request.SelectedFolders.Count)
+        if (downloadDetails.SelectedFolders.Count != selectedFolders.Count)
             return new Result(
                 Code: ResultCode.FoldersNotFound,
-                NotFoundFolderExternalIds: request
-                    .SelectedFolders
+                NotFoundFolderExternalIds: selectedFolders
                     .Except(downloadDetails.SelectedFolders.Select(f => f.ExternalId))
                     .ToList());
 
-        if (downloadDetails.ExcludedFolders.Count != request.ExcludedFolders.Count)
+        if (downloadDetails.ExcludedFolders.Count != excludedFolders.Count)
             return new Result(
                 Code: ResultCode.FoldersNotFound,
-                NotFoundFolderExternalIds: request
-                    .SelectedFolders
+                NotFoundFolderExternalIds: selectedFolders
                     .Except(downloadDetails.SelectedFolders.Select(f => f.ExternalId))
                     .ToList());
 

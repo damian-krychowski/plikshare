@@ -13,6 +13,7 @@ namespace PlikShare.Files.PreSignedLinks;
 public class PreSignedUrlsService(
     IConfig config,
     IClock clock,
+    PreSignedPayloadTokenStore tokenStore,
     IDataProtectionProvider dataProtectionProvider)
 {
     private const string PreSignedPayloadPurpose = "PreSignedPayload";
@@ -38,7 +39,11 @@ public class PreSignedUrlsService(
     public string GeneratePreSignedBulkDownloadUrl(
         BulkDownloadPayload payload)
     {
-        return $"{config.AppUrl}/api/bulk-download/{UrlEncodePayload(payload)}";
+        var protectedToken = tokenStore.Store(
+            payload: payload,
+            expiresAt: payload.ExpirationDate);
+
+        return $"{config.AppUrl}/api/bulk-download/{protectedToken}";
     }
 
     public string GeneratePreSignedZipContentDownloadUrl(
@@ -50,7 +55,11 @@ public class PreSignedUrlsService(
     public string GeneratePreSignedZipBulkDownloadUrl(
         ZipBulkDownloadPayload payload)
     {
-        return $"{config.AppUrl}/api/zip-files-bulk/{UrlEncodePayload(payload)}";
+        var protectedToken = tokenStore.Store(
+            payload: payload,
+            expiresAt: payload.ExpirationDate);
+
+        return $"{config.AppUrl}/api/zip-files-bulk/{protectedToken}";
     }
 
     public (ExtractionResult Code, MultiFileDirectUploadPayload? Payload) TryExtractPreSignedMultiFileDirectUploadPayload(
@@ -96,17 +105,9 @@ public class PreSignedUrlsService(
         string protectedDataUrlEncoded)
         => TryExtractPayload<DownloadPayload>(protectedDataUrlEncoded);
 
-    public (ExtractionResult Code, BulkDownloadPayload? Payload) TryExtractPreSignedBulkDownloadPayload(
-        string protectedDataUrlEncoded)
-        => TryExtractPayload<BulkDownloadPayload>(protectedDataUrlEncoded);
-
     public (ExtractionResult Code, ZipContentDownloadPayload? Payload) TryExtractPreSignedZipContentDownloadPayload(
         string protectedDataUrlEncoded)
         => TryExtractPayload<ZipContentDownloadPayload>(protectedDataUrlEncoded);
-
-    public (ExtractionResult Code, ZipBulkDownloadPayload? Payload) TryExtractPreSignedZipBulkDownloadPayload(
-        string protectedDataUrlEncoded)
-        => TryExtractPayload<ZipBulkDownloadPayload>(protectedDataUrlEncoded);
 
     private (ExtractionResult Code, T? Payload) TryExtractPayload<T>(
         string protectedDataUrlEncoded) where T : PreSignedPayload

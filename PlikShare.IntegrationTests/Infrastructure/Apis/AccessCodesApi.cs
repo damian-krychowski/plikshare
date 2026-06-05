@@ -165,6 +165,8 @@ public class AccessCodesApi(IFlurlClient flurlClient, string appUrl)
             request: request,
             cookie: null,
             antiforgery: antiforgery,
+            isRequestInProtobuf: true,
+            isResponseInProtobuf: true,
             headers: boxLinkToken is null
                 ? null
                 : [boxLinkToken]);

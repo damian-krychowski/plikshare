@@ -15,6 +15,10 @@ import { getBulkInitiateFileUploadResponseDtoProtobuf } from "../../protobuf/bul
 import { getBulkCreateFolderRequestDtoProtobuf } from "../../protobuf/bulk-create-folder-request-dto.protobuf";
 import { getBulkCreateFolderResponseDtoProtobuf } from "../../protobuf/bulk-create-folder-response-dto.protobuf";
 import { getSearchFilesTreeResponseDtoProtobuf } from "../../protobuf/search-files-tree-response-dto.protobuf";
+import { getBulkDownloadLinkRequestDtoProtobuf } from "../../protobuf/get-bulk-download-link-request-dto.protobuf";
+import { getBulkDownloadLinkResponseDtoProtobuf } from "../../protobuf/get-bulk-download-link-response-dto.protobuf";
+import { getZipBulkDownloadLinkRequestDtoProtobuf } from "../../protobuf/get-zip-bulk-download-link-request-dto.protobuf";
+import { getZipBulkDownloadLinkResponseDtoProtobuf } from "../../protobuf/get-zip-bulk-download-link-response-dto.protobuf";
 import { BOX_LINK_TOKEN_HEADER, BoxLinkTokenService } from "../../services/box-link-token.service";
 
 const zipFileDetailsDtoProtobuf = getZipFileDetailsDtoProtobuf();
@@ -25,6 +29,10 @@ const bulkInitiateFileUploadResponseDtoProtobuf = getBulkInitiateFileUploadRespo
 const bulkCreateFolderRequestDtoProtobuf = getBulkCreateFolderRequestDtoProtobuf();
 const bulkCreateFolderResponseDtoProtobuf = getBulkCreateFolderResponseDtoProtobuf();
 const searchFilesTreeResponseDtoProtobuf = getSearchFilesTreeResponseDtoProtobuf();
+const bulkDownloadLinkRequestDtoProtobuf = getBulkDownloadLinkRequestDtoProtobuf();
+const bulkDownloadLinkResponseDtoProtobuf = getBulkDownloadLinkResponseDtoProtobuf();
+const zipBulkDownloadLinkRequestDtoProtobuf = getZipBulkDownloadLinkRequestDtoProtobuf();
+const zipBulkDownloadLinkResponseDtoProtobuf = getZipBulkDownloadLinkResponseDtoProtobuf();
 
 @Injectable({
     providedIn: 'root'
@@ -151,13 +159,13 @@ export class AccessCodesApi {
     }
 
     public getBulkDownloadLink(accessCode: string, request: GetBulkDownloadLinkRequest): Promise<GetBulkDownloadLinkResponse> {
-        const call = this
-            ._http
-            .post<GetBulkDownloadLinkResponse>(`/api/access-codes/${accessCode}/files/bulk-download-link`, request, {
-                headers: this.getHeaders()
-            });
-
-        return firstValueFrom(call);
+        return this._protoHttp.post<GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse>({
+            route: `/api/access-codes/${accessCode}/files/bulk-download-link`,
+            request: request,
+            requestProtoType: bulkDownloadLinkRequestDtoProtobuf,
+            responseProtoType: bulkDownloadLinkResponseDtoProtobuf,
+            boxLinkToken: this._boxLinkTokenService.get()
+        });
     }
 
     public getDetailsAndContent(accessCode: string, folderExternalId: string | null): Promise<GetBoxDetailsAndFolderResponse> {
@@ -292,14 +300,13 @@ export class AccessCodesApi {
         fileExternalId: string,
         request: GetZipBulkDownloadLinkRequest
     ): Promise<GetZipBulkDownloadLinkResponse> {
-        const call = this
-            ._http
-            .post<GetZipBulkDownloadLinkResponse>(
-                `/api/access-codes/${accessCode}/files/${fileExternalId}/preview/zip/bulk-download-link`, request, {
-                    headers: this.getHeaders()
-                });
-
-        return firstValueFrom(call);
+        return this._protoHttp.post<GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse>({
+            route: `/api/access-codes/${accessCode}/files/${fileExternalId}/preview/zip/bulk-download-link`,
+            request: request,
+            requestProtoType: zipBulkDownloadLinkRequestDtoProtobuf,
+            responseProtoType: zipBulkDownloadLinkResponseDtoProtobuf,
+            boxLinkToken: this._boxLinkTokenService.get()
+        });
     }
         
     public async countSelectedItems(accessCode: string, request: CountSelectedItemsRequest): Promise<CountSelectedItemsResponse> {

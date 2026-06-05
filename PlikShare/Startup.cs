@@ -733,6 +733,7 @@ public class Startup
 
         builder.Services.AddSingleton<GetApplicationSettingsStatusQuery>();
 
+        builder.Services.AddSingleton<PreSignedPayloadTokenStore>();
         builder.Services.AddSingleton<PreSignedUrlsService>();
         builder.Services.AddSingleton<GetHardDriveVolumesOperation>();
         builder.Services.AddSingleton<GetFilePreSignedDownloadLinkDetailsQuery>();

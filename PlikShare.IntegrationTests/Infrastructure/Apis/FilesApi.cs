@@ -187,13 +187,15 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
             apiPath: $"api/workspaces/{workspaceExternalId}/files/bulk-download-link",
             request: new GetBulkDownloadLinkRequestDto
             {
-                SelectedFiles = selectedFiles,
-                SelectedFolders = selectedFolders,
-                ExcludedFiles = excludedFiles ?? [],
-                ExcludedFolders = excludedFolders ?? []
+                SelectedFiles = selectedFiles.Select(x => x.Value).ToList(),
+                SelectedFolders = selectedFolders.Select(x => x.Value).ToList(),
+                ExcludedFiles = (excludedFiles ?? []).Select(x => x.Value).ToList(),
+                ExcludedFolders = (excludedFolders ?? []).Select(x => x.Value).ToList()
             },
             cookie: cookie,
             antiforgery: antiforgery,
+            isRequestInProtobuf: true,
+            isResponseInProtobuf: true,
             extraCookie: workspaceEncryptionSession);
     }
 
@@ -231,13 +233,17 @@ public class FilesApi(IFlurlClient flurlClient, string appUrl)
         return await flurlClient.ExecutePost<GetZipBulkDownloadLinkResponseDto, GetZipBulkDownloadLinkRequestDto>(
             appUrl: appUrl,
             apiPath: $"api/workspaces/{workspaceExternalId}/files/{fileExternalId}/preview/zip/bulk-download-link",
-            request: new GetZipBulkDownloadLinkRequestDto(
-                SelectedFolderIds: selectedFolderIds,
-                SelectedEntryIndices: selectedEntryIndices,
-                ExcludedFolderIds: excludedFolderIds ?? [],
-                ExcludedEntryIndices: excludedEntryIndices ?? []),
+            request: new GetZipBulkDownloadLinkRequestDto
+            {
+                SelectedFolderIds = selectedFolderIds,
+                SelectedEntryIndices = selectedEntryIndices,
+                ExcludedFolderIds = excludedFolderIds ?? [],
+                ExcludedEntryIndices = excludedEntryIndices ?? []
+            },
             cookie: cookie,
             antiforgery: antiforgery,
+            isRequestInProtobuf: true,
+            isResponseInProtobuf: true,
             extraCookie: workspaceEncryptionSession);
     }
 }

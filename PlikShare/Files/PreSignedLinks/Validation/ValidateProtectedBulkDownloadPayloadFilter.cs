@@ -12,40 +12,27 @@ public class ValidateProtectedBulkDownloadPayloadFilter : IEndpointFilter
         EndpointFilterInvocationContext context,
         EndpointFilterDelegate next)
     {
-        var protectedPayload = context.HttpContext.Request.RouteValues["protectedPayload"]?.ToString();
+        var protectedToken = context.HttpContext.Request.RouteValues["protectedPayload"]?.ToString();
 
-        if (string.IsNullOrWhiteSpace(protectedPayload))
+        if (string.IsNullOrWhiteSpace(protectedToken))
             return HttpErrors.ProtectedPayload.Missing();
 
-        var (extractionResult, payload) = context
+        var payload = context
             .HttpContext
             .RequestServices
-            .GetRequiredService<PreSignedUrlsService>()
-            .TryExtractPreSignedBulkDownloadPayload(protectedPayload);
+            .GetRequiredService<PreSignedPayloadTokenStore>()
+            .TryGet<PreSignedUrlsService.BulkDownloadPayload>(protectedToken);
 
-        if (extractionResult == PreSignedUrlsService.ExtractionResult.Invalid)
+        if (payload is null)
         {
-            Log.Warning("An attempt to execute bulk download with invalid pre-signed url: {ProtectedPayload}",
-                protectedPayload);
+            Log.Warning("An attempt to execute bulk download with a forged, unknown or expired token.");
 
             return HttpErrors.BulkDownload.InvalidPayload();
         }
-
-        if (extractionResult == PreSignedUrlsService.ExtractionResult.Expired)
-        {
-            Log.Warning("An attempt to execute bulk download with expired pre-signed url: {@Payload}",
-                payload);
-
-            return HttpErrors.BulkDownload.InvalidPayload();
-        }
-        
-        if (extractionResult != PreSignedUrlsService.ExtractionResult.Ok)
-            throw new InvalidOperationException(
-                $"Unrecognized ExtractionResul value: '{extractionResult}'");
 
         context.HttpContext.Items[ProtectedBulkDownloadPayloadContext] = payload;
 
-        if (payload!.WorkspaceDeks is {Length: >0})
+        if (payload.WorkspaceDeks is {Length: >0})
         {
             var masterDataEncryption = context
                 .HttpContext

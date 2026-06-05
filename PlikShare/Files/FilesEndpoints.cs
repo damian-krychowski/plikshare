@@ -14,6 +14,7 @@ using PlikShare.Files.BulkDownload.Contracts;
 using PlikShare.Files.Download;
 using PlikShare.Files.Download.Contracts;
 using PlikShare.Files.Id;
+using PlikShare.Folders.Id;
 using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Files.Preview.Comment;
 using PlikShare.Files.Preview.Comment.CreateComment;
@@ -60,7 +61,8 @@ public static class FilesEndpoints
             .AddEndpointFilter<ValidateWorkspaceEncryptionSessionFilter>();
         
         group.MapPost("/bulk-download-link", GetBulkDownloadLink)
-            .WithName("GetBulkDownloadLink");
+            .WithName("GetBulkDownloadLink")
+            .WithProtobufResponse();
 
         group.MapPut("/{fileExternalId}/content", UpdateFileContent)
             .WithName("UpdateFileContent");
@@ -97,7 +99,8 @@ public static class FilesEndpoints
             .WithName("GetZipContentDownloadLink");
 
         group.MapPost("/{fileExternalId}/preview/zip/bulk-download-link", GetZipBulkDownloadLink)
-            .WithName("GetZipBulkDownloadLink");
+            .WithName("GetZipBulkDownloadLink")
+            .WithProtobufResponse();
     }
 
 
@@ -287,10 +290,11 @@ public static class FilesEndpoints
 
     private static Results<Ok<GetZipBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>> GetZipBulkDownloadLink(
         [FromRoute] FileExtId fileExternalId,
-        [FromBody] GetZipBulkDownloadLinkRequestDto request,
         HttpContext httpContext,
         GetZipBulkDownloadLinkOperation getZipBulkDownloadLinkOperation)
     {
+        var request = httpContext.GetProtobufRequest<GetZipBulkDownloadLinkRequestDto>();
+
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
 
         var result = getZipBulkDownloadLinkOperation.Execute(
@@ -305,8 +309,10 @@ public static class FilesEndpoints
 
         return result.Code switch
         {
-            GetZipBulkDownloadLinkOperation.ResultCode.Ok => TypedResults.Ok(new GetZipBulkDownloadLinkResponseDto(
-                DownloadPreSignedUrl: result.DownloadPreSignedUrl!)),
+            GetZipBulkDownloadLinkOperation.ResultCode.Ok => TypedResults.Ok(new GetZipBulkDownloadLinkResponseDto
+            {
+                DownloadPreSignedUrl = result.DownloadPreSignedUrl!
+            }),
 
             GetZipBulkDownloadLinkOperation.ResultCode.FileNotFound =>
                 HttpErrors.File.NotFound(fileExternalId),
@@ -635,12 +641,13 @@ public static class FilesEndpoints
 
     private static async Task<Results<Ok<GetBulkDownloadLinkResponseDto>, NotFound<HttpError>, BadRequest<HttpError>>>
         GetBulkDownloadLink(
-            [FromBody] GetBulkDownloadLinkRequestDto request,
             HttpContext httpContext,
             GetBulkDownloadLinkOperation getBulkDownloadLinkOperation,
             AuditLogService auditLogService,
             CancellationToken cancellationToken)
     {
+        var request = httpContext.GetProtobufRequest<GetBulkDownloadLinkRequestDto>();
+
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
 
         var result = getBulkDownloadLinkOperation.Execute(

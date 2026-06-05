@@ -351,8 +351,10 @@ public class BoxExternalAccessHandler(
         return result.Code switch
         {
             GetZipBulkDownloadLinkOperation.ResultCode.Ok =>
-                TypedResults.Ok(new GetZipBulkDownloadLinkResponseDto(
-                    DownloadPreSignedUrl: result.DownloadPreSignedUrl!)),
+                TypedResults.Ok(new GetZipBulkDownloadLinkResponseDto
+                {
+                    DownloadPreSignedUrl = result.DownloadPreSignedUrl!
+                }),
 
             GetZipBulkDownloadLinkOperation.ResultCode.FileNotFound =>
                 HttpErrors.File.NotFound(fileExternalId),

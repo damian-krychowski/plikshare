@@ -16,6 +16,10 @@ import { AppFileItem } from "../shared/file-item/file-item.component";
 import { AppUploadItem } from "../files-explorer/upload-item/upload-item.component";
 import { AppFolderItem } from "../shared/folder-item/folder-item.component";
 import { getSearchFilesTreeResponseDtoProtobuf } from "../protobuf/search-files-tree-response-dto.protobuf";
+import { getBulkDownloadLinkRequestDtoProtobuf } from "../protobuf/get-bulk-download-link-request-dto.protobuf";
+import { getBulkDownloadLinkResponseDtoProtobuf } from "../protobuf/get-bulk-download-link-response-dto.protobuf";
+import { getZipBulkDownloadLinkRequestDtoProtobuf } from "../protobuf/get-zip-bulk-download-link-request-dto.protobuf";
+import { getZipBulkDownloadLinkResponseDtoProtobuf } from "../protobuf/get-zip-bulk-download-link-response-dto.protobuf";
 
 export interface UploadFileAttachmentRequest {
     externalId: string;
@@ -994,11 +998,12 @@ export class FoldersAndFilesGetApi {
     }
 
     public getBulkDownloadLink(workspaceExternalId: string, request: GetBulkDownloadLinkRequest): Promise<GetBulkDownloadLinkResponse> {
-        const call = this
-            ._http
-            .post<GetBulkDownloadLinkResponse>(`/api/workspaces/${workspaceExternalId}/files/bulk-download-link`, request);
-
-        return firstValueFrom(call);
+        return this._protoHttp.post<GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse>({
+            route: `/api/workspaces/${workspaceExternalId}/files/bulk-download-link`,
+            request: request,
+            requestProtoType: getBulkDownloadLinkRequestDtoProtobuf(),
+            responseProtoType: getBulkDownloadLinkResponseDtoProtobuf()
+        });
     }
 
     public async getZipPreviewDetails(workspaceExternalId: string, fileExternalId: string) {
@@ -1025,12 +1030,12 @@ export class FoldersAndFilesGetApi {
         fileExternalId: string,
         request: GetZipBulkDownloadLinkRequest
     ): Promise<GetZipBulkDownloadLinkResponse> {
-        const call = this
-            ._http
-            .post<GetZipBulkDownloadLinkResponse>(
-                `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/preview/zip/bulk-download-link`, request);
-
-        return firstValueFrom(call);
+        return this._protoHttp.post<GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse>({
+            route: `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}/preview/zip/bulk-download-link`,
+            request: request,
+            requestProtoType: getZipBulkDownloadLinkRequestDtoProtobuf(),
+            responseProtoType: getZipBulkDownloadLinkResponseDtoProtobuf()
+        });
     }
 
     public async checkTextractJobsStatus(workspaceExternalId: string, request: CheckTextractJobsStatusRequest): Promise<CheckTextractJobsStatusResponse> {
