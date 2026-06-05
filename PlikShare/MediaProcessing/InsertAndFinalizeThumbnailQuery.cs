@@ -2,12 +2,14 @@ using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
+using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Files.Delete;
 using PlikShare.Files.Id;
 using PlikShare.Files.UploadAttachment;
 using PlikShare.Workspaces.Cache;
+using PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
 using Serilog;
 
 namespace PlikShare.MediaProcessing;
@@ -25,6 +27,7 @@ namespace PlikShare.MediaProcessing;
 public class InsertAndFinalizeThumbnailQuery(
     DbWriteQueue dbWriteQueue,
     IClock clock,
+    IQueue queue,
     HardDeleteFilesWithStorageCleanupSubQuery hardDeleteFilesWithStorageCleanupSubQuery)
 {
     public Task<ResultCode> Execute(
@@ -48,67 +51,58 @@ public class InsertAndFinalizeThumbnailQuery(
             cancellationToken: cancellationToken);
     }
 
-    /// <summary>
-    /// Batched insert+finalize: inserts every <see cref="BatchItem"/> and hard-deletes every
-    /// item's old-thumbnail file IDs in a SINGLE transaction. Returns the per-item result code
-    /// in the same order as <paramref name="items"/> — caller maps back to its own slots.
-    /// </summary>
-    public Task<List<ResultCode>> ExecuteBatch(
+    public Task ExecuteBatch(
         WorkspaceContext workspace,
         IUserIdentity uploader,
-        List<BatchItem> items,
+        List<BulkInsertFileEntity> items,
+        List<int> allOldThumbnailIds,
         Guid correlationId,
         CancellationToken cancellationToken)
     {
+        if (items.Count == 0)
+            return Task.CompletedTask;
+        
         return dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteBatchOperation(
                 dbWriteContext: context,
                 workspace: workspace,
                 uploader: uploader,
-                items: items,
+                files: items,
+                allOldThumbnailIds: allOldThumbnailIds,
                 correlationId: correlationId),
             cancellationToken: cancellationToken);
     }
 
-    private List<ResultCode> ExecuteBatchOperation(
+    private void ExecuteBatchOperation(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         IUserIdentity uploader,
-        List<BatchItem> items,
+        List<BulkInsertFileEntity> files,
+        List<int> allOldThumbnailIds,
         Guid correlationId)
     {
-        var resultCodes = new List<ResultCode>(items.Count);
-
-        if (items.Count == 0)
-            return resultCodes;
-
+        dbWriteContext.Connection.RegisterJsonArrayToBlobFunction();
         var transaction = dbWriteContext.Connection.BeginTransaction();
 
         try
         {
-            var allOldThumbnailIds = new List<int>();
+            InsertBulk(
+                dbWriteContext: dbWriteContext,
+                workspace: workspace,
+                uploader: uploader,
+                fileEntities: files,
+                transaction: transaction);
 
-            foreach (var item in items)
-            {
-                var rc = InsertOne(
-                    dbWriteContext: dbWriteContext,
-                    transaction: transaction,
-                    workspace: workspace,
-                    parentFileExternalId: item.ParentFileExternalId,
-                    attachment: item.Attachment,
-                    uploader: uploader);
-
-                resultCodes.Add(rc);
-
-                if (rc == ResultCode.Ok && item.OldThumbnailFileIds.Count > 0)
-                    allOldThumbnailIds.AddRange(item.OldThumbnailFileIds);
-            }
-
-            // One sub-query call for the whole batch — internal Execute is a no-op when the
-            // list is empty (no extra DB roundtrip).
             hardDeleteFilesWithStorageCleanupSubQuery.Execute(
                 workspaceId: workspace.Id,
                 fileIds: allOldThumbnailIds,
+                correlationId: correlationId,
+                dbWriteContext: dbWriteContext,
+                transaction: transaction);
+
+            queue.EnqueueWorkspaceSizeUpdateJob(
+                clock: clock,
+                workspaceId: workspace.Id,
                 correlationId: correlationId,
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);
@@ -117,12 +111,176 @@ public class InsertAndFinalizeThumbnailQuery(
 
             Log.Information(
                 "Batched insert+finalize: {InsertedCount} thumbnails ({BatchSize} items), {OldCount} old thumbnails replaced in Workspace#{WorkspaceId}.",
-                resultCodes.Count(rc => rc == ResultCode.Ok),
-                items.Count,
+                files.Count,
+                files.Count,
                 allOldThumbnailIds.Count,
                 workspace.Id);
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
 
-            return resultCodes;
+    private void InsertBulk(
+        SqliteWriteContext dbWriteContext,
+        WorkspaceContext workspace,
+        IUserIdentity uploader,
+        List<BulkInsertFileEntity> fileEntities,
+        SqliteTransaction transaction)
+    {
+        var results = dbWriteContext
+            .Cmd(
+                sql: """
+                     INSERT INTO fi_files (
+                        fi_external_id,
+                        fi_workspace_id,
+                        fi_folder_id,
+                        fi_key_secret_part,
+                        fi_name,
+                        fi_extension,
+                        fi_content_type,
+                        fi_size_in_bytes,
+                        fi_is_upload_completed,
+                        fi_uploader_identity_type,
+                        fi_uploader_identity,
+                        fi_created_at,
+                        fi_encryption_key_version,
+                        fi_encryption_salt,
+                        fi_encryption_nonce_prefix,
+                        fi_encryption_chain_salts,
+                        fi_encryption_format_version,
+                        fi_parent_file_id,
+                        fi_metadata
+                     )
+                     SELECT 
+                        json_extract(value, '$.fileExternalId'),
+                        $workspaceId,
+                        json_extract(value, '$.folderId'),
+                        json_extract(value, '$.keySecretPart'),
+                        json_extract(value, '$.fileName'),
+                        json_extract(value, '$.fileExtension'),
+                        json_extract(value, '$.fileContentType'),
+                        json_extract(value, '$.fileSizeInBytes'),
+                        TRUE,
+                        $uploaderIdentityType,
+                        $uploaderIdentity,
+                        $createdAt,
+                        json_extract(value, '$.encryptionKeyVersion'),
+                        app_json_array_to_blob(json_extract(value, '$.encryptionSalt')),
+                        app_json_array_to_blob(json_extract(value, '$.encryptionNoncePrefix')),
+                        app_json_array_to_blob(json_extract(value, '$.encryptionChainSalts')),
+                        json_extract(value, '$.encryptionFormatVersion'),
+                        json_extract(value, '$.parentFileId'),
+                        CAST(json_extract(value, '$.fileMetadata') AS BLOB)
+                     FROM
+                        json_each($files)
+                     RETURNING
+                        fi_external_id
+                     """,
+                readRowFunc: reader => reader.GetString(0),
+                transaction: transaction)
+            .WithJsonParameter("$files", fileEntities)
+            .WithParameter("$workspaceId", workspace.Id)
+            .WithParameter("$uploaderIdentityType", uploader.IdentityType)
+            .WithParameter("$uploaderIdentity", uploader.Identity)
+            .WithParameter("$createdAt", clock.UtcNow)
+            .Execute();
+
+        if (results.Count != fileEntities.Count)
+        {
+            throw new InvalidOperationException(
+                $"Something went wrong while inserting File thumbnails. " +
+                $"Expected uploads: '{string.Join(", ", fileEntities.Select(x => x.FileExternalId))}' " +
+                $"Inserted uploads: '{string.Join(", ", results)}'");
+        }
+    }
+    
+    public class BulkInsertFileEntity
+    {
+        public required string FileExternalId { get; init; }
+        public required int? FolderId { get; init; }
+        public required string KeySecretPart { get; init; }
+        public required EncodedMetadataValue FileName { get; init; }
+        public required EncodedMetadataValue FileExtension { get; init; }
+        public required EncodedMetadataValue FileContentType { get; init; }
+        public required long FileSizeInBytes { get; init; }
+        public required int ParentFileId { get; init; }
+        public required EncodedMetadataValue? FileMetadata { get; init; }
+
+        public required byte? EncryptionKeyVersion { get; init; }
+        public required byte[]? EncryptionSalt { get; init; }
+        public required byte[]? EncryptionNoncePrefix { get; init; }
+        public required byte[]? EncryptionChainSalts { get; init; }
+        public required byte? EncryptionFormatVersion { get; init; }
+    }
+
+    private ResultCode ExecuteOperation(
+        SqliteWriteContext dbWriteContext,
+        WorkspaceContext workspace,
+        FileExtId parentFileExternalId,
+        InsertFileAttachmentQuery.AttachmentFile attachment,
+        List<int> oldThumbnailFileIds,
+        IUserIdentity uploader,
+        Guid correlationId)
+    {
+        var transaction = dbWriteContext.Connection.BeginTransaction();
+
+        try
+        {
+            var rc = InsertOne(
+                dbWriteContext: dbWriteContext,
+                transaction: transaction,
+                workspace: workspace,
+                parentFileExternalId: parentFileExternalId,
+                attachment: attachment,
+                uploader: uploader);
+
+            if (rc != ResultCode.Ok)
+            {
+                transaction.Rollback();
+                return rc;
+            }
+
+            hardDeleteFilesWithStorageCleanupSubQuery.Execute(
+                workspaceId: workspace.Id,
+                fileIds: oldThumbnailFileIds,
+                correlationId: correlationId,
+                dbWriteContext: dbWriteContext,
+                transaction: transaction);
+
+            // The new thumbnail is a child fi_files row counting toward the workspace size; recalc
+            // it (debounced per workspace) so the cached w_current_size_in_bytes reflects the byte.
+            queue.EnqueueWorkspaceSizeUpdateJob(
+                clock: clock,
+                workspaceId: workspace.Id,
+                correlationId: correlationId,
+                dbWriteContext: dbWriteContext,
+                transaction: transaction);
+
+            transaction.Commit();
+
+            Log.Information(
+                "Inserted+finalized thumbnail '{ThumbnailExternalId}'. Replaced {OldCount} old thumbnails in Workspace#{WorkspaceId}.",
+                attachment.ExternalId,
+                oldThumbnailFileIds.Count,
+                workspace.Id);
+
+            return ResultCode.Ok;
+        }
+        catch (SqliteException ex) when (ex.HasForeignKeyFailed())
+        {
+            transaction.Rollback();
+
+            Log.Error(
+                ex,
+                "Foreign Key constraint failed while inserting thumbnail. ThumbnailExternalId='{ThumbnailExternalId}', ParentFileExternalId='{ParentFileExternalId}', WorkspaceExternalId='{WorkspaceExternalId}'",
+                attachment.ExternalId,
+                parentFileExternalId,
+                workspace.ExternalId);
+
+            return ResultCode.ParentNotFound;
         }
         catch
         {
@@ -194,7 +352,7 @@ public class InsertAndFinalizeThumbnailQuery(
                             $encryptionChainSalts,
                             $encryptionFormatVersion,
                             (SELECT fi_id FROM parent),
-                            $metadata
+                            CAST($metadata AS BLOB)
                          )
                          RETURNING
                             fi_id,
@@ -210,9 +368,9 @@ public class InsertAndFinalizeThumbnailQuery(
                 .WithParameter("$workspaceId", workspace.Id)
                 .WithParameter("$externalId", attachment.ExternalId.Value)
                 .WithParameter("$keySecretPart", attachment.KeySecretPart)
-                .WithEncryptableParameter("$name", attachment.Name)
-                .WithEncryptableParameter("$extension", attachment.Extension)
-                .WithEncryptableParameter("$contentType", attachment.ContentType)
+                .WithParameter("$name", attachment.Name)
+                .WithParameter("$extension", attachment.Extension)
+                .WithParameter("$contentType", attachment.ContentType)
                 .WithParameter("$sizeInBytes", attachment.SizeInBytes)
                 .WithParameter("$uploaderIdentityType", uploader.IdentityType)
                 .WithParameter("$uploaderIdentity", uploader.Identity)
@@ -222,7 +380,7 @@ public class InsertAndFinalizeThumbnailQuery(
                 .WithParameter("$encryptionNoncePrefix", attachment.EncryptionMetadata?.NoncePrefix)
                 .WithParameter("$encryptionChainSalts", KeyDerivationChain.Serialize(attachment.EncryptionMetadata?.ChainStepSalts))
                 .WithParameter("$encryptionFormatVersion", attachment.EncryptionMetadata?.FormatVersion)
-                .WithEncryptableBlobParameterOrNull("$metadata", attachment.Metadata)
+                .WithParameter("$metadata", attachment.Metadata)
                 .ExecuteOrThrow();
 
             if (result.ParentId is null)
@@ -248,75 +406,6 @@ public class InsertAndFinalizeThumbnailQuery(
                 workspace.ExternalId);
 
             return ResultCode.ParentNotFound;
-        }
-    }
-
-    public sealed record BatchItem(
-        FileExtId ParentFileExternalId,
-        InsertFileAttachmentQuery.AttachmentFile Attachment,
-        List<int> OldThumbnailFileIds);
-
-    private ResultCode ExecuteOperation(
-        SqliteWriteContext dbWriteContext,
-        WorkspaceContext workspace,
-        FileExtId parentFileExternalId,
-        InsertFileAttachmentQuery.AttachmentFile attachment,
-        List<int> oldThumbnailFileIds,
-        IUserIdentity uploader,
-        Guid correlationId)
-    {
-        var transaction = dbWriteContext.Connection.BeginTransaction();
-
-        try
-        {
-            var rc = InsertOne(
-                dbWriteContext: dbWriteContext,
-                transaction: transaction,
-                workspace: workspace,
-                parentFileExternalId: parentFileExternalId,
-                attachment: attachment,
-                uploader: uploader);
-
-            if (rc != ResultCode.Ok)
-            {
-                transaction.Rollback();
-                return rc;
-            }
-
-            hardDeleteFilesWithStorageCleanupSubQuery.Execute(
-                workspaceId: workspace.Id,
-                fileIds: oldThumbnailFileIds,
-                correlationId: correlationId,
-                dbWriteContext: dbWriteContext,
-                transaction: transaction);
-
-            transaction.Commit();
-
-            Log.Information(
-                "Inserted+finalized thumbnail '{ThumbnailExternalId}'. Replaced {OldCount} old thumbnails in Workspace#{WorkspaceId}.",
-                attachment.ExternalId,
-                oldThumbnailFileIds.Count,
-                workspace.Id);
-
-            return ResultCode.Ok;
-        }
-        catch (SqliteException ex) when (ex.HasForeignKeyFailed())
-        {
-            transaction.Rollback();
-
-            Log.Error(
-                ex,
-                "Foreign Key constraint failed while inserting thumbnail. ThumbnailExternalId='{ThumbnailExternalId}', ParentFileExternalId='{ParentFileExternalId}', WorkspaceExternalId='{WorkspaceExternalId}'",
-                attachment.ExternalId,
-                parentFileExternalId,
-                workspace.ExternalId);
-
-            return ResultCode.ParentNotFound;
-        }
-        catch
-        {
-            transaction.Rollback();
-            throw;
         }
     }
 

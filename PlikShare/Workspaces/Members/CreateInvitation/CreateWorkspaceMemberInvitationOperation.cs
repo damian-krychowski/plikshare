@@ -81,7 +81,7 @@ public class CreateWorkspaceMemberInvitationOperation(
                 $"Ephemeral DEK lifetime must be in (0, {MaxEphemeralDekLifetime.TotalDays} days].");
         }
 
-        var isFullEncryption = workspace.Storage.Encryption.Type == StorageEncryptionType.Full;
+        var isFullEncryption = workspace.EncryptionType == StorageEncryptionType.Full;
 
         // Pre-flight: a full-encryption invite cannot proceed without an active provider, because
         // synchronous send is the only path that does not leak the plaintext invitation code.
@@ -258,7 +258,7 @@ public class CreateWorkspaceMemberInvitationOperation(
                 rollbackTracker.TrackNewlyInvitedMember(memberId);
 
             var shouldGrantFullEncryptionAccess =
-                workspace.Storage.Encryption.Type == StorageEncryptionType.Full
+                workspace.EncryptionType == StorageEncryptionType.Full
                 && ownerSession is not null;
 
             if (shouldGrantFullEncryptionAccess)

@@ -321,7 +321,9 @@ public class UserCache(
             .ToArray();
     }
 
-    private static UserWrappedWorkspaceDek[] ReadWrappedWorkspaceDeks(SqliteConnection connection, int userId)
+    private static UserWrappedWorkspaceDek[] ReadWrappedWorkspaceDeks(
+        SqliteConnection connection, 
+        int userId)
     {
         return connection
             .Cmd(

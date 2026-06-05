@@ -25,10 +25,12 @@ public class GetThumbnailSourceFileQuery(
             .OneRowCmd(
                 sql: """
                     SELECT
+                        fi_id,
                         fi_workspace_id,
                         fi_key_secret_part,
                         fi_size_in_bytes,
                         fi_extension,
+                        fi_folder_id,
                         fi_encryption_key_version,
                         fi_encryption_salt,
                         fi_encryption_nonce_prefix,
@@ -41,26 +43,31 @@ public class GetThumbnailSourceFileQuery(
                 """,
                 readRowFunc: reader =>
                 {
-                    var encryptionKeyVersion = reader.GetByteOrNull(4);
+                    var encryptionKeyVersion = reader.GetByteOrNull(6);
 
                     return new ThumbnailSourceFileWithExtensions
                     {
+                        Id = reader.GetInt32(0),
                         ExternalId = fileExternalId,
-                        WorkspaceId = reader.GetInt32(0),
-                        KeySecretPart = reader.GetString(1),
-                        SizeInBytes = reader.GetInt64(2),
-                        Extension = reader.DecodeEncryptableString(3, workspaceEncryptionSession),
+                        WorkspaceId = reader.GetInt32(1),
+                        KeySecretPart = reader.GetString(2),
+                        SizeInBytes = reader.GetInt64(3),
+                        Extension = reader.DecodeEncryptableString(
+                            4, 
+                            workspaceEncryptionSession),
+                        FolderId = reader.GetInt32OrNull(5),
+                        
                         EncryptionMetadata = encryptionKeyVersion is null
                             ? null
                             : new FileEncryptionMetadata
                             {
                                 KeyVersion = encryptionKeyVersion.Value,
-                                Salt = reader.GetFieldValue<byte[]>(6),
-                                NoncePrefix = reader.GetFieldValue<byte[]>(7),
+                                Salt = reader.GetFieldValue<byte[]>(7),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(8),
                                 ChainStepSalts = KeyDerivationChain.Deserialize(
-                                    reader.GetFieldValueOrNull<byte[]>(8)),
-                                FormatVersion = reader.GetByteOrNull(9) ?? 1
-                            }
+                                    reader.GetFieldValueOrNull<byte[]>(9)),
+                                FormatVersion = reader.GetByteOrNull(10) ?? 1
+                            },
                     };
                 })
             .WithParameter("$externalId", fileExternalId.Value)
@@ -143,11 +150,13 @@ public class GetThumbnailSourceFileQuery(
             .AggregateRows(
                 sql: """
                     SELECT
+                        fi_id,
                         fi_external_id,
                         fi_workspace_id,
                         fi_key_secret_part,
                         fi_size_in_bytes,
                         fi_extension,
+                        fi_folder_id,
                         fi_encryption_key_version,
                         fi_encryption_salt,
                         fi_encryption_nonce_prefix,
@@ -163,7 +172,7 @@ public class GetThumbnailSourceFileQuery(
                 aggregateRowFunc: (acc, reader) =>
                 {
                     var extension = reader.DecodeEncryptableString(
-                        4,
+                        5,
                         workspaceEncryptionSession);
 
                     if (!ContentTypeHelper.IsThumbnailable(extension))
@@ -171,21 +180,23 @@ public class GetThumbnailSourceFileQuery(
 
                     acc.Add(new ThumbnailSourceFileWithExtensions
                     {
-                        ExternalId = reader.GetExtId<FileExtId>(0),
-                        WorkspaceId = reader.GetInt32(1),
-                        KeySecretPart = reader.GetString(2),
-                        SizeInBytes = reader.GetInt64(3),
+                        Id = reader.GetInt32(0),
+                        ExternalId = reader.GetExtId<FileExtId>(1),
+                        WorkspaceId = reader.GetInt32(2),
+                        KeySecretPart = reader.GetString(3),
+                        SizeInBytes = reader.GetInt64(4),
                         Extension = extension,
+                        FolderId = reader.GetInt32OrNull(6),
 
-                        EncryptionMetadata = reader.GetByteOrNull(5) is { } keyVersion
+                        EncryptionMetadata = reader.GetByteOrNull(7) is { } keyVersion
                             ? new FileEncryptionMetadata
                             {
                                 KeyVersion = keyVersion,
-                                Salt = reader.GetFieldValue<byte[]>(6),
-                                NoncePrefix = reader.GetFieldValue<byte[]>(7),
+                                Salt = reader.GetFieldValue<byte[]>(8),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(9),
                                 ChainStepSalts = KeyDerivationChain.Deserialize(
-                                    reader.GetFieldValueOrNull<byte[]>(8)),
-                                FormatVersion = reader.GetByteOrNull(9) ?? 1
+                                    reader.GetFieldValueOrNull<byte[]>(10)),
+                                FormatVersion = reader.GetByteOrNull(11) ?? 1
                             }
                             : null
                     });
@@ -198,11 +209,13 @@ public class GetThumbnailSourceFileQuery(
 
     public sealed record ThumbnailSourceFileWithExtensions
     {
+        public required int Id { get; init; }
         public required FileExtId ExternalId { get; init; }
         public required int WorkspaceId { get; init; }
         public required string KeySecretPart { get; init; }
         public required long SizeInBytes { get; init; }
         public required string Extension { get; init; }
+        public required int? FolderId { get; init; }
         public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
     }
 

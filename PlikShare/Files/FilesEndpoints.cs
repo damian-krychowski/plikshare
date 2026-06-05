@@ -146,9 +146,9 @@ public static class FilesEndpoints
         var attachment = new InsertFileAttachmentQuery.AttachmentFile
         {
             ExternalId = attachmentFileExternalId,
-            ContentType = workspace.ToEncryptableMetadata(file.ContentType, workspaceEncryptionSession),
-            Name = workspace.ToEncryptableMetadata(fileName.Name, workspaceEncryptionSession),
-            Extension = workspace.ToEncryptableMetadata(fileName.Extension, workspaceEncryptionSession),
+            ContentType = workspace.EncodeMetadata(file.ContentType, workspaceEncryptionSession),
+            Name = workspace.EncodeMetadata(fileName.Name, workspaceEncryptionSession),
+            Extension = workspace.EncodeMetadata(fileName.Extension, workspaceEncryptionSession),
             SizeInBytes = file.Length,
             KeySecretPart = workspace.GenerateFileKeySecretPart(),
             EncryptionMetadata = workspace.GenerateFileEncryptionMetadata(),

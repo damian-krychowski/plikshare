@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 
 namespace PlikShare.Core.SQLite;
@@ -23,6 +24,10 @@ public static class SqLiteCommandExtensions
 
             case Guid guid:
                 command.Parameters.AddWithValue(name, guid.ToString());
+                break;
+
+            case EncodedMetadataValue encodedMetadata:
+                command.Parameters.AddWithValue(name, encodedMetadata.Encoded);
                 break;
 
             default:

@@ -30,6 +30,7 @@ using PlikShare.QuickShares.UpdateSlug;
 using PlikShare.QuickShares.UpdateSlug.Contracts;
 using PlikShare.QuickShares.Validation;
 using PlikShare.Storages.Encryption;
+using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Validation;
 
 namespace PlikShare.QuickShares;
@@ -99,7 +100,7 @@ public static class QuickSharesEndpoints
     {
         var workspace = httpContext.GetWorkspaceMembershipDetails().Workspace;
 
-        if (workspace.Storage.Encryption.Type == StorageEncryptionType.Full)
+        if (workspace.EncryptionType == StorageEncryptionType.Full)
             return HttpErrors.QuickShare.FullEncryptionNotSupportedYet();
 
         var name = (request.Name ?? string.Empty).Trim();

@@ -240,7 +240,7 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                     """,
                 readRowFunc: reader =>
                 {
-                    var definition = Json.Deserialize<ProcessImageQueueJobDefinition>(
+                    var definition = Json.Deserialize<ProcessImageQueueJobDefinitionV2>(
                         reader.GetString(2));
 
                     var resultJson = reader.GetStringOrNull(3);
@@ -248,7 +248,7 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                     return new CompletedJob(
                         QcId: reader.GetInt64(0),
                         CompletedAt: reader.GetFieldValue<DateTimeOffset>(1),
-                        Variants: definition?.Variants ?? [],
+                        Variants: definition?.Files[0].GetVariants() ?? [],
                         Result: resultJson is null
                             ? null
                             : Json.Deserialize<ThumbnailGenerationResult>(resultJson));
@@ -274,7 +274,7 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                 seed: new List<string>(),
                 aggregateRowFunc: (acc, reader) =>
                 {
-                    var definition = Json.Deserialize<ProcessImageQueueJobDefinition>(
+                    var definition = Json.Deserialize<ProcessImageQueueJobDefinitionV2>(
                         reader.GetString(0));
 
                     if (definition is null)

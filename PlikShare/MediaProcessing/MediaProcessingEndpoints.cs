@@ -208,7 +208,7 @@ public static class MediaProcessingEndpoints
         [FromRoute] FileExtId fileExternalId,
         [FromBody] GenerateFileThumbnailsRequestDto request,
         HttpContext httpContext,
-        GenerateFileThumbnailsOperation generateFileThumbnailsOperation,
+        GenerateFileThumbnailsBulkOperation generateFileThumbnailsBulkOperation,
         CancellationToken cancellationToken)
     {
         if (request.Variants is null || request.Variants.Count == 0)
@@ -217,25 +217,28 @@ public static class MediaProcessingEndpoints
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
 
-        var result = await generateFileThumbnailsOperation.Execute(
+        var result = await generateFileThumbnailsBulkOperation.Execute(
             workspace: workspaceMembership.Workspace,
-            parentFileExternalId: fileExternalId,
+            parentFileExternalIds: [fileExternalId.Value],
             variants: request.Variants,
             triggeredByUserExternalId: workspaceMembership.User.ExternalId,
             workspaceEncryptionSession: workspaceEncryptionSession,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 
+        if (result.TotalFiles == 0)
+        {
+            return HttpErrors.File.ParentNotThumbnailable();
+        }
+
         return result.Code switch
         {
-            GenerateFileThumbnailsOperation.ResultCode.Ok => TypedResults.Ok(new GenerateFileThumbnailsResponseDto
+            GenerateFileThumbnailsBulkOperation.ResultCode.Ok => TypedResults.Ok(new GenerateFileThumbnailsResponseDto
             {
                 BatchId = result.BatchId!.Value
             }),
-            GenerateFileThumbnailsOperation.ResultCode.FfmpegUnavailable => HttpErrors.File.FfmpegUnavailable(),
-            GenerateFileThumbnailsOperation.ResultCode.ParentNotFound => HttpErrors.File.NotFound(fileExternalId),
-            GenerateFileThumbnailsOperation.ResultCode.ParentNotThumbnailable => HttpErrors.File.ParentNotThumbnailable(),
-            GenerateFileThumbnailsOperation.ResultCode.NoVariants => HttpErrors.File.NoThumbnailVariantsRequested(),
+            GenerateFileThumbnailsBulkOperation.ResultCode.FfmpegUnavailable => HttpErrors.File.FfmpegUnavailable(),
+            GenerateFileThumbnailsBulkOperation.ResultCode.NoVariants => HttpErrors.File.NoThumbnailVariantsRequested(),
             _ => HttpErrors.File.NotFound(fileExternalId)
         };
     }

@@ -11,7 +11,7 @@ public static class UpdateWorkspaceCurrentSizeInBytesQuery
         int workspaceId,
         long currentSizeInBytes,
         SqliteWriteContext dbWriteContext,
-        SqliteTransaction transaction)
+        SqliteTransaction? transaction)
     {
         var result = dbWriteContext
             .OneRowCmd(

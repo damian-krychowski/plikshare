@@ -347,7 +347,7 @@ public static class WorkspacesEndpoints
                 {
                     WorkspaceCurrentSizeInBytes = workspaceMembership.Workspace.CurrentSizeInBytes,
                     WorkspaceMaxSizeInBytes = workspaceMembership.Workspace.MaxSizeInBytes,
-                    StorageEncryptionType = workspaceMembership.Workspace.Storage.Encryption.Type.ToDbValue(),
+                    StorageEncryptionType = workspaceMembership.Workspace.EncryptionType.ToDbValue(),
                     IsPendingKeyGrant = result.IsPendingKeyGrant
                 });
 
@@ -486,7 +486,7 @@ public static class WorkspacesEndpoints
                     .ToList()
             },
             IsBucketCreated = workspaceMembership.Workspace.IsBucketCreated,
-            StorageEncryptionType = workspaceMembership.Workspace.Storage.Encryption.Type.ToDbValue(),
+            StorageEncryptionType = workspaceMembership.Workspace.EncryptionType.ToDbValue(),
             TrashPolicy = new Storages.List.Contracts.TrashPolicyDto
             {
                 Enabled = workspaceMembership.Workspace.TrashPolicy.Enabled,
@@ -781,7 +781,7 @@ public static class WorkspacesEndpoints
         if (!workspaceMembership.IsOwnedByUser)
             return HttpErrors.Workspace.NotOwner(workspaceMembership.Workspace.ExternalId);
 
-        if (workspaceMembership.Workspace.Storage.Encryption.Type != StorageEncryptionType.Full)
+        if (workspaceMembership.Workspace.EncryptionType != StorageEncryptionType.Full)
             return HttpErrors.Workspace.NotFullEncryption(workspaceMembership.Workspace.ExternalId);
 
         var target = await userCache.TryGetUser(

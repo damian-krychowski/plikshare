@@ -19,7 +19,7 @@ public static class HttpContextWorkspaceEncryptionSessionExtensions
         public async ValueTask<StartWorkspaceEncryptionSessionResult> TryStartWorkspaceEncryptionSession(
             WorkspaceContext workspace)
         {
-            if (workspace.Storage.Encryption.Type != StorageEncryptionType.Full)
+            if (workspace.EncryptionType != StorageEncryptionType.Full)
             {
                 return new StartWorkspaceEncryptionSessionResult(
                     StartWorkspaceEncryptionSessionResultCode.WorkspaceIsNotEncrypted);

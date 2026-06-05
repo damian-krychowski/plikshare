@@ -132,5 +132,6 @@ public static class JsonConverters
         options.Converters.Add(new FileKeyJsonConverter());
         options.Converters.Add(new EncryptableMetadataJsonConverter());
         options.Converters.Add(new EncodedMetadataValueJsonConverter());
+        options.Converters.Add(new EncodedEphemeralValueJsonConverter());
     }
 }

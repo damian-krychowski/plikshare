@@ -756,6 +756,96 @@ public class thumbnail_generation_tests : TestFixture
             .ExternalId.Should().Be(smallExternalId, "regenerating Mini must not touch Small");
     }
 
+    [Fact]
+    public async Task generating_a_thumbnail_should_recalculate_workspace_size_to_include_it()
+    {
+        //given — a workspace with a single uploaded image. Once the upload's debounced size-update
+        // job settles, the reported workspace size equals the parent file's size and nothing else.
+        var workspace = await CreateWorkspace(user: AppOwner);
+        var folder = await CreateFolder(workspace: workspace, user: AppOwner);
+
+        var parentFileBytes = TextractTestImage.GetBytes();
+
+        var parentFile = await UploadFile(
+            content: parentFileBytes,
+            fileName: "sample.png",
+            contentType: "image/png",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        await WaitForFileUnlocked(parentFile.ExternalId, AppOwner);
+
+        var sizeBeforeThumbnails = await PollWorkspaceSize(
+            workspace: workspace,
+            isSettled: size => size == parentFileBytes.Length,
+            eachLoopAction: () => Clock.SetToNow());
+
+        sizeBeforeThumbnails.Should().Be(parentFileBytes.Length);
+        
+        //when — generate a Mini thumbnail and read back its stored size
+        var batchId = await Api.MediaProcessing.GenerateFileThumbnails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: parentFile.ExternalId,
+            variants: [ThumbnailVariant.Mini],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        await Api.MediaProcessing.WaitForBatchDone(
+            workspaceExternalId: workspace.ExternalId,
+            batchId: batchId,
+            cookie: AppOwner.Cookie);
+
+        var details = await Api.Files.GetPreviewDetails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: parentFile.ExternalId,
+            fields: ["thumbnails"],
+            cookie: AppOwner.Cookie);
+
+        var thumbnailSize = details.Thumbnails!.Single().SizeInBytes;
+        thumbnailSize.Should().BeGreaterThan(0);
+
+        //then — the thumbnail bytes are stored as a child file, so the recalculated workspace size
+        // must grow by exactly the thumbnail's size.
+        var expectedSize = parentFileBytes.Length + thumbnailSize;
+
+        var sizeAfterThumbnail = await PollWorkspaceSize(
+            workspace: workspace,
+            isSettled: size => size == expectedSize,
+            eachLoopAction: () => Clock.SetToNow());
+
+        sizeAfterThumbnail.Should().Be(
+            expectedSize,
+            "the freshly generated thumbnail's bytes must be reflected in the recalculated workspace size");
+    }
+
+    // Polls the workspace's reported CurrentSizeInBytes until it satisfies the predicate (or a
+    // ~10s timeout elapses), returning the last observed value. The cached size is recalculated
+    // asynchronously via a debounced queue job, so a direct read right after a mutation is racy.
+    private async Task<long> PollWorkspaceSize(
+        AppWorkspace workspace,
+        Func<long, bool> isSettled,
+        Action eachLoopAction)
+    {
+        var lastObserved = -1L;
+
+        for (var i = 0; i < 100; i++)
+        {
+            lastObserved = (await Api.Workspaces.GetDetails(
+                workspace.ExternalId,
+                AppOwner.Cookie)).CurrentSizeInBytes;
+
+            if (isSettled(lastObserved))
+                return lastObserved;
+            
+            await Task.Delay(100);
+
+            eachLoopAction();
+        }
+
+        return lastObserved;
+    }
+
     // Counts the live thumbnail child rows of a parent straight from the DB — bypassing the
     // preview's by-variant dedup so a leaked duplicate is actually visible to the assertion.
     private int CountThumbnailRows(FileExtId parentFileExternalId)

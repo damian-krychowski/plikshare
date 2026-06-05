@@ -551,7 +551,7 @@ public class Startup
         builder.Services.AddSingleton<DeleteWorkspaceWithDependenciesQuery>();
         AddDbOnlyQueueJob<DeleteWorkspaceQueueJobExecutor>();
         AddNormalQueueJob<DeleteBucketJobExecutor>();
-        AddDbOnlyQueueJob<UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor>();
+        AddNormalQueueJob<UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor>();
         builder.Services.AddSingleton<BulkDeleteQuery>();
         builder.Services.AddSingleton<ChangeWorkspaceOwnerQuery>();
         builder.Services.AddSingleton<GetWorkspaceSizeQuery>();
@@ -815,16 +815,16 @@ public class Startup
         builder.Services.AddSingleton<ValidateThumbnailParentQuery>();
         builder.Services.AddSingleton<DeleteFileThumbnailOperation>();
         builder.Services.AddSingleton<FfmpegService>();
-
-        builder.Services.AddSingleton<TemporaryEncryptionStore>();
-
+        
         builder.Services.AddSingleton(_ =>
-            builder.Configuration.GetSection("TemporaryEncryptionStoreSweeper").Get<TemporaryEncryptionStoreSweeperOptions>()
-            ?? new TemporaryEncryptionStoreSweeperOptions());
+            builder.Configuration.GetSection("EphemeralKeyRing").Get<EphemeralKeyRingOptions>()
+            ?? new EphemeralKeyRingOptions());
 
-        builder.Services.AddHostedService<TemporaryEncryptionStoreSweeperHostedService>();
+        builder.Services.AddSingleton<EphemeralKeyRing>();
+        builder.Services.AddHostedService<EphemeralKeyRingSweeperHostedService>();
+
         AddLongRunningQueueJob<ProcessImageQueueJobExecutor>();
-        builder.Services.AddSingleton<GenerateFileThumbnailsOperation>();
+        AddLongRunningQueueJob<ProcessImageQueueJobExecutorV2>();
         builder.Services.AddSingleton<GenerateFileThumbnailsBulkOperation>();
         builder.Services.AddSingleton<GetThumbnailSourceFileQuery>();
         builder.Services.AddSingleton<GetThumbnailGenerationStatusQuery>();
@@ -862,7 +862,7 @@ public class Startup
         builder.Services.AddSingleton<GenerateQuickShareZipFileDetailsOperation>();
         builder.Services.AddSingleton<GenerateQuickShareZipContentDownloadLinkOperation>();
         builder.Services.AddSingleton<GenerateQuickShareZipBulkDownloadLinkOperation>();
-
+        
         // Job-type maps were built (above) from the executor types as they were registered. Hand the
         // finished maps to the provider as a ready instance — no DI dependency on the executors, so no
         // IQueue -> Queue -> provider cycle.

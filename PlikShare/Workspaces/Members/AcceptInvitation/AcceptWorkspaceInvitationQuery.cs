@@ -97,7 +97,7 @@ public class AcceptWorkspaceInvitationQuery(
 
             var isPendingKeyGrant = false;
 
-            if (workspaceMembership.Workspace.Storage.Encryption.Type == StorageEncryptionType.Full)
+            if (workspaceMembership.Workspace.EncryptionType == StorageEncryptionType.Full)
             {
                 var hasWek = dbWriteContext
                     .Cmd(

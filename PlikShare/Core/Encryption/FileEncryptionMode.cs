@@ -73,78 +73,78 @@ public sealed class FileAesInputsV2 : IDisposable
             NoncePrefix = metadata.NoncePrefix
         };
     }
-}
 
-public sealed class FileAesInputsV2Wire
-{
-    public required byte[] EncryptedFileKey { get; init; }
-
-    public required byte KeyVersion { get; init; }
-    public required IReadOnlyList<byte[]> ChainStepSalts { get; init; }
-    public required byte[] Salt { get; init; }
-    public required byte[] NoncePrefix { get; init; }
-
-    public static FileAesInputsV2Wire Prepare(
-        SecureBytes ikm,
-        FileEncryptionMetadata metadata,
-        IMasterDataEncryption masterEncryption)
+    public static FileAesInputsV2 From(
+        FullEncryptionSeed seed,
+        FileEncryptionMetadata metadata)
     {
-        // The whole point of the wire form is to avoid the mlock/pin overhead of SecureBytes
-        // for cache entries. So plaintext lives ONLY on this stack frame: HKDF writes it,
-        // master encryption reads it, the finally zeroes it. No heap, no SecureBytes alloc.
-        // 32 bytes — well within any sane stack budget.
-        Span<byte> fileKey = stackalloc byte[Aes256GcmStreamingV2.DerivedKeySize];
+        if (seed.IkmKeyVersion != metadata.KeyVersion)
+            throw new InvalidOperationException(
+                $"Seed key version ({seed.IkmKeyVersion}) does not match " +
+                $"metadata key version ({metadata.KeyVersion}).");
 
-        try
+        var ikmChainStepSalts = seed.IkmChainStepSalts;
+        var seedChainStepSalts = seed.ChainStepSalts;
+
+        if (seedChainStepSalts.Count == 0)
+            throw new InvalidOperationException(
+                "Seed must contain at least one chain step salt.");
+
+        var expectedMetadataCount = ikmChainStepSalts.Count + seedChainStepSalts.Count - 1;
+
+        if (metadata.ChainStepSalts.Count != expectedMetadataCount)
+            throw new InvalidOperationException(
+                "Metadata chain step salts count does not match seed.");
+
+        for (var i = 0; i < ikmChainStepSalts.Count; i++)
         {
-            ikm.DeriveKey(
-                chainStepSalts: metadata.Salt,
-                output: fileKey);
+            var areEqual = CryptographicOperations.FixedTimeEquals(
+                metadata.ChainStepSalts[i],
+                ikmChainStepSalts[i]);
 
-            return new FileAesInputsV2Wire
+            if (!areEqual)
             {
-                EncryptedFileKey = masterEncryption.EncryptBytes(fileKey),
-                KeyVersion = metadata.KeyVersion,
-                ChainStepSalts = metadata.ChainStepSalts,
-                Salt = metadata.Salt,
-                NoncePrefix = metadata.NoncePrefix
-            };
+                throw new InvalidOperationException(
+                    $"Metadata IKM chain step salt at index {i} does not match seed.");
+            }
         }
-        finally
-        {
-            CryptographicOperations.ZeroMemory(fileKey);
-        }
-    }
 
-    public FileEncryptionMode ToEncryptionMode(
-        IMasterDataEncryption masterEncryption)
-    {
+        for (var i = 0; i < seedChainStepSalts.Count - 1; i++)
+        {
+            var areEqual = CryptographicOperations.FixedTimeEquals(
+                metadata.ChainStepSalts[ikmChainStepSalts.Count + i],
+                seedChainStepSalts[i]);
+
+            if (!areEqual)
+            {
+                throw new InvalidOperationException(
+                    $"Metadata chain step salt at index {ikmChainStepSalts.Count + i} does not match seed.");
+            }
+        }
+
+        var isSaltEqual = CryptographicOperations.FixedTimeEquals(
+            seedChainStepSalts[^1],
+            metadata.Salt);
+
+        if (!isSaltEqual)
+        {
+            throw new InvalidOperationException(
+                "Last chain step salt of the seed does not match the metadata salt.");
+        }
+
         var fileKey = new byte[Aes256GcmStreamingV2.DerivedKeySize];
 
-        masterEncryption.DecryptBytes(
-            versionedEncryptedBytes: EncryptedFileKey,
-            destination: fileKey);
+        seed.Key.CopyTo(fileKey);
 
-        var input = new FileAesInputsV2
+        return new FileAesInputsV2
         {
             FileKey = fileKey,
-            KeyVersion = KeyVersion,
-            ChainStepSalts = ChainStepSalts,
-            Salt = Salt,
-            NoncePrefix = NoncePrefix
+            KeyVersion = metadata.KeyVersion,
+            ChainStepSalts = metadata.ChainStepSalts,
+            Salt = metadata.Salt,
+            NoncePrefix = metadata.NoncePrefix
         };
-
-        return new AesGcmV2Encryption(input);
     }
-
-    public FileEncryptionMetadata ToMetadata() => new()
-    {
-        FormatVersion = 2,
-        Salt = Salt,
-        KeyVersion = KeyVersion,
-        ChainStepSalts = ChainStepSalts,
-        NoncePrefix = NoncePrefix
-    };
 }
 
 public static class FileEncryptionModeExtensions

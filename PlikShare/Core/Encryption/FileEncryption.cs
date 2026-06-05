@@ -5,6 +5,7 @@ using PlikShare.Storages.FileReading;
 using Serilog;
 using System.Buffers;
 using System.IO.Pipelines;
+using Serilog.Events;
 
 namespace PlikShare.Core.Encryption;
 
@@ -363,12 +364,14 @@ public static class FileEncryption
                 var totalDuration = DateTime.UtcNow - startTime;
                 var averageSpeed = fileSizeInBytes / Math.Max(1, totalDuration.TotalSeconds);
 
-                _logger.Information(
-                    "Successfully completed download operation. Size: {FileSize:N2} MB, " +
-                    "Duration: {DurationSec:N1}s, Average speed: {Speed:N2} MB/s",
-                    fileSizeInBytes / 1024.0 / 1024.0,
-                    totalDuration.TotalSeconds,
-                    averageSpeed / 1024.0 / 1024.0);
+                if (_logger.IsEnabled(LogEventLevel.Debug))
+                {
+                    _logger.Debug(
+                        "Successfully completed download operation. Size: {FileSize:N2} MB, Duration: {DurationSec:N1}s, Average speed: {Speed:N2} MB/s",
+                        fileSizeInBytes / 1024.0 / 1024.0,
+                        totalDuration.TotalSeconds,
+                        averageSpeed / 1024.0 / 1024.0);
+                }
             }
             catch (UnauthorizedAccessException e)
             {
@@ -519,12 +522,14 @@ public static class FileEncryption
                 var totalDuration = DateTime.UtcNow - startTime;
                 var averageSpeed = fileSizeInBytes / Math.Max(1, totalDuration.TotalSeconds);
 
-                _logger.Information(
-                    "Successfully completed download operation. Size: {FileSize:N2} MB, " +
-                    "Duration: {DurationSec:N1}s, Average speed: {Speed:N2} MB/s",
-                    fileSizeInBytes / 1024.0 / 1024.0,
-                    totalDuration.TotalSeconds,
-                    averageSpeed / 1024.0 / 1024.0);
+                if (_logger.IsEnabled(LogEventLevel.Debug))
+                {
+                    _logger.Debug(
+                        "Successfully completed download operation. Size: {FileSize:N2} MB, Duration: {DurationSec:N1}s, Average speed: {Speed:N2} MB/s",
+                        fileSizeInBytes / 1024.0 / 1024.0,
+                        totalDuration.TotalSeconds,
+                        averageSpeed / 1024.0 / 1024.0);
+                }
             }
             catch (UnauthorizedAccessException e)
             {

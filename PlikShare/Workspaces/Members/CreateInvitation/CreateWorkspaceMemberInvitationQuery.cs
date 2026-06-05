@@ -38,7 +38,7 @@ public class CreateWorkspaceMemberInvitationQuery(
         bool allowShare,
         Guid correlationId)
     {
-        var isFullEncryption = workspace.Storage.Encryption.Type == StorageEncryptionType.Full;
+        var isFullEncryption = workspace.EncryptionType == StorageEncryptionType.Full;
 
         var invitedMemberIds = new HashSet<int>();
         var createdQueueJobIds = new List<QueueJobId>();

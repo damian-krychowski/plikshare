@@ -31,27 +31,21 @@ public class GetWorkspaceSizeQuery(PlikShareDb plikShareDb)
         ), 0)
         """;
 
+    public long Execute(WorkspaceContext workspace)
+    {
+        return Execute(workspace.Id);
+    }
+
     public long Execute(
-        WorkspaceContext workspace)
+        int workspaceId)
     {
         using var connection = plikShareDb.OpenConnection();
 
-        return Execute(
-            workspaceId: workspace.Id, 
-            connection: connection,
-            transaction: null);
-    }
-
-    public static long Execute(
-        int workspaceId,
-        SqliteConnection connection,
-        SqliteTransaction? transaction)
-    {
         return connection
             .OneRowCmd(
                 sql: SQL,
                 readRowFunc: reader => reader.GetInt64(0),
-                transaction: transaction)
+                transaction: null)
             .WithParameter("$workspaceId", workspaceId)
             .ExecuteOrValue(0);
     }

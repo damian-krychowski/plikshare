@@ -55,11 +55,13 @@ public static class WorkspaceDekEntryWireExtensions
 
             for (var i = 0; i < entries.Length; i++)
             {
+                var entry = entries[i];
+
                 wires[i] = new WorkspaceDekEntryWire
                 {
                     WorkspaceId = session.WorkspaceId,
-                    StorageDekVersion = entries[i].StorageDekVersion,
-                    EncryptedDek = entries[i].Dek.ToWire(masterEncryption)
+                    StorageDekVersion = entry.StorageDekVersion,
+                    EncryptedDek = entry.Dek.ToWire(masterEncryption),
                 };
             }
 
@@ -78,7 +80,7 @@ public static class WorkspaceDekEntryWireExtensions
 
                 Dek = SecureBytes.FromWire(
                     encryptedSecureBytes: wire.EncryptedDek,
-                    masterEncryption: masterEncryption)
+                    masterEncryption: masterEncryption),
             };
         }
     }

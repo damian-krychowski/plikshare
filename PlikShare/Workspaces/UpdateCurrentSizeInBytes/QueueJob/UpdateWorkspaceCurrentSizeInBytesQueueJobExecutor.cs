@@ -1,6 +1,5 @@
-using Microsoft.Data.Sqlite;
+using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
-using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.GetSize;
@@ -9,7 +8,9 @@ using Serilog;
 namespace PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
 
 public class UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor(
-    WorkspaceCache workspaceCache) : IQueueDbOnlyJobExecutor
+    WorkspaceCache workspaceCache,
+    GetWorkspaceSizeQuery getWorkspaceSizeQuery,
+    DbWriteQueue dbWriteQueue) : IQueueNormalJobExecutor
 {
     public static string StaticJobType => UpdateWorkspaceCurrentSizeInBytesQueueJobType.Value;
     public static int StaticPriority => QueueJobPriority.Normal;
@@ -17,11 +18,10 @@ public class UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor(
     public string JobType => StaticJobType;
     public int Priority => StaticPriority;
 
-    public (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
+    public async Task<QueueJobResult> Execute(
         string definitionJson, 
-        Guid correlationId,
-        SqliteWriteContext dbWriteContext,
-        SqliteTransaction transaction)
+        Guid correlationId, 
+        CancellationToken cancellationToken)
     {
         var definition = Json.Deserialize<UpdateWorkspaceCurrentSizeInBytesQueueJobDefinition>(
             definitionJson);
@@ -31,39 +31,31 @@ public class UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor(
             throw new ArgumentException(
                 $"Job '{definitionJson}' cannot be parsed to correct '{nameof(UpdateWorkspaceCurrentSizeInBytesQueueJobDefinition)}'");
         }
-        
+
         Log.Debug("Workspace#{WorkspaceId} current size in bytes update started.",
             definition.WorkspaceId);
 
-        var currentWorkspaceSizeInBytes = GetWorkspaceSizeQuery.Execute(
-            definition.WorkspaceId,
-            dbWriteContext,
-            transaction);
+        var currentWorkspaceSizeInBytes = getWorkspaceSizeQuery.Execute(
+            workspaceId: definition.WorkspaceId);
 
-        var result = UpdateWorkspaceCurrentSizeInBytesQuery.Execute(
-            workspaceId: definition.WorkspaceId,
-            currentSizeInBytes: currentWorkspaceSizeInBytes,
-            dbWriteContext: dbWriteContext,
-            transaction: transaction);
+        var result = await dbWriteQueue.Execute(
+            context => UpdateWorkspaceCurrentSizeInBytesQuery.Execute(
+                workspaceId: definition.WorkspaceId,
+                currentSizeInBytes: currentWorkspaceSizeInBytes,
+                dbWriteContext: context,
+                transaction: null),
+            cancellationToken: cancellationToken);
 
         if (result.Code == UpdateWorkspaceCurrentSizeInBytesQuery.ResultCode.WorkspaceNotFound)
-            return (
-                Result: QueueJobResult.Success, 
-                SideEffectsToRun: _ => ValueTask.CompletedTask
-            );
+        {
+            return QueueJobResult.Success;
+        }
 
-        return (
-            Result: QueueJobResult.Success, 
-            SideEffectsToRun: token => ClearCache(result, token)
-        );
-    }
 
-    private async ValueTask ClearCache(
-        UpdateWorkspaceCurrentSizeInBytesQuery.Result result,
-        CancellationToken cancellationToken)
-    {
         await workspaceCache.InvalidateEntry(
-            result.WorkspaceExternalId,
+            workspaceId: definition.WorkspaceId,
             cancellationToken: cancellationToken);
+
+        return QueueJobResult.Success;
     }
 }

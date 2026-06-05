@@ -38,7 +38,7 @@ public class SendAiFileMessageOperation(
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        if (workspace.Storage.Encryption.Type == StorageEncryptionType.Full)
+        if (workspace.EncryptionType == StorageEncryptionType.Full)
             return ResultCode.EncryptedStorageNotSupported;
 
         if (!HasUserRightsToAllIncludes(workspace, request.Includes))

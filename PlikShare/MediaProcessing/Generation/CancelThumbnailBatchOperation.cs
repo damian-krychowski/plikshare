@@ -1,9 +1,7 @@
 using PlikShare.Core.Database.MainDatabase;
-using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
-using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.MediaProcessing.Generation;
 
@@ -14,7 +12,6 @@ namespace PlikShare.MediaProcessing.Generation;
 /// </summary>
 public class CancelThumbnailBatchOperation(
     DbWriteQueue dbWriteQueue,
-    TemporaryEncryptionStore temporaryEncryptionStore,
     QueueBatchNotifier batchNotifier)
 {
     public async Task<int> Execute(
@@ -37,11 +34,7 @@ public class CancelThumbnailBatchOperation(
             if (definition is null)
                 continue;
 
-            releasedFiles += definition.Files.Count;
-
-            foreach (var file in definition.Files)
-                if (file.TempEncryptionKeyId is { } id)
-                    temporaryEncryptionStore.Remove(id);
+            releasedFiles += definition.Files.Length;
         }
 
         batchNotifier.Notify(batchId);
@@ -49,7 +42,7 @@ public class CancelThumbnailBatchOperation(
         return releasedFiles;
     }
 
-    private static List<ProcessImageQueueJobDefinition?> DeletePendingJobs(
+    private static List<ProcessImageQueueJobDefinitionV2?> DeletePendingJobs(
         SqliteWriteContext context,
         Guid batchId)
     {
@@ -61,7 +54,7 @@ public class CancelThumbnailBatchOperation(
                         AND q_status = $pendingStatus
                     RETURNING q_definition
                     """,
-                readRowFunc: reader => Json.Deserialize<ProcessImageQueueJobDefinition>(
+                readRowFunc: reader => Json.Deserialize<ProcessImageQueueJobDefinitionV2>(
                     reader.GetString(0)))
             .WithParameter("$batchId", batchId)
             .WithParameter("$pendingStatus", QueueStatus.Pending)

@@ -3,8 +3,9 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
-using PlikShare.Files.Id;
+using PlikShare.Core.Utils;
 using PlikShare.Files.Metadata;
+using PlikShare.Storages.Encryption;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Cache;
 
@@ -21,8 +22,7 @@ public class GenerateFileThumbnailsBulkOperation(
     IQueue queue,
     DbWriteQueue dbWriteQueue,
     GetThumbnailSourceFileQuery getSourceFileQuery,
-    TemporaryEncryptionStore temporaryEncryptionStore,
-    IMasterDataEncryption masterEncryption,
+    EphemeralKeyRing ephemeralKeyRing,
     FfmpegService ffmpegService)
 {
     // How many parent files to fold into one queue job. Higher = fewer DbWriteQueue trips but
@@ -56,164 +56,93 @@ public class GenerateFileThumbnailsBulkOperation(
         
         var batchId = Guid.NewGuid();
         var variantList = variants.ToList();
+        
+        var allBatchItems = new List<ProcessImageQueueJobDefinitionV2.BatchItem>();
 
-        var entities = new List<BulkQueueJobEntity>();
-
-        // One Package per file — Package holds decryption + encryption + metadata-seed wires
-        // (all master-encrypted) for a single parent file's thumbnail generation. Per-file
-        // (not per-batch) granularity matches the worker's per-file lifecycle: a Package is
-        // taken and consumed for its file then removed.
-        var storedHandles = new List<Guid>();
-
-        try
+        foreach (var parentFile in thumbnailableFiles)
         {
-            foreach (var chunk in thumbnailableFiles.Chunk(BatchSize))
+            var variantItems = new List<ProcessImageQueueJobDefinitionV2.VariantItem>();
+
+            foreach (var variant in variantList)
             {
-                var batchItems = new List<ProcessImageQueueJobDefinition.BatchItem>(
-                    chunk.Length);
-
-                foreach (var file in chunk)
+                variantItems.Add(new ProcessImageQueueJobDefinitionV2.VariantItem
                 {
-                    var handle = ProvisionPackage(
-                        workspace: workspace,
-                        workspaceEncryptionSession: workspaceEncryptionSession,
-                        file: file,
-                        variants: variantList);
+                    Variant = variant,
 
-                    if (handle is { } id)
-                        storedHandles.Add(id);
-
-                    batchItems.Add(new ProcessImageQueueJobDefinition.BatchItem
-                    {
-                        ParentFileExternalId = file.ExternalId,
-                        Extension = file.Extension,
-                        TempEncryptionKeyId = handle
-                    });
-                }
-
-                var definition = new ProcessImageQueueJobDefinition
-                {
-                    WorkspaceId = workspace.Id,
-                    Files = batchItems,
-                    Variants = variantList,
-                    TriggeredByUserExternalId = triggeredByUserExternalId
-                };
-
-                entities.Add(queue.CreateBulkEntity(
-                    jobType: ProcessImageQueueJobType.Value,
-                    definition: definition,
-                    sagaId: null,
-                    batchId: batchId));
+                    EncryptionSeed = workspace.EncryptionType == StorageEncryptionType.Full
+                        ? FullEncryptionSeedEphemeral.Prepare(
+                            workspace: workspace,
+                            session: workspaceEncryptionSession!,
+                            ephemeralKeyRing: ephemeralKeyRing)
+                        : null
+                });
             }
 
-            await dbWriteQueue.Execute(
-                operationToEnqueue: context => EnqueueJobs(
-                    dbWriteContext: context,
-                    entities: entities,
-                    correlationId: correlationId),
-                cancellationToken: cancellationToken);
+            allBatchItems.Add(new ProcessImageQueueJobDefinitionV2.BatchItem
+            {
+                ParentFileExternalId = parentFile.ExternalId,
+                VariantItems = variantItems,
+                IsVideo = ContentTypeHelper.GetFileTypeFromExtension(parentFile.Extension) == FileType.Video,
+
+                EncryptionSeed = workspace.EncryptionType == StorageEncryptionType.Full
+                    ? FullEncryptionSeedEphemeral.FromFile(
+                        fileEncryptionMetadata: parentFile.EncryptionMetadata!,
+                        workspace: workspace,
+                        session: workspaceEncryptionSession!,
+                        ephemeralKeyRing: ephemeralKeyRing)
+                    : null
+            });
         }
-        catch
+
+        var jobs = new List<BulkQueueJobEntity>();
+
+        foreach (var chunk in allBatchItems.Chunk(BatchSize))
         {
-            ReleaseHandles(storedHandles);
-            throw;
+            var job = queue.CreateBulkEntity(
+                jobType: ProcessImageQueueJobTypeV2.Value,
+                definition: new ProcessImageQueueJobDefinitionV2
+                {
+                    WorkspaceId = workspace.Id,
+                    Files = chunk,
+                    TriggeredByUserExternalId = triggeredByUserExternalId
+                },
+                sagaId: null,
+                batchId: batchId);
+
+            jobs.Add(job);
         }
+
+        await dbWriteQueue.Execute(
+            operationToEnqueue: context =>
+            {
+                context.Connection.RegisterJsonArrayToBlobFunction();
+                var transaction = context.Connection.BeginTransaction();
+
+                try
+                {
+                    queue.EnqueueBulk(
+                        correlationId: correlationId,
+                        definitions: jobs,
+                        executeAfterDate: clock.UtcNow,
+                        dbWriteContext: context,
+                        transaction: transaction);
+
+                    transaction.Commit();
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            },
+            cancellationToken: cancellationToken);
 
         return new Result(
             Code: ResultCode.Ok,
             BatchId: batchId,
             TotalFiles: thumbnailableFiles.Count);
     }
-
-    /// <summary>
-    /// Per-file: build every wire the worker will need (parent decryption, per-variant
-    /// thumbnail encryption, metadata seed), stash them as a Package, return the handle. Null
-    /// when the workspace isn't full-encrypted — there's nothing to wrap.
-    /// </summary>
-    private Guid? ProvisionPackage(
-        WorkspaceContext workspace,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
-        GetThumbnailSourceFileQuery.ThumbnailSourceFileWithExtensions file,
-        List<ThumbnailVariant> variants)
-    {
-        if (workspaceEncryptionSession is null)
-            return null;
-
-        var latest = workspaceEncryptionSession.GetLatestDek();
-
-        // Decryption wire for the parent body — only built when the parent actually has
-        // encryption metadata. Worker uses it via FileAesInputsV2.Prepare(wire, masterEnc).
-        FileAesInputsV2Wire? decryptionInput = null;
-        if (file.EncryptionMetadata is not null)
-        {
-            decryptionInput = FileAesInputsV2Wire.Prepare(
-                ikm: latest.Dek,
-                metadata: file.EncryptionMetadata,
-                masterEncryption: masterEncryption);
-        }
-
-        // Per-variant encryption wires — one per future thumbnail body. Fresh
-        // FileEncryptionMetadata generated up-front so the wire carries everything the worker
-        // needs to write the body AND populate the new fi_files row's fi_encryption_* columns.
-        var encryptionInputs = new List<FileAesInputsV2Wire>(variants.Count);
-
-        foreach (var _ in variants)
-        {
-            var newMetadata = workspace.GenerateFileEncryptionMetadata();
-
-            if (newMetadata is null)
-                continue;
-
-            encryptionInputs.Add(FileAesInputsV2Wire.Prepare(
-                ikm: latest.Dek,
-                metadata: newMetadata,
-                masterEncryption: masterEncryption));
-        }
-
-        // One seed per file, reused for every attachment metadata value across every variant
-        // — each Prepare(seed) call inside the worker generates a fresh per-value metadata
-        // salt internally.
-        var metadataEncryptionSeed = EncryptionSeedWire.Prepare(
-            session: workspaceEncryptionSession,
-            masterEncryption: masterEncryption);
-
-        return temporaryEncryptionStore.Store(
-            decryptionInput: decryptionInput,
-            encryptionInputs: encryptionInputs,
-            metadataEncryptionSeed: metadataEncryptionSeed);
-    }
-
-    private void EnqueueJobs(
-        SqliteWriteContext dbWriteContext,
-        List<BulkQueueJobEntity> entities,
-        Guid correlationId)
-    {
-        var transaction = dbWriteContext.Connection.BeginTransaction();
-
-        try
-        {
-            queue.EnqueueBulk(
-                correlationId: correlationId,
-                definitions: entities,
-                executeAfterDate: clock.UtcNow,
-                dbWriteContext: dbWriteContext,
-                transaction: transaction);
-
-            transaction.Commit();
-        }
-        catch
-        {
-            transaction.Rollback();
-            throw;
-        }
-    }
-
-    private void ReleaseHandles(List<Guid> handles)
-    {
-        foreach (var handle in handles)
-            temporaryEncryptionStore.Remove(handle);
-    }
-
+    
     public record Result(
         ResultCode Code,
         Guid? BatchId = null,

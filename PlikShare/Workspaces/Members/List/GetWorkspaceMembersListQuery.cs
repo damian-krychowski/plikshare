@@ -15,7 +15,7 @@ public class GetWorkspaceMembersListQuery(PlikShareDb plikShareDb)
     {
         using var connection = plikShareDb.OpenConnection();
 
-        var isFullEncrypted = workspace.Storage.Encryption.Type == StorageEncryptionType.Full;
+        var isFullEncrypted = workspace.EncryptionType == StorageEncryptionType.Full;
 
         var memberships = connection
             .Cmd(

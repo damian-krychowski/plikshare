@@ -13,6 +13,8 @@ public static class WorkspaceContextExtensions
 {
     extension(WorkspaceContext workspace)
     {
+        public StorageEncryptionType EncryptionType => workspace.Storage.Encryption.Type;
+        
         public FileKey GenerateFileKey()
         {
             return workspace.Storage.GenerateFileKey();

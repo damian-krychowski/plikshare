@@ -63,19 +63,19 @@ public class UploadFileThumbnailOperation(
             SizeInBytes = thumbnail.SizeInBytes,
             EncryptionMetadata = encryptionMetadata,
 
-            ContentType = workspace.ToEncryptableMetadata(
+            ContentType = workspace.EncodeMetadata(
                 thumbnail.ContentType,
                 workspaceEncryptionSession),
 
-            Name = workspace.ToEncryptableMetadata(
+            Name = workspace.EncodeMetadata(
                 thumbnail.FileName,
                 workspaceEncryptionSession),
 
-            Extension = workspace.ToEncryptableMetadata(
+            Extension = workspace.EncodeMetadata(
                 thumbnail.FileExtension,
                 workspaceEncryptionSession),
 
-            Metadata = workspace.ToEncryptableMetadata(
+            Metadata = workspace.EncodeMetadata(
                 value: Json.Serialize<FileMetadata>(
                     new ThumbnailFileMetadata
                     {

@@ -72,7 +72,8 @@ public sealed class LiveStoragesFixture : IAsyncLifetime
                 workspace, 
                 user);
 
-            var bucketName = testFixture.GetWorkspaceBucketName(workspace.ExternalId);
+            var bucketName = testFixture.GetWorkspaceBucketName(
+                workspace.ExternalId);
 
             var setup = new LiveStorageSetup(
                 Provider: provider,

@@ -31,7 +31,7 @@ public class StartTextractJobOperation(
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        if (workspace.Storage.Encryption.Type == StorageEncryptionType.Full)
+        if (workspace.EncryptionType == StorageEncryptionType.Full)
             return new Result(
                 Code: ResultCode.EncryptedStorageNotSupported);
 
