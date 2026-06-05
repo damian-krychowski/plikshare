@@ -1,6 +1,7 @@
 using Flurl.Http;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
+using PlikShare.Folders.Id;
 using PlikShare.MediaProcessing.Generation.Contracts;
 using PlikShare.Workspaces.Id;
 
@@ -104,10 +105,13 @@ public class MediaProcessingApi(IFlurlClient flurlClient, string appUrl)
     /// </summary>
     public async Task<(Guid BatchId, int TotalFiles)> GenerateFileThumbnailsBulk(
         WorkspaceExtId workspaceExternalId,
-        List<FileExtId> fileExternalIds,
         List<ThumbnailVariant> variants,
         SessionAuthCookie? cookie,
         AntiforgeryCookies antiforgery,
+        List<FileExtId>? selectedFiles = null,
+        List<FolderExtId>? selectedFolders = null,
+        List<FileExtId>? excludedFiles = null,
+        List<FolderExtId>? excludedFolders = null,
         Cookie? workspaceEncryptionSession = null)
     {
         var response = await flurlClient.ExecutePost<GenerateFileThumbnailsBulkResponseDto, GenerateFileThumbnailsBulkRequestDto>(
@@ -115,7 +119,10 @@ public class MediaProcessingApi(IFlurlClient flurlClient, string appUrl)
             apiPath: $"api/workspaces/{workspaceExternalId}/media/thumbnails/generate-bulk",
             request: new GenerateFileThumbnailsBulkRequestDto
             {
-                FileExternalIds = fileExternalIds.Select(id => id.Value).ToList(),
+                SelectedFiles = (selectedFiles ?? []).Select(x => x.Value).ToList(),
+                SelectedFolders = (selectedFolders ?? []).Select(x => x.Value).ToList(),
+                ExcludedFiles = (excludedFiles ?? []).Select(x => x.Value).ToList(),
+                ExcludedFolders = (excludedFolders ?? []).Select(x => x.Value).ToList(),
                 Variants = variants.Select(v => v.ToString()).ToList()
             },
             cookie: cookie,

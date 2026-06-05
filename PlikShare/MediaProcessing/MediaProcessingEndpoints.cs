@@ -246,20 +246,30 @@ public static class MediaProcessingEndpoints
     private static async Task<Results<Ok<GenerateFileThumbnailsBulkResponseDto>, BadRequest<HttpError>, JsonHttpResult<HttpError>>> GenerateFileThumbnailsBulk(
         HttpContext httpContext,
         GenerateFileThumbnailsBulkOperation generateFileThumbnailsBulkOperation,
+        GetThumbnailableSelectionFilesQuery getThumbnailableSelectionFilesQuery,
         CancellationToken cancellationToken)
     {
-        // Proto body — far cheaper than JSON when the file list is large (thousands of ids).
+        // Proto body — far cheaper than JSON when the selection spans large folder subtrees.
         var request = httpContext.GetProtobufRequest<GenerateFileThumbnailsBulkRequestDto>();
 
         if (request.Variants is null || request.Variants.Count == 0)
             return HttpErrors.File.NoThumbnailVariantsRequested();
 
-        if (request.FileExternalIds is null || request.FileExternalIds.Count == 0)
-            return HttpErrors.File.NoThumbnailableFilesSelected();
-
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
-        
+
+        // Resolve the include/exclude tree selection into a flat list of candidate files
+        // (selected files + recursive folder descendants − excluded subtrees − excluded files).
+        var parentFileExternalIds = getThumbnailableSelectionFilesQuery.Execute(
+            workspace: workspaceMembership.Workspace,
+            selectedFolders: request.SelectedFolders ?? [],
+            selectedFiles: request.SelectedFiles ?? [],
+            excludedFolders: request.ExcludedFolders ?? [],
+            excludedFiles: request.ExcludedFiles ?? []);
+
+        if (parentFileExternalIds.Count == 0)
+            return HttpErrors.File.NoThumbnailableFilesSelected();
+
         var variants = new List<ThumbnailVariant>(request.Variants.Count);
         foreach (var raw in request.Variants)
         {
@@ -271,7 +281,7 @@ public static class MediaProcessingEndpoints
 
         var result = await generateFileThumbnailsBulkOperation.Execute(
             workspace: workspaceMembership.Workspace,
-            parentFileExternalIds: request.FileExternalIds,
+            parentFileExternalIds: parentFileExternalIds,
             variants: variants,
             triggeredByUserExternalId: workspaceMembership.User.ExternalId,
             workspaceEncryptionSession: workspaceEncryptionSession,

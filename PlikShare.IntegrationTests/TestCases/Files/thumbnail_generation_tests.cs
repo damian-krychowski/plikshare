@@ -274,7 +274,7 @@ public class thumbnail_generation_tests : TestFixture
         //when — single bulk request (Protobuf), then wait for all 3 to finish
         var (batchId, totalFiles) = await Api.MediaProcessing.GenerateFileThumbnailsBulk(
             workspaceExternalId: workspace.ExternalId,
-            fileExternalIds: [fileA.ExternalId, fileB.ExternalId, fileC.ExternalId],
+            selectedFiles: [fileA.ExternalId, fileB.ExternalId, fileC.ExternalId],
             variants: [ThumbnailVariant.Mini],
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -463,7 +463,7 @@ public class thumbnail_generation_tests : TestFixture
         //when — single bulk request for Mini across all three
         var (batchId, totalFiles) = await Api.MediaProcessing.GenerateFileThumbnailsBulk(
             workspaceExternalId: workspace.ExternalId,
-            fileExternalIds: uploaded.Select(f => f.ExternalId).ToList(),
+            selectedFiles: uploaded.Select(f => f.ExternalId).ToList(),
             variants: [ThumbnailVariant.Mini],
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -523,7 +523,7 @@ public class thumbnail_generation_tests : TestFixture
         //when — one bulk request, three variants
         var (batchId, totalFiles) = await Api.MediaProcessing.GenerateFileThumbnailsBulk(
             workspaceExternalId: workspace.ExternalId,
-            fileExternalIds: uploaded.Select(f => f.ExternalId).ToList(),
+            selectedFiles: uploaded.Select(f => f.ExternalId).ToList(),
             variants: [ThumbnailVariant.Mini, ThumbnailVariant.Small, ThumbnailVariant.Large],
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -594,7 +594,7 @@ public class thumbnail_generation_tests : TestFixture
         //when
         var (batchId, _) = await Api.MediaProcessing.GenerateFileThumbnailsBulk(
             workspaceExternalId: workspace.ExternalId,
-            fileExternalIds: uploaded.Select(f => f.ExternalId).ToList(),
+            selectedFiles: uploaded.Select(f => f.ExternalId).ToList(),
             variants: [ThumbnailVariant.Mini, ThumbnailVariant.Small],
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -818,6 +818,97 @@ public class thumbnail_generation_tests : TestFixture
         sizeAfterThumbnail.Should().Be(
             expectedSize,
             "the freshly generated thumbnail's bytes must be reflected in the recalculated workspace size");
+    }
+
+    [Fact]
+    public async Task bulk_generate_resolves_selected_folder_recursively_and_honors_excluded_file()
+    {
+        //given — folder tree: folder > subfolder, a thumbnailable PNG in each, plus one excluded PNG
+        var workspace = await CreateWorkspace(user: AppOwner);
+
+        var folder = await CreateFolder(workspace: workspace, user: AppOwner);
+        var subfolder = await CreateFolder(parent: folder, workspace: workspace, user: AppOwner);
+
+        var rootFile = await UploadFile(
+            content: TextractTestImage.GetBytes(),
+            fileName: "root.png",
+            contentType: "image/png",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        var nestedFile = await UploadFile(
+            content: TextractTestImage.GetBytes(),
+            fileName: "nested.png",
+            contentType: "image/png",
+            folder: subfolder,
+            workspace: workspace,
+            user: AppOwner);
+
+        var excludedFile = await UploadFile(
+            content: TextractTestImage.GetBytes(),
+            fileName: "skip.png",
+            contentType: "image/png",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        await WaitForFileUnlocked(rootFile.ExternalId, AppOwner);
+        await WaitForFileUnlocked(nestedFile.ExternalId, AppOwner);
+        await WaitForFileUnlocked(excludedFile.ExternalId, AppOwner);
+
+        //when — select the top folder (resolved recursively), exclude one file
+        var (_, totalFiles) = await Api.MediaProcessing.GenerateFileThumbnailsBulk(
+            workspaceExternalId: workspace.ExternalId,
+            variants: [ThumbnailVariant.Mini],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery,
+            selectedFolders: [folder.ExternalId],
+            excludedFiles: [excludedFile.ExternalId]);
+
+        //then — root + nested resolved recursively, excluded file dropped
+        totalFiles.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task bulk_generate_excludes_subfolder_subtree()
+    {
+        //given — folder > subfolder, a thumbnailable PNG in each
+        var workspace = await CreateWorkspace(user: AppOwner);
+
+        var folder = await CreateFolder(workspace: workspace, user: AppOwner);
+        var subfolder = await CreateFolder(parent: folder, workspace: workspace, user: AppOwner);
+
+        var rootFile = await UploadFile(
+            content: TextractTestImage.GetBytes(),
+            fileName: "root.png",
+            contentType: "image/png",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        var nestedFile = await UploadFile(
+            content: TextractTestImage.GetBytes(),
+            fileName: "nested.png",
+            contentType: "image/png",
+            folder: subfolder,
+            workspace: workspace,
+            user: AppOwner);
+
+        await WaitForFileUnlocked(rootFile.ExternalId, AppOwner);
+        await WaitForFileUnlocked(nestedFile.ExternalId, AppOwner);
+
+        //when — select the top folder but exclude the subfolder subtree
+        var (_, totalFiles) = await Api.MediaProcessing.GenerateFileThumbnailsBulk(
+            workspaceExternalId: workspace.ExternalId,
+            variants: [ThumbnailVariant.Mini],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery,
+            selectedFolders: [folder.ExternalId],
+            excludedFolders: [subfolder.ExternalId]);
+
+        //then — only the root-folder file; the subfolder subtree is pruned
+        totalFiles.Should().Be(1);
     }
 
     [Fact]

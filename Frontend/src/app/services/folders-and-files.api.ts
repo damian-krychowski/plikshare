@@ -216,7 +216,10 @@ export type GenerateFileThumbnailsResponse = {
 }
 
 export type GenerateThumbnailsBulkRequest = {
-    fileExternalIds: string[];
+    selectedFolders: string[];
+    selectedFiles: string[];
+    excludedFolders: string[];
+    excludedFiles: string[];
     variants: ThumbnailVariant[];
 }
 
@@ -224,7 +227,10 @@ export type GenerateThumbnailsBulkRequest = {
 // wrappers) — variants travel as their string names ("Mini" / "Small" / "Large"); both sides
 // Enum.Parse to the real enum.
 export type GenerateFileThumbnailsBulkRequestDto = {
-    fileExternalIds: string[];
+    selectedFolders: string[];
+    selectedFiles: string[];
+    excludedFolders: string[];
+    excludedFiles: string[];
     variants: string[];
 }
 
@@ -810,7 +816,10 @@ export class FoldersAndFilesSetApi {
         // wire), and staying on proto for the response keeps us on the same well-trodden path as
         // bulkCreateFolders / bulkInitiateFileUpload.
         const wireRequest: GenerateFileThumbnailsBulkRequestDto = {
-            fileExternalIds: request.fileExternalIds,
+            selectedFolders: request.selectedFolders,
+            selectedFiles: request.selectedFiles,
+            excludedFolders: request.excludedFolders,
+            excludedFiles: request.excludedFiles,
             // ThumbnailVariant is a string union — its names match the C# enum, so we send the
             // strings as-is and the server Enum.Parse-es them.
             variants: request.variants,
