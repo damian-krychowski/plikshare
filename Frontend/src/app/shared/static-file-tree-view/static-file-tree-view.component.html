@@ -41,7 +41,7 @@
                     </div>
 
                     @if(canDownloadVal && modeVal === 'select') {
-                        <div class="ml-auto" (click)="$event.stopPropagation()">
+                        <div class="ml-auto" (click)="$event.stopPropagation()" (mousedown)="onCheckboxMouseDown($event)">
                             <app-tree-checkbox
                                 [isSelected]="folder.isSelected()"
                                 [isParentSelected]="folder.isParentSelected()"
@@ -71,7 +71,7 @@
                     </div>
 
                     @if(canDownloadVal) {
-                        <div class="ml-auto flex-row flex-gap-05" (click)="$event.stopPropagation()">
+                        <div class="ml-auto flex-row flex-gap-05" (click)="$event.stopPropagation()" (mousedown)="onCheckboxMouseDown($event)">
                             @if(modeVal === 'select') {
                                 <app-tree-checkbox
                                     [isSelected]="file.isSelected()"

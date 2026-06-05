@@ -744,11 +744,35 @@ export class StaticFileTreeViewComponent implements OnChanges {
         toggle(node.isExpanded);
     }
 
+    // Shift-click range select, mirroring files-list. The most recent mousedown's
+    // shift state is captured on the checkbox wrapper (onCheckboxMouseDown) and
+    // consumed by the next onIsSelectedChange. _selectionAnchorId is the last row
+    // selected by a plain click — the other end of the shift range.
+    private _lastShiftDown = false;
+    private _selectionAnchorId: string | null = null;
+
+    onCheckboxMouseDown(event: MouseEvent) {
+        this._lastShiftDown = event.shiftKey;
+    }
+
     // Clicking a folder checkbox cascades: pulling a folder INTO the selection
     // drops any individual descendant selections (they would otherwise duplicate
     // entries in the payload); pulling a folder OUT of the selection wipes any
     // descendant exclusions (excludes are only meaningful under a selected root).
     onIsSelectedChange(node: StaticTreeNode, isSelected: boolean) {
+        const shift = this._lastShiftDown;
+        this._lastShiftDown = false;
+
+        if (shift && isSelected && this._selectionAnchorId) {
+            this.selectVisibleRangeTo(node);
+            return;
+        }
+
+        this.applySelection(node, isSelected);
+        this._selectionAnchorId = isSelected ? node.id : null;
+    }
+
+    private applySelection(node: StaticTreeNode, isSelected: boolean) {
         node.isSelected.set(isSelected);
 
         if (node.type === 'folder') {
@@ -761,6 +785,34 @@ export class StaticFileTreeViewComponent implements OnChanges {
                 }
             }
         }
+    }
+
+    // Selects every visible (flattened) row between the anchor and the target,
+    // inclusive. The range spans the ACTIVE view — search results when a search is
+    // on — so shift-selecting in a filtered view never reaches hidden rows. Each
+    // node goes through applySelection, so folder cascades stay consistent.
+    private selectVisibleRangeTo(target: StaticTreeNode) {
+        const flat = this.isSearchActive()
+            ? this.flatSearchVisibleNodes()
+            : this.flatVisibleNodes();
+
+        const anchorIdx = flat.findIndex(r => r.node.id === this._selectionAnchorId);
+        const targetIdx = flat.findIndex(r => r.node.id === target.id);
+
+        if (anchorIdx === -1 || targetIdx === -1) {
+            this.applySelection(target, true);
+            this._selectionAnchorId = target.id;
+            return;
+        }
+
+        const from = Math.min(anchorIdx, targetIdx);
+        const to = Math.max(anchorIdx, targetIdx);
+
+        for (let i = from; i <= to; i++) {
+            this.applySelection(flat[i].node, true);
+        }
+
+        this._selectionAnchorId = target.id;
     }
 
     // Un-excluding a folder also un-excludes all descendants — a child exclude is
