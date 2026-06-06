@@ -134,6 +134,38 @@ public class MediaProcessingApi(IFlurlClient flurlClient, string appUrl)
         return (Guid.Parse(response.BatchId), response.TotalFiles);
     }
 
+    /// <summary>
+    /// Resolves the same include/exclude tree selection as generate-bulk and returns how many
+    /// thumbnailable files (and their total size) would be processed — without enqueuing anything.
+    /// Protobuf both ways, like generate-bulk.
+    /// </summary>
+    public Task<CountThumbnailableFilesResponseDto> CountThumbnailableFiles(
+        WorkspaceExtId workspaceExternalId,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery,
+        List<FileExtId>? selectedFiles = null,
+        List<FolderExtId>? selectedFolders = null,
+        List<FileExtId>? excludedFiles = null,
+        List<FolderExtId>? excludedFolders = null,
+        Cookie? workspaceEncryptionSession = null)
+    {
+        return flurlClient.ExecutePost<CountThumbnailableFilesResponseDto, CountThumbnailableFilesRequestDto>(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/media/thumbnails/generate-bulk/count",
+            request: new CountThumbnailableFilesRequestDto
+            {
+                SelectedFiles = (selectedFiles ?? []).Select(x => x.Value).ToList(),
+                SelectedFolders = (selectedFolders ?? []).Select(x => x.Value).ToList(),
+                ExcludedFiles = (excludedFiles ?? []).Select(x => x.Value).ToList(),
+                ExcludedFolders = (excludedFolders ?? []).Select(x => x.Value).ToList()
+            },
+            cookie: cookie,
+            antiforgery: antiforgery,
+            isRequestInProtobuf: true,
+            isResponseInProtobuf: true,
+            extraCookie: workspaceEncryptionSession);
+    }
+
     public Task<ThumbnailGenerationStatusResponseDto> GetThumbnailGenerationStatus(
         WorkspaceExtId workspaceExternalId,
         Guid batchId,

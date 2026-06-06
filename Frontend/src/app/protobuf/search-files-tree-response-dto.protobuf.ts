@@ -21,6 +21,7 @@ export function getSearchFilesTreeResponseDtoProtobuf() {
         .add(new protobuf.Field("folderIdIndex", 7, "int32"))
         .add(new protobuf.Field("createdAt", 8, "appDateTime"))
         .add(new protobuf.Field("position", 9, "int64"))
+        .add(new protobuf.Field("miniThumbnailEtag", 10, "string", "optional"))
         .add(getDateTimeProtobuf());
 
     return new protobuf.Type("SearchFilesTreeResponseDto")

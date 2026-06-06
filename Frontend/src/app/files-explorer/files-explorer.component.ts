@@ -264,6 +264,10 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     // Files with thumbnail generation in flight (any tracked batch) — drives the per-row spinner.
     readonly processingFileIds = computed(() => this._thumbnailBatches.processingFileIds());
 
+    // Freshly-generated Mini etags — fed to the tree-view so its own file nodes (sub-folders /
+    // search results) refresh live, same as the list.
+    readonly readyMiniEtags = computed(() => this._thumbnailBatches.readyMiniEtags());
+
     private static readonly SORT_MODE_STORAGE_PREFIX = 'plikshare:sort-mode:';
 
     folderSelected = output<AppFolderItem | null>();
@@ -364,6 +368,21 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                 const type = getFileDetails(file.extension).type;
                 return type === 'image' || type === 'video';
             });
+    });
+
+    // Tree-view counterpart: the server resolves the include/exclude tree selection and filters
+    // thumbnailability itself, so any selected file/folder is enough to offer the action.
+    canBulkTreeGenerateThumbnails = computed(() => {
+        if (!this._capabilities.capabilities().isFfmpegAvailable)
+            return false;
+
+        if (this.workspaceExternalId() == null)
+            return false;
+
+        const treeSelectionState = this.treeSelectionState();
+
+        return treeSelectionState.selectedFileExternalIds.length > 0
+            || treeSelectionState.selectedFolderExternalIds.length > 0;
     });
 
     canBulkTreeDownload = computed(() => {
@@ -1613,31 +1632,14 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         };
     }
 
-    thumbnailGenerationSubtitleLoader = async (): Promise<string> => {
+    private async loadThumbnailGenerationSubtitle(request: CountThumbnailableFilesRequest): Promise<string> {
         const fallback = 'Thumbnails will be generated in the background.';
 
-        const workspaceExternalId = this.workspaceExternalId();
-
-        if (workspaceExternalId == null)
+        if (this.workspaceExternalId() == null)
             return fallback;
 
-        const selectedFiles = this
-            .files()
-            .filter(f => f.isSelected())
-            .map(f => f.externalId);
-
-        const selectedFolders = this
-            .folders()
-            .filter(f => f.isSelected())
-            .map(f => f.externalId);
-
         try {
-            const result = await this.filesApi().countThumbnailableFiles({
-                selectedFiles,
-                selectedFolders,
-                excludedFiles: [],
-                excludedFolders: []
-            });
+            const result = await this.filesApi().countThumbnailableFiles(request);
 
             if (result.fileCount === 0)
                 return 'No images or videos in the selection — nothing to process.';
@@ -1649,6 +1651,26 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         } catch {
             return fallback;
         }
+    }
+
+    thumbnailGenerationSubtitleLoader = async (): Promise<string> => {
+        return this.loadThumbnailGenerationSubtitle({
+            selectedFiles: this.files().filter(f => f.isSelected()).map(f => f.externalId),
+            selectedFolders: this.folders().filter(f => f.isSelected()).map(f => f.externalId),
+            excludedFiles: [],
+            excludedFolders: []
+        });
+    };
+
+    thumbnailGenerationTreeSubtitleLoader = async (): Promise<string> => {
+        const s = this.treeSelectionState();
+
+        return this.loadThumbnailGenerationSubtitle({
+            selectedFiles: s.selectedFileExternalIds,
+            selectedFolders: s.selectedFolderExternalIds,
+            excludedFiles: s.excludedFileExternalIds,
+            excludedFolders: s.excludedFolderExternalIds
+        });
     };
 
     async generateThumbnailsForSelectedItems() {
@@ -1695,6 +1717,46 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             // Selection has done its job — clear it so the toolbar returns to its default actions.
             this.files().forEach(f => f.isSelected.set(false));
             this.folders().forEach(f => f.isSelected.set(false));
+        } catch (err) {
+            console.error('Bulk thumbnail generation failed:', err);
+        }
+    }
+
+    async generateThumbnailsForTreeSelection() {
+        const workspaceExternalId = this.workspaceExternalId();
+
+        if (workspaceExternalId == null)
+            return;
+
+        const s = this.treeSelectionState();
+
+        if (s.selectedFileExternalIds.length === 0 && s.selectedFolderExternalIds.length === 0)
+            return;
+
+        // Only the Mini variant is rendered today (list rows). Small/Large are reserved for the
+        // future gallery mode and would just triple ffmpeg work + storage with nothing reading them.
+        const variants: ThumbnailVariant[] = ['Mini'];
+
+        try {
+            const response = await this.filesApi().generateBulkThumbnails({
+                selectedFiles: s.selectedFileExternalIds,
+                selectedFolders: s.selectedFolderExternalIds,
+                excludedFiles: s.excludedFileExternalIds,
+                excludedFolders: s.excludedFolderExternalIds,
+                variants
+            });
+
+            this._thumbnailBatches.track({
+                workspaceExternalId,
+                batchId: response.batchId,
+                name: `Generating thumbnails — ${response.totalFiles} file(s)`,
+                total: response.totalFiles,
+                // Seed only the directly-selected files (folder-expanded ones arrive from the server).
+                initialProcessingIds: s.selectedFileExternalIds,
+                handlers: this.thumbnailBatchHandlers(),
+            });
+
+            this.cancelTreeSelection();
         } catch (err) {
             console.error('Bulk thumbnail generation failed:', err);
         }

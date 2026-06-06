@@ -141,6 +141,10 @@
     font-size: 12px;
 }
 
+@keyframes tree-node-spinner-spin {
+    to { transform: rotate(360deg); }
+}
+
 .file-node {
     display: flex;
     align-items: center;
@@ -155,6 +159,33 @@
         .icon-xl {
             font-size: 1.5rem;
         }
+    }
+
+    // Fixed-size thumbnail/loading slot. Kept below .node-content's 38px min-height so swapping
+    // icon <-> spinner <-> <img> never grows the row — the tree's virtual scroll relies on the
+    // row height staying ROW_HEIGHT_PX.
+    &__thumb {
+        width: 1.75rem;
+        height: 1.75rem;
+        flex-shrink: 0;
+        object-fit: contain;
+        border-radius: 4px;
+        background: var(--company-grey-accent-light);
+
+        &--loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    }
+
+    &__spinner {
+        width: 1rem;
+        height: 1rem;
+        border: 2px solid var(--company-grey-accent);
+        border-top-color: var(--company-grey-font);
+        border-radius: 50%;
+        animation: tree-node-spinner-spin 0.8s linear infinite;
     }
 
     &__body {

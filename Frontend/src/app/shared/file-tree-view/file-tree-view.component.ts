@@ -141,7 +141,15 @@ export class FileTreeViewComponent implements OnChanges {
     initiallyExcludedExternalIds = input<string[]>([]);
 
     allowDownload = input(false);
-    
+
+    // Thumbnail support (mirrors list-view). Same toggle/state as the list — the explorer feeds the
+    // same signals. readyMiniEtags drives the live-update effect for nodes that don't share the
+    // list's AppFileItem instances (sub-folders, search results).
+    showThumbnails = input(false);
+    processingFileIds = input<ReadonlySet<string>>(new Set());
+    readyMiniEtags = input<ReadonlyMap<string, string>>(new Map());
+    getThumbnailUrl = input<((fileExternalId: string) => string) | undefined>(undefined);
+
     selectionStateChanged = output<FileTreeSelectionState>();
     
     fileClicked = output<AppFileItem>();
@@ -330,6 +338,29 @@ export class FileTreeViewComponent implements OnChanges {
                 this.searchActivated.emit();
             }
             wasSearchActive = active;
+        });
+
+        // Apply freshly-generated Mini etags onto the tree's own file nodes (sub-folders / search
+        // results), which are separate AppFileItem instances from the list. Top-level nodes reuse the
+        // list's items, so the explorer's own effect already covers them — re-setting an unchanged
+        // etag is a no-op, so the overlap is harmless.
+        effect(() => {
+            const etags = this.readyMiniEtags();
+            if (etags.size === 0)
+                return;
+
+            untracked(() => {
+                for (const row of this.flatVisibleNodes()) {
+                    if (row.node.type !== 'file')
+                        continue;
+
+                    const item = row.node.item;
+                    const etag = etags.get(item.externalId);
+
+                    if (etag && item.miniThumbnailEtag() !== etag)
+                        item.miniThumbnailEtag.set(etag);
+                }
+            });
         });
     }
 
@@ -1687,7 +1718,7 @@ export class FileTreeViewComponent implements OnChanges {
                 wasUploadedByUser: file.wasUploadedByUser,
                 createdAt: file.createdAt == null ? null : new Date(file.createdAt),
                 position: signal(file.position),
-                miniThumbnailEtag: signal(null),
+                miniThumbnailEtag: signal(file.miniThumbnailEtag ?? null),
 
                 isCut: signal(false),
                 isHighlighted: signal(false),

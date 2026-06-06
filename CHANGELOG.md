@@ -3,6 +3,13 @@
 
 Release notes for PlikShare.
 
+## 1.1.35
+
+- [FEATURE] Thumbnails in the folder tree — preview thumbnails now show inline in the tree view, not just the list view
+- [FEATURE] Generate thumbnails from a tree selection — the "Generate thumbnails" action now operates on the files and folders selected in the tree (with include/exclude just like the other bulk actions), and a count of how many files will be processed is shown before generation starts
+- [IMPROVEMENT] Live thumbnail-generation progress in the tree view — a progress bar plus per-file spinners light up as each thumbnail is generated, including during a bulk re-generation over many files
+- [FIX] Search in full-encryption workspaces — searching files and folders returned nothing because the encrypted names were never matched against the query; names are now decrypted server-side for matching and returned in plain text, and a matching file's thumbnail shows up in the results
+
 ## 1.1.34
 
 - [FEATURE] Per-box default display settings — each box now has a "Default display settings" card where the owner sets how the box looks when opened: initial view (list or tree), initial sorting (custom order, or name ascending/descending), and whether thumbnails start on. These defaults apply every time the box is opened through a shared link, an embedded widget, or the box preview

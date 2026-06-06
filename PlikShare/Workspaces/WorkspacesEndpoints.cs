@@ -93,6 +93,7 @@ public static class WorkspacesEndpoints
 
         group.MapPost("/{workspaceExternalId}/search-files-tree", SearchFilesTree)
             .AddEndpointFilter<ValidateWorkspaceFilter>()
+            .AddEndpointFilter<ValidateWorkspaceEncryptionSessionFilter>()
             .WithName("SearchFilesTree")
             .WithProtobufResponse();
 
@@ -142,13 +143,15 @@ public static class WorkspacesEndpoints
         SearchFilesTreeQuery searchFilesTreeQuery)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
 
         var response = searchFilesTreeQuery.Execute(
             workspace: workspaceMembership.Workspace,
             request: request,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             boxFolderId: null,
-            exposeCreatedAt: true);
+            exposeCreatedAt: true,
+            workspaceEncryptionSession: workspaceEncryptionSession);
 
         return response;
     }

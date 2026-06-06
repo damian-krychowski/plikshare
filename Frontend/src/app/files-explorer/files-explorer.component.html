@@ -322,6 +322,19 @@
                         </app-action-btn>
                     }
 
+                    @if(canBulkTreeGenerateThumbnails()) {
+                        <app-action-btn
+                            tooltip="Generate thumbnails"
+                            icon="icon-nucleo-image-scale"
+                            appConfirmOperation
+                            [operationItem]="'for the selected files'"
+                            [verb]="'generate thumbnails'"
+                            [operationSubtitle]="'Thumbnails will be generated in the background.'"
+                            [subtitleLoader]="thumbnailGenerationTreeSubtitleLoader"
+                            (confirmedClick)="generateThumbnailsForTreeSelection()">
+                        </app-action-btn>
+                    }
+
                     @if(canBulkTreeDelete()) {
                         <app-action-btn
                             tooltip="Delete"
@@ -413,6 +426,10 @@
                 }
 
                 <div class="ml-auto context-counts">
+                    <!-- App-wide thumbnail batch progress — shown in both list and tree views
+                         (the component hides itself when there's no active batch). -->
+                    <app-thumbnail-progress></app-thumbnail-progress>
+
                     @if(isListViewMode) {
                         @if(fileUploadManager.pendingQueueSize() > 0) {
                             <span class="context-item context-count context-count--queued"
@@ -421,8 +438,6 @@
                                 <span class="context-count__value">{{fileUploadManager.pendingQueueSize()}}</span>
                             </span>
                         }
-
-                        <app-thumbnail-progress></app-thumbnail-progress>
                     } @else {
                         @let selectionSummary = treeSelectionSummary();
 
@@ -707,6 +722,10 @@
             [searchPhrase]="searchPhrase()"
             [sortMode]="sortMode()"
             [sortDirection]="sortDirection()"
+            [showThumbnails]="showThumbnails()"
+            [processingFileIds]="processingFileIds()"
+            [readyMiniEtags]="readyMiniEtags()"
+            [getThumbnailUrl]="operations.getThumbnailUrl"
             (fileClicked)="onFilePreviewed($event)"
             (fileDownloadClicked)="onDownloadFile($event)"
             (folderPrefetchRequested)="onFolderTreePrefetchRequested($event)"

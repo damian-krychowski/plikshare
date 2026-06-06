@@ -9,6 +9,7 @@ import { getFolderContentDtoProtobuf } from "../protobuf/folder-content-dto.prot
 import { getZipFileDetailsDtoProtobuf } from "../protobuf/zip-file-details-dto.protobuf";
 import { getGenerateFileThumbnailsBulkRequestDtoProtobuf } from "../protobuf/generate-file-thumbnails-bulk-request-dto.protobuf";
 import { getGenerateFileThumbnailsBulkResponseDtoProtobuf } from "../protobuf/generate-file-thumbnails-bulk-response-dto.protobuf";
+import { getCountThumbnailableFilesRequestDtoProtobuf, getCountThumbnailableFilesResponseDtoProtobuf } from "../protobuf/count-thumbnailable-files-request-dto.protobuf";
 import { ProtoHttp } from "./protobuf-http.service";
 import { getBulkCreateFolderResponseDtoProtobuf } from "../protobuf/bulk-create-folder-response-dto.protobuf";
 import { getBulkCreateFolderRequestDtoProtobuf } from "../protobuf/bulk-create-folder-request-dto.protobuf";
@@ -422,6 +423,7 @@ export interface SearchFilesTreeFileItem {
     folderIdIndex: number;
     createdAt: string | null;
     position: number;
+    miniThumbnailEtag: string | null;
 }
 
 export interface SendAiFileMessageRequest {
@@ -1082,16 +1084,23 @@ export class FoldersAndFilesGetApi {
     }
 
     public async countThumbnailableFiles(workspaceExternalId: string, request: CountThumbnailableFilesRequest): Promise<CountThumbnailableFilesResponse> {
-        const call = this
-            ._http
-            .post<CountThumbnailableFilesResponse>(
-                `/api/workspaces/${workspaceExternalId}/media/thumbnails/generate-bulk/count`, request, {
-                headers: new HttpHeaders({
-                    'Content-Type': 'application/json'
-                })
-            });
+        const wireResponse = await this._protoHttp.post<CountThumbnailableFilesRequest, CountThumbnailableFilesResponse>({
+            route: `/api/workspaces/${workspaceExternalId}/media/thumbnails/generate-bulk/count`,
+            request: {
+                selectedFolders: request.selectedFolders,
+                selectedFiles: request.selectedFiles,
+                excludedFolders: request.excludedFolders,
+                excludedFiles: request.excludedFiles,
+            },
+            requestProtoType: getCountThumbnailableFilesRequestDtoProtobuf(),
+            responseProtoType: getCountThumbnailableFilesResponseDtoProtobuf(),
+        });
 
-        return await firstValueFrom(call);
+        return {
+            fileCount: wireResponse.fileCount,
+            // int64 decodes to a protobufjs Long — Number() collapses it (and is a no-op for a number).
+            totalSizeInBytes: Number(wireResponse.totalSizeInBytes),
+        };
     }
 
     public async searchFilesTree(workspaceExternalId: string, request: SearchFilesTreeRequest): Promise<SearchFilesTreeResponse> {

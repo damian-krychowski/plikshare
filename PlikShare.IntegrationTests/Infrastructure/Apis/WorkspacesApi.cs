@@ -219,7 +219,8 @@ public class WorkspacesApi(IFlurlClient flurlClient, string appUrl)
         WorkspaceExtId externalId,
         SearchFilesTreeRequestDto request,
         SessionAuthCookie? cookie,
-        AntiforgeryCookies antiforgery)
+        AntiforgeryCookies antiforgery,
+        Cookie? workspaceEncryptionSession = null)
     {
         return await flurlClient.ExecutePost<SearchFilesTreeResponseDto, SearchFilesTreeRequestDto>(
             appUrl: appUrl,
@@ -227,6 +228,7 @@ public class WorkspacesApi(IFlurlClient flurlClient, string appUrl)
             request: request,
             cookie: cookie,
             antiforgery: antiforgery,
-            isResponseInProtobuf: true);
+            isResponseInProtobuf: true,
+            extraCookie: workspaceEncryptionSession);
     }
 }

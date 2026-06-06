@@ -79,4 +79,7 @@ public class SearchFilesTreeFileItemDto
 
     [ProtoMember(9)]
     public required long Position { get; init; }
+
+    [ProtoMember(10)]
+    public string? MiniThumbnailEtag { get; init; }
 }

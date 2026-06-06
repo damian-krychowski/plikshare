@@ -12,10 +12,23 @@
 
 <div class="tree-node" [class.tree-node--clickable]="node.canPreview()">
     <div class="node-content" [class.node-content--selected]="isFileMarkedAsSelected">
-        <div class="file-node" (click)="node.canPreview() && fileClickedHandlerVal(node)">   
+        <div class="file-node" (click)="node.canPreview() && fileClickedHandlerVal(node)">
 
-            <i class="icon icon-xl icon-{{ node.item.extension | fileIcon }}"></i>
-        
+            @if(isProcessing()) {
+                <span class="file-node__thumb file-node__thumb--loading" matTooltip="Processing…">
+                    <span class="file-node__spinner"></span>
+                </span>
+            } @else if(miniThumbnailUrl(); as thumbUrl) {
+                <img class="file-node__thumb"
+                    [src]="thumbUrl"
+                    loading="lazy"
+                    decoding="async"
+                    alt=""
+                    (error)="onThumbnailError(thumbUrl)" />
+            } @else {
+                <i class="icon icon-xl icon-{{ node.item.extension | fileIcon }}"></i>
+            }
+
             <div class="file-node__body" [class.vertical-spacing]="pathText">
                 <div class="file-node__details">
                     <div class="file-node__name" appMarqueeOnTruncate>

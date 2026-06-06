@@ -1,9 +1,12 @@
 using FluentAssertions;
 using PlikShare.BulkDelete.Contracts;
 using PlikShare.Boxes.Members.CreateInvitation.Contracts;
+using PlikShare.Files.Metadata;
 using PlikShare.Folders.List;
 using PlikShare.Folders.UpdatePositions.Contracts;
+using PlikShare.Integrations.Aws.Textract.TestConfiguration;
 using PlikShare.IntegrationTests.Infrastructure;
+using PlikShare.IntegrationTests.TestAssets;
 using PlikShare.Storages.Encryption;
 using PlikShare.Workspaces.SearchFilesTree.Contracts;
 using Xunit.Abstractions;
@@ -711,6 +714,83 @@ public class search_files_tree_tests : TestFixture
     }
 
     // --- Helpers ---
+
+    [Fact]
+    public async Task search_in_full_encryption_workspace_matches_and_returns_decrypted_names()
+    {
+        // given — a FULL-encryption workspace: fi_name is stored as a pse: envelope, so a plaintext
+        // LIKE can never match. Search must decrypt inline via app_decrypt_metadata, which needs the
+        // workspace encryption session.
+        var fullStorage = await CreateHardDriveStorage(
+            user: AppOwner,
+            encryptionType: StorageEncryptionType.Full);
+
+        var workspace = await CreateWorkspace(storage: fullStorage, user: AppOwner);
+        var folder = await CreateFolder(workspace: workspace, user: AppOwner);
+
+        var file = await UploadFile(
+            content: "x"u8.ToArray(),
+            fileName: "annual-report.txt",
+            contentType: "text/plain",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        // when — partial-name search with the workspace encryption session
+        var response = await Api.Workspaces.SearchFilesTree(
+            externalId: workspace.ExternalId,
+            request: new SearchFilesTreeRequestDto
+            {
+                Phrase = "epor",
+                FolderExternalId = null
+            },
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery,
+            workspaceEncryptionSession: workspace.WorkspaceEncryptionSession);
+
+        // then — the encrypted file is found and its name comes back decrypted (not ciphertext)
+        var match = response.Files.Should().ContainSingle().Subject;
+        match.ExternalId.Should().Be(file.ExternalId.Value);
+        match.Name.Should().Be("annual-report");
+        match.Name.Should().NotContain("pse:");
+    }
+
+    [Fact]
+    public async Task search_returns_mini_thumbnail_etag_for_a_file_with_a_generated_thumbnail()
+    {
+        // given — an image with a generated Mini thumbnail
+        var workspace = await CreateWorkspace(storage: Storage, user: AppOwner);
+        var folder = await CreateFolder(workspace: workspace, user: AppOwner);
+
+        var image = await UploadFile(
+            content: TextractTestImage.GetBytes(),
+            fileName: "vacation-photo.png",
+            contentType: "image/png",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        await WaitForFileUnlocked(image.ExternalId, AppOwner);
+
+        var batchId = await Api.MediaProcessing.GenerateFileThumbnails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: image.ExternalId,
+            variants: [ThumbnailVariant.Mini],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        await Api.MediaProcessing.WaitForBatchDone(
+            workspaceExternalId: workspace.ExternalId,
+            batchId: batchId,
+            cookie: AppOwner.Cookie);
+
+        // when
+        var response = await SearchWorkspace(workspace, phrase: "vacation-photo");
+
+        // then — the search result carries the Mini thumbnail etag
+        response.Files.Should().ContainSingle()
+            .Which.MiniThumbnailEtag.Should().NotBeNullOrEmpty();
+    }
 
     private Task<SearchFilesTreeResponseDto> SearchWorkspace(AppWorkspace workspace, string phrase) =>
         Api.Workspaces.SearchFilesTree(

@@ -971,6 +971,114 @@ public class thumbnail_generation_tests : TestFixture
             "no raw eph: ciphertext may survive in the completed queue — only eph:[redacted]");
     }
 
+    [Fact]
+    public async Task count_thumbnailable_files_resolves_selection_filters_non_media_and_honors_exclusion()
+    {
+        //given — a folder with two thumbnailable PNGs and one non-thumbnailable .txt
+        var workspace = await CreateWorkspace(user: AppOwner);
+        var folder = await CreateFolder(workspace: workspace, user: AppOwner);
+
+        var png1 = await UploadFile(
+            content: TextractTestImage.GetBytes(),
+            fileName: "a.png",
+            contentType: "image/png",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        var png2 = await UploadFile(
+            content: TextractTestImage.GetBytes(),
+            fileName: "b.png",
+            contentType: "image/png",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        var txt = await UploadFile(
+            content: "not an image"u8.ToArray(),
+            fileName: "note.txt",
+            contentType: "text/plain",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        await WaitForFileUnlocked(png1.ExternalId, AppOwner);
+        await WaitForFileUnlocked(png2.ExternalId, AppOwner);
+        await WaitForFileUnlocked(txt.ExternalId, AppOwner);
+
+        //when — count the whole folder, then count again excluding one PNG
+        var countAll = await Api.MediaProcessing.CountThumbnailableFiles(
+            workspaceExternalId: workspace.ExternalId,
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery,
+            selectedFolders: [folder.ExternalId]);
+
+        var countExcluded = await Api.MediaProcessing.CountThumbnailableFiles(
+            workspaceExternalId: workspace.ExternalId,
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery,
+            selectedFolders: [folder.ExternalId],
+            excludedFiles: [png1.ExternalId]);
+
+        //then — only the two PNGs are thumbnailable (the .txt is filtered); exclusion drops one
+        countAll.FileCount.Should().Be(2, "only the two PNGs are thumbnailable — the .txt is filtered out");
+        countAll.TotalSizeInBytes.Should().BeGreaterThan(0);
+
+        countExcluded.FileCount.Should().Be(1, "excluding one PNG leaves a single thumbnailable file");
+    }
+
+    [Fact]
+    public async Task bulk_generate_on_folder_with_existing_thumbnail_skips_the_derived_file_and_does_not_crash()
+    {
+        //given — a folder with an image that already has a Mini thumbnail. The thumbnail is a
+        // derived fi_files row (fi_parent_file_id set) that inherits the image's fi_folder_id, so a
+        // naive folder expansion would pull it back in as a source — and re-generating would then
+        // hit a FOREIGN KEY failure when the old thumbnail is hard-deleted. This guards that path.
+        var workspace = await CreateWorkspace(user: AppOwner);
+        var folder = await CreateFolder(workspace: workspace, user: AppOwner);
+
+        var image = await UploadFile(
+            content: TextractTestImage.GetBytes(),
+            fileName: "pic.png",
+            contentType: "image/png",
+            folder: folder,
+            workspace: workspace,
+            user: AppOwner);
+
+        await WaitForFileUnlocked(image.ExternalId, AppOwner);
+
+        var firstBatch = await Api.MediaProcessing.GenerateFileThumbnails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: image.ExternalId,
+            variants: [ThumbnailVariant.Mini],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery);
+
+        await Api.MediaProcessing.WaitForBatchDone(
+            workspaceExternalId: workspace.ExternalId,
+            batchId: firstBatch,
+            cookie: AppOwner.Cookie);
+
+        //when — bulk generate on the FOLDER, which now also contains the thumbnail as a derived file
+        var (batchId, totalFiles) = await Api.MediaProcessing.GenerateFileThumbnailsBulk(
+            workspaceExternalId: workspace.ExternalId,
+            variants: [ThumbnailVariant.Mini],
+            cookie: AppOwner.Cookie,
+            antiforgery: AppOwner.Antiforgery,
+            selectedFolders: [folder.ExternalId]);
+
+        var status = await Api.MediaProcessing.WaitForBatchDone(
+            workspaceExternalId: workspace.ExternalId,
+            batchId: batchId,
+            cookie: AppOwner.Cookie);
+
+        //then — only the source image is a candidate (the derived thumbnail is skipped) and the
+        // batch finishes without the FK crash that hit when thumbnails were treated as sources
+        totalFiles.Should().Be(1, "the existing thumbnail (a derived file) must not be a generation source");
+        status.Completed.Should().Be(1);
+        status.Failed.Should().Be(0);
+    }
+
     // Reads every qc_queue_completed.qc_definition archived for a batch straight from the DB,
     // so the assertion sees exactly what persisted after the job left q_queue.
     private List<string> ReadCompletedQueueDefinitions(Guid batchId)

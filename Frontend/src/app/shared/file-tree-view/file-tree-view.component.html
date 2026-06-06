@@ -16,6 +16,9 @@
                     [canSelect]="canSelect()"
                     [viewMode]="viewModeVal"
                     [isSearchActive]="isSearchActive()"
+                    [showThumbnails]="showThumbnails()"
+                    [isProcessing]="processingFileIds().has(row.node.item.externalId)"
+                    [getThumbnailUrl]="getThumbnailUrl()"
                     [fileClickedHandler]="fileClickedHandler"
                     [isSelectedChangedHandler]="isSelectedChangedHandler"
                     [isExcludedChangedHandler]="isExcludedChangedHandler">

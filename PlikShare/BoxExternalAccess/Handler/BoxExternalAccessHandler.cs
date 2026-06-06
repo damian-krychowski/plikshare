@@ -901,7 +901,9 @@ public class BoxExternalAccessHandler(
             request: request,
             userIdentity: boxAccess.UserIdentity,
             boxFolderId: boxAccess.Box.Folder.Id,
-            exposeCreatedAt: false);
+            exposeCreatedAt: false,
+            // Boxes can't live in a Full-encryption workspace, so search is always on plaintext here.
+            workspaceEncryptionSession: null);
 
         return TypedResults.Ok(response);
     }

@@ -1,9 +1,12 @@
 ﻿using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Folders.Id;
 using PlikShare.Folders.List;
+using PlikShare.MediaProcessing;
+using PlikShare.Storages.Encryption;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.SearchFilesTree.Contracts;
 
@@ -24,9 +27,27 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
         SearchFilesTreeRequestDto request,
         IUserIdentity userIdentity,
         int? boxFolderId,
-        bool exposeCreatedAt)
+        bool exposeCreatedAt,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
-        using var connection = plikShareDb.OpenConnection();
+        // Full-encryption workspaces store fo_name / fi_name / fi_extension as pse: envelopes, so a
+        // plaintext SQL LIKE never matches. We decrypt inline via the app_decrypt_metadata UDF on a
+        // NON-POOLED connection (the UDF closure captures the session's live DEKs — it must die with
+        // this connection and never be observable by another request that draws the same pooled one).
+        // None/Managed stay on the cheap pooled connection + plaintext columns.
+        var isEncrypted = workspace.EncryptionType == StorageEncryptionType.Full;
+
+        using var connection = isEncrypted
+            ? plikShareDb.OpenNonPooledConnection()
+            : plikShareDb.OpenConnection();
+
+        using var udfScope = isEncrypted
+            ? connection.RegisterDecryptMetadataFunction(
+                new Dictionary<int, WorkspaceEncryptionSession>
+                {
+                    [workspace.Id] = workspaceEncryptionSession!
+                })
+            : null;
 
         var doesParentFolderExist = TryGetParentFolderId(
             connection,
@@ -53,6 +74,8 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
             phrase: request.Phrase,
             userIdentity,
             exposeCreatedAt,
+            isEncrypted: isEncrypted,
+            workspaceEncryptionSession: workspaceEncryptionSession,
             connection);
 
         if (matchingFiles.Count > TooManyResultsThreshold)
@@ -77,10 +100,11 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
             parentFolderId: parentFolderId,
             userIdentity: userIdentity,
             exposeCreatedAt: exposeCreatedAt,
+            isEncrypted: isEncrypted,
             connection: connection);
 
         var response = BuildResponse(
-            allFolders: allFolders, 
+            allFolders: allFolders,
             matchingFiles: matchingFiles);
 
         return response;
@@ -143,7 +167,8 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                 WasUploadedByUser = file.WasUploadedByUser,
                 FolderIdIndex = folderIdIndex ?? -1,
                 CreatedAt = file.CreatedAt?.DateTime,
-                Position = file.Position
+                Position = file.Position,
+                MiniThumbnailEtag = file.MiniThumbnailEtag
             });
         }
 
@@ -219,16 +244,23 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
         string phrase,
         IUserIdentity userIdentity,
         bool exposeCreatedAt,
+        bool isEncrypted,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         SqliteConnection connection)
     {
+        // In Full-encryption the name/extension columns are pse: envelopes — wrap them in the
+        // app_decrypt_metadata UDF so both the LIKE filter and the projected values are plaintext.
+        var fiName = isEncrypted ? "app_decrypt_metadata(fi_name, fi_workspace_id)" : "fi_name";
+        var fiExtension = isEncrypted ? "app_decrypt_metadata(fi_extension, fi_workspace_id)" : "fi_extension";
+
         return connection
             .Cmd(
-                sql: @"
+                sql: $@"
                     SELECT
 				        fi_external_id,
                         fi_folder_id,
-				        fi_name,
-				        fi_extension,
+				        {fiName} AS fi_name_plain,
+				        {fiExtension} AS fi_extension_plain,
 				        fi_size_in_bytes,
 						(
 							fi_uploader_identity_type = $uploaderIdentityType
@@ -236,7 +268,16 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
 						) AS fi_was_uploaded_by_user,
                         NOT fi_is_upload_completed,
                         CASE WHEN $exposeCreatedAt THEN fi_created_at END AS fi_created_at,
-                        COALESCE(fi_position, 0) AS fi_position
+                        COALESCE(fi_position, 0) AS fi_position,
+                        (
+                            SELECT json_group_array(CAST(child_fi.fi_metadata AS TEXT))
+                            FROM fi_files AS child_fi
+                            WHERE child_fi.fi_parent_file_id = fi_files.fi_id
+                                AND child_fi.fi_workspace_id = $workspaceId
+                                AND child_fi.fi_deleted_at IS NULL
+                                AND child_fi.fi_is_upload_completed = TRUE
+                                AND child_fi.fi_metadata IS NOT NULL
+                        ) AS child_thumbnail_metadata
 				    FROM fi_files
                     LEFT JOIN fo_folders
                         ON fo_id = fi_folder_id
@@ -244,7 +285,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
 				        fi_workspace_id = $workspaceId
                         AND fi_parent_file_id IS NULL
                         AND fi_deleted_at IS NULL
-                        AND (fi_name || fi_extension) LIKE $query
+                        AND ({fiName} || {fiExtension}) LIKE $query
                         AND (
                             fi_folder_id IS NULL
                             OR fo_is_being_deleted = FALSE
@@ -274,7 +315,12 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                     WasUploadedByUser = reader.GetBoolean(5),
                     IsLocked = reader.GetBoolean(6),
                     CreatedAt = reader.GetDateTimeOffsetOrNull(7),
-                    Position = reader.GetInt64(8)
+                    Position = reader.GetInt64(8),
+                    
+                    // child_thumbnail_metadata is the raw (still-encrypted in Full) fi_metadata json
+                    // array; GetMiniEtag decodes it in managed code — session is null for None/Managed
+                    // (plaintext passthrough) and the real session for Full.
+                    MiniThumbnailEtag = MiniThumbnailMetadata.GetMiniEtag(reader, 9, workspaceEncryptionSession)
                 })
             .WithParameter("$workspaceId", workspaceId)
             .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
@@ -290,12 +336,16 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
         int? parentFolderId,
         IUserIdentity userIdentity,
         bool exposeCreatedAt,
+        bool isEncrypted,
         SqliteConnection connection)
     {
+        // Folder names are pse: envelopes in Full-encryption — decrypt inline so the result-tree
+        // shows plaintext folder paths instead of ciphertext.
+        var foName = isEncrypted ? "app_decrypt_metadata(fo_name, fo_workspace_id)" : "fo_name";
 
         return connection
             .Cmd(
-                sql: @"
+                sql: $@"
                     WITH all_folder_ids AS (
                         SELECT value AS fo_id
                         FROM json_each($folderIds)
@@ -313,7 +363,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                         fo_id,
                         fo_external_id,
                         fo_parent_folder_id,
-			            fo_name,
+			            {foName} AS fo_name_plain,
 						CASE
 	                        WHEN fo_creator_identity_type = $creatorIdentityType AND fo_creator_identity = $creatorIdentity THEN TRUE
 							ELSE FALSE
@@ -375,5 +425,6 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
         public required int? FolderId { get; init; }
         public required DateTimeOffset? CreatedAt { get; init; }
         public required long Position { get; init; }
+        public required string? MiniThumbnailEtag { get; init; }
     }
 }

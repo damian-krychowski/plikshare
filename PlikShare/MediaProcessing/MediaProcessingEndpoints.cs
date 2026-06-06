@@ -55,7 +55,8 @@ public static class MediaProcessingEndpoints
             .WithProtobufResponse();
 
         group.MapPost("/thumbnails/generate-bulk/count", CountThumbnailableFiles)
-            .WithName("CountThumbnailableFiles");
+            .WithName("CountThumbnailableFiles")
+            .WithProtobufResponse();
 
         group.MapGet("/thumbnails/batches/{batchId:guid}/status", GetThumbnailGenerationStatus)
             .WithName("GetThumbnailGenerationStatus");
@@ -338,10 +339,11 @@ public static class MediaProcessingEndpoints
     }
 
     private static Ok<CountThumbnailableFilesResponseDto> CountThumbnailableFiles(
-        [FromBody] CountThumbnailableFilesRequestDto request,
         HttpContext httpContext,
         GetThumbnailableSelectionFilesQuery getThumbnailableSelectionFilesQuery)
     {
+        var request = httpContext.GetProtobufRequest<CountThumbnailableFilesRequestDto>();
+
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
 

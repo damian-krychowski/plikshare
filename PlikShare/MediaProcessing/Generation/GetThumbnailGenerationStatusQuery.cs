@@ -244,7 +244,8 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                     """,
                 seed: new OutstandingPageAcc(
                     FileExternalIds: new List<string>(rowLimit * 10),
-                    LastQId: afterQId),
+                    LastQId: afterQId,
+                    RowCount: 0),
                 aggregateRowFunc: (acc, row) =>
                 {
                     var definition = Json.Deserialize<ProcessImageQueueJobDefinitionV2>(
@@ -258,7 +259,8 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
 
                     return new OutstandingPageAcc(
                         FileExternalIds: acc.FileExternalIds,
-                        LastQId: row.GetInt64(0));
+                        LastQId: row.GetInt64(0),
+                        RowCount: acc.RowCount + 1);
                 })
             .WithParameter("$batchId", batchId)
             .WithParameter("$failedStatus", QueueStatus.Failed)
@@ -266,13 +268,17 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
             .WithParameter("$rowLimit", rowLimit)
             .Execute();
 
+        // HasMore is measured in q_queue ROWS, not file ids — each row holds up to BatchSize files,
+        // so FileExternalIds.Count is a multiple of the row count. Comparing ids to the row limit
+        // would always be false and stop paging after the first chunk.
         return new OutstandingPage(
             FileExternalIds: rows.FileExternalIds,
             LastQId: rows.LastQId,
-            HasMore: rows.FileExternalIds.Count == rowLimit);
+            HasMore: rows.RowCount == rowLimit);
     }
 
     private readonly record struct OutstandingPageAcc(
         List<string> FileExternalIds,
-        long? LastQId);
+        long? LastQId,
+        int RowCount);
 }
