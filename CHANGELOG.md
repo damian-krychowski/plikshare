@@ -1,4 +1,3 @@
-
 # Changelog
 
 Release notes for PlikShare.
@@ -9,6 +8,8 @@ Release notes for PlikShare.
 - [FEATURE] Generate thumbnails from a tree selection — the "Generate thumbnails" action now operates on the files and folders selected in the tree (with include/exclude just like the other bulk actions), and a count of how many files will be processed is shown before generation starts
 - [IMPROVEMENT] Live thumbnail-generation progress in the tree view — a progress bar plus per-file spinners light up as each thumbnail is generated, including during a bulk re-generation over many files
 - [FIX] Search in full-encryption workspaces — searching files and folders returned nothing because the encrypted names were never matched against the query; names are now decrypted server-side for matching and returned in plain text, and a matching file's thumbnail shows up in the results
+
+[Thumbnails in tree view](https://github.com/user-attachments/assets/66a0c8bb-cdb5-413f-9b79-dcbccdbe4518)
 
 ## 1.1.34
 
