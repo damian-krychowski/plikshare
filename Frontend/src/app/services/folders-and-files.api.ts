@@ -244,6 +244,18 @@ export type GenerateThumbnailsBulkResponse = {
     totalFiles: number;
 }
 
+export type CountThumbnailableFilesRequest = {
+    selectedFolders: string[];
+    selectedFiles: string[];
+    excludedFolders: string[];
+    excludedFiles: string[];
+}
+
+export type CountThumbnailableFilesResponse = {
+    fileCount: number;
+    totalSizeInBytes: number;
+}
+
 export type CancelThumbnailBatchResponse = {
     cancelledCount: number;
 }
@@ -1065,6 +1077,19 @@ export class FoldersAndFilesGetApi {
             ._http
             .post<CountSelectedItemsResponse>(
                 `/api/workspaces/${workspaceExternalId}/count-selected-items`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        return await firstValueFrom(call);
+    }
+
+    public async countThumbnailableFiles(workspaceExternalId: string, request: CountThumbnailableFilesRequest): Promise<CountThumbnailableFilesResponse> {
+        const call = this
+            ._http
+            .post<CountThumbnailableFilesResponse>(
+                `/api/workspaces/${workspaceExternalId}/media/thumbnails/generate-bulk/count`, request, {
                 headers: new HttpHeaders({
                     'Content-Type': 'application/json'
                 })

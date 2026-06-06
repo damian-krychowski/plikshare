@@ -15,10 +15,10 @@ import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { FileInlinePreviewComponent, FilePreviewOperations, ZipPreviewDetails } from './file-inline-preview/file-inline-preview.component';
-import { StorageSizePipe } from '../shared/storage-size.pipe';
+import { StorageSizePipe, StorageSizeUtils } from '../shared/storage-size.pipe';
 import { EditableTxtComponent } from '../shared/editable-txt/editable-txt.component';
 import { BulkUploadPreviewComponent, BulkFileUpload, SingleBulkFileUpload, CreatedFolder } from './bulk-upload-preview/bulk-upload-preview.component';
-import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, DownloadImageFormat, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GenerateFileThumbnailsResponse, GenerateThumbnailsBulkRequest, GenerateThumbnailsBulkResponse, GetFilePreviewDetailsResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../services/folders-and-files.api';
+import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CountThumbnailableFilesRequest, CountThumbnailableFilesResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, DownloadImageFormat, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GenerateFileThumbnailsResponse, GenerateThumbnailsBulkRequest, GenerateThumbnailsBulkResponse, GetFilePreviewDetailsResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../services/folders-and-files.api';
 import { ZipEntry } from '../services/zip';
 import { FileSlicer } from '../services/file-upload-manager/file-slicer';
 import { TextractJobStatusService } from '../services/textract-job-status.service';
@@ -92,6 +92,7 @@ export interface FilesExplorerApi {
     deleteFileThumbnail: (fileExternalId: string, variant: ThumbnailVariant) => Promise<void>;
     generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) => Promise<GenerateFileThumbnailsResponse>;
     generateBulkThumbnails: (request: GenerateThumbnailsBulkRequest) => Promise<GenerateThumbnailsBulkResponse>;
+    countThumbnailableFiles: (request: CountThumbnailableFilesRequest) => Promise<CountThumbnailableFilesResponse>;
     subscribeThumbnailBatch: (
         batchId: string,
         onStatus: (status: ThumbnailGenerationStatus) => void,
@@ -1613,6 +1614,44 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             cancel: (batchId: string) => api.cancelThumbnailBatch(batchId),
         };
     }
+
+    thumbnailGenerationSubtitleLoader = async (): Promise<string> => {
+        const fallback = 'Thumbnails will be generated in the background.';
+
+        const workspaceExternalId = this.workspaceExternalId();
+
+        if (workspaceExternalId == null)
+            return fallback;
+
+        const selectedFiles = this
+            .files()
+            .filter(f => f.isSelected())
+            .map(f => f.externalId);
+
+        const selectedFolders = this
+            .folders()
+            .filter(f => f.isSelected())
+            .map(f => f.externalId);
+
+        try {
+            const result = await this.filesApi().countThumbnailableFiles({
+                selectedFiles,
+                selectedFolders,
+                excludedFiles: [],
+                excludedFolders: []
+            });
+
+            if (result.fileCount === 0)
+                return 'No images or videos in the selection — nothing to process.';
+
+            const fileLabel = result.fileCount === 1 ? 'file' : 'files';
+            const size = StorageSizeUtils.formatSize(result.totalSizeInBytes);
+
+            return `${result.fileCount} ${fileLabel} (${size}) will be processed in the background.`;
+        } catch {
+            return fallback;
+        }
+    };
 
     async generateThumbnailsForSelectedItems() {
         const workspaceExternalId = this.workspaceExternalId();

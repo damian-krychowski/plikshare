@@ -1,112 +1,200 @@
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
+using PlikShare.Core.Utils;
+using PlikShare.Files.Id;
 using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.MediaProcessing.Generation;
 
-// Resolves an include/exclude tree selection (selected/excluded folder + file external ids) into a
-// flat list of candidate file external ids: directly selected files plus every file recursively
-// under a selected folder, minus excluded subtrees and minus excluded files. Thumbnailability is NOT
-// filtered here (extension is encrypted in Full-encryption workspaces) — the caller's
-// GetThumbnailSourceFileQuery.ExecuteBatch drops non-image/video files in memory afterwards.
+// Resolves an include/exclude tree selection (selected/excluded folder + file external ids) into the
+// thumbnailable source files to process: directly selected files plus every file recursively under a
+// selected folder, minus excluded subtrees and minus excluded files. Derived files (thumbnails,
+// attachments) are skipped via fi_parent_file_id IS NULL — they inherit the parent's fi_folder_id, so
+// folder expansion would otherwise pull existing thumbnails back in as sources. A single SELECT
+// returns the rows, decodes the extension and drops non-image/video files in memory — no second
+// round-trip to re-read the same rows by id.
 public class GetThumbnailableSelectionFilesQuery(PlikShareDb plikShareDb)
 {
-    public List<string> Execute(
+    public CountResult ExecuteCount(
         WorkspaceContext workspace,
         List<string> selectedFolders,
         List<string> selectedFiles,
         List<string> excludedFolders,
-        List<string> excludedFiles)
+        List<string> excludedFiles,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
+    {
+        if (selectedFiles.Count == 0 && selectedFolders.Count == 0)
+            return new CountResult(0, 0);
+
+        using var connection = plikShareDb.OpenConnection();
+
+        var folderIds = selectedFolders.Count > 0
+            ? ResolveFolderIds(
+                workspace: workspace,
+                selectedFolders: selectedFolders,
+                excludedFolders: excludedFolders,
+                connection: connection)
+            : [];
+
+        if (selectedFiles.Count == 0 && folderIds.Count == 0)
+            return new CountResult(0, 0);
+
+        return CountThumbnailableFiles(
+            workspace: workspace,
+            selectedFiles: selectedFiles,
+            folderIds: folderIds,
+            excludedFiles: excludedFiles,
+            workspaceEncryptionSession: workspaceEncryptionSession,
+            connection: connection);
+    }
+
+    private static CountResult CountThumbnailableFiles(
+       WorkspaceContext workspace,
+       List<string> selectedFiles,
+       List<int> folderIds,
+       List<string> excludedFiles,
+       WorkspaceEncryptionSession? workspaceEncryptionSession,
+       SqliteConnection connection)
+    {
+        return connection
+            .AggregateRows(
+                sql: """
+                     SELECT
+                         fi_extension,
+                         fi_size_in_bytes
+                     FROM fi_files
+                     WHERE
+                         fi_workspace_id = $workspaceId
+                         AND fi_deleted_at IS NULL
+                         AND fi_is_upload_completed = TRUE
+                         AND fi_parent_file_id IS NULL
+                         AND (
+                             fi_external_id IN (SELECT value FROM json_each($selectedFileExternalIds))
+                             OR fi_folder_id IN (SELECT value FROM json_each($folderIds))
+                         )
+                         AND fi_external_id NOT IN (SELECT value FROM json_each($excludedFileExternalIds))
+                     """,
+                seed: new CountResult(0, 0),
+                aggregateRowFunc: (acc, reader) =>
+                {
+                    var extension = reader.DecodeEncryptableString(
+                        0,
+                        workspaceEncryptionSession);
+
+                    if (!ContentTypeHelper.IsThumbnailable(extension))
+                        return acc;
+
+                    return new CountResult(
+                        FilesCount: acc.FilesCount + 1,
+                        TotalSizeInBytes: acc.TotalSizeInBytes + reader.GetInt64(1));
+                })
+            .WithParameter("$workspaceId", workspace.Id)
+            .WithJsonParameter("$selectedFileExternalIds", selectedFiles)
+            .WithJsonParameter("$folderIds", folderIds)
+            .WithJsonParameter("$excludedFileExternalIds", excludedFiles)
+            .Execute();
+    }
+
+    public List<ThumbnailableFile> Execute(
+        WorkspaceContext workspace,
+        List<string> selectedFolders,
+        List<string> selectedFiles,
+        List<string> excludedFolders,
+        List<string> excludedFiles,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
         if (selectedFiles.Count == 0 && selectedFolders.Count == 0)
             return [];
 
         using var connection = plikShareDb.OpenConnection();
 
-        var fileExternalIds = new HashSet<string>();
-
-        if (selectedFiles.Count > 0)
-        {
-            var directFiles = GetDirectlySelectedFiles(
-                workspace: workspace,
-                selectedFiles: selectedFiles,
-                excludedFiles: excludedFiles,
-                connection: connection);
-
-            foreach (var fileExternalId in directFiles)
-                fileExternalIds.Add(fileExternalId);
-        }
-
-        if (selectedFolders.Count > 0)
-        {
-            var folderIds = ResolveFolderIds(
+        var folderIds = selectedFolders.Count > 0
+            ? ResolveFolderIds(
                 workspace: workspace,
                 selectedFolders: selectedFolders,
                 excludedFolders: excludedFolders,
-                connection: connection);
+                connection: connection)
+            : [];
 
-            if (folderIds.Count > 0)
-            {
-                var folderFiles = GetFilesInFolders(
-                    workspace: workspace,
-                    folderIds: folderIds,
-                    excludedFiles: excludedFiles,
-                    connection: connection);
+        if (selectedFiles.Count == 0 && folderIds.Count == 0)
+            return [];
 
-                foreach (var fileExternalId in folderFiles)
-                    fileExternalIds.Add(fileExternalId);
-            }
-        }
-
-        return fileExternalIds.ToList();
+        return FetchThumbnailableFiles(
+            workspace: workspace,
+            selectedFiles: selectedFiles,
+            folderIds: folderIds,
+            excludedFiles: excludedFiles,
+            workspaceEncryptionSession: workspaceEncryptionSession,
+            connection: connection);
     }
 
-    private static List<string> GetDirectlySelectedFiles(
+    private static List<ThumbnailableFile> FetchThumbnailableFiles(
         WorkspaceContext workspace,
         List<string> selectedFiles,
-        List<string> excludedFiles,
-        SqliteConnection connection)
-    {
-        return connection
-            .Cmd(
-                sql: """
-                     SELECT fi_external_id
-                     FROM fi_files
-                     WHERE
-                         fi_workspace_id = $workspaceId
-                         AND fi_deleted_at IS NULL
-                         AND fi_is_upload_completed = TRUE
-                         AND fi_external_id IN (SELECT value FROM json_each($selectedFileExternalIds))
-                         AND fi_external_id NOT IN (SELECT value FROM json_each($excludedFileExternalIds))
-                     """,
-                readRowFunc: reader => reader.GetString(0))
-            .WithParameter("$workspaceId", workspace.Id)
-            .WithJsonParameter("$selectedFileExternalIds", selectedFiles)
-            .WithJsonParameter("$excludedFileExternalIds", excludedFiles)
-            .Execute();
-    }
-
-    private static List<string> GetFilesInFolders(
-        WorkspaceContext workspace,
         List<int> folderIds,
         List<string> excludedFiles,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         SqliteConnection connection)
     {
         return connection
-            .Cmd(
+            .AggregateRows(
                 sql: """
-                     SELECT fi_external_id
+                     SELECT
+                         fi_external_id,
+                         fi_size_in_bytes,
+                         fi_extension,
+                         fi_encryption_key_version,
+                         fi_encryption_salt,
+                         fi_encryption_nonce_prefix,
+                         fi_encryption_chain_salts,
+                         fi_encryption_format_version
                      FROM fi_files
                      WHERE
                          fi_workspace_id = $workspaceId
                          AND fi_deleted_at IS NULL
                          AND fi_is_upload_completed = TRUE
-                         AND fi_folder_id IN (SELECT value FROM json_each($folderIds))
+                         AND fi_parent_file_id IS NULL
+                         AND (
+                             fi_external_id IN (SELECT value FROM json_each($selectedFileExternalIds))
+                             OR fi_folder_id IN (SELECT value FROM json_each($folderIds))
+                         )
                          AND fi_external_id NOT IN (SELECT value FROM json_each($excludedFileExternalIds))
                      """,
-                readRowFunc: reader => reader.GetString(0))
+                seed: new List<ThumbnailableFile>(),
+                aggregateRowFunc: (acc, reader) =>
+                {
+                    var extension = reader.DecodeEncryptableString(
+                        2,
+                        workspaceEncryptionSession);
+
+                    if (!ContentTypeHelper.IsThumbnailable(extension))
+                        return acc;
+
+                    acc.Add(new ThumbnailableFile
+                    {
+                        ExternalId = reader.GetExtId<FileExtId>(0),
+                        SizeInBytes = reader.GetInt64(1),
+                        Extension = extension,
+
+                        EncryptionMetadata = reader.GetByteOrNull(3) is { } keyVersion
+                            ? new FileEncryptionMetadata
+                            {
+                                KeyVersion = keyVersion,
+                                Salt = reader.GetFieldValue<byte[]>(4),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(5),
+                                ChainStepSalts = KeyDerivationChain.Deserialize(
+                                    reader.GetFieldValueOrNull<byte[]>(6)),
+                                FormatVersion = reader.GetByteOrNull(7) ?? 1
+                            }
+                            : null
+                    });
+
+                    return acc;
+                })
             .WithParameter("$workspaceId", workspace.Id)
+            .WithJsonParameter("$selectedFileExternalIds", selectedFiles)
             .WithJsonParameter("$folderIds", folderIds)
             .WithJsonParameter("$excludedFileExternalIds", excludedFiles)
             .Execute();
@@ -190,4 +278,16 @@ public class GetThumbnailableSelectionFilesQuery(PlikShareDb plikShareDb)
 
         return descendantFolderIds;
     }
+
+    public sealed record ThumbnailableFile
+    {
+        public required FileExtId ExternalId { get; init; }
+        public required long SizeInBytes { get; init; }
+        public required string Extension { get; init; }
+        public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
+    }
+
+    public readonly record struct CountResult(
+        int FilesCount,
+        long TotalSizeInBytes);
 }

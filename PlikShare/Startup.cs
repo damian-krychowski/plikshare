@@ -828,7 +828,6 @@ public class Startup
         AddLongRunningQueueJob<ProcessImageQueueJobExecutorV2>();
         builder.Services.AddSingleton<GenerateFileThumbnailsBulkOperation>();
         builder.Services.AddSingleton<GetThumbnailableSelectionFilesQuery>();
-        builder.Services.AddSingleton<GetThumbnailSourceFileQuery>();
         builder.Services.AddSingleton<GetThumbnailGenerationStatusQuery>();
         builder.Services.AddSingleton<CancelThumbnailBatchOperation>();
         builder.Services.AddSingleton<DownloadFileConvertedOperation>();

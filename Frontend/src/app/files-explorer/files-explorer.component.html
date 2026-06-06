@@ -212,6 +212,7 @@
                             [operationItem]="'for the selected files'"
                             [verb]="'generate thumbnails'"
                             [operationSubtitle]="'Thumbnails will be generated in the background.'"
+                            [subtitleLoader]="thumbnailGenerationSubtitleLoader"
                             (confirmedClick)="generateThumbnailsForSelectedItems()">
                         </app-action-btn>
                     }

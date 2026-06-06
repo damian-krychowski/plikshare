@@ -20,6 +20,7 @@ using PlikShare.Storages.Exceptions;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Validation;
 using System.Globalization;
+using PlikShare.Core.Clock;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.MediaProcessing;
@@ -48,6 +49,9 @@ public static class MediaProcessingEndpoints
         group.MapPost("/thumbnails/generate-bulk", GenerateFileThumbnailsBulk)
             .WithName("GenerateFileThumbnailsBulk")
             .WithProtobufResponse();
+
+        group.MapPost("/thumbnails/generate-bulk/count", CountThumbnailableFiles)
+            .WithName("CountThumbnailableFiles");
 
         group.MapGet("/thumbnails/batches/{batchId:guid}/status", GetThumbnailGenerationStatus)
             .WithName("GetThumbnailGenerationStatus");
@@ -209,6 +213,7 @@ public static class MediaProcessingEndpoints
         [FromBody] GenerateFileThumbnailsRequestDto request,
         HttpContext httpContext,
         GenerateFileThumbnailsBulkOperation generateFileThumbnailsBulkOperation,
+        GetThumbnailableSelectionFilesQuery getThumbnailableSelectionFilesQuery,
         CancellationToken cancellationToken)
     {
         if (request.Variants is null || request.Variants.Count == 0)
@@ -217,9 +222,25 @@ public static class MediaProcessingEndpoints
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
 
+        var thumbnailableFiles = getThumbnailableSelectionFilesQuery
+            .Execute(
+                workspace: workspaceMembership.Workspace,
+                selectedFolders: [],
+                selectedFiles: [fileExternalId.Value],
+                excludedFolders: [],
+                excludedFiles: [],
+                workspaceEncryptionSession: workspaceEncryptionSession)
+            .Select(file => new GenerateFileThumbnailsBulkOperation.SourceFile
+            {
+                ExternalId = file.ExternalId,
+                Extension = file.Extension,
+                EncryptionMetadata = file.EncryptionMetadata
+            })
+            .ToList();
+
         var result = await generateFileThumbnailsBulkOperation.Execute(
             workspace: workspaceMembership.Workspace,
-            parentFileExternalIds: [fileExternalId.Value],
+            thumbnailableFiles: thumbnailableFiles,
             variants: request.Variants,
             triggeredByUserExternalId: workspaceMembership.User.ExternalId,
             workspaceEncryptionSession: workspaceEncryptionSession,
@@ -258,16 +279,17 @@ public static class MediaProcessingEndpoints
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
 
-        // Resolve the include/exclude tree selection into a flat list of candidate files
+        // Resolve the include/exclude tree selection into the thumbnailable source files
         // (selected files + recursive folder descendants − excluded subtrees − excluded files).
-        var parentFileExternalIds = getThumbnailableSelectionFilesQuery.Execute(
+        var thumbnailableFiles = getThumbnailableSelectionFilesQuery.Execute(
             workspace: workspaceMembership.Workspace,
             selectedFolders: request.SelectedFolders ?? [],
             selectedFiles: request.SelectedFiles ?? [],
             excludedFolders: request.ExcludedFolders ?? [],
-            excludedFiles: request.ExcludedFiles ?? []);
+            excludedFiles: request.ExcludedFiles ?? [],
+            workspaceEncryptionSession: workspaceEncryptionSession);
 
-        if (parentFileExternalIds.Count == 0)
+        if (thumbnailableFiles.Count == 0)
             return HttpErrors.File.NoThumbnailableFilesSelected();
 
         var variants = new List<ThumbnailVariant>(request.Variants.Count);
@@ -279,9 +301,18 @@ public static class MediaProcessingEndpoints
             variants.Add(parsed);
         }
 
+        var sourceFiles = thumbnailableFiles
+            .Select(file => new GenerateFileThumbnailsBulkOperation.SourceFile
+            {
+                ExternalId = file.ExternalId,
+                Extension = file.Extension,
+                EncryptionMetadata = file.EncryptionMetadata
+            })
+            .ToList();
+
         var result = await generateFileThumbnailsBulkOperation.Execute(
             workspace: workspaceMembership.Workspace,
-            parentFileExternalIds: parentFileExternalIds,
+            thumbnailableFiles: sourceFiles,
             variants: variants,
             triggeredByUserExternalId: workspaceMembership.User.ExternalId,
             workspaceEncryptionSession: workspaceEncryptionSession,
@@ -300,6 +331,29 @@ public static class MediaProcessingEndpoints
             GenerateFileThumbnailsBulkOperation.ResultCode.NoThumbnailableFiles => HttpErrors.File.NoThumbnailableFilesSelected(),
             _ => HttpErrors.File.NoThumbnailableFilesSelected()
         };
+    }
+
+    private static Ok<CountThumbnailableFilesResponseDto> CountThumbnailableFiles(
+        [FromBody] CountThumbnailableFilesRequestDto request,
+        HttpContext httpContext,
+        GetThumbnailableSelectionFilesQuery getThumbnailableSelectionFilesQuery)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
+        var countResult = getThumbnailableSelectionFilesQuery.ExecuteCount(
+            workspace: workspaceMembership.Workspace,
+            selectedFolders: request.SelectedFolders ?? [],
+            selectedFiles: request.SelectedFiles ?? [],
+            excludedFolders: request.ExcludedFolders ?? [],
+            excludedFiles: request.ExcludedFiles ?? [],
+            workspaceEncryptionSession: workspaceEncryptionSession);
+
+        return TypedResults.Ok(new CountThumbnailableFilesResponseDto
+        {
+            FileCount = countResult.FilesCount,
+            TotalSizeInBytes = countResult.TotalSizeInBytes
+        });
     }
 
     private static Ok<ThumbnailGenerationStatusResponseDto> GetThumbnailGenerationStatus(
@@ -340,14 +394,15 @@ public static class MediaProcessingEndpoints
     /// </summary>
     private static async Task GetThumbnailBatchEvents(
         [FromRoute] Guid batchId,
-        HttpContext httpContext,
-        GetThumbnailGenerationStatusQuery getThumbnailGenerationStatusQuery,
-        QueueBatchNotifier queueBatchNotifier,
-        CancellationToken cancellationToken,
         // On a fresh start the client already knows the file ids it triggered, so it lights up the
         // spinners locally and asks for no outstanding list. Only a reload/resubscribe (client lost
         // that state) needs the server to send the full outstanding set in the first event.
-        [FromQuery] bool includeOutstandingFileIds)
+        [FromQuery] bool includeOutstandingFileIds,
+        HttpContext httpContext,
+        GetThumbnailGenerationStatusQuery getThumbnailGenerationStatusQuery,
+        QueueBatchNotifier queueBatchNotifier,
+        IClock clock,
+        CancellationToken cancellationToken)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
         var workspace = workspaceMembership.Workspace;
@@ -368,39 +423,11 @@ public static class MediaProcessingEndpoints
         DateTimeOffset? lastCompletedAt = null;
         var sentQcIds = new HashSet<long>();
         var failedByVariant = new Dictionary<ThumbnailVariant, string?>();
-
-        ThumbnailGenerationStatusResponseDto NextStatus(bool includeOutstandingFileIds)
-        {
-            var snapshot = getThumbnailGenerationStatusQuery.GetSnapshot(
-                workspace,
-                batchId,
-                lastCompletedAt,
-                includeOutstandingFileIds);
-
-            var fresh = snapshot.NewCompleted
-                .Where(job => sentQcIds.Add(job.QcId))
-                .ToList();
-
-            var ready = new List<ReadyThumbnailDto>();
-
-            GetThumbnailGenerationStatusQuery.Apply(
-                fresh,
-                failedByVariant,
-                ready);
-
-            if (snapshot.NewCompleted.Count > 0)
-                lastCompletedAt = snapshot.NewCompleted.Max(job => job.CompletedAt);
-
-            return GetThumbnailGenerationStatusQuery.BuildStatus(
-                snapshot.Counts,
-                failedByVariant,
-                ready,
-                snapshot.ProcessingFileExternalIds);
-        }
-
+        
         // First push carries the full outstanding set only when the client asked for it (reload /
         // resubscribe). A fresh start already knows its file ids and lights up spinners locally.
-        var status = NextStatus(includeOutstandingFileIds: includeOutstandingFileIds);
+        var status = NextStatus(
+            includeOutstandingFileIds: includeOutstandingFileIds);
 
         await WriteSseStatus(
             response,
@@ -418,7 +445,7 @@ public static class MediaProcessingEndpoints
         // plenty for a progress bar — anything faster the eye can't follow anyway. First push
         // (above) and final push (when Pending==0) go immediately so start and end stay snappy.
         var minPushInterval = TimeSpan.FromSeconds(1);
-        var lastPushAt = DateTime.UtcNow;
+        var lastPushAt = clock.UtcNow;
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -470,17 +497,47 @@ public static class MediaProcessingEndpoints
             }
 
             // Later pushes are deltas only — readyThumbnails carries the just-completed files.
-            status = NextStatus(includeOutstandingFileIds: false);
+            status = NextStatus(
+                includeOutstandingFileIds: false);
 
             await WriteSseStatus(
                 response,
                 status,
                 cancellationToken);
 
-            lastPushAt = DateTime.UtcNow;
+            lastPushAt = clock.UtcNow;
 
             if (status.Pending == 0)
                 break;
+        }
+
+        ThumbnailGenerationStatusResponseDto NextStatus(bool includeOutstandingFileIds)
+        {
+            var snapshot = getThumbnailGenerationStatusQuery.GetSnapshot(
+                workspace,
+                batchId,
+                lastCompletedAt,
+                includeOutstandingFileIds);
+
+            var fresh = snapshot.NewCompleted
+                .Where(job => sentQcIds.Add(job.QcId))
+                .ToList();
+
+            var ready = new List<ReadyThumbnailDto>();
+
+            GetThumbnailGenerationStatusQuery.Apply(
+                fresh,
+                failedByVariant,
+                ready);
+
+            if (snapshot.NewCompleted.Count > 0)
+                lastCompletedAt = snapshot.NewCompleted.Max(job => job.CompletedAt);
+
+            return GetThumbnailGenerationStatusQuery.BuildStatus(
+                snapshot.Counts,
+                failedByVariant,
+                ready,
+                snapshot.ProcessingFileExternalIds);
         }
     }
 

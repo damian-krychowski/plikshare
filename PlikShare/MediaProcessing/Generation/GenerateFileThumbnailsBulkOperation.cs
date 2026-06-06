@@ -4,6 +4,7 @@ using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
+using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Storages.Encryption;
 using PlikShare.Users.Id;
@@ -21,7 +22,6 @@ public class GenerateFileThumbnailsBulkOperation(
     IClock clock,
     IQueue queue,
     DbWriteQueue dbWriteQueue,
-    GetThumbnailSourceFileQuery getSourceFileQuery,
     EphemeralKeyRing ephemeralKeyRing,
     FfmpegService ffmpegService)
 {
@@ -31,7 +31,7 @@ public class GenerateFileThumbnailsBulkOperation(
 
     public async Task<Result> Execute(
         WorkspaceContext workspace,
-        List<string> parentFileExternalIds,
+        List<SourceFile> thumbnailableFiles,
         IReadOnlyList<ThumbnailVariant> variants,
         UserExtId triggeredByUserExternalId,
         WorkspaceEncryptionSession? workspaceEncryptionSession,
@@ -44,16 +44,9 @@ public class GenerateFileThumbnailsBulkOperation(
         if (variants.Count == 0)
             return new Result(Code: ResultCode.NoVariants);
 
-        if (parentFileExternalIds.Count == 0)
-            return new Result(Code: ResultCode.NoThumbnailableFiles);
-
-        var thumbnailableFiles = getSourceFileQuery.ExecuteBatch(
-            parentFileExternalIds,
-            workspaceEncryptionSession);
-        
         if (thumbnailableFiles.Count == 0)
             return new Result(Code: ResultCode.NoThumbnailableFiles);
-        
+
         var batchId = Guid.NewGuid();
         var variantList = variants.ToList();
         
@@ -154,5 +147,12 @@ public class GenerateFileThumbnailsBulkOperation(
         FfmpegUnavailable,
         NoVariants,
         NoThumbnailableFiles
+    }
+
+    public sealed record SourceFile
+    {
+        public required FileExtId ExternalId { get; init; }
+        public required string Extension { get; init; }
+        public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
     }
 }

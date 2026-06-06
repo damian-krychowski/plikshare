@@ -373,6 +373,10 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
                 throw new Error("not implemented");
             },
 
+            countThumbnailableFiles: async () => {
+                throw new Error("not implemented");
+            },
+
             subscribeThumbnailBatch: () => {
                 throw new Error("not implemented");
             },
