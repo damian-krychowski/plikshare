@@ -31,8 +31,7 @@ export type ThumbnailBatch = {
 export type ThumbnailBatchHandlers = {
     subscribe: (
         batchId: string,
-        onStatus: (status: ThumbnailGenerationStatus) => void,
-        includeOutstandingFileIds: boolean
+        onStatus: (status: ThumbnailGenerationStatus) => void
     ) => () => void;
 
     cancel: (batchId: string) => Promise<unknown>;
@@ -93,27 +92,25 @@ export class ThumbnailBatchProgressService {
         return this.loadPersisted();
     }
 
-    // Fresh start: the caller knows exactly which files it triggered, so we seed the spinner set
-    // locally and tell the server not to resend that (potentially huge) outstanding list.
+    // Fresh start: the server sends the full outstanding set in the first event, so the spinner set
+    // fills from there — the caller doesn't need to know which files the batch expanded to.
     track(args: {
         workspaceExternalId: string;
         batchId: string;
         name: string;
-        fileExternalIds: readonly string[];
+        total: number;
         handlers: ThumbnailBatchHandlers;
     }): void {
         this.startTracking(
-            { batchId: args.batchId, workspaceExternalId: args.workspaceExternalId, name: args.name, total: args.fileExternalIds.length },
+            { batchId: args.batchId, workspaceExternalId: args.workspaceExternalId, name: args.name, total: args.total },
             {
                 persist: true,
-                includeOutstandingFileIds: false,
-                initialProcessingIds: args.fileExternalIds,
                 handlers: args.handlers,
             });
     }
 
-    // Resume after reload: we no longer know which files were outstanding, so we ask the server for
-    // the full outstanding list in the first event to repopulate the spinners.
+    // Resume after reload: the server sends the full outstanding list in the first event, which
+    // repopulates the spinners.
     resume(args: {
         batchId: string;
         workspaceExternalId: string;
@@ -125,7 +122,6 @@ export class ThumbnailBatchProgressService {
             { batchId: args.batchId, workspaceExternalId: args.workspaceExternalId, name: args.name, total: args.total },
             {
                 persist: false,
-                includeOutstandingFileIds: true,
                 handlers: args.handlers,
             });
     }
@@ -151,8 +147,6 @@ export class ThumbnailBatchProgressService {
         persisted: PersistedBatch,
         options: {
             persist: boolean;
-            includeOutstandingFileIds: boolean;
-            initialProcessingIds?: readonly string[];
             handlers: ThumbnailBatchHandlers;
         }): void {
         if (this._unsubscribes.has(persisted.batchId))
@@ -178,26 +172,12 @@ export class ThumbnailBatchProgressService {
             }];
         });
 
-        // Seed the spinner set from the ids the caller triggered (fresh start), so we don't depend
-        // on the server echoing them back.
-        if (options.initialProcessingIds && options.initialProcessingIds.length > 0) {
-            this._liveByBatch.update(map => {
-                const next = new Map(map);
-                next.set(persisted.batchId, {
-                    processingFileIds: new Set(options.initialProcessingIds),
-                    readyMiniEtagByFileId: new Map(),
-                });
-                return next;
-            });
-        }
-
         if (options.persist)
             this.persist();
 
         const unsubscribe = options.handlers.subscribe(
             persisted.batchId,
-            status => this.onStatus(persisted.batchId, status),
-            options.includeOutstandingFileIds);
+            status => this.onStatus(persisted.batchId, status));
 
         this._unsubscribes.set(persisted.batchId, unsubscribe);
     }

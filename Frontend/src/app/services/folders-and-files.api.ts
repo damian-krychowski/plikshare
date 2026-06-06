@@ -880,13 +880,9 @@ export class FoldersAndFilesSetApi {
     public subscribeThumbnailBatch(
         workspaceExternalId: string,
         batchId: string,
-        onStatus: (status: ThumbnailGenerationStatus) => void,
-        // Only a reload/resubscribe needs the server's full outstanding list in the first event; a
-        // fresh start knows its own file ids and lights spinners locally, so it asks for none.
-        includeOutstandingFileIds: boolean): () => void {
+        onStatus: (status: ThumbnailGenerationStatus) => void): () => void {
         const eventSource = new EventSource(
-            `/api/workspaces/${workspaceExternalId}/media/thumbnails/batches/${batchId}/events`
-                + `?includeOutstandingFileIds=${includeOutstandingFileIds}`,
+            `/api/workspaces/${workspaceExternalId}/media/thumbnails/batches/${batchId}/events`,
             { withCredentials: true }
         );
 

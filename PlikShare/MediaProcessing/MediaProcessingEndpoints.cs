@@ -394,10 +394,6 @@ public static class MediaProcessingEndpoints
     /// </summary>
     private static async Task GetThumbnailBatchEvents(
         [FromRoute] Guid batchId,
-        // On a fresh start the client already knows the file ids it triggered, so it lights up the
-        // spinners locally and asks for no outstanding list. Only a reload/resubscribe (client lost
-        // that state) needs the server to send the full outstanding set in the first event.
-        [FromQuery] bool includeOutstandingFileIds,
         HttpContext httpContext,
         GetThumbnailGenerationStatusQuery getThumbnailGenerationStatusQuery,
         QueueBatchNotifier queueBatchNotifier,
@@ -424,10 +420,10 @@ public static class MediaProcessingEndpoints
         var sentQcIds = new HashSet<long>();
         var failedByVariant = new Dictionary<ThumbnailVariant, string?>();
         
-        // First push carries the full outstanding set only when the client asked for it (reload /
-        // resubscribe). A fresh start already knows its file ids and lights up spinners locally.
+        // First push always carries the full outstanding set, so every file the client requested
+        // lights up its spinner immediately — regardless of how it started (fresh or reload).
         var status = NextStatus(
-            includeOutstandingFileIds: includeOutstandingFileIds);
+            includeOutstandingFileIds: true);
 
         await WriteSseStatus(
             response,

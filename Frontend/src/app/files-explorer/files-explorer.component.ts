@@ -95,8 +95,7 @@ export interface FilesExplorerApi {
     countThumbnailableFiles: (request: CountThumbnailableFilesRequest) => Promise<CountThumbnailableFilesResponse>;
     subscribeThumbnailBatch: (
         batchId: string,
-        onStatus: (status: ThumbnailGenerationStatus) => void,
-        includeOutstandingFileIds: boolean) => () => void;
+        onStatus: (status: ThumbnailGenerationStatus) => void) => () => void;
     cancelThumbnailBatch: (batchId: string) => Promise<unknown>;
     downloadFileConverted: (fileExternalId: string, format: DownloadImageFormat, downloadFileName: string) => Promise<void>;
 
@@ -658,8 +657,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) =>
             this.filesApi().generateFileThumbnails(fileExternalId, variants),
 
-        subscribeThumbnailBatch: (batchId: string, onStatus, includeOutstandingFileIds) =>
-            this.filesApi().subscribeThumbnailBatch(batchId, onStatus, includeOutstandingFileIds),
+        subscribeThumbnailBatch: (batchId: string, onStatus) =>
+            this.filesApi().subscribeThumbnailBatch(batchId, onStatus),
         cancelThumbnailBatch: (batchId: string) =>
             this.filesApi().cancelThumbnailBatch(batchId),
 
@@ -1608,9 +1607,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         return {
             subscribe: (
                 batchId: string,
-                onStatus: (status: ThumbnailGenerationStatus) => void,
-                includeOutstandingFileIds: boolean) =>
-                api.subscribeThumbnailBatch(batchId, onStatus, includeOutstandingFileIds),
+                onStatus: (status: ThumbnailGenerationStatus) => void) =>
+                api.subscribeThumbnailBatch(batchId, onStatus),
             cancel: (batchId: string) => api.cancelThumbnailBatch(batchId),
         };
     }
@@ -1689,7 +1687,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                 workspaceExternalId,
                 batchId: response.batchId,
                 name: `Generating thumbnails — ${response.totalFiles} file(s)`,
-                fileExternalIds,
+                total: response.totalFiles,
                 handlers: this.thumbnailBatchHandlers(),
             });
 

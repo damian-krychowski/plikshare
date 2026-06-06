@@ -256,13 +256,11 @@ export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
 
     subscribeThumbnailBatch(
         batchId: string,
-        onStatus: (status: ThumbnailGenerationStatus) => void,
-        includeOutstandingFileIds: boolean): () => void {
+        onStatus: (status: ThumbnailGenerationStatus) => void): () => void {
         return this._setApi.subscribeThumbnailBatch(
             this._workspaceExternalId,
             batchId,
-            onStatus,
-            includeOutstandingFileIds
+            onStatus
         );
     }
 

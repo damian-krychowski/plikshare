@@ -70,8 +70,7 @@ export type FilePreviewOperations = {
     generateFileThumbnails: (fileExternalId: string, variants: ThumbnailVariant[]) => Promise<GenerateFileThumbnailsResponse>;
     subscribeThumbnailBatch: (
         batchId: string,
-        onStatus: (status: ThumbnailGenerationStatus) => void,
-        includeOutstandingFileIds: boolean) => () => void;
+        onStatus: (status: ThumbnailGenerationStatus) => void) => () => void;
     cancelThumbnailBatch: (batchId: string) => Promise<unknown>;
     downloadFileConverted: (fileExternalId: string, format: DownloadImageFormat, downloadFileName: string) => Promise<void>;
 
@@ -548,12 +547,9 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
                 parentExtId,
                 variants),
 
-            // Single-file dialog: it tracks its own variants locally, so it never needs the server
-            // to echo back the outstanding list — pass `false`.
             subscribeThumbnailBatch: (batchId, onStatus) => previewOps.subscribeThumbnailBatch(
                 batchId,
-                onStatus,
-                false),
+                onStatus),
 
             getDownloadLink: (thumbExternalId, contentDisposition) => fileOps.getDownloadLink(
                 thumbExternalId,
