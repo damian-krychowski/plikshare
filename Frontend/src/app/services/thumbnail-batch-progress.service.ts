@@ -92,19 +92,23 @@ export class ThumbnailBatchProgressService {
         return this.loadPersisted();
     }
 
-    // Fresh start: the server sends the full outstanding set in the first event, so the spinner set
-    // fills from there — the caller doesn't need to know which files the batch expanded to.
+    // Fresh start. The server streams the full outstanding set in chunks, but a file that already
+    // has a thumbnail re-generates so fast it can finish before the first chunk arrives — so it would
+    // never light its spinner. To avoid that race, the caller seeds the ids it already knows (the
+    // directly-selected files); folder-expanded ids still arrive from the server.
     track(args: {
         workspaceExternalId: string;
         batchId: string;
         name: string;
         total: number;
+        initialProcessingIds?: readonly string[];
         handlers: ThumbnailBatchHandlers;
     }): void {
         this.startTracking(
             { batchId: args.batchId, workspaceExternalId: args.workspaceExternalId, name: args.name, total: args.total },
             {
                 persist: true,
+                initialProcessingIds: args.initialProcessingIds,
                 handlers: args.handlers,
             });
     }
@@ -147,6 +151,7 @@ export class ThumbnailBatchProgressService {
         persisted: PersistedBatch,
         options: {
             persist: boolean;
+            initialProcessingIds?: readonly string[];
             handlers: ThumbnailBatchHandlers;
         }): void {
         if (this._unsubscribes.has(persisted.batchId))
@@ -171,6 +176,20 @@ export class ThumbnailBatchProgressService {
                 finishedAt: null,
             }];
         });
+
+        // Optimistically seed the spinner set from the ids the caller already knows, so a fast
+        // re-generation lights its spinner before the first SSE chunk arrives. Server chunks then
+        // add the folder-expanded ids and readyThumbnails removes each one as it completes.
+        if (options.initialProcessingIds && options.initialProcessingIds.length > 0) {
+            this._liveByBatch.update(map => {
+                const next = new Map(map);
+                next.set(persisted.batchId, {
+                    processingFileIds: new Set(options.initialProcessingIds),
+                    readyMiniEtagByFileId: new Map(),
+                });
+                return next;
+            });
+        }
 
         if (options.persist)
             this.persist();
@@ -201,10 +220,9 @@ export class ThumbnailBatchProgressService {
             const next = new Map(map);
             const previous = next.get(batchId);
 
-            // processingFileExternalIds is sent ONLY on the first event when the subscriber asked
-            // for it (reload case); later events omit it. So seed the spinner set from it, then
-            // remove each file that completes (readyThumbnails is a per-event delta). Both
-            // accumulate across events.
+            // The outstanding set arrives as a series of chunk events at startup; later events omit
+            // it. So accumulate each chunk's ids into the spinner set, then remove each file that
+            // completes (readyThumbnails is a per-event delta). Both accumulate across events.
             const processing = new Set(previous?.processingFileIds ?? []);
             for (const fileId of status.processingFileExternalIds ?? [])
                 processing.add(fileId);

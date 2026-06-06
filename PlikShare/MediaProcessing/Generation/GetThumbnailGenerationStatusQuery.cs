@@ -27,8 +27,7 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
 
     public sealed record Snapshot(
         Counts Counts,
-        List<CompletedJob> NewCompleted,
-        List<string> ProcessingFileExternalIds);
+        List<CompletedJob> NewCompleted);
 
     public ThumbnailGenerationStatusResponseDto Execute(
         WorkspaceContext workspace,
@@ -37,8 +36,7 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
         var snapshot = GetSnapshot(
             workspace,
             batchId,
-            afterCompletedAt: null,
-            includeOutstandingFileIds: true);
+            afterCompletedAt: null);
 
         var failedByVariant = new Dictionary<ThumbnailVariant, string?>();
         var ready = new List<ReadyThumbnailDto>();
@@ -48,75 +46,30 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
             failedByVariant,
             ready);
 
+        // Outstanding file ids are streamed separately (SSE chunks) — this one-shot status never
+        // carries them; its readers only need the counts.
         return BuildStatus(
             snapshot.Counts,
             failedByVariant,
             ready,
-            snapshot.ProcessingFileExternalIds);
+            []);
     }
 
     public Snapshot GetSnapshot(
         WorkspaceContext workspace,
         Guid batchId,
-        DateTimeOffset? afterCompletedAt,
-        bool includeOutstandingFileIds)
+        DateTimeOffset? afterCompletedAt)
     {
         using var connection = plikShareDb.OpenConnection();
-
-        // Authorize ONCE that the batch belongs to this workspace (batchId is a random GUID, so this
-        // guards against a member of workspace A peeking at a batch of workspace B). After this, the
-        // per-event counts/scans filter by the indexed q_batch_id alone — no per-row json_extract.
-        if (!BatchBelongsToWorkspace(connection, workspace, batchId))
-            return new Snapshot(
-                Counts: new Counts(Completed: 0, Outstanding: 0, Failed: 0),
-                NewCompleted: [],
-                ProcessingFileExternalIds: []);
-
+        
         return new Snapshot(
-            Counts: GetCounts(connection, batchId),
-            NewCompleted: GetCompletedSince(connection, batchId, afterCompletedAt),
-            ProcessingFileExternalIds: includeOutstandingFileIds
-                ? GetUnprocessedFileExternalIds(connection, batchId)
-                : []);
-    }
+            Counts: GetCounts(
+                connection, 
+                batchId),
 
-    private static bool BatchBelongsToWorkspace(
-        SqliteConnection connection,
-        WorkspaceContext workspace,
-        Guid batchId)
-    {
-        var outstanding = connection
-            .OneRowCmd(
-                sql: """
-                    SELECT 1
-                    FROM q_queue
-                    WHERE q_batch_id = $batchId
-                        AND json_extract(q_definition, '$.workspaceId') = $workspaceId
-                    LIMIT 1
-                    """,
-                readRowFunc: reader => reader.GetInt32(0))
-            .WithParameter("$batchId", batchId)
-            .WithParameter("$workspaceId", workspace.Id)
-            .Execute();
-
-        if (!outstanding.IsEmpty)
-            return true;
-
-        var completed = connection
-            .OneRowCmd(
-                sql: """
-                    SELECT 1
-                    FROM qc_queue_completed
-                    WHERE qc_batch_id = $batchId
-                        AND json_extract(qc_definition, '$.workspaceId') = $workspaceId
-                    LIMIT 1
-                    """,
-                readRowFunc: reader => reader.GetInt32(0))
-            .WithParameter("$batchId", batchId)
-            .WithParameter("$workspaceId", workspace.Id)
-            .Execute();
-
-        return !completed.IsEmpty;
+            NewCompleted: GetCompletedSince(
+                connection, 
+                batchId, afterCompletedAt));
     }
 
     public static void Apply(
@@ -258,35 +211,68 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
             .Execute();
     }
 
-    private static List<string> GetUnprocessedFileExternalIds(
-        SqliteConnection connection,
-        Guid batchId)
+    public sealed record OutstandingPage(
+        List<string> FileExternalIds,
+        long? LastQId,
+        bool HasMore);
+
+    // Keyset-paginated outstanding file ids for the initial SSE chunk stream. Authorization is done
+    // once by the caller's GetSnapshot before paging starts, so here we filter by the indexed
+    // q_batch_id (a random GUID) and keyset on q_id — a 30k-file batch streams in bounded-memory
+    // pages instead of materializing one ~1 MB list. rowLimit is in q_queue ROWS; each row holds up
+    // to BatchSize files, so ~200 rows ≈ 2000 file ids per page.
+    public OutstandingPage GetUnprocessedFileExternalIdsPage(
+        Guid batchId,
+        long? afterQId,
+        int rowLimit)
     {
-        return connection
+        using var connection = plikShareDb.OpenConnection();
+
+        var rows = connection
             .AggregateRows(
                 sql: """
-                    SELECT q_definition
+                    SELECT 
+                        q_id, 
+                        q_definition
                     FROM q_queue
                     WHERE
                         q_batch_id = $batchId
                         AND q_status != $failedStatus
+                        AND ($afterQId IS NULL OR q_id > $afterQId)
+                    ORDER BY q_id
+                    LIMIT $rowLimit
                     """,
-                seed: new List<string>(),
-                aggregateRowFunc: (acc, reader) =>
+                seed: new OutstandingPageAcc(
+                    FileExternalIds: new List<string>(rowLimit * 10),
+                    LastQId: afterQId),
+                aggregateRowFunc: (acc, row) =>
                 {
                     var definition = Json.Deserialize<ProcessImageQueueJobDefinitionV2>(
-                        reader.GetString(0));
+                        row.GetString(1));
 
-                    if (definition is null)
-                        return acc;
+                    foreach (var file in definition!.Files)
+                    {
+                        acc.FileExternalIds.Add(
+                            file.ParentFileExternalId.Value);
+                    }
 
-                    foreach (var file in definition.Files)
-                        acc.Add(file.ParentFileExternalId.Value);
-
-                    return acc;
+                    return new OutstandingPageAcc(
+                        FileExternalIds: acc.FileExternalIds,
+                        LastQId: row.GetInt64(0));
                 })
             .WithParameter("$batchId", batchId)
             .WithParameter("$failedStatus", QueueStatus.Failed)
+            .WithParameter("$afterQId", afterQId)
+            .WithParameter("$rowLimit", rowLimit)
             .Execute();
+
+        return new OutstandingPage(
+            FileExternalIds: rows.FileExternalIds,
+            LastQId: rows.LastQId,
+            HasMore: rows.FileExternalIds.Count == rowLimit);
     }
+
+    private readonly record struct OutstandingPageAcc(
+        List<string> FileExternalIds,
+        long? LastQId);
 }

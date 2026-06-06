@@ -1688,6 +1688,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                 batchId: response.batchId,
                 name: `Generating thumbnails — ${response.totalFiles} file(s)`,
                 total: response.totalFiles,
+                initialProcessingIds: fileExternalIds,
                 handlers: this.thumbnailBatchHandlers(),
             });
 

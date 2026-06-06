@@ -29,6 +29,10 @@ public static class MediaProcessingEndpoints
 {
     private const int MaximumFileUploadPayloadSizeInBytes = Aes256GcmStreamingV1.MaximumPayloadSize;
 
+    // q_queue ROWS per outstanding chunk in the initial SSE stream. Each row holds up to BatchSize
+    // files, so ~200 rows ≈ 2000 file ids per event — keeps the first push small for huge batches.
+    private const int OutstandingChunkRowLimit = 200;
+
     public static void MapMediaProcessingEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/workspaces/{workspaceExternalId}/media")
@@ -420,19 +424,77 @@ public static class MediaProcessingEndpoints
         var sentQcIds = new HashSet<long>();
         var failedByVariant = new Dictionary<ThumbnailVariant, string?>();
         
-        // First push always carries the full outstanding set, so every file the client requested
-        // lights up its spinner immediately — regardless of how it started (fresh or reload).
-        var status = NextStatus(
-            includeOutstandingFileIds: true);
+        // Initial state: counts + ready are computed once (this also seeds the delta tracking), and
+        // the outstanding file-id set is streamed in chunks below — so the first event never carries
+        // a huge (30k+) list. The client accumulates each chunk's ids into its spinner set.
+        var initialSnapshot = getThumbnailGenerationStatusQuery.GetSnapshot(
+            workspace,
+            batchId,
+            lastCompletedAt);
 
-        await WriteSseStatus(
-            response,
-            status,
-            cancellationToken);
+        var initialReady = new List<ReadyThumbnailDto>();
 
-        // Batch is done once nothing is outstanding (covers bulk: all files finished/failed).
-        if (status.Pending == 0)
-            return;
+        var initialFresh = initialSnapshot
+            .NewCompleted
+            .Where(job => sentQcIds.Add(job.QcId))
+            .ToList();
+
+        GetThumbnailGenerationStatusQuery.Apply(
+            initialFresh,
+            failedByVariant,
+            initialReady);
+
+        if (initialSnapshot.NewCompleted.Count > 0)
+            lastCompletedAt = initialSnapshot.NewCompleted.Max(job => job.CompletedAt);
+
+        long? outstandingCursor = null;
+        var sentAnyOutstandingChunk = false;
+
+        while (true)
+        {
+            var page = getThumbnailGenerationStatusQuery.GetUnprocessedFileExternalIdsPage(
+                batchId: batchId,
+                afterQId: outstandingCursor,
+                rowLimit: OutstandingChunkRowLimit);
+
+            if (page.FileExternalIds.Count == 0)
+                break;
+
+            // First chunk also carries the ready deltas; later chunks only extend the spinner set.
+            await WriteSseStatus(
+                response,
+                GetThumbnailGenerationStatusQuery.BuildStatus(
+                    initialSnapshot.Counts,
+                    failedByVariant,
+                    sentAnyOutstandingChunk ? [] : initialReady,
+                    page.FileExternalIds),
+                cancellationToken);
+
+            sentAnyOutstandingChunk = true;
+            outstandingCursor = page.LastQId;
+
+            if (!page.HasMore)
+                break;
+        }
+
+        // No outstanding files (batch already finished/failed) — still emit one status so the client
+        // gets the terminal counts and any ready deltas, then close if nothing is left to do.
+        if (!sentAnyOutstandingChunk)
+        {
+            var terminalStatus = GetThumbnailGenerationStatusQuery.BuildStatus(
+                initialSnapshot.Counts,
+                failedByVariant,
+                initialReady,
+                []);
+
+            await WriteSseStatus(
+                response,
+                terminalStatus,
+                cancellationToken);
+
+            if (terminalStatus.Pending == 0)
+                return;
+        }
 
         var keepAlive = TimeSpan.FromSeconds(20);
 
@@ -493,8 +555,7 @@ public static class MediaProcessingEndpoints
             }
 
             // Later pushes are deltas only — readyThumbnails carries the just-completed files.
-            status = NextStatus(
-                includeOutstandingFileIds: false);
+            var status = NextStatus();
 
             await WriteSseStatus(
                 response,
@@ -507,13 +568,12 @@ public static class MediaProcessingEndpoints
                 break;
         }
 
-        ThumbnailGenerationStatusResponseDto NextStatus(bool includeOutstandingFileIds)
+        ThumbnailGenerationStatusResponseDto NextStatus()
         {
             var snapshot = getThumbnailGenerationStatusQuery.GetSnapshot(
                 workspace,
                 batchId,
-                lastCompletedAt,
-                includeOutstandingFileIds);
+                lastCompletedAt);
 
             var fresh = snapshot.NewCompleted
                 .Where(job => sentQcIds.Add(job.QcId))
@@ -529,11 +589,12 @@ public static class MediaProcessingEndpoints
             if (snapshot.NewCompleted.Count > 0)
                 lastCompletedAt = snapshot.NewCompleted.Max(job => job.CompletedAt);
 
+            // Deltas never carry outstanding ids — those are streamed once, in chunks, at startup.
             return GetThumbnailGenerationStatusQuery.BuildStatus(
                 snapshot.Counts,
                 failedByVariant,
                 ready,
-                snapshot.ProcessingFileExternalIds);
+                []);
         }
     }
 
@@ -542,8 +603,12 @@ public static class MediaProcessingEndpoints
         ThumbnailGenerationStatusResponseDto status,
         CancellationToken cancellationToken)
     {
-        await response.WriteAsync($"data: {Json.Serialize(status)}\n\n", cancellationToken);
-        await response.Body.FlushAsync(cancellationToken);
+        await response.WriteAsync(
+            text: $"data: {Json.Serialize(status)}\n\n", 
+            cancellationToken: cancellationToken);
+
+        await response.Body.FlushAsync(
+            cancellationToken);
     }
 
     /// <summary>
