@@ -42,6 +42,7 @@ export class FileTreeNodeComponent {
     fileClickedHandler = input.required<(node: FileTreeItem) => void>();
     isSelectedChangedHandler = input.required<(node: TreeItem, isSelected: boolean) => void>();
     isExcludedChangedHandler = input.required<(node: TreeItem, isExcluded: boolean) => void>();
+    checkboxMouseDownHandler = input.required<(event: MouseEvent) => void>();
 
     private _failedThumbnailUrls = signal<ReadonlySet<string>>(new Set<string>());
 

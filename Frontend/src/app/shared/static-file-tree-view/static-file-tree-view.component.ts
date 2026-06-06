@@ -755,6 +755,32 @@ export class StaticFileTreeViewComponent implements OnChanges {
         this._lastShiftDown = event.shiftKey;
     }
 
+    // Modifier-clicks anywhere on a row drive selection instead of downloading/
+    // previewing the file or expanding the folder: shift extends the range,
+    // ctrl/meta toggles the single clicked node (and re-anchors). Plain clicks
+    // bubble here too but return early, so normal behaviour is untouched.
+    // Checkbox clicks never reach this — their wrapper stops propagation.
+    onRowClicked(node: StaticTreeNode, event: MouseEvent) {
+        if (!this.canDownload() || this.mode() !== 'select')
+            return;
+
+        if (event.shiftKey) {
+            event.preventDefault();
+            this._lastShiftDown = true;
+            this.onIsSelectedChange(node, !node.isSelected());
+        } else if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            this.onIsSelectedChange(node, !node.isSelected());
+        }
+    }
+
+    onChevronClicked(folder: StaticFolderNode, event: MouseEvent) {
+        if (event.shiftKey || event.ctrlKey || event.metaKey)
+            return;
+
+        this.expand(folder);
+    }
+
     // Clicking a folder checkbox cascades: pulling a folder INTO the selection
     // drops any individual descendant selections (they would otherwise duplicate
     // entries in the payload); pulling a folder OUT of the selection wipes any
@@ -763,8 +789,8 @@ export class StaticFileTreeViewComponent implements OnChanges {
         const shift = this._lastShiftDown;
         this._lastShiftDown = false;
 
-        if (shift && isSelected && this._selectionAnchorId) {
-            this.selectVisibleRangeTo(node);
+        if (shift && this._selectionAnchorId) {
+            this.selectSiblingRangeTo(node);
             return;
         }
 
@@ -787,17 +813,18 @@ export class StaticFileTreeViewComponent implements OnChanges {
         }
     }
 
-    // Selects every visible (flattened) row between the anchor and the target,
-    // inclusive. The range spans the ACTIVE view — search results when a search is
-    // on — so shift-selecting in a filtered view never reaches hidden rows. Each
-    // node goes through applySelection, so folder cascades stay consistent.
-    private selectVisibleRangeTo(target: StaticTreeNode) {
-        const flat = this.isSearchActive()
-            ? this.flatSearchVisibleNodes()
-            : this.flatVisibleNodes();
+    // Shift-range select scoped to a single branch: the range spans only the
+    // target's visible siblings (nodes sharing the same parent in the ACTIVE
+    // view), so selection in one open folder is independent of any other.
+    // Assigns inRange across the whole sibling set — selecting inside [from, to]
+    // AND deselecting outside — so dragging the range narrows as well as widens.
+    // The anchor stays pinned to the original plain click; only a shift-click in
+    // a DIFFERENT branch (anchor not among the target's siblings) re-anchors here.
+    private selectSiblingRangeTo(target: StaticTreeNode) {
+        const siblings = this.getVisibleSiblings(target);
 
-        const anchorIdx = flat.findIndex(r => r.node.id === this._selectionAnchorId);
-        const targetIdx = flat.findIndex(r => r.node.id === target.id);
+        const anchorIdx = siblings.findIndex(n => n.id === this._selectionAnchorId);
+        const targetIdx = siblings.findIndex(n => n.id === target.id);
 
         if (anchorIdx === -1 || targetIdx === -1) {
             this.applySelection(target, true);
@@ -808,11 +835,31 @@ export class StaticFileTreeViewComponent implements OnChanges {
         const from = Math.min(anchorIdx, targetIdx);
         const to = Math.max(anchorIdx, targetIdx);
 
-        for (let i = from; i <= to; i++) {
-            this.applySelection(flat[i].node, true);
-        }
+        for (let i = 0; i < siblings.length; i++) {
+            const node = siblings[i];
+            const inRange = i >= from && i <= to;
 
-        this._selectionAnchorId = target.id;
+            if (node.isSelected() !== inRange) {
+                this.applySelection(node, inRange);
+            }
+        }
+    }
+
+    // Siblings = active-flat rows sharing the target's parent. Derived from the
+    // flat render list (not parent.children) because search-result clones keep a
+    // reference to the ORIGINAL parent, so children-of-clone-parent would be the
+    // wrong set; filtering the flat list by parent id groups the displayed clone
+    // siblings correctly and inherently respects visibility / collapse.
+    private getVisibleSiblings(target: StaticTreeNode): StaticTreeNode[] {
+        const flat = this.isSearchActive()
+            ? this.flatSearchVisibleNodes()
+            : this.flatVisibleNodes();
+
+        const parentId = target.parent?.id ?? null;
+
+        return flat
+            .filter(r => (r.node.parent?.id ?? null) === parentId)
+            .map(r => r.node);
     }
 
     // Un-excluding a folder also un-excludes all descendants — a child exclude is

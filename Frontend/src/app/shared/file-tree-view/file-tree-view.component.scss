@@ -9,6 +9,8 @@
     position: relative;
     width: 100%;
     background-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 // Absolutely positioned within .tree-host — `top` and `height` are set inline

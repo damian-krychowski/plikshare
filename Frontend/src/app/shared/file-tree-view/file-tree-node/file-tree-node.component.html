@@ -9,10 +9,11 @@
 @let fileClickedHandlerVal = fileClickedHandler();
 @let isSelectedChangedHandlerVal = isSelectedChangedHandler();
 @let isExcludedChangedHandlerVal = isExcludedChangedHandler();
+@let checkboxMouseDownHandlerVal = checkboxMouseDownHandler();
 
 <div class="tree-node" [class.tree-node--clickable]="node.canPreview()">
     <div class="node-content" [class.node-content--selected]="isFileMarkedAsSelected">
-        <div class="file-node" (click)="node.canPreview() && fileClickedHandlerVal(node)">
+        <div class="file-node" (click)="!($event.shiftKey || $event.ctrlKey || $event.metaKey) && node.canPreview() && fileClickedHandlerVal(node)">
 
             @if(isProcessing()) {
                 <span class="file-node__thumb file-node__thumb--loading" matTooltip="Processing…">
@@ -56,7 +57,7 @@
         
         <div class="ml-auto">
             @if(canSelect()) {
-                <div (click)="$event.stopPropagation()">
+                <div (click)="$event.stopPropagation()" (mousedown)="checkboxMouseDownHandlerVal($event)">
                     <app-tree-checkbox
                         [isSelected]="node.item.isSelected()"
                         [isExcluded]="node.isExcluded()"

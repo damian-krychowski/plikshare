@@ -234,6 +234,7 @@ export class FileTreeViewComponent implements OnChanges {
 
     isSelectedChangedHandler = (node: TreeItem, isSelected: boolean) => this.onIsSelectedChange(node, isSelected);
     isExcludedChangedHandler = (node: TreeItem, isExcluded: boolean) => this.onIsExcludedChange(node, isExcluded);
+    checkboxMouseDownHandler = (event: MouseEvent) => this.onCheckboxMouseDown(event);
 
     dataSource = signal<TreeItem[]>([]);
 
@@ -1076,7 +1077,53 @@ export class FileTreeViewComponent implements OnChanges {
         toggle(fileNode.item.isSelected);
     }
 
+    // Shift-click range select, mirroring StaticFileTreeViewComponent / files-list.
+    // The last mousedown's shift state is captured on the checkbox wrapper
+    // (onCheckboxMouseDown) and consumed by the next onIsSelectedChange.
+    // _selectionAnchorExternalId is the other end of the range — the last item
+    // selected by a plain click.
+    private _lastShiftDown = false;
+    private _selectionAnchorExternalId: string | null = null;
+
+    onCheckboxMouseDown(event: MouseEvent) {
+        this._lastShiftDown = event.shiftKey;
+    }
+
+    // Modifier-clicks anywhere on a row drive selection instead of previewing the
+    // file or expanding the folder: shift extends the range, ctrl/meta toggles the
+    // single clicked node (and re-anchors). Plain clicks bubble here too but return
+    // early, so normal preview/expand keeps working. Checkbox clicks never reach
+    // this — their wrapper stops propagation.
+    onRowClicked(node: TreeItem, event: MouseEvent) {
+        if (!this.canSelect())
+            return;
+
+        if (event.shiftKey) {
+            event.preventDefault();
+            this._lastShiftDown = true;
+            this.onIsSelectedChange(node, !node.item.isSelected());
+        } else if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            this.onIsSelectedChange(node, !node.item.isSelected());
+        }
+    }
+
     private onIsSelectedChange(item: TreeItem, isSelected: boolean) {
+        const shift = this._lastShiftDown;
+        this._lastShiftDown = false;
+
+        if (shift && this._selectionAnchorExternalId) {
+            this.selectSiblingRangeTo(item);
+        } else {
+            this.applySelectionToNode(item, isSelected);
+            this._selectionAnchorExternalId = isSelected ? item.item.externalId : null;
+        }
+
+        this.calculateAndUpdateSelectionState();
+        this.calcualteAndUpdateSearchedFilesSelectionState();
+    }
+
+    private applySelectionToNode(item: TreeItem, isSelected: boolean) {
         item.item.isSelected.set(isSelected);
 
         if (item.type === 'folder') {
@@ -1090,9 +1137,49 @@ export class FileTreeViewComponent implements OnChanges {
                 }
             });
         }
+    }
 
-        this.calculateAndUpdateSelectionState();
-        this.calcualteAndUpdateSearchedFilesSelectionState();
+    // Shift-range select scoped to a single branch: the range spans only the
+    // target's visible siblings (children of a shared parent), so selection in
+    // one open folder is independent of any other. Assigns inRange across the
+    // whole sibling set — selecting inside [from, to] AND deselecting outside —
+    // so dragging the range narrows as well as widens. The anchor stays pinned
+    // to the original plain click; only a shift-click in a DIFFERENT branch
+    // (anchor not among the target's siblings) re-anchors here. Each node goes
+    // through applySelectionToNode, so folder cascades stay consistent.
+    private selectSiblingRangeTo(target: TreeItem) {
+        const siblings = this.getVisibleSiblings(target);
+
+        const anchorIdx = siblings.findIndex(n => n.item.externalId === this._selectionAnchorExternalId);
+        const targetIdx = siblings.findIndex(n => n.item.externalId === target.item.externalId);
+
+        if (anchorIdx === -1 || targetIdx === -1) {
+            this.applySelectionToNode(target, true);
+            this._selectionAnchorExternalId = target.item.externalId;
+            return;
+        }
+
+        const from = Math.min(anchorIdx, targetIdx);
+        const to = Math.max(anchorIdx, targetIdx);
+
+        for (let i = 0; i < siblings.length; i++) {
+            const node = siblings[i];
+            const inRange = i >= from && i <= to;
+
+            if (node.item.isSelected() !== inRange) {
+                this.applySelectionToNode(node, inRange);
+            }
+        }
+    }
+
+    private getVisibleSiblings(node: TreeItem): TreeItem[] {
+        const parent = node.parent();
+        const siblings = parent ? parent.children() : this.nodes();
+
+        const viewMode = this.viewMode();
+        const isSearchActive = this.isSearchActive();
+
+        return siblings.filter(n => this.isNodeVisible(n, viewMode, isSearchActive));
     }
 
     private onIsExcludedChange(item: TreeItem, isExcluded: boolean) {

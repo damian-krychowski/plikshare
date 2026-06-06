@@ -1,4 +1,4 @@
-import { Component, HostListener, computed, input, output, Signal, signal, WritableSignal } from '@angular/core';
+import { Component, HostListener, computed, input, output, Signal, signal, WritableSignal, ElementRef, DestroyRef, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { FileIconPipe } from '../file-icon-pipe/file-icon.pipe';
@@ -73,7 +73,31 @@ export class UploadItemComponent {
     constructor(
         public fileUploadManager: FileUploadManager
     ) {
-    }    
+        // See FileItemComponent — a shift-click on the checkbox is swallowed by
+        // mat-checkbox and would fall through to a plain toggle. Catch it in the
+        // CAPTURE phase on the host, cancel the native toggle and emit the same
+        // shiftClicked the row path uses.
+        const host = inject(ElementRef<HTMLElement>).nativeElement;
+
+        const onClickCapture = (event: MouseEvent) => {
+            if (!event.shiftKey)
+                return;
+
+            const target = event.target as HTMLElement | null;
+
+            if (!target?.closest('mat-checkbox'))
+                return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            this.shiftClicked.emit();
+        };
+
+        host.addEventListener('click', onClickCapture, { capture: true });
+
+        inject(DestroyRef).onDestroy(() =>
+            host.removeEventListener('click', onClickCapture, { capture: true }));
+    }
 
     private calculateUploadProgressPercentage() {        
         const upload = this.upload();

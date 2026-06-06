@@ -1,4 +1,4 @@
-import { Component, HostListener, Signal, WritableSignal, computed, input, output, signal } from "@angular/core";
+import { Component, HostListener, Signal, WritableSignal, computed, input, output, signal, ElementRef, DestroyRef, inject } from "@angular/core";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { EditableTxtComponent } from "../editable-txt/editable-txt.component";
 import { PrefetchDirective } from "../prefetch.directive";
@@ -186,7 +186,32 @@ export class FolderItemComponent {
         private _inAppSharing: InAppSharing,
         private _time: TimeService,
         public dragState: DragStateService
-    ) {}
+    ) {
+        // See FileItemComponent — a shift-click on the checkbox is swallowed by
+        // mat-checkbox and would fall through to a plain toggle. Catch it in the
+        // CAPTURE phase on the host, cancel the native toggle and emit the same
+        // shiftClicked the row path uses.
+        const host = inject(ElementRef<HTMLElement>).nativeElement;
+
+        const onClickCapture = (event: MouseEvent) => {
+            if (!event.shiftKey)
+                return;
+
+            const target = event.target as HTMLElement | null;
+
+            if (!target?.closest('mat-checkbox'))
+                return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            this.shiftClicked.emit();
+        };
+
+        host.addEventListener('click', onClickCapture, { capture: true });
+
+        inject(DestroyRef).onDestroy(() =>
+            host.removeEventListener('click', onClickCapture, { capture: true }));
+    }
 
     buildFolderPath(folder: AppFolderItem) {
         const ancestors = folder.ancestors;

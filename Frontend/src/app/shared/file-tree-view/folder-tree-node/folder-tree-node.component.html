@@ -12,6 +12,7 @@
 
 @let isSelectedChangedHandlerVal = isSelectedChangedHandler();
 @let isExcludedChangedHandlerVal = isExcludedChangedHandler();
+@let checkboxMouseDownHandlerVal = checkboxMouseDownHandler();
 @let setFolderToRootHandlerVal = setFolderToRootHandler();
 
 
@@ -19,7 +20,7 @@
     <div class="node-content" (prefetch)="prefetchFolder()"
         [class.node-content--selected]="isFolderMarkedAsSelected"
         [class.node-content--selected-children]="node.selectedChildrenCount() > 0 && !isFolderExpanded">
-        <div class="node-content__icon" (click)="expand()">
+        <div class="node-content__icon" (click)="onChevronClicked($event)">
             @if(isFolderExpanded) {
                 <i class="icon icon-lg icon-lucide-chevron-down"></i>
             } @else {
@@ -41,7 +42,7 @@
 
         <div class="ml-auto">
             @if(canSelectVal && !isSearchActiveVal) {
-                <div (click)="$event.stopPropagation()">
+                <div (click)="$event.stopPropagation()" (mousedown)="checkboxMouseDownHandlerVal($event)">
                     <app-tree-checkbox
                         [isSelected]="node.item.isSelected()"
                         [isExcluded]="node.isExcluded()"

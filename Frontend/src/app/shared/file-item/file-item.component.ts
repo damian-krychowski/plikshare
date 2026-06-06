@@ -1,4 +1,4 @@
-import { signal, Component, WritableSignal, input, computed, output, OnInit, OnDestroy, HostListener } from "@angular/core";
+import { signal, Component, WritableSignal, input, computed, output, OnInit, OnDestroy, HostListener, ElementRef, DestroyRef, inject } from "@angular/core";
 import { DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { MatCheckboxModule } from "@angular/material/checkbox";
@@ -165,7 +165,34 @@ export class FileItemComponent implements OnInit, OnDestroy {
     constructor(
         private _inAppSharing: InAppSharing,
         public dragState: DragStateService
-    ){}
+    ){
+        // A shift-click on the row already becomes a range-select via appCtrlClick.
+        // A shift-click on the checkbox, though, is swallowed by mat-checkbox (it
+        // stops the native input's events from bubbling), so it used to fall
+        // through to a plain toggle. Catch it in the CAPTURE phase on the host —
+        // before the event reaches the input — cancel the native toggle and emit
+        // the same shiftClicked the row path uses.
+        const host = inject(ElementRef<HTMLElement>).nativeElement;
+
+        const onClickCapture = (event: MouseEvent) => {
+            if (!event.shiftKey)
+                return;
+
+            const target = event.target as HTMLElement | null;
+
+            if (!target?.closest('mat-checkbox'))
+                return;
+
+            event.preventDefault();
+            event.stopPropagation();
+            this.shiftClicked.emit();
+        };
+
+        host.addEventListener('click', onClickCapture, { capture: true });
+
+        inject(DestroyRef).onDestroy(() =>
+            host.removeEventListener('click', onClickCapture, { capture: true }));
+    }
 
     ngOnInit(): void {
         this.operations().subscribeToLockStatus(this.file());

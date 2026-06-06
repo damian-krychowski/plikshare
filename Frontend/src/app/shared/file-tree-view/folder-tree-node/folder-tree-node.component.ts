@@ -36,6 +36,7 @@ export class FolderTreeNodeComponent {
     loadFolderChildrenHandler = input.required<(node: FolderTreeItem) => void>();
     isSelectedChangedHandler = input.required<(node: TreeItem, isSelected: boolean) => void>();
     isExcludedChangedHandler = input.required<(node: TreeItem, isExcluded: boolean) => void>();
+    checkboxMouseDownHandler = input.required<(event: MouseEvent) => void>();
 
     prefetchFolder() {
         const folder = this.folder();
@@ -46,11 +47,18 @@ export class FolderTreeNodeComponent {
         this.prefetchFolderHandler()(this.folder());
     }
 
+    onChevronClicked(event: MouseEvent) {
+        if(event.shiftKey || event.ctrlKey || event.metaKey)
+            return;
+
+        this.expand();
+    }
+
     expand() {
         const folder = this.folder();
 
         toggle(folder.isExpanded);
-        
+
         if(folder.wasLoaded)
             return;
 
