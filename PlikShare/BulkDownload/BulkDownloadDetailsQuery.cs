@@ -4,6 +4,7 @@ using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
 using PlikShare.Folders.Id;
+using PlikShare.MediaProcessing;
 using PlikShare.Workspaces.Cache;
 
 //todo: handle situation when some files or folders from the request
@@ -82,7 +83,8 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                          fi_encryption_salt,
                          fi_encryption_nonce_prefix,
                          fi_encryption_chain_salts,
-                         fi_encryption_format_version
+                         fi_encryption_format_version,
+                         fi_metadata
                      FROM fi_files
                      WHERE
                          fi_workspace_id = $workspaceId
@@ -117,8 +119,11 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                         SizeInBytes = reader.GetInt64(5),
                         FolderId = reader.GetInt32OrNull(6),
 
+                        Dimensions = ImageDimensionsMetadata.Read(
+                            reader, 12, workspaceEncryptionSession),
+
                         EncryptionMode = workspace.GetFileEncryptionMode(
-                            fileEncryptionMetadata, 
+                            fileEncryptionMetadata,
                             workspaceEncryptionSession)
                     };
                 })
@@ -152,7 +157,8 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                          fi_encryption_salt,
                          fi_encryption_nonce_prefix,
                          fi_encryption_chain_salts,
-                         fi_encryption_format_version
+                         fi_encryption_format_version,
+                         fi_metadata
                      FROM fi_files
                      WHERE
                          fi_workspace_id = $workspaceId
@@ -190,8 +196,11 @@ public class BulkDownloadDetailsQuery(PlikShareDb plikShareDb)
                         FolderId = reader.GetInt32(5),
                         SizeInBytes = reader.GetInt64(6),
 
+                        Dimensions = ImageDimensionsMetadata.Read(
+                            reader, 12, workspaceEncryptionSession),
+
                         EncryptionMode = workspace.GetFileEncryptionMode(
-                            fileEncryptionMetadata, 
+                            fileEncryptionMetadata,
                             workspaceEncryptionSession)
                     };
                 })
@@ -343,6 +352,7 @@ public class ResolvedBulkDownloadFile
     public required string KeySecretPart {get; init;}
     public required long SizeInBytes {get; init;}
     public required int? FolderId { get; init; }
+    public required ImageDimensionsMetadata.Dimensions? Dimensions { get; init; }
     public required FileEncryptionMode EncryptionMode { get; init; }
 
     public string FullName => $"{Name}{Extension}";

@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using PlikShare.Core.Encryption;
+using PlikShare.MediaProcessing;
 using PlikShare.Storages.Encryption;
 using PlikShare.Storages.HardDrive;
 using PlikShare.Storages.HardDrive.StorageClient;
@@ -90,7 +91,8 @@ internal static class WorkspaceContextTestFactory
             },
             TrashPolicy = new TrashPolicy(
                 Enabled: false,
-                RetentionDays: null)
+                RetentionDays: null),
+            MediaProcessingPolicy = null
         };
     }
 

@@ -4,6 +4,7 @@ using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Storages;
+using PlikShare.Workspaces.Cache;
 using Serilog;
 
 namespace PlikShare.Uploads.CompleteFileUpload.QueueJob;
@@ -11,6 +12,7 @@ namespace PlikShare.Uploads.CompleteFileUpload.QueueJob;
 public class CompleteMultipartUploadQueueJobExecutor(
     StorageClientStore storageClientStore,
     PlikShareDb plikShareDb,
+    WorkspaceCache workspaceCache,
     MarkFileAsUploadedAndDeleteUploadQuery markFileAsUploadedAndDeleteUploadQuery) : IQueueNormalJobExecutor
 {
     private readonly Serilog.ILogger _logger = Log.ForContext<CompleteMultipartUploadQueueJobExecutor>();
@@ -87,9 +89,26 @@ public class CompleteMultipartUploadQueueJobExecutor(
                 fileUpload.Id,
                 fileUpload.BucketName);
 
+            var workspace = await workspaceCache.TryGetWorkspace(
+                workspaceId: fileUpload.WorkspaceId,
+                cancellationToken: cancellationToken);
+
+            if (workspace is null)
+            {
+                Log.Warning(
+                    "Could not run post-completion handlers for file '{FileExternalId}' because Workspace#{WorkspaceId} was not found.",
+                    fileUpload.FileExternalId,
+                    fileUpload.WorkspaceId);
+
+                return QueueJobResult.Success;
+            }
+
             await markFileAsUploadedAndDeleteUploadQuery.Execute(
+                workspace: workspace,
                 fileUploadId: fileUpload.Id,
                 fileExternalId: fileUpload.FileExternalId,
+                encryptionSeed: definition.EncryptionSeed,
+                correlationId: correlationId,
                 cancellationToken: cancellationToken);
 
             _logger.Information(
@@ -126,7 +145,8 @@ public class CompleteMultipartUploadQueueJobExecutor(
                          fu_file_key_secret_part,
                          fu_multipart_upload_id,
                          w_bucket_name,
-                         w_storage_id
+                         w_storage_id,
+                         fu_workspace_id
                      FROM fu_file_uploads
                      INNER JOIN w_workspaces
                          ON w_id = fu_workspace_id
@@ -140,7 +160,8 @@ public class CompleteMultipartUploadQueueJobExecutor(
                     KeySecretPart: reader.GetString(1),
                     MultipartUploadId: reader.GetString(2),
                     BucketName: reader.GetString(3),
-                    StorageId: reader.GetInt32(4)))
+                    StorageId: reader.GetInt32(4),
+                    WorkspaceId: reader.GetInt32(5)))
             .WithParameter("$fileUploadId", fileUploadId)
             .Execute();
 
@@ -179,5 +200,6 @@ public class CompleteMultipartUploadQueueJobExecutor(
         string KeySecretPart,
         string MultipartUploadId,
         string BucketName,
-        int StorageId);
+        int StorageId,
+        int WorkspaceId);
 }

@@ -74,7 +74,8 @@ export class QuickShareComponent implements OnInit {
         return {
             name: signal(file.name),
             extension: file.extension,
-            sizeInBytes: file.sizeInBytes
+            sizeInBytes: file.sizeInBytes,
+            metadata: signal(file.metadata)
         };
     });
 
@@ -95,13 +96,15 @@ export class QuickShareComponent implements OnInit {
         if (!entry) return null;
 
         const nameAndExt = ZipArchives.getFileNameAndExtension(entry);
+        
         return {
             name: signal(nameAndExt.name),
             extension: nameAndExt.extension,
             // ZipPreviewComponent uses compressedSizeInBytes for its preview file;
             // mirror that — the inline preview only uses size for "open as text"
             // gating, and compressed size is conservative enough.
-            sizeInBytes: entry.compressedSizeInBytes
+            sizeInBytes: entry.compressedSizeInBytes,
+            metadata: signal(null)
         };
     });
 

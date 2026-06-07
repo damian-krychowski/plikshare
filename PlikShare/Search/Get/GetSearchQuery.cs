@@ -2,8 +2,11 @@ using Microsoft.Data.Sqlite;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
+using PlikShare.Files.Metadata.Contracts;
+using PlikShare.MediaProcessing;
 using PlikShare.Search.Get.Contracts;
 using PlikShare.Users.Cache;
+using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.Search.Get;
 
@@ -131,6 +134,7 @@ public class GetSearchQuery(
                 var encryptedFiles = SearchEncryptedFilesInWorkspaces(
                     encryptedContentWorkspaceIds,
                     query,
+                    sessions.ByWorkspaceId,
                     encConnection);
 
                 workspaceFiles = (workspaceFiles ?? []).Concat(encryptedFiles).ToList();
@@ -342,7 +346,17 @@ public class GetSearchQuery(
                         (
                             fi_uploader_identity_type = 'user_external_id'
                             AND fi_uploader_identity = $userExternalId
-                        ) AS was_uploaded_by_user
+                        ) AS was_uploaded_by_user,
+                        (
+                            SELECT json_group_array(CAST(child_fi.fi_metadata AS TEXT))
+                            FROM fi_files AS child_fi
+                            WHERE child_fi.fi_parent_file_id = fi_files.fi_id
+                                AND child_fi.fi_workspace_id = fi_files.fi_workspace_id
+                                AND child_fi.fi_deleted_at IS NULL
+                                AND child_fi.fi_is_upload_completed = TRUE
+                                AND child_fi.fi_metadata IS NOT NULL
+                        ) AS child_thumbnail_metadata,
+                        fi_metadata AS file_metadata
                     FROM fi_files
                     INNER JOIN fo_folders AS fo
                         ON fo.fo_id = fi_folder_id
@@ -363,7 +377,14 @@ public class GetSearchQuery(
                     SizeInBytes = reader.GetInt64(3),
                     Extension = reader.GetString(4),
                     FolderPath = reader.GetFromJson<List<SearchResponseDto.FolderAncestor>>(5),
-                    WasUploadedByUser = reader.GetBoolean(6)
+                    WasUploadedByUser = reader.GetBoolean(6),
+                    Metadata = FileMetadataFactory.Prepare(
+                        thumbnail: MiniThumbnailMetadata.GetMiniEtag(reader, 7, null) is { } etag
+                            ? new ThumbnailMetadataDto { MiniEtag = etag }
+                            : null,
+                        dimensions: ImageDimensionsMetadata.Read(reader, 8, null) is { } dimensions
+                            ? new DimensionsMetadataDto { Width = dimensions.Width, Height = dimensions.Height }
+                            : null)
                 })
             .WithParameter("$userExternalId", user.ExternalId.Value)
             .WithJsonParameter("$boxIds", userBoxIds)
@@ -452,9 +473,19 @@ public class GetSearchQuery(
                                          UNION ALL
                                          SELECT fo.fo_id
                                      )
-                                     AND af.fo_is_being_deleted = FALSE	
-                             )    
-                         END) AS folder_path
+                                     AND af.fo_is_being_deleted = FALSE
+                             )
+                         END) AS folder_path,
+                         (
+                             SELECT json_group_array(CAST(child_fi.fi_metadata AS TEXT))
+                             FROM fi_files AS child_fi
+                             WHERE child_fi.fi_parent_file_id = fi_files.fi_id
+                                 AND child_fi.fi_workspace_id = fi_files.fi_workspace_id
+                                 AND child_fi.fi_deleted_at IS NULL
+                                 AND child_fi.fi_is_upload_completed = TRUE
+                                 AND child_fi.fi_metadata IS NOT NULL
+                         ) AS child_thumbnail_metadata,
+                         fi_metadata AS file_metadata
                      FROM fi_files
                      INNER JOIN w_workspaces
                          ON w_id = fi_workspace_id
@@ -473,7 +504,14 @@ public class GetSearchQuery(
                     WorkspaceExternalId = reader.GetString(2),
                     SizeInBytes = reader.GetInt64(3),
                     Extension = reader.GetString(4),
-                    FolderPath = reader.GetFromJson<List<SearchResponseDto.FolderAncestor>>(5)
+                    FolderPath = reader.GetFromJson<List<SearchResponseDto.FolderAncestor>>(5),
+                    Metadata = FileMetadataFactory.Prepare(
+                        thumbnail: MiniThumbnailMetadata.GetMiniEtag(reader, 6, null) is { } etag
+                            ? new ThumbnailMetadataDto { MiniEtag = etag }
+                            : null,
+                        dimensions: ImageDimensionsMetadata.Read(reader, 7, null) is { } dimensions
+                            ? new DimensionsMetadataDto { Width = dimensions.Width, Height = dimensions.Height }
+                            : null)
                 })
             .WithJsonParameter("$workspaceIds", userWorkspaceIds)
             .WithParameter("$query", query)
@@ -593,6 +631,7 @@ public class GetSearchQuery(
     private static List<SearchResponseDto.WorkspaceFile> SearchEncryptedFilesInWorkspaces(
         List<int> encryptedWorkspaceIds,
         string query,
+        IReadOnlyDictionary<int, WorkspaceEncryptionSession> sessionsByWorkspaceId,
         SqliteConnection connection)
     {
         return connection
@@ -622,7 +661,18 @@ public class GetSearchQuery(
                                      )
                                      AND af.fo_is_being_deleted = FALSE
                              )
-                         END) AS folder_path
+                         END) AS folder_path,
+                         (
+                             SELECT json_group_array(CAST(child_fi.fi_metadata AS TEXT))
+                             FROM fi_files AS child_fi
+                             WHERE child_fi.fi_parent_file_id = fi_files.fi_id
+                                 AND child_fi.fi_workspace_id = fi_files.fi_workspace_id
+                                 AND child_fi.fi_deleted_at IS NULL
+                                 AND child_fi.fi_is_upload_completed = TRUE
+                                 AND child_fi.fi_metadata IS NOT NULL
+                         ) AS child_thumbnail_metadata,
+                         fi_metadata AS file_metadata,
+                         fi_workspace_id
                      FROM fi_files
                      INNER JOIN w_workspaces
                          ON w_id = fi_workspace_id
@@ -634,14 +684,28 @@ public class GetSearchQuery(
                          AND fi_deleted_at IS NULL
                          AND app_decrypt_metadata(fi_name, fi_workspace_id) LIKE $query
                      """,
-                readRowFunc: reader => new SearchResponseDto.WorkspaceFile
+                readRowFunc: reader =>
                 {
-                    ExternalId = reader.GetString(0),
-                    Name = reader.GetString(1),
-                    WorkspaceExternalId = reader.GetString(2),
-                    SizeInBytes = reader.GetInt64(3),
-                    Extension = reader.GetStringOrNull(4) ?? string.Empty,
-                    FolderPath = reader.GetFromJson<List<SearchResponseDto.FolderAncestor>>(5)
+                    var session = sessionsByWorkspaceId.TryGetValue(reader.GetInt32(8), out var s)
+                        ? s
+                        : null;
+
+                    return new SearchResponseDto.WorkspaceFile
+                    {
+                        ExternalId = reader.GetString(0),
+                        Name = reader.GetString(1),
+                        WorkspaceExternalId = reader.GetString(2),
+                        SizeInBytes = reader.GetInt64(3),
+                        Extension = reader.GetStringOrNull(4) ?? string.Empty,
+                        FolderPath = reader.GetFromJson<List<SearchResponseDto.FolderAncestor>>(5),
+                        Metadata = FileMetadataFactory.Prepare(
+                            thumbnail: MiniThumbnailMetadata.GetMiniEtag(reader, 6, session) is { } etag
+                                ? new ThumbnailMetadataDto { MiniEtag = etag }
+                                : null,
+                            dimensions: ImageDimensionsMetadata.Read(reader, 7, session) is { } dimensions
+                                ? new DimensionsMetadataDto { Width = dimensions.Width, Height = dimensions.Height }
+                                : null)
+                    };
                 })
             .WithJsonParameter("$workspaceIds", encryptedWorkspaceIds)
             .WithParameter("$query", query)

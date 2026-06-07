@@ -13,7 +13,7 @@ import { InAppSharing } from "../../services/in-app-sharing.service";
 import { NavigationExtras } from "@angular/router";
 import { ActionButtonComponent } from "../buttons/action-btn/action-btn.component";
 import { observeIsHighlighted } from "../../services/is-highlighted-utils";
-import { ContentDisposition } from "../../services/folders-and-files.api";
+import { ContentDisposition, FileMetadataDto } from "../../services/folders-and-files.api";
 import { DragStateService } from "../../services/drag-state.service";
 
 export type AppFileItem = {
@@ -32,7 +32,7 @@ export type AppFileItem = {
     createdAt: Date | null;
     position: WritableSignal<number>;
 
-    miniThumbnailEtag: WritableSignal<string | null>;
+    metadata: WritableSignal<FileMetadataDto | null>;
 
     isNameEditing: WritableSignal<boolean>;
     isSelected: WritableSignal<boolean>;
@@ -122,7 +122,7 @@ export class FileItemComponent implements OnInit, OnDestroy {
             return null;
 
         const file = this.file();
-        const etag = file.miniThumbnailEtag();
+        const etag = file.metadata()?.thumbnail?.miniEtag ?? null;
 
         if (!etag)
             return null;

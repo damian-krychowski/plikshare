@@ -99,6 +99,20 @@ export interface SubfolderDto {
     position: number;
 }
 
+export interface ThumbnailMetadataDto {
+    miniEtag: string;
+}
+
+export interface DimensionsMetadataDto {
+    width: number;
+    height: number;
+}
+
+export interface FileMetadataDto {
+    thumbnail: ThumbnailMetadataDto | null;
+    dimensions: DimensionsMetadataDto | null;
+}
+
 export interface FileDto {
     externalId: string;
     name: string;
@@ -108,7 +122,7 @@ export interface FileDto {
     isLocked: boolean;
     createdAt: string | null;
     position: number;
-    miniThumbnailEtag: string | null;
+    metadata: FileMetadataDto | null;
 }
 
 export interface UpdatePositionsRequest {
@@ -423,7 +437,7 @@ export interface SearchFilesTreeFileItem {
     folderIdIndex: number;
     createdAt: string | null;
     position: number;
-    miniThumbnailEtag: string | null;
+    metadata: FileMetadataDto | null;
 }
 
 export interface SendAiFileMessageRequest {
@@ -1128,7 +1142,7 @@ export function mapFileDtosToItems(files: FileDto[], folderExternalId: string | 
             isLocked: signal(f.isLocked),
             createdAt: f.createdAt == null ? null : new Date(f.createdAt),
             position: signal(f.position),
-            miniThumbnailEtag: signal(f.miniThumbnailEtag ?? null),
+            metadata: signal(f.metadata),
 
             isSelected: signal(false),
             isNameEditing: signal(false),

@@ -1,5 +1,6 @@
 import * as protobuf from "protobufjs";
 import { getDateTimeProtobuf } from "./datetime.protobuf";
+import { getFileMetadataProtobuf } from "./file-metadata.protobuf";
 
 export function getSearchFilesTreeResponseDtoProtobuf() {
     const folder = new protobuf.Type("SearchFilesTreeFolderItemDto")
@@ -21,7 +22,8 @@ export function getSearchFilesTreeResponseDtoProtobuf() {
         .add(new protobuf.Field("folderIdIndex", 7, "int32"))
         .add(new protobuf.Field("createdAt", 8, "appDateTime"))
         .add(new protobuf.Field("position", 9, "int64"))
-        .add(new protobuf.Field("miniThumbnailEtag", 10, "string", "optional"))
+        .add(new protobuf.Field("metadata", 10, "FileMetadataDto", "optional"))
+        .add(getFileMetadataProtobuf())
         .add(getDateTimeProtobuf());
 
     return new protobuf.Type("SearchFilesTreeResponseDto")

@@ -1,5 +1,6 @@
 import * as protobuf from "protobufjs";
 import { getDateTimeProtobuf } from "./datetime.protobuf";
+import { getFileMetadataProtobuf } from "./file-metadata.protobuf";
 
 export function getFileDtoProtobuf() {
     return new protobuf.Type("FileDto")
@@ -11,6 +12,7 @@ export function getFileDtoProtobuf() {
         .add(new protobuf.Field("wasUploadedByUser", 6, "bool"))
         .add(new protobuf.Field("createdAt", 7, "appDateTime"))
         .add(new protobuf.Field("position", 8, "int64"))
-        .add(new protobuf.Field("miniThumbnailEtag", 9, "string", "optional"))
+        .add(new protobuf.Field("metadata", 9, "FileMetadataDto", "optional"))
+        .add(getFileMetadataProtobuf())
         .add(getDateTimeProtobuf());
 }

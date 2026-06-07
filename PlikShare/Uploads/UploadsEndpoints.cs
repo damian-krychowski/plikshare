@@ -251,6 +251,7 @@ public static class UploadsEndpoints
             workspace: workspaceMembership.Workspace,
             fileUploadExternalId: fileUploadExternalId,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
 

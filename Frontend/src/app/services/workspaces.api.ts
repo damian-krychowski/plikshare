@@ -25,6 +25,7 @@ export type WorkspaceDto = {
     integrations: WorkspaceIntegrations;
     storageEncryptionType: AppStorageEncryptionType;
     trashPolicy: TrashPolicyDto;
+    mediaProcessingPolicy: MediaProcessingPolicyDto;
 };
 
 export interface TrashPolicyDto {
@@ -35,6 +36,18 @@ export interface TrashPolicyDto {
 export interface UpdateWorkspaceTrashPolicyRequest {
     enabled: boolean;
     retentionDays: number | null;
+}
+
+export interface MediaProcessingPolicyDto {
+    imageDimensions: ImageDimensionsPolicyDto;
+}
+
+export interface ImageDimensionsPolicyDto {
+    extractOnUpload: boolean;
+}
+
+export interface UpdateWorkspaceImageDimensionsPolicyRequest {
+    extractOnUpload: boolean;
 }
 
 export interface WorkspaceIntegrations {
@@ -296,6 +309,22 @@ export class WorkspacesApi {
             ._http
             .patch(
                 `/api/workspaces/${externalId}/trash-policy`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async updateImageDimensionsPolicy(
+        externalId: string,
+        request: UpdateWorkspaceImageDimensionsPolicyRequest
+    ): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/workspaces/${externalId}/media-processing-policy/image-dimensions`, request, {
                 headers: new HttpHeaders({
                     'Content-Type': 'application/json'
                 })

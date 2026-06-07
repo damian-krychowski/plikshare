@@ -133,7 +133,14 @@ public class workspace_tests : TestFixture
             MaxSizeInBytes = null,
             MaxTeamMembers = null,
             StorageEncryptionType = "none",
-            TrashPolicy = TrashPolicyDto.Disabled
+            TrashPolicy = TrashPolicyDto.Disabled,
+            MediaProcessingPolicy = new MediaProcessingPolicyDto
+            {
+                ImageDimensions = new ImageDimensionsPolicyDto
+                {
+                    ExtractOnUpload = false
+                }
+            }
         });
     }
 

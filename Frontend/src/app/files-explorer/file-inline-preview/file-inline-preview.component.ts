@@ -9,7 +9,7 @@ import { getRelativeTime } from '../../services/time.service';
 import { AuthService } from '../../services/auth.service';
 import { ActionButtonComponent } from '../../shared/buttons/action-btn/action-btn.component';
 import { ZipArchives, ZipEntry, ZipVirtualFolder } from '../../services/zip';
-import { AiInclude, AiMessageDto, ContentDisposition, DownloadImageFormat, FilePreviewDetailsField, FilePreviewThumbnail, GenerateFileThumbnailsResponse, GetAiMessagesResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, TextractFeature, TextractJobStatus, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../../services/folders-and-files.api';
+import { AiInclude, AiMessageDto, ContentDisposition, DownloadImageFormat, FileMetadataDto, FilePreviewDetailsField, FilePreviewThumbnail, GenerateFileThumbnailsResponse, GetAiMessagesResponse, GetFileDownloadLinkResponse, GetFilePreviewDetailsResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, TextractFeature, TextractJobStatus, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../../services/folders-and-files.api';
 import { TextractIntegration } from '../../services/integrations.types';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { FormsModule } from '@angular/forms';
@@ -97,6 +97,7 @@ export type AppFileForPreview = {
     name: Signal<string>;
     extension: string;
     sizeInBytes: number;
+    metadata: Signal<FileMetadataDto | null>;
 }
 
 type OtherAiContentType = 'notes' | 'comments';
@@ -215,7 +216,8 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
         const fileToPreview: FileToPreview = {
             name: signal(nameAndExt.name),
             extension: nameAndExt.extension,
-            sizeInBytes: zipEntry.compressedSizeInBytes
+            sizeInBytes: zipEntry.compressedSizeInBytes,
+            metadata: signal(null)
         };
 
         return fileToPreview;
@@ -762,7 +764,7 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
                     isSelected: signal(false),
                     createdAt: null,
                     position: signal(0),
-                    miniThumbnailEtag: signal(null),
+                    metadata: signal(null),
                 };
 
                 return file;
@@ -795,8 +797,8 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
                     isNameEditing: signal(false),
                     isSelected: signal(false),
                     createdAt: null,
-                    position: signal(0),                    
-                    miniThumbnailEtag: signal(null),
+                    position: signal(0),
+                    metadata: signal(null),
                 };
 
                 return file;
@@ -1225,7 +1227,7 @@ export class FileInlinePreviewComponent implements OnChanges, OnDestroy {
             wasUploadedByUser: true,
             createdAt: null,
             position: signal(0),
-            miniThumbnailEtag: signal(null),
+            metadata: signal(null),
         };
 
         this.attachments.update(attachments => [...attachments, file]);

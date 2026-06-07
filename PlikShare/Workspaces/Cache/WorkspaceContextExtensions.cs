@@ -75,6 +75,50 @@ public static class WorkspaceContextExtensions
                 $"for storage '{workspace.Storage.ExternalId}'.");
         }
 
+        public string DecodeMetadata(
+            EncodedMetadataValue encodedValue,
+            WorkspaceEncryptionSession? workspaceEncryptionSession)
+        {
+            var encryption = workspace.Storage.Encryption;
+
+            if (encryption is NoStorageEncryption or ManagedStorageEncryption)
+            {
+                if (workspaceEncryptionSession is not null)
+                    throw new InvalidOperationException(
+                        $"WorkspaceEncryptionSession must be null for '{encryption.GetType().Name}' " +
+                        $"storage '{workspace.Storage.ExternalId}' — metadata is not encrypted at rest for this mode.");
+
+                if (encodedValue.Encoded.StartsWith(AesGcmMetadataV1.ReservedPrefix, StringComparison.Ordinal))
+                    throw new InvalidOperationException(
+                        $"Metadata value starts with reserved prefix '{AesGcmMetadataV1.ReservedPrefix}' " +
+                        $"but storage '{workspace.Storage.ExternalId}' uses '{encryption.GetType().Name}' — " +
+                        "encrypted value encountered for non-encrypted storage mode.");
+
+                return encodedValue.Encoded;
+            }
+
+            if (encryption is FullStorageEncryption)
+            {
+                if (workspaceEncryptionSession is null)
+                    throw new InvalidOperationException(
+                        $"WorkspaceEncryptionSession is required for full-encrypted storage " +
+                        $"'{workspace.Storage.ExternalId}' to decrypt metadata.");
+
+                if (!encodedValue.Encoded.StartsWith(AesGcmMetadataV1.ReservedPrefix, StringComparison.Ordinal))
+                    throw new InvalidOperationException(
+                        $"Metadata value does not start with reserved prefix '{AesGcmMetadataV1.ReservedPrefix}' " +
+                        $"for full-encrypted storage '{workspace.Storage.ExternalId}' — value is not encrypted.");
+
+                return AesGcmMetadataV1.Decode(
+                    encodedValue.Encoded,
+                    workspaceEncryptionSession);
+            }
+
+            throw new InvalidOperationException(
+                $"Unsupported encryption type '{encryption.Type}' " +
+                $"for storage '{workspace.Storage.ExternalId}'.");
+        }
+
         public EncodedMetadataValue EncodeMetadata(
             string value,
             WorkspaceEncryptionSession? workspaceEncryptionSession)
@@ -118,6 +162,47 @@ public static class WorkspaceContextExtensions
                     aesInput: input);
 
                 return new EncodedMetadataValue(encoded);
+            }
+
+            throw new InvalidOperationException(
+                $"Unsupported encryption type '{encryption.Type}' " +
+                $"for storage '{workspace.Storage.ExternalId}'.");
+        }
+
+        public FullEncryptionSeedEphemeral? TryGetFileEncryptionSeed(
+            FileEncryptionMetadata? encryptionMetadata,
+            WorkspaceEncryptionSession? workspaceEncryptionSession,
+            EphemeralKeyRing ephemeralKeyRing)
+        {
+            var encryption = workspace.Storage.Encryption;
+
+            if (encryption is NoStorageEncryption or ManagedStorageEncryption)
+            {
+                if (workspaceEncryptionSession is not null)
+                    throw new InvalidOperationException(
+                        $"WorkspaceEncryptionSession must be null for '{encryption.GetType().Name}' " +
+                        $"storage '{workspace.Storage.ExternalId}' — files are not encrypted at rest for this mode.");
+
+                return null;
+            }
+
+            if (encryption is FullStorageEncryption)
+            {
+                if (workspaceEncryptionSession is null)
+                    throw new InvalidOperationException(
+                        $"WorkspaceEncryptionSession is required for full-encrypted storage " +
+                        $"'{workspace.Storage.ExternalId}' to derive the file encryption seed.");
+
+                if (encryptionMetadata is null)
+                    throw new InvalidOperationException(
+                        $"FileEncryptionMetadata is required for full-encrypted storage " +
+                        $"'{workspace.Storage.ExternalId}' to derive the file encryption seed.");
+
+                return FullEncryptionSeedEphemeral.FromFile(
+                    fileEncryptionMetadata: encryptionMetadata,
+                    workspace: workspace,
+                    session: workspaceEncryptionSession,
+                    ephemeralKeyRing: ephemeralKeyRing);
             }
 
             throw new InvalidOperationException(

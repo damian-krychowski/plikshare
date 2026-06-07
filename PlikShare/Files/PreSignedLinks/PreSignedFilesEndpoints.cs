@@ -5,6 +5,7 @@ using Microsoft.Net.Http.Headers;
 using PlikShare.Antiforgery;
 using PlikShare.AuditLog;
 using PlikShare.Core.CORS;
+using PlikShare.Core.CorrelationId;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
@@ -163,7 +164,10 @@ public static class PreSignedFilesEndpoints
                 .ToList();
             
             var conversionResult = await bulkConvertDirectFileUploadsToFilesQuery.Execute(
+                workspace: workspace,
+                workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
                 fileUploadIds: processedFileUploads.Select(upload => upload!.Id).ToArray(),
+                correlationId: httpContext.GetCorrelationId(),
                 cancellationToken: cancellationToken);
 
             if (conversionResult == BulkConvertDirectFileUploadsToFilesQuery.ResultCode.Ok)

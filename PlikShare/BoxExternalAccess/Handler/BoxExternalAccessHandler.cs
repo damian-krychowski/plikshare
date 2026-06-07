@@ -820,6 +820,7 @@ public class BoxExternalAccessHandler(
             workspace: boxAccess.Box.Workspace,
             fileUploadExternalId: fileUploadExternalId,
             userIdentity: boxAccess.UserIdentity,
+            workspaceEncryptionSession: null,
             correlationId: correlationId,
             cancellationToken: cancellationToken);
 

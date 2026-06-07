@@ -19,10 +19,12 @@ namespace PlikShare.MediaProcessing.Generation;
 public class FfmpegService
 {
     private const string DefaultExecutable = "ffmpeg";
+    private const string DefaultProbeExecutable = "ffprobe";
 
     private static readonly Serilog.ILogger Logger = Log.ForContext<FfmpegService>();
 
     private readonly string _ffmpegPath;
+    private readonly string _ffprobePath;
 
     public bool IsAvailable { get; }
     public string? VersionLine { get; }
@@ -30,6 +32,7 @@ public class FfmpegService
     public FfmpegService(IConfig config)
     {
         _ffmpegPath = config.FfmpegPath ?? DefaultExecutable;
+        _ffprobePath = ResolveFfprobePath(_ffmpegPath);
 
         var (isAvailable, version) = Probe(_ffmpegPath);
 
@@ -667,6 +670,136 @@ public class FfmpegService
             try { process.StandardInput.Close(); } catch { /* already gone */ }
             await reader.CompleteAsync();
         }
+    }
+
+    public async Task<(int Width, int Height)?> ProbeImageDimensions(
+        Func<PipeWriter, CancellationToken, ValueTask> writeSourceTo,
+        CancellationToken cancellationToken)
+    {
+        if (!IsAvailable)
+            return null;
+
+        ProcessStartInfo psi;
+
+        try
+        {
+            psi = new ProcessStartInfo
+            {
+                FileName = _ffprobePath,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            psi.ArgumentList.Add("-v");
+            psi.ArgumentList.Add("quiet");
+            psi.ArgumentList.Add("-select_streams");
+            psi.ArgumentList.Add("v:0");
+            psi.ArgumentList.Add("-show_entries");
+            psi.ArgumentList.Add("stream=width,height");
+            psi.ArgumentList.Add("-of");
+            psi.ArgumentList.Add("csv=p=0");
+            psi.ArgumentList.Add("pipe:0");
+        }
+        catch (Exception ex)
+        {
+            Logger.Debug(ex, "ffprobe startup info build failed.");
+            return null;
+        }
+
+        Process? process = null;
+
+        try
+        {
+            process = Process.Start(psi);
+
+            if (process is null)
+                return null;
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(5));
+
+            var sourcePipe = new Pipe();
+
+            var produceTask = ProduceSource(
+                writeSourceTo,
+                sourcePipe.Writer,
+                timeoutCts.Token);
+
+            var stdinTask = CopyToStdin(
+                sourcePipe.Reader,
+                process,
+                timeoutCts.Token);
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
+            var stderrTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
+
+            await process.WaitForExitAsync(timeoutCts.Token);
+
+            try { await Task.WhenAll(produceTask, stdinTask); } catch { }
+
+            var stdout = await stdoutTask;
+
+            if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(stdout))
+                return null;
+
+            return ParseDimensionsCsv(stdout);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            TryKill(process);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            TryKill(process);
+            Logger.Debug(ex, "ffprobe image dimensions extraction failed.");
+            return null;
+        }
+        finally
+        {
+            process?.Dispose();
+        }
+    }
+
+    private static (int Width, int Height)? ParseDimensionsCsv(string stdout)
+    {
+        var firstLine = stdout
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault()
+            ?.Trim();
+
+        if (string.IsNullOrEmpty(firstLine))
+            return null;
+
+        var parts = firstLine.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length < 2)
+            return null;
+
+        if (!int.TryParse(parts[0], out var width) || width <= 0)
+            return null;
+
+        if (!int.TryParse(parts[1], out var height) || height <= 0)
+            return null;
+
+        return (width, height);
+    }
+
+    private static string ResolveFfprobePath(string ffmpegPath)
+    {
+        if (string.Equals(ffmpegPath, DefaultExecutable, StringComparison.Ordinal))
+            return DefaultProbeExecutable;
+
+        var dir = Path.GetDirectoryName(ffmpegPath);
+        var ext = Path.GetExtension(ffmpegPath);
+        var probeFile = DefaultProbeExecutable + ext;
+
+        return string.IsNullOrEmpty(dir)
+            ? probeFile
+            : Path.Combine(dir, probeFile);
     }
 
     private static (bool IsAvailable, string? VersionLine) Probe(string ffmpegPath)

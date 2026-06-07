@@ -147,6 +147,7 @@ public static class AuditLogEventTypes
         public const string MemberLeft = "workspace.member-left";
         public const string BulkDeleteRequested = "workspace.bulk-delete-requested";
         public const string TrashPolicyUpdated = "workspace.trash-policy-updated";
+        public const string ImageDimensionsPolicyUpdated = "workspace.image-dimensions-policy-updated";
 
         public static readonly string[] All =
         [
@@ -156,7 +157,8 @@ public static class AuditLogEventTypes
             MemberEncryptionAccessGranted,
             InvitationAccepted, InvitationRejected, MemberLeft,
             BulkDeleteRequested,
-            TrashPolicyUpdated
+            TrashPolicyUpdated,
+            ImageDimensionsPolicyUpdated
         ];
     }
 

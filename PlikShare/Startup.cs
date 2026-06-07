@@ -109,6 +109,7 @@ using PlikShare.EntryPage;
 using PlikShare.Files;
 using PlikShare.Files.BulkDelete.QueueJob;
 using PlikShare.Files.BulkDownload;
+using PlikShare.Files.Created;
 using PlikShare.Files.Delete;
 using PlikShare.Files.Delete.QueueJob;
 using PlikShare.Files.Download;
@@ -126,6 +127,7 @@ using PlikShare.Files.Rename;
 using PlikShare.Files.Rename.Contracts;
 using PlikShare.Files.UpdateSize;
 using PlikShare.MediaProcessing;
+using PlikShare.MediaProcessing.Dimensions;
 using PlikShare.MediaProcessing.Generation;
 using PlikShare.Files.UploadAttachment;
 using PlikShare.Folders;
@@ -256,6 +258,7 @@ using PlikShare.Workspaces.UpdateMaxSize;
 using PlikShare.Workspaces.UpdateMaxTeamMembers;
 using PlikShare.Workspaces.UpdateName;
 using PlikShare.Workspaces.UpdateTrashPolicy;
+using PlikShare.Workspaces.UpdateImageDimensionsPolicy;
 using PlikShare.QuickShares;
 using PlikShare.QuickShares.Cache;
 using PlikShare.QuickShares.Create;
@@ -363,6 +366,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_40_QueueResultAndThumbnailIndexesIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_41_QueueJobCategoryAndPriorityColumns>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_42_BoxDefaultDisplayConfigurationIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_43_MediaProcessingPolicyIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -530,6 +534,8 @@ public class Startup
         builder.Services.AddSingleton<UpdateWorkspaceMaxSizeQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceMaxTeamMembersQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceTrashPolicyQuery>();
+        builder.Services.AddSingleton<UpdateWorkspaceImageDimensionsPolicyQuery>();
+        builder.Services.AddSingleton<ExtractImageDimensionsBackfillOperation>();
         builder.Services.AddSingleton<CreateWorkspaceMemberInvitationQuery>();
         builder.Services.AddSingleton<CreateWorkspaceMemberInvitationOperation>();
         builder.Services.AddSingleton<RollbackEncryptedInvitationQuery>();
@@ -826,6 +832,10 @@ public class Startup
 
         AddLongRunningQueueJob<ProcessImageQueueJobExecutor>();
         AddLongRunningQueueJob<ProcessImageQueueJobExecutorV2>();
+        AddLongRunningQueueJob<ExtractImageDimensionsQueueJobExecutor>();
+        builder.Services.AddSingleton<UpsertParentImageDimensionsQuery>();
+        builder.Services.AddSingleton<FileCreatedDispatcher>();
+        builder.Services.AddSingleton<IFileCreatedHandler, DimensionsFileCreatedHandler>();
         builder.Services.AddSingleton<GenerateFileThumbnailsBulkOperation>();
         builder.Services.AddSingleton<GetThumbnailableSelectionFilesQuery>();
         builder.Services.AddSingleton<GetThumbnailGenerationStatusQuery>();

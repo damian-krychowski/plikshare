@@ -365,7 +365,7 @@ export class SearchService {
             isLocked: signal(false), //todo: should not be hardcoded
             createdAt: null,
             position: signal(0),
-            miniThumbnailEtag: signal(null),
+            metadata: signal(item.metadata ?? null),
 
             isNameEditing: signal(false),
             isSelected: signal(false),
@@ -402,7 +402,7 @@ export class SearchService {
             isLocked: signal(false), //todo: should not be hardcoded
             createdAt: null,
             position: signal(0),
-            miniThumbnailEtag: signal(null),
+            metadata: signal(item.metadata ?? null),
 
             isNameEditing: signal(false),
             isSelected: signal(false),

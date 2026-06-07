@@ -780,13 +780,23 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         // session started the generation.
         effect(() => {
             const etags = this._thumbnailBatches.readyMiniEtags();
+            
             if (etags.size === 0)
                 return;
 
             for (const file of this.files()) {
                 const etag = etags.get(file.externalId);
-                if (etag && file.miniThumbnailEtag() !== etag)
-                    file.miniThumbnailEtag.set(etag);
+                if (!etag)
+                    continue;
+
+                untracked(() => {
+                    const current = file.metadata();
+                    if (current?.thumbnail?.miniEtag !== etag)
+                        file.metadata.set({
+                            thumbnail: { miniEtag: etag },
+                            dimensions: current?.dimensions ?? null
+                        });
+                });
             }
         });
 
@@ -1326,8 +1336,15 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         this.fileInPreview.set(file);
         this.filePreviewed.emit(file);
 
-        if(file && this.scrollToTopOnOpen()) {
-            this.scrollContainerToTop();
+        // Widget (scrollToTopOnOpen) keeps its original on-open scroll untouched; every other
+        // host gets the conditional scroll that only moves when the image isn't already fully
+        // in view.
+        if(file) {
+            if(this.scrollToTopOnOpen()) {
+                this.scrollContainerToTop();
+            } else {
+                this.scrollPreviewIntoView();
+            }
         }
     }
 
@@ -1503,7 +1520,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             isLocked: signal(true),
             createdAt: new Date(),
             position: signal(0),
-            miniThumbnailEtag: signal(null),
+            metadata: signal(null),
 
             isSelected: signal(false),
             isNameEditing: signal(false),
@@ -2219,6 +2236,41 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                 container.scrollIntoView({ block: 'start', behavior: 'instant' });
             }
         });
+    }
+
+    // Brings a just-opened preview into view ONLY when it isn't already comfortably visible.
+    // The preview's toolbar lives in a position:sticky panel pinned at the top, so the image
+    // must land below that panel (its height is the offset) — aligning to y=0 would tuck the
+    // image's top edge under it. Waits two frames (Angular swaps list->preview AND image-preview
+    // reserves its skeleton height in ngAfterViewInit) so it measures the final layout.
+    private scrollPreviewIntoView() {
+        const host = this._elementRef.nativeElement;
+
+        requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+                const target = host.querySelector<HTMLElement>('.image-preview-frame')
+                    ?? host.querySelector<HTMLElement>('.file-content');
+
+                if (!target)
+                    return;
+
+                const stickyHeight = this.stickyWrapperEl?.nativeElement.getBoundingClientRect().height ?? 0;
+                const rect = target.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+
+                const topClearOfPanel = rect.top >= stickyHeight;
+                const fitsInView = rect.bottom <= viewportHeight;
+                const tooTallToFit = (rect.bottom - rect.top) > (viewportHeight - stickyHeight);
+                const alreadyAtPanel = Math.abs(rect.top - stickyHeight) <= 1;
+
+                // Don't move when it's already comfortable: either the whole image fits below the
+                // sticky panel, or it's taller than the available space but already snug under it.
+                if (topClearOfPanel && (fitsInView || (tooTallToFit && alreadyAtPanel)))
+                    return;
+
+                target.style.scrollMarginTop = `${stickyHeight}px`;
+                target.scrollIntoView({ block: 'start', behavior: 'instant' });
+            }));
     }
 
     toggleTreeSearchedFilesSelection() {

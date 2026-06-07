@@ -51,7 +51,7 @@ export class FileTreeNodeComponent {
             return null;
 
         const item = this.file().item;
-        const etag = item.miniThumbnailEtag();
+        const etag = item.metadata()?.thumbnail?.miniEtag ?? null;
 
         if (!etag)
             return null;

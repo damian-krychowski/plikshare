@@ -347,6 +347,7 @@ export class FileTreeViewComponent implements OnChanges {
         // etag is a no-op, so the overlap is harmless.
         effect(() => {
             const etags = this.readyMiniEtags();
+            
             if (etags.size === 0)
                 return;
 
@@ -357,9 +358,13 @@ export class FileTreeViewComponent implements OnChanges {
 
                     const item = row.node.item;
                     const etag = etags.get(item.externalId);
+                    const current = item.metadata();
 
-                    if (etag && item.miniThumbnailEtag() !== etag)
-                        item.miniThumbnailEtag.set(etag);
+                    if (etag && current?.thumbnail?.miniEtag !== etag)
+                        item.metadata.set({
+                            thumbnail: { miniEtag: etag },
+                            dimensions: current?.dimensions ?? null
+                        });
                 }
             });
         });
@@ -1805,7 +1810,7 @@ export class FileTreeViewComponent implements OnChanges {
                 wasUploadedByUser: file.wasUploadedByUser,
                 createdAt: file.createdAt == null ? null : new Date(file.createdAt),
                 position: signal(file.position),
-                miniThumbnailEtag: signal(file.miniThumbnailEtag ?? null),
+                metadata: signal(file.metadata ?? null),
 
                 isCut: signal(false),
                 isHighlighted: signal(false),

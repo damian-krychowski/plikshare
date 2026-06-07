@@ -789,7 +789,7 @@ public class search_files_tree_tests : TestFixture
 
         // then — the search result carries the Mini thumbnail etag
         response.Files.Should().ContainSingle()
-            .Which.MiniThumbnailEtag.Should().NotBeNullOrEmpty();
+            .Which.Metadata.Thumbnail.MiniEtag.Should().NotBeNullOrEmpty();
     }
 
     private Task<SearchFilesTreeResponseDto> SearchWorkspace(AppWorkspace workspace, string phrase) =>

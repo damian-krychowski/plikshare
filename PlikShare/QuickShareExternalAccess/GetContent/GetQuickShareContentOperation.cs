@@ -1,4 +1,5 @@
 using PlikShare.BulkDownload;
+using PlikShare.Files.Metadata.Contracts;
 using PlikShare.Folders.Id;
 using PlikShare.QuickShareExternalAccess.Contracts;
 using PlikShare.QuickShares.Cache;
@@ -66,7 +67,18 @@ public class GetQuickShareContentOperation(
                 FolderExternalId: folderExternalId,
                 Name: file.Name,
                 Extension: file.Extension,
-                SizeInBytes: file.SizeInBytes));
+                SizeInBytes: file.SizeInBytes,
+                Metadata: file.Dimensions is { } dimensions
+                    ? new FileMetadataDto
+                    {
+                        Thumbnail = null,
+                        Dimensions = new DimensionsMetadataDto 
+                        { 
+                            Width = dimensions.Width, 
+                            Height = dimensions.Height 
+                        }
+                    }
+                    : null));
 
             totalSize += file.SizeInBytes;
         }

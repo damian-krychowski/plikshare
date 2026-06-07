@@ -108,7 +108,6 @@ public class GenerateFileThumbnailsBulkOperation(
         await dbWriteQueue.Execute(
             operationToEnqueue: context =>
             {
-                context.Connection.RegisterJsonArrayToBlobFunction();
                 var transaction = context.Connection.BeginTransaction();
 
                 try

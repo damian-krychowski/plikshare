@@ -23,6 +23,17 @@ public record GetWorkspaceDetailsResponseDto
     public required bool IsBucketCreated { get; init; }
     public required string StorageEncryptionType { get; init; }
     public required TrashPolicyDto TrashPolicy { get; init; }
+    public required MediaProcessingPolicyDto MediaProcessingPolicy { get; init; }
+}
+
+public class MediaProcessingPolicyDto
+{
+    public required ImageDimensionsPolicyDto ImageDimensions { get; init; }
+}
+
+public class ImageDimensionsPolicyDto
+{
+    public required bool ExtractOnUpload { get; init; }
 }
 
 public class WorkspaceOwnerDto

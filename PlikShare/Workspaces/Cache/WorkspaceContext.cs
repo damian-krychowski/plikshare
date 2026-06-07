@@ -1,6 +1,7 @@
 using PlikShare.Core.Encryption;
 using PlikShare.Integrations.Aws.Textract;
 using PlikShare.Integrations.OpenAi.ChatGpt;
+using PlikShare.MediaProcessing;
 using PlikShare.Storages;
 using PlikShare.Trash;
 using PlikShare.Users.Cache;
@@ -24,6 +25,7 @@ public sealed class WorkspaceContext
     public required WorkspaceEncryptionMetadata? EncryptionMetadata { get; init; }
     public required WorkspaceIntegrations Integrations { get; init; }
     public required TrashPolicy TrashPolicy { get; init; }
+    public required MediaProcessingPolicy? MediaProcessingPolicy { get; init; }
 }
 
 public sealed class WorkspaceIntegrations

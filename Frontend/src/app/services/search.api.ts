@@ -4,6 +4,7 @@ import { firstValueFrom } from "rxjs";
 import { getSearchResponseDtoProtobuf } from "../protobuf/search-response-dto.protobuf";
 import * as protobuf from 'protobufjs';
 import { ProtoHttp } from "./protobuf-http.service";
+import { FileMetadataDto } from "./folders-and-files.api";
 
 //todo we should not pass this from frontend, its only temporary
 export interface SearchRequest {
@@ -78,6 +79,7 @@ export interface SearchWorkspaceFileItemDto {
         externalId: string;
         name: string;
     }[];
+    metadata: FileMetadataDto | null;
 }
 
 export interface SearchExternalBoxItemDto {
@@ -118,6 +120,7 @@ export interface SearchExternalBoxFileItemDto {
         name: string;
     }[];
     wasUploadedByUser: boolean;
+    metadata: FileMetadataDto | null;
 }
 
 export interface SearchResponseDto {

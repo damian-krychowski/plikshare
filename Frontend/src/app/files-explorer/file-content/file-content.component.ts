@@ -7,7 +7,7 @@ import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { AppFileItem } from "../../shared/file-item/file-item.component";
 import { FileIconPipe } from "../file-icon-pipe/file-icon.pipe";
 import { TextPreviewComponent } from "./text-preview/text-preview.component";
-import { ContentDisposition, GetFileDownloadLinkResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse } from "../../services/folders-and-files.api";
+import { ContentDisposition, FileMetadataDto, GetFileDownloadLinkResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse } from "../../services/folders-and-files.api";
 import { getFileDetails } from "../../services/file-type";
 import { ImageDimensions, ImageExif, ZipPreviewDetails } from "../file-inline-preview/file-inline-preview.component";
 import { ZipEntry } from "../../services/zip";
@@ -23,6 +23,7 @@ export type FileToPreview = {
     name: Signal<string>;
     extension: string;
     sizeInBytes: number;
+    metadata: Signal<FileMetadataDto | null>;
 }
 
 export type FileContentOperations = {
@@ -39,6 +40,7 @@ export type AppFileForContent = {
     name: Signal<string>;
     extension: string;
     sizeInBytes: number;
+    metadata: Signal<FileMetadataDto | null>;
 }
 
 @Component({

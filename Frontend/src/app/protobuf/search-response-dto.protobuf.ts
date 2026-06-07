@@ -1,4 +1,5 @@
 import * as protobuf from "protobufjs";
+import { getFileMetadataProtobuf } from "./file-metadata.protobuf";
 
 export function getSearchResponseDtoProtobuf() {
     const folderAncestorType = new protobuf.Type("FolderAncestor")
@@ -37,7 +38,8 @@ export function getSearchResponseDtoProtobuf() {
         .add(new protobuf.Field("workspaceExternalId", 3, "string"))
         .add(new protobuf.Field("sizeInBytes", 4, "int64"))
         .add(new protobuf.Field("extension", 5, "string"))
-        .add(new protobuf.Field("folderPath", 6, "FolderAncestor", "repeated"));
+        .add(new protobuf.Field("folderPath", 6, "FolderAncestor", "repeated"))
+        .add(new protobuf.Field("metadata", 7, "FileMetadataDto", "optional"));
 
     const externalBoxType = new protobuf.Type("ExternalBox")
         .add(new protobuf.Field("externalId", 1, "string"))
@@ -67,7 +69,8 @@ export function getSearchResponseDtoProtobuf() {
         .add(new protobuf.Field("sizeInBytes", 4, "int64"))
         .add(new protobuf.Field("extension", 5, "string"))
         .add(new protobuf.Field("folderPath", 6, "FolderAncestor", "repeated"))
-        .add(new protobuf.Field("wasUploadedByUser", 7, "bool"));
+        .add(new protobuf.Field("wasUploadedByUser", 7, "bool"))
+        .add(new protobuf.Field("metadata", 8, "FileMetadataDto", "optional"));
 
     const workspaceGroupType = new protobuf.Type("WorkspaceGroup")
         .add(new protobuf.Field("externalId", 1, "string"))
@@ -107,7 +110,8 @@ export function getSearchResponseDtoProtobuf() {
         .add(externalBoxFolderType)
         .add(externalBoxFileType)
         .add(workspaceGroupType)
-        .add(externalBoxGroupType);
+        .add(externalBoxGroupType)
+        .add(getFileMetadataProtobuf());
 
     return searchResponseDtoProtobuf;
 }

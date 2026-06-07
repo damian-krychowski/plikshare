@@ -12,6 +12,14 @@
     overflow-y: auto;
     padding-bottom: 1rem;
 
+    // Exclude the preview body (image blob, notes/comments/thumbnails, morph) from scroll
+    // anchoring. As those load/resize after the preview opens the browser would otherwise
+    // re-anchor and drift the scroll. Scoped away from the widget (--no-scroll-anchor is only
+    // set when scrollToTopOnOpen is off) so widget behaviour stays untouched.
+    &--no-scroll-anchor {
+        overflow-anchor: none;
+    }
+
     &--const-height {
         height: 235px;
         // Force the internal scroll even inside a `.questionaire` dialog, whose

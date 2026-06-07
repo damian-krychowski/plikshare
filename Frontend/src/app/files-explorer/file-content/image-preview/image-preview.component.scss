@@ -25,10 +25,27 @@ $stripe-bg: repeating-linear-gradient(
     // drag is never visible.
     background: $stripe-bg;
 
+    // Skeleton mode: aspect-ratio is set inline from backend-known dimensions so the box
+    // takes its final shape before the blob arrives. The frame is capped to the same 70vh
+    // the loaded image uses, so portrait crops never push the page; the stripe pattern is
+    // the loading state.
+    &--skeleton {
+        max-height: 70vh;
+    }
+
+    // Smoothly morph the frame height when navigating to a differently-shaped image. Armed
+    // only after the first height is set (see morphReady) so opening the preview snaps to its
+    // size instead of animating from zero.
+    &--morph {
+        transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
     &--resizing {
         cursor: ns-resize;
         // Suppress text/image selection while dragging the handle.
         user-select: none;
+        // 1:1 with the pointer — no morph lag mid-drag.
+        transition: none;
     }
 
     // Constant-size stripe layer. Its height tracks maxPreviewHeight (changes only per
@@ -75,6 +92,54 @@ $stripe-bg: repeating-linear-gradient(
     &--loaded {
         opacity: 1;
     }
+}
+
+// Loading placeholder shaped + sized to the exact rectangle the image will render at
+// (skeletonWidth/skeletonHeight = object-fit:contain rect). Centered overlay on the striped
+// frame so it sits precisely where the photo appears; the image then fades in over the same
+// rectangle with zero movement. Shimmer reads as "loading" and distinguishes it from the
+// static striped backdrop.
+.image-skeleton {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    max-width: 100%;
+    border-radius: 4px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    background:
+        linear-gradient(
+            100deg,
+            var(--company-grey-accent-light) 30%,
+            rgba(255, 255, 255, 0.55) 50%,
+            var(--company-grey-accent-light) 70%);
+    background-size: 200% 100%;
+    animation: image-skeleton-shimmer 1.2s ease-in-out infinite;
+    transition: opacity 0.2s ease-in-out;
+    pointer-events: none;
+
+    &--hidden {
+        opacity: 0;
+    }
+}
+
+// Morph the skeleton's rectangle together with the frame height when navigating to a
+// differently-shaped image (armed via --morph, same as the frame); snap 1:1 while dragging.
+.image-preview-frame--morph .image-skeleton {
+    transition:
+        width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.2s ease-in-out;
+}
+
+.image-preview-frame--resizing .image-skeleton {
+    transition: none;
+}
+
+@keyframes image-skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 
 .resize-handle {

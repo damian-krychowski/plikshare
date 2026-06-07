@@ -1,4 +1,4 @@
-import { Component, computed, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ReactiveFormsModule } from '@angular/forms';
 import { Subscription, filter } from 'rxjs';
@@ -6,7 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { TrashPolicyDto, WorkspacesApi } from '../../services/workspaces.api';
+import { ImageDimensionsPolicyDto, TrashPolicyDto, WorkspacesApi } from '../../services/workspaces.api';
 import { DataStore } from '../../services/data-store.service';
 import { AuthService } from '../../services/auth.service';
 import { WorkspaceContextService } from '../workspace-context.service';
@@ -16,8 +16,10 @@ import { WorkspaceMaxTeamMembersChangedEvent, WorkspaceTeamConfigComponent } fro
 import { ActionTextButtonComponent } from '../../shared/buttons/action-text-btn/action-text-btn.component';
 import { AuditLogPolicyApi } from '../../account/audit-log/policy/audit-log-policy.api';
 import { TrashPolicyConfigChangedEvent, TrashPolicyConfigComponent } from '../../shared/trash-policy-config/trash-policy-config.component';
+import { ImageDimensionsPolicyConfigChangedEvent, ImageDimensionsPolicyConfigComponent } from '../../shared/image-dimensions-policy-config/image-dimensions-policy-config.component';
 import { ConfigCardComponent } from '../../shared/config-card/config-card.component';
 import { GenericDialogService } from '../../shared/generic-message-dialog/generic-dialog-service';
+import { AppCapabilitiesService } from '../../services/app-capabilities.service';
 
 
 
@@ -32,6 +34,7 @@ import { GenericDialogService } from '../../shared/generic-message-dialog/generi
         WorkspaceSizeConfigComponent,
         WorkspaceTeamConfigComponent,
         TrashPolicyConfigComponent,
+        ImageDimensionsPolicyConfigComponent,
         ConfigCardComponent,
         ActionTextButtonComponent
     ],
@@ -44,6 +47,10 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
     public maxSizeInBytes = signal<number|null>(null);
     public maxTeamMembers = signal<number|null>(null);
     public trashPolicy = signal<TrashPolicyDto|null>(null);
+    public imageDimensionsPolicy = signal<ImageDimensionsPolicyDto|null>(null);
+
+    private _capabilities = inject(AppCapabilitiesService);
+    public isFfmpegAvailable = computed(() => this._capabilities.capabilities().isFfmpegAvailable);
 
     // The audit-log section is admin-only — same authorization as the backend endpoint
     // (RequireAdminPermissionEndpointFilter(Permissions.ManageAuditLog), which bypasses the
@@ -144,6 +151,7 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
             this.maxSizeInBytes.set(workspace.maxSizeInBytes);
             this.maxTeamMembers.set(workspace.maxTeamMembers);
             this.trashPolicy.set(workspace.trashPolicy);
+            this.imageDimensionsPolicy.set(workspace.mediaProcessingPolicy.imageDimensions);
 
             // Fire-and-forget; the chip pops in once it resolves. Errors are logged, not surfaced.
             this.loadAuditLogSummary(workspaceExternalId);
@@ -264,6 +272,40 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
                 enabled: trashPolicy.enabled,
                 retentionDays: trashPolicy.retentionDays
             });
+
+            const workspace = await this
+                ._workspacesApi
+                .getWorkspace(this._currentWorkspaceExternalId);
+
+            this._dataStore.clearWorkspaceDetails(this._currentWorkspaceExternalId);
+            this._workspaceContext.workspace.set(workspace);
+        } catch (error) {
+            console.error('Failed to save workspace configuration', error);
+        } finally {
+            this.isLoading.set(false);
+        }
+    }
+
+    private _imageDimensionsPolicyDebouncer = new Debouncer(500);
+    onImageDimensionsPolicyChange(event: ImageDimensionsPolicyConfigChangedEvent) {
+        this.imageDimensionsPolicy.set(event.imageDimensions);
+        this._imageDimensionsPolicyDebouncer.debounceAsync(() => this.saveImageDimensionsPolicy());
+    }
+
+    private async saveImageDimensionsPolicy(){
+        if(!this._currentWorkspaceExternalId)
+            return;
+
+        const policy = this.imageDimensionsPolicy();
+        if(!policy)
+            return;
+
+        try {
+            this.isLoading.set(true);
+
+            await this._workspacesApi.updateImageDimensionsPolicy(
+                this._currentWorkspaceExternalId,
+                { extractOnUpload: policy.extractOnUpload });
 
             const workspace = await this
                 ._workspacesApi

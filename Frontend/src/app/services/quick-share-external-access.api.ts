@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 import { QuickShareMode } from "./quick-shares.api";
-import { ContentDisposition, GetFileDownloadLinkResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse } from "./folders-and-files.api";
+import { ContentDisposition, FileMetadataDto, GetFileDownloadLinkResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse } from "./folders-and-files.api";
 import { ZipPreviewDetails } from "../files-explorer/file-inline-preview/file-inline-preview.component";
 import { ZipEntry } from "./zip";
 import { ProtoHttp } from "./protobuf-http.service";
@@ -44,6 +44,7 @@ export interface QuickShareContentFile {
     name: string;
     extension: string;
     sizeInBytes: number;
+    metadata: FileMetadataDto | null;
 }
 
 export interface GetQuickShareContentResponse {

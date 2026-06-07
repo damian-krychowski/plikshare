@@ -491,9 +491,10 @@
 <div class="mt-1"></div>
 
 
-<div class="explorer-content" 
+<div class="explorer-content"
     [class.explorer-content--const-height]="constHeightMode()"
-    [class.explorer-content--no-overflow-y]="fileInPreviewVal">
+    [class.explorer-content--no-overflow-y]="fileInPreviewVal"
+    [class.explorer-content--no-scroll-anchor]="!scrollToTopOnOpen()">
 
     @if(fileInPreviewVal) {
         <app-file-inline-preview

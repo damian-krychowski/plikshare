@@ -1,24 +1,40 @@
 @let objectUrlValue = objectUrl();
+@let showFrame = objectUrlValue || hasInitialDimensions();
+@let aspectRatio = aspectRatioCss();
 
-@if(objectUrlValue) {
+@if(showFrame) {
     <div
         #frame
         class="image-preview-frame"
+        [class.image-preview-frame--morph]="morphReady()"
         [class.image-preview-frame--resizing]="isResizing()"
-        [style.height.px]="previewHeight()">
+        [class.image-preview-frame--skeleton]="aspectRatio && !isImageLoaded()"
+        [style.height.px]="previewHeight()"
+        [style.aspectRatio]="previewHeight() === null ? aspectRatio : null">
         <div
             class="image-preview-frame__bg"
             [style.height.px]="maxPreviewHeight()"></div>
-        <img
-            [src]="objectUrlValue"
-            [alt]="fileFullName()"
-            class="image-preview"
-            [class.image-preview--loaded]="isImageLoaded()"
-            [class.image-preview--sized]="previewHeight() !== null"
-            (load)="onImageLoad($event.target)"
-            (error)="handleMediaError($event)">
 
-        @if(isImageLoaded() && previewHeight() !== null) {
+        @if (aspectRatio) {
+            <div
+                class="image-skeleton"
+                [class.image-skeleton--hidden]="isImageLoaded()"
+                [style.width.px]="skeletonWidth()"
+                [style.height.px]="skeletonHeight()"></div>
+        }
+
+        @if (objectUrlValue) {
+            <img
+                [src]="objectUrlValue"
+                [alt]="fileFullName()"
+                class="image-preview"
+                [class.image-preview--loaded]="isImageLoaded()"
+                [class.image-preview--sized]="previewHeight() !== null"
+                (load)="onImageLoad($event.target)"
+                (error)="handleMediaError($event)">
+        }
+
+        @if(objectUrlValue && isImageLoaded() && previewHeight() !== null) {
             <div
                 class="resize-handle"
                 (pointerdown)="onResizeStart($event)"

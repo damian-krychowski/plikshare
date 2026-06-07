@@ -1,4 +1,5 @@
 using PlikShare.Files.Id;
+using PlikShare.Files.Metadata.Contracts;
 using PlikShare.Folders.Id;
 
 namespace PlikShare.QuickShareExternalAccess.Contracts;
@@ -18,4 +19,5 @@ public record QuickShareContentFileDto(
     FolderExtId? FolderExternalId,
     string Name,
     string Extension,
-    long SizeInBytes);
+    long SizeInBytes,
+    FileMetadataDto? Metadata);

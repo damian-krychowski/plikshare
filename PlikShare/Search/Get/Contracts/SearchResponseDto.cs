@@ -1,3 +1,4 @@
+using PlikShare.Files.Metadata.Contracts;
 using ProtoBuf;
 
 namespace PlikShare.Search.Get.Contracts;
@@ -139,6 +140,9 @@ public class SearchResponseDto
 
         [ProtoMember(6)]
         public required List<FolderAncestor> FolderPath { get; init; }
+
+        [ProtoMember(7)]
+        public required FileMetadataDto? Metadata { get; init; }
     }
 
 
@@ -227,6 +231,9 @@ public class SearchResponseDto
 
         [ProtoMember(7)]
         public required bool WasUploadedByUser { get; init; }
+
+        [ProtoMember(8)]
+        public required FileMetadataDto? Metadata { get; init; }
     }
 
 

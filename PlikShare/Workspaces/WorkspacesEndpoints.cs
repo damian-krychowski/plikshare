@@ -46,6 +46,9 @@ using PlikShare.Workspaces.UpdateName;
 using PlikShare.Workspaces.UpdateName.Contracts;
 using PlikShare.Workspaces.UpdateTrashPolicy;
 using PlikShare.Workspaces.UpdateTrashPolicy.Contracts;
+using PlikShare.Workspaces.UpdateImageDimensionsPolicy;
+using PlikShare.Workspaces.UpdateImageDimensionsPolicy.Contracts;
+using PlikShare.MediaProcessing.Dimensions;
 using PlikShare.Trash;
 using PlikShare.Workspaces.Validation;
 using PlikShare.AuditLog;
@@ -81,6 +84,10 @@ public static class WorkspacesEndpoints
         group.MapPatch("/{workspaceExternalId}/trash-policy", UpdateWorkspaceTrashPolicy)
             .AddEndpointFilter<ValidateWorkspaceFilter>()
             .WithName("UpdateWorkspaceTrashPolicy");
+
+        group.MapPatch("/{workspaceExternalId}/media-processing-policy/image-dimensions", UpdateWorkspaceImageDimensionsPolicy)
+            .AddEndpointFilter<ValidateWorkspaceFilter>()
+            .WithName("UpdateWorkspaceImageDimensionsPolicy");
 
         group.MapDelete("/{workspaceExternalId}", DeleteWorkspace)
             .AddEndpointFilter<ValidateWorkspaceFilter>()
@@ -494,6 +501,13 @@ public static class WorkspacesEndpoints
             {
                 Enabled = workspaceMembership.Workspace.TrashPolicy.Enabled,
                 RetentionDays = workspaceMembership.Workspace.TrashPolicy.RetentionDays
+            },
+            MediaProcessingPolicy = new MediaProcessingPolicyDto
+            {
+                ImageDimensions = new ImageDimensionsPolicyDto
+                {
+                    ExtractOnUpload = workspaceMembership.Workspace.MediaProcessingPolicy?.ExtractImageDimensionsOnUpload == true
+                }
             }
         });
     }
@@ -540,6 +554,74 @@ public static class WorkspacesEndpoints
             default:
                 throw new UnexpectedOperationResultException(
                     operationName: nameof(UpdateWorkspaceNameQuery),
+                    resultValueStr: resultCode.ToString());
+        }
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateWorkspaceImageDimensionsPolicy(
+        [FromBody] UpdateWorkspaceImageDimensionsPolicyDto request,
+        HttpContext httpContext,
+        WorkspaceCache workspaceCache,
+        UpdateWorkspaceImageDimensionsPolicyQuery updateQuery,
+        ExtractImageDimensionsBackfillOperation backfillOperation,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+
+        if (workspaceMembership is { IsOwnedByUser: false, User.HasAdminRole: false })
+            return HttpErrors.Workspace.NotOwner(workspaceMembership.Workspace.ExternalId);
+
+        var wasEnabled = workspaceMembership
+            .Workspace
+            .MediaProcessingPolicy?
+            .ExtractImageDimensionsOnUpload == true;
+
+        var resultCode = await updateQuery.Execute(
+            workspace: workspaceMembership.Workspace,
+            extractOnUpload: request.ExtractOnUpload,
+            cancellationToken: cancellationToken);
+
+        switch (resultCode)
+        {
+            case UpdateWorkspaceImageDimensionsPolicyQuery.ResultCode.Ok:
+                await workspaceCache.InvalidateEntry(
+                    workspaceMembership.Workspace.ExternalId,
+                    cancellationToken);
+
+                await auditLogService.LogWithStorageContext(
+                    storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
+                    buildEntry: storageRef => Audit.Workspace.ImageDimensionsPolicyUpdatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        storage: storageRef,
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
+                        extractOnUpload: request.ExtractOnUpload),
+                    cancellationToken);
+
+                if (request.ExtractOnUpload && !wasEnabled)
+                {
+                    var freshWorkspace = await workspaceCache.TryGetWorkspace(
+                        workspaceId: workspaceMembership.Workspace.Id,
+                        cancellationToken: cancellationToken);
+
+                    if (freshWorkspace is not null)
+                    {
+                        await backfillOperation.Execute(
+                            workspace: freshWorkspace,
+                            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
+                            correlationId: httpContext.GetCorrelationId(),
+                            cancellationToken: cancellationToken);
+                    }
+                }
+
+                return TypedResults.Ok();
+
+            case UpdateWorkspaceImageDimensionsPolicyQuery.ResultCode.NotFound:
+                return HttpErrors.Workspace.NotFound(workspaceMembership.Workspace.ExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateWorkspaceImageDimensionsPolicyQuery),
                     resultValueStr: resultCode.ToString());
         }
     }

@@ -6,6 +6,7 @@ using PlikShare.Integrations.Aws.Textract;
 using PlikShare.Integrations.OpenAi.ChatGpt;
 using PlikShare.Storages;
 using PlikShare.Storages.Encryption;
+using PlikShare.MediaProcessing;
 using PlikShare.Trash;
 using PlikShare.Users.Cache;
 using PlikShare.Workspaces.Id;
@@ -167,7 +168,8 @@ public class WorkspaceCache(
             Storage = storageClient,
             EncryptionMetadata = workspace.EncryptionMetadata,
             Integrations = integrations,
-            TrashPolicy = workspace.TrashPolicy
+            TrashPolicy = workspace.TrashPolicy,
+            MediaProcessingPolicy = workspace.MediaProcessingPolicy
         };
     }
 
@@ -252,7 +254,8 @@ public class WorkspaceCache(
                          w_is_being_deleted,
                          w_storage_id,
                          w_encryption_salt,
-                         w_trash_policy_json
+                         w_trash_policy_json,
+                         w_media_processing_policy_json
                      FROM w_workspaces
                      WHERE {lookup.WhereClause}
                      LIMIT 1
@@ -277,7 +280,8 @@ public class WorkspaceCache(
                         EncryptionMetadata = salt is null
                             ? null
                             : new WorkspaceEncryptionMetadata { Salt = salt },
-                        TrashPolicy = reader.GetFromJson<TrashPolicy>(12)
+                        TrashPolicy = reader.GetFromJson<TrashPolicy>(12),
+                        MediaProcessingPolicy = reader.GetFromJsonOrNull<MediaProcessingPolicy>(13)
                     };
                 })
             .WithParameter(lookup.ParamName, lookup.ParamValue)
@@ -313,5 +317,6 @@ public class WorkspaceCache(
         public required int StorageId { get; init; }
         public required WorkspaceEncryptionMetadata? EncryptionMetadata { get; init; }
         public required TrashPolicy TrashPolicy { get; init; }
+        public required MediaProcessingPolicy? MediaProcessingPolicy { get; init; }
     }
 }

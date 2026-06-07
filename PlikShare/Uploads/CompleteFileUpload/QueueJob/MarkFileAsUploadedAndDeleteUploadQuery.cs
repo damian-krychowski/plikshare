@@ -1,32 +1,45 @@
-﻿using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
+using PlikShare.Files.Created;
 using PlikShare.Files.Id;
+using PlikShare.Workspaces.Cache;
 using Serilog;
 
 namespace PlikShare.Uploads.CompleteFileUpload.QueueJob;
 
 public class MarkFileAsUploadedAndDeleteUploadQuery(
-    DbWriteQueue dbWriteQueue)
+    DbWriteQueue dbWriteQueue,
+    FileCreatedDispatcher fileCreatedDispatcher)
 {
     private static readonly Serilog.ILogger Logger = Log.ForContext<MarkFileAsUploadedAndDeleteUploadQuery>();
 
     public Task Execute(
+        WorkspaceContext workspace,
         int fileUploadId,
         FileExtId fileExternalId,
+        FullEncryptionSeedEphemeral? encryptionSeed,
+        Guid correlationId,
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
-                fileUploadId,
-                fileExternalId),
+                workspace: workspace,
+                fileUploadId: fileUploadId,
+                fileExternalId: fileExternalId,
+                encryptionSeed: encryptionSeed,
+                correlationId: correlationId),
             cancellationToken: cancellationToken);
     }
 
     private void ExecuteOperation(
         SqliteWriteContext dbWriteContext,
+        WorkspaceContext workspace,
         int fileUploadId,
-        FileExtId fileExternalId)
+        FileExtId fileExternalId,
+        FullEncryptionSeedEphemeral? encryptionSeed,
+        Guid correlationId)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
 
@@ -37,19 +50,43 @@ public class MarkFileAsUploadedAndDeleteUploadQuery(
                 fileUploadId,
                 fileExternalId);
 
-            var fileId = dbWriteContext
+            var markedFile = dbWriteContext
                 .OneRowCmd(
                     sql: @"
                         UPDATE fi_files
                         SET fi_is_upload_completed = TRUE
                         WHERE fi_external_id = $fileExternalId
-                        RETURNING fi_id",
-                    readRowFunc: reader => reader.GetInt32(0),
+                        RETURNING
+                            fi_id,
+                            fi_size_in_bytes,
+                            fi_content_type,
+                            fi_encryption_key_version,
+                            fi_encryption_salt,
+                            fi_encryption_nonce_prefix,
+                            fi_encryption_chain_salts,
+                            fi_encryption_format_version",
+                    readRowFunc: reader => new CreatedFile(
+                        Id: reader.GetInt32(0),
+                        ExternalId: fileExternalId,
+                        SizeInBytes: reader.GetInt64(1),
+                        ContentType: reader.GetEncodedMetadata(2),
+                        EncryptionMetadata: reader.GetByteOrNull(3) is { } keyVersion
+                            ? new FileEncryptionMetadata
+                            {
+                                KeyVersion = keyVersion,
+                                Salt = reader.GetFieldValue<byte[]>(4),
+                                NoncePrefix = reader.GetFieldValue<byte[]>(5),
+                                ChainStepSalts = KeyDerivationChain.Deserialize(
+                                    reader.GetFieldValueOrNull<byte[]>(6)),
+                                FormatVersion = reader.GetByteOrNull(7) ?? 1
+                            }
+                            : null,
+                        EncryptionSeed: encryptionSeed),
                     transaction: transaction)
                 .WithParameter("$fileExternalId", fileExternalId.Value)
                 .Execute();
 
-            if (fileId.IsEmpty)
+            if (markedFile.IsEmpty)
             {
                 Logger.Warning(
                     "Failed to update file upload status. File not found. FileUploadId: {FileUploadId}, FileExternalId: {FileExternalId}",
@@ -60,7 +97,7 @@ public class MarkFileAsUploadedAndDeleteUploadQuery(
             {
                 Logger.Debug(
                     "Successfully marked file as uploaded. FileId: {FileId}, FileExternalId: {FileExternalId}",
-                    fileId.Value,
+                    markedFile.Value.Id,
                     fileExternalId.Value);
             }
 
@@ -104,6 +141,17 @@ public class MarkFileAsUploadedAndDeleteUploadQuery(
                 Logger.Debug(
                     "Successfully deleted file upload. FileUploadId: {FileUploadId}",
                     fileUploadId);
+            }
+
+            if (!markedFile.IsEmpty)
+            {
+                fileCreatedDispatcher.OnFilesCreated(new FileCreatedBatch(
+                    Workspace: workspace,
+                    Session: null,
+                    CorrelationId: correlationId,
+                    DbWriteContext: dbWriteContext,
+                    Transaction: transaction,
+                    Files: [markedFile.Value]));
             }
 
             transaction.Commit();

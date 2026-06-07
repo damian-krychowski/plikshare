@@ -3,6 +3,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
+using PlikShare.Files.Metadata.Contracts;
 using PlikShare.MediaProcessing;
 using PlikShare.Folders.List.Contracts;
 using PlikShare.Workspaces.Cache;
@@ -122,7 +123,8 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
                                 AND child_fi.fi_deleted_at IS NULL
                                 AND child_fi.fi_is_upload_completed = TRUE
                                 AND child_fi.fi_metadata IS NOT NULL
-                        ) AS child_thumbnail_metadata
+                        ) AS child_thumbnail_metadata,
+                        fi_metadata AS parent_file_metadata
 		            FROM fi_files
 		            WHERE
 		                fi_workspace_id = $workspaceId
@@ -150,7 +152,13 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
                         IsLocked = reader.GetBoolean(5),
                         CreatedAt = reader.GetDateTimeOffsetOrNull(7)?.UtcDateTime,
                         Position = position,
-                        MiniThumbnailEtag = MiniThumbnailMetadata.GetMiniEtag(reader, 8, workspaceEncryptionSession)
+                        Metadata = FileMetadataFactory.Prepare(
+                            thumbnail: MiniThumbnailMetadata.GetMiniEtag(reader, 8, workspaceEncryptionSession) is { } etag
+                                ? new ThumbnailMetadataDto { MiniEtag = etag }
+                                : null,
+                            dimensions: ImageDimensionsMetadata.Read(reader, 9, workspaceEncryptionSession) is { } dimensions
+                                ? new DimensionsMetadataDto { Width = dimensions.Width, Height = dimensions.Height }
+                                : null)
                     };
                 })
 		    .WithParameter("$workspaceId", workspace.Id)

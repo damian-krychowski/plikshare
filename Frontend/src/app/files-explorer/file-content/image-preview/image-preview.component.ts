@@ -1,5 +1,6 @@
-import { Component, computed, ElementRef, input, OnChanges, OnDestroy, output, signal, SimpleChanges, viewChild } from "@angular/core";
+import { AfterViewInit, Component, computed, ElementRef, input, OnChanges, OnDestroy, output, signal, SimpleChanges, viewChild } from "@angular/core";
 import { ImageDimensions, ImageExif } from "../../file-inline-preview/file-inline-preview.component";
+import { FileMetadataDto } from "../../../services/folders-and-files.api";
 import { getMimeType } from "../../../services/file-type";
 import exifr from "exifr";
 import { HttpHeadersFactory } from "../../http-headers-factory";
@@ -10,11 +11,69 @@ import { HttpHeadersFactory } from "../../http-headers-factory";
     templateUrl: './image-preview.component.html',
     styleUrls: ['./image-preview.component.scss']
 })
-export class ImagePreviewComponent implements OnChanges, OnDestroy {
-    fileUrl = input.required<string>();
+export class ImagePreviewComponent implements OnChanges, OnDestroy, AfterViewInit {
+    fileUrl = input<string | null>(null);
     fileName = input.required<string>();
     fileExtension = input.required<string>();
     httpHeadersFactory = input.required<HttpHeadersFactory>();
+
+    // The raw file metadata — image-preview pulls the dimensions out of it itself, so callers
+    // pass the whole blob (null for files that have none) instead of pre-extracted width/height.
+    metadata = input<FileMetadataDto | null>(null);
+
+    private _dimensions = computed(() => this.metadata()?.dimensions ?? null);
+
+    hasInitialDimensions = computed(() => {
+        const d = this._dimensions();
+        return d != null && d.width > 0 && d.height > 0;
+    });
+
+    aspectRatioCss = computed(() => {
+        const d = this._dimensions();
+        if (!this.hasInitialDimensions() || d == null)
+            return null;
+
+        return `${d.width} / ${d.height}`;
+    });
+
+    private _aspectRatio = computed(() => {
+        const d = this._dimensions();
+        return this.hasInitialDimensions() && d != null
+            ? d.width / d.height
+            : null;
+    });
+
+    // Inner content box of the frame (clientWidth minus horizontal padding, plus the vertical
+    // padding) — captured during initPreviewHeight so the skeleton can be sized to the exact
+    // rectangle the contained <img> will occupy.
+    private _innerWidth = signal(0);
+    private _frameVerticalPadding = signal(0);
+
+    // The exact pixel rectangle the image will render at (object-fit: contain inside the frame).
+    // The skeleton overlay uses these so it sits precisely where the photo will appear — the
+    // image then drops into the same rectangle with zero movement.
+    skeletonHeight = computed(() => {
+        const aspect = this._aspectRatio();
+        const innerWidth = this._innerWidth();
+        const frameHeight = this.previewHeight();
+
+        if (aspect == null || innerWidth <= 0 || frameHeight == null)
+            return null;
+
+        const innerHeight = frameHeight - this._frameVerticalPadding();
+        const widthFitHeight = innerWidth / aspect;
+
+        return Math.max(0, Math.min(innerHeight, widthFitHeight));
+    });
+
+    skeletonWidth = computed(() => {
+        const aspect = this._aspectRatio();
+        const height = this.skeletonHeight();
+
+        return aspect != null && height != null
+            ? height * aspect
+            : null;
+    });
 
     // Metadata is consumed by the parent (file-inline-preview) which renders it next to
     // the thumbnail cards in the "Image" section. Image-preview itself stays focused on
@@ -26,13 +85,15 @@ export class ImagePreviewComponent implements OnChanges, OnDestroy {
 
     frameRef = viewChild<ElementRef<HTMLDivElement>>('frame');
 
-    // Frame height in px driven by the bottom resize handle. Null before the first image
-    // loads — in that state the frame sizes to content and the <img> keeps its CSS 70vh cap
-    // (the `--sized` class is absent), so initial behavior is unchanged. Once an image loads
-    // we compute a concrete height; from then on the frame box is fixed and the image scales
-    // to fit it via object-fit: contain.
+    // Frame height in px driven by the bottom resize handle. Set from the backend dimensions
+    // BEFORE the blob loads (see the effect below), so the striped skeleton already has the
+    // size the image will render at and the image drops in with no vertical jump.
     previewHeight = signal<number | null>(null);
     isResizing = signal(false);
+
+    // Gates the frame-height transition: off until the first height is set (so opening doesn't
+    // animate from zero), on afterwards (so navigating between differently-shaped images morphs).
+    morphReady = signal(false);
 
     // Upper bound of previewHeight (frame-space px), recomputed per image. Also the height of
     // the striped background layer: keeping that layer at a constant size means its diagonal
@@ -62,11 +123,57 @@ export class ImagePreviewComponent implements OnChanges, OnDestroy {
     // would otherwise produce when navigating next/previous between files.
     isImageLoaded = signal(false);
 
+    private _morphArmed = false;
+
+    ngAfterViewInit(): void {
+        // First open: the frame now exists, so reserve its height from the backend dimensions
+        // before the blob finishes loading.
+        this.applyBackendDimensions();
+    }
+
     async ngOnChanges(changes: SimpleChanges): Promise<void> {
+        // New file (next/previous) — fileName/extension change synchronously with the click,
+        // BEFORE the download-link promise resolves. Drop to the skeleton right now so the
+        // current image fades out into the skeleton and the box starts morphing immediately,
+        // instead of waiting (showing the stale image) until the new URL arrives.
+        if (changes['fileName'] || changes['fileExtension']) {
+            this.isImageLoaded.set(false);
+        }
+
+        // New metadata (next/previous): re-size the frame now so it morphs to the new shape while
+        // the skeleton is visible (and the new blob is still loading). No-op on the very first
+        // change pass (frame not in the DOM yet — ngAfterViewInit covers it).
+        if (changes['metadata']) {
+            this.applyBackendDimensions();
+        }
+
         const url = this.fileUrl();
 
         if(changes['fileUrl'] && url) {
+            // The blob fades in over the skeleton once the new URL's content loads.
+            this.isImageLoaded.set(false);
             await this.loadImageWithMetadata(url);
+        }
+    }
+
+    // Reserves the frame height from the backend-known dimensions so the striped skeleton is
+    // already the size the image will render at — the image then drops in with no vertical
+    // jump. Bails when the frame isn't in the DOM yet or dimensions are unknown.
+    private applyBackendDimensions(): void {
+        const dimensions = this._dimensions();
+
+        if (!this.frameRef() || !this.hasInitialDimensions() || dimensions == null)
+            return;
+
+        this.initPreviewHeight(
+            dimensions.width,
+            dimensions.height);
+
+        // Arm the morph transition only after the first height is set + painted, so the open
+        // snaps to size instead of animating up from nothing.
+        if (!this._morphArmed) {
+            this._morphArmed = true;
+            requestAnimationFrame(() => this.morphReady.set(true));
         }
     }
 
@@ -164,23 +271,26 @@ export class ImagePreviewComponent implements OnChanges, OnDestroy {
             height: image.naturalHeight
         });
 
-        this.initPreviewHeight(
-            image.naturalWidth,
-            image.naturalHeight
-        );
+        // Fallback sizing for files without backend dimensions (the effect above never fired).
+        // For files that do have them, the height is already set to the same value, so this is
+        // a no-op and there's no jump.
+        if (!this.hasInitialDimensions()) {
+            this.initPreviewHeight(
+                image.naturalWidth,
+                image.naturalHeight
+            );
+        }
 
         this.isImageLoaded.set(true);
     }
 
-    // Derives the frame height (and the drag clamps) from the just-loaded image so the first
-    // render matches the legacy look: capped at 70vh, never wider than the frame. Everything
-    // is expressed as frame-box height (image height + the frame's vertical padding) so the
-    // numbers map straight onto [style.height.px]. Recomputed per image, which intentionally
-    // resets any height the user dragged on the previous file.
-    private initPreviewHeight(naturalWidth: number, naturalHeight: number): void {
+    // Derives the frame height (and the drag clamps) from the given dimensions. Capped at 70vh
+    // and never wider than the frame. Everything is expressed as frame-box height (image height
+    // + the frame's vertical padding) so the numbers map straight onto [style.height.px].
+    private initPreviewHeight(width: number, height: number): void {
         const frame = this.frameRef()?.nativeElement;
 
-        if (!frame || naturalWidth <= 0 || naturalHeight <= 0)
+        if (!frame || width <= 0 || height <= 0)
             return;
 
         const style = getComputedStyle(frame);
@@ -188,14 +298,17 @@ export class ImagePreviewComponent implements OnChanges, OnDestroy {
         const paddingY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
         const innerWidth = frame.clientWidth - paddingX;
 
-        const ratio = naturalWidth / naturalHeight;
+        this._innerWidth.set(innerWidth);
+        this._frameVerticalPadding.set(paddingY);
+
+        const ratio = width / height;
         // Image height at which it touches both side edges — past this point max-width:100%
         // pins the width, so dragging taller only adds empty frame. Hence it's also the max.
         const widthFitHeight = innerWidth / ratio;
         const viewportCap = window.innerHeight * 0.7;
 
         const initialImageHeight = Math.min(
-            naturalHeight,
+            height,
             widthFitHeight,
             viewportCap
         );
@@ -212,6 +325,12 @@ export class ImagePreviewComponent implements OnChanges, OnDestroy {
         this.previewHeight.set(storedHeight !== null
             ? this.clampHeight(storedHeight)
             : this.resizeInitialHeight);
+    }
+
+    private clampHeight(height: number): number {
+        return Math.min(
+            Math.max(height, this.resizeMinHeight),
+            this.maxPreviewHeight());
     }
 
     onResizeStart(event: PointerEvent): void {
@@ -287,23 +406,11 @@ export class ImagePreviewComponent implements OnChanges, OnDestroy {
         try {
             localStorage.removeItem(this.PREVIEW_HEIGHT_STORAGE_KEY);
         } catch {
-            // Best-effort — ignore availability errors.
+            // Best-effort — ignore.
         }
     }
 
-    private clampHeight(height: number): number {
-        if (height < this.resizeMinHeight)
-            return this.resizeMinHeight;
-
-        const maxHeight = this.maxPreviewHeight();
-
-        if (height > maxHeight)
-            return maxHeight;
-
-        return height;
-    }
-
-    handleMediaError(event: any): void {
-        console.error('Error loading media:', event);
+    handleMediaError(event: Event): void {
+        console.error('Failed to render image preview', event);
     }
 }

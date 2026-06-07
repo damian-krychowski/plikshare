@@ -4,7 +4,10 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
+using PlikShare.Files.Created;
+using PlikShare.Files.Id;
 using PlikShare.Storages;
+using PlikShare.Storages.Encryption;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Chunking;
 using PlikShare.Uploads.CompleteFileUpload.QueueJob;
@@ -18,13 +21,16 @@ namespace PlikShare.Uploads.CompleteFileUpload;
 public class ConvertFileUploadToFileQuery(
     IQueue queue,
     IClock clock,
-    DbWriteQueue dbWriteQueue)
+    DbWriteQueue dbWriteQueue,
+    EphemeralKeyRing ephemeralKeyRing,
+    FileCreatedDispatcher fileCreatedDispatcher)
 {
     private static readonly Serilog.ILogger Logger = Log.ForContext<ConvertFileUploadToFileQuery>();
 
     public Task<Result> Execute(
         FileUpload fileUpload,
         WorkspaceContext workspace,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Guid correlationId,
         CancellationToken cancellationToken)
     {
@@ -33,6 +39,7 @@ public class ConvertFileUploadToFileQuery(
                 dbWriteContext: context,
                 fileUpload: fileUpload,
                 workspace: workspace,
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 correlationId: correlationId),
             cancellationToken: cancellationToken);
     }
@@ -41,6 +48,7 @@ public class ConvertFileUploadToFileQuery(
         SqliteWriteContext dbWriteContext,
         FileUpload fileUpload,
         WorkspaceContext workspace,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Guid correlationId)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
@@ -67,6 +75,7 @@ public class ConvertFileUploadToFileQuery(
                     fileUpload: fileUpload,
                     correlationId: correlationId,
                     workspace: workspace,
+                    workspaceEncryptionSession: workspaceEncryptionSession,
                     transaction: transaction),
 
                 _ => throw new ArgumentOutOfRangeException(
@@ -80,6 +89,29 @@ public class ConvertFileUploadToFileQuery(
                 correlationId: correlationId,
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);
+
+            if (result is { Code: ResultCode.Ok, Details.IsFileCompleted: true })
+            {
+                fileCreatedDispatcher.OnFilesCreated(new FileCreatedBatch(
+                    Workspace: workspace,
+                    Session: workspaceEncryptionSession,
+                    CorrelationId: correlationId,
+                    DbWriteContext: dbWriteContext,
+                    Transaction: transaction,
+                    Files:
+                    [
+                        new CreatedFile(
+                            Id: result.Details.FileId,
+                            ExternalId: fileUpload.FileExternalId,
+                            SizeInBytes: fileUpload.FileSizeInBytes,
+                            ContentType: fileUpload.ContentType,
+                            EncryptionMetadata: fileUpload.FileEncryptionMetadata,
+                            EncryptionSeed: workspace.TryGetFileEncryptionSeed(
+                                encryptionMetadata: fileUpload.FileEncryptionMetadata,
+                                workspaceEncryptionSession: workspaceEncryptionSession,
+                                ephemeralKeyRing: ephemeralKeyRing))
+                    ]));
+            }
 
             transaction.Commit();
 
@@ -140,7 +172,7 @@ public class ConvertFileUploadToFileQuery(
                         fu_file_extension,
                         fu_file_content_type,
                         fu_file_size_in_bytes,
-                        $isUploadCompleted,
+                        TRUE,
                         fu_owner_identity_type,
                         fu_owner_identity,
                         $createdAt,
@@ -157,7 +189,6 @@ public class ConvertFileUploadToFileQuery(
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
             .WithParameter("$fileUploadId", fileUpload.Id)
-            .WithParameter("$isUploadCompleted", true)
             .WithParameter("$createdAt", clock.UtcNow)
             .Execute();
 
@@ -212,7 +243,8 @@ public class ConvertFileUploadToFileQuery(
         return new Result(
             Code: ResultCode.Ok,
             Details: new Details(
-                FileId: fileId.Value));
+                FileId: fileId.Value,
+                IsFileCompleted: true));
     }
 
     private Result HandleConversionForSingleChunkUploads(
@@ -228,6 +260,7 @@ public class ConvertFileUploadToFileQuery(
         SqliteWriteContext dbWriteContext,
         FileUpload fileUpload,
         WorkspaceContext workspace,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Guid correlationId,
         SqliteTransaction transaction)
     {
@@ -296,7 +329,7 @@ public class ConvertFileUploadToFileQuery(
                         fu_file_extension,
                         fu_file_content_type,
                         fu_file_size_in_bytes,
-                        $isUploadCompleted,
+                        FALSE,
                         fu_owner_identity_type,
                         fu_owner_identity,
                         $createdAt,
@@ -313,7 +346,6 @@ public class ConvertFileUploadToFileQuery(
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
             .WithParameter("$fileUploadId", fileUpload.Id)
-            .WithParameter("$isUploadCompleted", false)
             .WithParameter("$createdAt", clock.UtcNow)
             .Execute();
 
@@ -329,6 +361,10 @@ public class ConvertFileUploadToFileQuery(
         var completeFileUploadJob = EnqueueCompleteFileUploadJob(
             dbWriteContext: dbWriteContext,
             fileUploadId: fileUpload.Id,
+            encryptionSeed: workspace.TryGetFileEncryptionSeed(
+                encryptionMetadata: fileUpload.FileEncryptionMetadata,
+                workspaceEncryptionSession: workspaceEncryptionSession, 
+                ephemeralKeyRing: ephemeralKeyRing),
             correlationId: correlationId,
             transaction: transaction);
 
@@ -364,12 +400,14 @@ public class ConvertFileUploadToFileQuery(
         return new Result(
             Code: ResultCode.Ok,
             Details: new Details(
-                FileId: fileId.Value));
+                FileId: fileId.Value,
+                IsFileCompleted: false));
     }
 
     private QueueJobId EnqueueCompleteFileUploadJob(
         SqliteWriteContext dbWriteContext,
         int fileUploadId,
+        FullEncryptionSeedEphemeral? encryptionSeed,
         Guid correlationId,
         SqliteTransaction transaction)
     {
@@ -377,7 +415,8 @@ public class ConvertFileUploadToFileQuery(
             correlationId: correlationId,
             jobType: CompleteMultipartUploadQueueJobType.Value,
             definition: new CompleteFileUploadQueueJobDefinition(
-                FileUploadId: fileUploadId),
+                FileUploadId: fileUploadId,
+                EncryptionSeed: encryptionSeed),
             executeAfterDate: clock.UtcNow,
             debounceId: null,
             sagaId: null,
@@ -391,7 +430,8 @@ public class ConvertFileUploadToFileQuery(
         Details Details);
 
     public readonly record struct Details(
-        int FileId);
+        int FileId,
+        bool IsFileCompleted);
 
     public enum ResultCode
     {
@@ -401,6 +441,8 @@ public class ConvertFileUploadToFileQuery(
 
     public readonly record struct FileUpload(
         int Id,
+        FileExtId FileExternalId,
+        EncodedMetadataValue ContentType,
         UploadAlgorithm UploadAlgorithm,
         long FileSizeInBytes,
         FileEncryptionMetadata? FileEncryptionMetadata);

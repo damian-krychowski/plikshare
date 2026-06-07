@@ -1,3 +1,4 @@
+using PlikShare.Files.Metadata.Contracts;
 using ProtoBuf;
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
@@ -64,7 +65,7 @@ public class FileDto
     public required long Position { get; init; }
 
     [ProtoMember(9)]
-    public string? MiniThumbnailEtag { get; init; }
+    public FileMetadataDto? Metadata { get; init; }
 }
 
 [ProtoContract]

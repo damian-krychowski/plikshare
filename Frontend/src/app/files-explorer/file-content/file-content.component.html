@@ -6,12 +6,13 @@
 @let operationsVal = this.operations();
 
 <div class="file-content">
-    @if(fileTypeValue == 'image' && fileUrlValue) {
+    @if(fileTypeValue == 'image') {
         <app-image-preview
             [fileName]="fileVal.name()"
             [fileExtension]="fileVal.extension"
             [fileUrl]="fileUrlValue"
             [httpHeadersFactory]="operationsVal"
+            [metadata]="fileVal.metadata()"
             (dimensionsChange)="imageDimensionsChange.emit($event)"
             (exifChange)="imageExifChange.emit($event)">
         </app-image-preview>

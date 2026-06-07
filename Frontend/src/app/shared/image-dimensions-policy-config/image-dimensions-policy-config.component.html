@@ -1,0 +1,13 @@
+<div class="config-row">
+    <mat-select
+        class="config-row__select config-row__select--wide"
+        [(ngModel)]="extractOnUpload"
+        (selectionChange)="onModeChange()">
+
+        @for (item of extractOptions; track item.value) {
+            <mat-option [value]="item.value">
+                {{ item.label }}
+            </mat-option>
+        }
+    </mat-select>
+</div>

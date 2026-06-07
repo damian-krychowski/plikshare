@@ -1,4 +1,5 @@
-﻿using PlikShare.Folders.Id;
+﻿using PlikShare.Files.Metadata.Contracts;
+using PlikShare.Folders.Id;
 using ProtoBuf;
 
 namespace PlikShare.Workspaces.SearchFilesTree.Contracts;
@@ -81,5 +82,5 @@ public class SearchFilesTreeFileItemDto
     public required long Position { get; init; }
 
     [ProtoMember(10)]
-    public string? MiniThumbnailEtag { get; init; }
+    public FileMetadataDto? Metadata { get; init; }
 }

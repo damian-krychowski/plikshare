@@ -1,4 +1,5 @@
-﻿using PlikShare.Core.UserIdentity;
+﻿using PlikShare.Core.Encryption;
+using PlikShare.Core.UserIdentity;
 using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.Id;
 using PlikShare.Workspaces.Cache;
@@ -14,6 +15,7 @@ public class ConvertFileUploadToFileOperation(
         WorkspaceContext workspace,
         FileUploadExtId fileUploadExternalId,
         IUserIdentity userIdentity,
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
         Guid correlationId,
         CancellationToken cancellationToken)
     {
@@ -34,10 +36,13 @@ public class ConvertFileUploadToFileOperation(
         var result = await convertFileUploadToFileQuery.Execute(
             fileUpload: new ConvertFileUploadToFileQuery.FileUpload(
                 Id: fileUpload.Id,
+                FileExternalId: fileUpload.FileToUpload.FileKey.FileExternalId,
+                ContentType: fileUpload.ContentType,
                 UploadAlgorithm: fileUpload.UploadAlgorithm,
                 FileSizeInBytes: fileUpload.FileToUpload.SizeInBytes,
                 FileEncryptionMetadata: fileUpload.FileToUpload.EncryptionMetadata),
             workspace: workspace,
+            workspaceEncryptionSession: workspaceEncryptionSession,
             correlationId: correlationId,
             cancellationToken: cancellationToken);
 

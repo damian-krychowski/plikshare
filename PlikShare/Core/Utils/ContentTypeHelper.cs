@@ -40,6 +40,14 @@ public static class ContentTypeHelper
         ".ini", ".env", ".toml", ".conf", ".properties", ".yaml", ".lock", ".gitignore", ".editorconfig",
         ".graphql", ".proto", ".rst", ".tex", ".adoc"
     };
+
+    private static readonly HashSet<string> TextContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "application/json", "application/xml", "application/javascript", "application/typescript",
+        "application/x-httpd-php", "application/sql", "application/toml", "application/graphql",
+        "application/x-tex"
+    };
+
     private static readonly Dictionary<string, string> MimeTypes = new()
     {
         // Images
@@ -208,6 +216,37 @@ public static class ContentTypeHelper
             return FileType.Audio;
 
         if (TextExtensions.Contains(extension))
+            return FileType.Text;
+
+        return FileType.Other;
+    }
+
+    public static FileType GetFileTypeFromContentType(string contentType)
+    {
+        if (string.IsNullOrEmpty(contentType))
+            return FileType.Other;
+
+        var normalized = contentType.Split(';')[0].Trim().ToLowerInvariant();
+
+        if (normalized == "application/pdf")
+            return FileType.Pdf;
+
+        if (normalized == "application/zip")
+            return FileType.Archive;
+
+        if (normalized == "text/markdown")
+            return FileType.Markdown;
+
+        if (normalized.StartsWith("image/"))
+            return FileType.Image;
+
+        if (normalized.StartsWith("video/"))
+            return FileType.Video;
+
+        if (normalized.StartsWith("audio/"))
+            return FileType.Audio;
+
+        if (TextContentTypes.Contains(normalized) || normalized.StartsWith("text/"))
             return FileType.Text;
 
         return FileType.Other;

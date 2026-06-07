@@ -55,6 +55,13 @@ public static partial class Audit
             public required int? RetentionDays { get; init; }
         }
 
+        public class ImageDimensionsPolicyUpdated
+        {
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required bool ExtractOnUpload { get; init; }
+        }
+
         public class MemberInvited
         {
             public required StorageRef Storage { get; init; }
@@ -252,6 +259,26 @@ public static partial class Audit
                 Workspace = workspace,
                 Enabled = enabled,
                 RetentionDays = retentionDays })
+        };
+
+        public static AuditLogEntry ImageDimensionsPolicyUpdatedEntry(
+            AuditLogActorContext actor,
+            StorageRef storage,
+            WorkspaceRef workspace,
+            bool extractOnUpload) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.ImageDimensionsPolicyUpdated,
+            Severity = AuditLogSeverities.Info,
+            WorkspaceExternalId = workspace.ExternalId.Value,
+            DetailsJson = Json.Serialize(new ImageDimensionsPolicyUpdated {
+                Storage = storage,
+                Workspace = workspace,
+                ExtractOnUpload = extractOnUpload })
         };
 
         public static AuditLogEntry MemberInvitedEntry(

@@ -38,6 +38,19 @@
         }
     </app-config-card>
 
+    @if (isFfmpegAvailable()) {
+        <app-config-card
+            title="Image dimensions"
+            description="Extract image pixel dimensions on upload so previews open with the correct aspect ratio. Turning it on backfills existing images in this workspace.">
+            @if (imageDimensionsPolicy(); as policy) {
+                <app-image-dimensions-policy-config
+                    [imageDimensions]="policy"
+                    (configChanged)="onImageDimensionsPolicyChange($event)">
+                </app-image-dimensions-policy-config>
+            }
+        </app-config-card>
+    }
+
     @if (canConfigureAuditLog()) {
         <app-config-card
             title="Audit log"

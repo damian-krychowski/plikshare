@@ -3,6 +3,7 @@ using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.UserIdentity;
+using PlikShare.Files.Metadata.Contracts;
 using PlikShare.Folders.Id;
 using PlikShare.Folders.List;
 using PlikShare.MediaProcessing;
@@ -168,7 +169,13 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                 FolderIdIndex = folderIdIndex ?? -1,
                 CreatedAt = file.CreatedAt?.DateTime,
                 Position = file.Position,
-                MiniThumbnailEtag = file.MiniThumbnailEtag
+                Metadata = FileMetadataFactory.Prepare(
+                    thumbnail: file.MiniThumbnailEtag is { } etag
+                        ? new ThumbnailMetadataDto { MiniEtag = etag }
+                        : null,
+                    dimensions: file.Width is { } width && file.Height is { } height
+                        ? new DimensionsMetadataDto { Width = width, Height = height }
+                        : null)
             });
         }
 
@@ -277,7 +284,8 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                                 AND child_fi.fi_deleted_at IS NULL
                                 AND child_fi.fi_is_upload_completed = TRUE
                                 AND child_fi.fi_metadata IS NOT NULL
-                        ) AS child_thumbnail_metadata
+                        ) AS child_thumbnail_metadata,
+                        fi_metadata AS parent_file_metadata
 				    FROM fi_files
                     LEFT JOIN fo_folders
                         ON fo_id = fi_folder_id
@@ -320,7 +328,9 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
                     // child_thumbnail_metadata is the raw (still-encrypted in Full) fi_metadata json
                     // array; GetMiniEtag decodes it in managed code — session is null for None/Managed
                     // (plaintext passthrough) and the real session for Full.
-                    MiniThumbnailEtag = MiniThumbnailMetadata.GetMiniEtag(reader, 9, workspaceEncryptionSession)
+                    MiniThumbnailEtag = MiniThumbnailMetadata.GetMiniEtag(reader, 9, workspaceEncryptionSession),
+                    Width = ImageDimensionsMetadata.Read(reader, 10, workspaceEncryptionSession)?.Width,
+                    Height = ImageDimensionsMetadata.Read(reader, 10, workspaceEncryptionSession)?.Height
                 })
             .WithParameter("$workspaceId", workspaceId)
             .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
@@ -426,5 +436,7 @@ public class SearchFilesTreeQuery(PlikShareDb plikShareDb)
         public required DateTimeOffset? CreatedAt { get; init; }
         public required long Position { get; init; }
         public required string? MiniThumbnailEtag { get; init; }
+        public required int? Width { get; init; }
+        public required int? Height { get; init; }
     }
 }
