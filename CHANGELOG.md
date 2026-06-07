@@ -10,6 +10,14 @@ Release notes for PlikShare.
 - [IMPROVEMENT] Clicking items in the box, quick-share and zip file trees now works across the whole row instead of only a narrow central strip
 - [FIX] Embedded box-link widget no longer logs an app-capabilities error — that internal-only request is now skipped in contexts that can't manage media (the widget and external pages)
 
+Image Preview:
+
+[Image preview](https://github.com/user-attachments/assets/874c2f50-b622-4123-aaeb-d465da34a485)
+
+Workspace new config section:
+
+[Workspace new config](https://github.com/user-attachments/assets/52a7f46c-2d00-4ccb-bab0-8af1b276b7d1)
+
 ## 1.1.35
 
 - [FEATURE] Thumbnails in the folder tree — preview thumbnails now show inline in the tree view, not just the list view
