@@ -761,24 +761,23 @@ export class StaticFileTreeViewComponent implements OnChanges {
     // bubble here too but return early, so normal behaviour is untouched.
     // Checkbox clicks never reach this — their wrapper stops propagation.
     onRowClicked(node: StaticTreeNode, event: MouseEvent) {
-        if (!this.canDownload() || this.mode() !== 'select')
-            return;
+        if (event.shiftKey || event.ctrlKey || event.metaKey) {
+            if (!this.canDownload() || this.mode() !== 'select')
+                return;
 
-        if (event.shiftKey) {
             event.preventDefault();
-            this._lastShiftDown = true;
+
+            if (event.shiftKey)
+                this._lastShiftDown = true;
+
             this.onIsSelectedChange(node, !node.isSelected());
-        } else if (event.ctrlKey || event.metaKey) {
-            event.preventDefault();
-            this.onIsSelectedChange(node, !node.isSelected());
+            return;
         }
-    }
 
-    onChevronClicked(folder: StaticFolderNode, event: MouseEvent) {
-        if (event.shiftKey || event.ctrlKey || event.metaKey)
-            return;
-
-        this.expand(folder);
+        if (node.type === 'folder')
+            this.expand(node);
+        else
+            this.fileClicked.emit(node);
     }
 
     // Clicking a folder checkbox cascades: pulling a folder INTO the selection

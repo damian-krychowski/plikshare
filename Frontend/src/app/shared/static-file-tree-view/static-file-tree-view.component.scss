@@ -35,6 +35,7 @@
     transition: background-color 0.2s;
     border: 1px solid transparent;
     height: 44px;
+    cursor: pointer;
     font-size: var(--company-medium-font);
 
     &:hover {

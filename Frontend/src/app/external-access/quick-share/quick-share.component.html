@@ -154,13 +154,29 @@
                 <div [style.display]="zipEntryFile ? 'none' : 'contents'">
                     <div class="quick-share-page__preview-header">
                         <app-action-btn
-                            tooltip="Back to file list"
-                            icon="icon-lucide-chevron-left"
+                            tooltip="Close preview"
+                            icon="icon-lucide-xmark"
                             (clicked)="closePreview()">
                         </app-action-btn>
 
                         <div class="quick-share-page__preview-title">
                             {{ previewFile.name() }}{{ previewFile.extension }}
+                        </div>
+
+                        <div class="quick-share-page__preview-nav">
+                            <app-action-btn
+                                tooltip="Show previous"
+                                icon="icon-lucide-chevron-left"
+                                [disabled]="!previousPreviewId()"
+                                (clicked)="showPreviousPreview()">
+                            </app-action-btn>
+
+                            <app-action-btn
+                                tooltip="Show next"
+                                icon="icon-lucide-chevron-right"
+                                [disabled]="!nextPreviewId()"
+                                (clicked)="showNextPreview()">
+                            </app-action-btn>
                         </div>
                     </div>
 

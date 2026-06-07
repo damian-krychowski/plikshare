@@ -17,6 +17,7 @@ import { ActionTextButtonComponent } from '../../shared/buttons/action-text-btn/
 import { ItemSearchComponent } from '../../shared/item-search/item-search.component';
 import { AppFileForContent, FileContentComponent, FileContentOperations } from '../../files-explorer/file-content/file-content.component';
 import { ZipArchives, ZipEntry } from '../../services/zip';
+import { getFileDetails } from '../../services/file-type';
 
 @Component({
     selector: 'app-quick-share',
@@ -62,6 +63,37 @@ export class QuickShareComponent implements OnInit {
         const id = this.currentFilePreviewId();
         if (!id) return null;
         return this.content()?.files.find(f => f.externalId === id) ?? null;
+    });
+
+    // Ordered list of previewable file ids for show-next/previous. Built from the flat
+    // content().files (not the tree) because the tree is lazy — files inside collapsed
+    // folders aren't materialized, so a DFS would skip them. Non-previewable files are
+    // dropped so navigation never lands on a "cannot preview" dead end.
+    private orderedPreviewableFileIds = computed<string[]>(() => {
+        const content = this.content();
+        if (!content) return [];
+
+        return content.files
+            .filter(f => getFileDetails(f.extension).isPreviewable)
+            .map(f => f.externalId);
+    });
+
+    previousPreviewId = computed<string | null>(() => {
+        const id = this.currentFilePreviewId();
+        if (!id) return null;
+
+        const ids = this.orderedPreviewableFileIds();
+        const index = ids.indexOf(id);
+        return index > 0 ? ids[index - 1] : null;
+    });
+
+    nextPreviewId = computed<string | null>(() => {
+        const id = this.currentFilePreviewId();
+        if (!id) return null;
+
+        const ids = this.orderedPreviewableFileIds();
+        const index = ids.indexOf(id);
+        return index >= 0 && index < ids.length - 1 ? ids[index + 1] : null;
     });
 
     // FileContentComponent expects name as a Signal so it can react to renames.
@@ -363,6 +395,22 @@ export class QuickShareComponent implements OnInit {
 
     closePreview() {
         this.currentFilePreviewId.set(null);
+        this.zipEntryInPreview.set(null);
+    }
+
+    showPreviousPreview() {
+        const id = this.previousPreviewId();
+        if (!id) return;
+
+        this.currentFilePreviewId.set(id);
+        this.zipEntryInPreview.set(null);
+    }
+
+    showNextPreview() {
+        const id = this.nextPreviewId();
+        if (!id) return;
+
+        this.currentFilePreviewId.set(id);
         this.zipEntryInPreview.set(null);
     }
 

@@ -29,7 +29,7 @@
                 <div class="node-content tree-node--expandable"
                     [class.node-content--selected]="isSelected"
                     [class.node-content--selected-children]="hasSelectedChildren">
-                    <div class="node-content__icon" (click)="onChevronClicked(folder, $event)">
+                    <div class="node-content__icon">
                         @if(!folder.isExpanded()) {
                             <i class="icon icon-lg icon-lucide-chevron-right"></i>
                         } @else {
@@ -57,7 +57,7 @@
             } @else {
                 @let file = row.node;
                 <div class="node-content">
-                    <div class="file-node" (click)="!($event.shiftKey || $event.ctrlKey || $event.metaKey) && fileClicked.emit(file)">
+                    <div class="file-node">
                         <i class="icon icon-xl icon-{{ file.extension | fileIcon }}"></i>
 
                         <div class="file-node__details">
@@ -123,7 +123,7 @@
                     <div class="node-content tree-node--expandable"
                         [class.node-content--selected]="isSelected"
                         [class.node-content--selected-children]="hasSelectedChildren">
-                        <div class="node-content__inner" (click)="onChevronClicked(folder, $event)">
+                        <div class="node-content__inner">
                             @if(!folder.isExpanded()) {
                                 <i class="icon icon-lg icon-lucide-chevron-right"></i>
                             } @else {
@@ -149,7 +149,7 @@
                 } @else {
                     @let file = row.node;
                     <div class="node-content">
-                        <div class="file-node" (click)="!($event.shiftKey || $event.ctrlKey || $event.metaKey) && fileClicked.emit(file)">
+                        <div class="file-node">
                             <i class="icon icon-xl icon-{{ file.extension | fileIcon }}"></i>
 
                             <div class="file-node__details">

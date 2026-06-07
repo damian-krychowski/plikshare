@@ -208,6 +208,13 @@
         white-space: nowrap;
     }
 
+    &__preview-nav {
+        margin-left: auto;
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
     &__powered-by {
         margin-top: auto;
         padding-top: 1.5rem;
