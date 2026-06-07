@@ -48,6 +48,17 @@
                     (configChanged)="onImageDimensionsPolicyChange($event)">
                 </app-image-dimensions-policy-config>
             }
+
+            @if (backfillProgress(); as progress) {
+                <div class="mt-2">
+                    <app-batch-progress
+                        label="Extracting dimensions of existing images…"
+                        [done]="progress.completed + progress.failed"
+                        [total]="progress.total"
+                        [failed]="progress.failed">
+                    </app-batch-progress>
+                </div>
+            }
         </app-config-card>
     }
 

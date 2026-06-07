@@ -2,6 +2,14 @@
 
 Release notes for PlikShare.
 
+## 1.1.36
+
+- [FEATURE] Extract image dimensions on upload — a new opt-in workspace setting reads each uploaded image's pixel dimensions, so previews open at the right size straight away: a placeholder of the exact shape shows instantly and the image drops into it with no layout jump, and stepping to the next/previous image smoothly morphs the frame between differently-shaped photos. Turning the setting on backfills every existing image in the workspace on the background queue — workspace settings show a live progress bar (visible to anyone viewing the page and surviving a reload), a dialog up front tells you how many images will be processed, and switching the setting back off cancels whatever hasn't been processed yet
+- [IMPROVEMENT] Quick-share and search previews get the same instant sizing — image dimensions and thumbnail metadata now travel through the quick-share content and the search results, so their image previews show the same instant placeholder and search results display thumbnails
+- [IMPROVEMENT] Quick-share file preview gained next / previous navigation and a close (X) button replacing the back arrow, matching the workspace file preview
+- [IMPROVEMENT] Clicking items in the box, quick-share and zip file trees now works across the whole row instead of only a narrow central strip
+- [FIX] Embedded box-link widget no longer logs an app-capabilities error — that internal-only request is now skipped in contexts that can't manage media (the widget and external pages)
+
 ## 1.1.35
 
 - [FEATURE] Thumbnails in the folder tree — preview thumbnails now show inline in the tree view, not just the list view

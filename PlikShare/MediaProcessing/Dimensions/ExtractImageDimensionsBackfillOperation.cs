@@ -16,12 +16,21 @@ public class ExtractImageDimensionsBackfillOperation(
     EphemeralKeyRing ephemeralKeyRing,
     DbWriteQueue dbWriteQueue)
 {
-    public const int BatchSize = 50;
+    // Files per queue job. Kept small (matching the thumbnail bulk) so the progress bar advances in
+    // fine steps and cancellation leaves few files mid-flight — dimension probing is cheap, so the
+    // extra DbWriteQueue trips don't matter.
+    public const int BatchSize = 10;
+
+    // JSON path of the file-id array inside ExtractImageDimensionsQueueJobDefinition — used by the
+    // shared BatchProgressQuery to derive file-level progress for the backfill batch.
+    public const string FilesJsonPath = "$.fileIds";
 
     private static readonly Serilog.ILogger Logger =
         Log.ForContext<ExtractImageDimensionsBackfillOperation>();
 
-    public async Task Execute(
+    public sealed record Result(Guid? BatchId, int TotalFiles);
+
+    public async Task<Result> Execute(
         WorkspaceContext workspace,
         WorkspaceEncryptionSession? workspaceEncryptionSession,
         Guid correlationId,
@@ -32,8 +41,9 @@ public class ExtractImageDimensionsBackfillOperation(
             workspaceEncryptionSession);
 
         if (imageFiles.Count == 0)
-            return;
+            return new Result(BatchId: null, TotalFiles: 0);
 
+        var batchId = Guid.NewGuid();
         var jobs = new List<BulkQueueJobEntity>();
 
         foreach (var chunk in imageFiles.Chunk(BatchSize))
@@ -63,7 +73,7 @@ public class ExtractImageDimensionsBackfillOperation(
                     EncryptionSeeds = encryptionSeeds
                 },
                 sagaId: null,
-                batchId: null);
+                batchId: batchId);
 
             jobs.Add(job);
         }
@@ -93,10 +103,13 @@ public class ExtractImageDimensionsBackfillOperation(
             cancellationToken: cancellationToken);
 
         Logger.Information(
-            "Image-dimensions backfill enqueued for Workspace#{WorkspaceId}: {FileCount} files across {JobCount} jobs.",
+            "Image-dimensions backfill enqueued for Workspace#{WorkspaceId} (Batch {BatchId}): {FileCount} files across {JobCount} jobs.",
             workspace.Id,
+            batchId,
             imageFiles.Count,
             jobs.Count);
+
+        return new Result(BatchId: batchId, TotalFiles: imageFiles.Count);
     }
 
     private List<BackfillImageRow> GetWorkspaceImageFiles(
@@ -156,6 +169,40 @@ public class ExtractImageDimensionsBackfillOperation(
                             ephemeralKeyRing)));
 
                     return acc;
+                })
+            .WithParameter("$workspaceId", workspace.Id)
+            .Execute();
+    }
+
+    // Count of existing images that a backfill would process (same filter as GetWorkspaceImageFiles,
+    // minus the per-row encryption-seed work). Powers the "extract for N images" confirmation dialog.
+    public int CountImagesToBackfill(
+        WorkspaceContext workspace,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
+    {
+        using var connection = plikShareDb.OpenConnection();
+
+        return connection
+            .AggregateRows(
+                sql: """
+                     SELECT fi_content_type
+                     FROM fi_files
+                     WHERE fi_workspace_id = $workspaceId
+                       AND fi_parent_file_id IS NULL
+                       AND fi_deleted_at IS NULL
+                       AND fi_is_upload_completed = TRUE
+                       AND fi_metadata IS NULL
+                     """,
+                seed: 0,
+                aggregateRowFunc: (count, reader) =>
+                {
+                    var contentType = reader.DecodeEncryptableString(
+                        ordinal: 0,
+                        workspaceEncryptionSession: workspaceEncryptionSession);
+
+                    return ContentTypeHelper.GetFileTypeFromContentType(contentType) == FileType.Image
+                        ? count + 1
+                        : count;
                 })
             .WithParameter("$workspaceId", workspace.Id)
             .Execute();

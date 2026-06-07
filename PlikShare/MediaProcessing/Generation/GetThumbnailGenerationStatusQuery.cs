@@ -141,39 +141,17 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
         SqliteConnection connection,
         Guid batchId)
     {
-        // SUM(json_array_length(... files)) turns job-row counts into FILE counts. Indexed by
-        // q_batch_id / qc_batch_id; per-row JSON parse is small (each row has at most BatchSize
-        // entries in $.files). For 1000-file batch with BatchSize=10 → 100 rows × json scan.
-        var result = connection
-            .OneRowCmd(
-                sql: """
-                    SELECT
-                        (
-                            SELECT COALESCE(SUM(json_array_length(json_extract(qc_definition, '$.files'))), 0)
-                            FROM qc_queue_completed
-                            WHERE qc_batch_id = $batchId
-                        ),
-                        (
-                            SELECT COALESCE(SUM(json_array_length(json_extract(q_definition, '$.files'))), 0)
-                            FROM q_queue
-                            WHERE q_batch_id = $batchId
-                        ),
-                        (
-                            SELECT COALESCE(SUM(json_array_length(json_extract(q_definition, '$.files'))), 0)
-                            FROM q_queue
-                            WHERE q_batch_id = $batchId
-                                AND q_status = $failedStatus
-                        )
-                    """,
-                readRowFunc: reader => new Counts(
-                    Completed: reader.GetInt32(0),
-                    Outstanding: reader.GetInt32(1),
-                    Failed: reader.GetInt32(2)))
-            .WithParameter("$batchId", batchId)
-            .WithParameter("$failedStatus", QueueStatus.Failed)
-            .Execute();
+        // File-level counts come from the shared batch-progress query; thumbnail job definitions
+        // hold their parents under '$.files'.
+        var counts = BatchProgressQuery.GetCounts(
+            connection,
+            batchId,
+            filesJsonPath: "$.files");
 
-        return result.Value;
+        return new Counts(
+            Completed: counts.Completed,
+            Outstanding: counts.Outstanding,
+            Failed: counts.Failed);
     }
 
     private static List<CompletedJob> GetCompletedSince(

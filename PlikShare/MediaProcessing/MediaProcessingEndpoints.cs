@@ -12,6 +12,8 @@ using PlikShare.Core.Protobuf;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Files.Records;
+using PlikShare.MediaProcessing.Dimensions;
+using PlikShare.MediaProcessing.Dimensions.Contracts;
 using PlikShare.MediaProcessing.Generation;
 using PlikShare.MediaProcessing.Generation.Contracts;
 using PlikShare.Storages;
@@ -66,6 +68,15 @@ public static class MediaProcessingEndpoints
 
         group.MapGet("/thumbnails/batches/{batchId:guid}/events", GetThumbnailBatchEvents)
             .WithName("GetThumbnailBatchEvents");
+
+        group.MapGet("/image-dimensions/backfill", GetImageDimensionsBackfillStatus)
+            .WithName("GetImageDimensionsBackfillStatus");
+
+        group.MapGet("/image-dimensions/backfill/count", CountImageDimensionsBackfill)
+            .WithName("CountImageDimensionsBackfill");
+
+        group.MapGet("/image-dimensions/batches/{batchId:guid}/events", GetImageDimensionsBatchEvents)
+            .WithName("GetImageDimensionsBatchEvents");
 
         group.MapGet("/thumbnails/{fileExternalId}", GetFileThumbnail)
             .WithName("GetFileThumbnail");
@@ -374,6 +385,61 @@ public static class MediaProcessingEndpoints
             batchId: batchId);
 
         return TypedResults.Ok(response);
+    }
+
+    private static Ok<ImageDimensionsBackfillStatusResponseDto> GetImageDimensionsBackfillStatus(
+        HttpContext httpContext,
+        ImageDimensionsBackfillStatusQuery backfillStatusQuery)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+
+        var active = backfillStatusQuery.GetActive(
+            workspaceMembership.Workspace.Id);
+
+        return TypedResults.Ok(new ImageDimensionsBackfillStatusResponseDto
+        {
+            BatchId = active?.BatchId.ToString(),
+            Total = active?.Counts.Total ?? 0,
+            Completed = active?.Counts.Completed ?? 0,
+            Failed = active?.Counts.Failed ?? 0,
+            Pending = active?.Counts.Pending ?? 0
+        });
+    }
+
+    private static Ok<ImageDimensionsBackfillCountResponseDto> CountImageDimensionsBackfill(
+        HttpContext httpContext,
+        ExtractImageDimensionsBackfillOperation backfillOperation)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
+        var count = backfillOperation.CountImagesToBackfill(
+            workspaceMembership.Workspace,
+            workspaceEncryptionSession);
+
+        return TypedResults.Ok(new ImageDimensionsBackfillCountResponseDto
+        {
+            FileCount = count
+        });
+    }
+
+    private static async Task GetImageDimensionsBatchEvents(
+        [FromRoute] Guid batchId,
+        HttpContext httpContext,
+        BatchProgressQuery batchProgressQuery,
+        QueueBatchNotifier queueBatchNotifier,
+        IClock clock,
+        CancellationToken cancellationToken)
+    {
+        await BatchProgressSse.Stream(
+            httpContext: httpContext,
+            batchId: batchId,
+            notifier: queueBatchNotifier,
+            getCounts: () => batchProgressQuery.GetCounts(
+                batchId,
+                ExtractImageDimensionsBackfillOperation.FilesJsonPath),
+            clock: clock,
+            cancellationToken: cancellationToken);
     }
 
     private static async Task<Ok<CancelThumbnailBatchResponseDto>> CancelThumbnailBatch(

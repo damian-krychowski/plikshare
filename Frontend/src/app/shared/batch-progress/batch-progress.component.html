@@ -1,0 +1,18 @@
+<div class="batch-progress">
+    <div class="batch-progress__header">
+        @if (label()) {
+            <span class="batch-progress__label">{{ label() }}</span>
+        }
+
+        <span class="batch-progress__count">
+            {{ done() }} / {{ total() }}
+            @if (failed() > 0) {
+                <span class="batch-progress__failed">· {{ failed() }} failed</span>
+            }
+        </span>
+    </div>
+
+    <div class="batch-progress__track">
+        <div class="batch-progress__fill" [style.width.%]="percent()"></div>
+    </div>
+</div>

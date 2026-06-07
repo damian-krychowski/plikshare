@@ -558,12 +558,14 @@ public static class WorkspacesEndpoints
         }
     }
 
-    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateWorkspaceImageDimensionsPolicy(
+    private static async Task<Results<Ok<UpdateWorkspaceImageDimensionsPolicyResponseDto>, NotFound<HttpError>, BadRequest<HttpError>>> UpdateWorkspaceImageDimensionsPolicy(
         [FromBody] UpdateWorkspaceImageDimensionsPolicyDto request,
         HttpContext httpContext,
         WorkspaceCache workspaceCache,
         UpdateWorkspaceImageDimensionsPolicyQuery updateQuery,
         ExtractImageDimensionsBackfillOperation backfillOperation,
+        ImageDimensionsBackfillStatusQuery backfillStatusQuery,
+        CancelBatchOperation cancelBatchOperation,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
     {
@@ -598,6 +600,9 @@ public static class WorkspacesEndpoints
                         extractOnUpload: request.ExtractOnUpload),
                     cancellationToken);
 
+                string? batchId = null;
+                var totalFiles = 0;
+
                 if (request.ExtractOnUpload && !wasEnabled)
                 {
                     var freshWorkspace = await workspaceCache.TryGetWorkspace(
@@ -606,15 +611,36 @@ public static class WorkspacesEndpoints
 
                     if (freshWorkspace is not null)
                     {
-                        await backfillOperation.Execute(
+                        var backfill = await backfillOperation.Execute(
                             workspace: freshWorkspace,
                             workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
                             correlationId: httpContext.GetCorrelationId(),
                             cancellationToken: cancellationToken);
+
+                        batchId = backfill.BatchId?.ToString();
+                        totalFiles = backfill.TotalFiles;
+                    }
+                }
+                else if (!request.ExtractOnUpload && wasEnabled)
+                {
+                    // Turning the policy off mid-backfill cancels the still-queued extraction jobs
+                    // (in-flight ones finish); the progress bar then drains to done and disappears.
+                    var activeBatchId = backfillStatusQuery.GetActiveBatchId(
+                        workspaceMembership.Workspace.Id);
+
+                    if (activeBatchId is not null)
+                    {
+                        await cancelBatchOperation.Execute(
+                            batchId: activeBatchId.Value,
+                            cancellationToken: cancellationToken);
                     }
                 }
 
-                return TypedResults.Ok();
+                return TypedResults.Ok(new UpdateWorkspaceImageDimensionsPolicyResponseDto
+                {
+                    BatchId = batchId,
+                    TotalFiles = totalFiles
+                });
 
             case UpdateWorkspaceImageDimensionsPolicyQuery.ResultCode.NotFound:
                 return HttpErrors.Workspace.NotFound(workspaceMembership.Workspace.ExternalId);

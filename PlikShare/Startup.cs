@@ -536,6 +536,9 @@ public class Startup
         builder.Services.AddSingleton<UpdateWorkspaceTrashPolicyQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceImageDimensionsPolicyQuery>();
         builder.Services.AddSingleton<ExtractImageDimensionsBackfillOperation>();
+        builder.Services.AddSingleton<ImageDimensionsBackfillStatusQuery>();
+        builder.Services.AddSingleton<BatchProgressQuery>();
+        builder.Services.AddSingleton<CancelBatchOperation>();
         builder.Services.AddSingleton<CreateWorkspaceMemberInvitationQuery>();
         builder.Services.AddSingleton<CreateWorkspaceMemberInvitationOperation>();
         builder.Services.AddSingleton<RollbackEncryptedInvitationQuery>();

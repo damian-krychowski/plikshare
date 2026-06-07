@@ -1,0 +1,41 @@
+.batch-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    width: 100%;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        font-size: var(--company-small-font);
+        color: var(--company-grey-font);
+    }
+
+    &__count {
+        white-space: nowrap;
+    }
+
+    &__failed {
+        color: var(--company-danger);
+    }
+
+    &__track {
+        position: relative;
+        height: 6px;
+        border-radius: 3px;
+        background-color: var(--company-grey-accent-light);
+        overflow: hidden;
+    }
+
+    &__fill {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        background-color: var(--company-grey-font);
+        border-radius: 3px;
+        transition: width 0.3s ease-in-out;
+    }
+}

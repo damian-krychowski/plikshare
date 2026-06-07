@@ -21,6 +21,11 @@ public sealed class QueueProducer : BackgroundService
     private readonly SqliteCommand _deleteCompletedSagasCommand;
     private readonly SqliteCommand _insertQueueSagaJobsCommand;
 
+    // Last time a dequeued batch carried any higher-than-extremely-low work. Extremely-low jobs are
+    // released only once this is at least the grace period in the past — see
+    // GetBatchOfJobsAndMarkAsProcessing.
+    private DateTimeOffset? _higherPriorityActivitySeenAt;
+
     private readonly IClock _clock;
     private readonly IQueue _queue;
     private readonly QueueChannels _channels;
@@ -307,22 +312,45 @@ public sealed class QueueProducer : BackgroundService
         try
         {
             // Two-step to avoid holding the single SQLite write-lock during the O(N) selection.
-            // Step 1 — SELECT the eligible job ids: scans/sorts pending jobs by the materialized
-            // q_job_category / q_job_priority columns. It's a READ, so it doesn't block the workers
-            // writing their completions (WAL: readers don't block writers).
-            _selectJobsBatchCommand.Parameters.Clear();
-            _selectJobsBatchCommand.WithParameter("$pendingStatus", QueueStatus.Pending);
-            _selectJobsBatchCommand.WithParameter("$now", _clock.UtcNow);
-            _selectJobsBatchCommand.WithParameter("$batchSize", _config.QueueProcessingBatchSize);
-            _selectJobsBatchCommand.WithParameter("$dbOnlyCapacity", capacitySnapshot.DbOnlyJobs);
-            _selectJobsBatchCommand.WithParameter("$normalCapacity", capacitySnapshot.NormalJobs);
-            _selectJobsBatchCommand.WithParameter("$longRunningCapacity", capacitySnapshot.LongRunningJobs);
+            // Step 1 — SELECT the eligible (id, priority) pairs: scans/sorts pending jobs by the
+            // materialized q_job_category / q_job_priority columns. It's a READ, so it doesn't block
+            // the workers writing their completions (WAL: readers don't block writers).
+            var now = _clock.UtcNow;
 
-            var jobIds = _selectJobsBatchCommand.GetRows(
-                reader => reader.GetInt32(0));
+            // Background lane: an extremely-low-priority job is only released once the queue has been
+            // free of any higher-priority work for the whole grace period, so it stays off the hot
+            // path during bursts. The grace timer is stamped (below) from any dequeued batch that
+            // carries higher-priority work — that's the signal foreground work is flowing. The
+            // anti-starvation threshold lets a job that has waited too long run regardless.
+            var allowExtremelyLow =
+                _higherPriorityActivitySeenAt is null
+                || now - _higherPriorityActivitySeenAt.Value >= _config.ExtremelyLowPriorityIdleGracePeriod;
 
-            if (jobIds.Count == 0)
+            var selected = SelectEligibleJobs(allowExtremelyLow);
+
+            if (selected.Count == 0)
                 return [];
+
+            var hasHigherPriorityWork = selected
+                .Any(job => job.Priority < QueueJobPriority.ExtremelyLow);
+
+            if (hasHigherPriorityWork)
+                _higherPriorityActivitySeenAt = now;
+
+            // Race: the grace window was open, but this very batch revealed that fresh foreground work
+            // has just arrived. Drop it and re-select with the lane now closed, so we don't dispatch
+            // extremely-low jobs alongside the new higher-priority work at the start of a burst.
+            if (allowExtremelyLow && hasHigherPriorityWork)
+            {
+                selected = SelectEligibleJobs(allowExtremelyLow: false);
+
+                if (selected.Count == 0)
+                    return [];
+            }
+
+            var jobIds = selected
+                .Select(job => job.Id)
+                .ToList();
 
             // Step 2 — mark exactly those ids as Processing. The write-lock is held only for this
             // tiny UPDATE keyed by primary id (O(batchSize)), not for the heavy scan above.
@@ -342,6 +370,23 @@ public sealed class QueueProducer : BackgroundService
                 FailedRetriesCount: reader.GetInt32(6),
                 SoftRetriesLeft: reader.GetInt32OrNull(7),
                 BatchId: reader.GetGuidOrNull(8)));
+
+            List<(int Id, int Priority)> SelectEligibleJobs(bool allowExtremelyLow)
+            {
+                _selectJobsBatchCommand.Parameters.Clear();
+                _selectJobsBatchCommand.WithParameter("$pendingStatus", QueueStatus.Pending);
+                _selectJobsBatchCommand.WithParameter("$now", now);
+                _selectJobsBatchCommand.WithParameter("$batchSize", _config.QueueProcessingBatchSize);
+                _selectJobsBatchCommand.WithParameter("$dbOnlyCapacity", capacitySnapshot.DbOnlyJobs);
+                _selectJobsBatchCommand.WithParameter("$normalCapacity", capacitySnapshot.NormalJobs);
+                _selectJobsBatchCommand.WithParameter("$longRunningCapacity", capacitySnapshot.LongRunningJobs);
+                _selectJobsBatchCommand.WithParameter("$extremelyLowPriority", QueueJobPriority.ExtremelyLow);
+                _selectJobsBatchCommand.WithParameter("$allowExtremelyLow", allowExtremelyLow ? 1 : 0);
+                _selectJobsBatchCommand.WithParameter("$antiStarvationThreshold", now - _config.ExtremelyLowPriorityMaxWait);
+
+                return _selectJobsBatchCommand.GetRows(
+                    reader => (Id: reader.GetInt32(0), Priority: reader.GetInt32(1)));
+            }
         }
         catch (Exception e)
         {
@@ -364,6 +409,8 @@ public sealed class QueueProducer : BackgroundService
                 SELECT
                     q_id,
                     q_job_category,
+                    q_job_priority,
+                    q_execute_after_date,
                     ROW_NUMBER() OVER (
                         PARTITION BY q_job_category
                         ORDER BY q_job_priority ASC
@@ -374,18 +421,23 @@ public sealed class QueueProducer : BackgroundService
                     AND q_execute_after_date <= $now
             ),
             eligible_jobs AS (
-                SELECT q_id
+                SELECT q_id, q_job_priority
                 FROM ranked_jobs
                 WHERE category_rank <= CASE q_job_category
-                    WHEN 0 THEN $dbOnlyCapacity
-                    WHEN 1 THEN $normalCapacity
-                    WHEN 2 THEN $longRunningCapacity
-                    ELSE 0
-                END
+                        WHEN 0 THEN $dbOnlyCapacity
+                        WHEN 1 THEN $normalCapacity
+                        WHEN 2 THEN $longRunningCapacity
+                        ELSE 0
+                    END
+                    AND (
+                        q_job_priority < $extremelyLowPriority
+                        OR $allowExtremelyLow = 1
+                        OR q_execute_after_date <= $antiStarvationThreshold
+                    )
             )
-            SELECT q_id
+            SELECT q_id, q_job_priority
             FROM (
-                SELECT q_id, ROW_NUMBER() OVER (ORDER BY q_id) as overall_rank
+                SELECT q_id, q_job_priority, ROW_NUMBER() OVER (ORDER BY q_id) as overall_rank
                 FROM eligible_jobs
             ) ranked
             WHERE overall_rank <= $batchSize

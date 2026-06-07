@@ -6,7 +6,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { ImageDimensionsPolicyDto, TrashPolicyDto, WorkspacesApi } from '../../services/workspaces.api';
+import { BatchProgress, ImageDimensionsPolicyDto, TrashPolicyDto, WorkspacesApi } from '../../services/workspaces.api';
+import { BatchProgressComponent } from '../../shared/batch-progress/batch-progress.component';
 import { DataStore } from '../../services/data-store.service';
 import { AuthService } from '../../services/auth.service';
 import { WorkspaceContextService } from '../workspace-context.service';
@@ -36,7 +37,8 @@ import { AppCapabilitiesService } from '../../services/app-capabilities.service'
         TrashPolicyConfigComponent,
         ImageDimensionsPolicyConfigComponent,
         ConfigCardComponent,
-        ActionTextButtonComponent
+        ActionTextButtonComponent,
+        BatchProgressComponent
     ],
     templateUrl: './workspace-config.component.html',
     styleUrl: './workspace-config.component.scss'
@@ -48,6 +50,12 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
     public maxTeamMembers = signal<number|null>(null);
     public trashPolicy = signal<TrashPolicyDto|null>(null);
     public imageDimensionsPolicy = signal<ImageDimensionsPolicyDto|null>(null);
+
+    // Live progress of the image-dimensions backfill batch (null = nothing running). Sourced from
+    // the server (queue), so it survives reloads and shows to any user viewing these settings.
+    public backfillProgress = signal<BatchProgress | null>(null);
+    private _backfillBatchId: string | null = null;
+    private _backfillUnsub: (() => void) | null = null;
 
     private _capabilities = inject(AppCapabilitiesService);
     public isFfmpegAvailable = computed(() => this._capabilities.capabilities().isFfmpegAvailable);
@@ -127,6 +135,56 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
 
     ngOnDestroy(): void {
         this._routerSubscription?.unsubscribe();
+        this.stopBackfillTracking();
+    }
+
+    private async loadBackfillStatus(workspaceExternalId: string) {
+        try {
+            const status = await this._workspacesApi.getImageDimensionsBackfillStatus(
+                workspaceExternalId);
+
+            if (status.batchId) {
+                this.startBackfillTracking(workspaceExternalId, status.batchId, status);
+            } else {
+                this.stopBackfillTracking();
+            }
+        } catch (err) {
+            console.error('Failed to load image-dimensions backfill status', err);
+        }
+    }
+
+    private startBackfillTracking(
+        workspaceExternalId: string,
+        batchId: string,
+        initial: BatchProgress) {
+
+        // Already streaming this batch — just refresh the snapshot, don't reopen the SSE.
+        if (this._backfillBatchId === batchId) {
+            this.backfillProgress.set(initial);
+            return;
+        }
+
+        this.stopBackfillTracking();
+
+        this._backfillBatchId = batchId;
+        this.backfillProgress.set(initial);
+
+        this._backfillUnsub = this._workspacesApi.subscribeImageDimensionsBatch(
+            workspaceExternalId,
+            batchId,
+            progress => {
+                this.backfillProgress.set(progress);
+
+                if (progress.pending === 0)
+                    this.stopBackfillTracking();
+            });
+    }
+
+    private stopBackfillTracking() {
+        this._backfillUnsub?.();
+        this._backfillUnsub = null;
+        this._backfillBatchId = null;
+        this.backfillProgress.set(null);
     }
 
     private async load() {
@@ -153,8 +211,9 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
             this.trashPolicy.set(workspace.trashPolicy);
             this.imageDimensionsPolicy.set(workspace.mediaProcessingPolicy.imageDimensions);
 
-            // Fire-and-forget; the chip pops in once it resolves. Errors are logged, not surfaced.
+            // Fire-and-forget; the chip / bar pop in once they resolve. Errors are logged, not surfaced.
             this.loadAuditLogSummary(workspaceExternalId);
+            this.loadBackfillStatus(workspaceExternalId);
         } catch (error) {
             console.error('Failed to load workspace configuration', error);
         } finally {
@@ -288,8 +347,90 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
 
     private _imageDimensionsPolicyDebouncer = new Debouncer(500);
     onImageDimensionsPolicyChange(event: ImageDimensionsPolicyConfigChangedEvent) {
-        this.imageDimensionsPolicy.set(event.imageDimensions);
+        const previous = this.imageDimensionsPolicy();
+        const next = event.imageDimensions;
+
+        const wasEnabled = !!previous?.extractOnUpload;
+        const willEnable = next.extractOnUpload;
+
+        if (willEnable && !wasEnabled) {
+            this.confirmEnableImageDimensions(next);
+        } else if (!willEnable && wasEnabled) {
+            this.confirmDisableImageDimensions(next);
+        } else {
+            this.applyImageDimensionsPolicy(next);
+        }
+    }
+
+    private async confirmEnableImageDimensions(next: ImageDimensionsPolicyDto) {
+        const workspaceExternalId = this._currentWorkspaceExternalId;
+        if (!workspaceExternalId) return;
+
+        let count = 0;
+
+        try {
+            const result = await this._workspacesApi.getImageDimensionsBackfillCount(workspaceExternalId);
+            count = result.fileCount;
+        } catch (err) {
+            console.error('Failed to count images to backfill', err);
+        }
+
+        // No existing images to process — enabling still applies to future uploads, so just do it.
+        if (count === 0) {
+            this.applyImageDimensionsPolicy(next);
+            return;
+        }
+
+        this._genericDialog.openGenericMessageDialog({
+            title: 'Extract image dimensions?',
+            message: `Image dimensions will be extracted for ${count} existing image(s) in this workspace `
+                + 'now, and for every image uploaded from now on.',
+            confirmButtonText: 'Extract dimensions',
+            showCancelButton: true,
+            cancelButtonText: 'Cancel'
+        }).subscribe(confirmed => {
+            if (confirmed) {
+                this.applyImageDimensionsPolicy(next);
+            } else {
+                this.revertImageDimensionsPolicy();
+            }
+        });
+    }
+
+    private confirmDisableImageDimensions(next: ImageDimensionsPolicyDto) {
+        const hasActiveBackfill = this.backfillProgress() !== null;
+
+        const message = hasActiveBackfill
+            ? 'Disabling will cancel image-dimension extraction for any images not yet processed. '
+                + 'Dimensions already extracted are kept.'
+            : 'New uploads will no longer have their image dimensions extracted.';
+
+        this._genericDialog.openGenericMessageDialog({
+            title: 'Disable image dimensions?',
+            message,
+            confirmButtonText: 'Disable',
+            showCancelButton: true,
+            cancelButtonText: 'Keep enabled',
+            isDanger: hasActiveBackfill
+        }).subscribe(confirmed => {
+            if (confirmed) {
+                this.applyImageDimensionsPolicy(next);
+            } else {
+                this.revertImageDimensionsPolicy();
+            }
+        });
+    }
+
+    private applyImageDimensionsPolicy(next: ImageDimensionsPolicyDto) {
+        this.imageDimensionsPolicy.set(next);
         this._imageDimensionsPolicyDebouncer.debounceAsync(() => this.saveImageDimensionsPolicy());
+    }
+
+    private revertImageDimensionsPolicy() {
+        // The parent signal still holds the old value (we never set the new one). Push a fresh
+        // object reference so the child dropdown re-inits and snaps back to it.
+        const current = this.imageDimensionsPolicy();
+        this.imageDimensionsPolicy.set(current ? { ...current } : current);
     }
 
     private async saveImageDimensionsPolicy(){
@@ -303,9 +444,24 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
         try {
             this.isLoading.set(true);
 
-            await this._workspacesApi.updateImageDimensionsPolicy(
+            const response = await this._workspacesApi.updateImageDimensionsPolicy(
                 this._currentWorkspaceExternalId,
                 { extractOnUpload: policy.extractOnUpload });
+
+            if (response.batchId) {
+                this.startBackfillTracking(
+                    this._currentWorkspaceExternalId,
+                    response.batchId,
+                    {
+                        total: response.totalFiles,
+                        completed: 0,
+                        failed: 0,
+                        pending: response.totalFiles
+                    });
+            } else if (!policy.extractOnUpload) {
+                // Disabling cancels any running backfill server-side — drop the bar.
+                this.stopBackfillTracking();
+            }
 
             const workspace = await this
                 ._workspacesApi

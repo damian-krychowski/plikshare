@@ -10,6 +10,7 @@ using PlikShare.Workspaces.Members.CreateInvitation.Contracts;
 using PlikShare.Workspaces.Members.List.Contracts;
 using PlikShare.Workspaces.Members.UpdatePermissions.Contracts;
 using PlikShare.Workspaces.SearchFilesTree.Contracts;
+using PlikShare.Workspaces.UpdateImageDimensionsPolicy.Contracts;
 using PlikShare.Workspaces.UpdateName.Contracts;
 using PlikShare.Workspaces.UpdateTrashPolicy.Contracts;
 
@@ -90,6 +91,25 @@ public class WorkspacesApi(IFlurlClient flurlClient, string appUrl)
             request: request,
             cookie: cookie,
             antiforgery: antiforgery);
+    }
+
+    public async Task<UpdateWorkspaceImageDimensionsPolicyResponseDto> UpdateImageDimensionsPolicy(
+        WorkspaceExtId externalId,
+        bool extractOnUpload,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery,
+        Cookie? workspaceEncryptionSession = null)
+    {
+        return await flurlClient.ExecutePatch<UpdateWorkspaceImageDimensionsPolicyResponseDto, UpdateWorkspaceImageDimensionsPolicyDto>(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{externalId.Value}/media-processing-policy/image-dimensions",
+            request: new UpdateWorkspaceImageDimensionsPolicyDto
+            {
+                ExtractOnUpload = extractOnUpload
+            },
+            cookie: cookie,
+            antiforgery: antiforgery,
+            extraCookie: workspaceEncryptionSession);
     }
 
     public async Task<CreateWorkspaceMemberInvitationResponseDto> InviteMember(

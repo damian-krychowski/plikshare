@@ -2,6 +2,7 @@ using Flurl.Http;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Folders.Id;
+using PlikShare.MediaProcessing.Dimensions.Contracts;
 using PlikShare.MediaProcessing.Generation.Contracts;
 using PlikShare.Workspaces.Id;
 
@@ -212,6 +213,37 @@ public class MediaProcessingApi(IFlurlClient flurlClient, string appUrl)
 
             await Task.Delay(pollIntervalMs);
         }
+    }
+
+    /// <summary>
+    /// How many existing images a backfill would process (images without dimensions metadata).
+    /// </summary>
+    public Task<ImageDimensionsBackfillCountResponseDto> CountImageDimensionsBackfill(
+        WorkspaceExtId workspaceExternalId,
+        SessionAuthCookie? cookie,
+        Cookie? workspaceEncryptionSession = null)
+    {
+        return flurlClient.ExecuteGet<ImageDimensionsBackfillCountResponseDto>(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/media/image-dimensions/backfill/count",
+            cookie: cookie,
+            extraCookie: workspaceEncryptionSession);
+    }
+
+    /// <summary>
+    /// Server-discovered status of the workspace's in-progress image-dimensions backfill. BatchId is
+    /// null (and counts zero) when nothing is running.
+    /// </summary>
+    public Task<ImageDimensionsBackfillStatusResponseDto> GetImageDimensionsBackfillStatus(
+        WorkspaceExtId workspaceExternalId,
+        SessionAuthCookie? cookie,
+        Cookie? workspaceEncryptionSession = null)
+    {
+        return flurlClient.ExecuteGet<ImageDimensionsBackfillStatusResponseDto>(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/media/image-dimensions/backfill",
+            cookie: cookie,
+            extraCookie: workspaceEncryptionSession);
     }
 
     /// <summary>

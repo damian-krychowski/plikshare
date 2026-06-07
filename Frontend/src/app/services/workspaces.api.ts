@@ -50,6 +50,30 @@ export interface UpdateWorkspaceImageDimensionsPolicyRequest {
     extractOnUpload: boolean;
 }
 
+export interface UpdateWorkspaceImageDimensionsPolicyResponse {
+    batchId: string | null;
+    totalFiles: number;
+}
+
+export interface ImageDimensionsBackfillStatus {
+    batchId: string | null;
+    total: number;
+    completed: number;
+    failed: number;
+    pending: number;
+}
+
+export interface BatchProgress {
+    total: number;
+    completed: number;
+    failed: number;
+    pending: number;
+}
+
+export interface ImageDimensionsBackfillCount {
+    fileCount: number;
+}
+
 export interface WorkspaceIntegrations {
     textract: TextractIntegration | null;
     chatGpt: ChatGptIntegration[];
@@ -320,17 +344,71 @@ export class WorkspacesApi {
     public async updateImageDimensionsPolicy(
         externalId: string,
         request: UpdateWorkspaceImageDimensionsPolicyRequest
-    ): Promise<void> {
+    ): Promise<UpdateWorkspaceImageDimensionsPolicyResponse> {
         const call = this
             ._http
-            .patch(
+            .patch<UpdateWorkspaceImageDimensionsPolicyResponse>(
                 `/api/workspaces/${externalId}/media-processing-policy/image-dimensions`, request, {
                 headers: new HttpHeaders({
                     'Content-Type': 'application/json'
                 })
             });
 
-        await firstValueFrom(call);
+        return await firstValueFrom(call);
+    }
+
+    // The backfill batchId lives on the queue jobs (server-side), so anyone opening the workspace
+    // settings — and the same user after a reload — discovers an in-progress backfill here.
+    // batchId is null when nothing is running.
+    public async getImageDimensionsBackfillStatus(
+        externalId: string
+    ): Promise<ImageDimensionsBackfillStatus> {
+        const call = this
+            ._http
+            .get<ImageDimensionsBackfillStatus>(
+                `/api/workspaces/${externalId}/media/image-dimensions/backfill`);
+
+        return await firstValueFrom(call);
+    }
+
+    // How many existing images a backfill would process — drives the "extract for N images"
+    // confirmation dialog before the policy is turned on.
+    public async getImageDimensionsBackfillCount(
+        externalId: string
+    ): Promise<ImageDimensionsBackfillCount> {
+        const call = this
+            ._http
+            .get<ImageDimensionsBackfillCount>(
+                `/api/workspaces/${externalId}/media/image-dimensions/backfill/count`);
+
+        return await firstValueFrom(call);
+    }
+
+    // SSE: server pushes {total, completed, failed, pending} on every batch change and closes once
+    // Pending hits 0. Returns an unsubscribe that closes the connection.
+    public subscribeImageDimensionsBatch(
+        externalId: string,
+        batchId: string,
+        onProgress: (progress: BatchProgress) => void
+    ): () => void {
+        const eventSource = new EventSource(
+            `/api/workspaces/${externalId}/media/image-dimensions/batches/${batchId}/events`,
+            { withCredentials: true }
+        );
+
+        eventSource.onmessage = (event) => {
+            try {
+                onProgress(JSON.parse(event.data));
+            } catch (err) {
+                console.error('Failed to parse image-dimensions batch event:', err);
+            }
+        };
+
+        eventSource.onerror = () => {
+            // EventSource reconnects on its own; the caller closes us once the batch is terminal.
+        };
+
+        return () => eventSource.close();
     }
 
     public async createWorkspace(request: CreateWorkspaceRequest): Promise<CreateWorkspaceResponse> {

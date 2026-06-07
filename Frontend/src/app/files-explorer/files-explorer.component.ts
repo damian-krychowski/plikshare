@@ -758,10 +758,6 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         private _capabilities: AppCapabilitiesService,
         private _elementRef: ElementRef<HTMLElement>) {
 
-        // App-wide capability flag (drives the bulk "Generate thumbnails" action) — first consumer
-        // triggers the fetch, others reuse it.
-        this._capabilities.ensureLoaded();
-
         effect(() => {
             const key = this.sortStorageKey();
             const stored = (!this.disablePreferencePersistence() && key) ? localStorage.getItem(key) : null;
@@ -864,6 +860,14 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     }
 
     ngOnInit(): void {
+        // App-wide capability flag (drives the bulk "Generate thumbnails" action). Only fetched
+        // when the host can manage media — /api/app-capabilities is internal-only, so embedded
+        // contexts (box-widget / external) would otherwise 401 on it. filesApi (a required input)
+        // is available here in ngOnInit but not in the constructor.
+        if (this.filesApi().isMediaSectionAvailable) {
+            this._capabilities.ensureLoaded();
+        }
+
         // Restore the list/tree view from the URL on load (survives refresh).
         // Guarded by syncViewModeToUrl so embedded instances ignore the page's
         // query params.
