@@ -82,7 +82,8 @@ public class MarkFileAsUploadedAndDeleteUploadQuery(
                             }
                             : null,
                         EncryptionSeed: encryptionSeed),
-                    transaction: transaction)
+                    transaction: transaction,
+                    name: "upload.mark_uploaded.mark_file")
                 .WithParameter("$fileExternalId", fileExternalId.Value)
                 .Execute();
 
@@ -108,7 +109,8 @@ public class MarkFileAsUploadedAndDeleteUploadQuery(
                         WHERE fup_file_upload_id = $fileUploadId
                         RETURNING fup_part_number",
                     readRowFunc: reader => reader.GetInt32(0),
-                    transaction: transaction)
+                    transaction: transaction,
+                    name: "upload.mark_uploaded.delete_parts")
                 .WithParameter("$fileUploadId", fileUploadId)
                 .Execute()
                 .ToList();
@@ -126,7 +128,8 @@ public class MarkFileAsUploadedAndDeleteUploadQuery(
                         WHERE fu_id = $fileUploadId
                         RETURNING fu_id",
                     readRowFunc: reader => reader.GetInt32(0),
-                    transaction: transaction)
+                    transaction: transaction,
+                    name: "upload.mark_uploaded.delete_upload")
                 .WithParameter("$fileUploadId", fileUploadId)
                 .Execute();
 

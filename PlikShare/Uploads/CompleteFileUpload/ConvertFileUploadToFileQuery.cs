@@ -187,7 +187,8 @@ public class ConvertFileUploadToFileQuery(
                     WHERE fu_id = $fileUploadId
                     RETURNING fi_id",
                 readRowFunc: reader => reader.GetInt32(0),
-                transaction: transaction)
+                transaction: transaction,
+                name: "upload.convert.insert_file")
             .WithParameter("$fileUploadId", fileUpload.Id)
             .WithParameter("$createdAt", clock.UtcNow)
             .Execute();
@@ -212,7 +213,8 @@ public class ConvertFileUploadToFileQuery(
                 sql: @"
                     DELETE FROM fup_file_upload_parts
                     WHERE fup_file_upload_id = $fileUploadId",
-                transaction: transaction)
+                transaction: transaction,
+                name: "upload.convert.delete_parts")
             .WithParameter("$fileUploadId", fileUpload.Id)
             .Execute();
 
@@ -223,7 +225,8 @@ public class ConvertFileUploadToFileQuery(
                     WHERE fu_id = $fileUploadId
                     RETURNING fu_id",
                 readRowFunc: reader => reader.GetInt32(0),
-                transaction: transaction)
+                transaction: transaction,
+                name: "upload.convert.delete_upload")
             .WithParameter("$fileUploadId", fileUpload.Id)
             .Execute();
 
@@ -276,7 +279,8 @@ public class ConvertFileUploadToFileQuery(
                     FROM fup_file_upload_parts
                     WHERE fup_file_upload_id = $fileUploadId",
                 readRowFunc: reader => reader.GetInt32(0),
-                transaction: transaction)
+                transaction: transaction,
+                name: "upload.convert.count_parts")
             .WithParameter("$fileUploadId", fileUpload.Id)
             .Execute();
 
@@ -344,7 +348,8 @@ public class ConvertFileUploadToFileQuery(
                     WHERE fu_id = $fileUploadId
                     RETURNING fi_id",
                 readRowFunc: reader => reader.GetInt32(0),
-                transaction: transaction)
+                transaction: transaction,
+                name: "upload.convert.insert_file_multistep")
             .WithParameter("$fileUploadId", fileUpload.Id)
             .WithParameter("$createdAt", clock.UtcNow)
             .Execute();
@@ -380,7 +385,8 @@ public class ConvertFileUploadToFileQuery(
                     WHERE fu_id = $fileUploadId
                     RETURNING fu_id",
                 readRowFunc: reader => reader.GetInt32(0),
-                transaction: transaction)
+                transaction: transaction,
+                name: "upload.convert.mark_completed")
             .WithParameter("$fileUploadId", fileUpload.Id)
             .Execute();
 

@@ -80,7 +80,8 @@ public class GetFilePreSignedDownloadLinkDetailsQuery(PlikShareDb plikShareDb)
                             },
                         FolderAncestors = reader.GetFromJsonOrNull<FileRecordFolderAncestor[]>(11, workspaceEncryptionSession) ?? []
                     };
-                })
+                },
+                name: "download.presigned_link_details")
             .WithParameter("$externalId", fileExternalId.Value)
             .Execute();
 

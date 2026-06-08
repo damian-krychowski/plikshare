@@ -180,7 +180,8 @@ public class InsertAndFinalizeThumbnailQuery(
                         fi_external_id
                      """,
                 readRowFunc: reader => reader.GetString(0),
-                transaction: transaction)
+                transaction: transaction,
+                name: "media.thumbnail.insert_bulk")
             .WithJsonParameter("$files", fileEntities)
             .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$uploaderIdentityType", uploader.IdentityType)
@@ -363,7 +364,8 @@ public class InsertAndFinalizeThumbnailQuery(
                         Id = reader.GetInt32(0),
                         ParentId = reader.GetInt32OrNull(1)
                     },
-                    transaction: transaction)
+                    transaction: transaction,
+                    name: "media.thumbnail.insert_one")
                 .WithParameter("$parentExternalId", parentFileExternalId.Value)
                 .WithParameter("$workspaceId", workspace.Id)
                 .WithParameter("$externalId", attachment.ExternalId.Value)

@@ -47,7 +47,8 @@ public class InsertFileUploadPartQuery(
                         )
                         RETURNING
                             fup_file_upload_id",
-                    readRowFunc: reader => reader.GetInt32(0))
+                    readRowFunc: reader => reader.GetInt32(0),
+                    name: "upload.insert_file_upload_part")
                 .WithParameter("$fileUploadId", fileUploadId)
                 .WithParameter("$partNumber", partNumber)
                 .WithParameter("$etag", eTag)
@@ -75,7 +76,7 @@ public class InsertFileUploadPartQuery(
         }
         catch (SqliteException ex) when (ex.HasForeignKeyFailed())
         {
-            Logger.Warning(ex,
+            Logger.Debug(ex,
                 "Foreign Key constraint failed while completing FileUploadPart FileUploadId: '{FileUploadId}' PartNumber: '{PartNumber}'",
                 fileUploadId,
                 partNumber);

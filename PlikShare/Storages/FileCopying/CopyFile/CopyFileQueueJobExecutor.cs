@@ -281,11 +281,12 @@ public class CopyFileQueueJobExecutor(
                                 FormatVersion = reader.GetByteOrNull(20) ?? 1
                             },
                     };
-                })
+                },
+                name: "copy.get_job_details")
             .WithParameter("$jobId", copyFileQueueJobId)
             .Execute();
 
-        return details.IsEmpty 
+        return details.IsEmpty
             ? null 
             : details.Value;
     }
@@ -305,7 +306,8 @@ public class CopyFileQueueJobExecutor(
                             WHERE cfq_id = $jobId
                             RETURNING cfq_id
                         ",
-                        readRowFunc: reader => reader.GetInt32(0))
+                        readRowFunc: reader => reader.GetInt32(0),
+                        name: "copy.mark_uploading")
                     .WithParameter("$jobId", copyFileQueueJobId)
                     .WithEnumParameter("$uploadingStatus", CopyFileQueueStatus.Uploading)
                     .Execute();

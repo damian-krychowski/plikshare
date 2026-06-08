@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
@@ -64,26 +66,48 @@ public static class SqLiteCommandExtensions
 
     public static List<TRow> GetRows<TRow>(
         this SqliteCommand command,
-        Func<SqliteDataReader, TRow> readRowFunc)
+        Func<SqliteDataReader, TRow> readRowFunc,
+        string? name = null,
+        [CallerFilePath] string? callerFilePath = null,
+        [CallerMemberName] string? callerMember = null)
     {
-        using var reader = command.ExecuteReader();
+        var startTimestamp = Stopwatch.GetTimestamp();
+        var rows = 0;
+        var success = false;
 
-        if (!reader.HasRows)
+        try
         {
+            using var reader = command.ExecuteReader();
+
+            if (!reader.HasRows)
+            {
+                reader.Close();
+                success = true;
+                return [];
+            }
+
+            var results = new List<TRow>();
+
+            while (reader.Read())
+            {
+                var row = readRowFunc(reader);
+                results.Add(row);
+            }
+
             reader.Close();
-            return [];
+
+            rows = results.Count;
+            success = true;
+            return results;
         }
-
-        var results = new List<TRow>();
-
-        while (reader.Read())
+        finally
         {
-            var row = readRowFunc(reader);
-            results.Add(row);
+            SqliteQueryMetrics.Record(
+                source: SqliteQueryMetrics.ResolveSource(name, callerFilePath, callerMember),
+                kind: SqliteQueryMetrics.KindRows,
+                startTimestamp: startTimestamp,
+                rows: rows,
+                success: success);
         }
-
-        reader.Close();
-
-        return results;
     }
 }

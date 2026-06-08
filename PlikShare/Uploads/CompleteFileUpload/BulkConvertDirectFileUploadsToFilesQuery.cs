@@ -116,6 +116,7 @@ public class BulkConvertDirectFileUploadsToFilesQuery(
                     seed: new InsertedFilesAcc(
                         CreatedFiles: [],
                         Count: 0),
+                    name: "upload.bulk_convert.insert_files",
                     aggregateRowFunc: (acc, reader) =>
                     {
                         if (reader.IsDBNull(0))
@@ -175,7 +176,8 @@ public class BulkConvertDirectFileUploadsToFilesQuery(
                         )
                         RETURNING fu_id",
                     readRowFunc: reader => reader.GetInt32(0),
-                    transaction: transaction)
+                    transaction: transaction,
+                    name: "upload.bulk_convert.delete_uploads")
                 .WithJsonParameter("$fileUploadIds", fileUploadIds)
                 .Execute();
 

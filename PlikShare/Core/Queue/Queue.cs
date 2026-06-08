@@ -401,7 +401,8 @@ public class Queue(
                             RETURNING
                                 q_id
                         ",
-                            readRowFunc: reader => reader.GetInt32(0))
+                            readRowFunc: reader => reader.GetInt32(0),
+                            name: "queue.mark_failed")
                         .WithParameter("$now", clock.UtcNow)
                         .WithParameter("$jobId", job.Id)
                         .WithParameter("$failedRetriesCount", job.FailedRetriesCount + 1)
@@ -466,7 +467,8 @@ public class Queue(
                                 RETURNING
                                     q_id
                             ",
-                            readRowFunc: reader => reader.GetInt32(0))
+                            readRowFunc: reader => reader.GetInt32(0),
+                            name: "queue.schedule_retry")
                         .WithParameter("$nextAttemptDate", nextAttemptDate)
                         .WithParameter("$jobId", job.Id)
                         .WithParameter("$failedRetriesCount", job.FailedRetriesCount + 1)
@@ -684,7 +686,8 @@ public class Queue(
                     RETURNING q_id
                 ",
                 readRowFunc: reader => reader.GetInt32(0),
-                transaction: transaction)
+                transaction: transaction,
+                name: "queue.soft_retry")
             .WithParameter("$jobId", jobId)
             .WithParameter("$pendingStatus", QueueStatus.Pending)
             .WithParameter("$executeAfterDate", clock.UtcNow.Add(delay))
@@ -715,7 +718,8 @@ public class Queue(
                     RETURNING q_id
                 ",
                 readRowFunc: reader => reader.GetInt32(0),
-                transaction: transaction)
+                transaction: transaction,
+                name: "queue.soft_retry_exhausted")
             .WithParameter("$jobId", jobId)
             .WithParameter("$now", clock.UtcNow)
             .Execute();
@@ -742,7 +746,8 @@ public class Queue(
                     RETURNING q_id
                 ",
                 readRowFunc: reader => reader.GetInt32(0),
-                transaction: transaction)
+                transaction: transaction,
+                name: "queue.mark_blocked")
             .WithParameter("$jobId", jobId)
             .WithParameter("$blockedStatus", QueueStatus.Blocked)
             .Execute();
@@ -800,7 +805,8 @@ public class Queue(
                         qc_id
                 ",
                 readRowFunc: reader => reader.GetInt32(0),
-                transaction: transaction)
+                transaction: transaction,
+                name: "queue.mark_completed.insert")
             .WithParameter("$jobId", jobId)
             .WithParameter("$completedAt", clock.UtcNow)
             .WithParameter("$result", resultJson)
@@ -815,15 +821,16 @@ public class Queue(
         var deleteQueueJobResult = dbWriteContext
             .OneRowCmd(
                 sql: @"
-                    DELETE FROM 
+                    DELETE FROM
                         q_queue
-                    WHERE 
+                    WHERE
                         q_id = $jobId
                     RETURNING
                         q_id
                 ",
                 readRowFunc: reader => reader.GetInt32(0),
-                transaction: transaction)
+                transaction: transaction,
+                name: "queue.mark_completed.delete")
             .WithParameter("$jobId", jobId)
             .Execute();
 

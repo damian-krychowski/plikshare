@@ -151,7 +151,8 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
                     Id = reader.GetInt32(0),
                     ExternalId = reader.GetExtId<FileUploadExtId>(1)
                 },
-                transaction: transaction)
+                transaction: transaction,
+                name: "upload.bulk_insert_file_uploads")
             .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$ownerIdentityType", userIdentity.IdentityType)
             .WithParameter("$ownerIdentity", userIdentity.Identity)

@@ -89,7 +89,8 @@ public class GetThumbnailableSelectionFilesQuery(PlikShareDb plikShareDb)
                     return new CountResult(
                         FilesCount: acc.FilesCount + 1,
                         TotalSizeInBytes: acc.TotalSizeInBytes + reader.GetInt64(1));
-                })
+                },
+                name: "media.thumbnailable_files.count")
             .WithParameter("$workspaceId", workspace.Id)
             .WithJsonParameter("$selectedFileExternalIds", selectedFiles)
             .WithJsonParameter("$folderIds", folderIds)
@@ -192,7 +193,8 @@ public class GetThumbnailableSelectionFilesQuery(PlikShareDb plikShareDb)
                     });
 
                     return acc;
-                })
+                },
+                name: "media.thumbnailable_files.fetch")
             .WithParameter("$workspaceId", workspace.Id)
             .WithJsonParameter("$selectedFileExternalIds", selectedFiles)
             .WithJsonParameter("$folderIds", folderIds)
@@ -226,7 +228,8 @@ public class GetThumbnailableSelectionFilesQuery(PlikShareDb plikShareDb)
                 {
                     Id = reader.GetInt32(0),
                     ExternalId = reader.GetString(1)
-                })
+                },
+                name: "media.thumbnailable_files.resolve_request_folders")
             .WithParameter("$workspaceId", workspace.Id)
             .WithJsonParameter("$selectedFolderExternalIds", selectedFolders)
             .WithJsonParameter("$excludedFolderExternalIds", excludedFolders)
@@ -266,7 +269,8 @@ public class GetThumbnailableSelectionFilesQuery(PlikShareDb plikShareDb)
                              )
                          )
                      """,
-                readRowFunc: reader => reader.GetInt32(0))
+                readRowFunc: reader => reader.GetInt32(0),
+                name: "media.thumbnailable_files.resolve_descendants")
             .WithParameter("$workspaceId", workspace.Id)
             .WithJsonParameter("$selectedFolderIds", selectedFolderIds)
             .WithJsonParameter("$excludedFolderIds", excludedFolderIds)

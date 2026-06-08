@@ -88,7 +88,18 @@ public sealed class SqliteWriteQueueMetrics : IDisposable
             new KeyValuePair<string, object?>("outcome", success ? "success" : "error"));
     }
 
+    private static readonly ConcurrentDictionary<(string?, string?), string> SourceCache = new();
+
     public static string BuildSource(
+        string? callerFilePath,
+        string? callerMember)
+    {
+        return SourceCache.GetOrAdd(
+            (callerFilePath, callerMember),
+            static key => BuildSourceCore(key.Item1, key.Item2));
+    }
+
+    private static string BuildSourceCore(
         string? callerFilePath,
         string? callerMember)
     {

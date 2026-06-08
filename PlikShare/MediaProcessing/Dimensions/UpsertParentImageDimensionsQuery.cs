@@ -57,7 +57,8 @@ public class UpsertParentImageDimensionsQuery(DbWriteQueue dbWriteQueue)
                        AND fi_files.fi_deleted_at IS NULL
                      RETURNING fi_id
                      """,
-                readRowFunc: reader => reader.GetInt32(0))
+                readRowFunc: reader => reader.GetInt32(0),
+                name: "media.upsert_parent_image_dimensions")
             .WithJsonParameter("$items", entities)
             .WithParameter("$workspaceId", workspace.Id)
             .Execute();

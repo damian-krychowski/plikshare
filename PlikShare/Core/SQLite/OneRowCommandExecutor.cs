@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Encryption;
@@ -14,14 +16,17 @@ public class SQLiteOneRowCommandExecutor<TRow>
     private readonly Func<SqliteDataReader, TRow> _readRowFunc;
     private readonly SqliteCommand _command;
     private readonly bool _shouldDispose;
+    private readonly string _source;
 
     public SQLiteOneRowCommandExecutor(
         string commandText,
         Func<SqliteDataReader, TRow> readRowFunc,
         LazySqLiteCommandsPool commandsPool,
+        string source,
         SqliteTransaction? transaction = null)
     {
         _readRowFunc = readRowFunc;
+        _source = source;
 
         _command = commandsPool.GetOrCreate(commandText);
         _command.Transaction = transaction;
@@ -31,10 +36,12 @@ public class SQLiteOneRowCommandExecutor<TRow>
     public SQLiteOneRowCommandExecutor(
         string commandText,
         Func<SqliteDataReader, TRow> readRowFunc,
-        SqliteConnection connection, 
+        SqliteConnection connection,
+        string source,
         SqliteTransaction? transaction = null)
     {
         _readRowFunc = readRowFunc;
+        _source = source;
 
         _command = connection.CreateCommand();
         _command.Transaction = transaction;
@@ -91,19 +98,24 @@ public class SQLiteOneRowCommandExecutor<TRow>
     {
         var result = Execute();
 
-        return result.IsEmpty 
-            ? valueIfEmpty 
+        return result.IsEmpty
+            ? valueIfEmpty
             : result.Value;
     }
 
     public SQLiteOneRowCommandResult<TRow> Execute()
     {
+        var startTimestamp = Stopwatch.GetTimestamp();
+        var rows = 0;
+        var success = false;
+
         try
         {
             using var reader = _command.ExecuteReader();
 
             if (!reader.HasRows)
             {
+                success = true;
                 return new SQLiteOneRowCommandResult<TRow>(
                     IsEmpty: true,
                     Value: default!);
@@ -112,12 +124,21 @@ public class SQLiteOneRowCommandExecutor<TRow>
             reader.Read();
             var row = _readRowFunc(reader);
 
+            rows = 1;
+            success = true;
             return new SQLiteOneRowCommandResult<TRow>(
                 IsEmpty: false,
                 Value: row);
         }
         finally
         {
+            SqliteQueryMetrics.Record(
+                source: _source,
+                kind: SqliteQueryMetrics.KindOneRow,
+                startTimestamp: startTimestamp,
+                rows: rows,
+                success: success);
+
             if (_shouldDispose)
             {
                 _command.Dispose();
@@ -129,16 +150,20 @@ public class SQLiteOneRowCommandExecutor<TRow>
 public static class SQLiteOneRowCommandExecutorExtensions
 {
     public static SQLiteOneRowCommandExecutor<TRow> OneRowCmd<TRow>(
-        this SqliteConnection connection, 
+        this SqliteConnection connection,
         string sql,
         Func<SqliteDataReader, TRow> readRowFunc,
-        SqliteTransaction? transaction = null)
+        SqliteTransaction? transaction = null,
+        string? name = null,
+        [CallerFilePath] string? callerFilePath = null,
+        [CallerMemberName] string? callerMember = null)
     {
         var command = new SQLiteOneRowCommandExecutor<TRow>(
             commandText: sql,
             connection: connection,
             transaction: transaction,
-            readRowFunc: readRowFunc);
+            readRowFunc: readRowFunc,
+            source: SqliteQueryMetrics.ResolveSource(name, callerFilePath, callerMember));
 
         return command;
     }
@@ -147,13 +172,17 @@ public static class SQLiteOneRowCommandExecutorExtensions
         this SqliteWriteContext dbWriteQueueContext,
         string sql,
         Func<SqliteDataReader, TRow> readRowFunc,
-        SqliteTransaction? transaction = null)
+        SqliteTransaction? transaction = null,
+        string? name = null,
+        [CallerFilePath] string? callerFilePath = null,
+        [CallerMemberName] string? callerMember = null)
     {
         var command = new SQLiteOneRowCommandExecutor<TRow>(
             commandText: sql,
             commandsPool: dbWriteQueueContext.CommandsPool,
             transaction: transaction,
-            readRowFunc: readRowFunc);
+            readRowFunc: readRowFunc,
+            source: SqliteQueryMetrics.ResolveSource(name, callerFilePath, callerMember));
 
         return command;
     }

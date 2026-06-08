@@ -93,7 +93,8 @@ public class GetFileDetailsQuery(PlikShareDb plikShareDb)
                             },
                         FolderAncestors = reader.GetFromJsonOrNull<FileRecordFolderAncestor[]>(10, workspaceEncryptionSession) ?? []
                     };
-                })
+                },
+                name: "download.file_details")
             .WithParameter("$workspaceId", workspaceId)
             .WithParameter("$fileExternalId", fileExternalId.Value)
             .WithParameter("$boxFolderId", boxFolderId)

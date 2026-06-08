@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Encryption;
@@ -18,16 +20,19 @@ public class SQLiteAggregateCommandExecutor<TAccumulator>
     private readonly Func<TAccumulator, SqliteDataReader, (TAccumulator Accumulator, bool Stop)> _aggregateRowFunc;
     private readonly SqliteCommand _command;
     private readonly bool _shouldDispose;
+    private readonly string _source;
 
     public SQLiteAggregateCommandExecutor(
         string commandText,
         TAccumulator seed,
         Func<TAccumulator, SqliteDataReader, (TAccumulator Accumulator, bool Stop)> aggregateRowFunc,
         LazySqLiteCommandsPool commandsPool,
+        string source,
         SqliteTransaction? transaction = null)
     {
         _seed = seed;
         _aggregateRowFunc = aggregateRowFunc;
+        _source = source;
 
         _command = commandsPool.GetOrCreate(commandText);
         _command.Transaction = transaction;
@@ -39,10 +44,12 @@ public class SQLiteAggregateCommandExecutor<TAccumulator>
         TAccumulator seed,
         Func<TAccumulator, SqliteDataReader, (TAccumulator Accumulator, bool Stop)> aggregateRowFunc,
         SqliteConnection connection,
+        string source,
         SqliteTransaction? transaction = null)
     {
         _seed = seed;
         _aggregateRowFunc = aggregateRowFunc;
+        _source = source;
 
         _command = connection.CreateCommand();
         _command.Transaction = transaction;
@@ -70,6 +77,10 @@ public class SQLiteAggregateCommandExecutor<TAccumulator>
     
     public TAccumulator Execute()
     {
+        var startTimestamp = Stopwatch.GetTimestamp();
+        var rows = 0;
+        var success = false;
+
         try
         {
             using var reader = _command.ExecuteReader();
@@ -79,11 +90,13 @@ public class SQLiteAggregateCommandExecutor<TAccumulator>
             if (!reader.HasRows)
             {
                 reader.Close();
+                success = true;
                 return accumulator;
             }
 
             while (reader.Read())
             {
+                rows++;
                 var (next, stop) = _aggregateRowFunc(accumulator, reader);
                 accumulator = next;
 
@@ -93,10 +106,18 @@ public class SQLiteAggregateCommandExecutor<TAccumulator>
 
             reader.Close();
 
+            success = true;
             return accumulator;
         }
         finally
         {
+            SqliteQueryMetrics.Record(
+                source: _source,
+                kind: SqliteQueryMetrics.KindAggregate,
+                startTimestamp: startTimestamp,
+                rows: rows,
+                success: success);
+
             if (_shouldDispose)
                 _command.Dispose();
         }
@@ -120,12 +141,16 @@ public static class SQLiteAggregateCommandExecutorExtensions
         string sql,
         TAccumulator seed,
         Func<TAccumulator, SqliteDataReader, TAccumulator> aggregateRowFunc,
-        SqliteTransaction? transaction = null)
+        SqliteTransaction? transaction = null,
+        string? name = null,
+        [CallerFilePath] string? callerFilePath = null,
+        [CallerMemberName] string? callerMember = null)
         => new(
             commandText: sql,
             seed: seed,
             aggregateRowFunc: (acc, reader) => (aggregateRowFunc(acc, reader), false),
             connection: connection,
+            source: SqliteQueryMetrics.ResolveSource(name, callerFilePath, callerMember),
             transaction: transaction);
 
     /// <summary>
@@ -141,12 +166,16 @@ public static class SQLiteAggregateCommandExecutorExtensions
         string sql,
         TAccumulator seed,
         Func<TAccumulator, SqliteDataReader, TAccumulator> aggregateRowFunc,
-        SqliteTransaction? transaction = null)
+        SqliteTransaction? transaction = null,
+        string? name = null,
+        [CallerFilePath] string? callerFilePath = null,
+        [CallerMemberName] string? callerMember = null)
         => new(
             commandText: sql,
             seed: seed,
             aggregateRowFunc: (acc, reader) => (aggregateRowFunc(acc, reader), false),
             commandsPool: commandsPool,
+            source: SqliteQueryMetrics.ResolveSource(name, callerFilePath, callerMember),
             transaction: transaction);
 
     /// <summary>
@@ -162,12 +191,16 @@ public static class SQLiteAggregateCommandExecutorExtensions
         string sql,
         TAccumulator seed,
         Func<TAccumulator, SqliteDataReader, TAccumulator> aggregateRowFunc,
-        SqliteTransaction? transaction = null)
+        SqliteTransaction? transaction = null,
+        string? name = null,
+        [CallerFilePath] string? callerFilePath = null,
+        [CallerMemberName] string? callerMember = null)
         => new(
             commandText: sql,
             seed: seed,
             aggregateRowFunc: (acc, reader) => (aggregateRowFunc(acc, reader), false),
             commandsPool: dbWriteContext.CommandsPool,
+            source: SqliteQueryMetrics.ResolveSource(name, callerFilePath, callerMember),
             transaction: transaction);
 
     /// <summary>
@@ -186,12 +219,16 @@ public static class SQLiteAggregateCommandExecutorExtensions
         string sql,
         TAccumulator seed,
         Func<TAccumulator, SqliteDataReader, (TAccumulator Accumulator, bool Stop)> aggregateRowFunc,
-        SqliteTransaction? transaction = null)
+        SqliteTransaction? transaction = null,
+        string? name = null,
+        [CallerFilePath] string? callerFilePath = null,
+        [CallerMemberName] string? callerMember = null)
         => new(
             commandText: sql,
             seed: seed,
             aggregateRowFunc: aggregateRowFunc,
             connection: connection,
+            source: SqliteQueryMetrics.ResolveSource(name, callerFilePath, callerMember),
             transaction: transaction);
 
     /// <summary>
@@ -208,12 +245,16 @@ public static class SQLiteAggregateCommandExecutorExtensions
         string sql,
         TAccumulator seed,
         Func<TAccumulator, SqliteDataReader, (TAccumulator Accumulator, bool Stop)> aggregateRowFunc,
-        SqliteTransaction? transaction = null)
+        SqliteTransaction? transaction = null,
+        string? name = null,
+        [CallerFilePath] string? callerFilePath = null,
+        [CallerMemberName] string? callerMember = null)
         => new(
             commandText: sql,
             seed: seed,
             aggregateRowFunc: aggregateRowFunc,
             commandsPool: commandsPool,
+            source: SqliteQueryMetrics.ResolveSource(name, callerFilePath, callerMember),
             transaction: transaction);
 
     /// <summary>
@@ -230,11 +271,15 @@ public static class SQLiteAggregateCommandExecutorExtensions
         string sql,
         TAccumulator seed,
         Func<TAccumulator, SqliteDataReader, (TAccumulator Accumulator, bool Stop)> aggregateRowFunc,
-        SqliteTransaction? transaction = null)
+        SqliteTransaction? transaction = null,
+        string? name = null,
+        [CallerFilePath] string? callerFilePath = null,
+        [CallerMemberName] string? callerMember = null)
         => new(
             commandText: sql,
             seed: seed,
             aggregateRowFunc: aggregateRowFunc,
             commandsPool: dbWriteContext.CommandsPool,
+            source: SqliteQueryMetrics.ResolveSource(name, callerFilePath, callerMember),
             transaction: transaction);
 }

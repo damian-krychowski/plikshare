@@ -92,7 +92,8 @@ public class FinalizeCopyFileUploadQuery(
                         FileId = reader.GetInt32(0),
                         WorkspaceId = reader.GetInt32(1)
                     },
-                    transaction: transaction)
+                    transaction: transaction,
+                    name: "copy.finalize.insert_file")
                 .WithParameter("$cfqId", copyFileQueueJobId)
                 .WithParameter("$createdAt", clock.UtcNow)
                 .ExecuteOrThrow();
@@ -116,7 +117,8 @@ public class FinalizeCopyFileUploadQuery(
                         CorrelationId = reader.GetGuid(3),
                         FileUploadId = reader.GetInt32(4)
                     },
-                    transaction: transaction)
+                    transaction: transaction,
+                    name: "copy.finalize.delete_cfq")
                 .WithParameter("$cfqId", copyFileQueueJobId)
                 .ExecuteOrThrow();
 
@@ -128,7 +130,8 @@ public class FinalizeCopyFileUploadQuery(
                         RETURNING fup_part_number
                     ",
                     readRowFunc: reader => reader.GetInt32(0),
-                    transaction: transaction)
+                    transaction: transaction,
+                    name: "copy.finalize.delete_parts")
                 .WithParameter("$fileUploadId", deletedCfq.FileUploadId)
                 .Execute();
 
@@ -139,7 +142,8 @@ public class FinalizeCopyFileUploadQuery(
                         WHERE fu_id = $fileUploadId
                         RETURNING fu_id",
                     readRowFunc: reader => reader.GetInt32(0),
-                    transaction: transaction)
+                    transaction: transaction,
+                    name: "copy.finalize.delete_upload")
                 .WithParameter("$fileUploadId", deletedCfq.FileUploadId)
                 .Execute();
 

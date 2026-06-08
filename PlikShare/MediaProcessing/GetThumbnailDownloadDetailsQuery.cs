@@ -117,7 +117,8 @@ public class GetThumbnailDownloadDetailsQuery(PlikShareDb plikShareDb)
                     };
 
                     return (new Result(file, thumbnailMetadata.Etag), true);
-                })
+                },
+                name: "download.thumbnail_details")
             .WithParameter("$parentExternalId", parentFileExternalId.Value)
             .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$boxFolderId", boxFolderId)

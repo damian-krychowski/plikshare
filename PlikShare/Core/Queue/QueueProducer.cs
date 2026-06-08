@@ -228,15 +228,17 @@ public sealed class QueueProducer : BackgroundService
                     JobCategory = (int)_queueJobInfoProvider.GetJobCategory(jobType),
                     JobPriority = _queueJobInfoProvider.GetJobPriority(jobType)
                 };
-            });
+            },
+            name: "queue.delete_completed_sagas");
 
             _insertQueueSagaJobsCommand.Parameters.Clear();
             _insertQueueSagaJobsCommand.WithParameter("$now", _clock.UtcNow);
             _insertQueueSagaJobsCommand.WithJsonParameter("$definitions", sagas);
             _insertQueueSagaJobsCommand.Transaction = transaction;
 
-            var insertedSagaJobs = _insertQueueSagaJobsCommand.GetRows(reader =>
-                reader.GetInt32(0));
+            var insertedSagaJobs = _insertQueueSagaJobsCommand.GetRows(
+                reader => reader.GetInt32(0),
+                name: "queue.insert_saga_jobs");
 
             transaction.Commit();
 
@@ -369,7 +371,8 @@ public sealed class QueueProducer : BackgroundService
                 ExecuteAfterDate: reader.GetFieldValue<DateTimeOffset>(5),
                 FailedRetriesCount: reader.GetInt32(6),
                 SoftRetriesLeft: reader.GetInt32OrNull(7),
-                BatchId: reader.GetGuidOrNull(8)));
+                BatchId: reader.GetGuidOrNull(8)),
+                name: "queue.mark_jobs_processing");
 
             List<(int Id, int Priority)> SelectEligibleJobs(bool allowExtremelyLow)
             {
@@ -385,7 +388,8 @@ public sealed class QueueProducer : BackgroundService
                 _selectJobsBatchCommand.WithParameter("$antiStarvationThreshold", now - _config.ExtremelyLowPriorityMaxWait);
 
                 return _selectJobsBatchCommand.GetRows(
-                    reader => (Id: reader.GetInt32(0), Priority: reader.GetInt32(1)));
+                    reader => (Id: reader.GetInt32(0), Priority: reader.GetInt32(1)),
+                    name: "queue.select_jobs_batch");
             }
         }
         catch (Exception e)
