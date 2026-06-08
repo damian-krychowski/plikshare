@@ -12,7 +12,6 @@ using PlikShare.Uploads.Cache;
 using PlikShare.Uploads.Id;
 using PlikShare.Uploads.Initiate.Contracts;
 using PlikShare.Workspaces.Cache;
-using PlikShare.Workspaces.GetSize;
 using Serilog;
 
 namespace PlikShare.Uploads.Initiate;
@@ -22,7 +21,7 @@ public class BulkInitiateFileUploadOperation(
     FileUploadCache fileUploadCache,
     PreSignedUrlsService preSignedUrlsService,
     BulkInsertFileUploadQuery bulkInsertFileUploadQuery,
-    GetWorkspaceSizeQuery getWorkspaceSizeQuery,
+    WorkspaceSizeCache workspaceSizeCache,
     IMasterDataEncryption masterDataEncryption,
     IClock clock)
 {
@@ -89,7 +88,6 @@ public class BulkInitiateFileUploadOperation(
             userIdentity,
             batchUploadResults,
             folderValidationResults,
-            workspaceSpace.NewWorkspaceSizeInBytes,
             cancellationToken);
 
         if (insertFileUploadsResult.Code == BulkInsertFileUploadQuery.ResultCode.FolderNotFound)
@@ -150,8 +148,8 @@ public class BulkInitiateFileUploadOperation(
         var newFilesSizeInBytes = fileDetailsList
             .Aggregate(0L, (requiredSpace, file) => requiredSpace + file.FileSizeInBytes);
 
-        var workspaceTotalSizeInBytes = getWorkspaceSizeQuery.Execute(
-            workspace);
+        var workspaceTotalSizeInBytes = workspaceSizeCache.Get(
+            workspace.Id);
 
         var newWorkspaceSizeInBytes = workspaceTotalSizeInBytes + newFilesSizeInBytes;
 
@@ -477,7 +475,6 @@ public class BulkInitiateFileUploadOperation(
         IUserIdentity userIdentity,
         List<UploadDetails> batchUploadResults,
         Dictionary<string, FolderValidationResult> folderValidationResults,
-        long newWorkspaceSizeInBytes,
         CancellationToken cancellationToken)
     {
         var uploadsToInsert = batchUploadResults
@@ -512,7 +509,6 @@ public class BulkInitiateFileUploadOperation(
             workspace: workspace,
             userIdentity: userIdentity,
             entities: uploadsToInsert,
-            newWorkspaceSizeInBytes: newWorkspaceSizeInBytes,
             cancellationToken: cancellationToken);
 
         return insertFileUploadsResult;

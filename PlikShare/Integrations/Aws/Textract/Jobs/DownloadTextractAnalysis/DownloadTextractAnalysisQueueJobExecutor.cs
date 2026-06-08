@@ -31,7 +31,6 @@ public class DownloadTextractAnalysisQueueJobExecutor(
     TextractClientStore textractClientStore,
     WorkspaceCache workspaceCache,
     BulkInsertFileUploadQuery bulkInsertFileUploadQuery,
-    GetWorkspaceSizeQuery getWorkspaceSizeQuery,
     IQueue queue,
     IClock clock,
     TextractResultTemporaryStore textractResultTemporaryStore) : IQueueLongRunningJobExecutor
@@ -345,9 +344,6 @@ public class DownloadTextractAnalysisQueueJobExecutor(
             textractJob,
             originalFileWorkspace);
 
-        var workspaceSize = getWorkspaceSizeQuery.Execute(
-            workspace: originalFileWorkspace);
-
         var result = await bulkInsertFileUploadQuery.Execute(
             workspace: originalFileWorkspace,
             userIdentity: textractJob.UserIdentity,
@@ -355,7 +351,6 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 markdownFileUploadToInsert,
                 fullJsonFileUploadToInsert
             ],
-            newWorkspaceSizeInBytes: workspaceSize + markdownFile.SizeInBytes + fullJsonFile.SizeInBytes,
             cancellationToken: cancellationToken);
 
         var markdownFileUpload = result

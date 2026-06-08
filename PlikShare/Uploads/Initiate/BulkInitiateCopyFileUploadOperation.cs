@@ -13,12 +13,14 @@ using PlikShare.Storages.FileCopying.CopyFile;
 using PlikShare.Uploads.Algorithm;
 using PlikShare.Uploads.Id;
 using PlikShare.Workspaces.Cache;
+using PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
 
 namespace PlikShare.Uploads.Initiate;
 
 public class BulkInitiateCopyFileUploadOperation(
     PlikShareDb plikShareDb,
     DbWriteQueue dbWriteQueue,
+    WorkspaceSizeCache workspaceSizeCache,
     IQueue queue,
     IClock clock)
 {
@@ -170,6 +172,8 @@ public class BulkInitiateCopyFileUploadOperation(
         List<FileToCopy> filesToCopy,
         Guid correlationId)
     {
+        var deltaInBytes = filesToCopy.Sum(fileToCopy => fileToCopy.SizeInBytes);
+
         dbWriteContext.Connection.RegisterJsonArrayToBlobFunction();
         using var transaction = dbWriteContext.Connection.BeginTransaction();
 
@@ -318,7 +322,17 @@ public class BulkInitiateCopyFileUploadOperation(
                 dbWriteContext,
                 transaction);
 
+            UpdateWorkspaceCurrentSizeInBytesQuery.Increment(
+                workspaceId: definition.DestinationWorkspaceId,
+                deltaInBytes: deltaInBytes,
+                dbWriteContext: dbWriteContext,
+                transaction: transaction);
+
             transaction.Commit();
+
+            workspaceSizeCache.AddDelta(
+                workspaceId: definition.DestinationWorkspaceId,
+                deltaInBytes: deltaInBytes);
 
             return fileUploadsDict;
         }

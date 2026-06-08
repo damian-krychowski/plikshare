@@ -564,6 +564,7 @@ public class Startup
         builder.Services.AddSingleton<BulkDeleteQuery>();
         builder.Services.AddSingleton<ChangeWorkspaceOwnerQuery>();
         builder.Services.AddSingleton<GetWorkspaceSizeQuery>();
+        builder.Services.AddSingleton<WorkspaceSizeCache>();
         builder.Services.AddSingleton<ListAllWorkspacesQuery>();
         builder.Services.AddSingleton<AdminAddWorkspaceMemberOperation>();
 

@@ -158,7 +158,6 @@ public class WorkspaceCache(
             Id = workspace.Id,
             ExternalId = workspace.ExternalId,
             Name = workspace.Name,
-            CurrentSizeInBytes = workspace.CurrentSizeInBytes,
             MaxSizeInBytes = workspace.MaxSizeInBytes,
             MaxTeamMembers = workspace.MaxTeamMembers,
             BucketName = workspace.BucketName,
@@ -246,7 +245,6 @@ public class WorkspaceCache(
                          w_external_id,
                          w_owner_id,
                          w_name,
-                         w_current_size_in_bytes,
                          w_max_size_in_bytes,
                          w_max_team_members,
                          w_bucket_name,
@@ -262,7 +260,7 @@ public class WorkspaceCache(
                      """,
                 readRowFunc: reader =>
                 {
-                    var salt = reader.GetFieldValueOrNull<byte[]>(11);
+                    var salt = reader.GetFieldValueOrNull<byte[]>(10);
 
                     return new WorkspaceCached
                     {
@@ -270,18 +268,17 @@ public class WorkspaceCache(
                         ExternalId = reader.GetExtId<WorkspaceExtId>(1),
                         OwnerId = reader.GetInt32(2),
                         Name = reader.GetString(3),
-                        CurrentSizeInBytes = reader.GetInt64(4),
-                        MaxSizeInBytes = reader.GetInt64OrNull(5),
-                        MaxTeamMembers = reader.GetInt32OrNull(6),
-                        BucketName = reader.GetString(7),
-                        IsBucketCreated = reader.GetBoolean(8),
-                        IsBeingDeleted = reader.GetBoolean(9),
-                        StorageId = reader.GetInt32(10),
+                        MaxSizeInBytes = reader.GetInt64OrNull(4),
+                        MaxTeamMembers = reader.GetInt32OrNull(5),
+                        BucketName = reader.GetString(6),
+                        IsBucketCreated = reader.GetBoolean(7),
+                        IsBeingDeleted = reader.GetBoolean(8),
+                        StorageId = reader.GetInt32(9),
                         EncryptionMetadata = salt is null
                             ? null
                             : new WorkspaceEncryptionMetadata { Salt = salt },
-                        TrashPolicy = reader.GetFromJson<TrashPolicy>(12),
-                        MediaProcessingPolicy = reader.GetFromJsonOrNull<MediaProcessingPolicy>(13)
+                        TrashPolicy = reader.GetFromJson<TrashPolicy>(11),
+                        MediaProcessingPolicy = reader.GetFromJsonOrNull<MediaProcessingPolicy>(12)
                     };
                 })
             .WithParameter(lookup.ParamName, lookup.ParamValue)
@@ -308,7 +305,6 @@ public class WorkspaceCache(
         public required WorkspaceExtId ExternalId { get; init; }
         public required int OwnerId { get; init; }
         public required string Name { get; init; }
-        public required long CurrentSizeInBytes { get; init; }
         public required long? MaxSizeInBytes { get; init; }
         public required int? MaxTeamMembers { get; init; }
         public required string BucketName { get; init; }

@@ -10,7 +10,9 @@ using Serilog;
 
 namespace PlikShare.Uploads.Initiate;
 
-public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
+public class BulkInsertFileUploadQuery(
+    DbWriteQueue dbWriteQueue,
+    WorkspaceSizeCache workspaceSizeCache)
 {
     private static readonly Serilog.ILogger Logger = Log.ForContext<BulkInsertFileUploadQuery>();
 
@@ -18,7 +20,6 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
         WorkspaceContext workspace,
         IUserIdentity userIdentity,
         InsertEntity[] entities,
-        long newWorkspaceSizeInBytes, //new workspace size needs to be precalculated before calling this endpoint (performance)
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
@@ -26,8 +27,7 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
                 dbWriteContext: context,
                 workspace: workspace,
                 userIdentity: userIdentity,
-                entities: entities,
-                newWorkspaceSizeInBytes: newWorkspaceSizeInBytes),
+                entities: entities),
             cancellationToken: cancellationToken);
     }
 
@@ -35,28 +35,33 @@ public class BulkInsertFileUploadQuery(DbWriteQueue dbWriteQueue)
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         IUserIdentity userIdentity,
-        InsertEntity[] entities,
-        long newWorkspaceSizeInBytes)
+        InsertEntity[] entities)
     {
+        var deltaInBytes = entities.Sum(entity => entity.FileSizeInBytes);
+
         dbWriteContext.Connection.RegisterJsonArrayToBlobFunction();
         using var transaction = dbWriteContext.Connection.BeginTransaction();
 
         try
         {
             var fileUploads = InsertFileUploads(
-                workspace, 
-                userIdentity, 
+                workspace,
+                userIdentity,
                 entities,
                 dbWriteContext,
                 transaction);
 
-            UpdateWorkspaceCurrentSizeInBytesQuery.Execute(
+            UpdateWorkspaceCurrentSizeInBytesQuery.Increment(
                 workspaceId: workspace.Id,
-                currentSizeInBytes: newWorkspaceSizeInBytes,
+                deltaInBytes: deltaInBytes,
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);
 
             transaction.Commit();
+
+            workspaceSizeCache.AddDelta(
+                workspaceId: workspace.Id,
+                deltaInBytes: deltaInBytes);
 
             //todo add some useful log
 

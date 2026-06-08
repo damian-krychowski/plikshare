@@ -13,7 +13,8 @@ public class DeleteWorkspaceQueueJobExecutor(
     DeleteWorkspaceWithDependenciesQuery deleteWorkspaceWithDependenciesQuery,
     BoxCache boxCache,
     UserCache userCache,
-    WorkspaceCache workspaceCache) : IQueueDbOnlyJobExecutor
+    WorkspaceCache workspaceCache,
+    WorkspaceSizeCache workspaceSizeCache) : IQueueDbOnlyJobExecutor
 {
     public static string StaticJobType => DeleteWorkspaceQueueJobType.Value;
     public static int StaticPriority => QueueJobPriority.Normal;
@@ -45,6 +46,9 @@ public class DeleteWorkspaceQueueJobExecutor(
             correlationId: correlationId,
             dbWriteContext: dbWriteContext,
             transaction: transaction);
+
+        workspaceSizeCache.Forget(
+            workspaceId: definition.WorkspaceId);
 
         if (result.Code == DeleteWorkspaceWithDependenciesQuery.ResultCode.WorkspaceNotFound)
             return (

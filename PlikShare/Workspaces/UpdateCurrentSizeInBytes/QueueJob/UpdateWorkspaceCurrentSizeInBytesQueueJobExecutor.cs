@@ -10,6 +10,7 @@ namespace PlikShare.Workspaces.UpdateCurrentSizeInBytes.QueueJob;
 public class UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor(
     WorkspaceCache workspaceCache,
     GetWorkspaceSizeQuery getWorkspaceSizeQuery,
+    WorkspaceSizeCache workspaceSizeCache,
     DbWriteQueue dbWriteQueue) : IQueueNormalJobExecutor
 {
     public static string StaticJobType => UpdateWorkspaceCurrentSizeInBytesQueueJobType.Value;
@@ -37,6 +38,10 @@ public class UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor(
 
         var currentWorkspaceSizeInBytes = getWorkspaceSizeQuery.Execute(
             workspaceId: definition.WorkspaceId);
+
+        workspaceSizeCache.Set(
+            workspaceId: definition.WorkspaceId,
+            sizeInBytes: currentWorkspaceSizeInBytes);
 
         var result = await dbWriteQueue.Execute(
             context => UpdateWorkspaceCurrentSizeInBytesQuery.Execute(

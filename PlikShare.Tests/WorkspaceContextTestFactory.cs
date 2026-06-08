@@ -73,7 +73,6 @@ internal static class WorkspaceContextTestFactory
             Id = 42,
             ExternalId = WorkspaceExtId.NewId(),
             Name = "test-workspace",
-            CurrentSizeInBytes = 0,
             MaxSizeInBytes = null,
             MaxTeamMembers = null,
             BucketName = "test-bucket",

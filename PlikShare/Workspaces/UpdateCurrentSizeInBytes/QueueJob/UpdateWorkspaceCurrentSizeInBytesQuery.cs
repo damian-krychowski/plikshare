@@ -45,6 +45,41 @@ public static class UpdateWorkspaceCurrentSizeInBytesQuery
             WorkspaceExternalId: result.Value);
     }
 
+    public static Result Increment(
+        int workspaceId,
+        long deltaInBytes,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction? transaction)
+    {
+        var result = dbWriteContext
+            .OneRowCmd(
+                sql: """
+                     UPDATE w_workspaces
+                     SET w_current_size_in_bytes = w_current_size_in_bytes + $deltaInBytes
+                     WHERE w_id = $workspaceId
+                     RETURNING w_external_id
+                     """,
+                readRowFunc: reader => reader.GetExtId<WorkspaceExtId>(0),
+                transaction: transaction,
+                name: "workspace.increment_current_size")
+            .WithParameter("$workspaceId", workspaceId)
+            .WithParameter("$deltaInBytes", deltaInBytes)
+            .Execute();
+
+        if (result.IsEmpty)
+        {
+            Log.Warning("Could not increment Workspace#{WorkspaceId} current size in bytes because it was not found.",
+                workspaceId);
+
+            return new Result(
+                Code: ResultCode.WorkspaceNotFound);
+        }
+
+        return new Result(
+            Code: ResultCode.Ok,
+            WorkspaceExternalId: result.Value);
+    }
+
     public enum ResultCode
     {
         Ok = 0,

@@ -320,6 +320,7 @@ public static class WorkspacesEndpoints
         WorkspaceMembershipCache workspaceMembershipCache,
         AcceptWorkspaceInvitationQuery acceptWorkspaceInvitationQuery,
         AuditLogService auditLogService,
+        WorkspaceSizeCache workspaceSizeCache,
         CancellationToken cancellationToken)
     {
         var workspaceMembership = await workspaceMembershipCache.TryGetWorkspaceMembership(
@@ -355,7 +356,7 @@ public static class WorkspacesEndpoints
 
                 return TypedResults.Ok(new AcceptWorkspaceInvitationResponseDto
                 {
-                    WorkspaceCurrentSizeInBytes = workspaceMembership.Workspace.CurrentSizeInBytes,
+                    WorkspaceCurrentSizeInBytes = workspaceSizeCache.Get(workspaceMembership.Workspace.Id),
                     WorkspaceMaxSizeInBytes = workspaceMembership.Workspace.MaxSizeInBytes,
                     StorageEncryptionType = workspaceMembership.Workspace.EncryptionType.ToDbValue(),
                     IsPendingKeyGrant = result.IsPendingKeyGrant
@@ -438,7 +439,8 @@ public static class WorkspacesEndpoints
 
     private static Results<Ok<GetWorkspaceDetailsResponseDto>, NotFound<HttpError>> GetWorkspaceDetails(
         HttpContext httpContext,
-        CountWorkspaceTotalTeamMembersQuery countWorkspaceTotalTeamMembersQuery)
+        CountWorkspaceTotalTeamMembersQuery countWorkspaceTotalTeamMembersQuery,
+        WorkspaceSizeCache workspaceSizeCache)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
 
@@ -453,7 +455,7 @@ public static class WorkspacesEndpoints
         {
             ExternalId = workspaceMembership.Workspace.ExternalId,
             Name = workspaceMembership.Workspace.Name,
-            CurrentSizeInBytes = workspaceMembership.Workspace.CurrentSizeInBytes,
+            CurrentSizeInBytes = workspaceSizeCache.Get(workspaceMembership.Workspace.Id),
             MaxSizeInBytes = workspaceMembership.Workspace.MaxSizeInBytes,
             CurrentTeamMembersCount = teamMembers.TeamMembersCount,
             CurrentBoxesTeamMembersCount = teamMembers.BoxesTeamMembersCount,
