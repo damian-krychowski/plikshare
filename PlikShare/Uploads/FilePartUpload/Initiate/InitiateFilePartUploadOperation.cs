@@ -109,7 +109,7 @@ public class InitiateFilePartUploadOperation(
             HardDriveStorageClient => HandleHardDriveGetPreSignedUploadFilePartLink(
                 fileUploadExternalId: fileUploadExternalId,
                 partNumber: partNumber,
-                contentType: workspaceEncryptionSession.DecodeEncryptableMetadata(fileUpload.ContentType),
+                contentType: workspaceEncryptionSession.DecodeMetadata(fileUpload.ContentType),
                 boxLinkId: boxLinkId, 
                 userIdentity: userIdentity, 
                 workspaceEncryptionSession: workspaceEncryptionSession),
@@ -175,7 +175,7 @@ public class InitiateFilePartUploadOperation(
         bool enforceInternalPassThrough,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
-        var contentType = workspaceEncryptionSession.DecodeEncryptableMetadata(
+        var contentType = workspaceEncryptionSession.DecodeMetadata(
             fileUpload.ContentType);
 
         if (objectStorageClient.Encryption is ManagedStorageEncryption or FullStorageEncryption || enforceInternalPassThrough)

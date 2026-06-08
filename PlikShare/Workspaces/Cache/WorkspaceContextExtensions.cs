@@ -24,57 +24,7 @@ public static class WorkspaceContextExtensions
         {
             return workspace.Storage.GenerateFileKeySecretPart();
         }
-
-        public EncryptableMetadata ToEncryptableMetadata(
-            string value,
-            WorkspaceEncryptionSession? workspaceEncryptionSession)
-        {
-            if (value.StartsWith(AesGcmMetadataV1.ReservedPrefix, StringComparison.Ordinal))
-                throw new InvalidOperationException(
-                    $"Metadata value must not start with reserved prefix '{AesGcmMetadataV1.ReservedPrefix}'. " +
-                    "Request validation should have rejected this input before reaching the encryption layer.");
-
-            var encryption = workspace.Storage.Encryption;
-
-            if (encryption is NoStorageEncryption or ManagedStorageEncryption)
-            {
-                if (workspaceEncryptionSession is not null)
-                    throw new InvalidOperationException(
-                        $"WorkspaceEncryptionSession must be null for '{encryption.GetType().Name}' " +
-                        $"storage '{workspace.Storage.ExternalId}' — metadata is not encrypted at rest for this mode.");
-
-                return NoMetadataEncryption.Prepare(
-                    value: value);
-            }
-
-            if (encryption is FullStorageEncryption)
-            {
-                if (workspaceEncryptionSession is null)
-                    throw new InvalidOperationException(
-                        $"WorkspaceEncryptionSession is required for full-encrypted storage " +
-                        $"'{workspace.Storage.ExternalId}' to encrypt metadata.");
-
-                var latest = workspaceEncryptionSession.GetLatestDek();
-
-                var input = MetadataAesInputsV1.Prepare(
-                    ikm: latest.Dek,
-                    keyVersion: (byte)latest.StorageDekVersion,
-                    chainStepSalts:
-                    [
-                        RandomNumberGenerator.GetBytes(KeyDerivationChain.StepSaltSize)
-                    ]);
-
-                return new EncryptableMetadata(
-                    Value: value,
-                    EncryptionMode: new AesGcmMetadataV1Encryption(
-                        Input: input));
-            }
-
-            throw new InvalidOperationException(
-                $"Unsupported encryption type '{encryption.Type}' " +
-                $"for storage '{workspace.Storage.ExternalId}'.");
-        }
-
+        
         public string DecodeMetadata(
             EncodedMetadataValue encodedValue,
             WorkspaceEncryptionSession? workspaceEncryptionSession)
@@ -149,19 +99,27 @@ public static class WorkspaceContextExtensions
 
                 var latest = workspaceEncryptionSession.GetLatestDek();
 
-                var input = MetadataAesInputsV1.Prepare(
-                    ikm: latest.Dek,
-                    keyVersion: (byte)latest.StorageDekVersion,
-                    chainStepSalts:
-                    [
-                        RandomNumberGenerator.GetBytes(KeyDerivationChain.StepSaltSize)
-                    ]);
+                Span<byte> fileKey = stackalloc byte[Aes256GcmStreamingV2.DerivedKeySize];
+                Span<byte> salt = stackalloc byte[KeyDerivationChain.StepSaltSize];
 
-                var encoded = AesGcmMetadataV1.Encode(
-                    value: value,
-                    aesInput: input);
-
-                return new EncodedMetadataValue(encoded);
+                RandomNumberGenerator.Fill(salt);
+                
+                latest.Dek.DeriveKey(
+                    chainStepSalts: salt,
+                    output: fileKey);
+                
+                try
+                {
+                    return AesGcmMetadataV1.Encode(
+                        value: value,
+                        keyVersion: (byte)latest.StorageDekVersion,
+                        metadataKey: fileKey,
+                        chainStepSalts: salt);
+                }
+                finally
+                {
+                    CryptographicOperations.ZeroMemory(fileKey);
+                }
             }
 
             throw new InvalidOperationException(

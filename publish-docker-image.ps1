@@ -1,4 +1,4 @@
-#to run this script: .\publish-docker-image.ps1 -version "1.1.35"
+#to run this script: .\publish-docker-image.ps1 -version "1.1.36"
 #
 # Publishes two image variants from the same Dockerfile:
 #   slim   (default)        -> :$version        + :latest          (no ffmpeg)

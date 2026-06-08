@@ -5,26 +5,23 @@ using System.Text;
 namespace PlikShare.Core.Encryption;
 
 /// <summary>
-/// Turns a plaintext string into an <see cref="EncryptableMetadata"/> carrying the right
-/// <see cref="MetadataEncryptionMode"/> for the current request context, and encodes the
-/// combined payload to the string the SQLite parameter binder consumes.
+/// Turns a plaintext string into an <see cref="EncodedMetadataValue"/> and encodes the
+/// payload to the string the SQLite parameter binder consumes.
 ///
 /// Mode resolution:
-///   - workspace encryption session is null → <see cref="NoMetadataEncryption"/>:
-///     <see cref="Encode"/> returns the raw string.
-///   - workspace encryption session is present → <see cref="AesGcmMetadataV1Encryption"/>
-///     using the latest Workspace DEK version; <see cref="Encode"/> generates a fresh
-///     32-byte chain salt and a fresh nonce, derives a per-value metadata DEK via
-///     <c>HKDF(workspaceDek, chainSalt)</c>, AES-256-GCM encrypts the value, and returns
-///     <see cref="ReservedPrefix"/> followed by base64 of the envelope:
+///   - no workspace encryption → plaintext: <see cref="Encode"/> returns the raw string.
+///   - workspace encryption present → AES-256-GCM using the latest Workspace DEK version;
+///     <see cref="Encode"/> generates a fresh 32-byte chain salt and a fresh nonce, derives
+///     a per-value metadata DEK via <c>HKDF(workspaceDek, chainSalt)</c>, AES-256-GCM
+///     encrypts the value, and returns <see cref="ReservedPrefix"/> followed by base64 of
+///     the envelope:
 ///     <c>[format(1) | key_version(1) | chain_steps_count(1) | N × step_salt(32) | nonce(12) | ciphertext | tag(16)]</c>.
 ///
 /// <para>
-/// <b>Chain steps</b> mirror the file frame V2 design (see <c>Aes256GcmStreamingV2</c>):
-/// each step records a 32-byte salt that derives a sub-DEK via HKDF from the parent DEK.
-/// Every encode writes <c>chain_steps_count = 1</c> with a fresh random salt, so each
-/// encrypted value has its own derived metadata DEK, never the workspace DEK directly.
-/// Decode parses the count and walks the salts in order.
+/// <b>Chain steps</b>: each step records a 32-byte salt that derives a sub-DEK via HKDF
+/// from the parent DEK. Every encode writes <c>chain_steps_count = 1</c> with a fresh
+/// random salt, so each encrypted value has its own derived metadata DEK, never the
+/// workspace DEK directly. Decode parses the count and walks the salts in order.
 /// </para>
 ///
 /// The <see cref="ReservedPrefix"/> gives encrypted values a self-identifying namespace
@@ -41,9 +38,8 @@ public static class AesGcmMetadataV1
     /// Namespace marker prepended to every encrypted metadata string bound to SQLite.
     /// A value stored in a metadata column starts with <see cref="ReservedPrefix"/> if
     /// and only if it is an encrypted envelope. User-supplied plaintext metadata must
-    /// NOT start with this prefix — request validation and <see cref="ToEncryptableMetadata"/>
-    /// both reject such input so the prefix remains an unambiguous format signal for
-    /// tooling, db dumps, and decode routines.
+    /// NOT start with this prefix — request validation rejects such input so the prefix
+    /// remains an unambiguous format signal for tooling, db dumps, and decode routines.
     /// </summary>
     public const string ReservedPrefix = "pse:";
 
@@ -186,19 +182,76 @@ public static class AesGcmMetadataV1
         }
     }
 
-    public static string Encode(
+    public static EncodedMetadataValue Encode(
         string value,
-        MetadataAesInputsV1 aesInput)
+        byte keyVersion,
+        ReadOnlySpan<byte> metadataKey,
+        IReadOnlyList<byte[]> chainStepSalts)
     {
-        using var input = aesInput;
+        var saltsLength = chainStepSalts.Aggregate(
+            seed: 0,
+            func: (length, bytes) => length + bytes.Length);
 
-        ThrowIfMetadataKeyDisposed(input.MetadataKey);
+        var rentedSalts = saltsLength > StackAllocThresholdBytes
+            ? ArrayPool<byte>.Shared.Rent(saltsLength)
+            : null;
+
+        try
+        {
+            var saltsBuffer = rentedSalts is null
+                ? stackalloc byte[saltsLength]
+                : rentedSalts.AsSpan(0, saltsLength);
+
+            var saltsOffset = 0;
+            foreach (var salt in chainStepSalts)
+            {
+                salt.CopyTo(saltsBuffer.Slice(saltsOffset, salt.Length));
+                saltsOffset += salt.Length;
+            }
+
+            return Encode(
+                value: value,
+                keyVersion: keyVersion,
+                metadataKey: metadataKey,
+                chainStepSalts: saltsBuffer);
+        }
+        finally
+        {
+            if (rentedSalts is not null)
+                ArrayPool<byte>.Shared.Return(rentedSalts);
+        }
+    }
+
+    public static EncodedMetadataValue Encode(
+        string value,
+        byte keyVersion,
+        ReadOnlySpan<byte> metadataKey,
+        ReadOnlySpan<byte> chainStepSalts)
+    {
+        ThrowIfMetadataKeyZeroed(metadataKey);
+
+        if (chainStepSalts.Length == 0)
+            throw new ArgumentException(
+                "Chain step salts must contain at least one salt — encrypting with zero chain " +
+                "steps would derive directly from the workspace DEK and defeat per-value key derivation.",
+                nameof(chainStepSalts));
+
+        if (chainStepSalts.Length % KeyDerivationChain.StepSaltSize != 0)
+            throw new ArgumentException(
+                $"Chain step salts length ({chainStepSalts.Length} bytes) must be a multiple of " +
+                $"{KeyDerivationChain.StepSaltSize} (StepSaltSize).",
+                nameof(chainStepSalts));
+
+        var chainStepsCount = chainStepSalts.Length / KeyDerivationChain.StepSaltSize;
+
+        if (chainStepsCount > byte.MaxValue)
+            throw new ArgumentException(
+                $"Chain step count ({chainStepsCount}) exceeds the maximum of {byte.MaxValue}.",
+                nameof(chainStepSalts));
 
         var utf8Length = Encoding.UTF8.GetByteCount(value);
 
-        var saltsLength = input.ChainStepSalts.Aggregate(
-            seed: 0,
-            func: (length, bytes) => length + bytes.Length);
+        var saltsLength = chainStepSalts.Length;
 
         var envelopeLength = HeaderFixedSize + saltsLength + SymmetricAeadWrap.NonceSize + utf8Length + SymmetricAeadWrap.TagSize;
 
@@ -221,15 +274,10 @@ public static class AesGcmMetadataV1
                 : rentedEnvelope.AsSpan(0, envelopeLength);
 
             envelope[0] = FormatTagAesGcmV1;
-            envelope[1] = input.KeyVersion;
-            envelope[2] = (byte)input.ChainStepSalts.Count;
+            envelope[1] = keyVersion;
+            envelope[2] = (byte)chainStepsCount;
 
-            var saltsOffset = HeaderFixedSize;
-            foreach (var salt in input.ChainStepSalts)
-            {
-                salt.CopyTo(envelope.Slice(saltsOffset, salt.Length));
-                saltsOffset += salt.Length;
-            }
+            chainStepSalts.CopyTo(envelope.Slice(HeaderFixedSize, saltsLength));
 
             var nonceStart = HeaderFixedSize + saltsLength;
             var nonceSpan = envelope.Slice(nonceStart, SymmetricAeadWrap.NonceSize);
@@ -246,7 +294,7 @@ public static class AesGcmMetadataV1
             Encoding.UTF8.GetBytes(value, plaintext);
 
             using var gcm = new AesGcm(
-                key: input.MetadataKey,
+                key: metadataKey,
                 tagSizeInBytes: SymmetricAeadWrap.TagSize);
 
             gcm.Encrypt(
@@ -255,9 +303,11 @@ public static class AesGcmMetadataV1
                 ciphertext: ciphertextSpan,
                 tag: tagSpan);
 
-            return string.Concat(
+            var encodedValue = string.Concat(
                 ReservedPrefix,
                 Convert.ToBase64String(envelope));
+
+            return new EncodedMetadataValue(encodedValue);
         }
         finally
         {
@@ -269,15 +319,7 @@ public static class AesGcmMetadataV1
         }
     }
 
-    /// <summary>
-    /// Programming-error sentinel: <see cref="MetadataAesInputsV1.Dispose"/> zeroes
-    /// <see cref="MetadataAesInputsV1.MetadataKey"/>, so an all-zeros buffer at the top of a
-    /// fresh encode call means the SAME instance was already consumed by an earlier call —
-    /// single-use violated (typically by re-encoding the same <see cref="EncryptableMetadata"/>
-    /// twice). A real HKDF output being all-zeros has probability ~2^-256 so a positive read
-    /// here is effectively certain to be a reuse bug, not a freshly-derived key.
-    /// </summary>
-    private static void ThrowIfMetadataKeyDisposed(byte[] metadataKey)
+    private static void ThrowIfMetadataKeyZeroed(ReadOnlySpan<byte> metadataKey)
     {
         for (var i = 0; i < metadataKey.Length; i++)
         {
@@ -286,9 +328,8 @@ public static class AesGcmMetadataV1
         }
 
         throw new ObjectDisposedException(
-            objectName: nameof(MetadataAesInputsV1),
-            message: "MetadataKey is all zeros — this MetadataAesInputsV1 instance has already been consumed by an encode call. " +
-                     "MetadataAesInputsV1 is single-use; rebuild it from session.ToEncryptableMetadata for the next operation.");
+            objectName: nameof(metadataKey),
+            message: "MetadataKey is all zeros — this metadataKey has already been consumed by an encode call.");
     }
 
     private readonly ref struct DecryptState

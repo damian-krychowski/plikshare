@@ -227,12 +227,14 @@ public class BoxExternalAccessHandler(
         if (boxAccess.IsOff || boxAccess.Box.Folder is null)
             return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
 
+        var workspace = boxAccess.Box.Workspace;
+
         var resultCode = await updateFileNameQuery.Execute(
-            workspace: boxAccess.Box.Workspace,
+            workspace: workspace,
             fileExternalId: fileExternalId,
-            name: new EncryptableMetadata(
-                Value: request.Name,
-                EncryptionMode: NoMetadataEncryption.Instance), //todo fix
+            name: workspace.EncodeMetadata(
+                value: request.Name,
+                workspaceEncryptionSession: null),
             boxFolderId: boxAccess.Box.Folder.Id,
             userIdentity: boxAccess.UserIdentity,
             isRenameAllowedByBoxPermissions: boxAccess.Permissions is { AllowList: true, AllowRenameFile: true },
@@ -485,12 +487,13 @@ public class BoxExternalAccessHandler(
             return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
 
         var folderExternalId = request.ParentExternalId ?? boxAccess.Box.Folder.ExternalId;
+        var workspace = boxAccess.Box.Workspace;
 
         var result = await createFolderQuery.Execute(
-            workspace: boxAccess.Box.Workspace,
-            name: new EncryptableMetadata(
-                Value: request.Name,
-                EncryptionMode: NoMetadataEncryption.Instance), //todo fix
+            workspace: workspace,
+            name: workspace.EncodeMetadata(
+                value: request.Name,
+                workspaceEncryptionSession: null),
             folderExternalId: request.ExternalId,
             parentFolderExternalId: folderExternalId,
             boxFolderId: boxAccess.Box.Folder.Id,
@@ -503,7 +506,7 @@ public class BoxExternalAccessHandler(
                 folderExternalId: request.ExternalId,
                 buildEntry: folderRef => Audit.Folder.CreatedEntry(
                     actor: boxAccess.ToAuditLogActorContext(correlationId),
-                    workspace: boxAccess.Box.Workspace.ToAuditLogWorkspaceRef(),
+                    workspace: workspace.ToAuditLogWorkspaceRef(),
                     folder: folderRef,
                     box: boxAccess.ToAuditLogBoxRef()),
                 cancellationToken);
@@ -538,12 +541,14 @@ public class BoxExternalAccessHandler(
         if (boxAccess.IsOff || boxAccess.Box.Folder is null)
             return TypedResults.StatusCode(StatusCodes.Status403Forbidden);
 
+        var workspace = boxAccess.Box.Workspace;
+
         var resultCode = await updateFolderNameQuery.Execute(
             workspace: boxAccess.Box.Workspace,
             folderExternalId: folderExternalId,
-            name: new EncryptableMetadata(
-                Value: request.Name,
-                EncryptionMode: NoMetadataEncryption.Instance), //todo fix
+            name: workspace.EncodeMetadata(
+                value: request.Name,
+                workspaceEncryptionSession: null),
             boxFolderId: boxAccess.Box.Folder.Id,
             userIdentity: boxAccess.UserIdentity,
             isOperationAllowedByBoxPermissions: boxAccess.Permissions is {AllowList: true, AllowRenameFolder: true},
@@ -555,7 +560,7 @@ public class BoxExternalAccessHandler(
                 folderExternalId: folderExternalId,
                 buildEntry: folderRef => Audit.Folder.NameUpdatedEntry(
                     actor: boxAccess.ToAuditLogActorContext(correlationId),
-                    workspace: boxAccess.Box.Workspace.ToAuditLogWorkspaceRef(),
+                    workspace: workspace.ToAuditLogWorkspaceRef(),
                     folder: folderRef,
                     box: boxAccess.ToAuditLogBoxRef()),
                 cancellationToken);

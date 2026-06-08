@@ -86,7 +86,7 @@ public class GetUploadsListQuery(PlikShareDb plikShareDb)
 					FolderName = reader.DecodeEncryptableStringOrNull(6, workspaceEncryptionSession),
 					FolderPath = reader
 						.GetFromJsonOrNull<List<string>>(7)
-						?.ConvertAll(s => workspaceEncryptionSession.DecodeEncryptableMetadata(s)),
+						?.ConvertAll(s => workspaceEncryptionSession.DecodeMetadata(s)),
 					AlreadyUploadedPartNumbers = reader.GetFromJson<List<int>>(8)
                 })
 		    .WithParameter("$workspaceId", workspace.Id)

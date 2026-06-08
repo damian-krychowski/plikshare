@@ -88,7 +88,7 @@ public class AuditLogDetailsDecryptor
         {
             try
             {
-                rewritten = session.DecodeEncryptableMetadata(new EncodedMetadataValue(s));
+                rewritten = session.DecodeMetadata(new EncodedMetadataValue(s));
             }
             catch (Exception e)
             {

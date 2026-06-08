@@ -23,7 +23,7 @@ static class GetOrCreateFolderQueryAuditLogExtensions
         /// envelope a workspace-member-scoped reader could still decrypt.
         ///
         /// When <paramref name="workspaceEncryptionSession"/> is <c>null</c> (non-encrypted
-        /// workspace or box external access) <see cref="EncryptableMetadataExtensions.Encode"/>
+        /// workspace or box external access) <see cref="EncodedMetadataExtensions.Encode"/>
         /// is a plaintext passthrough, so this call is a no-op cost-wise.
         /// </summary>
         public Audit.FolderRef ToAuditLogFolderRef(

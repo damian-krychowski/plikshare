@@ -16,7 +16,7 @@ public static class DbReaderExtensions
     {
         var value = reader.GetString(ordinal);
 
-        return workspaceEncryptionSession.DecodeEncryptableMetadata(
+        return workspaceEncryptionSession.DecodeMetadata(
             encoded: value);
     }
 
@@ -30,7 +30,7 @@ public static class DbReaderExtensions
 
         var value = reader.GetString(ordinal);
 
-        return workspaceEncryptionSession.DecodeEncryptableMetadata(
+        return workspaceEncryptionSession.DecodeMetadata(
             encoded: value);
     }
 
@@ -48,7 +48,7 @@ public static class DbReaderExtensions
         var bytes = reader.GetFieldValue<byte[]>(ordinal);
         var value = Encoding.UTF8.GetString(bytes);
 
-        return workspaceEncryptionSession.DecodeEncryptableMetadata(
+        return workspaceEncryptionSession.DecodeMetadata(
             encoded: value);
     }
 
@@ -67,7 +67,7 @@ public static class DbReaderExtensions
         var bytes = reader.GetFieldValue<byte[]>(ordinal);
         var value = Encoding.UTF8.GetString(bytes);
 
-        return workspaceEncryptionSession.DecodeEncryptableMetadata(
+        return workspaceEncryptionSession.DecodeMetadata(
             encoded: value);
     }
 

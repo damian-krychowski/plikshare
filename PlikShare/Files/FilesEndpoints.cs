@@ -1,3 +1,4 @@
+using Amazon.SimpleEmailV2.Model;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
@@ -37,10 +38,12 @@ using PlikShare.Files.UploadAttachment;
 using PlikShare.Storages;
 using PlikShare.Storages.Encryption.Authorization;
 using PlikShare.Uploads.Algorithm;
+using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Validation;
 using System.Globalization;
 using System.IO.Pipelines;
-using PlikShare.Workspaces.Cache;
+using System.Security.Cryptography;
+using System.Text;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Files;
@@ -416,8 +419,7 @@ public static class FilesEndpoints
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
         var workspace = workspaceMembership.Workspace;
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
-
-
+        
         var serializedContent = Json.Serialize(new CommentContentEntity(
             ContentJson: request.ContentJson,
             WasEdited: true));
@@ -428,9 +430,10 @@ public static class FilesEndpoints
             commentExternalId: commentExternalId,
             userIdentity: new UserIdentity(
                 UserExternalId: workspaceMembership.User.ExternalId),
-            updatedCommentContent: workspace.ToEncryptableMetadata(
+            updatedCommentContent: workspace.EncodeMetadata(
                 serializedContent,
                 workspaceEncryptionSession),
+            contentHash: SHA256.HashData(Encoding.UTF8.GetBytes(serializedContent)),
             cancellationToken: cancellationToken);
 
         switch (resultCode)
@@ -531,9 +534,10 @@ public static class FilesEndpoints
             userIdentity: new UserIdentity(
                 UserExternalId: workspaceMembership.User.ExternalId),
             commentExternalId: request.ExternalId,
-            commentContent: workspace.ToEncryptableMetadata(
+            commentContent: workspace.EncodeMetadata(
                 serializedContent,
                 workspaceEncryptionSession),
+            contentHash: SHA256.HashData(Encoding.UTF8.GetBytes(serializedContent)),
             cancellationToken: cancellationToken);
 
         switch (resultCode)
@@ -582,9 +586,12 @@ public static class FilesEndpoints
                 UserExternalId: workspaceMembership.User.ExternalId),
             content: request.ContentJson is null
                 ? null
-                : workspace.ToEncryptableMetadata(
+                : workspace.EncodeMetadata(
                     request.ContentJson,
                     workspaceEncryptionSession),
+            contentHash: request.ContentJson is null
+                ? []
+                : SHA256.HashData(Encoding.UTF8.GetBytes(request.ContentJson)),
             cancellationToken: cancellationToken);
 
         switch (resultCode)
@@ -748,7 +755,7 @@ public static class FilesEndpoints
         var resultCode = await updateFileNameQuery.Execute(
             workspace: workspace,
             fileExternalId: fileExternalId,
-            name: workspace.ToEncryptableMetadata(
+            name: workspace.EncodeMetadata(
                 request.Name,
                 workspaceEncryptionSession),
             boxFolderId: null,

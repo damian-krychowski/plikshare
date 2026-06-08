@@ -50,7 +50,7 @@ public class DimensionsFileCreatedHandler(
                 }
                 else if (batch.Session is not null)
                 {
-                    var contentType = batch.Session.DecodeEncryptableMetadata(file.ContentType);
+                    var contentType = batch.Session.DecodeMetadata(file.ContentType);
 
                     if (!contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
                         continue;

@@ -13,7 +13,7 @@ public class UpdateFileNameQuery(DbWriteQueue dbWriteQueue)
     public  Task<ResultCode> Execute(
         WorkspaceContext workspace,
         FileExtId fileExternalId,
-        EncryptableMetadata name,
+        EncodedMetadataValue name,
         int? boxFolderId,
         IUserIdentity userIdentity,
         bool isRenameAllowedByBoxPermissions,
@@ -35,7 +35,7 @@ public class UpdateFileNameQuery(DbWriteQueue dbWriteQueue)
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FileExtId fileExternalId,
-        EncryptableMetadata name,
+        EncodedMetadataValue name,
         int? boxFolderId,
         IUserIdentity userIdentity,
         bool isRenameAllowedByBoxPermissions)
@@ -75,7 +75,7 @@ public class UpdateFileNameQuery(DbWriteQueue dbWriteQueue)
     private static SQLiteOneRowCommandResult<int> UpdateFileNameInWorkspace(
         WorkspaceContext workspace,
         FileExtId fileExternalId,
-        EncryptableMetadata name,
+        EncodedMetadataValue name,
         SqliteWriteContext dbWriteContext)
     {
         return dbWriteContext
@@ -91,7 +91,7 @@ public class UpdateFileNameQuery(DbWriteQueue dbWriteQueue)
                         fi_id
                 ",
                 readRowFunc: reader => reader.GetInt32(0))
-            .WithEncryptableParameter("$name", name)
+            .WithParameter("$name", name)
             .WithParameter("$fileExternalId", fileExternalId.Value)
             .WithParameter("$workspaceId", workspace.Id)
             .Execute();
@@ -100,7 +100,7 @@ public class UpdateFileNameQuery(DbWriteQueue dbWriteQueue)
     private static SQLiteOneRowCommandResult<int> UpdateFileNameInBox(
         WorkspaceContext workspace,
         FileExtId fileExternalId,
-        EncryptableMetadata name,
+        EncodedMetadataValue name,
         int? boxFolderId,
         IUserIdentity userIdentity,
         bool isRenameAllowedByBoxPermissions,
@@ -140,7 +140,7 @@ public class UpdateFileNameQuery(DbWriteQueue dbWriteQueue)
                         fi_id
                 ",
                 readRowFunc: reader => reader.GetInt32(0))
-            .WithEncryptableParameter("$name", name)
+            .WithParameter("$name", name)
             .WithParameter("$fileExternalId", fileExternalId.Value)
             .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$boxFolderId", boxFolderId)

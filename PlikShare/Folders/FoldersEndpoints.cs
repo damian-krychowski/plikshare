@@ -133,7 +133,7 @@ public static class FoldersEndpoints
             workspace: workspace,
             folderExternalId: request.ExternalId,
             parentFolderExternalId: request.ParentExternalId,
-            name: workspace.ToEncryptableMetadata(
+            name: workspace.EncodeMetadata(
                 value: request.Name,
                 workspaceEncryptionSession: workspaceEncryptionSession),
             boxFolderId: null,
@@ -223,7 +223,7 @@ public static class FoldersEndpoints
         var resultCode = await updateFolderNameQuery.Execute(
             workspace: workspace,
             folderExternalId: folderExternalId,
-            name: workspace.ToEncryptableMetadata(
+            name: workspace.EncodeMetadata(
                 request.Name,
                 workspaceEncryptionSession),
             boxFolderId: null,

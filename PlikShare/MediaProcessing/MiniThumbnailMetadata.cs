@@ -23,7 +23,7 @@ public static class MiniThumbnailMetadata
             if (string.IsNullOrEmpty(encoded))
                 continue;
 
-            var metadataJson = workspaceEncryptionSession.DecodeEncryptableMetadata(encoded);
+            var metadataJson = workspaceEncryptionSession.DecodeMetadata(encoded);
 
             if (Json.Deserialize<FileMetadata>(metadataJson)
                 is ThumbnailFileMetadata { Variant: ThumbnailVariant.Mini } mini)

@@ -20,7 +20,8 @@ public class UpdateFileCommentQuery(DbWriteQueue dbWriteQueue)
         FileExtId fileExternalId,
         FileArtifactExtId commentExternalId,
         IUserIdentity userIdentity,
-        EncryptableMetadata updatedCommentContent,
+        EncodedMetadataValue updatedCommentContent,
+        byte[] contentHash,
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
@@ -30,7 +31,8 @@ public class UpdateFileCommentQuery(DbWriteQueue dbWriteQueue)
                 fileExternalId: fileExternalId,
                 commentExternalId: commentExternalId,
                 userIdentity: userIdentity,
-                updatedCommentContent: updatedCommentContent),
+                updatedCommentContent: updatedCommentContent,
+                contentHash: contentHash),
             cancellationToken: cancellationToken);
     }
 
@@ -40,7 +42,8 @@ public class UpdateFileCommentQuery(DbWriteQueue dbWriteQueue)
         FileExtId fileExternalId,
         FileArtifactExtId commentExternalId,
         IUserIdentity userIdentity,
-        EncryptableMetadata updatedCommentContent)
+        EncodedMetadataValue updatedCommentContent,
+        byte[] contentHash)
     {
         try
         {
@@ -68,9 +71,7 @@ public class UpdateFileCommentQuery(DbWriteQueue dbWriteQueue)
 
                 return ResultCode.FileNotFound;
             }
-
-            var contentHash = SHA256.HashData(Encoding.UTF8.GetBytes(updatedCommentContent.Value));
-
+            
             // Then update the comment, checking ownership
             var result = dbWriteContext
                 .OneRowCmd(
@@ -89,7 +90,7 @@ public class UpdateFileCommentQuery(DbWriteQueue dbWriteQueue)
                 .WithParameter("$commentExternalId", commentExternalId.Value)
                 .WithParameter("$fileId", fileResult.Value)
                 .WithEnumParameter("$fileArtifactType", FileArtifactType.Comment)
-                .WithEncryptableBlobParameter("$content", updatedCommentContent)
+                .WithBlobParameter("$content", updatedCommentContent)
                 .WithParameter("$contentHash", contentHash)
                 .WithParameter("$ownerIdentityType", userIdentity.IdentityType)
                 .WithParameter("$ownerIdentity", userIdentity.Identity)

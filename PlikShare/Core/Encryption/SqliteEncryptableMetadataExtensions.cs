@@ -72,7 +72,7 @@ public static class SqliteEncryptableMetadataExtensions
 
                 try
                 {
-                    return session.DecodeEncryptableMetadata(value);
+                    return session.DecodeMetadata(value);
                 }
                 catch (Exception e)
                 {

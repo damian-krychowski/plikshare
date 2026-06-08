@@ -22,7 +22,8 @@ public class CreateFileCommentQuery(DbWriteQueue dbWriteQueue, IClock clock)
         FileExtId fileExternalId,
         IUserIdentity userIdentity,
         FileArtifactExtId commentExternalId,
-        EncryptableMetadata commentContent,
+        EncodedMetadataValue commentContent,
+        byte[] contentHash,
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
@@ -32,7 +33,8 @@ public class CreateFileCommentQuery(DbWriteQueue dbWriteQueue, IClock clock)
                 fileExternalId: fileExternalId,
                 userIdentity: userIdentity,
                 commentExternalId: commentExternalId,
-                commentContent: commentContent),
+                commentContent: commentContent,
+                contentHash: contentHash),
             cancellationToken: cancellationToken);
     }
 
@@ -42,12 +44,12 @@ public class CreateFileCommentQuery(DbWriteQueue dbWriteQueue, IClock clock)
         FileExtId fileExternalId,
         IUserIdentity userIdentity,
         FileArtifactExtId commentExternalId,
-        EncryptableMetadata commentContent)
+        EncodedMetadataValue commentContent,
+        byte[] contentHash)
     {
         try
         {
             var createdAt = clock.UtcNow;
-            var contentHash = SHA256.HashData(Encoding.UTF8.GetBytes(commentContent.Value));
 
             var result = dbWriteContext
                 .OneRowCmd(
@@ -86,7 +88,7 @@ public class CreateFileCommentQuery(DbWriteQueue dbWriteQueue, IClock clock)
                     readRowFunc: reader => reader.GetInt32(0))
                 .WithParameter("$externalId", commentExternalId.Value)
                 .WithEnumParameter("$fileArtifactType", FileArtifactType.Comment)
-                .WithEncryptableBlobParameter("$content", commentContent)
+                .WithBlobParameter("$content", commentContent)
                 .WithParameter("$contentHash", contentHash)
                 .WithParameter("$ownerIdentityType", userIdentity.IdentityType)
                 .WithParameter("$ownerIdentity", userIdentity.Identity)

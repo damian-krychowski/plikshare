@@ -17,7 +17,7 @@ public class CreateFolderQuery(
         WorkspaceContext workspace,
         FolderExtId folderExternalId,
         FolderExtId? parentFolderExternalId,
-        EncryptableMetadata name,
+        EncodedMetadataValue name,
         int? boxFolderId,
         IUserIdentity userIdentity,
         CancellationToken cancellationToken)
@@ -39,7 +39,7 @@ public class CreateFolderQuery(
         WorkspaceContext workspace,
         FolderExtId folderExternalId,
         FolderExtId? parentFolderExternalId,
-        EncryptableMetadata name,
+        EncodedMetadataValue name,
         int? boxFolderId,
         IUserIdentity userIdentity)
     {
@@ -74,7 +74,7 @@ public class CreateFolderQuery(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FolderExtId folderExternalId,
-        EncryptableMetadata name,
+        EncodedMetadataValue name,
         IUserIdentity userIdentity)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
@@ -114,7 +114,7 @@ public class CreateFolderQuery(
                 .WithParameter("$externalId", folderExternalId.Value)
                 .WithParameter("$workspaceId", workspace.Id)
                 .WithParameter("$ancestorFolderIds", "[]")
-                .WithEncryptableParameter("$name", name)
+                .WithParameter("$name", name)
                 .WithParameter("$creatorIdentityType", userIdentity.IdentityType)
                 .WithParameter("$creatorIdentity", userIdentity.Identity)
                 .WithParameter("$createdAt", clock.UtcNow)
@@ -148,7 +148,7 @@ public class CreateFolderQuery(
         WorkspaceContext workspace,
         FolderExtId folderExternalId,
         FolderExtId parentFolderExternalId,
-        EncryptableMetadata name,
+        EncodedMetadataValue name,
         int? boxFolderId,
         IUserIdentity userIdentity)
     {
@@ -232,7 +232,7 @@ public class CreateFolderQuery(
                 .WithParameter("$workspaceId", workspace.Id)
                 .WithParameter("$parentFolderId", parentFolderResult.Value.Id)
                 .WithJsonParameter("$ancestorFolderIds", ancestorFolderIds)
-                .WithEncryptableParameter("$name", name)
+                .WithParameter("$name", name)
                 .WithParameter("$creatorIdentityType", userIdentity.IdentityType)
                 .WithParameter("$creatorIdentity", userIdentity.Identity)
                 .WithParameter("$createdAt", clock.UtcNow)

@@ -229,7 +229,7 @@ public class FullEncryptionSeedTests
         using var seed = FullEncryptionSeed.Prepare(workspace, session);
 
         var encoded = seed.EncodeMetadata("secret-name.png");
-        var decoded = session.DecodeEncryptableMetadata(encoded);
+        var decoded = session.DecodeMetadata(encoded);
 
         Assert.Equal("secret-name.png", decoded);
     }
@@ -277,7 +277,7 @@ public class FullEncryptionSeedTests
         var envelope = DecodeEnvelope(encoded);
         Assert.Equal(2, envelope[2]);
 
-        Assert.Equal("deep.png", session.DecodeEncryptableMetadata(encoded));
+        Assert.Equal("deep.png", session.DecodeMetadata(encoded));
     }
 
     [Fact]
@@ -304,7 +304,7 @@ public class FullEncryptionSeedTests
         var encoded = seed.EncodeMetadata("secret");
 
         Assert.ThrowsAny<Exception>(
-            () => attacker.DecodeEncryptableMetadata(encoded));
+            () => attacker.DecodeMetadata(encoded));
     }
 
     [Fact]
@@ -319,8 +319,8 @@ public class FullEncryptionSeedTests
         var encodedA = seedA.EncodeMetadata("from-seed-A");
         var encodedB = seedB.EncodeMetadata("from-seed-B");
 
-        Assert.Equal("from-seed-A", session.DecodeEncryptableMetadata(encodedA));
-        Assert.Equal("from-seed-B", session.DecodeEncryptableMetadata(encodedB));
+        Assert.Equal("from-seed-A", session.DecodeMetadata(encodedA));
+        Assert.Equal("from-seed-B", session.DecodeMetadata(encodedB));
     }
 
     // ---- FullEncryptionSeedEphemeral: prepare / decode roundtrip ----
@@ -395,7 +395,7 @@ public class FullEncryptionSeedTests
             Assert.Equal(StorageDekVersion, seed!.IkmKeyVersion);
 
             var encoded = seed.EncodeMetadata("via-ephemeral.png");
-            Assert.Equal("via-ephemeral.png", session.DecodeEncryptableMetadata(encoded));
+            Assert.Equal("via-ephemeral.png", session.DecodeMetadata(encoded));
         }
     }
 

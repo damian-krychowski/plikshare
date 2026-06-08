@@ -67,33 +67,7 @@ public class SQLiteAggregateCommandExecutor<TAccumulator>
         _command.WithJsonParameter(name, value);
         return this;
     }
-
-    public SQLiteAggregateCommandExecutor<TAccumulator> WithEncryptableParameter(string name, EncryptableMetadata metadata)
-    {
-        _command.WithParameter(name, metadata.Encode().Encoded);
-        return this;
-    }
-
-    public SQLiteAggregateCommandExecutor<TAccumulator> WithEncryptableBlobParameter(string name, EncryptableMetadata metadata)
-    {
-        var bytes = Encoding.UTF8.GetBytes(metadata.Encode().Encoded);
-        _command.WithParameter(name, bytes);
-        return this;
-    }
-
-    public SQLiteAggregateCommandExecutor<TAccumulator> WithEncryptableBlobParameterOrNull(string name, EncryptableMetadata? metadata)
-    {
-        if (metadata is null)
-        {
-            _command.WithParameter<byte[]?>(name, null);
-            return this;
-        }
-
-        var bytes = Encoding.UTF8.GetBytes(metadata.Value.Encode().Encoded);
-        _command.WithParameter(name, bytes);
-        return this;
-    }
-
+    
     public TAccumulator Execute()
     {
         try

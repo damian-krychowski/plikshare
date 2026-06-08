@@ -49,6 +49,13 @@ public class SQLiteOneRowCommandExecutor<TRow>
         return this;
     }
 
+    public SQLiteOneRowCommandExecutor<TRow> WithBlobParameter(string name, EncodedMetadataValue value)
+    {
+        var byteArray = Encoding.UTF8.GetBytes(value.Encoded);
+        _command.WithParameter(name, byteArray);
+        return this;
+    }
+
     public SQLiteOneRowCommandExecutor<TRow> WithParameter<T>(string name, T value)
     {
         _command.WithParameter(name, value);
@@ -64,50 +71,6 @@ public class SQLiteOneRowCommandExecutor<TRow>
     public SQLiteOneRowCommandExecutor<TRow> WithJsonParameter<T>(string name, T value)
     {
         _command.WithJsonParameter(name, value);
-        return this;
-    }
-
-    /// <summary>
-    /// Binds an <see cref="EncryptableMetadata"/> value: for plaintext-mode workspaces
-    /// the raw string is bound; for full-encryption workspaces the value is AES-GCM
-    /// encrypted under the workspace DEK and bound as base64 of the envelope. All the
-    /// mode-switching logic lives inside <see cref="EncryptableMetadataExtensions.Encode"/>;
-    /// queries stay oblivious to encryption.
-    /// </summary>
-    public SQLiteOneRowCommandExecutor<TRow> WithEncryptableParameter(string name, EncryptableMetadata metadata)
-    {
-        _command.WithParameter(name, metadata.Encode().Encoded);
-        return this;
-    }
-
-    /// <summary>
-    /// BLOB-affinity sibling of <see cref="WithEncryptableParameter"/>: encodes the value
-    /// the same way (plaintext for non-encrypted workspaces, <c>pse:</c>-prefixed envelope
-    /// for full-encryption workspaces) but binds the result as UTF-8 bytes. Use for
-    /// columns declared BLOB whose readers go through
-    /// <see cref="DbReaderExtensions.GetStringFromBlob"/>.
-    /// </summary>
-    public SQLiteOneRowCommandExecutor<TRow> WithEncryptableBlobParameter(string name, EncryptableMetadata metadata)
-    {
-        var bytes = Encoding.UTF8.GetBytes(metadata.Encode().Encoded);
-        _command.WithParameter(name, bytes);
-        return this;
-    }
-
-    /// <summary>
-    /// Nullable variant of <see cref="WithEncryptableBlobParameter"/> for nullable BLOB
-    /// columns. A null metadata binds NULL; otherwise behaves identically.
-    /// </summary>
-    public SQLiteOneRowCommandExecutor<TRow> WithEncryptableBlobParameterOrNull(string name, EncryptableMetadata? metadata)
-    {
-        if (metadata is null)
-        {
-            _command.WithParameter<byte[]?>(name, null);
-            return this;
-        }
-
-        var bytes = Encoding.UTF8.GetBytes(metadata.Value.Encode().Encoded);
-        _command.WithParameter(name, bytes);
         return this;
     }
 

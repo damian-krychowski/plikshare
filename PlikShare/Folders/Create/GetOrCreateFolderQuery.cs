@@ -401,7 +401,7 @@ public class GetOrCreateFolderQuery(
                         AncestorFolderIds = node.Parent?.AncestorFolderIdsForSubfolders ?? [],
                         ParentId = node.Parent?.Id,
 
-                        Name = workspace.ToEncryptableMetadata(
+                        Name = workspace.EncodeMetadata(
                             subfolder.Name,
                             workspaceEncryptionSession),
                     });
@@ -732,7 +732,7 @@ public class GetOrCreateFolderQuery(
     {
         public required int? ParentId { get; init; }
         public required int[] AncestorFolderIds { get; init; }
-        public required EncryptableMetadata Name { get; init; }
+        public required EncodedMetadataValue Name { get; init; }
         public required string ExternalId { get; init; }
     }
 

@@ -44,7 +44,7 @@ public class GetTrashItemsQuery(
                     Path: reader.GetFromJsonOrNull<List<OriginalFolderPathSegment>>(5)
                         ?.Select(s => s with
                         {
-                            Name = workspaceEncryptionSession.DecodeEncryptableMetadata(s.Name)
+                            Name = workspaceEncryptionSession.DecodeMetadata(s.Name)
                         })
                         .ToList()))
             .WithParameter("$workspaceId", workspace.Id)

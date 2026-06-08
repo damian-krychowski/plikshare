@@ -6,14 +6,14 @@ namespace PlikShare.Core.Encryption;
 
 /// <summary>
 /// <c>DbDataReader</c> overloads that deserialize SQL-produced JSON aggregates with session-aware
-/// decryption of every string property marked <see cref="EncryptedMetadataAttribute"/>.
+/// decryption of every string property marked
 ///
 /// Mirrors the non-encryption overloads in <c>DbReaderExtensions</c>; the only behavioural
 /// difference is the <see cref="WorkspaceEncryptionSession"/> parameter flowing into the
 /// per-session <see cref="JsonSerializerOptions"/> obtained from
 /// <see cref="EncryptedMetadataJsonOptions.ForSession"/>.
 /// </summary>
-public static class EncryptableMetadataReaderExtensions
+public static class EncodedMetadataReaderExtensions
 {
     public static T GetFromJson<T>(
         this DbDataReader reader,

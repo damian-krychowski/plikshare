@@ -2,13 +2,13 @@ namespace PlikShare.Core.Encryption;
 
 /// <summary>
 /// A metadata value in its on-wire / at-rest form: plaintext when the workspace is not
-/// full-encrypted, or a <see cref="EncryptableMetadataExtensions.ReservedPrefix"/>-prefixed
+/// full-encrypted, or a <see cref="EncodedMetadataExtensions.ReservedPrefix"/>-prefixed
 /// base64 envelope when it is. Carried unchanged through cache, audit-log JSON, and other
 /// passthrough storage layers that do not own a <see cref="WorkspaceEncryptionSession"/>
 /// and therefore cannot decode.
 ///
 /// Decoding to plaintext requires a session — see
-/// <see cref="EncryptableMetadataExtensions.DecodeEncryptableMetadata"/>.
+/// <see cref="EncodedMetadataExtensions.DecodeEncryptableMetadata"/>.
 ///
 /// The point of this type (vs raw <c>string</c>) is to prevent treating an encrypted
 /// envelope as plaintext: comparison, substring, display, logging. <see cref="ToString"/>

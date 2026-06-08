@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
@@ -23,7 +21,8 @@ namespace PlikShare.Files.Preview.SaveNote
             WorkspaceContext workspace,
             FileExtId fileExternalId,
             IUserIdentity userIdentity,
-            EncryptableMetadata? content,
+            EncodedMetadataValue? content,
+            byte[] contentHash,
             CancellationToken cancellationToken)
         {
             if (content is null)
@@ -35,7 +34,8 @@ namespace PlikShare.Files.Preview.SaveNote
                     workspace: workspace,
                     fileExternalId: fileExternalId,
                     userIdentity: userIdentity,
-                    content: content.Value),
+                    content: content.Value,
+                    contentHash: contentHash),
                 cancellationToken: cancellationToken);
         }
 
@@ -44,14 +44,14 @@ namespace PlikShare.Files.Preview.SaveNote
             WorkspaceContext workspace,
             FileExtId fileExternalId,
             IUserIdentity userIdentity,
-            EncryptableMetadata content)
+            EncodedMetadataValue content,
+            byte[] contentHash)
         {
             try
             {
                 var externalId = FileArtifactExtId.NewId();
                 var createdAt = clock.UtcNow;
                 var uniquenessId = $"note_{fileExternalId}";
-                var contentHash = SHA256.HashData(Encoding.UTF8.GetBytes(content.Value));
 
                 var result = dbWriteContext
                     .OneRowCmd(
@@ -99,7 +99,7 @@ namespace PlikShare.Files.Preview.SaveNote
                         readRowFunc: reader => reader.GetInt32(0))
                     .WithParameter("$externalId", externalId.Value)
                     .WithEnumParameter("$fileArtifactType", FileArtifactType.Note)
-                    .WithEncryptableBlobParameter("$noteContent", content)
+                    .WithBlobParameter("$noteContent", content)
                     .WithParameter("$noteContentHash", contentHash)
                     .WithParameter("$ownerIdentityType", userIdentity.IdentityType)
                     .WithParameter("$ownerIdentity", userIdentity.Identity)

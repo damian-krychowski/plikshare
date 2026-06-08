@@ -4,7 +4,7 @@ namespace PlikShare.AuditLog;
 
 /// <summary>
 /// Read-side substitution: replaces encrypted-envelope names
-/// (those that start with <see cref="EncryptableMetadataExtensions.ReservedPrefix"/>)
+/// (those that start with <see cref="EncodedMetadataExtensions.ReservedPrefix"/>)
 /// with the literal <see cref="EncryptedMarker"/> when serving audit log entries to the admin UI.
 ///
 /// Audit records are written with whatever shape the source had — plaintext for non-encrypted

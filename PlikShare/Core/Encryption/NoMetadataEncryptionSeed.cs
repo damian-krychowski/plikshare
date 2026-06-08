@@ -8,14 +8,7 @@ public sealed class NoMetadataEncryptionSeed : IMetadataEncryptionSeed
     {
         return Instance;
     }
-
-    public EncryptableMetadata ToEncryptableMetadata(string value)
-    {
-        return new EncryptableMetadata(
-            Value: value,
-            EncryptionMode: NoMetadataEncryption.Instance);
-    }
-
+    
     public EncodedMetadataValue EncodeMetadata(string value)
     {
         return new EncodedMetadataValue(value);

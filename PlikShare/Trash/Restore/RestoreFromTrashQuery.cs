@@ -165,9 +165,9 @@ public class RestoreFromTrashQuery(
         UpdateFileBack(
             fileId: trashed.Id,
             folderId: destinationFolderId,
-            finalName: finalName,
-            workspace: workspace,
-            workspaceEncryptionSession: workspaceEncryptionSession,
+            finalName: workspace.EncodeMetadata(
+                value: finalName,
+                workspaceEncryptionSession: workspaceEncryptionSession),
             dbWriteContext: dbWriteContext,
             transaction: transaction);
 
@@ -210,7 +210,7 @@ public class RestoreFromTrashQuery(
                     Name: reader.DecodeEncryptableString(1, workspaceEncryptionSession),
                     Extension: reader.DecodeEncryptableString(2, workspaceEncryptionSession),
                     Path: reader.GetFromJsonOrNull<List<OriginalFolderPathSegment>>(3)
-                        ?.Select(s => s with { Name = workspaceEncryptionSession.DecodeEncryptableMetadata(s.Name) })
+                        ?.Select(s => s with { Name = workspaceEncryptionSession.DecodeMetadata(s.Name) })
                         .ToList()),
                 transaction: transaction)
             .WithParameter("$workspaceId", workspaceId)
@@ -282,9 +282,10 @@ public class RestoreFromTrashQuery(
             currentParentId = resolved ?? CreateFolder(
                 workspace: workspace,
                 parentId: currentParentId,
-                plainName: segment.Name,
+                name: workspace.EncodeMetadata(
+                    value: segment.Name,
+                    workspaceEncryptionSession: workspaceEncryptionSession),
                 userIdentity: userIdentity,
-                workspaceEncryptionSession: workspaceEncryptionSession,
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);
         }
@@ -358,9 +359,8 @@ public class RestoreFromTrashQuery(
     private int CreateFolder(
         WorkspaceContext workspace,
         int? parentId,
-        string plainName,
+        EncodedMetadataValue name,
         IUserIdentity userIdentity,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
@@ -420,9 +420,7 @@ public class RestoreFromTrashQuery(
             .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$parentId", parentId)
             .WithJsonParameter("$ancestorFolderIds", ancestorFolderIds)
-            .WithEncryptableParameter("$name", workspace.ToEncryptableMetadata(
-                plainName,
-                workspaceEncryptionSession))
+            .WithParameter("$name", name)
             .WithParameter("$creatorIdentityType", userIdentity.IdentityType)
             .WithParameter("$creatorIdentity", userIdentity.Identity)
             .WithParameter("$createdAt", clock.UtcNow)
@@ -493,9 +491,7 @@ public class RestoreFromTrashQuery(
     private void UpdateFileBack(
         int fileId,
         int? folderId,
-        string finalName,
-        WorkspaceContext workspace,
-        WorkspaceEncryptionSession? workspaceEncryptionSession,
+        EncodedMetadataValue finalName,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
@@ -514,9 +510,7 @@ public class RestoreFromTrashQuery(
                 transaction: transaction)
             .WithParameter("$fileId", fileId)
             .WithParameter("$folderId", folderId)
-            .WithEncryptableParameter("$name", workspace.ToEncryptableMetadata(
-                finalName, 
-                workspaceEncryptionSession))
+            .WithParameter("$name", finalName)
             .ExecuteOrThrow();
     }
 

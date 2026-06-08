@@ -12,7 +12,7 @@ namespace PlikShare.Tests;
 /// <see cref="WorkspaceContextExtensions.ToEncryptableMetadata"/> on a full-encrypted
 /// <see cref="WorkspaceContext"/> (the real production path; the convenience that used to
 /// hang off the session moved to <see cref="WorkspaceContext"/>), then decodes through
-/// <see cref="EncryptableMetadataExtensions.DecodeEncryptableMetadata"/> and asserts the
+/// <see cref="EncodedMetadataExtensions.DecodeEncryptableMetadata"/> and asserts the
 /// recovered string is byte-for-byte identical to the original.
 ///
 /// Tests cover: short strings, empty string, UTF-8 multi-byte, stack/heap paths
@@ -20,7 +20,7 @@ namespace PlikShare.Tests;
 /// passthrough when the session is null, ReservedPrefix rejection, envelope chain layout,
 /// and the sentinel that catches reuse of an already-disposed <see cref="MetadataAesInputsV1"/>.
 /// </summary>
-public class EncryptableMetadataExtensionsTests
+public class EncodedMetadataExtensionsTests
 {
     private const byte StorageDekVersion = 0;
 
@@ -80,7 +80,7 @@ public class EncryptableMetadataExtensionsTests
 
         var encoded = EncryptedWorkspace.EncodeMetadata("photo.jpg", session);
 
-        var decoded = session.DecodeEncryptableMetadata(encoded);
+        var decoded = session.DecodeMetadata(encoded);
 
         Assert.Equal("photo.jpg", decoded);
     }
@@ -92,7 +92,7 @@ public class EncryptableMetadataExtensionsTests
 
         var encoded = EncryptedWorkspace.EncodeMetadata("", session);
 
-        var decoded = session.DecodeEncryptableMetadata(encoded);
+        var decoded = session.DecodeMetadata(encoded);
 
         Assert.Equal("", decoded);
     }
@@ -104,7 +104,7 @@ public class EncryptableMetadataExtensionsTests
 
         var encoded = EncryptedWorkspace.EncodeMetadata("x", session);
 
-        var decoded = session.DecodeEncryptableMetadata(encoded);
+        var decoded = session.DecodeMetadata(encoded);
 
         Assert.Equal("x", decoded);
     }
@@ -119,7 +119,7 @@ public class EncryptableMetadataExtensionsTests
 
         var encoded = EncryptedWorkspace.EncodeMetadata(original, session);
 
-        Assert.Equal(original, session.DecodeEncryptableMetadata(encoded));
+        Assert.Equal(original, session.DecodeMetadata(encoded));
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public class EncryptableMetadataExtensionsTests
 
         var encoded = EncryptedWorkspace.EncodeMetadata(original, session);
 
-        Assert.Equal(original, session.DecodeEncryptableMetadata(encoded));
+        Assert.Equal(original, session.DecodeMetadata(encoded));
     }
 
     [Fact]
@@ -146,7 +146,7 @@ public class EncryptableMetadataExtensionsTests
 
         var encoded = EncryptedWorkspace.EncodeMetadata(original, session);
 
-        Assert.Equal(original, session.DecodeEncryptableMetadata(encoded));
+        Assert.Equal(original, session.DecodeMetadata(encoded));
     }
 
     // ---- Format invariants ----
@@ -244,7 +244,7 @@ public class EncryptableMetadataExtensionsTests
     {
         WorkspaceEncryptionSession? session = null;
 
-        var decoded = session.DecodeEncryptableMetadata("plain");
+        var decoded = session.DecodeMetadata("plain");
 
         Assert.Equal("plain", decoded);
     }
@@ -259,62 +259,7 @@ public class EncryptableMetadataExtensionsTests
         Assert.Throws<InvalidOperationException>(
             () => EncryptedWorkspace.EncodeMetadata("pse:smuggled", session));
     }
-
-    [Fact]
-    public void ToEncryptableMetadata_throws_when_value_starts_with_reserved_prefix()
-    {
-        using var session = CreateSession();
-
-        Assert.Throws<InvalidOperationException>(
-            () => EncryptedWorkspace.ToEncryptableMetadata("pse:smuggled", session));
-    }
-
-    // ---- EncryptableMetadata abstraction roundtrip ----
-
-    [Fact]
-    public void ToEncryptableMetadata_then_Encode_then_Decode_recovers_original()
-    {
-        using var session = CreateSession();
-
-        var metadata = EncryptedWorkspace.ToEncryptableMetadata("file.png", session);
-
-        var encoded = metadata.Encode();
-        var decoded = session.DecodeEncryptableMetadata(encoded);
-
-        Assert.Equal("file.png", decoded);
-    }
-
-    [Fact]
-    public void ToEncryptableMetadata_with_null_session_returns_no_encryption_mode()
-    {
-        WorkspaceEncryptionSession? session = null;
-
-        var metadata = PlainWorkspace.ToEncryptableMetadata("plain", session);
-
-        Assert.IsType<NoMetadataEncryption>(metadata.EncryptionMode);
-        Assert.Equal("plain", metadata.Encode().Encoded);
-    }
-
-    // ---- Sentinel: reuse-detection ----
-
-    [Fact]
-    public void Encode_on_same_EncryptableMetadata_twice_throws_on_second_call()
-    {
-        // This is the bug we are hunting: EncodeAesGcmV1 does `using var input = aesInput`,
-        // which zeroes MetadataAesInputsV1.MetadataKey at end of scope. If callers re-encode
-        // the same EncryptableMetadata, the second call sees an all-zero key. The sentinel
-        // at the top of EncodeAesGcmV1 throws ObjectDisposedException so the bug is caught
-        // here instead of silently producing a broken ciphertext.
-        using var session = CreateSession();
-
-        var metadata = EncryptedWorkspace.ToEncryptableMetadata("repeat", session);
-
-        _ = metadata.Encode();
-
-        Assert.Throws<ObjectDisposedException>(
-            () => metadata.Encode());
-    }
-
+    
     // ---- Cross-session decoding (same DEK material) ----
 
     [Fact]
@@ -329,7 +274,7 @@ public class EncryptableMetadataExtensionsTests
         using var reader = CreateSession(dekBytes);
 
         var encoded = EncryptedWorkspace.EncodeMetadata("shared.txt", writer);
-        var decoded = reader.DecodeEncryptableMetadata(encoded);
+        var decoded = reader.DecodeMetadata(encoded);
 
         Assert.Equal("shared.txt", decoded);
     }
@@ -348,7 +293,7 @@ public class EncryptableMetadataExtensionsTests
         var encoded = EncryptedWorkspace.EncodeMetadata("secret", writer);
 
         Assert.ThrowsAny<Exception>(
-            () => attacker.DecodeEncryptableMetadata(encoded));
+            () => attacker.DecodeMetadata(encoded));
     }
 
     [Fact]
@@ -357,7 +302,7 @@ public class EncryptableMetadataExtensionsTests
         using var session = CreateSession();
 
         Assert.Throws<InvalidOperationException>(
-            () => session.DecodeEncryptableMetadata("no-prefix-here"));
+            () => session.DecodeMetadata("no-prefix-here"));
     }
 
     [Fact]
@@ -366,7 +311,7 @@ public class EncryptableMetadataExtensionsTests
         using var session = CreateSession();
 
         Assert.ThrowsAny<Exception>(
-            () => session.DecodeEncryptableMetadata("pse:!!!not-base64!!!"));
+            () => session.DecodeMetadata("pse:!!!not-base64!!!"));
     }
 
     [Fact]
@@ -381,7 +326,7 @@ public class EncryptableMetadataExtensionsTests
         var tampered = AesGcmMetadataV1.ReservedPrefix + Convert.ToBase64String(envelope);
 
         Assert.Throws<InvalidOperationException>(
-            () => session.DecodeEncryptableMetadata(tampered));
+            () => session.DecodeMetadata(tampered));
     }
 
     [Fact]
@@ -396,7 +341,7 @@ public class EncryptableMetadataExtensionsTests
         var tampered = AesGcmMetadataV1.ReservedPrefix + Convert.ToBase64String(envelope);
 
         Assert.ThrowsAny<Exception>(
-            () => session.DecodeEncryptableMetadata(tampered));
+            () => session.DecodeMetadata(tampered));
     }
 
     [Fact]
@@ -413,7 +358,7 @@ public class EncryptableMetadataExtensionsTests
         var tampered = AesGcmMetadataV1.ReservedPrefix + Convert.ToBase64String(envelope);
 
         Assert.ThrowsAny<Exception>(
-            () => session.DecodeEncryptableMetadata(tampered));
+            () => session.DecodeMetadata(tampered));
     }
 
     [Fact]
@@ -432,7 +377,7 @@ public class EncryptableMetadataExtensionsTests
         var tampered = AesGcmMetadataV1.ReservedPrefix + Convert.ToBase64String(envelope);
 
         Assert.ThrowsAny<Exception>(
-            () => session.DecodeEncryptableMetadata(tampered));
+            () => session.DecodeMetadata(tampered));
     }
 
     // ---- Stability across many sequential encodes ----
@@ -450,30 +395,12 @@ public class EncryptableMetadataExtensionsTests
             var original = $"item-{i}-{Guid.NewGuid()}";
 
             var encoded = EncryptedWorkspace.EncodeMetadata(original, session);
-            var decoded = session.DecodeEncryptableMetadata(encoded);
+            var decoded = session.DecodeMetadata(encoded);
 
             Assert.Equal(original, decoded);
         }
     }
 
-    [Fact]
-    public void Many_distinct_values_through_EncryptableMetadata_abstraction_all_roundtrip()
-    {
-        // Same as above but routes every value through ToEncryptableMetadata -> Encode (the
-        // path SQLite binders actually use), so the abstraction itself is exercised end-to-end.
-        using var session = CreateSession();
-
-        for (var i = 0; i < 50; i++)
-        {
-            var original = $"abs-{i}";
-
-            var metadata = EncryptedWorkspace.ToEncryptableMetadata(original, session);
-            var encoded = metadata.Encode();
-            var decoded = session.DecodeEncryptableMetadata(encoded);
-
-            Assert.Equal(original, decoded);
-        }
-    }
 
     // ---- Ciphertext length matches plaintext UTF-8 byte length ----
 

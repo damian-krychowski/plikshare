@@ -1,16 +1,16 @@
 namespace PlikShare.Core.Encryption;
 
-public static class EncryptableMetadataExtensions
+public static class EncodedMetadataExtensions
 {
     extension(WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
-        public string DecodeEncryptableMetadata(EncodedMetadataValue encoded)
+        public string DecodeMetadata(EncodedMetadataValue encoded)
         {
-            return workspaceEncryptionSession.DecodeEncryptableMetadata(
+            return workspaceEncryptionSession.DecodeMetadata(
                 encoded.Encoded);
         }
 
-        public string DecodeEncryptableMetadata(string encoded)
+        public string DecodeMetadata(string encoded)
         {
             if (workspaceEncryptionSession is null)
                 return encoded;

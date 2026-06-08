@@ -92,19 +92,6 @@ public sealed class FullEncryptionSeed : IMetadataEncryptionSeed, IDisposable
         };
     }
 
-    public EncryptableMetadata ToEncryptableMetadata(string value)
-    {
-        if (value.StartsWith(AesGcmMetadataV1.ReservedPrefix, StringComparison.Ordinal))
-            throw new InvalidOperationException(
-                $"Metadata value must not start with reserved prefix '{AesGcmMetadataV1.ReservedPrefix}'. " +
-                "Request validation should have rejected this input before reaching the encryption layer.");
-
-        return new EncryptableMetadata(
-            Value: value,
-            EncryptionMode: new AesGcmMetadataV1Encryption(
-                Input: MetadataAesInputsV1.Prepare(this)));
-    }
-
     public EncodedMetadataValue EncodeMetadata(string value)
     {
         if (value.StartsWith(AesGcmMetadataV1.ReservedPrefix, StringComparison.Ordinal))
@@ -112,10 +99,11 @@ public sealed class FullEncryptionSeed : IMetadataEncryptionSeed, IDisposable
                 $"Metadata value must not start with reserved prefix '{AesGcmMetadataV1.ReservedPrefix}'. " +
                 "Request validation should have rejected this input before reaching the encryption layer.");
 
-        var encryptable = ToEncryptableMetadata(
-            value);
-
-        return encryptable.Encode();
+        return AesGcmMetadataV1.Encode(
+            value: value,
+            keyVersion: IkmKeyVersion,
+            metadataKey: Key,
+            chainStepSalts: ChainStepSalts);
     }
 }
 

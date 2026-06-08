@@ -28,7 +28,7 @@ public sealed class EncryptedMetadataJsonConverter(
 
         return raw is null
             ? null
-            : session.DecodeEncryptableMetadata(raw);
+            : session.DecodeMetadata(raw);
     }
 
     public override void Write(
