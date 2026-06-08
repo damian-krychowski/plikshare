@@ -43,10 +43,16 @@ public class UpsertParentImageDimensionsQuery(DbWriteQueue dbWriteQueue)
             .Cmd(
                 sql: """
                      UPDATE fi_files
-                     SET fi_metadata = CAST(json_extract(item.value, '$.metadata') AS BLOB)
-                     FROM json_each($items) AS item
+                     SET fi_metadata = (
+                         SELECT CAST(json_extract(item.value, '$.metadata') AS BLOB)
+                         FROM json_each($items) AS item
+                         WHERE json_extract(item.value, '$.fileExternalId') = fi_files.fi_external_id
+                     )
                      WHERE fi_files.fi_workspace_id = $workspaceId
-                       AND fi_files.fi_external_id = json_extract(item.value, '$.fileExternalId')
+                       AND fi_files.fi_external_id IN (
+                           SELECT json_extract(value, '$.fileExternalId')
+                           FROM json_each($items)
+                       )
                        AND fi_files.fi_parent_file_id IS NULL
                        AND fi_files.fi_deleted_at IS NULL
                      RETURNING fi_id

@@ -16,6 +16,9 @@ public static class SqLiteStartupExtensions
     {
         ArgumentNullException.ThrowIfNull(app);
         
+        app.Services.AddMetrics();
+        app.Services.AddSingleton<SqliteWriteQueueMetrics>();
+
         app.Services.AddSingleton<SQLiteInitialization>();
         app.Services.AddSingleton<PlikShareDb>();
         app.Services.AddSingleton<DbWriteQueue>();

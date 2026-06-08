@@ -1,4 +1,6 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Microsoft.Data.Sqlite;
 using PlikShare.Core.SQLite;
 using Serilog;
@@ -11,11 +13,12 @@ namespace PlikShare.Core.Database.MainDatabase;
 /// which is much less efficient than create a single thread loop to run through all write operations. This way writes are not creating
 /// separate connections and they can reuse the same SQLiteCommands which is quite a performance boost.
 /// </summary>
-/// <param name="plikShareDb"></param>
-/// <param name="queue"></param>
-/// <param name="clock"></param>
-public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
+public class DbWriteQueue(
+    PlikShareDb plikShareDb,
+    SqliteWriteQueueMetrics metrics) : IDisposable
 {
+    private const string QueueName = "main";
+
     private static readonly Serilog.ILogger Logger = Log.ForContext<DbWriteQueue>();
 
     private readonly Lock _processingLock = new();
@@ -28,26 +31,16 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
 
     public Task Execute(
         Action<SqliteWriteContext> operationToEnqueue,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [CallerFilePath] string? callerFilePath = null,
+        [CallerMemberName] string? callerMember = null)
     {
         var dbWriteRequest = new DbWriteOperation(
-            operationToEnqueue);
+            operation: operationToEnqueue,
+            source: SqliteWriteQueueMetrics.BuildSource(callerFilePath, callerMember),
+            enqueuedTimestamp: Stopwatch.GetTimestamp());
 
-        _requestsQueue.Add(
-            item: dbWriteRequest,
-            cancellationToken: cancellationToken);
-
-        EnsureProcessingStarted();
-
-        return dbWriteRequest.CompletionSource.Task;
-    }
-
-    public Task Execute(
-        Func<SqliteWriteContext, CancellationToken, ValueTask> operationToEnqueue,
-        CancellationToken cancellationToken)
-    {
-        var dbWriteRequest = new AsyncDbWriteOperation(
-            operationToEnqueue);
+        metrics.RecordEnqueue(QueueName, _requestsQueue.Count);
 
         _requestsQueue.Add(
             item: dbWriteRequest,
@@ -60,26 +53,16 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
 
     public Task<TResult> Execute<TResult>(
         Func<SqliteWriteContext, TResult> operationToEnqueue,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [CallerFilePath] string? callerFilePath = null,
+        [CallerMemberName] string? callerMember = null)
     {
         var dbWriteRequest = new DbWriteOperation<TResult>(
-            operationToEnqueue);
+            operation: operationToEnqueue,
+            source: SqliteWriteQueueMetrics.BuildSource(callerFilePath, callerMember),
+            enqueuedTimestamp: Stopwatch.GetTimestamp());
 
-        _requestsQueue.Add(
-            item: dbWriteRequest,
-            cancellationToken: cancellationToken);
-
-        EnsureProcessingStarted();
-
-        return dbWriteRequest.CompletionSource.Task;
-    }
-
-    public Task<TResult> Execute<TResult>(
-        Func<SqliteWriteContext, CancellationToken, ValueTask<TResult>> operationToEnqueue,
-        CancellationToken cancellationToken)
-    {
-        var dbWriteRequest = new AsyncDbWriteOperation<TResult>(
-            operationToEnqueue);
+        metrics.RecordEnqueue(QueueName, _requestsQueue.Count);
 
         _requestsQueue.Add(
             item: dbWriteRequest,
@@ -108,6 +91,8 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
 
     private async Task Process()
     {
+        metrics.RegisterQueue(QueueName, () => _requestsQueue.Count);
+
         using var connection = plikShareDb.OpenConnection();
         using var commandsPool = connection.CreateLazyCommandsPool();
 
@@ -137,21 +122,33 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
                     continue;
                 }
 
-                switch (dbWriteOperation)
+                var queueWaitMs = Stopwatch
+                    .GetElapsedTime(dbWriteOperation.EnqueuedTimestamp)
+                    .TotalMilliseconds;
+
+                var executionStart = Stopwatch.GetTimestamp();
+
+                try
                 {
-                    case IAsyncDbWriteOperation asyncDbWriteOperation:
-                        await asyncDbWriteOperation.Execute(
-                            context,
-                            _cancellationSource.Token);
-                        break;
+                    switch (dbWriteOperation)
+                    {
+                        case ISyncDbWriteOperation syncDbWriteOperation:
+                            syncDbWriteOperation.Execute(
+                                context);
+                            break;
 
-                    case ISyncDbWriteOperation syncDbWriteOperation:
-                        syncDbWriteOperation.Execute(
-                            context);
-                        break;
-
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(dbWriteOperation));
+                        default:
+                            throw new ArgumentOutOfRangeException(nameof(dbWriteOperation));
+                    }
+                }
+                finally
+                {
+                    metrics.RecordCompleted(
+                        queue: QueueName,
+                        source: dbWriteOperation.Source,
+                        queueWaitMs: queueWaitMs,
+                        executionMs: Stopwatch.GetElapsedTime(executionStart).TotalMilliseconds,
+                        success: !dbWriteOperation.HasFaulted);
                 }
             }
             catch (Exception ex)
@@ -171,6 +168,9 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
 
     private interface IDbWriteOperation
     {
+        string Source { get; }
+        long EnqueuedTimestamp { get; }
+        bool HasFaulted { get; }
     }
 
     private interface ISyncDbWriteOperation : IDbWriteOperation
@@ -178,14 +178,16 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
         void Execute(SqliteWriteContext context);
     }
 
-    private interface IAsyncDbWriteOperation: IDbWriteOperation
-    {
-        ValueTask Execute(SqliteWriteContext context, CancellationToken cancellationToken);
-    }
-
-    private class DbWriteOperation<TResult>(Func<SqliteWriteContext, TResult> operation) : ISyncDbWriteOperation
+    private class DbWriteOperation<TResult>(
+        Func<SqliteWriteContext, TResult> operation,
+        string source,
+        long enqueuedTimestamp) : ISyncDbWriteOperation
     {
         public readonly TaskCompletionSource<TResult> CompletionSource = new();
+
+        public string Source { get; } = source;
+        public long EnqueuedTimestamp { get; } = enqueuedTimestamp;
+        public bool HasFaulted { get; private set; }
 
         public void Execute(SqliteWriteContext context)
         {
@@ -196,33 +198,22 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
             }
             catch (Exception e)
             {
+                HasFaulted = true;
                 CompletionSource.SetException(e);
             }
         }
     }
 
-    private class AsyncDbWriteOperation<TResult>(
-        Func<SqliteWriteContext, CancellationToken, ValueTask<TResult>> operation) : IAsyncDbWriteOperation
-    {
-        public readonly TaskCompletionSource<TResult> CompletionSource = new();
-
-        public async ValueTask Execute(SqliteWriteContext context, CancellationToken cancellationToken)
-        {
-            try
-            {
-                var result = await operation(context, cancellationToken);
-                CompletionSource.SetResult(result);
-            }
-            catch (Exception e)
-            {
-                CompletionSource.SetException(e);
-            }
-        }
-    }
-
-    private class DbWriteOperation(Action<SqliteWriteContext> operation) : ISyncDbWriteOperation
+    private class DbWriteOperation(
+        Action<SqliteWriteContext> operation,
+        string source,
+        long enqueuedTimestamp) : ISyncDbWriteOperation
     {
         public readonly TaskCompletionSource CompletionSource = new();
+
+        public string Source { get; } = source;
+        public long EnqueuedTimestamp { get; } = enqueuedTimestamp;
+        public bool HasFaulted { get; private set; }
 
         public void Execute(SqliteWriteContext context)
         {
@@ -233,31 +224,14 @@ public class DbWriteQueue(PlikShareDb plikShareDb) : IDisposable
             }
             catch (Exception e)
             {
-                CompletionSource.SetException(e);
-            }
-        }
-    }
-
-    private class AsyncDbWriteOperation(Func<SqliteWriteContext, CancellationToken, ValueTask> operation) : IAsyncDbWriteOperation
-    {
-        public readonly TaskCompletionSource CompletionSource = new();
-
-        public async ValueTask Execute(SqliteWriteContext context, CancellationToken cancellationToken)
-        {
-            try
-            {
-                await operation(context, cancellationToken);
-                CompletionSource.SetResult();
-            }
-            catch (Exception e)
-            {
+                HasFaulted = true;
                 CompletionSource.SetException(e);
             }
         }
     }
 }
 
-public static class DbWriteQueueContextExtensions 
+public static class DbWriteQueueContextExtensions
 {
     public static void DeferForeignKeys(
         this SqliteWriteContext dbWriteContext,
