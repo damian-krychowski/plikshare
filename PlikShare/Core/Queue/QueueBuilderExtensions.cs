@@ -1,4 +1,3 @@
-using PlikShare.Core.Database.MainDatabase;
 using Serilog;
 
 namespace PlikShare.Core.Queue;
@@ -16,15 +15,9 @@ public static class QueueBuilderExtensions
             capacity: parallelConsumersCount * 3));
 
         // QueueJobInfoProvider is registered in Startup.RegisterServices with a pre-built job map
-        // (see AddNormalQueueJob / AddLongRunningQueueJob / AddDbOnlyQueueJob) — not here, because the
-        // executor-driven constructor would form an IQueue -> Queue -> provider dependency cycle.
+        // (see AddNormalQueueJob / AddLongRunningQueueJob) — not here, because the executor-driven
+        // constructor would form an IQueue -> Queue -> provider dependency cycle.
         app.Services.AddHostedService<QueueProducer>();
-        
-        app.Services.AddSingleton<IHostedService>(serviceProvider => new DbOnlyQueueConsumer(
-            queue: serviceProvider.GetRequiredService<IQueue>(),
-            dbWriteQueue: serviceProvider.GetRequiredService<DbWriteQueue>(),
-            channels: serviceProvider.GetRequiredService<QueueChannels>(),
-            dbOnlyExecutors: serviceProvider.GetServices<IQueueDbOnlyJobExecutor>()));
 
         for (var i = 0; i < parallelConsumersCount; i++)
         {

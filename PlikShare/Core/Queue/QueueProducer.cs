@@ -282,12 +282,6 @@ public sealed class QueueProducer : BackgroundService
             
             switch (jobCategory)
             {
-                case QueueJobCategory.DbOnly:
-                    await _channels.WriteDbOnlyJobAsync(
-                        job: job,
-                        cancellationToken: stoppingToken);
-                    break;
-
                 case QueueJobCategory.Normal:
                     await _channels.WriteNormalJobAsync(
                         job: job,
@@ -380,7 +374,6 @@ public sealed class QueueProducer : BackgroundService
                 _selectJobsBatchCommand.WithParameter("$pendingStatus", QueueStatus.Pending);
                 _selectJobsBatchCommand.WithParameter("$now", now);
                 _selectJobsBatchCommand.WithParameter("$batchSize", _config.QueueProcessingBatchSize);
-                _selectJobsBatchCommand.WithParameter("$dbOnlyCapacity", capacitySnapshot.DbOnlyJobs);
                 _selectJobsBatchCommand.WithParameter("$normalCapacity", capacitySnapshot.NormalJobs);
                 _selectJobsBatchCommand.WithParameter("$longRunningCapacity", capacitySnapshot.LongRunningJobs);
                 _selectJobsBatchCommand.WithParameter("$extremelyLowPriority", QueueJobPriority.ExtremelyLow);
@@ -428,7 +421,6 @@ public sealed class QueueProducer : BackgroundService
                 SELECT q_id, q_job_priority
                 FROM ranked_jobs
                 WHERE category_rank <= CASE q_job_category
-                        WHEN 0 THEN $dbOnlyCapacity
                         WHEN 1 THEN $normalCapacity
                         WHEN 2 THEN $longRunningCapacity
                         ELSE 0

@@ -37,21 +37,6 @@ public interface IQueueLongRunningJobExecutor
         CancellationToken cancellationToken);
 }
 
-public interface IQueueDbOnlyJobExecutor
-{
-    static virtual string StaticJobType => throw new NotSupportedException();
-    static virtual int StaticPriority => throw new NotSupportedException();
-
-    string JobType { get; }
-    int Priority { get; }
-
-    (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
-        string definitionJson,
-        Guid correlationId,
-        SqliteWriteContext dbWriteContext,
-        SqliteTransaction transaction);
-}
-
 public enum QueueJobResultCode
 {
     //when everything went
@@ -71,7 +56,8 @@ public readonly record struct QueueJobResult(
     QueueJobResultCode Code,
     TimeSpan RetryDelay = default,
     int SoftRetryMaxAttempts = 0,
-    string? ResultJson = null)
+    string? ResultJson = null,
+    Action<SqliteWriteContext, SqliteTransaction>? DbWrite = null)
 {
     public static QueueJobResult Success => new(
         QueueJobResultCode.Success);
@@ -84,6 +70,20 @@ public readonly record struct QueueJobResult(
     public static QueueJobResult SuccessWithResult(string resultJson) => new(
         QueueJobResultCode.Success,
         ResultJson: resultJson);
+
+    /// <summary>
+    /// Job succeeded and hands back its final DB write as <paramref name="dbWrite"/> instead of
+    /// persisting it itself. The consumer runs that write and marks the job completed in ONE
+    /// transaction — single-shot atomicity (exactly-once) with the read/compute phase already done
+    /// outside it. The handler runs on the writer thread inside that transaction, so it must be a
+    /// quick write only — no reads, IO or heavy compute (those belong in Execute).
+    /// </summary>
+    public static QueueJobResult SuccessWithDbWrite(
+        Action<SqliteWriteContext, SqliteTransaction> dbWrite,
+        string? resultJson = null) => new(
+        QueueJobResultCode.Success,
+        ResultJson: resultJson,
+        DbWrite: dbWrite);
 
     public static QueueJobResult Blocked => new(
         QueueJobResultCode.Blocked);

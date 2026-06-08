@@ -51,30 +51,9 @@ public class InsertAndFinalizeThumbnailQuery(
             cancellationToken: cancellationToken);
     }
 
-    public Task ExecuteBatch(
-        WorkspaceContext workspace,
-        IUserIdentity uploader,
-        List<BulkInsertFileEntity> items,
-        List<int> allOldThumbnailIds,
-        Guid correlationId,
-        CancellationToken cancellationToken)
-    {
-        if (items.Count == 0)
-            return Task.CompletedTask;
-        
-        return dbWriteQueue.Execute(
-            operationToEnqueue: context => ExecuteBatchOperation(
-                dbWriteContext: context,
-                workspace: workspace,
-                uploader: uploader,
-                files: items,
-                allOldThumbnailIds: allOldThumbnailIds,
-                correlationId: correlationId),
-            cancellationToken: cancellationToken);
-    }
-
-    private void ExecuteBatchOperation(
+    public void WriteBatch(
         SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction,
         WorkspaceContext workspace,
         IUserIdentity uploader,
         List<BulkInsertFileEntity> files,
@@ -82,45 +61,34 @@ public class InsertAndFinalizeThumbnailQuery(
         Guid correlationId)
     {
         dbWriteContext.Connection.RegisterJsonArrayToBlobFunction();
-        var transaction = dbWriteContext.Connection.BeginTransaction();
 
-        try
-        {
-            InsertBulk(
-                dbWriteContext: dbWriteContext,
-                workspace: workspace,
-                uploader: uploader,
-                fileEntities: files,
-                transaction: transaction);
+        InsertBulk(
+            dbWriteContext: dbWriteContext,
+            workspace: workspace,
+            uploader: uploader,
+            fileEntities: files,
+            transaction: transaction);
 
-            hardDeleteFilesWithStorageCleanupSubQuery.Execute(
-                workspaceId: workspace.Id,
-                fileIds: allOldThumbnailIds,
-                correlationId: correlationId,
-                dbWriteContext: dbWriteContext,
-                transaction: transaction);
+        hardDeleteFilesWithStorageCleanupSubQuery.Execute(
+            workspaceId: workspace.Id,
+            fileIds: allOldThumbnailIds,
+            correlationId: correlationId,
+            dbWriteContext: dbWriteContext,
+            transaction: transaction);
 
-            queue.EnqueueWorkspaceSizeUpdateJob(
-                clock: clock,
-                workspaceId: workspace.Id,
-                correlationId: correlationId,
-                dbWriteContext: dbWriteContext,
-                transaction: transaction);
+        queue.EnqueueWorkspaceSizeUpdateJob(
+            clock: clock,
+            workspaceId: workspace.Id,
+            correlationId: correlationId,
+            dbWriteContext: dbWriteContext,
+            transaction: transaction);
 
-            transaction.Commit();
-
-            Log.Information(
-                "Batched insert+finalize: {InsertedCount} thumbnails ({BatchSize} items), {OldCount} old thumbnails replaced in Workspace#{WorkspaceId}.",
-                files.Count,
-                files.Count,
-                allOldThumbnailIds.Count,
-                workspace.Id);
-        }
-        catch
-        {
-            transaction.Rollback();
-            throw;
-        }
+        Log.Information(
+            "Batched insert+finalize: {InsertedCount} thumbnails ({BatchSize} items), {OldCount} old thumbnails replaced in Workspace#{WorkspaceId}.",
+            files.Count,
+            files.Count,
+            allOldThumbnailIds.Count,
+            workspace.Id);
     }
 
     private void InsertBulk(

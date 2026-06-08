@@ -1,16 +1,16 @@
-using Microsoft.Data.Sqlite;
 using PlikShare.Boxes.Cache;
+using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
-using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using Serilog;
 
 namespace PlikShare.Boxes.Delete.QueueJob;
 
 public class DeleteBoxesQueueJobExecutor(
+    DbWriteQueue dbWriteQueue,
     BatchDeleteBoxesWithDependenciesQuery batchDeleteBoxesWithDependenciesQuery,
     BoxCache boxCache,
-    BoxMembershipCache boxMembershipCache) : IQueueDbOnlyJobExecutor
+    BoxMembershipCache boxMembershipCache) : IQueueNormalJobExecutor
 {
     public static string StaticJobType => DeleteBoxesQueueJobType.Value;
     public static int StaticPriority => QueueJobPriority.Low;
@@ -18,11 +18,10 @@ public class DeleteBoxesQueueJobExecutor(
     public string JobType => StaticJobType;
     public int Priority => StaticPriority;
 
-    public (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
-        string definitionJson, 
+    public async Task<QueueJobResult> Execute(
+        string definitionJson,
         Guid correlationId,
-        SqliteWriteContext dbWriteContext,
-        SqliteTransaction transaction)
+        CancellationToken cancellationToken)
     {
         var definition = Json.Deserialize<DeleteBoxesQueueJobDefinition>(
             json: definitionJson);
@@ -32,22 +31,40 @@ public class DeleteBoxesQueueJobExecutor(
             throw new ArgumentException(
                 $"Job '{definitionJson}' cannot be parsed to correct '{nameof(DeleteBoxesQueueJobExecutor)}'");
         }
-        
-        var result = batchDeleteBoxesWithDependenciesQuery.Execute(
-            workspaceId: definition.WorkspaceId,
-            boxIds: definition.BoxIds,
-            correlationId: correlationId,
-            dbWriteContext: dbWriteContext,
-            transaction: transaction);
-       
+
+        var result = await dbWriteQueue.Execute(
+            operationToEnqueue: context =>
+            {
+                using var transaction = context.Connection.BeginTransaction();
+
+                try
+                {
+                    var deleteResult = batchDeleteBoxesWithDependenciesQuery.Execute(
+                        workspaceId: definition.WorkspaceId,
+                        boxIds: definition.BoxIds,
+                        correlationId: correlationId,
+                        dbWriteContext: context,
+                        transaction: transaction);
+
+                    transaction.Commit();
+
+                    return deleteResult;
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            },
+            cancellationToken: cancellationToken);
+
         Log.Information("Boxes '{BoxIds}' in Workspace#{WorkspaceId} was deleted.",
             definition.BoxIds,
             definition.WorkspaceId);
 
-        return (
-            Result: QueueJobResult.Success, 
-            SideEffectsToRun: cancellationToken => ClearCaches(result, cancellationToken)
-        );
+        await ClearCaches(result, cancellationToken);
+
+        return QueueJobResult.Success;
     }
 
     private async ValueTask ClearCaches(

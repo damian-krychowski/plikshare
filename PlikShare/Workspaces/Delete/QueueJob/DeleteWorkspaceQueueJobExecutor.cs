@@ -1,7 +1,6 @@
-using Microsoft.Data.Sqlite;
 using PlikShare.Boxes.Cache;
+using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
-using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.Users.Cache;
 using PlikShare.Workspaces.Cache;
@@ -10,11 +9,12 @@ using Serilog;
 namespace PlikShare.Workspaces.Delete.QueueJob;
 
 public class DeleteWorkspaceQueueJobExecutor(
+    DbWriteQueue dbWriteQueue,
     DeleteWorkspaceWithDependenciesQuery deleteWorkspaceWithDependenciesQuery,
     BoxCache boxCache,
     UserCache userCache,
     WorkspaceCache workspaceCache,
-    WorkspaceSizeCache workspaceSizeCache) : IQueueDbOnlyJobExecutor
+    WorkspaceSizeCache workspaceSizeCache) : IQueueNormalJobExecutor
 {
     public static string StaticJobType => DeleteWorkspaceQueueJobType.Value;
     public static int StaticPriority => QueueJobPriority.Normal;
@@ -22,12 +22,11 @@ public class DeleteWorkspaceQueueJobExecutor(
     public string JobType => StaticJobType;
     public int Priority => StaticPriority;
 
-    public (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
+    public async Task<QueueJobResult> Execute(
         string definitionJson,
         Guid correlationId,
-        SqliteWriteContext dbWriteContext,
-        SqliteTransaction transaction)
-    {   
+        CancellationToken cancellationToken)
+    {
         var definition = Json.Deserialize<DeleteWorkspaceQueueJobDefinition>(
             definitionJson);
 
@@ -39,27 +38,42 @@ public class DeleteWorkspaceQueueJobExecutor(
 
         Log.Information("Workspace#{WorkspaceId} delete operation started",
             definition.WorkspaceId);
-        
-        var result = deleteWorkspaceWithDependenciesQuery.Execute(
-            workspaceId: definition.WorkspaceId,
-            deletedAt: definition.DeletedAt,
-            correlationId: correlationId,
-            dbWriteContext: dbWriteContext,
-            transaction: transaction);
+
+        var result = await dbWriteQueue.Execute(
+            operationToEnqueue: context =>
+            {
+                using var transaction = context.Connection.BeginTransaction();
+
+                try
+                {
+                    var deleteResult = deleteWorkspaceWithDependenciesQuery.Execute(
+                        workspaceId: definition.WorkspaceId,
+                        deletedAt: definition.DeletedAt,
+                        correlationId: correlationId,
+                        dbWriteContext: context,
+                        transaction: transaction);
+
+                    transaction.Commit();
+
+                    return deleteResult;
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            },
+            cancellationToken: cancellationToken);
 
         workspaceSizeCache.Forget(
             workspaceId: definition.WorkspaceId);
 
         if (result.Code == DeleteWorkspaceWithDependenciesQuery.ResultCode.WorkspaceNotFound)
-            return (
-                Result: QueueJobResult.Success, 
-                SideEffectsToRun: _ => ValueTask.CompletedTask
-            );
-        
-        return (
-            Result: QueueJobResult.Success, 
-            SideEffectsToRun: token => ClearCaches(result, token)
-        );
+            return QueueJobResult.Success;
+
+        await ClearCaches(result, cancellationToken);
+
+        return QueueJobResult.Success;
     }
 
     private async ValueTask ClearCaches(

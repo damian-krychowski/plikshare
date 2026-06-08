@@ -367,6 +367,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_41_QueueJobCategoryAndPriorityColumns>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_42_BoxDefaultDisplayConfigurationIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_43_MediaProcessingPolicyIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_44_RecategorizeDbOnlyJobsToNormal>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -503,13 +504,6 @@ public class Startup
             queueJobPriority.Add(T.StaticJobType, T.StaticPriority);
         }
 
-        void AddDbOnlyQueueJob<T>() where T : class, IQueueDbOnlyJobExecutor
-        {
-            builder.Services.AddSingleton<IQueueDbOnlyJobExecutor, T>();
-            queueJobCategory.Add(T.StaticJobType, QueueJobCategory.DbOnly);
-            queueJobPriority.Add(T.StaticJobType, T.StaticPriority);
-        }
-
         builder.Services.AddSingleton<BoxLinkTokenService>();
 
         builder.Services.AddSingleton<IOneTimeCode, OneTimeCode>();
@@ -553,12 +547,12 @@ public class Startup
         builder.Services.AddSingleton<UpsertEphemeralWorkspaceEncryptionKeyQuery>();
         builder.Services.AddSingleton<CreateOrGetEphemeralUserKeyPairQuery>();
         builder.Services.AddSingleton<PromoteEphemeralWorkspaceEncryptionKeysQuery>();
-        AddDbOnlyQueueJob<DeleteEphemeralWorkspaceEncryptionKeysQueueJobExecutor>();
+        AddNormalQueueJob<DeleteEphemeralWorkspaceEncryptionKeysQueueJobExecutor>();
         builder.Services.AddSingleton<WorkspaceCache>();
         builder.Services.AddSingleton<WorkspaceMembershipCache>();
         builder.Services.AddSingleton<ScheduleWorkspaceDeleteQuery>();
         builder.Services.AddSingleton<DeleteWorkspaceWithDependenciesQuery>();
-        AddDbOnlyQueueJob<DeleteWorkspaceQueueJobExecutor>();
+        AddNormalQueueJob<DeleteWorkspaceQueueJobExecutor>();
         AddNormalQueueJob<DeleteBucketJobExecutor>();
         AddNormalQueueJob<UpdateWorkspaceCurrentSizeInBytesQueueJobExecutor>();
         builder.Services.AddSingleton<BulkDeleteQuery>();
@@ -617,7 +611,7 @@ public class Startup
         builder.Services.AddSingleton<GetTopFolderContentQuery>();
         builder.Services.AddSingleton<GetFolderContentQuery>();
         builder.Services.AddSingleton<BulkDeleteFoldersWithDependenciesQuery>();
-        AddDbOnlyQueueJob<DeleteFoldersQueueJobExecutor>();
+        AddNormalQueueJob<DeleteFoldersQueueJobExecutor>();
 
         builder.Services.AddSingleton<GetUploadsListQuery>();
         AddNormalQueueJob<AbortMultipartUploadQueueJobExecutor>();
@@ -660,7 +654,7 @@ public class Startup
         builder.Services.AddSingleton<UpdateBoxHeaderIsEnabledQuery>();
         builder.Services.AddSingleton<UpdateBoxFooterIsEnabledQuery>();
         builder.Services.AddSingleton<UpdateBoxDefaultDisplayConfigurationQuery>();
-        AddDbOnlyQueueJob<DeleteBoxesQueueJobExecutor>();
+        AddNormalQueueJob<DeleteBoxesQueueJobExecutor>();
 
         builder.Services.AddSingleton<CreateBoxLinkQuery>();
         builder.Services.AddSingleton<UpdateBoxLinkNameQuery>();

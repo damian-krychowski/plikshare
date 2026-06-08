@@ -19,7 +19,7 @@ public class ExtractImageDimensionsBackfillOperation(
     // Files per queue job. Kept small (matching the thumbnail bulk) so the progress bar advances in
     // fine steps and cancellation leaves few files mid-flight — dimension probing is cheap, so the
     // extra DbWriteQueue trips don't matter.
-    public const int BatchSize = 10;
+    public const int BatchSize = 20;
 
     // JSON path of the file-id array inside ExtractImageDimensionsQueueJobDefinition — used by the
     // shared BatchProgressQuery to derive file-level progress for the backfill batch.

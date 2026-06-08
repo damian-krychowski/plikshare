@@ -7,7 +7,6 @@ public class QueueChannels : IAsyncDisposable
     private readonly int _capacity;
     private long _normalJobsCount;
     private long _longRunningJobsCount;
-    private long _dbOnlyJobsCount;
     private readonly CancellationTokenSource _cleanupCts;
     private volatile bool _isDisposed;
 
@@ -24,12 +23,10 @@ public class QueueChannels : IAsyncDisposable
         };
         NormalJobs = Channel.CreateBounded<QueueJob>(options);
         LongRunningJobs = Channel.CreateBounded<QueueJob>(options);
-        DbOnlyJobs = Channel.CreateBounded<QueueJob>(options);
     }
 
     private Channel<QueueJob> NormalJobs { get; }
     private Channel<QueueJob> LongRunningJobs { get; }
-    private Channel<QueueJob> DbOnlyJobs { get; }
 
     public async Task WriteNormalJobAsync(QueueJob job, CancellationToken cancellationToken)
     {
@@ -59,21 +56,6 @@ public class QueueChannels : IAsyncDisposable
             linkedCts.Token);
 
         Interlocked.Increment(ref _longRunningJobsCount);
-    }
-
-    public async Task WriteDbOnlyJobAsync(QueueJob job, CancellationToken cancellationToken)
-    {
-        ThrowIfDisposed();
-
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken,
-            _cleanupCts.Token);
-
-        await DbOnlyJobs.Writer.WriteAsync(
-            job, 
-            linkedCts.Token);
-
-        Interlocked.Increment(ref _dbOnlyJobsCount);
     }
 
     public async Task<QueueJob> ReadNormalJobAsync(CancellationToken cancellationToken)
@@ -108,33 +90,14 @@ public class QueueChannels : IAsyncDisposable
         return job;
     }
 
-    public async Task<QueueJob> ReadDbOnlyJobAsync(CancellationToken cancellationToken)
-    {
-        ThrowIfDisposed();
-
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken, 
-            _cleanupCts.Token);
-
-        var job = await DbOnlyJobs.Reader.ReadAsync(
-            linkedCts.Token);
-
-        Interlocked.Decrement(ref _dbOnlyJobsCount);
-
-        return job;
-    }
-
     public int GetNormalJobsCount() => (int)Interlocked.Read(ref _normalJobsCount);
     public int GetLongRunningJobsCount() => (int)Interlocked.Read(ref _longRunningJobsCount);
-    public int GetDbOnlyJobsCount() => (int)Interlocked.Read(ref _dbOnlyJobsCount);
 
     public CapacitySnapshot GetCapacitySnapshot() => new(
-        DbOnlyJobs: _capacity - GetDbOnlyJobsCount(),
         NormalJobs: _capacity - GetNormalJobsCount(),
         LongRunningJobs: _capacity - GetLongRunningJobsCount());
 
     public readonly record struct CapacitySnapshot(
-        int DbOnlyJobs,
         int NormalJobs,
         int LongRunningJobs);
 
@@ -161,8 +124,7 @@ public class QueueChannels : IAsyncDisposable
             // Wait for any pending writes and complete all channels
             await Task.WhenAll(
                 CompleteChannelAsync(NormalJobs),
-                CompleteChannelAsync(LongRunningJobs),
-                CompleteChannelAsync(DbOnlyJobs)
+                CompleteChannelAsync(LongRunningJobs)
             );
         }
         finally

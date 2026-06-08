@@ -345,7 +345,7 @@ public class Queue(
 
             default:
                 throw new ArgumentOutOfRangeException(
-                    $"Unknown QueueStatus: '{newStatus}' (DbOnly Queue Consumer)");
+                    $"Unknown QueueStatus: '{newStatus}' ({consumerIdentity})");
         }
 
         NotifyBatch(job);
@@ -530,6 +530,20 @@ public class Queue(
         switch (result.Code)
         {
             case QueueJobResultCode.Success:
+                if (result.DbWrite is { } dbWrite)
+                {
+                    try
+                    {
+                        dbWrite(dbWriteContext, transaction);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new InvalidOperationException(
+                            $"DbWrite handler failed for job '{job.Identity}' ({consumerIdentity}).",
+                            e);
+                    }
+                }
+
                 MarkJobAsCompleted(
                     jobId: job.Id,
                     resultJson: result.ResultJson,

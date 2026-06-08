@@ -1,4 +1,4 @@
-using PlikShare.Core.Database.MainDatabase;
+using Microsoft.Data.Sqlite;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
 using PlikShare.Files.Id;
@@ -6,33 +6,21 @@ using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.MediaProcessing.Dimensions;
 
-public class UpsertParentImageDimensionsQuery(DbWriteQueue dbWriteQueue)
+public class UpsertParentImageDimensionsQuery
 {
     public readonly record struct DimensionsUpdate(
         FileExtId FileExternalId,
         EncodedMetadataValue EncodedMetadata);
-
-    public Task ExecuteBatch(
-        WorkspaceContext workspace,
-        IReadOnlyList<DimensionsUpdate> items,
-        CancellationToken cancellationToken)
-    {
-        if (items.Count == 0)
-            return Task.CompletedTask;
-
-        return dbWriteQueue.Execute(
-            operationToEnqueue: context => ExecuteBatchOperation(
-                dbWriteContext: context,
-                workspace: workspace,
-                items: items),
-            cancellationToken: cancellationToken);
-    }
-
-    private static void ExecuteBatchOperation(
+    
+    public static void WriteBatch(
         SqliteWriteContext dbWriteContext,
+        SqliteTransaction? transaction,
         WorkspaceContext workspace,
         IReadOnlyList<DimensionsUpdate> items)
     {
+        if (items.Count == 0)
+            return;
+
         var entities = items
             .Select(item => new DimensionsUpdateEntity(
                 FileExternalId: item.FileExternalId.Value,
@@ -58,6 +46,7 @@ public class UpsertParentImageDimensionsQuery(DbWriteQueue dbWriteQueue)
                      RETURNING fi_id
                      """,
                 readRowFunc: reader => reader.GetInt32(0),
+                transaction: transaction,
                 name: "media.upsert_parent_image_dimensions")
             .WithJsonParameter("$items", entities)
             .WithParameter("$workspaceId", workspace.Id)

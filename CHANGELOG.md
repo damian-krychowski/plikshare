@@ -2,6 +2,14 @@
 
 Release notes for PlikShare.
 
+## 1.1.37
+
+- [IMPROVEMENT] Uploads stay fast in large workspaces — the current size is tracked in memory instead of being recomputed from scratch on every upload
+- [IMPROVEMENT] Image-dimension extraction is much faster during big uploads — it no longer re-scans the whole workspace per batch (now indexed)
+- [IMPROVEMENT] Lighter background processing — thumbnails, image dimensions and upload finalization commit their result and completion in one transaction instead of two
+- [IMPROVEMENT] SQL performance is observable via `dotnet-counters` (`PlikShare.SqliteQueries` / `PlikShare.SqliteWriteQueue`), each query attributed to its call site
+- [FIX] Multipart uploads no longer get stuck when the database briefly errors at finalization — the failure was silently swallowed, leaving the file marked "uploading"; it's now retried
+
 ## 1.1.36
 
 - [FEATURE] Extract image dimensions on upload — a new opt-in workspace setting reads each uploaded image's pixel dimensions, so previews open at the right size straight away: a placeholder of the exact shape shows instantly and the image drops into it with no layout jump, and stepping to the next/previous image smoothly morphs the frame between differently-shaped photos. Turning the setting on backfills every existing image in the workspace on the background queue — workspace settings show a live progress bar (visible to anyone viewing the page and surviving a reload), a dialog up front tells you how many images will be processed, and switching the setting back off cancels whatever hasn't been processed yet

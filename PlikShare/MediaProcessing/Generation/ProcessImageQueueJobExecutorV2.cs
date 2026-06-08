@@ -105,22 +105,26 @@ public class ProcessImageQueueJobExecutorV2(
                 fileResult.ThumbnailFileEntities);
         }
 
-        if (allNewThumbnails.Count > 0)
+        var resultJson = Json.Serialize(new ThumbnailGenerationResult
         {
-            await insertAndFinalizeThumbnailQuery.ExecuteBatch(
-                workspace: workspace,
-                uploader: new UserIdentity(definition.TriggeredByUserExternalId),
-                items: allNewThumbnails,
-                allOldThumbnailIds: allOldThumbnailIds,
-                correlationId: correlationId,
-                cancellationToken: cancellationToken);
-        }
+            Files = results.Select(r => r.Result).ToList()
+        });
 
-        return QueueJobResult.SuccessWithResult(
-            Json.Serialize(new ThumbnailGenerationResult
-            {
-                Files = results.Select(r => r.Result).ToList()
-            }));
+        if (allNewThumbnails.Count == 0)
+            return QueueJobResult.SuccessWithResult(resultJson);
+
+        var uploader = new UserIdentity(definition.TriggeredByUserExternalId);
+
+        return QueueJobResult.SuccessWithDbWrite(
+            dbWrite: (dbWriteContext, transaction) => insertAndFinalizeThumbnailQuery.WriteBatch(
+                dbWriteContext: dbWriteContext,
+                transaction: transaction,
+                workspace: workspace,
+                uploader: uploader,
+                files: allNewThumbnails,
+                allOldThumbnailIds: allOldThumbnailIds,
+                correlationId: correlationId),
+            resultJson: resultJson);
     }
 
     private static void FindExistingThumbnailsToDelete(

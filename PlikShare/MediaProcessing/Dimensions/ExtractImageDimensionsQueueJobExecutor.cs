@@ -18,8 +18,7 @@ public class ExtractImageDimensionsQueueJobExecutor(
     PlikShareDb plikShareDb,
     WorkspaceCache workspaceCache,
     FfmpegService ffmpegService,
-    EphemeralKeyRing ephemeralKeyRing,
-    UpsertParentImageDimensionsQuery upsertParentImageDimensionsQuery) : IQueueLongRunningJobExecutor
+    EphemeralKeyRing ephemeralKeyRing) : IQueueLongRunningJobExecutor
 {
     private const long HeaderRangeLimit = 1L * 1024 * 1024;
 
@@ -162,15 +161,15 @@ public class ExtractImageDimensionsQueueJobExecutor(
             }
         }
 
-        if (updates.Count > 0)
-        {
-            await upsertParentImageDimensionsQuery.ExecuteBatch(
-                workspace: workspace,
-                items: updates,
-                cancellationToken: cancellationToken);
-        }
+        if (updates.Count == 0)
+            return QueueJobResult.Success;
 
-        return QueueJobResult.Success;
+        return QueueJobResult.SuccessWithDbWrite(
+            dbWrite: (dbWriteContext, transaction) => UpsertParentImageDimensionsQuery.WriteBatch(
+                dbWriteContext: dbWriteContext,
+                transaction: transaction,
+                workspace: workspace,
+                items: updates));
     }
 
     private static EncodedMetadataValue EncodeDimensions(

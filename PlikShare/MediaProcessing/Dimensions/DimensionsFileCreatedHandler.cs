@@ -15,7 +15,7 @@ public class DimensionsFileCreatedHandler(
     FfmpegService ffmpegService,
     EphemeralKeyRing ephemeralKeyRing) : IFileCreatedHandler
 {
-    private const int BatchSize = 10;
+    private const int BatchSize = 20;
 
     private static readonly Serilog.ILogger Logger =
         Log.ForContext<DimensionsFileCreatedHandler>();

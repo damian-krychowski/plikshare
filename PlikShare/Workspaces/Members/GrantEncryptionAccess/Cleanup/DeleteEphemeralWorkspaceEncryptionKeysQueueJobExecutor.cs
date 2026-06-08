@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
@@ -13,7 +12,7 @@ namespace PlikShare.Workspaces.Members.GrantEncryptionAccess.Cleanup;
 /// encryption-password setup, the DELETE matches zero rows and the job still
 /// succeeds. No side effects beyond the DB write.
 /// </summary>
-public class DeleteEphemeralWorkspaceEncryptionKeysQueueJobExecutor : IQueueDbOnlyJobExecutor
+public class DeleteEphemeralWorkspaceEncryptionKeysQueueJobExecutor : IQueueNormalJobExecutor
 {
     public static string StaticJobType => DeleteEphemeralWorkspaceEncryptionKeysQueueJobType.Value;
     public static int StaticPriority => QueueJobPriority.ExtremelyLow;
@@ -21,11 +20,10 @@ public class DeleteEphemeralWorkspaceEncryptionKeysQueueJobExecutor : IQueueDbOn
     public string JobType => StaticJobType;
     public int Priority => StaticPriority;
 
-    public (QueueJobResult Result, Func<CancellationToken, ValueTask> SideEffectsToRun) Execute(
+    public Task<QueueJobResult> Execute(
         string definitionJson,
         Guid correlationId,
-        SqliteWriteContext dbWriteContext,
-        SqliteTransaction transaction)
+        CancellationToken cancellationToken)
     {
         var definition = Json.Deserialize<DeleteEphemeralWorkspaceEncryptionKeysQueueJobDefinition>(
             definitionJson);
@@ -36,25 +34,25 @@ public class DeleteEphemeralWorkspaceEncryptionKeysQueueJobExecutor : IQueueDbOn
                 $"Job '{definitionJson}' cannot be parsed to correct '{nameof(DeleteEphemeralWorkspaceEncryptionKeysQueueJobDefinition)}'");
         }
 
-        var result = dbWriteContext
-            .Connection
-            .NonQueryCmd(
-                sql: """
-                     DELETE FROM ewek_ephemeral_workspace_encryption_keys
-                     WHERE ewek_workspace_id = $workspaceId
-                       AND ewek_user_id = $userId
-                     """,
-                transaction: transaction)
-            .WithParameter("$workspaceId", definition.WorkspaceId)
-            .WithParameter("$userId", definition.UserId)
-            .Execute();
+        return Task.FromResult(QueueJobResult.SuccessWithDbWrite(
+            dbWrite: (dbWriteContext, transaction) =>
+            {
+                var result = dbWriteContext
+                    .Connection
+                    .NonQueryCmd(
+                        sql: """
+                             DELETE FROM ewek_ephemeral_workspace_encryption_keys
+                             WHERE ewek_workspace_id = $workspaceId
+                               AND ewek_user_id = $userId
+                             """,
+                        transaction: transaction)
+                    .WithParameter("$workspaceId", definition.WorkspaceId)
+                    .WithParameter("$userId", definition.UserId)
+                    .Execute();
 
-        Log.Information(
-            "Ephemeral workspace encryption keys cleanup for Workspace#{WorkspaceId} User#{UserId} removed {DeletedCount} row(s).",
-            definition.WorkspaceId, definition.UserId, result.AffectedRows);
-
-        return (
-            Result: QueueJobResult.Success,
-            SideEffectsToRun: static _ => ValueTask.CompletedTask);
+                Log.Information(
+                    "Ephemeral workspace encryption keys cleanup for Workspace#{WorkspaceId} User#{UserId} removed {DeletedCount} row(s).",
+                    definition.WorkspaceId, definition.UserId, result.AffectedRows);
+            }));
     }
 }

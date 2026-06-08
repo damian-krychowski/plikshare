@@ -103,19 +103,15 @@ public class CompleteMultipartUploadQueueJobExecutor(
                 return QueueJobResult.Success;
             }
 
-            await markFileAsUploadedAndDeleteUploadQuery.Execute(
-                workspace: workspace,
-                fileUploadId: fileUpload.Id,
-                fileExternalId: fileUpload.FileExternalId,
-                encryptionSeed: definition.EncryptionSeed,
-                correlationId: correlationId,
-                cancellationToken: cancellationToken);
-
-            _logger.Information(
-                "Successfully completed upload job. FileUploadId: {FileUploadId}",
-                fileUpload.Id);
-
-            return QueueJobResult.Success;
+            return QueueJobResult.SuccessWithDbWrite(
+                dbWrite: (dbWriteContext, transaction) => markFileAsUploadedAndDeleteUploadQuery.Execute(
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction,
+                    workspace: workspace,
+                    fileUploadId: fileUpload.Id,
+                    fileExternalId: fileUpload.FileExternalId,
+                    encryptionSeed: definition.EncryptionSeed,
+                    correlationId: correlationId));
         }
         catch (Exception ex)
         {
