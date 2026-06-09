@@ -1,8 +1,18 @@
+using PlikShare.Core.SQLite;
+
 namespace PlikShare.Core.Configuration;
 
 public interface IConfig
 {
     int QueueProcessingBatchSize { get; }
+
+    /// <summary>
+    /// Per-lane anti-starvation budget for the main DbWriteQueue, indexed by <see cref="DbWritePriority"/>.
+    /// A write waiting in a job lane longer than its budget jumps ahead of higher-priority work once, so
+    /// a steady stream of UI writes cannot indefinitely starve job completion writes. The <c>Ui</c> lane
+    /// entry is unused (UI is always served first). Configure via <c>Queue:DbWriteLaneMaxWaitMs:*</c>.
+    /// </summary>
+    IReadOnlyList<TimeSpan> DbWritePriorityMaxWaits { get; }
 
     /// <summary>
     /// Extremely-low-priority jobs (background work) are held back until the queue has been free of

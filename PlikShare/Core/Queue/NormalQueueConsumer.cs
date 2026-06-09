@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using PlikShare.Core.SQLite;
 using Serilog;
 
 namespace PlikShare.Core.Queue;
@@ -65,33 +66,44 @@ public class NormalQueueConsumer : BackgroundService
     }
 
     private async Task ProcessJob(
-        QueueJob job, 
-        Stopwatch stopwatch, 
+        QueueJob job,
+        Stopwatch stopwatch,
         CancellationToken cancellationToken)
     {
-        try
+        var hasExecutor = TryGetJobExecutor(job, out var jobExecutor);
+
+        var writePriority = hasExecutor
+            ? QueueJobPriority.ToDbWritePriority(jobExecutor.Priority)
+            : DbWritePriority.JobNormal;
+
+        // All DB writes this job makes — both in its Execute phase and the completion/failure write —
+        // inherit the job's lane via this ambient scope, so they queue behind UI writes (see DbWriteQueue).
+        using (DbWritePriorityScope.BeginScope(writePriority))
         {
-            if (TryGetJobExecutor(job, out var jobExecutor))
+            try
             {
-                await ExecuteJob(
-                    job, 
-                    jobExecutor, 
-                    stopwatch,
-                    cancellationToken);
+                if (hasExecutor)
+                {
+                    await ExecuteJob(
+                        job,
+                        jobExecutor,
+                        stopwatch,
+                        cancellationToken);
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot find QueueJobExecutor for job type: {job.JobType} (Normal Consumer {_consumerId})");
+                }
             }
-            else
+            catch (Exception exception)
             {
-                throw new InvalidOperationException(
-                    $"Cannot find QueueJobExecutor for job type: {job.JobType} (Normal Consumer {_consumerId})");
+                await _queue.HandleJobFailure(
+                    job: job,
+                    exception: exception,
+                    consumerIdentity: Identity,
+                    cancellationToken: cancellationToken);
             }
-        }
-        catch (Exception exception)
-        {
-            await _queue.HandleJobFailure(
-                job: job,
-                exception: exception,
-                consumerIdentity: Identity,
-                cancellationToken: cancellationToken);
         }
     }
 

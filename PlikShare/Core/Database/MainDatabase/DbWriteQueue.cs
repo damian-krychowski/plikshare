@@ -1,7 +1,7 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Microsoft.Data.Sqlite;
+using PlikShare.Core.Configuration;
 using PlikShare.Core.SQLite;
 using Serilog;
 
@@ -12,41 +12,76 @@ namespace PlikShare.Core.Database.MainDatabase;
 /// so even if someone will create separate connection to sqlite db below the surface they will be waiting for each other
 /// which is much less efficient than create a single thread loop to run through all write operations. This way writes are not creating
 /// separate connections and they can reuse the same SQLiteCommands which is quite a performance boost.
+///
+/// Writes are split into priority lanes (see <see cref="DbWritePriority"/>): UI/foreground first, then job
+/// writes by their job priority. The single writer always picks the highest-priority lane, except that a
+/// write waiting past its lane's anti-starvation budget jumps ahead once — so a steady stream of UI writes
+/// cannot indefinitely starve job completion writes. The lane is taken from an ambient
+/// <see cref="DbWritePriorityScope"/> (set by the queue consumers for the duration of a job), so every write
+/// a job makes — both in its Execute phase and its completion write — inherits the job's priority without the
+/// 160+ call sites having to pass it explicitly. UI request paths have no ambient scope and default to Ui.
 /// </summary>
-public class DbWriteQueue(
-    PlikShareDb plikShareDb,
-    SqliteWriteQueueMetrics metrics) : IDisposable
+public class DbWriteQueue : IDisposable
 {
     private const string QueueName = "main";
+    private static readonly TimeSpan IdlePollInterval = TimeSpan.FromSeconds(1);
+    private static readonly int LaneCount = Enum.GetValues<DbWritePriority>().Length;
 
     private static readonly Serilog.ILogger Logger = Log.ForContext<DbWriteQueue>();
 
-    private readonly Lock _processingLock = new();
+    private readonly PlikShareDb _plikShareDb;
+    private readonly SqliteWriteQueueMetrics _metrics;
+
+    private readonly object _queueLock = new();
     private volatile bool _isProcessing;
 
-    private readonly BlockingCollection<IDbWriteOperation> _requestsQueue = new();
+    private readonly Queue<IDbWriteOperation>[] _lanes;
+    private readonly long[] _laneMaxWaitTicks;
+    private int _queuedCount;
+
     private readonly CancellationTokenSource _cancellationSource = new();
 
     private Task? _processTask;
 
+    public DbWriteQueue(
+        PlikShareDb plikShareDb,
+        SqliteWriteQueueMetrics metrics,
+        IConfig config)
+    {
+        _plikShareDb = plikShareDb;
+        _metrics = metrics;
+
+        _lanes = new Queue<IDbWriteOperation>[LaneCount];
+        _laneMaxWaitTicks = new long[LaneCount];
+
+        for (var i = 0; i < LaneCount; i++)
+        {
+            _lanes[i] = new Queue<IDbWriteOperation>();
+
+            var maxWait = i < config.DbWritePriorityMaxWaits.Count
+                ? config.DbWritePriorityMaxWaits[i]
+                : TimeSpan.Zero;
+
+            _laneMaxWaitTicks[i] = (long)(maxWait.TotalSeconds * Stopwatch.Frequency);
+        }
+    }
+
     public Task Execute(
         Action<SqliteWriteContext> operationToEnqueue,
         CancellationToken cancellationToken,
+        DbWritePriority? priority = null,
         [CallerFilePath] string? callerFilePath = null,
         [CallerMemberName] string? callerMember = null)
     {
+        var lane = priority ?? DbWritePriorityScope.Effective;
+
         var dbWriteRequest = new DbWriteOperation(
             operation: operationToEnqueue,
             source: SqliteWriteQueueMetrics.BuildSource(callerFilePath, callerMember),
-            enqueuedTimestamp: Stopwatch.GetTimestamp());
+            enqueuedTimestamp: Stopwatch.GetTimestamp(),
+            priority: lane);
 
-        metrics.RecordEnqueue(QueueName, _requestsQueue.Count);
-
-        _requestsQueue.Add(
-            item: dbWriteRequest,
-            cancellationToken: cancellationToken);
-
-        EnsureProcessingStarted();
+        Enqueue(dbWriteRequest, lane, cancellationToken);
 
         return dbWriteRequest.CompletionSource.Task;
     }
@@ -54,23 +89,45 @@ public class DbWriteQueue(
     public Task<TResult> Execute<TResult>(
         Func<SqliteWriteContext, TResult> operationToEnqueue,
         CancellationToken cancellationToken,
+        DbWritePriority? priority = null,
         [CallerFilePath] string? callerFilePath = null,
         [CallerMemberName] string? callerMember = null)
     {
+        var lane = priority ?? DbWritePriorityScope.Effective;
+
         var dbWriteRequest = new DbWriteOperation<TResult>(
             operation: operationToEnqueue,
             source: SqliteWriteQueueMetrics.BuildSource(callerFilePath, callerMember),
-            enqueuedTimestamp: Stopwatch.GetTimestamp());
+            enqueuedTimestamp: Stopwatch.GetTimestamp(),
+            priority: lane);
 
-        metrics.RecordEnqueue(QueueName, _requestsQueue.Count);
-
-        _requestsQueue.Add(
-            item: dbWriteRequest,
-            cancellationToken: cancellationToken);
-
-        EnsureProcessingStarted();
+        Enqueue(dbWriteRequest, lane, cancellationToken);
 
         return dbWriteRequest.CompletionSource.Task;
+    }
+
+    private void Enqueue(
+        IDbWriteOperation operation,
+        DbWritePriority priority,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        int depthAtEnqueue;
+
+        lock (_queueLock)
+        {
+            depthAtEnqueue = _queuedCount;
+
+            _lanes[(int)priority].Enqueue(operation);
+            _queuedCount++;
+
+            Monitor.Pulse(_queueLock);
+        }
+
+        _metrics.RecordEnqueue(QueueName, depthAtEnqueue, priority);
+
+        EnsureProcessingStarted();
     }
 
     private void EnsureProcessingStarted()
@@ -78,7 +135,7 @@ public class DbWriteQueue(
         if (_isProcessing)
             return;
 
-        lock (_processingLock)
+        lock (_queueLock)
         {
             if (_isProcessing) return;
 
@@ -89,11 +146,11 @@ public class DbWriteQueue(
         }
     }
 
-    private async Task Process()
+    private void Process()
     {
-        metrics.RegisterQueue(QueueName, () => _requestsQueue.Count);
+        _metrics.RegisterQueue(QueueName, () => Volatile.Read(ref _queuedCount));
 
-        using var connection = plikShareDb.OpenConnection();
+        using var connection = _plikShareDb.OpenConnection();
         using var commandsPool = connection.CreateLazyCommandsPool();
 
         var context = new SqliteWriteContext
@@ -106,12 +163,15 @@ public class DbWriteQueue(
         {
             try
             {
-                // Try to take first item with 1 second timeout
-                if (!_requestsQueue.TryTake(out var dbWriteOperation, TimeSpan.FromSeconds(1)))
+                IDbWriteOperation? dbWriteOperation;
+
+                lock (_queueLock)
                 {
-                    lock (_processingLock)
+                    if (_queuedCount == 0)
                     {
-                        if (_requestsQueue.Count == 0) // Double check queue is still empty
+                        Monitor.Wait(_queueLock, IdlePollInterval);
+
+                        if (_queuedCount == 0)
                         {
                             _isProcessing = false;
                             Logger.Debug("{QueueName} queue stopped due to inactivity", nameof(DbWriteQueue));
@@ -119,7 +179,10 @@ public class DbWriteQueue(
                         }
                     }
 
-                    continue;
+                    dbWriteOperation = DequeueByPolicy(
+                        Stopwatch.GetTimestamp());
+                        
+                    _queuedCount--;
                 }
 
                 var queueWaitMs = Stopwatch
@@ -143,12 +206,13 @@ public class DbWriteQueue(
                 }
                 finally
                 {
-                    metrics.RecordCompleted(
+                    _metrics.RecordCompleted(
                         queue: QueueName,
                         source: dbWriteOperation.Source,
                         queueWaitMs: queueWaitMs,
                         executionMs: Stopwatch.GetElapsedTime(executionStart).TotalMilliseconds,
-                        success: !dbWriteOperation.HasFaulted);
+                        success: !dbWriteOperation.HasFaulted,
+                        lane: dbWriteOperation.Priority);
                 }
             }
             catch (Exception ex)
@@ -159,9 +223,55 @@ public class DbWriteQueue(
         }
     }
 
+    // Caller holds _queueLock and guarantees _queuedCount > 0. Strict priority: serve the highest-priority
+    // (lowest index) non-empty lane. Anti-starvation override: if any lower-priority lane's head has waited
+    // past its lane budget, serve the oldest such head instead, so a steady higher-priority stream can't
+    // starve lower lanes indefinitely.
+    private IDbWriteOperation DequeueByPolicy(long now)
+    {
+        var strict = -1;
+
+        for (var i = 0; i < LaneCount; i++)
+        {
+            if (_lanes[i].Count > 0)
+            {
+                strict = i;
+                break;
+            }
+        }
+
+        var chosen = strict;
+        var oldestStarvedTimestamp = long.MaxValue;
+
+        for (var i = strict + 1; i < LaneCount; i++)
+        {
+            var lane = _lanes[i];
+
+            if (lane.Count == 0)
+                continue;
+
+            var head = lane.Peek();
+
+            if (now - head.EnqueuedTimestamp >= _laneMaxWaitTicks[i]
+                && head.EnqueuedTimestamp < oldestStarvedTimestamp)
+            {
+                chosen = i;
+                oldestStarvedTimestamp = head.EnqueuedTimestamp;
+            }
+        }
+
+        return _lanes[chosen].Dequeue();
+    }
+
     public void Dispose()
     {
         _cancellationSource.Cancel();
+
+        lock (_queueLock)
+        {
+            Monitor.PulseAll(_queueLock);
+        }
+
         _processTask?.Wait(TimeSpan.FromSeconds(5));
         _cancellationSource.Dispose();
     }
@@ -170,6 +280,7 @@ public class DbWriteQueue(
     {
         string Source { get; }
         long EnqueuedTimestamp { get; }
+        DbWritePriority Priority { get; }
         bool HasFaulted { get; }
     }
 
@@ -181,12 +292,14 @@ public class DbWriteQueue(
     private class DbWriteOperation<TResult>(
         Func<SqliteWriteContext, TResult> operation,
         string source,
-        long enqueuedTimestamp) : ISyncDbWriteOperation
+        long enqueuedTimestamp,
+        DbWritePriority priority) : ISyncDbWriteOperation
     {
         public readonly TaskCompletionSource<TResult> CompletionSource = new();
 
         public string Source { get; } = source;
         public long EnqueuedTimestamp { get; } = enqueuedTimestamp;
+        public DbWritePriority Priority { get; } = priority;
         public bool HasFaulted { get; private set; }
 
         public void Execute(SqliteWriteContext context)
@@ -207,12 +320,14 @@ public class DbWriteQueue(
     private class DbWriteOperation(
         Action<SqliteWriteContext> operation,
         string source,
-        long enqueuedTimestamp) : ISyncDbWriteOperation
+        long enqueuedTimestamp,
+        DbWritePriority priority) : ISyncDbWriteOperation
     {
         public readonly TaskCompletionSource CompletionSource = new();
 
         public string Source { get; } = source;
         public long EnqueuedTimestamp { get; } = enqueuedTimestamp;
+        public DbWritePriority Priority { get; } = priority;
         public bool HasFaulted { get; private set; }
 
         public void Execute(SqliteWriteContext context)

@@ -109,4 +109,14 @@ public static class QueueJobPriority
     public const int Normal = 2;
     public const int Low = 3;
     public const int ExtremelyLow = 4;
+
+    public static DbWritePriority ToDbWritePriority(int jobPriority)
+    {
+        var lane = (int)DbWritePriority.JobExtremelyHigh + jobPriority;
+
+        return (DbWritePriority)Math.Clamp(
+            lane,
+            (int)DbWritePriority.JobExtremelyHigh,
+            (int)DbWritePriority.JobExtremelyLow);
+    }
 }

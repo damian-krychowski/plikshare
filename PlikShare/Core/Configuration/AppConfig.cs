@@ -1,3 +1,5 @@
+using PlikShare.Core.SQLite;
+
 namespace PlikShare.Core.Configuration;
 
 public class AppConfig : IConfig
@@ -18,6 +20,20 @@ public class AppConfig : IConfig
         ExtremelyLowPriorityMaxWait = TimeSpan.FromSeconds(
             extremelyLowPriority.GetValue<double?>("MaxWaitSeconds") ?? 300);
 
+        var dbWriteLanes = configuration
+            .GetSection("Queue")
+            .GetSection("DbWriteLaneMaxWaitMs");
+
+        DbWritePriorityMaxWaits =
+        [
+            TimeSpan.Zero,
+            TimeSpan.FromMilliseconds(dbWriteLanes.GetValue<double?>("JobExtremelyHigh") ?? 50),
+            TimeSpan.FromMilliseconds(dbWriteLanes.GetValue<double?>("JobHigh") ?? 200),
+            TimeSpan.FromMilliseconds(dbWriteLanes.GetValue<double?>("JobNormal") ?? 1_000),
+            TimeSpan.FromMilliseconds(dbWriteLanes.GetValue<double?>("JobLow") ?? 5_000),
+            TimeSpan.FromMilliseconds(dbWriteLanes.GetValue<double?>("JobExtremelyLow") ?? 30_000),
+        ];
+
         AppUrl = configuration.GetValue<string>("AppUrl") ??
                  throw new InvalidOperationException("Config for 'AppUrl' not found.");
 
@@ -28,6 +44,8 @@ public class AppConfig : IConfig
     }
 
     public int QueueProcessingBatchSize { get; }
+
+    public IReadOnlyList<TimeSpan> DbWritePriorityMaxWaits { get; }
 
     public TimeSpan ExtremelyLowPriorityIdleGracePeriod { get; }
 

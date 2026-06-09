@@ -60,11 +60,13 @@ public sealed class SqliteWriteQueueMetrics : IDisposable
 
     public void RecordEnqueue(
         string queue,
-        int depthAtEnqueue)
+        int depthAtEnqueue,
+        DbWritePriority? lane = null)
     {
         _enqueueDepth.Record(
             depthAtEnqueue,
-            new KeyValuePair<string, object?>("queue", queue));
+            new KeyValuePair<string, object?>("queue", queue),
+            new KeyValuePair<string, object?>("lane", LaneTag(lane)));
     }
 
     public void RecordCompleted(
@@ -72,21 +74,26 @@ public sealed class SqliteWriteQueueMetrics : IDisposable
         string source,
         double queueWaitMs,
         double executionMs,
-        bool success)
+        bool success,
+        DbWritePriority? lane = null)
     {
         var queueTag = new KeyValuePair<string, object?>("queue", queue);
         var sourceTag = new KeyValuePair<string, object?>("source", source);
+        var laneTag = new KeyValuePair<string, object?>("lane", LaneTag(lane));
 
-        _queueWaitMs.Record(queueWaitMs, queueTag, sourceTag);
-        _executionMs.Record(executionMs, queueTag, sourceTag);
-        _totalMs.Record(queueWaitMs + executionMs, queueTag, sourceTag);
+        _queueWaitMs.Record(queueWaitMs, queueTag, sourceTag, laneTag);
+        _executionMs.Record(executionMs, queueTag, sourceTag, laneTag);
+        _totalMs.Record(queueWaitMs + executionMs, queueTag, sourceTag, laneTag);
 
         _operations.Add(
             1,
             queueTag,
             sourceTag,
+            laneTag,
             new KeyValuePair<string, object?>("outcome", success ? "success" : "error"));
     }
+
+    private static string LaneTag(DbWritePriority? lane) => lane?.ToString() ?? "none";
 
     private static readonly ConcurrentDictionary<(string?, string?), string> SourceCache = new();
 
