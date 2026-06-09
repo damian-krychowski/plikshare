@@ -9,6 +9,7 @@ using PlikShare.Files.Metadata;
 using PlikShare.Storages.Encryption;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Cache;
+using static PlikShare.MediaProcessing.Generation.GetThumbnailableSelectionFilesQuery;
 
 namespace PlikShare.MediaProcessing.Generation;
 
@@ -31,7 +32,7 @@ public class GenerateFileThumbnailsBulkOperation(
 
     public async Task<Result> Execute(
         WorkspaceContext workspace,
-        List<SourceFile> thumbnailableFiles,
+        List<ThumbnailableFile> thumbnailableFiles,
         IReadOnlyList<ThumbnailVariant> variants,
         UserExtId triggeredByUserExternalId,
         WorkspaceEncryptionSession? workspaceEncryptionSession,
@@ -48,59 +49,68 @@ public class GenerateFileThumbnailsBulkOperation(
             return new Result(Code: ResultCode.NoThumbnailableFiles);
 
         var batchId = Guid.NewGuid();
-        var variantList = variants.ToList();
-        
-        var allBatchItems = new List<ProcessImageQueueJobDefinitionV2.BatchItem>();
-
-        foreach (var parentFile in thumbnailableFiles)
-        {
-            var variantItems = new List<ProcessImageQueueJobDefinitionV2.VariantItem>();
-
-            foreach (var variant in variantList)
-            {
-                variantItems.Add(new ProcessImageQueueJobDefinitionV2.VariantItem
-                {
-                    Variant = variant,
-
-                    EncryptionSeed = workspace.EncryptionType == StorageEncryptionType.Full
-                        ? FullEncryptionSeedEphemeral.Prepare(
-                            workspace: workspace,
-                            session: workspaceEncryptionSession!,
-                            ephemeralKeyRing: ephemeralKeyRing)
-                        : null
-                });
-            }
-
-            allBatchItems.Add(new ProcessImageQueueJobDefinitionV2.BatchItem
-            {
-                ParentFileExternalId = parentFile.ExternalId,
-                VariantItems = variantItems,
-                IsVideo = ContentTypeHelper.GetFileTypeFromExtension(parentFile.Extension) == FileType.Video,
-
-                EncryptionSeed = workspace.EncryptionType == StorageEncryptionType.Full
-                    ? FullEncryptionSeedEphemeral.FromFile(
-                        fileEncryptionMetadata: parentFile.EncryptionMetadata!,
-                        workspace: workspace,
-                        session: workspaceEncryptionSession!,
-                        ephemeralKeyRing: ephemeralKeyRing)
-                    : null
-            });
-        }
 
         var jobs = new List<BulkQueueJobEntity>();
 
-        foreach (var chunk in allBatchItems.Chunk(BatchSize))
+        foreach (var chunk in thumbnailableFiles.Chunk(BatchSize))
         {
+            var imageFileIds = new List<int>();
+            var videoFileIds = new List<int>();
+            Dictionary<string, FullEncryptionSeedEphemeral>? encryptionSeeds = null;
+            
+            foreach (var file in chunk)
+            {
+                if (file.IsVideo())
+                {
+                    videoFileIds.Add(file.FileId);
+                }
+                else
+                {
+                    imageFileIds.Add(file.FileId);
+                }
+
+                if (workspace.EncryptionType == StorageEncryptionType.Full)
+                {
+                    encryptionSeeds ??= [];
+
+                    encryptionSeeds.Add(
+                        key: GenerateImageThumbnailsJobDefinition.GetFileEncryptionSeedsKey(
+                            fileId: file.FileId),
+                        value: FullEncryptionSeedEphemeral.FromFile(
+                            fileEncryptionMetadata: file.EncryptionMetadata!,
+                            workspace: workspace,
+                            session: workspaceEncryptionSession!,
+                            ephemeralKeyRing: ephemeralKeyRing));
+
+                    foreach (var variant in variants)
+                    {
+                        encryptionSeeds.Add(
+                            key: GenerateImageThumbnailsJobDefinition.GetVariantEncryptionSeedsKey(
+                                fileId: file.FileId,
+                                variant: variant),
+                            value: FullEncryptionSeedEphemeral.Prepare(
+                                workspace: workspace,
+                                session: workspaceEncryptionSession!,
+                                ephemeralKeyRing: ephemeralKeyRing));
+                    }
+                }
+            }
+
             var job = queue.CreateBulkEntity(
-                jobType: ProcessImageQueueJobTypeV2.Value,
-                definition: new ProcessImageQueueJobDefinitionV2
+                jobType: GenerateImageThumbnailsJobType.Value,
+                definition: new GenerateImageThumbnailsJobDefinition
                 {
                     WorkspaceId = workspace.Id,
-                    Files = chunk,
-                    TriggeredByUserExternalId = triggeredByUserExternalId
+                    TriggeredByUserExternalId = triggeredByUserExternalId,
+                    Variants = variants.ToArray(),
+                    ImageFileIds = imageFileIds,
+                    VideoFileIds = videoFileIds,
+                    EncryptionSeeds = encryptionSeeds
                 },
                 sagaId: null,
-                batchId: batchId);
+                batch: new QueueJobBatch(
+                    Id: batchId,
+                    ItemsCount: chunk.Length));
 
             jobs.Add(job);
         }
@@ -146,12 +156,5 @@ public class GenerateFileThumbnailsBulkOperation(
         FfmpegUnavailable,
         NoVariants,
         NoThumbnailableFiles
-    }
-
-    public sealed record SourceFile
-    {
-        public required FileExtId ExternalId { get; init; }
-        public required string Extension { get; init; }
-        public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
     }
 }

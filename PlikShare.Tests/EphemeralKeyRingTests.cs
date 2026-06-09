@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
 using PlikShare.Core.Clock;
@@ -26,13 +27,13 @@ public class EphemeralKeyRingTests
     private static byte[] FrameOf(EncodedEphemeralValue value)
     {
         var base64 = value.Encoded[EphemeralKeyRing.ReservedPrefix.Length..];
-        return Convert.FromBase64String(base64);
+        return Base64Url.DecodeFromChars(base64);
     }
 
     private static EncodedEphemeralValue Wrap(byte[] frame)
     {
         return new EncodedEphemeralValue(
-            EphemeralKeyRing.ReservedPrefix + Convert.ToBase64String(frame));
+            EphemeralKeyRing.ReservedPrefix + Base64Url.EncodeToString(frame));
     }
 
     // ---- Round-trip happy paths ----

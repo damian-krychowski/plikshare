@@ -48,7 +48,7 @@ public class BatchDeleteBoxesWithDependenciesQuery(
                     Template = EmailTemplate.BoxMembershipRevoked
                 },
                 sagaId: null,
-                batchId: null);
+                batch: null);
 
             jobsToEnqueue.Add(job);
         }

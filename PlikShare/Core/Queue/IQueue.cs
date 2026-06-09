@@ -19,7 +19,7 @@ public interface IQueue
         DateTimeOffset executeAfterDate,
         string? debounceId,
         QueueSagaId? sagaId,
-        Guid? batchId,
+        QueueJobBatch? batch,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction);
 
@@ -30,7 +30,7 @@ public interface IQueue
         DateTimeOffset executeAfterDate,
         string? debounceId,
         QueueSagaId? sagaId,
-        Guid? batchId,
+        QueueJobBatch? batch,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction);
 
@@ -50,7 +50,7 @@ public interface IQueue
         string jobType,
         T definition,
         QueueSagaId? sagaId,
-        Guid? batchId);
+        QueueJobBatch? batch);
     
     public Task HandleJobFailure(
         QueueJob job,

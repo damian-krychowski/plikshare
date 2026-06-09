@@ -1,3 +1,5 @@
+using System.Buffers.Text;
+using System.Globalization;
 using System.Security.Cryptography;
 using PlikShare.Storages.Encryption;
 using PlikShare.Workspaces.Cache;
@@ -267,6 +269,47 @@ public sealed class FullEncryptionSeedEphemeral
         };
 
         return EphemeralDecodeStatus.Ok;
+    }
+
+    public const string SerializedFormatVersion = "1";
+
+    public string Serialize()
+    {
+        return string.Join(
+            '.',
+            SerializedFormatVersion,
+            IkmKeyVersion.ToString(CultureInfo.InvariantCulture),
+            Base64Url.EncodeToString(IkmChainStepSalts),
+            Base64Url.EncodeToString(ChainStepSalts),
+            EncodedKey.Encoded);
+    }
+
+    public static FullEncryptionSeedEphemeral Deserialize(string serialized)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(serialized);
+
+        var parts = serialized.Split('.', 5);
+
+        if (parts.Length != 5)
+            throw new FormatException(
+                $"Invalid {nameof(FullEncryptionSeedEphemeral)} format.");
+
+        if (parts[0] != SerializedFormatVersion)
+            throw new FormatException(
+                $"Unsupported {nameof(FullEncryptionSeedEphemeral)} format version '{parts[0]}'.");
+
+        return new FullEncryptionSeedEphemeral
+        {
+            IkmKeyVersion = byte.Parse(
+                parts[1],
+                CultureInfo.InvariantCulture),
+
+            IkmChainStepSalts = Base64Url.DecodeFromChars(parts[2]),
+
+            ChainStepSalts = Base64Url.DecodeFromChars(parts[3]),
+
+            EncodedKey = new EncodedEphemeralValue(parts[4])
+        };
     }
 }
 

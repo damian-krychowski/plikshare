@@ -25,6 +25,16 @@ public class EphemeralValueRedactorTests
     }
 
     [Fact]
+    public void Redact_strips_full_ephemeral_key_in_compact_seed_keeping_salts()
+    {
+        var json = """{"3050589":"1.0.Cbd2-_salt.mcVq-_salt.eph:AbC-def_GHI"}""";
+
+        Assert.Equal(
+            """{"3050589":"1.0.Cbd2-_salt.mcVq-_salt.eph:[redacted]"}""",
+            EphemeralValueRedactor.Redact(json));
+    }
+
+    [Fact]
     public void Redact_leaves_json_without_ephemeral_untouched()
     {
         var json = """{"name":"photo.jpg","size":123}""";

@@ -35,7 +35,7 @@ public static class WorkspaceSizeUpdateQueueExtensions
             debounceId: $"update_workspace_current_size_in_bytes_{workspaceId}",
 
             sagaId: null,
-            batchId: null,
+            batch: null,
             dbWriteContext: dbWriteContext,
             transaction: transaction);
 

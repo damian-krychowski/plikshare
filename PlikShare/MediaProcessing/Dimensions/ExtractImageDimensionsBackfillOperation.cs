@@ -21,10 +21,6 @@ public class ExtractImageDimensionsBackfillOperation(
     // extra DbWriteQueue trips don't matter.
     public const int BatchSize = 20;
 
-    // JSON path of the file-id array inside ExtractImageDimensionsQueueJobDefinition — used by the
-    // shared BatchProgressQuery to derive file-level progress for the backfill batch.
-    public const string FilesJsonPath = "$.fileIds";
-
     private static readonly Serilog.ILogger Logger =
         Log.ForContext<ExtractImageDimensionsBackfillOperation>();
 
@@ -73,7 +69,9 @@ public class ExtractImageDimensionsBackfillOperation(
                     EncryptionSeeds = encryptionSeeds
                 },
                 sagaId: null,
-                batchId: batchId);
+                batch: new QueueJobBatch(
+                    Id: batchId,
+                    ItemsCount: fileIds.Length));
 
             jobs.Add(job);
         }

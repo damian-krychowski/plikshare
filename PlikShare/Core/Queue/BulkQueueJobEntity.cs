@@ -12,4 +12,7 @@ public class BulkQueueJobEntity
 
     /// <summary>Generic batch grouping key — written to <c>q_batch_id</c>. Null for jobs not part of a batch.</summary>
     public Guid? BatchId { get; init; }
+
+    /// <summary>This job's contribution to its batch's item total — written to <c>q_batch_items_count</c>. Null for jobs not part of a batch.</summary>
+    public int? BatchItemsCount { get; init; }
 }

@@ -143,7 +143,7 @@ public class GetThumbnailableSelectionFilesQuery(PlikShareDb plikShareDb)
             .AggregateRows(
                 sql: """
                      SELECT
-                         fi_external_id,
+                         fi_id,
                          fi_size_in_bytes,
                          fi_extension,
                          fi_encryption_key_version,
@@ -175,7 +175,7 @@ public class GetThumbnailableSelectionFilesQuery(PlikShareDb plikShareDb)
 
                     acc.Add(new ThumbnailableFile
                     {
-                        ExternalId = reader.GetExtId<FileExtId>(0),
+                        FileId = reader.GetInt32(0),
                         SizeInBytes = reader.GetInt64(1),
                         Extension = extension,
 
@@ -285,10 +285,15 @@ public class GetThumbnailableSelectionFilesQuery(PlikShareDb plikShareDb)
 
     public sealed record ThumbnailableFile
     {
-        public required FileExtId ExternalId { get; init; }
+        public required int FileId { get; init; }
         public required long SizeInBytes { get; init; }
         public required string Extension { get; init; }
         public required FileEncryptionMetadata? EncryptionMetadata { get; init; }
+
+        public bool IsVideo()
+        {
+            return ContentTypeHelper.GetFileTypeFromExtension(Extension) == FileType.Video;
+        }
     }
 
     public readonly record struct CountResult(

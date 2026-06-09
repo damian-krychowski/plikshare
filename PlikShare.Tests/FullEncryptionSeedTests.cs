@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Encryption;
+using PlikShare.Core.Utils;
 using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.Tests;
@@ -511,6 +512,174 @@ public class FullEncryptionSeedTests
 
         Assert.Throws<InvalidOperationException>(
             () => FullEncryptionSeedEphemeral.FromFile(metadata, workspace, session, ring));
+    }
+
+    // ---- FullEncryptionSeedEphemeral.Serialize / Deserialize ----
+
+    private static FullEncryptionSeedEphemeral CreateEphemeral(
+        EphemeralKeyRing ring,
+        byte keyVersion = 7,
+        int ikmSteps = 2,
+        int chainSteps = 3)
+    {
+        return new FullEncryptionSeedEphemeral
+        {
+            IkmKeyVersion = keyVersion,
+
+            IkmChainStepSalts = KeyDerivationChain.Serialize(
+                Enumerable.Range(0, ikmSteps).Select(_ => RandomBytes(32)).ToArray())!,
+
+            ChainStepSalts = KeyDerivationChain.Serialize(
+                Enumerable.Range(0, chainSteps).Select(_ => RandomBytes(32)).ToArray())!,
+
+            EncodedKey = ring.Encode(RandomBytes(32))
+        };
+    }
+
+    [Fact]
+    public void Serialize_starts_with_format_version_segment()
+    {
+        var clock = new MutableClock();
+        using var ring = CreateRing(clock);
+
+        var ephemeral = CreateEphemeral(ring);
+
+        Assert.StartsWith(
+            $"{FullEncryptionSeedEphemeral.SerializedFormatVersion}.",
+            ephemeral.Serialize());
+    }
+
+    [Fact]
+    public void Serialize_produces_five_dot_separated_segments()
+    {
+        var clock = new MutableClock();
+        using var ring = CreateRing(clock);
+
+        var ephemeral = CreateEphemeral(ring);
+
+        Assert.Equal(5, ephemeral.Serialize().Split('.', 5).Length);
+    }
+
+    [Fact]
+    public void Serialize_then_Deserialize_roundtrips_all_fields()
+    {
+        var clock = new MutableClock();
+        using var ring = CreateRing(clock);
+
+        var ephemeral = CreateEphemeral(ring);
+
+        var restored = FullEncryptionSeedEphemeral.Deserialize(
+            ephemeral.Serialize());
+
+        Assert.Equal(ephemeral.IkmKeyVersion, restored.IkmKeyVersion);
+        Assert.Equal(ephemeral.IkmChainStepSalts, restored.IkmChainStepSalts);
+        Assert.Equal(ephemeral.ChainStepSalts, restored.ChainStepSalts);
+        Assert.Equal(ephemeral.EncodedKey.Encoded, restored.EncodedKey.Encoded);
+    }
+
+    [Fact]
+    public void Deserialize_preserves_encoded_key_exactly()
+    {
+        var clock = new MutableClock();
+        using var ring = CreateRing(clock);
+
+        var ephemeral = CreateEphemeral(ring);
+
+        var restored = FullEncryptionSeedEphemeral.Deserialize(
+            ephemeral.Serialize());
+
+        Assert.StartsWith(EphemeralKeyRing.ReservedPrefix, restored.EncodedKey.Encoded);
+        Assert.Equal(ephemeral.EncodedKey.Encoded, restored.EncodedKey.Encoded);
+    }
+
+    [Fact]
+    public void Serialize_roundtrip_preserves_decodability_via_ring_and_session()
+    {
+        var workspace = CreateEncryptedWorkspace();
+        using var session = CreateSession();
+        var clock = new MutableClock();
+        using var ring = CreateRing(clock);
+
+        var ephemeral = FullEncryptionSeedEphemeral.Prepare(workspace, session, ring);
+
+        var restored = FullEncryptionSeedEphemeral.Deserialize(
+            ephemeral.Serialize());
+
+        var status = restored.TryDecode(ring, out var seed);
+
+        Assert.Equal(EphemeralDecodeStatus.Ok, status);
+        Assert.NotNull(seed);
+
+        using (seed)
+        {
+            var encoded = seed!.EncodeMetadata("roundtrip.png");
+            Assert.Equal("roundtrip.png", session.DecodeMetadata(encoded));
+        }
+    }
+
+    [Fact]
+    public void Deserialize_throws_on_empty_string()
+    {
+        Assert.Throws<ArgumentException>(
+            () => FullEncryptionSeedEphemeral.Deserialize(""));
+    }
+
+    [Fact]
+    public void Deserialize_throws_on_unsupported_format_version()
+    {
+        var clock = new MutableClock();
+        using var ring = CreateRing(clock);
+
+        var serialized = CreateEphemeral(ring).Serialize();
+        var tampered = $"9{serialized[FullEncryptionSeedEphemeral.SerializedFormatVersion.Length..]}";
+
+        Assert.Throws<FormatException>(
+            () => FullEncryptionSeedEphemeral.Deserialize(tampered));
+    }
+
+    [Fact]
+    public void Deserialize_throws_on_too_few_segments()
+    {
+        Assert.Throws<FormatException>(
+            () => FullEncryptionSeedEphemeral.Deserialize("1.0.AAAA"));
+    }
+
+    [Fact]
+    public void Ephemeral_serializes_to_single_json_string()
+    {
+        var clock = new MutableClock();
+        using var ring = CreateRing(clock);
+
+        var ephemeral = CreateEphemeral(ring);
+
+        var json = Json.Serialize(ephemeral);
+
+        Assert.StartsWith("\"", json);
+        Assert.EndsWith("\"", json);
+        Assert.Equal(ephemeral.Serialize(), Json.Deserialize<string>(json));
+    }
+
+    [Fact]
+    public void Ephemeral_roundtrips_through_json_dictionary()
+    {
+        var clock = new MutableClock();
+        using var ring = CreateRing(clock);
+
+        var ephemeral = CreateEphemeral(ring);
+
+        var dictionary = new Dictionary<string, FullEncryptionSeedEphemeral>
+        {
+            ["3"] = ephemeral
+        };
+
+        var json = Json.Serialize(dictionary);
+
+        var restored = Json.Deserialize<Dictionary<string, FullEncryptionSeedEphemeral>>(json)!;
+
+        Assert.Equal(ephemeral.EncodedKey.Encoded, restored["3"].EncodedKey.Encoded);
+        Assert.Equal(ephemeral.IkmChainStepSalts, restored["3"].IkmChainStepSalts);
+        Assert.Equal(ephemeral.ChainStepSalts, restored["3"].ChainStepSalts);
+        Assert.Equal(ephemeral.IkmKeyVersion, restored["3"].IkmKeyVersion);
     }
 
     // ---- FullEncryptionSeedExtensions: file metadata + mode ----

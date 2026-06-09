@@ -30,8 +30,7 @@ public class ImageDimensionsBackfillStatusQuery(PlikShareDb plikShareDb)
 
         var counts = BatchProgressQuery.GetCounts(
             connection,
-            batchId.Value,
-            filesJsonPath: ExtractImageDimensionsBackfillOperation.FilesJsonPath);
+            batchId.Value);
 
         return new ActiveBackfill(
             BatchId: batchId.Value,

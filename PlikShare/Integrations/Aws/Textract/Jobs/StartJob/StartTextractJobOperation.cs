@@ -117,7 +117,7 @@ public class StartTextractJobOperation(
                     executeAfterDate: clock.UtcNow,
                     debounceId: null,
                     sagaId: null,
-                    batchId: null,
+                    batch: null,
                     dbWriteContext,
                     transaction);
 
@@ -156,7 +156,7 @@ public class StartTextractJobOperation(
                     executeAfterDate: clock.UtcNow,
                     debounceId: null,
                     sagaId: null,
-                    batchId: null,
+                    batch: null,
                     dbWriteContext: dbWriteContext,
                     transaction: transaction);
 

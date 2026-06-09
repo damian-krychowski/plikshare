@@ -9,3 +9,8 @@ public static class ProcessImageQueueJobTypeV2
 {
     public const string Value = "process-image-thumbnails-v2";
 }
+
+public static class GenerateImageThumbnailsJobType
+{
+    public const string Value = "generate-image-thumbnails";
+}

@@ -230,7 +230,7 @@ public class CheckTextractAnalysisStatusQueueJobExecutor(
                         executeAfterDate: clock.UtcNow,
                         debounceId: null,
                         sagaId: null,
-                        batchId: null,
+                        batch: null,
                         dbWriteContext: context,
                         transaction: transaction);
 

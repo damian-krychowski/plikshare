@@ -46,7 +46,7 @@ namespace PlikShare.Files.Delete
                             .ToArray()
                     },
                     sagaId: sagaId,
-                    batchId: null);
+                    batch: null);
 
                 jobsToEnqueue.Add(job);
             }

@@ -74,7 +74,7 @@ public class DeleteFileUploadsSubQuery(
                     AbortHandle = abortHandle
                 },
                 sagaId: sagaId,
-                batchId: null);
+                batch: null);
 
             jobsToEnqueue.Add(job);
         }

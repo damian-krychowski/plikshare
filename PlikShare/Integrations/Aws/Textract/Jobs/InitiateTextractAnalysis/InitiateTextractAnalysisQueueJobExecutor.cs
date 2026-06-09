@@ -198,7 +198,7 @@ public class InitiateTextractAnalysisQueueJobExecutor(
                             TimeSpan.FromSeconds(CheckStatusDelayInSeconds)),
                         debounceId: null,
                         sagaId: null,
-                        batchId: null,
+                        batch: null,
                         dbWriteContext: context,
                         transaction: transaction);
 

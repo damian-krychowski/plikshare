@@ -15,6 +15,6 @@ public static partial class EphemeralValueRedactor
         return EphemeralValueRegex().Replace(json, "eph:[redacted]");
     }
 
-    [GeneratedRegex(@"eph:[A-Za-z0-9+/=]+")]
+    [GeneratedRegex(@"eph:[^""]*")]
     private static partial Regex EphemeralValueRegex();
 }

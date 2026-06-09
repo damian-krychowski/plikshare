@@ -368,6 +368,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_42_BoxDefaultDisplayConfigurationIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_43_MediaProcessingPolicyIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_44_RecategorizeDbOnlyJobsToNormal>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_45_QueueBatchItemsCountColumns>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -830,6 +831,7 @@ public class Startup
 
         AddLongRunningQueueJob<ProcessImageQueueJobExecutor>();
         AddLongRunningQueueJob<ProcessImageQueueJobExecutorV2>();
+        AddLongRunningQueueJob<GenerateImageThumbnailsJobExecutor>();
         AddLongRunningQueueJob<ExtractImageDimensionsQueueJobExecutor>();
         builder.Services.AddSingleton<UpsertParentImageDimensionsQuery>();
         builder.Services.AddSingleton<FileCreatedDispatcher>();

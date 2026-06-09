@@ -238,21 +238,13 @@ public static class MediaProcessingEndpoints
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
 
-        var thumbnailableFiles = getThumbnailableSelectionFilesQuery
-            .Execute(
-                workspace: workspaceMembership.Workspace,
-                selectedFolders: [],
-                selectedFiles: [fileExternalId.Value],
-                excludedFolders: [],
-                excludedFiles: [],
-                workspaceEncryptionSession: workspaceEncryptionSession)
-            .Select(file => new GenerateFileThumbnailsBulkOperation.SourceFile
-            {
-                ExternalId = file.ExternalId,
-                Extension = file.Extension,
-                EncryptionMetadata = file.EncryptionMetadata
-            })
-            .ToList();
+        var thumbnailableFiles = getThumbnailableSelectionFilesQuery.Execute(
+            workspace: workspaceMembership.Workspace,
+            selectedFolders: [],
+            selectedFiles: [fileExternalId.Value],
+            excludedFolders: [],
+            excludedFiles: [],
+            workspaceEncryptionSession: workspaceEncryptionSession);
 
         var result = await generateFileThumbnailsBulkOperation.Execute(
             workspace: workspaceMembership.Workspace,
@@ -309,6 +301,7 @@ public static class MediaProcessingEndpoints
             return HttpErrors.File.NoThumbnailableFilesSelected();
 
         var variants = new List<ThumbnailVariant>(request.Variants.Count);
+        
         foreach (var raw in request.Variants)
         {
             if (!Enum.TryParse<ThumbnailVariant>(raw, ignoreCase: true, out var parsed))
@@ -317,18 +310,9 @@ public static class MediaProcessingEndpoints
             variants.Add(parsed);
         }
 
-        var sourceFiles = thumbnailableFiles
-            .Select(file => new GenerateFileThumbnailsBulkOperation.SourceFile
-            {
-                ExternalId = file.ExternalId,
-                Extension = file.Extension,
-                EncryptionMetadata = file.EncryptionMetadata
-            })
-            .ToList();
-
         var result = await generateFileThumbnailsBulkOperation.Execute(
             workspace: workspaceMembership.Workspace,
-            thumbnailableFiles: sourceFiles,
+            thumbnailableFiles: thumbnailableFiles,
             variants: variants,
             triggeredByUserExternalId: workspaceMembership.User.ExternalId,
             workspaceEncryptionSession: workspaceEncryptionSession,
@@ -436,8 +420,7 @@ public static class MediaProcessingEndpoints
             batchId: batchId,
             notifier: queueBatchNotifier,
             getCounts: () => batchProgressQuery.GetCounts(
-                batchId,
-                ExtractImageDimensionsBackfillOperation.FilesJsonPath),
+                batchId),
             clock: clock,
             cancellationToken: cancellationToken);
     }

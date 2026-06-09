@@ -122,7 +122,7 @@ public class Queue(
         DateTimeOffset executeAfterDate,
         string? debounceId,
         QueueSagaId? sagaId,
-        Guid? batchId,
+        QueueJobBatch? batch,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction)
     {
@@ -133,7 +133,7 @@ public class Queue(
             executeAfterDate,
             debounceId,
             sagaId,
-            batchId,
+            batch,
             dbWriteContext,
             transaction);
 
@@ -153,7 +153,7 @@ public class Queue(
         DateTimeOffset executeAfterDate,
         string? debounceId,
         QueueSagaId? sagaId,
-        Guid? batchId,
+        QueueJobBatch? batch,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction)
     {
@@ -177,6 +177,7 @@ public class Queue(
                         q_debounce_id,
                         q_saga_id,
                         q_batch_id,
+                        q_batch_items_count,
                         q_job_category,
                         q_job_priority
                     )
@@ -191,6 +192,7 @@ public class Queue(
                         $debounceId,
                         $sagaId,
                         $batchId,
+                        $batchItemsCount,
                         $jobCategory,
                         $jobPriority
                     )
@@ -213,7 +215,8 @@ public class Queue(
             .WithParameter("$correlationId", correlationId)
             .WithParameter("$debounceId", debounceId)
             .WithParameter("$sagaId", sagaId?.Value)
-            .WithParameter("$batchId", batchId)
+            .WithParameter("$batchId", batch?.Id)
+            .WithParameter("$batchItemsCount", batch?.ItemsCount)
             .WithParameter("$jobCategory", (int)queueJobInfoProvider.GetJobCategory(jobType))
             .WithParameter("$jobPriority", queueJobInfoProvider.GetJobPriority(jobType))
             .Execute();
@@ -243,6 +246,7 @@ public class Queue(
                         q_debounce_id,
                         q_saga_id,
                         q_batch_id,
+                        q_batch_items_count,
                         q_job_category,
                         q_job_priority
                     )
@@ -257,6 +261,7 @@ public class Queue(
                         NULL,
                         json_extract(value, '$.sagaId'),
                         json_extract(value, '$.batchId'),
+                        json_extract(value, '$.batchItemsCount'),
                         json_extract(value, '$.jobCategory'),
                         json_extract(value, '$.jobPriority')
                     FROM
@@ -288,7 +293,7 @@ public class Queue(
         string jobType,
         T definition,
         QueueSagaId? sagaId,
-        Guid? batchId)
+        QueueJobBatch? batch)
     {
         return new BulkQueueJobEntity
         {
@@ -307,7 +312,9 @@ public class Queue(
 
             JobPriority = queueJobInfoProvider.GetJobPriority(jobType),
 
-            BatchId = batchId
+            BatchId = batch?.Id,
+
+            BatchItemsCount = batch?.ItemsCount
         };
     }
    
@@ -798,6 +805,7 @@ public class Queue(
                         qc_completed_at,
                         qc_correlation_id,
                         qc_batch_id,
+                        qc_batch_items_count,
                         qc_result
                     )
                     SELECT
@@ -810,6 +818,7 @@ public class Queue(
                         $completedAt,
                         q_correlation_id,
                         q_batch_id,
+                        q_batch_items_count,
                         $result
                     FROM
                         q_queue

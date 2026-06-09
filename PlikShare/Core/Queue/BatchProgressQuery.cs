@@ -13,38 +13,35 @@ public class BatchProgressQuery(PlikShareDb plikShareDb)
     }
 
     public Counts GetCounts(
-        Guid batchId,
-        string filesJsonPath)
+        Guid batchId)
     {
         using var connection = plikShareDb.OpenConnection();
 
         return GetCounts(
             connection,
-            batchId,
-            filesJsonPath);
+            batchId);
     }
 
     public static Counts GetCounts(
         SqliteConnection connection,
-        Guid batchId,
-        string filesJsonPath)
+        Guid batchId)
     {
         var result = connection
             .OneRowCmd(
-                sql: $"""
+                sql: """
                     SELECT
                         (
-                            SELECT COALESCE(SUM(json_array_length(json_extract(qc_definition, '{filesJsonPath}'))), 0)
+                            SELECT COALESCE(SUM(qc_batch_items_count), 0)
                             FROM qc_queue_completed
                             WHERE qc_batch_id = $batchId
                         ),
                         (
-                            SELECT COALESCE(SUM(json_array_length(json_extract(q_definition, '{filesJsonPath}'))), 0)
+                            SELECT COALESCE(SUM(q_batch_items_count), 0)
                             FROM q_queue
                             WHERE q_batch_id = $batchId
                         ),
                         (
-                            SELECT COALESCE(SUM(json_array_length(json_extract(q_definition, '{filesJsonPath}'))), 0)
+                            SELECT COALESCE(SUM(q_batch_items_count), 0)
                             FROM q_queue
                             WHERE q_batch_id = $batchId
                                 AND q_status = $failedStatus

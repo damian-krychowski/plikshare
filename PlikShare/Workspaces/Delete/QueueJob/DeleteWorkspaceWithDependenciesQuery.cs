@@ -105,7 +105,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
                     Template = EmailTemplate.BoxMembershipRevoked,
                 },
                 sagaId: null,
-                batchId: null);
+                batch: null);
 
             jobsToEnqueue.Add(job);
         }
@@ -209,7 +209,7 @@ public class DeleteWorkspaceWithDependenciesQuery(
                     Template = EmailTemplate.WorkspaceMembershipRevoked
                 },
                 sagaId: null,
-                batchId: null);
+                batch: null);
 
             jobsToEnqueue.Add(job);
         }

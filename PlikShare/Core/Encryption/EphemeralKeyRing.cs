@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Buffers.Text;
 using System.Security.Cryptography;
 using System.Text;
 using PlikShare.Core.Clock;
@@ -164,7 +165,7 @@ public sealed class EphemeralKeyRing(
         return new EncodedEphemeralValue(
             string.Concat(
                 ReservedPrefix,
-                Convert.ToBase64String(frame)));
+                Base64Url.EncodeToString(frame)));
     }
 
     public EncodedEphemeralValue Encode(string value)
@@ -205,7 +206,7 @@ public sealed class EphemeralKeyRing(
             return EphemeralDecodeStatus.DecryptionFailed;
 
         var base64Length = raw.Length - ReservedPrefix.Length;
-        var maxFrameLength = base64Length / 4 * 3;
+        var maxFrameLength = Base64Url.GetMaxDecodedLength(base64Length);
 
         if (maxFrameLength < HeaderSize)
             return EphemeralDecodeStatus.DecryptionFailed;
@@ -220,7 +221,7 @@ public sealed class EphemeralKeyRing(
                 ? stackalloc byte[maxFrameLength]
                 : rented.AsSpan(0, maxFrameLength);
 
-            if (!Convert.TryFromBase64Chars(
+            if (!Base64Url.TryDecodeFromChars(
                     raw.AsSpan(ReservedPrefix.Length),
                     frameBuffer,
                     out var frameLength))

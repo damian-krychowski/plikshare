@@ -102,7 +102,7 @@ public class DimensionsFileCreatedHandler(
                     EncryptionSeeds = encryptionSeeds
                 },
                 sagaId: null,
-                batchId: null);
+                batch: null);
 
             queue.EnqueueBulk(
                 correlationId: batch.CorrelationId,

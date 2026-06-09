@@ -141,12 +141,9 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
         SqliteConnection connection,
         Guid batchId)
     {
-        // File-level counts come from the shared batch-progress query; thumbnail job definitions
-        // hold their parents under '$.files'.
         var counts = BatchProgressQuery.GetCounts(
             connection,
-            batchId,
-            filesJsonPath: "$.files");
+            batchId);
 
         return new Counts(
             Completed: counts.Completed,
@@ -171,7 +168,7 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                     """,
                 readRowFunc: reader =>
                 {
-                    var definition = Json.Deserialize<ProcessImageQueueJobDefinitionV2>(
+                    var definition = Json.Deserialize<GenerateImageThumbnailsJobDefinition>(
                         reader.GetString(2));
 
                     var resultJson = reader.GetStringOrNull(3);
@@ -179,7 +176,7 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                     return new CompletedJob(
                         QcId: reader.GetInt64(0),
                         CompletedAt: reader.GetFieldValue<DateTimeOffset>(1),
-                        Variants: definition?.Files[0].GetVariants() ?? [],
+                        Variants: definition?.Variants.ToList() ?? [],
                         Result: resultJson is null
                             ? null
                             : Json.Deserialize<ThumbnailGenerationResult>(resultJson));
@@ -221,22 +218,19 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                     LIMIT $rowLimit
                     """,
                 seed: new OutstandingPageAcc(
-                    FileExternalIds: new List<string>(rowLimit * 10),
+                    FileIds: new List<int>(rowLimit * 10),
                     LastQId: afterQId,
                     RowCount: 0),
                 aggregateRowFunc: (acc, row) =>
                 {
-                    var definition = Json.Deserialize<ProcessImageQueueJobDefinitionV2>(
+                    var definition = Json.Deserialize<GenerateImageThumbnailsJobDefinition>(
                         row.GetString(1));
 
-                    foreach (var file in definition!.Files)
-                    {
-                        acc.FileExternalIds.Add(
-                            file.ParentFileExternalId.Value);
-                    }
+                    acc.FileIds.AddRange(definition!.ImageFileIds);
+                    acc.FileIds.AddRange(definition.VideoFileIds);
 
                     return new OutstandingPageAcc(
-                        FileExternalIds: acc.FileExternalIds,
+                        FileIds: acc.FileIds,
                         LastQId: row.GetInt64(0),
                         RowCount: acc.RowCount + 1);
                 })
@@ -246,17 +240,30 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
             .WithParameter("$rowLimit", rowLimit)
             .Execute();
 
+        var fileExternalIds = connection
+            .Cmd(
+                sql: """
+                     SELECT fi_external_id
+                     FROM fi_files
+                     WHERE fi_id IN (
+                        SELECT value FROM json_each($fileIds)
+                     )
+                     """,
+                readRowFunc: reader => reader.GetString(0))
+            .WithJsonParameter("$fileIds", rows.FileIds)
+            .Execute();
+
         // HasMore is measured in q_queue ROWS, not file ids — each row holds up to BatchSize files,
         // so FileExternalIds.Count is a multiple of the row count. Comparing ids to the row limit
         // would always be false and stop paging after the first chunk.
         return new OutstandingPage(
-            FileExternalIds: rows.FileExternalIds,
+            FileExternalIds: fileExternalIds,
             LastQId: rows.LastQId,
             HasMore: rows.RowCount == rowLimit);
     }
 
     private readonly record struct OutstandingPageAcc(
-        List<string> FileExternalIds,
+        List<int> FileIds,
         long? LastQId,
         int RowCount);
 }

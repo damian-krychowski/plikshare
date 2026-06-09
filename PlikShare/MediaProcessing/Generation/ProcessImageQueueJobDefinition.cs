@@ -25,17 +25,3 @@ public class ProcessImageQueueJobDefinitionV2
         public required FullEncryptionSeedEphemeral? EncryptionSeed { get; init; }
     }
 }
-
-public static class ProcessImageQueueJobDefinitionV2Extensions
-{
-    extension(ProcessImageQueueJobDefinitionV2.BatchItem item)
-    {
-        public List<ThumbnailVariant> GetVariants()
-        {
-            return item
-                .VariantItems
-                .Select(i => i.Variant)
-                .ToList();
-        }
-    }
-}

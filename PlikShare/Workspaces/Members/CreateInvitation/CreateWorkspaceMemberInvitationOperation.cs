@@ -479,7 +479,7 @@ public class CreateWorkspaceMemberInvitationOperation(
             executeAfterDate: expiresAt,
             debounceId: debounceId,
             sagaId: null,
-            batchId: null,
+            batch: null,
             dbWriteContext: dbWriteContext,
             transaction: transaction);
 

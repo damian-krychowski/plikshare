@@ -445,7 +445,7 @@ public class BulkDeleteQuery(
                 FolderIds = folderIds.ToArray()
             },
             sagaId: null,
-            batchId: null);
+            batch: null);
         
         return new FoldersMarkedForDelete(
             FolderIds: folderIds,

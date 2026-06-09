@@ -3,7 +3,8 @@ using Serilog;
 
 namespace PlikShare.MediaProcessing.Generation;
 
-public class ProcessImageQueueJobExecutor() : IQueueLongRunningJobExecutor
+[Obsolete]
+public class ProcessImageQueueJobExecutor : IQueueLongRunningJobExecutor
 {
     private static readonly Serilog.ILogger Logger = Log.ForContext<ProcessImageQueueJobExecutor>();
 
