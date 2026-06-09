@@ -3,9 +3,9 @@ using PlikShare.Integrations.Aws.Textract;
 
 namespace PlikShare.Files.Metadata;
 
-[JsonDerivedType(derivedType: typeof(TextractResultFileMetadata), typeDiscriminator: "aws-textract-result")]
-[JsonDerivedType(derivedType: typeof(ThumbnailFileMetadata), typeDiscriminator: "thumbnail")]
-[JsonDerivedType(derivedType: typeof(ImageDimensionsFileMetadata), typeDiscriminator: "image-dimensions")]
+[JsonDerivedType(derivedType: typeof(TextractResultFileMetadata), typeDiscriminator: TextractResultFileMetadata.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(ThumbnailFileMetadata), typeDiscriminator: ThumbnailFileMetadata.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(ImageDimensionsFileMetadata), typeDiscriminator: ImageDimensionsFileMetadata.TypeDiscriminator)]
 public abstract class FileMetadata
 {
 }

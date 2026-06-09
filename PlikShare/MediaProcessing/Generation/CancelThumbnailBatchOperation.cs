@@ -34,7 +34,7 @@ public class CancelThumbnailBatchOperation(
             if (definition is null)
                 continue;
 
-            releasedFiles += definition.Files.Length;
+            releasedFiles += definition.ImageFileIds.Count + definition.VideoFileIds.Count;
         }
 
         batchNotifier.Notify(batchId);
@@ -42,7 +42,7 @@ public class CancelThumbnailBatchOperation(
         return releasedFiles;
     }
 
-    private static List<ProcessImageQueueJobDefinitionV2?> DeletePendingJobs(
+    private static List<GenerateImageThumbnailsJobDefinition?> DeletePendingJobs(
         SqliteWriteContext context,
         Guid batchId)
     {
@@ -54,7 +54,7 @@ public class CancelThumbnailBatchOperation(
                         AND q_status = $pendingStatus
                     RETURNING q_definition
                     """,
-                readRowFunc: reader => Json.Deserialize<ProcessImageQueueJobDefinitionV2>(
+                readRowFunc: reader => Json.Deserialize<GenerateImageThumbnailsJobDefinition>(
                     reader.GetString(0)))
             .WithParameter("$batchId", batchId)
             .WithParameter("$pendingStatus", QueueStatus.Pending)

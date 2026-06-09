@@ -99,12 +99,17 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
         SqliteConnection connection,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
+        var childrenMetadataByParentId = GetChildFilesMetadataByParentId(
+            workspace,
+            connection);
+
         long maxPosition = 0;
 
 	    return connection
 		    .Cmd(
 			    sql: @"
 					SELECT
+		                fi_id,
 		                fi_external_id,
 		                fi_name,
 		                fi_extension,
@@ -116,15 +121,6 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
                         NOT fi_is_upload_completed,
                         fi_position,
                         fi_created_at,
-                        (
-                            SELECT json_group_array(CAST(child_fi.fi_metadata AS TEXT))
-                            FROM fi_files AS child_fi
-                            WHERE child_fi.fi_parent_file_id = fi_files.fi_id
-                                AND child_fi.fi_workspace_id = $workspaceId
-                                AND child_fi.fi_deleted_at IS NULL
-                                AND child_fi.fi_is_upload_completed = TRUE
-                                AND child_fi.fi_metadata IS NOT NULL
-                        ) AS child_thumbnail_metadata,
                         fi_metadata AS parent_file_metadata
 		            FROM fi_files
 		            WHERE
@@ -140,21 +136,24 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
                 readRowFunc: reader =>
                 {
                     (var position, maxPosition) = ItemPosition.Calculate(
-                        storedPosition: reader.GetInt64OrNull(6),
+                        storedPosition: reader.GetInt64OrNull(7),
                         maxPosition: maxPosition);
+
+                    var childrenMetadata = childrenMetadataByParentId.GetValueOrDefault(
+                        reader.GetInt32(0));
 
                     return new FileDto
                     {
-                        ExternalId = reader.GetString(0),
-                        Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
-                        Extension = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
-                        SizeInBytes = reader.GetInt64(3),
-                        WasUploadedByUser = reader.GetBoolean(4),
-                        IsLocked = reader.GetBoolean(5),
-                        CreatedAt = reader.GetDateTimeOffsetOrNull(7)?.UtcDateTime,
+                        ExternalId = reader.GetString(1),
+                        Name = reader.DecodeEncryptableString(2, workspaceEncryptionSession),
+                        Extension = reader.DecodeEncryptableString(3, workspaceEncryptionSession),
+                        SizeInBytes = reader.GetInt64(4),
+                        WasUploadedByUser = reader.GetBoolean(5),
+                        IsLocked = reader.GetBoolean(6),
+                        CreatedAt = reader.GetDateTimeOffsetOrNull(8)?.UtcDateTime,
                         Position = position,
                         Metadata = FileMetadataFactory.Prepare(
-                            thumbnail: MiniThumbnailMetadata.GetMiniEtag(reader, 8, workspaceEncryptionSession) is { } etag
+                            thumbnail: MiniThumbnailMetadata.GetMiniEtag(childrenMetadata, workspaceEncryptionSession) is { } etag
                                 ? new ThumbnailMetadataDto { MiniEtag = etag }
                                 : null,
                             dimensions: ImageDimensionsMetadata.Read(reader, 9, workspaceEncryptionSession) is { } dimensions
@@ -166,6 +165,45 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
 		    .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
             .WithParameter("$uploaderIdentity", userIdentity.Identity)
+            .Execute();
+    }
+
+    private static Dictionary<int, List<string>> GetChildFilesMetadataByParentId(
+	    WorkspaceContext workspace,
+	    SqliteConnection connection)
+    {
+        return connection
+            .AggregateRows(
+                sql: @"
+                    SELECT
+                        fi_parent_file_id,
+                        CAST(fi_metadata AS TEXT)
+                    FROM fi_files
+                    WHERE
+                        fi_workspace_id = $workspaceId
+                        AND fi_folder_id IS NULL
+                        AND fi_parent_file_id IS NOT NULL
+                        AND fi_deleted_at IS NULL
+                        AND fi_is_upload_completed = TRUE
+                        AND fi_metadata IS NOT NULL
+                ",
+                seed: new Dictionary<int, List<string>>(),
+                aggregateRowFunc: (childrenMetadataByParentId, reader) =>
+                {
+                    var parentFileId = reader.GetInt32(0);
+
+                    if (!childrenMetadataByParentId.TryGetValue(parentFileId, out var metadataList))
+                    {
+                        metadataList = [];
+                        childrenMetadataByParentId[parentFileId] = metadataList;
+                    }
+
+                    metadataList.Add(reader.GetString(1));
+
+                    return childrenMetadataByParentId;
+                },
+                name: "top_folder_content.get_files_children")
+            .WithParameter("$workspaceId", workspace.Id)
             .Execute();
     }
 

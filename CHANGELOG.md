@@ -2,6 +2,13 @@
 
 Release notes for PlikShare.
 
+## 1.1.38
+
+- [IMPROVEMENT] Large folders open noticeably faster — listing a folder with thousands of files is 20–30% quicker: thumbnail metadata is fetched in a single query instead of once per file (backed by a new index), and parsed with a lightweight token scanner instead of full JSON deserialization
+- [IMPROVEMENT] Background jobs start instantly — the queue wakes up the moment a job is enqueued instead of polling once per second; job pickup also got cheaper (indexed per-category selection instead of ranking the whole backlog) and an idle system no longer takes write locks every second
+- [IMPROVEMENT] Smoother responses under heavy background load — database write completions no longer run request code on the single writer thread, so a burst of finished jobs can't stall interactive requests
+- [FIX] Thumbnails now follow their file — moving a file to another folder or restoring it from trash left its dependent files (thumbnails, OCR artifacts) assigned to the old folder; deleting that folder could then permanently remove them. Both operations now carry dependent files along, and a migration re-aligns existing data
+
 ## 1.1.37
 
 - [IMPROVEMENT] Uploads stay fast in large workspaces — the current size is tracked in memory instead of being recomputed from scratch on every upload

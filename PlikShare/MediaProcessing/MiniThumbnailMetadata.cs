@@ -1,7 +1,6 @@
 using System.Data.Common;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
-using PlikShare.Core.Utils;
 using PlikShare.Files.Metadata;
 
 namespace PlikShare.MediaProcessing;
@@ -13,8 +12,15 @@ public static class MiniThumbnailMetadata
         int ordinal,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
-        var encodedChildren = reader.GetFromJsonOrNull<List<string>>(ordinal);
+        return GetMiniEtag(
+            encodedChildren: reader.GetFromJsonOrNull<List<string>>(ordinal),
+            workspaceEncryptionSession: workspaceEncryptionSession);
+    }
 
+    public static string? GetMiniEtag(
+        List<string>? encodedChildren,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
+    {
         if (encodedChildren is null || encodedChildren.Count == 0)
             return null;
 
@@ -25,11 +31,10 @@ public static class MiniThumbnailMetadata
 
             var metadataJson = workspaceEncryptionSession.DecodeMetadata(encoded);
 
-            if (Json.Deserialize<FileMetadata>(metadataJson)
-                is ThumbnailFileMetadata { Variant: ThumbnailVariant.Mini } mini)
-            {
-                return mini.Etag;
-            }
+            var etag = FileMetadataJsonScanner.GetThumbnailMiniEtag(metadataJson);
+
+            if (etag is not null)
+                return etag;
         }
 
         return null;
