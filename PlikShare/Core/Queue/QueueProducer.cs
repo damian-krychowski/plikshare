@@ -12,12 +12,14 @@ namespace PlikShare.Core.Queue;
 public sealed class QueueProducer : BackgroundService
 {
     private readonly TimeSpan _checkBlockedJobsInterval = TimeSpan.FromMinutes(15);
+    private readonly TimeSpan _idleWakeInterval = TimeSpan.FromSeconds(1);
     private DateTimeOffset? _blockedJobsCheckedAt = null;
 
     private readonly SqliteConnection _connection;
 
     private readonly SqliteCommand _selectJobsBatchCommand;
     private readonly SqliteCommand _markJobsProcessingCommand;
+    private readonly SqliteCommand _anySagaExistsCommand;
     private readonly SqliteCommand _deleteCompletedSagasCommand;
     private readonly SqliteCommand _insertQueueSagaJobsCommand;
 
@@ -31,6 +33,7 @@ public sealed class QueueProducer : BackgroundService
     private readonly QueueChannels _channels;
     private readonly IConfig _config;
     private readonly QueueJobInfoProvider _queueJobInfoProvider;
+    private readonly QueueProducerWakeSignal _wakeSignal;
     private readonly CancellationTokenSource _gracefulShutdownCts;
     private bool _disposed;
 
@@ -40,19 +43,22 @@ public sealed class QueueProducer : BackgroundService
         IQueue queue,
         QueueChannels channels,
         IConfig config,
-        QueueJobInfoProvider queueJobInfoProvider)
+        QueueJobInfoProvider queueJobInfoProvider,
+        QueueProducerWakeSignal wakeSignal)
     {
         _clock = clock;
         _queue = queue;
         _channels = channels;
         _config = config;
         _queueJobInfoProvider = queueJobInfoProvider;
+        _wakeSignal = wakeSignal;
         _gracefulShutdownCts = new CancellationTokenSource();
 
         _connection = plikShareDb.OpenConnection();
 
         _selectJobsBatchCommand = PrepareSelectJobsBatchCommand(_connection);
         _markJobsProcessingCommand = PrepareMarkJobsProcessingCommand(_connection);
+        _anySagaExistsCommand = PrepareAnySagaExistsCommand(_connection);
         _deleteCompletedSagasCommand = PrepareDeleteCompletedSagasCommand(_connection);
         _insertQueueSagaJobsCommand = PrepareInsertQueueSagaJobsCommand(_connection);
     }
@@ -67,15 +73,14 @@ public sealed class QueueProducer : BackgroundService
                 stoppingToken,
                 _gracefulShutdownCts.Token);
 
-            using var tickTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-
-            while (await tickTimer.WaitForNextTickAsync(linkedCts.Token))
+            while (!linkedCts.Token.IsCancellationRequested)
             {
-                if (linkedCts.Token.IsCancellationRequested)
-                    break;
-
                 try
                 {
+                    await _wakeSignal.WaitAsync(
+                        timeout: _idleWakeInterval,
+                        cancellationToken: linkedCts.Token);
+
                     UnlockBlockedJobsIfNeeded();
                     await ProcessQueue(linkedCts.Token);
                 }
@@ -142,6 +147,7 @@ public sealed class QueueProducer : BackgroundService
             _gracefulShutdownCts.Dispose();
             _selectJobsBatchCommand.Dispose();
             _markJobsProcessingCommand.Dispose();
+            _anySagaExistsCommand.Dispose();
             _deleteCompletedSagasCommand.Dispose();
             _insertQueueSagaJobsCommand.Dispose();
             _connection.Dispose();
@@ -204,6 +210,15 @@ public sealed class QueueProducer : BackgroundService
 
     private int ProcessQueueSagas()
     {
+        var anySagaExists = _anySagaExistsCommand
+            .GetRows(
+                readRowFunc: reader => reader.GetBoolean(0),
+                name: "queue.any_saga_exists")
+            .Single();
+
+        if (!anySagaExists)
+            return 0;
+
         using var transaction = _connection.BeginTransaction();
 
         try
@@ -305,6 +320,9 @@ public sealed class QueueProducer : BackgroundService
         // Per-category capacity is passed into the SELECT as parameters (snapshot taken now).
         var capacitySnapshot = _channels.GetCapacitySnapshot();
 
+        if (capacitySnapshot.NormalJobs <= 0 && capacitySnapshot.LongRunningJobs <= 0)
+            return [];
+
         try
         {
             // Two-step to avoid holding the single SQLite write-lock during the O(N) selection.
@@ -370,12 +388,38 @@ public sealed class QueueProducer : BackgroundService
 
             List<(int Id, int Priority)> SelectEligibleJobs(bool allowExtremelyLow)
             {
+                var normalJobs = SelectCategoryJobs(
+                    category: QueueJobCategory.Normal,
+                    capacity: capacitySnapshot.NormalJobs,
+                    allowExtremelyLow: allowExtremelyLow);
+
+                var longRunningJobs = SelectCategoryJobs(
+                    category: QueueJobCategory.LongRunning,
+                    capacity: capacitySnapshot.LongRunningJobs,
+                    allowExtremelyLow: allowExtremelyLow);
+
+                return normalJobs
+                    .Concat(longRunningJobs)
+                    .OrderBy(job => job.Id)
+                    .Take(_config.QueueProcessingBatchSize)
+                    .ToList();
+            }
+
+            List<(int Id, int Priority)> SelectCategoryJobs(
+                QueueJobCategory category,
+                int capacity,
+                bool allowExtremelyLow)
+            {
+                var limit = Math.Min(capacity, _config.QueueProcessingBatchSize);
+
+                if (limit <= 0)
+                    return [];
+
                 _selectJobsBatchCommand.Parameters.Clear();
                 _selectJobsBatchCommand.WithParameter("$pendingStatus", QueueStatus.Pending);
+                _selectJobsBatchCommand.WithParameter("$category", (int)category);
                 _selectJobsBatchCommand.WithParameter("$now", now);
-                _selectJobsBatchCommand.WithParameter("$batchSize", _config.QueueProcessingBatchSize);
-                _selectJobsBatchCommand.WithParameter("$normalCapacity", capacitySnapshot.NormalJobs);
-                _selectJobsBatchCommand.WithParameter("$longRunningCapacity", capacitySnapshot.LongRunningJobs);
+                _selectJobsBatchCommand.WithParameter("$limit", limit);
                 _selectJobsBatchCommand.WithParameter("$extremelyLowPriority", QueueJobPriority.ExtremelyLow);
                 _selectJobsBatchCommand.WithParameter("$allowExtremelyLow", allowExtremelyLow ? 1 : 0);
                 _selectJobsBatchCommand.WithParameter("$antiStarvationThreshold", now - _config.ExtremelyLowPriorityMaxWait);
@@ -402,41 +446,19 @@ public sealed class QueueProducer : BackgroundService
 
         command.CommandText =
             """
-            WITH ranked_jobs AS (
-                SELECT
-                    q_id,
-                    q_job_category,
-                    q_job_priority,
-                    q_execute_after_date,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY q_job_category
-                        ORDER BY q_job_priority ASC
-                    ) as category_rank
-                FROM q_queue
-                WHERE
-                    q_status = $pendingStatus
-                    AND q_execute_after_date <= $now
-            ),
-            eligible_jobs AS (
-                SELECT q_id, q_job_priority
-                FROM ranked_jobs
-                WHERE category_rank <= CASE q_job_category
-                        WHEN 1 THEN $normalCapacity
-                        WHEN 2 THEN $longRunningCapacity
-                        ELSE 0
-                    END
-                    AND (
-                        q_job_priority < $extremelyLowPriority
-                        OR $allowExtremelyLow = 1
-                        OR q_execute_after_date <= $antiStarvationThreshold
-                    )
-            )
             SELECT q_id, q_job_priority
-            FROM (
-                SELECT q_id, q_job_priority, ROW_NUMBER() OVER (ORDER BY q_id) as overall_rank
-                FROM eligible_jobs
-            ) ranked
-            WHERE overall_rank <= $batchSize
+            FROM q_queue
+            WHERE
+                q_status = $pendingStatus
+                AND q_job_category = $category
+                AND q_execute_after_date <= $now
+                AND (
+                    q_job_priority < $extremelyLowPriority
+                    OR $allowExtremelyLow = 1
+                    OR q_execute_after_date <= $antiStarvationThreshold
+                )
+            ORDER BY q_job_priority
+            LIMIT $limit
             """;
 
         return command;
@@ -470,6 +492,16 @@ public sealed class QueueProducer : BackgroundService
                 q_soft_retries_left,
                 q_batch_id
             ";
+
+        return command;
+    }
+
+    private SqliteCommand PrepareAnySagaExistsCommand(
+        SqliteConnection connection)
+    {
+        var command = connection.CreateCommand();
+
+        command.CommandText = "SELECT EXISTS (SELECT 1 FROM qs_queue_sagas)";
 
         return command;
     }

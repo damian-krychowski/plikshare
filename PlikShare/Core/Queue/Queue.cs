@@ -14,7 +14,8 @@ public class Queue(
     IClock clock,
     QueueJobStatusDecisionEngine queueJobStatusDecisionEngine,
     QueueJobInfoProvider queueJobInfoProvider,
-    QueueBatchNotifier batchNotifier) : IQueue
+    QueueBatchNotifier batchNotifier,
+    QueueProducerWakeSignal producerWakeSignal) : IQueue
 {
     private static int MaxRetryCount { get; } = 3;
     private static int[] RetryDelaysInSeconds { get; } = [3 * 60, 5 * 60, 15 * 60];
@@ -163,7 +164,7 @@ public class Queue(
         var definitionJson = Json.Serialize(
             item: definition);
 
-        return dbWriteContext
+        var result = dbWriteContext
             .OneRowCmd(
                 sql: @"
                     INSERT INTO q_queue (
@@ -220,6 +221,11 @@ public class Queue(
             .WithParameter("$jobCategory", (int)queueJobInfoProvider.GetJobCategory(jobType))
             .WithParameter("$jobPriority", queueJobInfoProvider.GetJobPriority(jobType))
             .Execute();
+
+        if (!result.IsEmpty)
+            producerWakeSignal.Pulse();
+
+        return result;
     }
 
     public List<QueueJobId> EnqueueBulk(
@@ -285,6 +291,8 @@ public class Queue(
                 $"Correlation ID: {correlationId}. " +
                 "This indicates a potential data integrity issue during bulk job insertion.");
         }
+
+        producerWakeSignal.Pulse();
 
         return result;
     }
@@ -787,10 +795,13 @@ public class Queue(
         SqliteTransaction transaction,
         string consumerIdentity)
     {
-        dbWriteContext.Connection.CreateFunction(
-            "app_redact_ephemeral",
-            (string? json) => EphemeralValueRedactor.Redact(json),
-            isDeterministic: true);
+        if (dbWriteContext.TryClaimFunctionRegistration("app_redact_ephemeral"))
+        {
+            dbWriteContext.Connection.CreateFunction(
+                "app_redact_ephemeral",
+                (string? json) => EphemeralValueRedactor.Redact(json),
+                isDeterministic: true);
+        }
 
         var insertQueueCompletedResult = dbWriteContext
             .OneRowCmd(

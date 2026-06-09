@@ -295,7 +295,8 @@ public class DbWriteQueue : IDisposable
         long enqueuedTimestamp,
         DbWritePriority priority) : ISyncDbWriteOperation
     {
-        public readonly TaskCompletionSource<TResult> CompletionSource = new();
+        public readonly TaskCompletionSource<TResult> CompletionSource = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
 
         public string Source { get; } = source;
         public long EnqueuedTimestamp { get; } = enqueuedTimestamp;
@@ -323,7 +324,8 @@ public class DbWriteQueue : IDisposable
         long enqueuedTimestamp,
         DbWritePriority priority) : ISyncDbWriteOperation
     {
-        public readonly TaskCompletionSource CompletionSource = new();
+        public readonly TaskCompletionSource CompletionSource = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
 
         public string Source { get; } = source;
         public long EnqueuedTimestamp { get; } = enqueuedTimestamp;

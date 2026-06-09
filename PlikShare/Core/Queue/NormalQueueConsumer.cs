@@ -8,7 +8,7 @@ public class NormalQueueConsumer : BackgroundService
 {
     private readonly IQueue _queue;
     private readonly QueueChannels _channels;
-    private readonly IEnumerable<IQueueNormalJobExecutor> _executors;
+    private readonly Dictionary<string, IQueueNormalJobExecutor> _executors;
     private readonly int _consumerId;
 
     public NormalQueueConsumer(
@@ -19,10 +19,9 @@ public class NormalQueueConsumer : BackgroundService
     {
         _queue = queue;
         _channels = channels;
-        _executors = executors;
         _consumerId = consumerId;
 
-        var duplicatedExecutors = _executors
+        var duplicatedExecutors = executors
             .GroupBy(e => e.JobType)
             .Where(g => g.Count() > 1)
             .ToList();
@@ -32,6 +31,9 @@ public class NormalQueueConsumer : BackgroundService
             throw new InvalidOperationException(
                 $"There are duplicated QueueJobExecutors for following JobTypes: {string.Join(", ", duplicatedExecutors.Select(g => g.Key))}");
         }
+
+        _executors = executors.ToDictionary(
+            e => e.JobType);
     }
 
     private string Identity => $"Normal Consumer: {_consumerId}";
@@ -164,14 +166,8 @@ public class NormalQueueConsumer : BackgroundService
     
     private bool TryGetJobExecutor(in QueueJob job, out IQueueNormalJobExecutor executor)
     {
-        var jobType = job.JobType;
-        
-        
-        var jobExecutor = _executors.FirstOrDefault(
-            ex => ex.JobType == jobType);
-
-        executor = jobExecutor!; 
-
-        return jobExecutor != null;
+        return _executors.TryGetValue(
+            job.JobType,
+            out executor!);
     }
 }
