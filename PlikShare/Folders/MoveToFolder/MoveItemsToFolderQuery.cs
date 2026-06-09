@@ -323,7 +323,7 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
         if (fileExternalIds.Length == 0)
             return [];
 
-        return dbWriteContext
+        var movedFiles = dbWriteContext
             .Cmd(
                 sql: """
                      UPDATE fi_files
@@ -363,6 +363,34 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
             .WithParameter("$boxFolderId", boxFolderId)
             .WithJsonParameter("$fileExternalIds", fileExternalIds)
             .Execute();
+
+        if (movedFiles.Count > 0)
+        {
+            // Dependent files (thumbnails, OCR artifacts) live in the same folder as their parent —
+            // they ride along so folder-scoped operations (hard delete of a folder) stay consistent.
+            dbWriteContext
+                .Cmd(
+                    sql: """
+                         UPDATE fi_files
+                         SET fi_folder_id = $destinationFolderId
+                         WHERE
+                             fi_parent_file_id IN (
+                                 SELECT value FROM json_each($movedFileIds)
+                             )
+                             AND fi_workspace_id = $workspaceId
+                             AND fi_deleted_at IS NULL
+                         RETURNING
+                             fi_id
+                         """,
+                    readRowFunc: reader => reader.GetInt32(0),
+                    transaction: transaction)
+                .WithParameter("$destinationFolderId", destinationFolderId)
+                .WithParameter("$workspaceId", workspace.Id)
+                .WithJsonParameter("$movedFileIds", movedFiles)
+                .Execute();
+        }
+
+        return movedFiles;
     }
 
     private static List<int> MoveUploadsToDestinationFolder(

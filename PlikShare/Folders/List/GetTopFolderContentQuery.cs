@@ -85,7 +85,8 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
 					FileContentType = reader.DecodeEncryptableString(3, workspaceEncryptionSession),
 					FileSizeInBytes = reader.GetInt64(4),
 					AlreadyUploadedPartNumbers = reader.GetFromJson<List<int>>(5)
-                })
+                },
+                name: "top_folder_content.get_uploads")
 		    .WithParameter("$workspaceId", workspace.Id)
 		    .WithParameter("$ownerIdentityType", userIdentity.IdentityType)
 		    .WithParameter("$ownerIdentity", userIdentity.Identity)
@@ -160,7 +161,8 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
                                 ? new DimensionsMetadataDto { Width = dimensions.Width, Height = dimensions.Height }
                                 : null)
                     };
-                })
+                },
+                name: "top_folder_content.get_files")
 		    .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
             .WithParameter("$uploaderIdentity", userIdentity.Identity)
@@ -212,7 +214,8 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
                         CreatedAt = reader.GetDateTimeOffsetOrNull(3)?.UtcDateTime,
                         Position = position
                     };
-                })
+                },
+                name: "top_folder_content.get_folders")
 		    .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$creatorIdentityType", userIdentity.IdentityType)
             .WithParameter("$creatorIdentity", userIdentity.Identity)

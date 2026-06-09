@@ -369,6 +369,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_43_MediaProcessingPolicyIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_44_RecategorizeDbOnlyJobsToNormal>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_45_QueueBatchItemsCountColumns>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_46_AlignDependentFilesFolderIdWithParent>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();

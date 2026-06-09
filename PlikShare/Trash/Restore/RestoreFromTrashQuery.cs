@@ -172,11 +172,12 @@ public class RestoreFromTrashQuery(
             transaction: transaction);
 
         // Children (artifacts: thumbnails, OCR, AI metadata) ride along with the parent —
-        // they got soft-deleted in the same transaction as the parent and now un-trash together.
-        // They keep fi_folder_id NULL because that's never meaningful for child files anyway
-        // (parent's fi_folder_id is the authoritative location).
+        // they got soft-deleted in the same transaction as the parent and now un-trash together,
+        // following the parent into its restored folder so fi_folder_id stays consistent
+        // with folder-scoped operations (e.g. hard delete of a folder).
         UnTrashChildren(
             parentFileId: trashed.Id,
+            folderId: destinationFolderId,
             dbWriteContext: dbWriteContext,
             transaction: transaction);
 
@@ -516,6 +517,7 @@ public class RestoreFromTrashQuery(
 
     private static void UnTrashChildren(
         int parentFileId,
+        int? folderId,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
@@ -524,13 +526,15 @@ public class RestoreFromTrashQuery(
                 sql: """
                      UPDATE fi_files
                      SET fi_deleted_at = NULL,
-                         fi_original_folder_path = NULL
+                         fi_original_folder_path = NULL,
+                         fi_folder_id = $folderId
                      WHERE fi_parent_file_id = $parentId
                        AND fi_deleted_at IS NOT NULL
                      """,
                 readRowFunc: reader => 0,
                 transaction: transaction)
             .WithParameter("$parentId", parentFileId)
+            .WithParameter("$folderId", folderId)
             .Execute();
     }
 

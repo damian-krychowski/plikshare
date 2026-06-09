@@ -142,7 +142,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
                     FileContentType = reader.DecodeEncryptableString(3, workspaceEncryptionSession),
                     FileSizeInBytes = reader.GetInt64(4),
                     AlreadyUploadedPartNumbers = reader.GetFromJson<List<int>>(5)
-                })
+                },
+                name: "folder_content.get_uploads")
 		    .WithParameter("$workspaceId", workspace.Id)
 		    .WithParameter("$ownerIdentityType", userIdentity.IdentityType)
 		    .WithParameter("$ownerIdentity", userIdentity.Identity)
@@ -222,7 +223,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
                                 ? new DimensionsMetadataDto { Width = dimensions.Width, Height = dimensions.Height }
                                 : null)
                     };
-                })
+                },
+                name: "folder_content.get_files_uploaded_by_user")
 		    .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
 		    .WithParameter("$uploaderIdentity", userIdentity.Identity)
 		    .WithParameter("$workspaceId", workspace.Id)
@@ -305,7 +307,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
                                 ? new DimensionsMetadataDto { Width = dimensions.Width, Height = dimensions.Height }
                                 : null)
                     };
-                })
+                },
+                name: "folder_content.get_all_files")
 		    .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
 		    .WithParameter("$uploaderIdentity", userIdentity.Identity)
 		    .WithParameter("$workspaceId", workspace.Id)
@@ -369,7 +372,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
                     ExternalId = reader.GetString(0),
 					Name = reader.DecodeEncryptableString(1, workspaceEncryptionSession),
 					Ancestors = reader.GetFromJson<List<AncestorFolderDto>>(2, workspaceEncryptionSession)
-                })
+                },
+                name: "folder_content.get_current_folder")
 		    .WithParameter("$workspaceId", workspace.Id)
 		    .WithParameter("$folderId", currentFolderId)
 		    .WithParameter("$boxFolderId", boxFolderId)
@@ -430,7 +434,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
                         CreatedAt = reader.GetDateTimeOffsetOrNull(3)?.UtcDateTime,
                         Position = position
                     };
-                })
+                },
+                name: "folder_content.get_subfolders")
 		    .WithParameter("$parentFolderId", currentFolderId)
 		    .WithParameter("$creatorIdentityType", userIdentity.IdentityType)
 		    .WithParameter("$creatorIdentity", userIdentity.Identity)
@@ -461,7 +466,8 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
                             )
                         )
 				",
-			    readRowFunc: reader => reader.GetInt32(0))
+			    readRowFunc: reader => reader.GetInt32(0),
+			    name: "folder_content.try_get_current_folder_id")
 		    .WithParameter("$workspaceId", workspace.Id)
 		    .WithParameter("$folderExternalId", folderExternalId.Value)
 		    .WithParameter("$boxFolderId", boxFolderId)
