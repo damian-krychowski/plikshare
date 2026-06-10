@@ -110,6 +110,7 @@ public class RevokeWorkspaceMemberQuery(
                         WorkspaceName = workspace.Name
                     }
                 },
+                workspaceId: workspace.Id,
                 debounceId: null,
                 sagaId: null,
                 batch: null,

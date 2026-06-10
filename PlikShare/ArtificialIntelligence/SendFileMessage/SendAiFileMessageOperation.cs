@@ -385,11 +385,12 @@ public class SendAiFileMessageOperation(
                     AiMessageExternalId = aiMessageExternalId
                 },
                 executeAfterDate: clock.UtcNow,
+                workspaceId: workspaceId,
                 debounceId: null,
                 sagaId: null,
                 batch: null,
-                dbWriteContext,
-                transaction);
+                dbWriteContext: dbWriteContext,
+                transaction: transaction);
 
             transaction.Commit();
 

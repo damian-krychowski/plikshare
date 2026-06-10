@@ -371,6 +371,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_45_QueueBatchItemsCountColumns>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_46_AlignDependentFilesFolderIdWithParent>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_47_FolderChildrenMetadataIndexIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_48_QueueWorkspaceIdAndQueueFileJobs>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();

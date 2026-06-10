@@ -35,7 +35,8 @@ public class NotifyOwnersOfPendingGrantsQuery(
                             sql: """
                                  SELECT
                                      w.w_name,
-                                     owner.u_email
+                                     owner.u_email,
+                                     w.w_id
                                  FROM wm_workspace_membership wm
                                  INNER JOIN w_workspaces w ON w.w_id = wm.wm_workspace_id
                                  INNER JOIN s_storages s ON s.s_id = w.w_storage_id
@@ -50,7 +51,8 @@ public class NotifyOwnersOfPendingGrantsQuery(
                                  """,
                             readRowFunc: reader => new PendingGrantRow(
                                 WorkspaceName: reader.GetString(0),
-                                OwnerEmail: reader.GetString(1)),
+                                OwnerEmail: reader.GetString(1),
+                                WorkspaceId: reader.GetInt32(2)),
                             transaction: transaction)
                         .WithParameter("$userId", userId)
                         .Execute();
@@ -64,6 +66,7 @@ public class NotifyOwnersOfPendingGrantsQuery(
                             inviteeEmail: inviteeEmail,
                             ownerEmail: row.OwnerEmail,
                             workspaceName: row.WorkspaceName,
+                            workspaceId: row.WorkspaceId,
                             dbWriteContext: context,
                             transaction: transaction);
                     }
@@ -90,5 +93,6 @@ public class NotifyOwnersOfPendingGrantsQuery(
 
     private readonly record struct PendingGrantRow(
         string WorkspaceName,
-        string OwnerEmail);
+        string OwnerEmail,
+        int WorkspaceId);
 }

@@ -221,6 +221,7 @@ public class BulkDeleteQuery(
                 correlationId: correlationId,
                 definitions: jobsToEnqueue,
                 executeAfterDate: clock.UtcNow,
+                workspaceId: workspace.Id,
                 dbWriteContext: dbWriteContext,
                 transaction: transaction);
 

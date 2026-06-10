@@ -65,6 +65,7 @@ public class CreateBoxMemberInvitationQuery(
                     member,
                     inviter.Email,
                     box.Name,
+                    box.Workspace.Id,
                     dbWriteContext,
                     transaction);
 
@@ -159,6 +160,7 @@ public class CreateBoxMemberInvitationQuery(
         Member member,
         Email inviterEmail,
         string boxName,
+        int workspaceId,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
@@ -175,6 +177,7 @@ public class CreateBoxMemberInvitationQuery(
                     InvitationCode: member.InvitationCode?.Value)
             },
             executeAfterDate: clock.UtcNow,
+            workspaceId: workspaceId,
             debounceId: null,
             sagaId: null,
             batch: null,

@@ -125,6 +125,9 @@
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\47_folder_children_metadata_index_introduced.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\48_queue_workspace_id_and_queue_file_jobs.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\26_workspace_encryption_keys_introduced.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>

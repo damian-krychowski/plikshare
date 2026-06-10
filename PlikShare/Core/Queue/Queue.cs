@@ -121,6 +121,7 @@ public class Queue(
         string jobType,
         T definition,
         DateTimeOffset executeAfterDate,
+        int? workspaceId,
         string? debounceId,
         QueueSagaId? sagaId,
         QueueJobBatch? batch,
@@ -132,6 +133,7 @@ public class Queue(
             jobType,
             definition,
             executeAfterDate,
+            workspaceId,
             debounceId,
             sagaId,
             batch,
@@ -152,6 +154,7 @@ public class Queue(
         string jobType,
         T definition,
         DateTimeOffset executeAfterDate,
+        int? workspaceId,
         string? debounceId,
         QueueSagaId? sagaId,
         QueueJobBatch? batch,
@@ -180,7 +183,8 @@ public class Queue(
                         q_batch_id,
                         q_batch_items_count,
                         q_job_category,
-                        q_job_priority
+                        q_job_priority,
+                        q_workspace_id
                     )
                     VALUES (
                         $jobType,
@@ -195,7 +199,8 @@ public class Queue(
                         $batchId,
                         $batchItemsCount,
                         $jobCategory,
-                        $jobPriority
+                        $jobPriority,
+                        $workspaceId
                     )
                     ON CONFLICT (q_debounce_id)
                     DO UPDATE SET
@@ -220,6 +225,7 @@ public class Queue(
             .WithParameter("$batchItemsCount", batch?.ItemsCount)
             .WithParameter("$jobCategory", (int)queueJobInfoProvider.GetJobCategory(jobType))
             .WithParameter("$jobPriority", queueJobInfoProvider.GetJobPriority(jobType))
+            .WithParameter("$workspaceId", workspaceId)
             .Execute();
 
         if (!result.IsEmpty)
@@ -229,15 +235,16 @@ public class Queue(
     }
 
     public List<QueueJobId> EnqueueBulk(
-        Guid correlationId, 
-        List<BulkQueueJobEntity> definitions, 
-        DateTimeOffset executeAfterDate, 
+        Guid correlationId,
+        List<BulkQueueJobEntity> definitions,
+        DateTimeOffset executeAfterDate,
+        int? workspaceId,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction)
     {
         if (definitions.Count == 0)
             return [];
-        
+
         var result = dbWriteContext
             .Cmd(
                 sql: @"
@@ -254,7 +261,8 @@ public class Queue(
                         q_batch_id,
                         q_batch_items_count,
                         q_job_category,
-                        q_job_priority
+                        q_job_priority,
+                        q_workspace_id
                     )
                     SELECT
                         json_extract(value, '$.jobType'),
@@ -269,7 +277,8 @@ public class Queue(
                         json_extract(value, '$.batchId'),
                         json_extract(value, '$.batchItemsCount'),
                         json_extract(value, '$.jobCategory'),
-                        json_extract(value, '$.jobPriority')
+                        json_extract(value, '$.jobPriority'),
+                        $workspaceId
                     FROM
                         json_each($definitions)
                     RETURNING
@@ -281,6 +290,7 @@ public class Queue(
             .WithParameter("$executeAfterDate", executeAfterDate)
             .WithParameter("$enqueuedAt", clock.UtcNow)
             .WithParameter("$correlationId", correlationId)
+            .WithParameter("$workspaceId", workspaceId)
             .WithJsonParameter("$definitions", definitions)
             .Execute();
 
@@ -297,6 +307,67 @@ public class Queue(
         return result;
     }
     
+    public List<QueueJobId> EnqueueBulk(
+        Guid correlationId,
+        List<BulkQueueJobWithTrackedFiles> definitions,
+        DateTimeOffset executeAfterDate,
+        int? workspaceId,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction? transaction)
+    {
+        if (definitions.Count == 0)
+            return [];
+
+        var jobIds = EnqueueBulk(
+            correlationId: correlationId,
+            definitions: definitions.Select(d => d.Job).ToList(),
+            executeAfterDate: executeAfterDate,
+            workspaceId: workspaceId,
+            dbWriteContext: dbWriteContext,
+            transaction: transaction);
+
+        var links = new List<QueueFileJobLink>();
+
+        for (var i = 0; i < definitions.Count; i++)
+        {
+            foreach (var fileId in definitions[i].TrackedFileIds)
+            {
+                links.Add(new QueueFileJobLink(
+                    QueueJobId: jobIds[i].Value,
+                    FileId: fileId));
+            }
+        }
+
+        if (links.Count == 0)
+            return jobIds;
+
+        dbWriteContext
+            .Cmd(
+                sql: @"
+                    INSERT INTO qfj_queue_file_jobs (
+                        qfj_queue_job_id,
+                        qfj_file_id
+                    )
+                    SELECT
+                        json_extract(value, '$.queueJobId'),
+                        json_extract(value, '$.fileId')
+                    FROM
+                        json_each($links)
+                    RETURNING
+                        qfj_queue_job_id;
+                ",
+                readRowFunc: reader => reader.GetInt32(0),
+                transaction: transaction)
+            .WithJsonParameter("$links", links)
+            .Execute();
+
+        return jobIds;
+    }
+
+    private readonly record struct QueueFileJobLink(
+        int QueueJobId,
+        int FileId);
+
     public BulkQueueJobEntity CreateBulkEntity<T>(
         string jobType,
         T definition,
@@ -817,6 +888,7 @@ public class Queue(
                         qc_correlation_id,
                         qc_batch_id,
                         qc_batch_items_count,
+                        qc_workspace_id,
                         qc_result
                     )
                     SELECT
@@ -830,6 +902,7 @@ public class Queue(
                         q_correlation_id,
                         q_batch_id,
                         q_batch_items_count,
+                        q_workspace_id,
                         $result
                     FROM
                         q_queue

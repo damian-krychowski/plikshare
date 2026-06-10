@@ -261,6 +261,7 @@ public class CreateWorkspaceQuery(
                 WorkspaceId: workspaceId,
                 BucketName: finalBucketName,
                 StorageId: storage.StorageId),
+            workspaceId: workspaceId,
             debounceId: null,
             sagaId: null,
             batch: null,

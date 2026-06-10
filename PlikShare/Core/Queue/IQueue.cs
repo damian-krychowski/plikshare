@@ -17,6 +17,7 @@ public interface IQueue
         string jobType,
         T definition,
         DateTimeOffset executeAfterDate,
+        int? workspaceId,
         string? debounceId,
         QueueSagaId? sagaId,
         QueueJobBatch? batch,
@@ -28,6 +29,7 @@ public interface IQueue
         string jobType,
         T definition,
         DateTimeOffset executeAfterDate,
+        int? workspaceId,
         string? debounceId,
         QueueSagaId? sagaId,
         QueueJobBatch? batch,
@@ -38,6 +40,15 @@ public interface IQueue
         Guid correlationId,
         List<BulkQueueJobEntity> definitions,
         DateTimeOffset executeAfterDate,
+        int? workspaceId,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction? transaction);
+
+    List<QueueJobId> EnqueueBulk(
+        Guid correlationId,
+        List<BulkQueueJobWithTrackedFiles> definitions,
+        DateTimeOffset executeAfterDate,
+        int? workspaceId,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction? transaction);
 

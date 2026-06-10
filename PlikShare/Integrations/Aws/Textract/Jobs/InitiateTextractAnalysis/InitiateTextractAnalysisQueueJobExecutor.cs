@@ -196,6 +196,7 @@ public class InitiateTextractAnalysisQueueJobExecutor(
                         },
                         executeAfterDate: clock.UtcNow.Add(
                             TimeSpan.FromSeconds(CheckStatusDelayInSeconds)),
+                        workspaceId: null,
                         debounceId: null,
                         sagaId: null,
                         batch: null,

@@ -71,6 +71,7 @@ public class CreateWorkspaceMemberInvitationQuery(
                     member,
                     inviter.Email,
                     workspace.Name,
+                    workspace.Id,
                     dbWriteContext,
                     transaction);
 
@@ -102,6 +103,7 @@ public class CreateWorkspaceMemberInvitationQuery(
         Member member,
         Email inviterEmail,
         string workspaceName,
+        int workspaceId,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
@@ -118,6 +120,7 @@ public class CreateWorkspaceMemberInvitationQuery(
                     InvitationCode: member.InvitationCode?.Value)
             },
             executeAfterDate: clock.UtcNow,
+            workspaceId: workspaceId,
             debounceId: null,
             sagaId: null,
             batch: null,

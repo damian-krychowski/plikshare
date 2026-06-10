@@ -126,6 +126,7 @@ public class BulkDeleteFoldersWithDependenciesQuery(
             correlationId: correlationId,
             definitions: jobsToEnqueue,
             executeAfterDate: clock.UtcNow,
+            workspaceId: workspaceId,
             dbWriteContext: dbWriteContext,
             transaction: transaction);
 

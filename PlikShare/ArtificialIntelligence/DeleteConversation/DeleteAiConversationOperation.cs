@@ -101,6 +101,7 @@ public class DeleteAiConversationOperation(
                     AiConversationExternalId = aiConversationExternalId
                 },
                 executeAfterDate: clock.UtcNow,
+                workspaceId: null,
                 debounceId: null,
                 sagaId: null,
                 batch: null,

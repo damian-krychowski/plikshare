@@ -477,6 +477,7 @@ public class CreateWorkspaceMemberInvitationOperation(
                 UserId = grant.Target.Id
             },
             executeAfterDate: expiresAt,
+            workspaceId: workspace.Id,
             debounceId: debounceId,
             sagaId: null,
             batch: null,

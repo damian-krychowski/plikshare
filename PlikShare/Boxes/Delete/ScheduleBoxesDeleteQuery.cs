@@ -66,6 +66,7 @@ public class ScheduleBoxesDeleteQuery(
                     BoxIds: [box.Id],
                     WorkspaceId: box.Workspace.Id),
                 executeAfterDate: clock.UtcNow,
+                workspaceId: box.Workspace.Id,
                 debounceId: null,
                 sagaId: null,
                 batch: null,

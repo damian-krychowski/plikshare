@@ -37,6 +37,7 @@ public class PurgeFilesSubQuery(
             correlationId: correlationId,
             definitions: jobs,
             executeAfterDate: clock.UtcNow,
+            workspaceId: workspaceId,
             dbWriteContext: dbWriteContext,
             transaction: transaction);
 

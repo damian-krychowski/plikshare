@@ -115,11 +115,12 @@ public class StartTextractJobOperation(
                         UserIdentityType = userIdentity.IdentityType
                     },
                     executeAfterDate: clock.UtcNow,
+                    workspaceId: workspace.Id,
                     debounceId: null,
                     sagaId: null,
                     batch: null,
-                    dbWriteContext,
-                    transaction);
+                    dbWriteContext: dbWriteContext,
+                    transaction: transaction);
 
                 transaction.Commit();
 
@@ -154,6 +155,7 @@ public class StartTextractJobOperation(
                         TextractJobId = textractJobId
                     },
                     executeAfterDate: clock.UtcNow,
+                    workspaceId: workspace.Id,
                     debounceId: null,
                     sagaId: null,
                     batch: null,

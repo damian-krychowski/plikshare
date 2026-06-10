@@ -218,7 +218,8 @@ public class DeleteWorkspaceWithDependenciesQuery(
             correlationId: correlationId,
             definitions: jobsToEnqueue,
             executeAfterDate: clock.UtcNow,
-            dbWriteContext: dbWriteContext, 
+            workspaceId: workspaceId,
+            dbWriteContext: dbWriteContext,
             transaction: transaction);
 
         DeleteWorkspace(

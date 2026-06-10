@@ -77,6 +77,7 @@ public class ScheduleWorkspaceDeleteQuery(
                     DeletedAt = clock.UtcNow
                 },
                 executeAfterDate: clock.UtcNow,
+                workspaceId: workspace.Id,
                 debounceId: null,
                 sagaId: null,
                 batch: null,

@@ -40,7 +40,7 @@ public class ExtractImageDimensionsBackfillOperation(
             return new Result(BatchId: null, TotalFiles: 0);
 
         var batchId = Guid.NewGuid();
-        var jobs = new List<BulkQueueJobEntity>();
+        var jobs = new List<BulkQueueJobWithTrackedFiles>();
 
         foreach (var chunk in imageFiles.Chunk(BatchSize))
         {
@@ -73,7 +73,9 @@ public class ExtractImageDimensionsBackfillOperation(
                     Id: batchId,
                     ItemsCount: fileIds.Length));
 
-            jobs.Add(job);
+            jobs.Add(new BulkQueueJobWithTrackedFiles(
+                Job: job,
+                TrackedFileIds: fileIds));
         }
 
         await dbWriteQueue.Execute(
@@ -87,6 +89,7 @@ public class ExtractImageDimensionsBackfillOperation(
                         correlationId: correlationId,
                         definitions: jobs,
                         executeAfterDate: clock.UtcNow,
+                        workspaceId: workspace.Id,
                         dbWriteContext: context,
                         transaction: transaction);
 

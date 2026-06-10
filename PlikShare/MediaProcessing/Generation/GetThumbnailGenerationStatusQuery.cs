@@ -194,7 +194,8 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
     // Keyset-paginated outstanding file ids for the initial SSE chunk stream. Authorization is done
     // once by the caller's GetSnapshot before paging starts, so here we filter by the indexed
     // q_batch_id (a random GUID) and keyset on q_id — a 30k-file batch streams in bounded-memory
-    // pages instead of materializing one ~1 MB list. rowLimit is in q_queue ROWS; each row holds up
+    // pages instead of materializing one ~1 MB list. File ids come from the qfj_queue_file_jobs
+    // junction table, not from the definition JSON. rowLimit is in q_queue ROWS; each row holds up
     // to BatchSize files, so ~200 rows ≈ 2000 file ids per page.
     public OutstandingPage GetUnprocessedFileExternalIdsPage(
         Guid batchId,
@@ -203,12 +204,10 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
     {
         using var connection = plikShareDb.OpenConnection();
 
-        var rows = connection
-            .AggregateRows(
+        var jobIds = connection
+            .Cmd(
                 sql: """
-                    SELECT 
-                        q_id, 
-                        q_definition
+                    SELECT q_id
                     FROM q_queue
                     WHERE
                         q_batch_id = $batchId
@@ -217,53 +216,38 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                     ORDER BY q_id
                     LIMIT $rowLimit
                     """,
-                seed: new OutstandingPageAcc(
-                    FileIds: new List<int>(rowLimit * 10),
-                    LastQId: afterQId,
-                    RowCount: 0),
-                aggregateRowFunc: (acc, row) =>
-                {
-                    var definition = Json.Deserialize<GenerateImageThumbnailsJobDefinition>(
-                        row.GetString(1));
-
-                    acc.FileIds.AddRange(definition!.ImageFileIds);
-                    acc.FileIds.AddRange(definition.VideoFileIds);
-
-                    return new OutstandingPageAcc(
-                        FileIds: acc.FileIds,
-                        LastQId: row.GetInt64(0),
-                        RowCount: acc.RowCount + 1);
-                })
+                readRowFunc: reader => reader.GetInt64(0))
             .WithParameter("$batchId", batchId)
             .WithParameter("$failedStatus", QueueStatus.Failed)
             .WithParameter("$afterQId", afterQId)
             .WithParameter("$rowLimit", rowLimit)
             .Execute();
 
+        if (jobIds.Count == 0)
+        {
+            return new OutstandingPage(
+                FileExternalIds: [],
+                LastQId: afterQId,
+                HasMore: false);
+        }
+
         var fileExternalIds = connection
             .Cmd(
                 sql: """
                      SELECT fi_external_id
-                     FROM fi_files
-                     WHERE fi_id IN (
-                        SELECT value FROM json_each($fileIds)
+                     FROM qfj_queue_file_jobs
+                     INNER JOIN fi_files ON fi_id = qfj_file_id
+                     WHERE qfj_queue_job_id IN (
+                        SELECT value FROM json_each($jobIds)
                      )
                      """,
                 readRowFunc: reader => reader.GetString(0))
-            .WithJsonParameter("$fileIds", rows.FileIds)
+            .WithJsonParameter("$jobIds", jobIds)
             .Execute();
 
-        // HasMore is measured in q_queue ROWS, not file ids — each row holds up to BatchSize files,
-        // so FileExternalIds.Count is a multiple of the row count. Comparing ids to the row limit
-        // would always be false and stop paging after the first chunk.
         return new OutstandingPage(
             FileExternalIds: fileExternalIds,
-            LastQId: rows.LastQId,
-            HasMore: rows.RowCount == rowLimit);
+            LastQId: jobIds[^1],
+            HasMore: jobIds.Count == rowLimit);
     }
-
-    private readonly record struct OutstandingPageAcc(
-        List<int> FileIds,
-        long? LastQId,
-        int RowCount);
 }

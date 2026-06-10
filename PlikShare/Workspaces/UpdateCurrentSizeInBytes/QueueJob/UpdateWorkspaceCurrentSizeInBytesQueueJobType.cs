@@ -31,7 +31,8 @@ public static class WorkspaceSizeUpdateQueueExtensions
 
             //one second of delay + debounceId not to recalculate this
             //all over again when many files are being uploaded at once
-            executeAfterDate: clock.UtcNow.AddSeconds(1), 
+            executeAfterDate: clock.UtcNow.AddSeconds(1),
+            workspaceId: workspaceId,
             debounceId: $"update_workspace_current_size_in_bytes_{workspaceId}",
 
             sagaId: null,

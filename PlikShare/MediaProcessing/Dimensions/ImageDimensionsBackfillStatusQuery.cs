@@ -55,9 +55,9 @@ public class ImageDimensionsBackfillStatusQuery(PlikShareDb plikShareDb)
                 sql: """
                     SELECT q_batch_id
                     FROM q_queue
-                    WHERE q_job_type = $jobType
+                    WHERE q_workspace_id = $workspaceId
+                        AND q_job_type = $jobType
                         AND q_batch_id IS NOT NULL
-                        AND json_extract(q_definition, '$.workspaceId') = $workspaceId
                     ORDER BY q_id DESC
                     LIMIT 1
                     """,

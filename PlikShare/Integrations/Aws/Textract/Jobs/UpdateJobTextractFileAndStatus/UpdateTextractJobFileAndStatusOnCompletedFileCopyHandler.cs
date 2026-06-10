@@ -90,6 +90,7 @@ namespace PlikShare.Integrations.Aws.Textract.Jobs.UpdateJobTextractFileAndStatu
                     TextractJobId = definition.TextractJobId
                 },
                 executeAfterDate: clock.UtcNow,
+                workspaceId: null,
                 debounceId: null,
                 sagaId: null,
                 batch: null,

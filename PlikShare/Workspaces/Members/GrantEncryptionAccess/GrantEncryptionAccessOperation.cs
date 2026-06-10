@@ -97,6 +97,7 @@ public class GrantEncryptionAccessOperation(
                         WorkspaceName: workspace.Name)
                 },
                 executeAfterDate: clock.UtcNow,
+                workspaceId: workspace.Id,
                 debounceId: null,
                 sagaId: null,
                 batch: null,

@@ -22,6 +22,7 @@ public static class OwnerGrantRequiredEmail
         string inviteeEmail,
         string ownerEmail,
         string workspaceName,
+        int workspaceId,
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
@@ -37,6 +38,7 @@ public static class OwnerGrantRequiredEmail
                     WorkspaceName: workspaceName)
             },
             executeAfterDate: clock.UtcNow,
+            workspaceId: workspaceId,
             debounceId: null,
             sagaId: null,
             batch: null,

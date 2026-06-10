@@ -383,7 +383,8 @@ public sealed class QueueProducer : BackgroundService
                 ExecuteAfterDate: reader.GetFieldValue<DateTimeOffset>(5),
                 FailedRetriesCount: reader.GetInt32(6),
                 SoftRetriesLeft: reader.GetInt32OrNull(7),
-                BatchId: reader.GetGuidOrNull(8)),
+                BatchId: reader.GetGuidOrNull(8),
+                WorkspaceId: reader.GetInt32OrNull(9)),
                 name: "queue.mark_jobs_processing");
 
             List<(int Id, int Priority)> SelectEligibleJobs(bool allowExtremelyLow)
@@ -490,7 +491,8 @@ public sealed class QueueProducer : BackgroundService
                 q_execute_after_date,
                 q_failed_retries_count,
                 q_soft_retries_left,
-                q_batch_id
+                q_batch_id,
+                q_workspace_id
             ";
 
         return command;

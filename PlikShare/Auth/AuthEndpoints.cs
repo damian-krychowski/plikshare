@@ -588,6 +588,7 @@ public static class AuthEndpoints
                     Template = EmailTemplate.ResetPassword
                 },
                 executeAfterDate: clock.UtcNow,
+                workspaceId: null,
                 debounceId: null,
                 sagaId: null,
                 batch: null,
@@ -706,6 +707,7 @@ public static class AuthEndpoints
                     Template = EmailTemplate.ConfirmationEmail
                 },
                 executeAfterDate: clock.UtcNow,
+                workspaceId: null,
                 debounceId: null,
                 sagaId: null,
                 batch: null,

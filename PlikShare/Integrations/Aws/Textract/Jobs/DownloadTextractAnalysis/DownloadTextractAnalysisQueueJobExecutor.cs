@@ -692,6 +692,7 @@ public class DownloadTextractAnalysisQueueJobExecutor(
                 KeySecretPart = fileKey.KeySecretPart
             },
             executeAfterDate: clock.UtcNow.AddSeconds(10),
+            workspaceId: textractWorkspace.Id,
             debounceId: null,
             sagaId: null,
             batch: null,

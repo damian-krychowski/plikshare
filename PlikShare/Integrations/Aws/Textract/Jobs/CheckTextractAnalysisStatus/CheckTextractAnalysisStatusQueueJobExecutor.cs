@@ -228,6 +228,7 @@ public class CheckTextractAnalysisStatusQueueJobExecutor(
                             TextractTemporaryStoreId = textractTemporaryStoreId
                         },
                         executeAfterDate: clock.UtcNow,
+                        workspaceId: null,
                         debounceId: null,
                         sagaId: null,
                         batch: null,

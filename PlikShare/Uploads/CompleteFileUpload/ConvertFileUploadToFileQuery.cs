@@ -366,9 +366,10 @@ public class ConvertFileUploadToFileQuery(
         var completeFileUploadJob = EnqueueCompleteFileUploadJob(
             dbWriteContext: dbWriteContext,
             fileUploadId: fileUpload.Id,
+            workspaceId: workspace.Id,
             encryptionSeed: workspace.TryGetFileEncryptionSeed(
                 encryptionMetadata: fileUpload.FileEncryptionMetadata,
-                workspaceEncryptionSession: workspaceEncryptionSession, 
+                workspaceEncryptionSession: workspaceEncryptionSession,
                 ephemeralKeyRing: ephemeralKeyRing),
             correlationId: correlationId,
             transaction: transaction);
@@ -413,6 +414,7 @@ public class ConvertFileUploadToFileQuery(
     private QueueJobId EnqueueCompleteFileUploadJob(
         SqliteWriteContext dbWriteContext,
         int fileUploadId,
+        int workspaceId,
         FullEncryptionSeedEphemeral? encryptionSeed,
         Guid correlationId,
         SqliteTransaction transaction)
@@ -424,6 +426,7 @@ public class ConvertFileUploadToFileQuery(
                 FileUploadId: fileUploadId,
                 EncryptionSeed: encryptionSeed),
             executeAfterDate: clock.UtcNow,
+            workspaceId: workspaceId,
             debounceId: null,
             sagaId: null,
             batch: null,

@@ -85,6 +85,7 @@ public class AcceptWorkspaceInvitationQuery(
                             WorkspaceName = workspaceMembership.Workspace.Name
                         }
                     },
+                    workspaceId: workspaceMembership.Workspace.Id,
                     debounceId: null,
                     sagaId: null,
                     batch: null,

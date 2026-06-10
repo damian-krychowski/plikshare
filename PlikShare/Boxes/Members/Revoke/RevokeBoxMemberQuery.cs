@@ -79,6 +79,7 @@ public class RevokeBoxMemberQuery(
                     },
                     Template = EmailTemplate.BoxMembershipRevoked
                 },
+                workspaceId: boxMembership.Box.Workspace.Id,
                 debounceId: null,
                 sagaId: null,
                 batch: null,

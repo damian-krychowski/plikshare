@@ -319,8 +319,9 @@ public class BulkInitiateCopyFileUploadOperation(
                 correlationId: correlationId,
                 definitions: queueJobs,
                 executeAfterDate: clock.UtcNow,
-                dbWriteContext,
-                transaction);
+                workspaceId: definition.DestinationWorkspaceId,
+                dbWriteContext: dbWriteContext,
+                transaction: transaction);
 
             UpdateWorkspaceCurrentSizeInBytesQuery.Increment(
                 workspaceId: definition.DestinationWorkspaceId,

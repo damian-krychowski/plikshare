@@ -50,7 +50,7 @@ public class GenerateFileThumbnailsBulkOperation(
 
         var batchId = Guid.NewGuid();
 
-        var jobs = new List<BulkQueueJobEntity>();
+        var jobs = new List<BulkQueueJobWithTrackedFiles>();
 
         foreach (var chunk in thumbnailableFiles.Chunk(BatchSize))
         {
@@ -112,7 +112,9 @@ public class GenerateFileThumbnailsBulkOperation(
                     Id: batchId,
                     ItemsCount: chunk.Length));
 
-            jobs.Add(job);
+            jobs.Add(new BulkQueueJobWithTrackedFiles(
+                Job: job,
+                TrackedFileIds: [.. imageFileIds, .. videoFileIds]));
         }
 
         await dbWriteQueue.Execute(
@@ -126,6 +128,7 @@ public class GenerateFileThumbnailsBulkOperation(
                         correlationId: correlationId,
                         definitions: jobs,
                         executeAfterDate: clock.UtcNow,
+                        workspaceId: workspace.Id,
                         dbWriteContext: context,
                         transaction: transaction);
 

@@ -93,12 +93,16 @@ public class DimensionsFileCreatedHandler(
                     encryptionSeeds[image.Id] = image.EncryptionSeed;
             }
 
+            var fileIds = chunk
+                .Select(image => image.Id)
+                .ToArray();
+
             var job = queue.CreateBulkEntity(
                 jobType: ExtractImageDimensionsQueueJobType.Value,
                 definition: new ExtractImageDimensionsQueueJobDefinition
                 {
                     WorkspaceId = workspace.Id,
-                    FileIds = chunk.Select(image => image.Id).ToArray(),
+                    FileIds = fileIds,
                     EncryptionSeeds = encryptionSeeds
                 },
                 sagaId: null,
@@ -106,8 +110,11 @@ public class DimensionsFileCreatedHandler(
 
             queue.EnqueueBulk(
                 correlationId: batch.CorrelationId,
-                definitions: [job],
+                definitions: [new BulkQueueJobWithTrackedFiles(
+                    Job: job,
+                    TrackedFileIds: fileIds)],
                 executeAfterDate: clock.UtcNow,
+                workspaceId: workspace.Id,
                 dbWriteContext: batch.DbWriteContext,
                 transaction: batch.Transaction);
         }

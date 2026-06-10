@@ -97,6 +97,7 @@ public class LeaveSharedWorkspaceQuery(
                         MemberEmail = member.Email.Value
                     }
                 },
+                workspaceId: workspace.Id,
                 debounceId: null,
                 sagaId: null,
                 batch: null,

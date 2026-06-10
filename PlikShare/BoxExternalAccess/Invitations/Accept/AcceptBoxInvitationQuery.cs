@@ -84,6 +84,7 @@ public class AcceptBoxInvitationQuery(
                     },
                     correlationId: correlationId,
                     executeAfterDate: clock.UtcNow,
+                    workspaceId: boxMembership.Box.Workspace.Id,
                     debounceId: null,
                     sagaId: null,
                     batch: null,

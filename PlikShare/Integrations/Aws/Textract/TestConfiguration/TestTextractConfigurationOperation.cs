@@ -266,6 +266,7 @@ public class TestTextractConfigurationOperation(
                             KeySecretPart = fileKey.KeySecretPart
                         },
                         executeAfterDate: clock.UtcNow,
+                        workspaceId: null,
                         debounceId: null,
                         sagaId: sagaId,
                         batch: null,

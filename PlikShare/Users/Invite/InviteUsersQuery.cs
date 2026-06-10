@@ -292,6 +292,7 @@ public class InviteUsersQuery(
                         InvitationCode: invitationCode)
                 },
                 executeAfterDate: clock.UtcNow,
+                workspaceId: null,
                 debounceId: null,
                 sagaId: null,
                 batch: null,

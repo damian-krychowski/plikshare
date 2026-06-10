@@ -40,6 +40,7 @@ public class AlertsService(
                         Template = EmailTemplate.Alert
                     },
                     executeAfterDate: clock.UtcNow,
+                    workspaceId: null,
                     debounceId: null,
                     sagaId: null,
                     batch: null,
