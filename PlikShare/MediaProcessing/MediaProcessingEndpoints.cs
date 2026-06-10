@@ -609,7 +609,14 @@ public static class MediaProcessingEndpoints
         var response = httpContext.Response;
 
         var etag = $"\"{thumbnail.Etag}\"";
-        response.Headers.CacheControl = "private, max-age=300";
+
+        // URLs carrying the ?v={etag} cache-buster are content-addressed — the bytes under such a
+        // URL never change (regeneration changes the etag, hence the URL), so the browser may cache
+        // them forever without revalidation. Unversioned URLs keep the short TTL + ETag fallback.
+        response.Headers.CacheControl = httpContext.Request.Query.ContainsKey("v")
+            ? "private, max-age=31536000, immutable"
+            : "private, max-age=300";
+
         response.Headers.ETag = etag;
 
         if (string.Equals(

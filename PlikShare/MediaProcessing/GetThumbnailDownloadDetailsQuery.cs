@@ -1,7 +1,6 @@
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
-using PlikShare.Core.Utils;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Files.Records;
@@ -84,12 +83,12 @@ public class GetThumbnailDownloadDetailsQuery(PlikShareDb plikShareDb)
                     if (metadataJson is null)
                         return (acc, false);
 
-                    if (Json.Deserialize<FileMetadata>(metadataJson)
-                        is not ThumbnailFileMetadata thumbnailMetadata
-                        || thumbnailMetadata.Variant != variant)
-                    {
+                    var etag = FileMetadataJsonScanner.GetThumbnailEtag(
+                        metadataJson,
+                        variant);
+
+                    if (etag is null)
                         return (acc, false);
-                    }
 
                     var encryptionKeyVersion = reader.GetByteOrNull(7);
 
@@ -116,7 +115,7 @@ public class GetThumbnailDownloadDetailsQuery(PlikShareDb plikShareDb)
                         FolderAncestors = []
                     };
 
-                    return (new Result(file, thumbnailMetadata.Etag), true);
+                    return (new Result(file, etag), true);
                 },
                 name: "download.thumbnail_details")
             .WithParameter("$parentExternalId", parentFileExternalId.Value)

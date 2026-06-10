@@ -24,15 +24,28 @@ public static class FileMetadataJsonScanner
     private static readonly byte[] HeightPropertyName =
         Encoding.UTF8.GetBytes(JsonNamingPolicy.CamelCase.ConvertName(nameof(ImageDimensionsFileMetadata.Height)));
 
-    private static readonly byte[] MiniVariantName =
-        Encoding.UTF8.GetBytes(nameof(ThumbnailVariant.Mini));
+    private static readonly byte[][] VariantNamesByValue = Enum
+        .GetNames<ThumbnailVariant>()
+        .Select(Encoding.UTF8.GetBytes)
+        .ToArray();
 
-    private static readonly byte[] MiniVariantCamelCaseName =
-        Encoding.UTF8.GetBytes(JsonNamingPolicy.CamelCase.ConvertName(nameof(ThumbnailVariant.Mini)));
+    private static readonly byte[][] VariantCamelCaseNamesByValue = Enum
+        .GetNames<ThumbnailVariant>()
+        .Select(name => Encoding.UTF8.GetBytes(JsonNamingPolicy.CamelCase.ConvertName(name)))
+        .ToArray();
 
     public readonly record struct ImageDimensions(int Width, int Height);
 
     public static string? GetThumbnailMiniEtag(string metadataJson)
+    {
+        return GetThumbnailEtag(
+            metadataJson,
+            ThumbnailVariant.Mini);
+    }
+
+    public static string? GetThumbnailEtag(
+        string metadataJson,
+        ThumbnailVariant variant)
     {
         var buffer = ArrayPool<byte>.Shared.Rent(
             Encoding.UTF8.GetMaxByteCount(metadataJson.Length));
@@ -47,7 +60,7 @@ public static class FileMetadataJsonScanner
                 buffer.AsSpan(0, length));
 
             string? etag = null;
-            var isMiniVariant = false;
+            var isRequestedVariant = false;
 
             while (reader.Read())
             {
@@ -65,7 +78,7 @@ public static class FileMetadataJsonScanner
                 {
                     reader.Read();
 
-                    isMiniVariant = IsMiniVariant(ref reader);
+                    isRequestedVariant = IsVariant(ref reader, variant);
                 }
                 else if (reader.ValueTextEquals(EtagPropertyName))
                 {
@@ -81,7 +94,7 @@ public static class FileMetadataJsonScanner
                 }
             }
 
-            return isMiniVariant ? etag : null;
+            return isRequestedVariant ? etag : null;
         }
         finally
         {
@@ -149,16 +162,16 @@ public static class FileMetadataJsonScanner
         }
     }
 
-    private static bool IsMiniVariant(ref Utf8JsonReader reader)
+    private static bool IsVariant(ref Utf8JsonReader reader, ThumbnailVariant variant)
     {
         if (reader.TokenType == JsonTokenType.String)
         {
-            return reader.ValueTextEquals(MiniVariantName)
-                || reader.ValueTextEquals(MiniVariantCamelCaseName);
+            return reader.ValueTextEquals(VariantNamesByValue[(int)variant])
+                || reader.ValueTextEquals(VariantCamelCaseNamesByValue[(int)variant]);
         }
 
         if (reader.TokenType == JsonTokenType.Number)
-            return reader.GetInt32() == (int)ThumbnailVariant.Mini;
+            return reader.GetInt32() == (int)variant;
 
         return false;
     }
