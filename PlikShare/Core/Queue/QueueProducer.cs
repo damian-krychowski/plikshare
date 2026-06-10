@@ -236,6 +236,7 @@ public sealed class QueueProducer : BackgroundService
                 return new QueueSagaJob
                 {
                     Id = id,
+                    ExternalId = QueueJobExtId.NewId(),
                     JobType = jobType,
                     Definition = definition,
                     CorrelationId = correlationId,
@@ -547,7 +548,8 @@ public sealed class QueueProducer : BackgroundService
                 q_debounce_id,
                 q_saga_id,
                 q_job_category,
-                q_job_priority
+                q_job_priority,
+                q_external_id
             )
             SELECT
                 json_extract(value, '$.jobType'),
@@ -560,7 +562,8 @@ public sealed class QueueProducer : BackgroundService
                 NULL,
                 NULL,
                 json_extract(value, '$.jobCategory'),
-                json_extract(value, '$.jobPriority')
+                json_extract(value, '$.jobPriority'),
+                json_extract(value, '$.externalId')
             FROM
                 json_each($definitions)
             RETURNING

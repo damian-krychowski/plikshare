@@ -24,6 +24,7 @@ public readonly record struct QueueJobId(
 public class QueueSagaJob
 {
     public required int Id { get; init; }
+    public required QueueJobExtId ExternalId { get; init; }
     public required string JobType { get; init; }
     public required string Definition { get; init; }
     public required Guid CorrelationId { get; init; }

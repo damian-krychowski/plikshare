@@ -1,9 +1,15 @@
 ALTER TABLE q_queue ADD COLUMN q_workspace_id INTEGER;
+ALTER TABLE q_queue ADD COLUMN q_external_id TEXT;
 ALTER TABLE qc_queue_completed ADD COLUMN qc_workspace_id INTEGER;
+ALTER TABLE qc_queue_completed ADD COLUMN qc_external_id TEXT;
 
 CREATE INDEX IF NOT EXISTS index__q_queue__q_workspace_id
     ON q_queue (q_workspace_id)
     WHERE q_workspace_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS index__q_queue__q_external_id
+    ON q_queue (q_external_id)
+    WHERE q_external_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS qfj_queue_file_jobs (
     qfj_queue_job_id INTEGER NOT NULL,

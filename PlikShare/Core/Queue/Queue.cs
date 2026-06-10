@@ -184,7 +184,8 @@ public class Queue(
                         q_batch_items_count,
                         q_job_category,
                         q_job_priority,
-                        q_workspace_id
+                        q_workspace_id,
+                        q_external_id
                     )
                     VALUES (
                         $jobType,
@@ -200,7 +201,8 @@ public class Queue(
                         $batchItemsCount,
                         $jobCategory,
                         $jobPriority,
-                        $workspaceId
+                        $workspaceId,
+                        $externalId
                     )
                     ON CONFLICT (q_debounce_id)
                     DO UPDATE SET
@@ -226,6 +228,7 @@ public class Queue(
             .WithParameter("$jobCategory", (int)queueJobInfoProvider.GetJobCategory(jobType))
             .WithParameter("$jobPriority", queueJobInfoProvider.GetJobPriority(jobType))
             .WithParameter("$workspaceId", workspaceId)
+            .WithParameter("$externalId", QueueJobExtId.NewId().Value)
             .Execute();
 
         if (!result.IsEmpty)
@@ -262,7 +265,8 @@ public class Queue(
                         q_batch_items_count,
                         q_job_category,
                         q_job_priority,
-                        q_workspace_id
+                        q_workspace_id,
+                        q_external_id
                     )
                     SELECT
                         json_extract(value, '$.jobType'),
@@ -278,7 +282,8 @@ public class Queue(
                         json_extract(value, '$.batchItemsCount'),
                         json_extract(value, '$.jobCategory'),
                         json_extract(value, '$.jobPriority'),
-                        $workspaceId
+                        $workspaceId,
+                        json_extract(value, '$.externalId')
                     FROM
                         json_each($definitions)
                     RETURNING
@@ -328,12 +333,12 @@ public class Queue(
 
         var links = new List<QueueFileJobLink>();
 
-        for (var i = 0; i < definitions.Count; i++)
+        foreach (var definition in definitions)
         {
-            foreach (var fileId in definitions[i].TrackedFileIds)
+            foreach (var fileId in definition.TrackedFileIds)
             {
                 links.Add(new QueueFileJobLink(
-                    QueueJobId: jobIds[i].Value,
+                    JobExternalId: definition.Job.ExternalId.Value,
                     FileId: fileId));
             }
         }
@@ -341,7 +346,7 @@ public class Queue(
         if (links.Count == 0)
             return jobIds;
 
-        dbWriteContext
+        var insertedLinks = dbWriteContext
             .Cmd(
                 sql: @"
                     INSERT INTO qfj_queue_file_jobs (
@@ -349,10 +354,12 @@ public class Queue(
                         qfj_file_id
                     )
                     SELECT
-                        json_extract(value, '$.queueJobId'),
-                        json_extract(value, '$.fileId')
+                        q.q_id,
+                        json_extract(l.value, '$.fileId')
                     FROM
-                        json_each($links)
+                        json_each($links) AS l
+                        INNER JOIN q_queue AS q
+                            ON q.q_external_id = json_extract(l.value, '$.jobExternalId')
                     RETURNING
                         qfj_queue_job_id;
                 ",
@@ -361,11 +368,19 @@ public class Queue(
             .WithJsonParameter("$links", links)
             .Execute();
 
+        if (insertedLinks.Count != links.Count)
+        {
+            throw new InvalidDataException(
+                $"Number of inserted queue file job links ({insertedLinks.Count}) does not match the number of provided links ({links.Count}). " +
+                $"Correlation ID: {correlationId}. " +
+                "This indicates a potential data integrity issue during bulk job insertion.");
+        }
+
         return jobIds;
     }
 
     private readonly record struct QueueFileJobLink(
-        int QueueJobId,
+        string JobExternalId,
         int FileId);
 
     public BulkQueueJobEntity CreateBulkEntity<T>(
@@ -376,6 +391,8 @@ public class Queue(
     {
         return new BulkQueueJobEntity
         {
+            ExternalId = QueueJobExtId.NewId(),
+
             Definition = Json.Serialize(
                 definition),
 
@@ -889,6 +906,7 @@ public class Queue(
                         qc_batch_id,
                         qc_batch_items_count,
                         qc_workspace_id,
+                        qc_external_id,
                         qc_result
                     )
                     SELECT
@@ -903,6 +921,7 @@ public class Queue(
                         q_batch_id,
                         q_batch_items_count,
                         q_workspace_id,
+                        q_external_id,
                         $result
                     FROM
                         q_queue
