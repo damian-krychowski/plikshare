@@ -8,13 +8,14 @@ namespace PlikShare.Core.Queue;
 // be cancelled by id. Returns the number of pending jobs removed.
 public class CancelBatchOperation(
     DbWriteQueue dbWriteQueue,
-    QueueBatchNotifier batchNotifier)
+    QueueBatchNotifier batchNotifier,
+    QueueWorkspaceNotifier workspaceNotifier)
 {
     public async Task<int> Execute(
         Guid batchId,
         CancellationToken cancellationToken)
     {
-        var deletedCount = await dbWriteQueue.Execute(
+        var deletedJobs = await dbWriteQueue.Execute(
             operationToEnqueue: context => DeletePendingJobs(
                 context: context,
                 batchId: batchId),
@@ -22,10 +23,18 @@ public class CancelBatchOperation(
 
         batchNotifier.Notify(batchId);
 
-        return deletedCount;
+        foreach (var workspaceId in deletedJobs
+                     .Where(job => job.WorkspaceId is not null)
+                     .Select(job => job.WorkspaceId!.Value)
+                     .Distinct())
+        {
+            workspaceNotifier.Notify(workspaceId);
+        }
+
+        return deletedJobs.Count;
     }
 
-    private static int DeletePendingJobs(
+    private static List<DeletedJob> DeletePendingJobs(
         SqliteWriteContext context,
         Guid batchId)
     {
@@ -35,12 +44,17 @@ public class CancelBatchOperation(
                     DELETE FROM q_queue
                     WHERE q_batch_id = $batchId
                         AND q_status = $pendingStatus
-                    RETURNING q_id
+                    RETURNING q_id, q_workspace_id
                     """,
-                readRowFunc: reader => reader.GetInt64(0))
+                readRowFunc: reader => new DeletedJob(
+                    Id: reader.GetInt64(0),
+                    WorkspaceId: reader.GetInt32OrNull(1)))
             .WithParameter("$batchId", batchId)
             .WithParameter("$pendingStatus", QueueStatus.Pending)
-            .Execute()
-            .Count;
+            .Execute();
     }
+
+    private readonly record struct DeletedJob(
+        long Id,
+        int? WorkspaceId);
 }

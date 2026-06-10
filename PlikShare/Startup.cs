@@ -115,6 +115,7 @@ using PlikShare.Files.Delete.QueueJob;
 using PlikShare.Files.Download;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.PreSignedLinks.Validation;
+using PlikShare.Files.Processing;
 using PlikShare.Files.Preview.Comment.CreateComment;
 using PlikShare.Files.Preview.Comment.DeleteComment;
 using PlikShare.Files.Preview.Comment.EditComment;
@@ -842,6 +843,7 @@ public class Startup
         builder.Services.AddSingleton<GenerateFileThumbnailsBulkOperation>();
         builder.Services.AddSingleton<GetThumbnailableSelectionFilesQuery>();
         builder.Services.AddSingleton<GetThumbnailGenerationStatusQuery>();
+        builder.Services.AddSingleton<GetProcessingFileJobsQuery>();
         builder.Services.AddSingleton<CancelThumbnailBatchOperation>();
         builder.Services.AddSingleton<DownloadFileConvertedOperation>();
         AddLongRunningQueueJob<SendAiMessageQueueJobExecutor>();
@@ -923,6 +925,7 @@ public class Startup
         app.MapWorkspacesAdminEndpoints();
         app.MapFilesEndpoints();
         app.MapMediaProcessingEndpoints();
+        app.MapFileProcessingEndpoints();
         app.MapEntryPageEndpoints();
         app.MapLegalFilesEndpoints();
         app.MapHealthCheckEndpoints();

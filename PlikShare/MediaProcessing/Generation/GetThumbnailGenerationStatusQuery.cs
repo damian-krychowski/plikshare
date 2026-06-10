@@ -5,15 +5,14 @@ using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
 using PlikShare.Files.Metadata;
 using PlikShare.MediaProcessing.Generation.Contracts;
-using PlikShare.Workspaces.Cache;
 
 namespace PlikShare.MediaProcessing.Generation;
 
 /// <summary>
 /// Reads batched-thumbnail-generation progress from the queue tables. Counts are expressed in
-/// FILES (not jobs), because one job now covers up to <c>BatchSize</c> parents — the UI cares
-/// about file-level progress. File counts are derived from <c>json_array_length(... '$.files')</c>
-/// on each row.
+/// FILES (not jobs), because one job covers up to <c>BatchSize</c> parents — the UI cares
+/// about file-level progress. Per-file processing state lives in the file-processing endpoints;
+/// this query reports batch counts and per-variant failures only.
 /// </summary>
 public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
 {
@@ -30,52 +29,42 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
         List<CompletedJob> NewCompleted);
 
     public ThumbnailGenerationStatusResponseDto Execute(
-        WorkspaceContext workspace,
         Guid batchId)
     {
         var snapshot = GetSnapshot(
-            workspace,
             batchId,
             afterCompletedAt: null);
 
         var failedByVariant = new Dictionary<ThumbnailVariant, string?>();
-        var ready = new List<ReadyThumbnailDto>();
 
         Apply(
             snapshot.NewCompleted,
-            failedByVariant,
-            ready);
+            failedByVariant);
 
-        // Outstanding file ids are streamed separately (SSE chunks) — this one-shot status never
-        // carries them; its readers only need the counts.
         return BuildStatus(
             snapshot.Counts,
-            failedByVariant,
-            ready,
-            []);
+            failedByVariant);
     }
 
     public Snapshot GetSnapshot(
-        WorkspaceContext workspace,
         Guid batchId,
         DateTimeOffset? afterCompletedAt)
     {
         using var connection = plikShareDb.OpenConnection();
-        
+
         return new Snapshot(
             Counts: GetCounts(
-                connection, 
+                connection,
                 batchId),
 
             NewCompleted: GetCompletedSince(
-                connection, 
+                connection,
                 batchId, afterCompletedAt));
     }
 
     public static void Apply(
         List<CompletedJob> completedJobs,
-        Dictionary<ThumbnailVariant, string?> failedByVariant,
-        List<ReadyThumbnailDto> ready)
+        Dictionary<ThumbnailVariant, string?> failedByVariant)
     {
         foreach (var job in completedJobs)
         {
@@ -91,30 +80,13 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
                         .FirstOrDefault(failed => failed.Variant == variant)
                         ?.Error;
                 }
-
-                if (fileResult.GeneratedVariants.Count > 0)
-                {
-                    ready.Add(new ReadyThumbnailDto
-                    {
-                        FileExternalId = fileResult.ParentFileExternalId.Value,
-                        Variants = fileResult.GeneratedVariants
-                            .Select(generated => new ReadyThumbnailVariantDto
-                            {
-                                Variant = generated.Variant,
-                                Etag = generated.Etag
-                            })
-                            .ToList()
-                    });
-                }
             }
         }
     }
 
     public static ThumbnailGenerationStatusResponseDto BuildStatus(
         Counts counts,
-        Dictionary<ThumbnailVariant, string?> failedByVariant,
-        List<ReadyThumbnailDto> ready,
-        List<string> processingFileExternalIds)
+        Dictionary<ThumbnailVariant, string?> failedByVariant)
     {
         var failedVariants = failedByVariant
             .Where(entry => entry.Value is not null)
@@ -131,9 +103,7 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
             Total = counts.Completed + counts.Outstanding,
             Completed = counts.Completed,
             Failed = counts.Failed,
-            Pending = counts.Outstanding - counts.Failed,
-            ReadyThumbnails = ready,
-            ProcessingFileExternalIds = processingFileExternalIds
+            Pending = counts.Outstanding - counts.Failed
         };
     }
 
@@ -184,70 +154,5 @@ public class GetThumbnailGenerationStatusQuery(PlikShareDb plikShareDb)
             .WithParameter("$batchId", batchId)
             .WithParameter("$afterCompletedAt", afterCompletedAt)
             .Execute();
-    }
-
-    public sealed record OutstandingPage(
-        List<string> FileExternalIds,
-        long? LastQId,
-        bool HasMore);
-
-    // Keyset-paginated outstanding file ids for the initial SSE chunk stream. Authorization is done
-    // once by the caller's GetSnapshot before paging starts, so here we filter by the indexed
-    // q_batch_id (a random GUID) and keyset on q_id — a 30k-file batch streams in bounded-memory
-    // pages instead of materializing one ~1 MB list. File ids come from the qfj_queue_file_jobs
-    // junction table, not from the definition JSON. rowLimit is in q_queue ROWS; each row holds up
-    // to BatchSize files, so ~200 rows ≈ 2000 file ids per page.
-    public OutstandingPage GetUnprocessedFileExternalIdsPage(
-        Guid batchId,
-        long? afterQId,
-        int rowLimit)
-    {
-        using var connection = plikShareDb.OpenConnection();
-
-        var jobIds = connection
-            .Cmd(
-                sql: """
-                    SELECT q_id
-                    FROM q_queue
-                    WHERE
-                        q_batch_id = $batchId
-                        AND q_status != $failedStatus
-                        AND ($afterQId IS NULL OR q_id > $afterQId)
-                    ORDER BY q_id
-                    LIMIT $rowLimit
-                    """,
-                readRowFunc: reader => reader.GetInt64(0))
-            .WithParameter("$batchId", batchId)
-            .WithParameter("$failedStatus", QueueStatus.Failed)
-            .WithParameter("$afterQId", afterQId)
-            .WithParameter("$rowLimit", rowLimit)
-            .Execute();
-
-        if (jobIds.Count == 0)
-        {
-            return new OutstandingPage(
-                FileExternalIds: [],
-                LastQId: afterQId,
-                HasMore: false);
-        }
-
-        var fileExternalIds = connection
-            .Cmd(
-                sql: """
-                     SELECT fi_external_id
-                     FROM qfj_queue_file_jobs
-                     INNER JOIN fi_files ON fi_id = qfj_file_id
-                     WHERE qfj_queue_job_id IN (
-                        SELECT value FROM json_each($jobIds)
-                     )
-                     """,
-                readRowFunc: reader => reader.GetString(0))
-            .WithJsonParameter("$jobIds", jobIds)
-            .Execute();
-
-        return new OutstandingPage(
-            FileExternalIds: fileExternalIds,
-            LastQId: jobIds[^1],
-            HasMore: jobIds.Count == rowLimit);
     }
 }

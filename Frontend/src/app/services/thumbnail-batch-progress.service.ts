@@ -1,13 +1,5 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { ThumbnailGenerationStatus } from './folders-and-files.api';
-
-// Per-batch live state derived from the SSE stream. Aggregated app-wide (file external ids are
-// globally unique) so any explorer can read it reactively — including after a reload, where the
-// owning component resubscribes the persisted batches and this state simply re-fills.
-type BatchLiveState = {
-    processingFileIds: ReadonlySet<string>;
-    readyMiniEtagByFileId: ReadonlyMap<string, string>;
-};
 
 export type ThumbnailBatch = {
     batchId: string;
@@ -55,40 +47,13 @@ const AUTO_DISMISS_MS = 2500;
  * owning component supplies `subscribe` / `cancel` handlers per batch. Active batches are persisted
  * to localStorage; the owning component resurrects them after a reload by reading
  * `getPersistedBatches()` and calling `resume(...)` with handlers from its own API.
+ *
+ * Tracks batch progress COUNTS only — per-file processing state (spinners, thumbnail refresh) is
+ * driven by the separate workspace file-processing channel (FileProcessingService).
  */
 @Injectable({ providedIn: 'root' })
 export class ThumbnailBatchProgressService {
     readonly batches = signal<ThumbnailBatch[]>([]);
-
-    private _liveByBatch = signal<ReadonlyMap<string, BatchLiveState>>(new Map());
-
-    // Union of files still being processed across all tracked batches — drives the per-file
-    // "processing" indicator.
-    readonly processingFileIds = computed<ReadonlySet<string>>(() => {
-        const union = new Set<string>();
-
-        for (const live of this._liveByBatch().values()){
-            for (const fileId of live.processingFileIds){
-                union.add(fileId);
-            }
-        }
-
-        return union;
-    });
-
-    // Merged fileExternalId -> Mini-thumbnail etag across batches. A consumer applies these to its
-    // file items so freshly-generated thumbnails appear live (and after a reload).
-    readonly readyMiniEtags = computed<ReadonlyMap<string, string>>(() => {
-        const merged = new Map<string, string>();
-
-        for (const live of this._liveByBatch().values()){
-            for (const [fileId, etag] of live.readyMiniEtagByFileId) {
-                merged.set(fileId, etag);
-            }
-        }
-
-        return merged;
-    });
 
     private _unsubscribes = new Map<string, () => void>();
     private _dismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -100,32 +65,24 @@ export class ThumbnailBatchProgressService {
         return this.loadPersisted();
     }
 
-    // Fresh start. The server streams the full outstanding set in chunks, but a file that already
-    // has a thumbnail re-generates so fast it can finish before the first chunk arrives — so it would
-    // never light its spinner. To avoid that race, the caller seeds the ids it already knows (the
-    // directly-selected files); folder-expanded ids still arrive from the server.
     track(args: {
         workspaceExternalId: string;
         batchId: string;
         name: string;
         total: number;
-        initialProcessingIds?: readonly string[];
         handlers: ThumbnailBatchHandlers;
     }): void {
-        this.startTracking({ 
-            batchId: args.batchId, 
-            workspaceExternalId: args.workspaceExternalId, 
-            name: args.name, 
-            total: args.total 
+        this.startTracking({
+            batchId: args.batchId,
+            workspaceExternalId: args.workspaceExternalId,
+            name: args.name,
+            total: args.total
         },{
             persist: true,
-            initialProcessingIds: args.initialProcessingIds,
             handlers: args.handlers,
         });
     }
 
-    // Resume after reload: the server sends the full outstanding list in the first event, which
-    // repopulates the spinners.
     resume(args: {
         batchId: string;
         workspaceExternalId: string;
@@ -133,10 +90,10 @@ export class ThumbnailBatchProgressService {
         total: number;
         handlers: ThumbnailBatchHandlers;
     }): void {
-        this.startTracking({ 
-            batchId: args.batchId, 
-            workspaceExternalId: args.workspaceExternalId, 
-            name: args.name, 
+        this.startTracking({
+            batchId: args.batchId,
+            workspaceExternalId: args.workspaceExternalId,
+            name: args.name,
             total: args.total
         },{
             persist: false,
@@ -166,14 +123,13 @@ export class ThumbnailBatchProgressService {
         persisted: PersistedBatch,
         options: {
             persist: boolean;
-            initialProcessingIds?: readonly string[];
             handlers: ThumbnailBatchHandlers;
         }): void {
         if (this._unsubscribes.has(persisted.batchId))
             return;
 
         this._handlersByBatch.set(
-            persisted.batchId, 
+            persisted.batchId,
             options.handlers);
 
         this.batches.update(list => {
@@ -193,22 +149,6 @@ export class ThumbnailBatchProgressService {
                 finishedAt: null,
             }];
         });
-
-        // Optimistically seed the spinner set from the ids the caller already knows, so a fast
-        // re-generation lights its spinner before the first SSE chunk arrives. Server chunks then
-        // add the folder-expanded ids and readyThumbnails removes each one as it completes.
-        if (options.initialProcessingIds && options.initialProcessingIds.length > 0) {
-            this._liveByBatch.update(map => {
-                const next = new Map(map);
-
-                next.set(persisted.batchId, {
-                    processingFileIds: new Set(options.initialProcessingIds),
-                    readyMiniEtagByFileId: new Map(),
-                });
-
-                return next;
-            });
-        }
 
         if (options.persist)
             this.persist();
@@ -235,39 +175,6 @@ export class ThumbnailBatchProgressService {
             }
             : batch));
 
-        this._liveByBatch.update(map => {
-            const next = new Map(map);
-
-            const previous = next.get(batchId);
-            // The outstanding set arrives as a series of chunk events at startup; later events omit
-            // it. So accumulate each chunk's ids into the spinner set, then remove each file that
-            // completes (readyThumbnails is a per-event delta). Both accumulate across events.
-            const processing = new Set(previous?.processingFileIds ?? []);
-
-            for (const fileId of status.processingFileExternalIds ?? [])
-                processing.add(fileId);
-
-            const readyMini = new Map(previous?.readyMiniEtagByFileId ?? []);
-
-            for (const ready of status.readyThumbnails ?? [])
-            {
-                processing.delete(ready.fileExternalId);
-
-                const mini = ready.variants.find(variant => variant.variant === 'Mini');
-                if (mini)
-                    readyMini.set(ready.fileExternalId, mini.etag);
-            }
-
-            const nextBatch = {
-                processingFileIds: processing,
-                readyMiniEtagByFileId: readyMini
-            };
-
-            next.set(batchId, nextBatch);
-
-            return next;
-        });
-
         if (status.pending === 0)
             this.onBatchDone(batchId);
     }
@@ -289,7 +196,6 @@ export class ThumbnailBatchProgressService {
             () => {
                 this._dismissTimers.delete(batchId);
                 this.batches.update(list => list.filter(b => b.batchId !== batchId));
-                this.removeLiveState(batchId);
                 this._handlersByBatch.delete(batchId);
             },
             AUTO_DISMISS_MS);
@@ -310,19 +216,7 @@ export class ThumbnailBatchProgressService {
             this._dismissTimers.delete(batchId);
         }
 
-        this.removeLiveState(batchId);
         this._handlersByBatch.delete(batchId);
-    }
-
-    private removeLiveState(batchId: string): void {
-        this._liveByBatch.update(map => {
-            if (!map.has(batchId))
-                return map;
-
-            const next = new Map(map);
-            next.delete(batchId);
-            return next;
-        });
     }
 
     private persist(): void {

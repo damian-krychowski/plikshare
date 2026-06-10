@@ -10,6 +10,7 @@ public static class QueueBuilderExtensions
     {
         app.Services.AddSingleton<IQueue, Queue>();
         app.Services.AddSingleton<QueueBatchNotifier>();
+        app.Services.AddSingleton<QueueWorkspaceNotifier>();
         app.Services.AddSingleton<QueueProducerWakeSignal>();
 
         app.Services.AddSingleton(new QueueChannels(

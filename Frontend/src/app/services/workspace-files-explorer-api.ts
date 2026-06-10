@@ -2,7 +2,7 @@ import { FilesExplorerApi } from "../files-explorer/files-explorer.component";
 import { AppFileItem } from "../shared/file-item/file-item.component";
 import { DataStore } from "./data-store.service";
 import { FileLockService } from "./file-lock.service";
-import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CountThumbnailableFilesRequest, CountThumbnailableFilesResponse, CreateFolderRequest, DownloadImageFormat, FilePreviewDetailsField, FoldersAndFilesGetApi, FoldersAndFilesSetApi, GenerateFileThumbnailsResponse, GenerateThumbnailsBulkRequest, GenerateThumbnailsBulkResponse, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFilePreviewDetailsResponse, GetFilesTreeResponseDto, GetZipBulkDownloadLinkRequest, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from "./folders-and-files.api";
+import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CountThumbnailableFilesRequest, CountThumbnailableFilesResponse, CreateFolderRequest, DownloadImageFormat, FilePreviewDetailsField, FoldersAndFilesGetApi, FoldersAndFilesSetApi, GenerateFileThumbnailsResponse, GenerateThumbnailsBulkRequest, GenerateThumbnailsBulkResponse, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, FileProcessingEvent, GetFilePreviewDetailsResponse, GetFilesTreeResponseDto, GetZipBulkDownloadLinkRequest, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, StartTextractJobRequest, StartTextractJobResponse, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from "./folders-and-files.api";
 import { ZipEntry } from "./zip";
 
 export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
@@ -268,6 +268,13 @@ export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
         return this._setApi.cancelThumbnailBatch(
             this._workspaceExternalId,
             batchId
+        );
+    }
+
+    subscribeFileProcessing(onEvent: (event: FileProcessingEvent) => void): () => void {
+        return this._setApi.subscribeFileProcessing(
+            this._workspaceExternalId,
+            onEvent
         );
     }
 

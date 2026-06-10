@@ -286,18 +286,11 @@ export type ThumbnailGenerationStatus = {
     completed: number;
     failed: number;
     pending: number;
-    readyThumbnails: ReadyThumbnail[];
-    processingFileExternalIds: string[];
 }
 
-export type ReadyThumbnail = {
-    fileExternalId: string;
-    variants: ReadyThumbnailVariant[];
-}
-
-export type ReadyThumbnailVariant = {
-    variant: ThumbnailVariant;
-    etag: string;
+export type FileProcessingEvent = {
+    processing: Record<string, string[]>;
+    processingFinished: Record<string, string[]>;
 }
 
 export type FilePreviewComment = {
@@ -912,6 +905,33 @@ export class FoldersAndFilesSetApi {
 
         eventSource.onerror = () => {
             // EventSource reconnects on its own; the caller closes us once the batch is terminal.
+        };
+
+        return () => eventSource.close();
+    }
+
+    // Stateful per-file processing stream: the first event carries every file currently being
+    // processed in the workspace, later events only the diff (`processing` / `processingFinished`)
+    // against what this connection has already been told. Returns an unsubscribe that closes the
+    // connection. An EventSource reconnect re-delivers the full set as its first event.
+    public subscribeFileProcessing(
+        workspaceExternalId: string,
+        onEvent: (event: FileProcessingEvent) => void): () => void {
+        const eventSource = new EventSource(
+            `/api/workspaces/${workspaceExternalId}/files/processing/events`,
+            { withCredentials: true }
+        );
+
+        eventSource.onmessage = (event) => {
+            try {
+                onEvent(JSON.parse(event.data) as FileProcessingEvent);
+            } catch (err) {
+                console.error('Failed to parse file processing event:', err);
+            }
+        };
+
+        eventSource.onerror = () => {
+            // EventSource reconnects on its own; the caller closes us when the view goes away.
         };
 
         return () => eventSource.close();

@@ -18,7 +18,7 @@ import { FileInlinePreviewComponent, FilePreviewOperations, ZipPreviewDetails } 
 import { StorageSizePipe, StorageSizeUtils } from '../shared/storage-size.pipe';
 import { EditableTxtComponent } from '../shared/editable-txt/editable-txt.component';
 import { BulkUploadPreviewComponent, BulkFileUpload, SingleBulkFileUpload, CreatedFolder } from './bulk-upload-preview/bulk-upload-preview.component';
-import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CountThumbnailableFilesRequest, CountThumbnailableFilesResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, DownloadImageFormat, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GenerateFileThumbnailsResponse, GenerateThumbnailsBulkRequest, GenerateThumbnailsBulkResponse, GetFilePreviewDetailsResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../services/folders-and-files.api';
+import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CountThumbnailableFilesRequest, CountThumbnailableFilesResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, DownloadImageFormat, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GenerateFileThumbnailsResponse, GenerateThumbnailsBulkRequest, GenerateThumbnailsBulkResponse, FileProcessingEvent, GetFilePreviewDetailsResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../services/folders-and-files.api';
 import { ZipEntry } from '../services/zip';
 import { FileSlicer } from '../services/file-upload-manager/file-slicer';
 import { TextractJobStatusService } from '../services/textract-job-status.service';
@@ -40,6 +40,7 @@ import { SelectionCountComponent } from './selection-count/selection-count.compo
 import { thumbnailListDisplay } from '../services/thumbnail-list-display';
 import { trackStuckSection } from '../services/track-stuck-section';
 import { ThumbnailBatchProgressService } from '../services/thumbnail-batch-progress.service';
+import { FileProcessingService } from '../services/file-processing.service';
 import { AppCapabilitiesService } from '../services/app-capabilities.service';
 import { getFileDetails } from '../services/file-type';
 
@@ -97,6 +98,9 @@ export interface FilesExplorerApi {
         batchId: string,
         onStatus: (status: ThumbnailGenerationStatus) => void) => () => void;
     cancelThumbnailBatch: (batchId: string) => Promise<unknown>;
+    // Live per-file processing stream (spinners). Optional — only workspace contexts expose the
+    // file-processing endpoint; box/external explorers leave this undefined and show no spinners.
+    subscribeFileProcessing?: (onEvent: (event: FileProcessingEvent) => void) => () => void;
     downloadFileConverted: (fileExternalId: string, format: DownloadImageFormat, downloadFileName: string) => Promise<void>;
 
     getZipPreviewDetails: (fileExternalId: string) => Promise<ZipPreviewDetails>;
@@ -170,7 +174,8 @@ type ViewMode = 'list-view' | 'tree-view';
         SelectionCountComponent
     ],
     templateUrl: './files-explorer.component.html',
-    styleUrl: './files-explorer.component.scss'
+    styleUrl: './files-explorer.component.scss',
+    providers: [FileProcessingService]
 })
 export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, AfterViewInit  {
     filesApi = input.required<FilesExplorerApi>();
@@ -261,12 +266,13 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     private _thumbnailDisplay = thumbnailListDisplay(this.workspaceExternalId, this.initialShowThumbnails, this.disablePreferencePersistence);
     readonly showThumbnails = this._thumbnailDisplay.showThumbnails;
 
-    // Files with thumbnail generation in flight (any tracked batch) — drives the per-row spinner.
-    readonly processingFileIds = computed(() => this._thumbnailBatches.processingFileIds());
+    // Files with queue work in flight (any job type, any trigger — bulk action, upload, other
+    // users) — drives the per-row spinner. Fed by the workspace file-processing channel.
+    readonly processingFileIds = computed(() => this._fileProcessing.processingFileIds());
 
-    // Freshly-generated Mini etags — fed to the tree-view so its own file nodes (sub-folders /
-    // search results) refresh live, same as the list.
-    readonly readyMiniEtags = computed(() => this._thumbnailBatches.readyMiniEtags());
+    // Cache-busters for files whose thumbnail generation just finished — fed to the tree-view so
+    // its own file nodes (sub-folders / search results) refresh live, same as the list.
+    readonly readyMiniEtags = computed(() => this._fileProcessing.refreshedMiniEtags());
 
     private static readonly SORT_MODE_STORAGE_PREFIX = 'plikshare:sort-mode:';
 
@@ -755,6 +761,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         private _router: Router,
         private _route: ActivatedRoute,
         private _thumbnailBatches: ThumbnailBatchProgressService,
+        private _fileProcessing: FileProcessingService,
         private _capabilities: AppCapabilitiesService,
         private _elementRef: ElementRef<HTMLElement>) {
 
@@ -771,12 +778,12 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             this.sortDirection.set(dir);
         });
 
-        // Apply freshly-generated Mini etags (live, and after reload) onto the current file items.
-        // Service is the source of truth for in-flight batches, so this works regardless of which
-        // session started the generation.
+        // Apply cache-busters for freshly-generated thumbnails onto the current file items. The
+        // processing channel is workspace-wide, so this works regardless of which session (or
+        // which user) started the generation.
         effect(() => {
-            const etags = this._thumbnailBatches.readyMiniEtags();
-            
+            const etags = this._fileProcessing.refreshedMiniEtags();
+
             if (etags.size === 0)
                 return;
 
@@ -795,6 +802,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                 });
             }
         });
+
 
         effect(() => {
             if (this.isDragging() && this.canUpload()) {
@@ -903,6 +911,15 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             }
         }
 
+        // Live per-file processing stream (spinners + thumbnail refresh). Workspace contexts
+        // expose it on their api; box/external ones don't — they simply show no spinners.
+        const api = this.filesApi();
+        if (api.subscribeFileProcessing) {
+            this._fileProcessing.connect({
+                subscribe: onEvent => api.subscribeFileProcessing!(onEvent),
+            });
+        }
+
         this._uploadsInitiatedSubscription = this.fileUploadManager.uploadsInitiated.subscribe({
             next: (uploadsInitiatedEvent) => this.onUploadsInitiated(uploadsInitiatedEvent)
         });
@@ -931,6 +948,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         this._uploadsAbortedSubscription?.unsubscribe();
         this._workspaceSizeUpdatedSubscription?.unsubscribe();
         this._toolbarResizeObserver?.disconnect();
+        this._fileProcessing.disconnect();
     }
 
     // Content-driven stacking: sum the rendered widths of the action items and
@@ -1731,7 +1749,6 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                 batchId: response.batchId,
                 name: `Generating thumbnails — ${response.totalFiles} file(s)`,
                 total: response.totalFiles,
-                initialProcessingIds: fileExternalIds,
                 handlers: this.thumbnailBatchHandlers(),
             });
 
@@ -1772,8 +1789,6 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                 batchId: response.batchId,
                 name: `Generating thumbnails — ${response.totalFiles} file(s)`,
                 total: response.totalFiles,
-                // Seed only the directly-selected files (folder-expanded ones arrive from the server).
-                initialProcessingIds: s.selectedFileExternalIds,
                 handlers: this.thumbnailBatchHandlers(),
             });
 

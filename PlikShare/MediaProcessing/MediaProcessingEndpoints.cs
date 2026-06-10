@@ -31,10 +31,6 @@ public static class MediaProcessingEndpoints
 {
     private const int MaximumFileUploadPayloadSizeInBytes = Aes256GcmStreamingV1.MaximumPayloadSize;
 
-    // q_queue ROWS per outstanding chunk in the initial SSE stream. Each row holds up to BatchSize
-    // files, so ~200 rows ≈ 2000 file ids per event — keeps the first push small for huge batches.
-    private const int OutstandingChunkRowLimit = 200;
-
     public static void MapMediaProcessingEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("/api/workspaces/{workspaceExternalId}/media")
@@ -359,13 +355,9 @@ public static class MediaProcessingEndpoints
 
     private static Ok<ThumbnailGenerationStatusResponseDto> GetThumbnailGenerationStatus(
         [FromRoute] Guid batchId,
-        HttpContext httpContext,
         GetThumbnailGenerationStatusQuery getThumbnailGenerationStatusQuery)
     {
-        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
-
         var response = getThumbnailGenerationStatusQuery.Execute(
-            workspace: workspaceMembership.Workspace,
             batchId: batchId);
 
         return TypedResults.Ok(response);
@@ -442,10 +434,10 @@ public static class MediaProcessingEndpoints
     }
 
     /// <summary>
-    /// Server-Sent Events stream of a thumbnail batch's status. Pushes an initial snapshot, then a
-    /// fresh status on every queue notification for the batch, and closes once no variant is still
-    /// generating. Replaces client-side polling — the connection is opened once and the server
-    /// pushes. Single-process app, so no backplane is needed.
+    /// Server-Sent Events stream of a thumbnail batch's progress counts. Pushes an initial snapshot,
+    /// then a fresh status on every queue notification for the batch, and closes once nothing is
+    /// pending. Carries counts and per-variant failures only — per-file processing state is served
+    /// by the file-processing endpoints. Single-process app, so no backplane is needed.
     /// </summary>
     private static async Task GetThumbnailBatchEvents(
         [FromRoute] Guid batchId,
@@ -455,9 +447,6 @@ public static class MediaProcessingEndpoints
         IClock clock,
         CancellationToken cancellationToken)
     {
-        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
-        var workspace = workspaceMembership.Workspace;
-
         var response = httpContext.Response;
         response.Headers.ContentType = "text/event-stream";
         response.Headers.CacheControl = "no-cache";
@@ -469,83 +458,20 @@ public static class MediaProcessingEndpoints
 
         // Per-connection running state: each signal reads only jobs completed at/after this cursor
         // (so a 1000-job batch isn't re-read every time), deduped by qc_id since the cursor is
-        // inclusive. Per-variant errors accumulate across signals; ReadyThumbnails in each push is
-        // therefore already a delta.
+        // inclusive. Per-variant errors accumulate across signals.
         DateTimeOffset? lastCompletedAt = null;
         var sentQcIds = new HashSet<long>();
         var failedByVariant = new Dictionary<ThumbnailVariant, string?>();
-        
-        // Initial state: counts + ready are computed once (this also seeds the delta tracking), and
-        // the outstanding file-id set is streamed in chunks below — so the first event never carries
-        // a huge (30k+) list. The client accumulates each chunk's ids into its spinner set.
-        var initialSnapshot = getThumbnailGenerationStatusQuery.GetSnapshot(
-            workspace,
-            batchId,
-            lastCompletedAt);
 
-        var initialReady = new List<ReadyThumbnailDto>();
+        var initialStatus = NextStatus();
 
-        var initialFresh = initialSnapshot
-            .NewCompleted
-            .Where(job => sentQcIds.Add(job.QcId))
-            .ToList();
+        await WriteSseStatus(
+            response,
+            initialStatus,
+            cancellationToken);
 
-        GetThumbnailGenerationStatusQuery.Apply(
-            initialFresh,
-            failedByVariant,
-            initialReady);
-
-        if (initialSnapshot.NewCompleted.Count > 0)
-            lastCompletedAt = initialSnapshot.NewCompleted.Max(job => job.CompletedAt);
-
-        long? outstandingCursor = null;
-        var sentAnyOutstandingChunk = false;
-
-        while (true)
-        {
-            var page = getThumbnailGenerationStatusQuery.GetUnprocessedFileExternalIdsPage(
-                batchId: batchId,
-                afterQId: outstandingCursor,
-                rowLimit: OutstandingChunkRowLimit);
-
-            if (page.FileExternalIds.Count == 0)
-                break;
-
-            // First chunk also carries the ready deltas; later chunks only extend the spinner set.
-            await WriteSseStatus(
-                response,
-                GetThumbnailGenerationStatusQuery.BuildStatus(
-                    initialSnapshot.Counts,
-                    failedByVariant,
-                    sentAnyOutstandingChunk ? [] : initialReady,
-                    page.FileExternalIds),
-                cancellationToken);
-
-            sentAnyOutstandingChunk = true;
-            outstandingCursor = page.LastQId;
-
-            if (!page.HasMore)
-                break;
-        }
-
-        // No outstanding files (batch already finished/failed) — still emit one status so the client
-        // gets the terminal counts and any ready deltas, then close if nothing is left to do.
-        if (!sentAnyOutstandingChunk)
-        {
-            var terminalStatus = GetThumbnailGenerationStatusQuery.BuildStatus(
-                initialSnapshot.Counts,
-                failedByVariant,
-                initialReady,
-                []);
-
-            await WriteSseStatus(
-                response,
-                terminalStatus,
-                cancellationToken);
-
-            if (terminalStatus.Pending == 0)
-                return;
-        }
+        if (initialStatus.Pending == 0)
+            return;
 
         var keepAlive = TimeSpan.FromSeconds(20);
 
@@ -587,7 +513,7 @@ public static class MediaProcessingEndpoints
             // Sleep the remainder of the throttle window. Signals arriving in the meantime get
             // coalesced into the channel's single slot — we drain them on wake and produce ONE
             // status push for the whole burst.
-            var elapsed = DateTime.UtcNow - lastPushAt;
+            var elapsed = clock.UtcNow - lastPushAt;
 
             if (elapsed < minPushInterval)
             {
@@ -605,7 +531,6 @@ public static class MediaProcessingEndpoints
                 subscription.DrainPending();
             }
 
-            // Later pushes are deltas only — readyThumbnails carries the just-completed files.
             var status = NextStatus();
 
             await WriteSseStatus(
@@ -622,7 +547,6 @@ public static class MediaProcessingEndpoints
         ThumbnailGenerationStatusResponseDto NextStatus()
         {
             var snapshot = getThumbnailGenerationStatusQuery.GetSnapshot(
-                workspace,
                 batchId,
                 lastCompletedAt);
 
@@ -630,22 +554,16 @@ public static class MediaProcessingEndpoints
                 .Where(job => sentQcIds.Add(job.QcId))
                 .ToList();
 
-            var ready = new List<ReadyThumbnailDto>();
-
             GetThumbnailGenerationStatusQuery.Apply(
                 fresh,
-                failedByVariant,
-                ready);
+                failedByVariant);
 
             if (snapshot.NewCompleted.Count > 0)
                 lastCompletedAt = snapshot.NewCompleted.Max(job => job.CompletedAt);
 
-            // Deltas never carry outstanding ids — those are streamed once, in chunks, at startup.
             return GetThumbnailGenerationStatusQuery.BuildStatus(
                 snapshot.Counts,
-                failedByVariant,
-                ready,
-                []);
+                failedByVariant);
         }
     }
 

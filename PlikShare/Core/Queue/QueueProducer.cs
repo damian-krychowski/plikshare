@@ -34,6 +34,7 @@ public sealed class QueueProducer : BackgroundService
     private readonly IConfig _config;
     private readonly QueueJobInfoProvider _queueJobInfoProvider;
     private readonly QueueProducerWakeSignal _wakeSignal;
+    private readonly QueueWorkspaceNotifier _workspaceNotifier;
     private readonly CancellationTokenSource _gracefulShutdownCts;
     private bool _disposed;
 
@@ -44,7 +45,8 @@ public sealed class QueueProducer : BackgroundService
         QueueChannels channels,
         IConfig config,
         QueueJobInfoProvider queueJobInfoProvider,
-        QueueProducerWakeSignal wakeSignal)
+        QueueProducerWakeSignal wakeSignal,
+        QueueWorkspaceNotifier workspaceNotifier)
     {
         _clock = clock;
         _queue = queue;
@@ -52,6 +54,7 @@ public sealed class QueueProducer : BackgroundService
         _config = config;
         _queueJobInfoProvider = queueJobInfoProvider;
         _wakeSignal = wakeSignal;
+        _workspaceNotifier = workspaceNotifier;
         _gracefulShutdownCts = new CancellationTokenSource();
 
         _connection = plikShareDb.OpenConnection();
@@ -196,6 +199,9 @@ public sealed class QueueProducer : BackgroundService
                 }
                 else
                 {
+                    NotifyWorkspaces(
+                        jobsBatch: jobsBatchResult);
+
                     await PushAllJobsThroughChannel(
                         jobsBatch: jobsBatchResult,
                         stoppingToken: stoppingToken);
@@ -284,6 +290,25 @@ public sealed class QueueProducer : BackgroundService
             Log.Error(e, "Something went wrong while processing completed Queue Sagas.");
 
             return 0;
+        }
+    }
+
+    private void NotifyWorkspaces(
+        List<QueueJob> jobsBatch)
+    {
+        try
+        {
+            foreach (var workspaceId in jobsBatch
+                         .Where(job => job.WorkspaceId is not null)
+                         .Select(job => job.WorkspaceId!.Value)
+                         .Distinct())
+            {
+                _workspaceNotifier.Notify(workspaceId);
+            }
+        }
+        catch (Exception e)
+        {
+            Log.Warning(e, "Failed to notify workspace queue subscribers about jobs moved to processing");
         }
     }
 

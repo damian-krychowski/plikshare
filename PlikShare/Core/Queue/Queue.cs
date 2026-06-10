@@ -15,6 +15,7 @@ public class Queue(
     QueueJobStatusDecisionEngine queueJobStatusDecisionEngine,
     QueueJobInfoProvider queueJobInfoProvider,
     QueueBatchNotifier batchNotifier,
+    QueueWorkspaceNotifier workspaceNotifier,
     QueueProducerWakeSignal producerWakeSignal) : IQueue
 {
     private static int MaxRetryCount { get; } = 3;
@@ -232,7 +233,12 @@ public class Queue(
             .Execute();
 
         if (!result.IsEmpty)
+        {
             producerWakeSignal.Pulse();
+
+            if (workspaceId is not null)
+                NotifyWorkspace(workspaceId.Value);
+        }
 
         return result;
     }
@@ -309,9 +315,12 @@ public class Queue(
 
         producerWakeSignal.Pulse();
 
+        if (workspaceId is not null)
+            NotifyWorkspace(workspaceId.Value);
+
         return result;
     }
-    
+
     public List<QueueJobId> EnqueueBulk(
         Guid correlationId,
         List<BulkQueueJobWithTrackedFiles> definitions,
@@ -469,6 +478,25 @@ public class Queue(
             {
                 Log.Warning(e, "Failed to notify batch {BatchId} subscribers", job.BatchId);
             }
+        }
+
+        if (job.WorkspaceId is not null)
+        {
+            NotifyWorkspace(
+                job.WorkspaceId.Value);
+        }
+    }
+
+    private void NotifyWorkspace(int workspaceId)
+    {
+        try
+        {
+            workspaceNotifier.Notify(
+                workspaceId);
+        }
+        catch (Exception e)
+        {
+            Log.Warning(e, "Failed to notify Workspace#{WorkspaceId} queue subscribers", workspaceId);
         }
     }
     

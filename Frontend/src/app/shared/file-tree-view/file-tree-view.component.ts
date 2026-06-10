@@ -347,7 +347,7 @@ export class FileTreeViewComponent implements OnChanges {
         // etag is a no-op, so the overlap is harmless.
         effect(() => {
             const etags = this.readyMiniEtags();
-            
+
             if (etags.size === 0)
                 return;
 
@@ -368,6 +368,7 @@ export class FileTreeViewComponent implements OnChanges {
                 }
             });
         });
+
     }
 
     private flatten(roots: TreeItem[], viewMode: TreeViewMode, isSearchActive: boolean): FlatTreeRow[] {
