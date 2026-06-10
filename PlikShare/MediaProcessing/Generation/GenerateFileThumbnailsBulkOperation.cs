@@ -4,10 +4,10 @@ using PlikShare.Core.Encryption;
 using PlikShare.Core.Queue;
 using PlikShare.Core.SQLite;
 using PlikShare.Core.Utils;
+using PlikShare.Core.UserIdentity;
 using PlikShare.Files.Id;
 using PlikShare.Files.Metadata;
 using PlikShare.Storages.Encryption;
-using PlikShare.Users.Id;
 using PlikShare.Workspaces.Cache;
 using static PlikShare.MediaProcessing.Generation.GetThumbnailableSelectionFilesQuery;
 
@@ -34,7 +34,7 @@ public class GenerateFileThumbnailsBulkOperation(
         WorkspaceContext workspace,
         List<ThumbnailableFile> thumbnailableFiles,
         IReadOnlyList<ThumbnailVariant> variants,
-        UserExtId triggeredByUserExternalId,
+        IUserIdentity uploader,
         WorkspaceEncryptionSession? workspaceEncryptionSession,
         Guid correlationId,
         CancellationToken cancellationToken)
@@ -101,7 +101,8 @@ public class GenerateFileThumbnailsBulkOperation(
                 definition: new GenerateImageThumbnailsJobDefinition
                 {
                     WorkspaceId = workspace.Id,
-                    TriggeredByUserExternalId = triggeredByUserExternalId,
+                    UploaderIdentityType = uploader.IdentityType,
+                    UploaderIdentity = uploader.Identity,
                     Variants = variants.ToArray(),
                     ImageFileIds = imageFileIds,
                     VideoFileIds = videoFileIds,

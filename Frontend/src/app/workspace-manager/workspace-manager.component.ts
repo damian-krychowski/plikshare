@@ -16,6 +16,7 @@ import { FullEncryptionSessionsBtnComponent } from '../shared/full-encryption-se
 import { SignOutService } from '../services/sign-out.service';
 import { FooterComponent } from '../static-pages/shared/footer/footer.component';
 import { WorkspaceSizeComponent } from '../shared/workspace-size/workspace-size.component';
+import { AppCapabilitiesService } from '../services/app-capabilities.service';
 
 @Component({
     selector: 'app-workspace-manager',
@@ -82,7 +83,8 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
         private _activatedRoute: ActivatedRoute,
         private _fileUploadManager: FileUploadManager,
         public context: WorkspaceContextService,
-        public dataStore: DataStore
+        public dataStore: DataStore,
+        private _capabilities: AppCapabilitiesService
     ) {
         effect(() => {
             const workspace = this.context.workspace();
@@ -98,6 +100,11 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
 
     async ngOnInit(): Promise<void> {
         await this.auth.initiateSessionIfNeeded();
+
+        // App-wide capability flags (ffmpeg presence) gate features across all workspace child
+        // views (explorer media actions, config thumbnail/dimensions cards). Loaded once here so
+        // a hard refresh on any child view has them; the call is idempotent.
+        this._capabilities.ensureLoaded();
 
         this._subscription = this._activatedRoute.params.subscribe(async (params) => {
             this._workspaceExternalId = params['workspaceExternalId'] || null;

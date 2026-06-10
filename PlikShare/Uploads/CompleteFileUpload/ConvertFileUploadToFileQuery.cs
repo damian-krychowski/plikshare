@@ -105,6 +105,8 @@ public class ConvertFileUploadToFileQuery(
                             ExternalId: fileUpload.FileExternalId,
                             SizeInBytes: fileUpload.FileSizeInBytes,
                             ContentType: fileUpload.ContentType,
+                            UploaderIdentityType: result.Details.UploaderIdentityType!,
+                            UploaderIdentity: result.Details.UploaderIdentity!,
                             EncryptionMetadata: fileUpload.FileEncryptionMetadata,
                             EncryptionSeed: workspace.TryGetFileEncryptionSeed(
                                 encryptionMetadata: fileUpload.FileEncryptionMetadata,
@@ -185,8 +187,14 @@ public class ConvertFileUploadToFileQuery(
                         fu_file_metadata
                     FROM fu_file_uploads
                     WHERE fu_id = $fileUploadId
-                    RETURNING fi_id",
-                readRowFunc: reader => reader.GetInt32(0),
+                    RETURNING
+                        fi_id,
+                        fi_uploader_identity_type,
+                        fi_uploader_identity",
+                readRowFunc: reader => new InsertedFile(
+                    Id: reader.GetInt32(0),
+                    UploaderIdentityType: reader.GetString(1),
+                    UploaderIdentity: reader.GetString(2)),
                 transaction: transaction,
                 name: "upload.convert.insert_file")
             .WithParameter("$fileUploadId", fileUpload.Id)
@@ -246,8 +254,10 @@ public class ConvertFileUploadToFileQuery(
         return new Result(
             Code: ResultCode.Ok,
             Details: new Details(
-                FileId: fileId.Value,
-                IsFileCompleted: true));
+                FileId: fileId.Value.Id,
+                IsFileCompleted: true,
+                UploaderIdentityType: fileId.Value.UploaderIdentityType,
+                UploaderIdentity: fileId.Value.UploaderIdentity));
     }
 
     private Result HandleConversionForSingleChunkUploads(
@@ -440,7 +450,14 @@ public class ConvertFileUploadToFileQuery(
 
     public readonly record struct Details(
         int FileId,
-        bool IsFileCompleted);
+        bool IsFileCompleted,
+        string? UploaderIdentityType = null,
+        string? UploaderIdentity = null);
+
+    private readonly record struct InsertedFile(
+        int Id,
+        string UploaderIdentityType,
+        string UploaderIdentity);
 
     public enum ResultCode
     {

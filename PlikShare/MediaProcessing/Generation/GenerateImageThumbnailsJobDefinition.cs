@@ -1,6 +1,5 @@
 using PlikShare.Core.Encryption;
 using PlikShare.Files.Metadata;
-using PlikShare.Users.Id;
 
 namespace PlikShare.MediaProcessing.Generation;
 
@@ -10,7 +9,8 @@ public class GenerateImageThumbnailsJobDefinition
     public required List<int> ImageFileIds { get; init; }
     public required List<int> VideoFileIds { get; init; }
     public required ThumbnailVariant[] Variants { get; init; }
-    public required UserExtId TriggeredByUserExternalId { get; init; }
+    public required string UploaderIdentityType { get; init; }
+    public required string UploaderIdentity { get; init; }
 
     public required Dictionary<string, FullEncryptionSeedEphemeral>? EncryptionSeeds { get; init; }
 

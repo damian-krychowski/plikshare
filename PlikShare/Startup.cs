@@ -260,6 +260,7 @@ using PlikShare.Workspaces.UpdateMaxTeamMembers;
 using PlikShare.Workspaces.UpdateName;
 using PlikShare.Workspaces.UpdateTrashPolicy;
 using PlikShare.Workspaces.UpdateImageDimensionsPolicy;
+using PlikShare.Workspaces.UpdateThumbnailsPolicy;
 using PlikShare.QuickShares;
 using PlikShare.QuickShares.Cache;
 using PlikShare.QuickShares.Create;
@@ -373,6 +374,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_46_AlignDependentFilesFolderIdWithParent>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_47_FolderChildrenMetadataIndexIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_48_QueueWorkspaceIdAndQueueFileJobs>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_49_ThumbnailJobsUploaderIdentityIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -534,6 +536,7 @@ public class Startup
         builder.Services.AddSingleton<UpdateWorkspaceMaxTeamMembersQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceTrashPolicyQuery>();
         builder.Services.AddSingleton<UpdateWorkspaceImageDimensionsPolicyQuery>();
+        builder.Services.AddSingleton<UpdateWorkspaceThumbnailsPolicyQuery>();
         builder.Services.AddSingleton<ExtractImageDimensionsBackfillOperation>();
         builder.Services.AddSingleton<ImageDimensionsBackfillStatusQuery>();
         builder.Services.AddSingleton<BatchProgressQuery>();
@@ -840,7 +843,10 @@ public class Startup
         builder.Services.AddSingleton<UpsertParentImageDimensionsQuery>();
         builder.Services.AddSingleton<FileCreatedDispatcher>();
         builder.Services.AddSingleton<IFileCreatedHandler, DimensionsFileCreatedHandler>();
+        builder.Services.AddSingleton<IFileCreatedHandler, ThumbnailsFileCreatedHandler>();
         builder.Services.AddSingleton<GenerateFileThumbnailsBulkOperation>();
+        builder.Services.AddSingleton<ThumbnailsBackfillOperation>();
+        builder.Services.AddSingleton<ThumbnailsBackfillStatusQuery>();
         builder.Services.AddSingleton<GetThumbnailableSelectionFilesQuery>();
         builder.Services.AddSingleton<GetThumbnailGenerationStatusQuery>();
         builder.Services.AddSingleton<GetProcessingFileJobsQuery>();

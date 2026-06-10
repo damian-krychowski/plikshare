@@ -3,6 +3,7 @@ import { Injectable } from "@angular/core";
 import { firstValueFrom } from "rxjs";
 import { FileType } from "./file-type";
 import { AppStorageEncryptionType } from "./storages.api";
+import { ThumbnailVariant } from "./folders-and-files.api";
 
 export type GetWorkspaceDetailsResponse = WorkspaceDto;
 
@@ -40,10 +41,38 @@ export interface UpdateWorkspaceTrashPolicyRequest {
 
 export interface MediaProcessingPolicyDto {
     imageDimensions: ImageDimensionsPolicyDto;
+    thumbnails: ThumbnailsPolicyDto;
 }
 
 export interface ImageDimensionsPolicyDto {
     extractOnUpload: boolean;
+}
+
+export interface ThumbnailsPolicyDto {
+    generateOnUpload: boolean;
+    variants: ThumbnailVariant[];
+}
+
+export interface UpdateWorkspaceThumbnailsPolicyRequest {
+    generateOnUpload: boolean;
+    variants: ThumbnailVariant[];
+}
+
+export interface UpdateWorkspaceThumbnailsPolicyResponse {
+    batchId: string | null;
+    totalFiles: number;
+}
+
+export interface ThumbnailsBackfillStatus {
+    batchId: string | null;
+    total: number;
+    completed: number;
+    failed: number;
+    pending: number;
+}
+
+export interface ThumbnailsBackfillCount {
+    fileCount: number;
 }
 
 export interface UpdateWorkspaceImageDimensionsPolicyRequest {
@@ -355,6 +384,78 @@ export class WorkspacesApi {
             });
 
         return await firstValueFrom(call);
+    }
+
+    public async updateThumbnailsPolicy(
+        externalId: string,
+        request: UpdateWorkspaceThumbnailsPolicyRequest
+    ): Promise<UpdateWorkspaceThumbnailsPolicyResponse> {
+        const call = this
+            ._http
+            .patch<UpdateWorkspaceThumbnailsPolicyResponse>(
+                `/api/workspaces/${externalId}/media-processing-policy/thumbnails`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        return await firstValueFrom(call);
+    }
+
+    public async getThumbnailsBackfillStatus(
+        externalId: string
+    ): Promise<ThumbnailsBackfillStatus> {
+        const call = this
+            ._http
+            .get<ThumbnailsBackfillStatus>(
+                `/api/workspaces/${externalId}/media/thumbnails/backfill`);
+
+        return await firstValueFrom(call);
+    }
+
+    // How many existing images are missing at least one of the given variants — drives the
+    // "generate for N images" confirmation dialog before the policy is turned on.
+    public async getThumbnailsBackfillCount(
+        externalId: string,
+        variants: ThumbnailVariant[]
+    ): Promise<ThumbnailsBackfillCount> {
+        const query = variants
+            .map(variant => `variants=${encodeURIComponent(variant)}`)
+            .join('&');
+
+        const call = this
+            ._http
+            .get<ThumbnailsBackfillCount>(
+                `/api/workspaces/${externalId}/media/thumbnails/backfill/count?${query}`);
+
+        return await firstValueFrom(call);
+    }
+
+    // SSE: server pushes thumbnail-batch status (total/completed/failed/pending) on every change
+    // and closes once Pending hits 0. Returns an unsubscribe that closes the connection.
+    public subscribeThumbnailsBatch(
+        externalId: string,
+        batchId: string,
+        onProgress: (progress: BatchProgress) => void
+    ): () => void {
+        const eventSource = new EventSource(
+            `/api/workspaces/${externalId}/media/thumbnails/batches/${batchId}/events`,
+            { withCredentials: true }
+        );
+
+        eventSource.onmessage = (event) => {
+            try {
+                onProgress(JSON.parse(event.data));
+            } catch (err) {
+                console.error('Failed to parse thumbnails batch event:', err);
+            }
+        };
+
+        eventSource.onerror = () => {
+            // EventSource reconnects on its own; the caller closes us once the batch is terminal.
+        };
+
+        return () => eventSource.close();
     }
 
     // The backfill batchId lives on the queue jobs (server-side), so anyone opening the workspace

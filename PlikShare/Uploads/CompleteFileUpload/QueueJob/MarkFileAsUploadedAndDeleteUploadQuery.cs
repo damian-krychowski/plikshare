@@ -41,12 +41,16 @@ public class MarkFileAsUploadedAndDeleteUploadQuery(
                         fi_encryption_salt,
                         fi_encryption_nonce_prefix,
                         fi_encryption_chain_salts,
-                        fi_encryption_format_version",
+                        fi_encryption_format_version,
+                        fi_uploader_identity_type,
+                        fi_uploader_identity",
                 readRowFunc: reader => new CreatedFile(
                     Id: reader.GetInt32(0),
                     ExternalId: fileExternalId,
                     SizeInBytes: reader.GetInt64(1),
                     ContentType: reader.GetEncodedMetadata(2),
+                    UploaderIdentityType: reader.GetString(8),
+                    UploaderIdentity: reader.GetString(9),
                     EncryptionMetadata: reader.GetByteOrNull(3) is { } keyVersion
                         ? new FileEncryptionMetadata
                         {

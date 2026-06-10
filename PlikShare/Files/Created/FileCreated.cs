@@ -8,5 +8,7 @@ public sealed record CreatedFile(
     FileExtId ExternalId,
     long SizeInBytes,
     EncodedMetadataValue ContentType,
+    string UploaderIdentityType,
+    string UploaderIdentity,
     FileEncryptionMetadata? EncryptionMetadata,
     FullEncryptionSeedEphemeral? EncryptionSeed);

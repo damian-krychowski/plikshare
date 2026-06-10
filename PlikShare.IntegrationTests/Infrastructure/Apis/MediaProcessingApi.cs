@@ -216,6 +216,41 @@ public class MediaProcessingApi(IFlurlClient flurlClient, string appUrl)
     }
 
     /// <summary>
+    /// How many existing images are missing at least one of the given thumbnail variants —
+    /// i.e. how many files a thumbnails-policy backfill would process.
+    /// </summary>
+    public Task<ThumbnailsBackfillCountResponseDto> CountThumbnailsBackfill(
+        WorkspaceExtId workspaceExternalId,
+        List<ThumbnailVariant> variants,
+        SessionAuthCookie? cookie,
+        Cookie? workspaceEncryptionSession = null)
+    {
+        var variantsQuery = string.Join("&", variants.Select(v => $"variants={v}"));
+
+        return flurlClient.ExecuteGet<ThumbnailsBackfillCountResponseDto>(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/media/thumbnails/backfill/count?{variantsQuery}",
+            cookie: cookie,
+            extraCookie: workspaceEncryptionSession);
+    }
+
+    /// <summary>
+    /// Server-discovered status of the workspace's in-progress thumbnail generation. BatchId is
+    /// null (and counts zero) when nothing is running.
+    /// </summary>
+    public Task<ThumbnailsBackfillStatusResponseDto> GetThumbnailsBackfillStatus(
+        WorkspaceExtId workspaceExternalId,
+        SessionAuthCookie? cookie,
+        Cookie? workspaceEncryptionSession = null)
+    {
+        return flurlClient.ExecuteGet<ThumbnailsBackfillStatusResponseDto>(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{workspaceExternalId}/media/thumbnails/backfill",
+            cookie: cookie,
+            extraCookie: workspaceEncryptionSession);
+    }
+
+    /// <summary>
     /// How many existing images a backfill would process (images without dimensions metadata).
     /// </summary>
     public Task<ImageDimensionsBackfillCountResponseDto> CountImageDimensionsBackfill(

@@ -10,8 +10,10 @@ using PlikShare.Workspaces.Members.CreateInvitation.Contracts;
 using PlikShare.Workspaces.Members.List.Contracts;
 using PlikShare.Workspaces.Members.UpdatePermissions.Contracts;
 using PlikShare.Workspaces.SearchFilesTree.Contracts;
+using PlikShare.Files.Metadata;
 using PlikShare.Workspaces.UpdateImageDimensionsPolicy.Contracts;
 using PlikShare.Workspaces.UpdateName.Contracts;
+using PlikShare.Workspaces.UpdateThumbnailsPolicy.Contracts;
 using PlikShare.Workspaces.UpdateTrashPolicy.Contracts;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -106,6 +108,27 @@ public class WorkspacesApi(IFlurlClient flurlClient, string appUrl)
             request: new UpdateWorkspaceImageDimensionsPolicyDto
             {
                 ExtractOnUpload = extractOnUpload
+            },
+            cookie: cookie,
+            antiforgery: antiforgery,
+            extraCookie: workspaceEncryptionSession);
+    }
+
+    public async Task<UpdateWorkspaceThumbnailsPolicyResponseDto> UpdateThumbnailsPolicy(
+        WorkspaceExtId externalId,
+        bool generateOnUpload,
+        ThumbnailVariant[] variants,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery,
+        Cookie? workspaceEncryptionSession = null)
+    {
+        return await flurlClient.ExecutePatch<UpdateWorkspaceThumbnailsPolicyResponseDto, UpdateWorkspaceThumbnailsPolicyDto>(
+            appUrl: appUrl,
+            apiPath: $"api/workspaces/{externalId.Value}/media-processing-policy/thumbnails",
+            request: new UpdateWorkspaceThumbnailsPolicyDto
+            {
+                GenerateOnUpload = generateOnUpload,
+                Variants = variants
             },
             cookie: cookie,
             antiforgery: antiforgery,

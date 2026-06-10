@@ -117,7 +117,9 @@ public class GenerateImageThumbnailsJobExecutor(
         if (allNewThumbnails.Count == 0)
             return QueueJobResult.SuccessWithResult(resultJson);
 
-        var uploader = new UserIdentity(definition.TriggeredByUserExternalId);
+        var uploader = new GenericUserIdentity(
+            IdentityType: definition.UploaderIdentityType,
+            Identity: definition.UploaderIdentity);
 
         return QueueJobResult.SuccessWithDbWrite(
             dbWrite: (dbWriteContext, transaction) => insertAndFinalizeThumbnailQuery.WriteBatch(

@@ -1,4 +1,5 @@
 using PlikShare.Core.Utils;
+using PlikShare.Files.Metadata;
 
 namespace PlikShare.AuditLog.Details;
 
@@ -60,6 +61,14 @@ public static partial class Audit
             public required StorageRef Storage { get; init; }
             public required WorkspaceRef Workspace { get; init; }
             public required bool ExtractOnUpload { get; init; }
+        }
+
+        public class ThumbnailsPolicyUpdated
+        {
+            public required StorageRef Storage { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+            public required bool GenerateOnUpload { get; init; }
+            public required ThumbnailVariant[] Variants { get; init; }
         }
 
         public class MemberInvited
@@ -279,6 +288,28 @@ public static partial class Audit
                 Storage = storage,
                 Workspace = workspace,
                 ExtractOnUpload = extractOnUpload })
+        };
+
+        public static AuditLogEntry ThumbnailsPolicyUpdatedEntry(
+            AuditLogActorContext actor,
+            StorageRef storage,
+            WorkspaceRef workspace,
+            bool generateOnUpload,
+            ThumbnailVariant[] variants) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Workspace,
+            EventType = AuditLogEventTypes.Workspace.ThumbnailsPolicyUpdated,
+            Severity = AuditLogSeverities.Info,
+            WorkspaceExternalId = workspace.ExternalId.Value,
+            DetailsJson = Json.Serialize(new ThumbnailsPolicyUpdated {
+                Storage = storage,
+                Workspace = workspace,
+                GenerateOnUpload = generateOnUpload,
+                Variants = variants })
         };
 
         public static AuditLogEntry MemberInvitedEntry(

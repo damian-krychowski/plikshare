@@ -225,6 +225,13 @@ public static class HttpErrors
                 Code = "invitation-email-send-failed",
                 Message = "Sending the invitation email failed. The whole invitation was rolled back — please retry."
             });
+
+        public static BadRequest<HttpError> ThumbnailVariantsRequired() =>
+            TypedResults.BadRequest(new HttpError
+            {
+                Code = "thumbnail-variants-required",
+                Message = "At least one thumbnail variant must be selected when thumbnail generation on upload is enabled."
+            });
     }
 
     public static class Storage

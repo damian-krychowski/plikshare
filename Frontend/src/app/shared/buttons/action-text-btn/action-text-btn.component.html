@@ -2,6 +2,7 @@
     class="action-text-btn"
     attr.aria-label="{{tooltip()}}" 
     [class.action-text-btn--disabled]="disabled()"
+    [class.action-text-btn--danger]="isDanger()"
     mat-flat-button  
     [matTooltip]="tooltip()"
     [matTooltipPosition]="tooltipPosition()"

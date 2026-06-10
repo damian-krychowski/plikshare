@@ -17,6 +17,7 @@ export class ActionTextButtonComponent {
 
     text = input.required<string>();
     disabled = input(false);
+    isDanger = input(false);
     
     clicked = output<void>();
 

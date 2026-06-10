@@ -1,4 +1,5 @@
 using PlikShare.Core.Utils;
+using PlikShare.Files.Metadata;
 using PlikShare.Integrations.Id;
 using PlikShare.Storages.List.Contracts;
 using PlikShare.Users.Id;
@@ -29,11 +30,18 @@ public record GetWorkspaceDetailsResponseDto
 public class MediaProcessingPolicyDto
 {
     public required ImageDimensionsPolicyDto ImageDimensions { get; init; }
+    public required ThumbnailsPolicyDto Thumbnails { get; init; }
 }
 
 public class ImageDimensionsPolicyDto
 {
     public required bool ExtractOnUpload { get; init; }
+}
+
+public class ThumbnailsPolicyDto
+{
+    public required bool GenerateOnUpload { get; init; }
+    public required ThumbnailVariant[] Variants { get; init; }
 }
 
 public class WorkspaceOwnerDto

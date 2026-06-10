@@ -2,6 +2,15 @@
 
 Release notes for PlikShare.
 
+## 1.1.39
+
+- [FEATURE] Automatic thumbnails — a new opt-in workspace setting generates WebP thumbnails (Mini / Small / Large, your pick) for every uploaded image, and backfills existing images with the sizes they're missing — already existing thumbnails, including manually uploaded ones, are never touched. Live progress in workspace settings; switching off cancels pending generation
+- [IMPROVEMENT] Live per-file processing indicators — files currently being processed by background jobs (thumbnail generation, image-dimension extraction) show a spinner in the file list and tree in real time, streamed over a single per-workspace channel that sends only what changed. Backed by a new queue mechanism that tracks exactly which files each job touches, so the indicators stay accurate across reloads and for every user viewing the workspace
+- [IMPROVEMENT] Queue jobs now carry their workspace, and batch progress is computed from lightweight counts — bulk operations report progress faster and with less database work
+- [IMPROVEMENT] Thumbnails generated in the background are now attributed to the file's uploader — including box visitors — instead of requiring a signed-in user, which is what makes generation on upload possible
+- [IMPROVEMENT] UI performance — smoother scrolling in large tree views and cheaper marquee animation of truncated file names
+- [FIX] Refreshing the browser on the workspace settings page no longer hides the ffmpeg-dependent sections (image dimensions, thumbnails) — the capability flags are now loaded when the workspace opens, not only when the file explorer does
+
 ## 1.1.38
 
 - [IMPROVEMENT] Large folders open noticeably faster — listing a folder with thousands of files is 20–30% quicker: thumbnail metadata is fetched in a single query instead of once per file (backed by a new index), and parsed with a lightweight token scanner instead of full JSON deserialization

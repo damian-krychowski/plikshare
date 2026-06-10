@@ -6,7 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { BatchProgress, ImageDimensionsPolicyDto, TrashPolicyDto, WorkspacesApi } from '../../services/workspaces.api';
+import { BatchProgress, ImageDimensionsPolicyDto, ThumbnailsPolicyDto, TrashPolicyDto, WorkspacesApi } from '../../services/workspaces.api';
 import { BatchProgressComponent } from '../../shared/batch-progress/batch-progress.component';
 import { DataStore } from '../../services/data-store.service';
 import { AuthService } from '../../services/auth.service';
@@ -18,6 +18,7 @@ import { ActionTextButtonComponent } from '../../shared/buttons/action-text-btn/
 import { AuditLogPolicyApi } from '../../account/audit-log/policy/audit-log-policy.api';
 import { TrashPolicyConfigChangedEvent, TrashPolicyConfigComponent } from '../../shared/trash-policy-config/trash-policy-config.component';
 import { ImageDimensionsPolicyConfigChangedEvent, ImageDimensionsPolicyConfigComponent } from '../../shared/image-dimensions-policy-config/image-dimensions-policy-config.component';
+import { ThumbnailsPolicyConfigChangedEvent, ThumbnailsPolicyConfigComponent } from '../../shared/thumbnails-policy-config/thumbnails-policy-config.component';
 import { ConfigCardComponent } from '../../shared/config-card/config-card.component';
 import { GenericDialogService } from '../../shared/generic-message-dialog/generic-dialog-service';
 import { AppCapabilitiesService } from '../../services/app-capabilities.service';
@@ -36,6 +37,7 @@ import { AppCapabilitiesService } from '../../services/app-capabilities.service'
         WorkspaceTeamConfigComponent,
         TrashPolicyConfigComponent,
         ImageDimensionsPolicyConfigComponent,
+        ThumbnailsPolicyConfigComponent,
         ConfigCardComponent,
         ActionTextButtonComponent,
         BatchProgressComponent
@@ -50,12 +52,17 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
     public maxTeamMembers = signal<number|null>(null);
     public trashPolicy = signal<TrashPolicyDto|null>(null);
     public imageDimensionsPolicy = signal<ImageDimensionsPolicyDto|null>(null);
+    public thumbnailsPolicy = signal<ThumbnailsPolicyDto|null>(null);
 
     // Live progress of the image-dimensions backfill batch (null = nothing running). Sourced from
     // the server (queue), so it survives reloads and shows to any user viewing these settings.
     public backfillProgress = signal<BatchProgress | null>(null);
     private _backfillBatchId: string | null = null;
     private _backfillUnsub: (() => void) | null = null;
+
+    public thumbnailsBackfillProgress = signal<BatchProgress | null>(null);
+    private _thumbnailsBackfillBatchId: string | null = null;
+    private _thumbnailsBackfillUnsub: (() => void) | null = null;
 
     private _capabilities = inject(AppCapabilitiesService);
     public isFfmpegAvailable = computed(() => this._capabilities.capabilities().isFfmpegAvailable);
@@ -89,6 +96,8 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
         const overrides = this.auditLogSeverityOverrideCount();
         return (disabled ?? 0) > 0 || (overrides ?? 0) > 0;
     });
+
+    public workspaceExternalId = signal<string | null>(null);
 
     private _currentWorkspaceExternalId: string | null = null;
     private _routerSubscription: Subscription | null = null;
@@ -136,6 +145,7 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
     ngOnDestroy(): void {
         this._routerSubscription?.unsubscribe();
         this.stopBackfillTracking();
+        this.stopThumbnailsBackfillTracking();
     }
 
     private async loadBackfillStatus(workspaceExternalId: string) {
@@ -187,6 +197,54 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
         this.backfillProgress.set(null);
     }
 
+    private async loadThumbnailsBackfillStatus(workspaceExternalId: string) {
+        try {
+            const status = await this._workspacesApi.getThumbnailsBackfillStatus(
+                workspaceExternalId);
+
+            if (status.batchId) {
+                this.startThumbnailsBackfillTracking(workspaceExternalId, status.batchId, status);
+            } else {
+                this.stopThumbnailsBackfillTracking();
+            }
+        } catch (err) {
+            console.error('Failed to load thumbnails backfill status', err);
+        }
+    }
+
+    private startThumbnailsBackfillTracking(
+        workspaceExternalId: string,
+        batchId: string,
+        initial: BatchProgress) {
+
+        if (this._thumbnailsBackfillBatchId === batchId) {
+            this.thumbnailsBackfillProgress.set(initial);
+            return;
+        }
+
+        this.stopThumbnailsBackfillTracking();
+
+        this._thumbnailsBackfillBatchId = batchId;
+        this.thumbnailsBackfillProgress.set(initial);
+
+        this._thumbnailsBackfillUnsub = this._workspacesApi.subscribeThumbnailsBatch(
+            workspaceExternalId,
+            batchId,
+            progress => {
+                this.thumbnailsBackfillProgress.set(progress);
+
+                if (progress.pending === 0)
+                    this.stopThumbnailsBackfillTracking();
+            });
+    }
+
+    private stopThumbnailsBackfillTracking() {
+        this._thumbnailsBackfillUnsub?.();
+        this._thumbnailsBackfillUnsub = null;
+        this._thumbnailsBackfillBatchId = null;
+        this.thumbnailsBackfillProgress.set(null);
+    }
+
     private async load() {
         try {
             this.isLoading.set(true);
@@ -197,7 +255,8 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
                 throw new Error('workspaceExternalId is missing');
                 
             this._currentWorkspaceExternalId = workspaceExternalId;
-            
+            this.workspaceExternalId.set(workspaceExternalId);
+
             const workspace = await this
                 ._workspacesApi
                 .getWorkspace(workspaceExternalId);
@@ -210,10 +269,12 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
             this.maxTeamMembers.set(workspace.maxTeamMembers);
             this.trashPolicy.set(workspace.trashPolicy);
             this.imageDimensionsPolicy.set(workspace.mediaProcessingPolicy.imageDimensions);
+            this.thumbnailsPolicy.set(workspace.mediaProcessingPolicy.thumbnails);
 
             // Fire-and-forget; the chip / bar pop in once they resolve. Errors are logged, not surfaced.
             this.loadAuditLogSummary(workspaceExternalId);
             this.loadBackfillStatus(workspaceExternalId);
+            this.loadThumbnailsBackfillStatus(workspaceExternalId);
         } catch (error) {
             console.error('Failed to load workspace configuration', error);
         } finally {
@@ -431,6 +492,59 @@ export class WorkspaceConfigComponent implements OnInit, OnDestroy {
         // object reference so the child dropdown re-inits and snaps back to it.
         const current = this.imageDimensionsPolicy();
         this.imageDimensionsPolicy.set(current ? { ...current } : current);
+    }
+
+    // The thumbnails config child handles its own pending-changes flow (count preview + explicit
+    // Apply), so by the time this fires the change is already confirmed — save immediately.
+    onThumbnailsPolicyChange(event: ThumbnailsPolicyConfigChangedEvent) {
+        this.thumbnailsPolicy.set(event.thumbnails);
+        this.saveThumbnailsPolicy();
+    }
+
+    private async saveThumbnailsPolicy(){
+        if(!this._currentWorkspaceExternalId)
+            return;
+
+        const policy = this.thumbnailsPolicy();
+        if(!policy)
+            return;
+
+        try {
+            this.isLoading.set(true);
+
+            const response = await this._workspacesApi.updateThumbnailsPolicy(
+                this._currentWorkspaceExternalId,
+                {
+                    generateOnUpload: policy.generateOnUpload,
+                    variants: policy.variants
+                });
+
+            if (response.batchId) {
+                this.startThumbnailsBackfillTracking(
+                    this._currentWorkspaceExternalId,
+                    response.batchId,
+                    {
+                        total: response.totalFiles,
+                        completed: 0,
+                        failed: 0,
+                        pending: response.totalFiles
+                    });
+            } else if (!policy.generateOnUpload) {
+                // Disabling cancels any running generation server-side — drop the bar.
+                this.stopThumbnailsBackfillTracking();
+            }
+
+            const workspace = await this
+                ._workspacesApi
+                .getWorkspace(this._currentWorkspaceExternalId);
+
+            this._dataStore.clearWorkspaceDetails(this._currentWorkspaceExternalId);
+            this._workspaceContext.workspace.set(workspace);
+        } catch (error) {
+            console.error('Failed to save workspace configuration', error);
+        } finally {
+            this.isLoading.set(false);
+        }
     }
 
     private async saveImageDimensionsPolicy(){

@@ -60,6 +60,32 @@
                 </div>
             }
         </app-config-card>
+
+        <app-config-card
+            title="Thumbnails"
+            description="Generate WebP thumbnails in the selected sizes for every uploaded image. Turning it on backfills existing images that are missing them - thumbnails that already exist are kept untouched.">
+            @if (thumbnailsPolicy(); as policy) {
+                @if (workspaceExternalId(); as workspaceId) {
+                    <app-thumbnails-policy-config
+                        [thumbnails]="policy"
+                        [workspaceExternalId]="workspaceId"
+                        [hasActiveBackfill]="thumbnailsBackfillProgress() !== null"
+                        (configChanged)="onThumbnailsPolicyChange($event)">
+                    </app-thumbnails-policy-config>
+                }
+            }
+
+            @if (thumbnailsBackfillProgress(); as progress) {
+                <div class="mt-2">
+                    <app-batch-progress
+                        label="Generating thumbnails for existing images…"
+                        [done]="progress.completed + progress.failed"
+                        [total]="progress.total"
+                        [failed]="progress.failed">
+                    </app-batch-progress>
+                </div>
+            }
+        </app-config-card>
     }
 
     @if (canConfigureAuditLog()) {

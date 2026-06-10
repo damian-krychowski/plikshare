@@ -65,6 +65,12 @@ public static class MediaProcessingEndpoints
         group.MapGet("/thumbnails/batches/{batchId:guid}/events", GetThumbnailBatchEvents)
             .WithName("GetThumbnailBatchEvents");
 
+        group.MapGet("/thumbnails/backfill", GetThumbnailsBackfillStatus)
+            .WithName("GetThumbnailsBackfillStatus");
+
+        group.MapGet("/thumbnails/backfill/count", CountThumbnailsBackfill)
+            .WithName("CountThumbnailsBackfill");
+
         group.MapGet("/image-dimensions/backfill", GetImageDimensionsBackfillStatus)
             .WithName("GetImageDimensionsBackfillStatus");
 
@@ -246,7 +252,7 @@ public static class MediaProcessingEndpoints
             workspace: workspaceMembership.Workspace,
             thumbnailableFiles: thumbnailableFiles,
             variants: request.Variants,
-            triggeredByUserExternalId: workspaceMembership.User.ExternalId,
+            uploader: new UserIdentity(workspaceMembership.User.ExternalId),
             workspaceEncryptionSession: workspaceEncryptionSession,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
@@ -310,7 +316,7 @@ public static class MediaProcessingEndpoints
             workspace: workspaceMembership.Workspace,
             thumbnailableFiles: thumbnailableFiles,
             variants: variants,
-            triggeredByUserExternalId: workspaceMembership.User.ExternalId,
+            uploader: new UserIdentity(workspaceMembership.User.ExternalId),
             workspaceEncryptionSession: workspaceEncryptionSession,
             correlationId: httpContext.GetCorrelationId(),
             cancellationToken: cancellationToken);
@@ -361,6 +367,54 @@ public static class MediaProcessingEndpoints
             batchId: batchId);
 
         return TypedResults.Ok(response);
+    }
+
+    private static Ok<ThumbnailsBackfillStatusResponseDto> GetThumbnailsBackfillStatus(
+        HttpContext httpContext,
+        ThumbnailsBackfillStatusQuery backfillStatusQuery)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+
+        var active = backfillStatusQuery.GetActive(
+            workspaceMembership.Workspace.Id);
+
+        return TypedResults.Ok(new ThumbnailsBackfillStatusResponseDto
+        {
+            BatchId = active?.BatchId.ToString(),
+            Total = active?.Counts.Total ?? 0,
+            Completed = active?.Counts.Completed ?? 0,
+            Failed = active?.Counts.Failed ?? 0,
+            Pending = active?.Counts.Pending ?? 0
+        });
+    }
+
+    private static Results<Ok<ThumbnailsBackfillCountResponseDto>, BadRequest<HttpError>> CountThumbnailsBackfill(
+        [FromQuery] string[] variants,
+        HttpContext httpContext,
+        ThumbnailsBackfillOperation backfillOperation)
+    {
+        var parsedVariants = new List<ThumbnailVariant>(variants.Length);
+
+        foreach (var raw in variants)
+        {
+            if (!Enum.TryParse<ThumbnailVariant>(raw, ignoreCase: true, out var parsed))
+                return HttpErrors.File.InvalidThumbnailVariant();
+
+            parsedVariants.Add(parsed);
+        }
+
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
+        var count = backfillOperation.CountImagesToBackfill(
+            workspace: workspaceMembership.Workspace,
+            variants: parsedVariants,
+            workspaceEncryptionSession: workspaceEncryptionSession);
+
+        return TypedResults.Ok(new ThumbnailsBackfillCountResponseDto
+        {
+            FileCount = count
+        });
     }
 
     private static Ok<ImageDimensionsBackfillStatusResponseDto> GetImageDimensionsBackfillStatus(

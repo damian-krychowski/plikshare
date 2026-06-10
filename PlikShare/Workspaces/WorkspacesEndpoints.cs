@@ -48,7 +48,10 @@ using PlikShare.Workspaces.UpdateTrashPolicy;
 using PlikShare.Workspaces.UpdateTrashPolicy.Contracts;
 using PlikShare.Workspaces.UpdateImageDimensionsPolicy;
 using PlikShare.Workspaces.UpdateImageDimensionsPolicy.Contracts;
+using PlikShare.Workspaces.UpdateThumbnailsPolicy;
+using PlikShare.Workspaces.UpdateThumbnailsPolicy.Contracts;
 using PlikShare.MediaProcessing.Dimensions;
+using PlikShare.MediaProcessing.Generation;
 using PlikShare.Trash;
 using PlikShare.Workspaces.Validation;
 using PlikShare.AuditLog;
@@ -88,6 +91,11 @@ public static class WorkspacesEndpoints
         group.MapPatch("/{workspaceExternalId}/media-processing-policy/image-dimensions", UpdateWorkspaceImageDimensionsPolicy)
             .AddEndpointFilter<ValidateWorkspaceFilter>()
             .WithName("UpdateWorkspaceImageDimensionsPolicy");
+
+        group.MapPatch("/{workspaceExternalId}/media-processing-policy/thumbnails", UpdateWorkspaceThumbnailsPolicy)
+            .AddEndpointFilter<ValidateWorkspaceFilter>()
+            .AddEndpointFilter<ValidateWorkspaceEncryptionSessionFilter>()
+            .WithName("UpdateWorkspaceThumbnailsPolicy");
 
         group.MapDelete("/{workspaceExternalId}", DeleteWorkspace)
             .AddEndpointFilter<ValidateWorkspaceFilter>()
@@ -509,6 +517,11 @@ public static class WorkspacesEndpoints
                 ImageDimensions = new ImageDimensionsPolicyDto
                 {
                     ExtractOnUpload = workspaceMembership.Workspace.MediaProcessingPolicy?.ExtractImageDimensionsOnUpload == true
+                },
+                Thumbnails = new ThumbnailsPolicyDto
+                {
+                    GenerateOnUpload = workspaceMembership.Workspace.MediaProcessingPolicy?.Thumbnails?.GenerateOnUpload == true,
+                    Variants = workspaceMembership.Workspace.MediaProcessingPolicy?.Thumbnails?.Variants ?? []
                 }
             }
         });
@@ -650,6 +663,116 @@ public static class WorkspacesEndpoints
             default:
                 throw new UnexpectedOperationResultException(
                     operationName: nameof(UpdateWorkspaceImageDimensionsPolicyQuery),
+                    resultValueStr: resultCode.ToString());
+        }
+    }
+
+    private static async Task<Results<Ok<UpdateWorkspaceThumbnailsPolicyResponseDto>, NotFound<HttpError>, BadRequest<HttpError>>> UpdateWorkspaceThumbnailsPolicy(
+        [FromBody] UpdateWorkspaceThumbnailsPolicyDto request,
+        HttpContext httpContext,
+        WorkspaceCache workspaceCache,
+        UpdateWorkspaceThumbnailsPolicyQuery updateQuery,
+        ThumbnailsBackfillOperation backfillOperation,
+        ThumbnailsBackfillStatusQuery backfillStatusQuery,
+        CancelThumbnailBatchOperation cancelThumbnailBatchOperation,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+
+        if (workspaceMembership is { IsOwnedByUser: false, User.HasAdminRole: false })
+            return HttpErrors.Workspace.NotOwner(workspaceMembership.Workspace.ExternalId);
+
+        var variants = request
+            .Variants
+            .Distinct()
+            .ToArray();
+
+        if (request.GenerateOnUpload && variants.Length == 0)
+            return HttpErrors.Workspace.ThumbnailVariantsRequired();
+
+        var wasEnabled = workspaceMembership
+            .Workspace
+            .MediaProcessingPolicy?
+            .Thumbnails?
+            .GenerateOnUpload == true;
+
+        var resultCode = await updateQuery.Execute(
+            workspace: workspaceMembership.Workspace,
+            generateOnUpload: request.GenerateOnUpload,
+            variants: variants,
+            cancellationToken: cancellationToken);
+
+        switch (resultCode)
+        {
+            case UpdateWorkspaceThumbnailsPolicyQuery.ResultCode.Ok:
+                await workspaceCache.InvalidateEntry(
+                    workspaceMembership.Workspace.ExternalId,
+                    cancellationToken);
+
+                await auditLogService.LogWithStorageContext(
+                    storageExternalId: workspaceMembership.Workspace.Storage.ExternalId,
+                    buildEntry: storageRef => Audit.Workspace.ThumbnailsPolicyUpdatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        storage: storageRef,
+                        workspace: workspaceMembership.Workspace.ToAuditLogWorkspaceRef(),
+                        generateOnUpload: request.GenerateOnUpload,
+                        variants: variants),
+                    cancellationToken);
+
+                string? batchId = null;
+                var totalFiles = 0;
+
+                if (request.GenerateOnUpload)
+                {
+                    // Runs on every enabled save (not only off→on) so that widening the variant set
+                    // also backfills the new variants. Only images missing one of the selected
+                    // variants are picked up, so re-saving an unchanged policy is a no-op.
+                    var freshWorkspace = await workspaceCache.TryGetWorkspace(
+                        workspaceId: workspaceMembership.Workspace.Id,
+                        cancellationToken: cancellationToken);
+
+                    if (freshWorkspace is not null)
+                    {
+                        var backfill = await backfillOperation.Execute(
+                            workspace: freshWorkspace,
+                            variants: variants,
+                            uploader: new UserIdentity(workspaceMembership.User.ExternalId),
+                            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
+                            correlationId: httpContext.GetCorrelationId(),
+                            cancellationToken: cancellationToken);
+
+                        batchId = backfill.BatchId?.ToString();
+                        totalFiles = backfill.TotalFiles;
+                    }
+                }
+                else if (wasEnabled)
+                {
+                    // Turning the policy off cancels still-queued thumbnail generation (in-flight
+                    // jobs finish); thumbnails already generated are kept.
+                    var activeBatchIds = backfillStatusQuery.GetActiveBatchIds(
+                        workspaceMembership.Workspace.Id);
+
+                    foreach (var activeBatchId in activeBatchIds)
+                    {
+                        await cancelThumbnailBatchOperation.Execute(
+                            batchId: activeBatchId,
+                            cancellationToken: cancellationToken);
+                    }
+                }
+
+                return TypedResults.Ok(new UpdateWorkspaceThumbnailsPolicyResponseDto
+                {
+                    BatchId = batchId,
+                    TotalFiles = totalFiles
+                });
+
+            case UpdateWorkspaceThumbnailsPolicyQuery.ResultCode.NotFound:
+                return HttpErrors.Workspace.NotFound(workspaceMembership.Workspace.ExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateWorkspaceThumbnailsPolicyQuery),
                     resultValueStr: resultCode.ToString());
         }
     }

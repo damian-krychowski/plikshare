@@ -148,6 +148,7 @@ public static class AuditLogEventTypes
         public const string BulkDeleteRequested = "workspace.bulk-delete-requested";
         public const string TrashPolicyUpdated = "workspace.trash-policy-updated";
         public const string ImageDimensionsPolicyUpdated = "workspace.image-dimensions-policy-updated";
+        public const string ThumbnailsPolicyUpdated = "workspace.thumbnails-policy-updated";
 
         public static readonly string[] All =
         [
@@ -158,7 +159,8 @@ public static class AuditLogEventTypes
             InvitationAccepted, InvitationRejected, MemberLeft,
             BulkDeleteRequested,
             TrashPolicyUpdated,
-            ImageDimensionsPolicyUpdated
+            ImageDimensionsPolicyUpdated,
+            ThumbnailsPolicyUpdated
         ];
     }
 

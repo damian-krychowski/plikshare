@@ -1,0 +1,52 @@
+<div class="config-row">
+    <mat-select
+        class="config-row__select config-row__select--wide"
+        [(ngModel)]="generateOnUpload"
+        (selectionChange)="onModeChange()">
+
+        @for (item of modeOptions; track item.value) {
+            <mat-option [value]="item.value">
+                {{ item.label }}
+            </mat-option>
+        }
+    </mat-select>
+</div>
+
+@if (generateOnUpload) {
+    <div class="variant-tiles">
+        @for (variant of variantOptions; track variant.value) {
+            <button
+                type="button"
+                class="variant-tile"
+                [class.variant-tile--selected]="isVariantSelected(variant.value)"
+                (click)="toggleVariant(variant.value)">
+                <div class="variant-tile__title">
+                    @if (isVariantSelected(variant.value)) {
+                        <span class="variant-tile__check">✓</span>
+                    }
+                    {{ variant.name }}
+                    <span class="variant-tile__size">{{ variant.size }}</span>
+                </div>
+                <div class="variant-tile__description">{{ variant.description }}</div>
+            </button>
+        }
+    </div>
+}
+
+@if (isPending()) {
+    <div class="pending-bar">
+        <div class="pending-bar__message">{{ pendingMessage() }}</div>
+        <div class="pending-bar__actions">
+            <app-action-text-btn
+                text="Cancel"
+                (clicked)="cancel()">
+            </app-action-text-btn>
+            <app-action-text-btn
+                text="Apply"
+                [disabled]="!canApply()"
+                [isDanger]="isDangerApply()"
+                (clicked)="apply()">
+            </app-action-text-btn>
+        </div>
+    </div>
+}

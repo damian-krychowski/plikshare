@@ -139,6 +139,11 @@ public class workspace_tests : TestFixture
                 ImageDimensions = new ImageDimensionsPolicyDto
                 {
                     ExtractOnUpload = false
+                },
+                Thumbnails = new ThumbnailsPolicyDto
+                {
+                    GenerateOnUpload = false,
+                    Variants = []
                 }
             }
         });

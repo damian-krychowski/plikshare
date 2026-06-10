@@ -81,13 +81,19 @@ public class thumbnail_generation_tests : TestFixture
             fileExternalId: parentFile.ExternalId,
             cookie: AppOwner.Cookie);
 
-        //then — batch reports the Mini variant as ready and the bytes are a valid WebP
+        //then — batch reports completion and the bytes are a valid WebP. Per-file readiness is no
+        //longer part of the batch status (slimmed to counts) — preview details carry it instead.
         terminalStatus.Completed.Should().Be(1);
         terminalStatus.Failed.Should().Be(0);
         terminalStatus.Pending.Should().Be(0);
-        terminalStatus.ReadyThumbnails.Should().ContainSingle(r =>
-            r.FileExternalId == parentFile.ExternalId.Value
-            && r.Variants.Any(v => v.Variant == ThumbnailVariant.Mini));
+
+        var details = await Api.Files.GetPreviewDetails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: parentFile.ExternalId,
+            fields: ["thumbnails"],
+            cookie: AppOwner.Cookie);
+
+        details.Thumbnails.Should().ContainSingle(t => t.Variant == ThumbnailVariant.Mini);
 
         statusCode.Should().Be(200);
         body.Should().NotBeEmpty();
@@ -344,8 +350,14 @@ public class thumbnail_generation_tests : TestFixture
         //then
         status.Completed.Should().Be(1);
         status.Failed.Should().Be(0);
-        status.ReadyThumbnails.Should().ContainSingle(r =>
-            r.FileExternalId == videoFile.ExternalId.Value);
+
+        var details = await Api.Files.GetPreviewDetails(
+            workspaceExternalId: workspace.ExternalId,
+            fileExternalId: videoFile.ExternalId,
+            fields: ["thumbnails"],
+            cookie: AppOwner.Cookie);
+
+        details.Thumbnails.Should().ContainSingle(t => t.Variant == ThumbnailVariant.Mini);
 
         statusCode.Should().Be(200);
         IsWebp(body).Should().BeTrue();
@@ -565,12 +577,12 @@ public class thumbnail_generation_tests : TestFixture
     }
 
     [Fact]
-    public async Task bulk_generation_should_report_every_file_in_ready_thumbnails_for_each_variant()
+    public async Task bulk_generation_should_produce_requested_variants_for_each_file()
     {
-        //given — three illustrations, asking for two variants. The status endpoint's
-        // ReadyThumbnails should list each file once with the variants it produced; we check
-        // that the queue worker actually reported per-file completion to the status pipeline
-        // (not just the batch-level Completed count).
+        //given — three illustrations, asking for two variants. Batch status carries counts only
+        // (per-file readiness was slimmed away), so per-file completion is asserted through each
+        // file's preview details — the worker must have produced BOTH variants for EVERY file,
+        // not just bumped the batch-level Completed counter.
         var workspace = await CreateWorkspace(user: AppOwner);
         var folder = await CreateFolder(workspace: workspace, user: AppOwner);
 
@@ -605,15 +617,19 @@ public class thumbnail_generation_tests : TestFixture
             cookie: AppOwner.Cookie,
             timeoutMs: 60_000);
 
-        //then — every file present in ReadyThumbnails with both variants
-        status.ReadyThumbnails.Should().HaveCount(3);
+        //then — every file ends up with both requested variants
+        status.Completed.Should().Be(3);
+        status.Failed.Should().Be(0);
 
         foreach (var file in uploaded)
         {
-            var ready = status.ReadyThumbnails.Should().ContainSingle(r =>
-                r.FileExternalId == file.ExternalId.Value).Subject;
+            var details = await Api.Files.GetPreviewDetails(
+                workspaceExternalId: workspace.ExternalId,
+                fileExternalId: file.ExternalId,
+                fields: ["thumbnails"],
+                cookie: AppOwner.Cookie);
 
-            var variants = ready.Variants.Select(v => v.Variant).ToHashSet();
+            var variants = details.Thumbnails!.Select(t => t.Variant).ToHashSet();
             variants.Should().Contain([ThumbnailVariant.Mini, ThumbnailVariant.Small]);
         }
     }

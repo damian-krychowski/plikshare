@@ -111,7 +111,9 @@ public class BulkConvertDirectFileUploadsToFilesQuery(
                             fi_encryption_salt,
                             fi_encryption_nonce_prefix,
                             fi_encryption_chain_salts,
-                            fi_encryption_format_version
+                            fi_encryption_format_version,
+                            fi_uploader_identity_type,
+                            fi_uploader_identity
                          """,
                     seed: new InsertedFilesAcc(
                         CreatedFiles: [],
@@ -138,6 +140,8 @@ public class BulkConvertDirectFileUploadsToFilesQuery(
                                 ExternalId: reader.GetExtId<FileExtId>(2),
                                 SizeInBytes: reader.GetInt64(3),
                                 ContentType: reader.GetEncodedMetadata(4),
+                                UploaderIdentityType: reader.GetString(10),
+                                UploaderIdentity: reader.GetString(11),
                                 EncryptionMetadata: encryptionMetadata,
                                 EncryptionSeed: workspace.TryGetFileEncryptionSeed(
                                     encryptionMetadata: encryptionMetadata,

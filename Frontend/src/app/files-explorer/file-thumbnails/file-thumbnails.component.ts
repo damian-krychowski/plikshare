@@ -95,9 +95,6 @@ export class FileThumbnailsComponent implements OnDestroy {
     anyExisting = computed(() => this.slots().some(s => s.existing));
 
     constructor() {
-        // Capabilities are app-wide; first component to mount fires the HTTP, others reuse.
-        this._capabilities.ensureLoaded();
-
         // Reconcile slot.existing against the latest thumbnails input. Preserves objectUrl
         // for variants whose externalId is unchanged so the image doesn't flicker; revokes +
         // clears object URLs whose thumbnail was replaced or removed; clears any stale failure
