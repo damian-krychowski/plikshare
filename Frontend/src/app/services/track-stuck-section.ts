@@ -16,16 +16,34 @@ export function trackStuckSection<T extends string>(
 
         const toolbarBottom = toolbar.getBoundingClientRect().bottom;
 
+        // Later sections win, so walk from the end and stop at the first stuck one — no need to
+        // measure the sections above it.
         let current: T | null = null;
-        for (const section of sections) {
-            const top = section.getElement()?.getBoundingClientRect().top;
-            if (top != null && top <= toolbarBottom) current = section.id;
+        for (let i = sections.length - 1; i >= 0; i--) {
+            const top = sections[i].getElement()?.getBoundingClientRect().top;
+            if (top != null && top <= toolbarBottom) {
+                current = sections[i].id;
+                break;
+            }
         }
 
         stuck.set(current);
     };
 
-    const handler = () => requestAnimationFrame(update);
+    // Coalesce the scroll-event burst into one measurement per frame: smooth scrolling emits
+    // several events between paints (and the capture listener hears every scrollable container),
+    // so an uncoalesced handler would queue that many rAF callbacks and re-measure layout each time.
+    let rafPending = false;
+
+    const handler = () => {
+        if (rafPending) return;
+
+        rafPending = true;
+        requestAnimationFrame(() => {
+            rafPending = false;
+            update();
+        });
+    };
 
     window.addEventListener('scroll', handler, { capture: true, passive: true });
     window.addEventListener('resize', handler, { passive: true });

@@ -1,10 +1,11 @@
-import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, ElementRef, inject, viewChild } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ThumbnailBatchProgressService } from '../../services/thumbnail-batch-progress.service';
 import { ConfirmOperationDirective } from '../../shared/operation-confirm/confirm-operation.directive';
 
 // Compact, self-contained thumbnail-generation indicator for the toolbar: reads the app-wide batch
-// tracker and renders an icon + mini bar + done/total. Renders nothing when no batch is tracked.
+// tracker and renders an icon + mini bar + done/total + elapsed wall-clock. Renders nothing when no
+// batch is tracked.
 @Component({
     selector: 'app-thumbnail-progress',
     standalone: true,
@@ -12,13 +13,12 @@ import { ConfirmOperationDirective } from '../../shared/operation-confirm/confir
     templateUrl: './thumbnail-progress.component.html',
     styleUrl: './thumbnail-progress.component.scss'
 })
-export class ThumbnailProgressComponent implements OnInit {
+export class ThumbnailProgressComponent {
     private _batches = inject(ThumbnailBatchProgressService);
     private _destroyRef = inject(DestroyRef);
 
-    // TEMP: live wall-clock ticker for the ffmpeg-vs-Skia comparison. Wakes the elapsed computed
-    // every 100ms so the readout counts up smoothly. Drop along with `elapsedLabel`.
-    private _now = signal(Date.now());
+    private _elapsedEl = viewChild<ElementRef<HTMLElement>>('elapsed');
+    private _tickHandle: ReturnType<typeof setInterval> | null = null;
 
     progress = computed(() => {
         const batches = this._batches.batches();
@@ -44,37 +44,70 @@ export class ThumbnailProgressComponent implements OnInit {
         };
     });
 
-    // TEMP: elapsed wall-clock for the oldest tracked batch. While the batch is running we tick
-    // against `_now`; once it finishes we freeze on `finishedAt`. Drop after the A/B.
-    elapsedLabel = computed(() => {
-        const batches = this._batches.batches();
-        if (batches.length === 0)
-            return null;
-
-        const oldest = batches.reduce(
-            (acc, batch) => batch.startedAt < acc.startedAt ? batch : acc);
-
-        const end = oldest.finishedAt ?? this._now();
-        return formatElapsed(end - oldest.startedAt);
-    });
-
     // Batches that still have not-yet-started work worth cancelling.
     activeBatchIds = computed(() =>
         this._batches.batches()
             .filter(batch => !batch.isDone)
             .map(batch => batch.batchId));
 
-    ngOnInit(): void {
-        const handle = setInterval(
-            () => this._now.set(Date.now()),
-            100);
+    constructor() {
+        effect(() => {
+            const el = this._elapsedEl()?.nativeElement;
+            const batches = this._batches.batches();
 
-        this._destroyRef.onDestroy(() => clearInterval(handle));
+            if (!el || batches.length === 0) {
+                this.stopTicker();
+                return;
+            }
+
+            this.writeElapsed(el);
+
+            if (batches.some(batch => batch.finishedAt === null))
+                this.startTicker();
+            else
+                this.stopTicker();
+        });
+
+        this._destroyRef.onDestroy(() => this.stopTicker());
     }
 
     cancel(): void {
         for (const batchId of this.activeBatchIds())
             this._batches.cancel(batchId);
+    }
+
+    private startTicker(): void {
+        if (this._tickHandle !== null)
+            return;
+
+        this._tickHandle = setInterval(
+            () => {
+                const el = this._elapsedEl()?.nativeElement;
+
+                if (el)
+                    this.writeElapsed(el);
+            },
+            100);
+    }
+
+    private stopTicker(): void {
+        if (this._tickHandle !== null) {
+            clearInterval(this._tickHandle);
+            this._tickHandle = null;
+        }
+    }
+
+    private writeElapsed(el: HTMLElement): void {
+        const batches = this._batches.batches();
+
+        if (batches.length === 0)
+            return;
+
+        const oldest = batches.reduce(
+            (acc, batch) => batch.startedAt < acc.startedAt ? batch : acc);
+
+        const end = oldest.finishedAt ?? Date.now();
+        el.textContent = formatElapsed(end - oldest.startedAt);
     }
 }
 

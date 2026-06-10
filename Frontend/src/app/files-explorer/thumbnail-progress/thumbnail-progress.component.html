@@ -6,9 +6,7 @@
         </span>
         <span class="thumb-progress__value">{{ p.done }}/{{ p.total }}</span>
 
-        @if(elapsedLabel(); as label) {
-            <span class="thumb-progress__elapsed">{{ label }}</span>
-        }
+        <span class="thumb-progress__elapsed" #elapsed></span>
 
         @if(activeBatchIds().length > 0) {
             <button

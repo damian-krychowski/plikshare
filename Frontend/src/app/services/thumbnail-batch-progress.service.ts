@@ -10,8 +10,7 @@ export type ThumbnailBatch = {
     failed: number;
     pending: number;
     isDone: boolean;
-    // TEMP: wall-clock measurement for the ffmpeg-vs-Skia A/B comparison. Drop these fields and
-    // the elapsed display in <app-thumbnail-progress> once we settle on the winner.
+    
     startedAt: number;
     finishedAt: number | null;
 };

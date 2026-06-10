@@ -313,23 +313,36 @@ export class FileTreeViewComponent implements OnChanges {
         });
 
         // Capture-phase scroll listener — catches scroll on ANY ancestor (SPA
-        // shells often scroll an inner element rather than window). RAF batches
-        // scroll bursts into one recompute per frame.
-        const onScroll = () => requestAnimationFrame(() => this.recomputeRange());
-        window.addEventListener('scroll', onScroll, { capture: true, passive: true });
-        window.addEventListener('resize', onScroll, { passive: true });
+        // shells often scroll an inner element rather than window). The pending
+        // flag coalesces the event burst into ONE recompute per frame — smooth
+        // scrolling emits several events between paints, and the capture
+        // listener hears every scrollable container.
+        let rafPending = false;
+
+        const scheduleRecompute = () => {
+            if (rafPending) return;
+
+            rafPending = true;
+            requestAnimationFrame(() => {
+                rafPending = false;
+                this.recomputeRange();
+            });
+        };
+
+        window.addEventListener('scroll', scheduleRecompute, { capture: true, passive: true });
+        window.addEventListener('resize', scheduleRecompute, { passive: true });
 
         const destroyRef = inject(DestroyRef);
         destroyRef.onDestroy(() => {
-            window.removeEventListener('scroll', onScroll, { capture: true });
-            window.removeEventListener('resize', onScroll);
+            window.removeEventListener('scroll', scheduleRecompute, { capture: true });
+            window.removeEventListener('resize', scheduleRecompute);
         });
 
         // Content shifts (expand/collapse, sort, search, dataSource swap) change
         // the row count and host geometry — recompute after DOM has been updated.
         effect(() => {
             this.flatVisibleNodes();
-            requestAnimationFrame(() => this.recomputeRange());
+            scheduleRecompute();
         });
 
         let wasSearchActive = false;
