@@ -11,6 +11,8 @@ Release notes for PlikShare.
 - [IMPROVEMENT] UI performance — smoother scrolling in large tree views and cheaper marquee animation of truncated file names
 - [FIX] Refreshing the browser on the workspace settings page no longer hides the ffmpeg-dependent sections (image dimensions, thumbnails) — the capability flags are now loaded when the workspace opens, not only when the file explorer does
 
+[Workspace Thumbnails Config](https://github.com/user-attachments/assets/3499a289-651d-4962-9bd5-625d0db46990)
+
 ## 1.1.38
 
 - [IMPROVEMENT] Large folders open noticeably faster — listing a folder with thousands of files is 20–30% quicker: thumbnail metadata is fetched in a single query instead of once per file (backed by a new index), and parsed with a lightweight token scanner instead of full JSON deserialization
