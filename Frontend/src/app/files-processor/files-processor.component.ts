@@ -2,7 +2,7 @@ import { Component, input, signal } from "@angular/core";
 import { FileTreeViewComponent, LoadFolderNodeRequest } from "../shared/file-tree-view/file-tree-view.component";
 import { FilesExplorerApi } from "../files-explorer/files-explorer.component";
 import { AppFolderItem } from "../shared/folder-item/folder-item.component";
-import { mapGetFolderResponseToItems } from "../services/folders-and-files.api";
+import { subscribeFolderTreeChildren } from "../services/folders-and-files.api";
 import { AppFileItem } from "../shared/file-item/file-item.component";
 
 export type ItemsToProcessSelection = {
@@ -35,14 +35,13 @@ export class FilesProcessorComponent {
     }
 
     async onFolderTreeLoadRequested(request: LoadFolderNodeRequest) {
-        const folderResponse = await this.filesApi().getFolder(
+        const stream = await this.filesApi().getFolder(
             request.folder.externalId);
 
-        const { selectedFolder, subfolders, files, uploads } = mapGetFolderResponseToItems(
-            null,
-            folderResponse);
-        
-        request.folderLoadedCallback(
-            [...subfolders, ...files]);
+        subscribeFolderTreeChildren({
+            stream: stream,
+            topFolderExternalId: null,
+            callback: request.folderLoadedCallback
+        });
     }
 }

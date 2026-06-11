@@ -6,7 +6,7 @@ import { toggle } from '../signal-utils';
 import { AppFolderAncestor, AppFolderItem } from '../folder-item/folder-item.component';
 import { AppFileItem, AppFileItems } from '../file-item/file-item.component';
 import { FormsModule } from '@angular/forms';
-import { SearchFilesTreeFileItem, SearchFilesTreeFolderItem, SearchFilesTreeResponse, SortDirection, SortMode } from '../../services/folders-and-files.api';
+import { FolderTreeStreamUpdate, SearchFilesTreeFileItem, SearchFilesTreeFolderItem, SearchFilesTreeResponse, SortDirection, SortMode } from '../../services/folders-and-files.api';
 import { getNameWithHighlight } from '../name-with-highlight';
 import { TreeItem, AppTreeItem, FolderTreeItem, FileTreeItem, TreeViewMode } from './tree-item';
 import { FileTreeNodeComponent } from './file-tree-node/file-tree-node.component';
@@ -60,7 +60,7 @@ type SelectionStateLabel = 'selected' | 'excluded';
 
 export type LoadFolderNodeRequest = {
     folder: AppFolderItem;
-    folderLoadedCallback: (children: AppTreeItem[]) => void;
+    folderLoadedCallback: (update: FolderTreeStreamUpdate) => void;
 }
 
 export type FileTreeSearchRequest = {
@@ -139,6 +139,7 @@ export class FileTreeViewComponent implements OnChanges {
     // Item externalIds (folders or files) that should start with isExcluded=true on their wrapper.
     // Read once when each wrapper is created in mapFolderItem / mapFileItem.
     initiallyExcludedExternalIds = input<string[]>([]);
+    private _initiallyExcludedIdSet = computed(() => new Set(this.initiallyExcludedExternalIds()));
 
     allowDownload = input(false);
 
@@ -223,12 +224,23 @@ export class FileTreeViewComponent implements OnChanges {
 
     prefetchFolderHandler = (node: FolderTreeItem) => this.folderPrefetchRequested.emit(node.item);
 
+    // The callback fires once per stream chunk with the cumulative children
+    // list. The target node is re-resolved by externalId on every call — a
+    // topLevelItems rebuild mid-stream swaps the wrapper objects, and updates
+    // must land on the wrapper the tree currently renders, not on the one
+    // captured at click time.
     loadFolderChildrenHandler = (node: FolderTreeItem) => this.folderLoadRequested.emit({
         folder: node.item,
 
-        folderLoadedCallback: (items: AppTreeItem[]) => {
-            node.wasLoaded = true;                    
-            this.convertItemsToFolderChildren(node, items);
+        folderLoadedCallback: (update: FolderTreeStreamUpdate) => {
+            const target = this._foldersMap().get(node.item.externalId) ?? node;
+
+            target.wasLoaded = true;
+
+            target.expectedChildrenCount.set(
+                update.isCompleted ? null : update.expectedTotalCount);
+
+            this.convertItemsToFolderChildren(target, update.children);
         }
     });
 
@@ -256,13 +268,16 @@ export class FileTreeViewComponent implements OnChanges {
     private static readonly ROW_WITH_PATH_PX = 53;
     private static readonly RENDER_BUFFER_ROWS = 30;
 
-    // DFS-flattened list of currently-visible rows. Folder children are pushed
-    // only when the folder is effectively expanded (isExpanded OR — in show-all
-    // with active search — searchedChildrenCount > 0). Per-node visibility
-    // replicates the @class.invisible logic that used to live in
-    // file-tree-node / folder-tree-node templates, so collapsed/filtered nodes
-    // don't take a row slot (which would leave gaps in absolute-positioned UI).
-    flatVisibleNodes = computed<FlatTreeRow[]>(() => {
+    // DFS-flattened list of currently-visible rows + total content height.
+    // Folder children are pushed only when the folder is effectively expanded
+    // (isExpanded OR — in show-all with active search — searchedChildrenCount
+    // > 0). Per-node visibility replicates the @class.invisible logic that
+    // used to live in file-tree-node / folder-tree-node templates, so
+    // collapsed/filtered nodes don't take a row slot. The height includes
+    // space reserved for children a stream has not delivered yet
+    // (expectedChildrenCount), so the geometry is final from the first chunk
+    // and streamed rows fill blank space instead of shifting the layout.
+    private _flatTree = computed<{ rows: FlatTreeRow[], totalHeightPx: number }>(() => {
         const roots = this.dataSource();
         const viewMode = this.viewMode();
         const isSearchActive = this.isSearchActive();
@@ -273,13 +288,9 @@ export class FileTreeViewComponent implements OnChanges {
             isSearchActive);
     });
 
-    // Total scroll height = bottom edge of the last row (offset + height).
-    totalHeightPx = computed(() => {
-        const flat = this.flatVisibleNodes();
-        if (flat.length === 0) return 0;
-        const last = flat[flat.length - 1];
-        return last.offset + last.height;
-    });
+    flatVisibleNodes = computed<FlatTreeRow[]>(() => this._flatTree().rows);
+
+    totalHeightPx = computed(() => this._flatTree().totalHeightPx);
 
     private _renderedRange: WritableSignal<{ start: number; end: number }> = signal({ start: 0, end: 0 });
 
@@ -384,9 +395,16 @@ export class FileTreeViewComponent implements OnChanges {
 
     }
 
-    private flatten(roots: TreeItem[], viewMode: TreeViewMode, isSearchActive: boolean): FlatTreeRow[] {
-        const result: FlatTreeRow[] = [];
-        const stack: { node: TreeItem; depth: number }[] = [];
+    private flatten(roots: TreeItem[], viewMode: TreeViewMode, isSearchActive: boolean): { rows: FlatTreeRow[], totalHeightPx: number } {
+        const rows: FlatTreeRow[] = [];
+
+        // A gap entry reserves blank space for children an in-flight stream
+        // has not delivered yet. It is pushed BEFORE the folder's children, so
+        // the stack pops it AFTER the folder's whole loaded subtree — the gap
+        // sits below the loaded prefix and shrinks as streamed rows land,
+        // keeping every row below the folder at a stable offset.
+        type StackEntry = { node: TreeItem; depth: number } | { gapHeightPx: number };
+        const stack: StackEntry[] = [];
 
         for (let i = roots.length - 1; i >= 0; i--) {
             stack.push({ node: roots[i], depth: 0 });
@@ -397,13 +415,20 @@ export class FileTreeViewComponent implements OnChanges {
         let offset = 0;
 
         while (stack.length > 0) {
-            const { node, depth } = stack.pop()!;
+            const entry = stack.pop()!;
+
+            if ('gapHeightPx' in entry) {
+                offset += entry.gapHeightPx;
+                continue;
+            }
+
+            const { node, depth } = entry;
 
             if (!this.isNodeVisible(node, viewMode, isSearchActive))
                 continue;
 
             const height = this.rowHeight(node, viewMode);
-            result.push({ node, depth, height, offset });
+            rows.push({ node, depth, height, offset });
             offset += height;
 
             if (node.type !== 'folder') continue;
@@ -414,12 +439,24 @@ export class FileTreeViewComponent implements OnChanges {
             if (!effectivelyExpanded) continue;
 
             const children = node.children();
+
+            if (viewMode === 'show-all' && !isSearchActive) {
+                const expected = node.expectedChildrenCount();
+                const pendingCount = expected == null
+                    ? 0
+                    : expected - children.length;
+
+                if (pendingCount > 0) {
+                    stack.push({ gapHeightPx: pendingCount * FileTreeViewComponent.ROW_HEIGHT_PX });
+                }
+            }
+
             for (let i = children.length - 1; i >= 0; i--) {
                 stack.push({ node: children[i], depth: depth + 1 });
             }
         }
 
-        return result;
+        return { rows, totalHeightPx: offset };
     }
 
     // Row height is derived from the data, not measured: a row is taller only
@@ -559,50 +596,62 @@ export class FileTreeViewComponent implements OnChanges {
         ];
     }
 
+    // The tree often sits in the DOM hidden behind `display: none` (the
+    // explorer keeps it alive across view-mode switches). Rebuilding 10k+
+    // node wrappers on every topLevelItems change would then burn main-thread
+    // time for a component nobody sees — especially with streamed folder
+    // loads, which change the inputs several times per navigation. While
+    // inactive, input changes only raise dirty flags; the deferred work runs
+    // once, on activation.
+    private _hasPendingTopLevelItemsSync = false;
+    private _hasPendingSearchSync = false;
+
     ngOnChanges(changes: SimpleChanges) {
         let shouldReevaluateSelectionState = false;
         let shouldSetDataSource = false;
 
+        const isActive = this.isActive();
+        const becameActive = !!changes['isActive'] && changes['isActive'].currentValue === true;
+
         if (changes['topLevelItems']) {
-            const oldNodes = this.nodes();
+            if (isActive) {
+                this.syncTopLevelItems();
 
-            const topLevelItems = this.topLevelItems();
-            const currentNodes = this.getTreeStructures(topLevelItems);
-
-            if(oldNodes?.length > 0) {
-                this.applyOldNodesOnCurrentNodes(
-                    currentNodes,
-                    oldNodes);
+                shouldReevaluateSelectionState = true;
+                shouldSetDataSource = true;
+            } else {
+                this._hasPendingTopLevelItemsSync = true;
             }
-
-            this.nodes.set(currentNodes);
-            this._foldersMap.set(this.buildFoldersMap(currentNodes));
-
-            shouldReevaluateSelectionState = true;
-            shouldSetDataSource = true;
-
-            this.unmarkSearchedNodes();
-            this.clearSearch();
-
-            this.autoExpandMatchingFolders(currentNodes);
         }
 
-        const isActiveChanges = changes['isActive'];
-        if(isActiveChanges && isActiveChanges.currentValue === true) {
+        if (becameActive) {
             shouldReevaluateSelectionState = true;
-        } 
+
+            if (this._hasPendingTopLevelItemsSync) {
+                this._hasPendingTopLevelItemsSync = false;
+                this.syncTopLevelItems();
+
+                shouldSetDataSource = true;
+            }
+        }
 
         if(changes['viewMode']) {
             shouldSetDataSource = true;
         }
 
-        if(changes['searchPhrase']) {
-            const phrase = this.searchPhrase();
-
-            this.performSearch(phrase);
+        if (changes['searchPhrase']) {
+            if (isActive) {
+                this._hasPendingSearchSync = false;
+                this.performSearch(this.searchPhrase());
+            } else {
+                this._hasPendingSearchSync = true;
+            }
+        } else if (becameActive && this._hasPendingSearchSync) {
+            this._hasPendingSearchSync = false;
+            this.performSearch(this.searchPhrase());
         }
 
-        if(shouldSetDataSource){            
+        if(shouldSetDataSource){
             if(this.viewMode() == 'show-all') {
                 this.dataSource.set(this.nodes());
             } else {
@@ -611,14 +660,116 @@ export class FileTreeViewComponent implements OnChanges {
             }
         }
 
-        if(shouldReevaluateSelectionState) {            
+        if(shouldReevaluateSelectionState) {
             const newSelectionState = this.getSelectionState();
 
             if(!areFileTreeSelectionsEqual(this.selectionState(), newSelectionState)) {
                 this.updateSelectionState(newSelectionState);
             }
         }
-    }  
+    }
+
+    private syncTopLevelItems() {
+        const oldNodes = this.nodes();
+        const topLevelItems = this.topLevelItems();
+
+        let currentNodes: TreeItem[];
+
+        if (!oldNodes || oldNodes.length === 0) {
+            currentNodes = this.getTreeStructures(topLevelItems);
+        } else if (this.getParentFolderExternalIdOfBranch(oldNodes) === this.getParentFolderExternalIdOfItems(topLevelItems)) {
+            // In-place update of the same level (streamed chunk flush, delete,
+            // upload, single append) — by far the most frequent path. Existing
+            // wrappers are reused instead of being rebuilt, so their signals,
+            // computeds, expansion and selection state carry over for free and
+            // only genuinely new items pay the wrapper-construction cost.
+            currentNodes = this.syncSameLevelNodes(
+                topLevelItems,
+                oldNodes);
+        } else {
+            currentNodes = this.getTreeStructures(topLevelItems);
+
+            this.applyOldNodesOnCurrentNodes(
+                currentNodes,
+                oldNodes);
+        }
+
+        this.nodes.set(currentNodes);
+        this._foldersMap.set(this.buildFoldersMap(currentNodes));
+
+        this.unmarkSearchedNodes();
+        this.clearSearch();
+
+        this.autoExpandMatchingFolders(currentNodes);
+    }
+
+    private syncSameLevelNodes(topLevelItems: AppTreeItem[], oldNodes: TreeItem[]): TreeItem[] {
+        const oldByExternalId = new Map(
+            oldNodes.map(node => [node.item.externalId, node]));
+
+        const nodes: TreeItem[] = [];
+
+        for (const item of topLevelItems) {
+            const existing = oldByExternalId.get(item.externalId);
+
+            // Full reuse requires reference equality of the underlying AppItem —
+            // a wrapper bound to a stale instance would render and mutate an
+            // object the rest of the explorer no longer sees.
+            if (existing && existing.item === item) {
+                nodes.push(existing);
+                continue;
+            }
+
+            if (item.type === 'file') {
+                const fileNode = this.mapFileItem(item);
+
+                if (existing?.item.isSelected()) {
+                    fileNode.item.isSelected.set(true);
+                }
+
+                nodes.push(fileNode);
+            } else {
+                const folderNode = this.mapFolderItem(item);
+
+                if (existing?.type === 'folder') {
+                    folderNode.children.set(existing.children());
+                    folderNode.wasLoaded = existing.wasLoaded;
+
+                    if (existing.isExpanded()) {
+                        folderNode.isExpanded.set(true);
+                    }
+
+                    if (existing.item.isSelected()) {
+                        folderNode.item.isSelected.set(true);
+                    }
+                }
+
+                nodes.push(folderNode);
+            }
+        }
+
+        return this.sortMixed(
+            nodes,
+            this.sortMode(),
+            this.sortDirection());
+    }
+
+    private getParentFolderExternalIdOfItems(items: AppTreeItem[]): string | null {
+        if (!items || !items.length)
+            return null;
+
+        const item = items[0];
+
+        if (item.type === 'file') {
+            return item.folderExternalId;
+        }
+
+        if (item.type === 'folder') {
+            return this.getParentExternalIdOfFolder(item);
+        }
+
+        return null;
+    }
 
     private buildFoldersMap(nodes: TreeItem[]): Map<string, FolderTreeItem> {
         const map: Map<string, FolderTreeItem> = new Map();
@@ -653,81 +804,83 @@ export class FileTreeViewComponent implements OnChanges {
         }
     }
 
-    private applyOldNodesForSameLevelNavigation(currentNodes: TreeItem[], oldNodes: TreeItem[]) {
-        const currentFolders = currentNodes
-            .filter((child): child is FolderTreeItem => child.type === 'folder');
+    private static buildNodeMaps(nodes: TreeItem[]): { folders: Map<string, FolderTreeItem>, files: Map<string, FileTreeItem> } {
+        const folders = new Map<string, FolderTreeItem>();
+        const files = new Map<string, FileTreeItem>();
 
-        for (const currentFolder of currentFolders) {
-            const oldFolder = oldNodes
-                .find((node): node is FolderTreeItem => node.type === 'folder' && node.item.externalId === currentFolder.item.externalId);
-
-            if(!oldFolder)
-                continue;
-
-            if(oldFolder.isExpanded()){
-                currentFolder.children.update(children => [...children, ...oldFolder.children()])
-                currentFolder.isExpanded.set(true);
-                currentFolder.wasLoaded = true;
-            }
-
-            if(oldFolder.item.isSelected()){
-                currentFolder.item.isSelected.set(true);
+        for (const node of nodes) {
+            if (node.type === 'folder') {
+                folders.set(node.item.externalId, node);
+            } else if (node.type === 'file') {
+                files.set(node.item.externalId, node);
             }
         }
-        
-        const currentFiles = currentNodes
-            .filter((child): child is FileTreeItem => child.type === 'file');
 
-        for (const currentFile of currentFiles) {
-            const oldFile = oldNodes
-                .find((node): node is FileTreeItem => node.type === 'file' && node.item.externalId === currentFile.item.externalId);
+        return { folders, files };
+    }
 
-            if(!oldFile)
-                continue;
+    private applyOldNodesForSameLevelNavigation(currentNodes: TreeItem[], oldNodes: TreeItem[]) {
+        const oldByExternalId = FileTreeViewComponent.buildNodeMaps(oldNodes);
 
-            if(oldFile.item.isSelected()){
-                currentFile.item.isSelected.set(true);
+        for (const currentNode of currentNodes) {
+            if (currentNode.type === 'folder') {
+                const oldFolder = oldByExternalId.folders.get(currentNode.item.externalId);
+
+                if(!oldFolder)
+                    continue;
+
+                currentNode.children.update(children => [...children, ...oldFolder.children()])
+                currentNode.wasLoaded = oldFolder.wasLoaded;
+
+                if(oldFolder.isExpanded()){
+                    currentNode.isExpanded.set(true);
+                }
+
+                if(oldFolder.item.isSelected()){
+                    currentNode.item.isSelected.set(true);
+                }
+            } else if (currentNode.type === 'file') {
+                const oldFile = oldByExternalId.files.get(currentNode.item.externalId);
+
+                if(!oldFile)
+                    continue;
+
+                if(oldFile.item.isSelected()){
+                    currentNode.item.isSelected.set(true);
+                }
             }
         }
     }
 
     private applyOldNodesForDownTheTreeNavigation(oldParentFolder: FolderTreeItem, currentNodes: TreeItem[]){
-        const currentFolders = currentNodes
-            .filter((child): child is FolderTreeItem => child.type === 'folder');
+        const oldByExternalId = FileTreeViewComponent.buildNodeMaps(oldParentFolder.children());
 
-        const oldParentChildren = oldParentFolder.children();
+        for (const currentNode of currentNodes) {
+            if (currentNode.type === 'folder') {
+                const oldFolder = oldByExternalId.folders.get(currentNode.item.externalId);
 
-        for (const currentFolder of currentFolders) {
-            const oldFolder = oldParentChildren
-                .find((child): child is FolderTreeItem => child.type === 'folder' && child.item.externalId === currentFolder.item.externalId);
+                if(!oldFolder)
+                    continue;
 
-            if(!oldFolder)
-                continue;
-            
-            currentFolder.children.update(children => [...children, ...oldFolder.children()])
-            currentFolder.wasLoaded = true;
+                currentNode.children.update(children => [...children, ...oldFolder.children()])
+                currentNode.wasLoaded = oldFolder.wasLoaded;
 
-            if(oldFolder.isExpanded()){
-                currentFolder.isExpanded.set(true);
-            }
+                if(oldFolder.isExpanded()){
+                    currentNode.isExpanded.set(true);
+                }
 
-            if(oldFolder.item.isSelected()){
-                currentFolder.item.isSelected.set(true);
-            }
-        }
-        
-        const currentFiles = currentNodes
-            .filter((child): child is FileTreeItem => child.type === 'file');
+                if(oldFolder.item.isSelected()){
+                    currentNode.item.isSelected.set(true);
+                }
+            } else if (currentNode.type === 'file') {
+                const oldFile = oldByExternalId.files.get(currentNode.item.externalId);
 
-        for (const currentFile of currentFiles) {
-            const oldFile = oldParentChildren
-                .find((child): child is FileTreeItem => child.type === 'file' && child.item.externalId === currentFile.item.externalId);
+                if(!oldFile)
+                    continue;
 
-            if(!oldFile)
-                continue;
-
-            if(oldFile.item.isSelected()){
-                currentFile.item.isSelected.set(true);
+                if(oldFile.item.isSelected()){
+                    currentNode.item.isSelected.set(true);
+                }
             }
         }
     }
@@ -807,9 +960,11 @@ export class FileTreeViewComponent implements OnChanges {
         const newChildren: TreeItem[] = [];
 
         const currentChildren = folder.children();
+        const currentChildrenByExternalId = new Map(
+            currentChildren.map(c => [c.item.externalId, c]));
 
         for (const item of items) {
-            const existingItem = currentChildren.find(c => c.item.externalId == item.externalId);
+            const existingItem = currentChildrenByExternalId.get(item.externalId);
 
             if(existingItem) {
                 newChildren.push(existingItem);
@@ -916,7 +1071,7 @@ export class FileTreeViewComponent implements OnChanges {
         const {parentSignal, isParentSelectedSignal, isParentExcludedSignal} = this.prepareParentSignals(
             parentFolderExternalId);
 
-        const isExcludedSignal = signal(this.initiallyExcludedExternalIds().includes(item.externalId));
+        const isExcludedSignal = signal(this._initiallyExcludedIdSet().has(item.externalId));
         const childrenSignal = signal<TreeItem[]>([]);
 
         //todo maybe both selected and searched count signals could be merged into one, to limit number of iterations through children collections
@@ -990,6 +1145,8 @@ export class FileTreeViewComponent implements OnChanges {
             type: 'folder',
             item: item,
 
+            expectedChildrenCount: signal<number | null>(null),
+
             isExpanded: isExpandedSignal,
             isSearched: isSearchedSignal,
             nameWithHighlight: signal(''),
@@ -1015,7 +1172,7 @@ export class FileTreeViewComponent implements OnChanges {
         const {parentSignal, isParentSelectedSignal, isParentExcludedSignal} = this.prepareParentSignals(
             item.folderExternalId);
 
-        const isExcludedSignal = signal(this.initiallyExcludedExternalIds().includes(item.externalId));
+        const isExcludedSignal = signal(this._initiallyExcludedIdSet().has(item.externalId));
         const isSearchedSignal = signal(false);
 
         return {
@@ -1295,9 +1452,12 @@ export class FileTreeViewComponent implements OnChanges {
         return nodes;
     }
 
-    private calculateAndUpdateSelectionState() {        
+    private calculateAndUpdateSelectionState() {
         const newSelectionState = this.getSelectionState();
-        this.updateSelectionState(newSelectionState);
+
+        if (!areFileTreeSelectionsEqual(this.selectionState(), newSelectionState)) {
+            this.updateSelectionState(newSelectionState);
+        }
     }
 
     private updateSelectionState(newSelectionState: FileTreeSelectionState) {

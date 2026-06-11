@@ -31,6 +31,12 @@ export type FolderTreeItem = {
 
     children: WritableSignal<TreeItem[]>
 
+    // Total children (subfolders + files) the in-flight content stream will
+    // eventually deliver — reserves layout space below the loaded prefix so
+    // the tree height is final from the first chunk. Null when nothing is
+    // streaming (geometry falls back to the real children list).
+    expectedChildrenCount: WritableSignal<number | null>;
+
     isExcluded: WritableSignal<boolean>;
     isExpanded: WritableSignal<boolean>;
 

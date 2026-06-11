@@ -68,8 +68,7 @@ public static class BoxLinkAccessCodesEndpoints
 
         group.MapGet("/{accessCode}/content/{folderExternalId?}", GetBoxContent)
             .WithName("BoxLink_GetBoxContent")
-            .AddEndpointFilter(new ValidateAccessCodeFilter())
-            .WithProtobufResponse();
+            .AddEndpointFilter(new ValidateAccessCodeFilter());
 
         group.MapGet("/{accessCode}/files/{fileExternalId}/download-link", GetFileDownloadLink)
             .WithName("BoxLink_GetFileDownloadLink")
@@ -467,7 +466,7 @@ public static class BoxLinkAccessCodesEndpoints
             cancellationToken: cancellationToken);
     }
 
-    private static Results<Ok<GetFolderContentResponseDto>, NotFound<HttpError>> GetBoxContent(
+    private static IResult GetBoxContent(
         [FromRoute] FolderExtId? folderExternalId,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler)

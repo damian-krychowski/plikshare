@@ -12,7 +12,7 @@ namespace PlikShare.Folders.List;
 
 public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
 {
-    public GetTopFolderContentResponseDto Execute(
+    public IEnumerable<GetTopFolderContentResponseDto> ExecuteStreamed(
 	    WorkspaceContext workspace,
 	    IUserIdentity userIdentity,
         WorkspaceEncryptionSession? workspaceEncryptionSession)
@@ -24,12 +24,6 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
 			userIdentity,
 			workspaceEncryptionSession,
 		    connection);
-	    
-	    var files = GetFiles(
-		    workspace,
-			userIdentity,
-		    connection,
-		    workspaceEncryptionSession);
 
 	    var uploads = GetUploads(
 		    workspace,
@@ -37,12 +31,52 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
 		    connection,
 		    workspaceEncryptionSession);
 
-        return new GetTopFolderContentResponseDto
+        var totalFileCount = CountFiles(
+            workspace,
+            connection);
+
+	    var files = EnumerateFiles(
+		    workspace,
+			userIdentity,
+		    connection,
+		    workspaceEncryptionSession);
+
+        var isFirstChunkYielded = false;
+        var batch = new List<FileDto>();
+
+        GetTopFolderContentResponseDto BuildChunk()
         {
-            Files = files,
-            Subfolders = folders,
-            Uploads = uploads
+            var chunk = new GetTopFolderContentResponseDto
+            {
+                Subfolders = isFirstChunkYielded ? null : folders,
+                Uploads = isFirstChunkYielded ? null : uploads,
+                Files = batch
+            };
+
+            isFirstChunkYielded = true;
+            batch = [];
+
+            return chunk;
+        }
+
+        yield return new GetTopFolderContentResponseDto
+        {
+            Subfolders = null,
+            Uploads = null,
+            Files = [],
+            TotalFileCount = totalFileCount
         };
+
+        foreach (var file in files)
+        {
+            batch.Add(file);
+
+            if (batch.Count == (isFirstChunkYielded ? GetFolderContentQuery.NextFilesChunkSize : GetFolderContentQuery.FirstFilesChunkSize))
+                yield return BuildChunk();
+        }
+
+        if (!isFirstChunkYielded || batch.Count > 0)
+            yield return BuildChunk();
     }
 
     private static List<UploadDto> GetUploads(
@@ -93,7 +127,29 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
 		    .Execute();
     }
 
-    private static List<FileDto> GetFiles(
+    private static int CountFiles(
+	    WorkspaceContext workspace,
+	    SqliteConnection connection)
+    {
+        return connection
+            .OneRowCmd(
+                sql: @"
+					SELECT COUNT(*)
+					FROM fi_files
+					WHERE
+						fi_workspace_id = $workspaceId
+						AND fi_folder_id IS NULL
+						AND fi_parent_file_id IS NULL
+						AND fi_deleted_at IS NULL
+				",
+                readRowFunc: reader => reader.GetInt32(0),
+                name: "top_folder_content.count_files")
+            .WithParameter("$workspaceId", workspace.Id)
+            .Execute()
+            .Value;
+    }
+
+    private static IEnumerable<FileDto> EnumerateFiles(
 	    WorkspaceContext workspace,
         IUserIdentity userIdentity,
         SqliteConnection connection,
@@ -165,7 +221,7 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
 		    .WithParameter("$workspaceId", workspace.Id)
             .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
             .WithParameter("$uploaderIdentity", userIdentity.Identity)
-            .Execute();
+            .ExecuteEnumerable();
     }
 
     private static Dictionary<int, List<string>> GetChildFilesMetadataByParentId(

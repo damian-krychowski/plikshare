@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using PlikShare.BoxExternalAccess.Authorization;
 using PlikShare.BoxExternalAccess.Contracts;
+using PlikShare.Core.Protobuf;
 using PlikShare.Core.Utils;
 using PlikShare.Folders.Id;
 using PlikShare.Folders.List;
@@ -83,30 +84,32 @@ public class GetBoxContentHandler(
         };
     }
 
-    public Results<Ok<GetFolderContentResponseDto>, NotFound<HttpError>> GetContent(
+    public IResult GetContent(
         HttpContext httpContext,
         BoxAccess boxAccess,
         FolderExtId? folderExternalId)
     {
         if (!boxAccess.IsOff && (boxAccess.Permissions.AllowList || folderExternalId is null))
         {
-            var folderContent = GetContent(
-                boxAccess, 
-                folderExternalId);
+            var chunks = getFolderContentQuery.ExecuteStreamed(
+                workspace: boxAccess.Box.Workspace,
+                folderExternalId: folderExternalId ?? boxAccess.Box.Folder!.ExternalId,
+                boxFolderId: boxAccess.Box.Folder!.Id,
+                userIdentity: boxAccess.UserIdentity,
+                executionFlags: GetExecutionFlags(boxAccess),
+                workspaceEncryptionSession: null);
 
-            if(folderContent is not null)
-                return TypedResults.Ok(folderContent);
+            if (chunks is not null)
+                return new ProtobufStreamResult<GetFolderContentResponseDto>(chunks);
         }
 
         return HttpErrors.Folder.NotFound(
             folderExternalId);
     }
 
-    private GetFolderContentResponseDto? GetContent(
-        BoxAccess boxAccess, 
-        FolderExtId? folderExternalId)
+    private static GetFolderContentQuery.ExecutionFlags GetExecutionFlags(BoxAccess boxAccess)
     {
-        var executionFlags = boxAccess.Permissions.AllowList
+        return boxAccess.Permissions.AllowList
             ? new GetFolderContentQuery.ExecutionFlags(
                 GetCurrentFolder: true,
                 GetSubfolders: true,
@@ -119,13 +122,18 @@ public class GetBoxContentHandler(
                 GetFiles: GetFolderContentQuery.FilesExecutionFlag.UploadedByUserOnly,
                 GetUploads: true,
                 ExposeCreatedAt: false);
+    }
 
+    private GetFolderContentResponseDto? GetContent(
+        BoxAccess boxAccess,
+        FolderExtId? folderExternalId)
+    {
         return getFolderContentQuery.Execute(
             workspace: boxAccess.Box.Workspace,
             folderExternalId: folderExternalId ?? boxAccess.Box.Folder!.ExternalId,
             boxFolderId: boxAccess.Box.Folder!.Id,
             userIdentity: boxAccess.UserIdentity,
-            executionFlags: executionFlags,
+            executionFlags: GetExecutionFlags(boxAccess),
             workspaceEncryptionSession: null);
     }
 }

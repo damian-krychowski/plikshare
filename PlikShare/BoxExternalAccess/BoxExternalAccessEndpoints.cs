@@ -63,8 +63,7 @@ public static class BoxExternalAccessEndpoints
 
         group.MapGet("/{boxExternalId}/content/{folderExternalId?}", GetBoxContent)
             .WithName("BoxExternalAccess_GetBoxContent")
-            .AddEndpointFilter(new ValidateExternalBoxFilter())
-            .WithProtobufResponse();
+            .AddEndpointFilter(new ValidateExternalBoxFilter());
 
         group.MapGet("/{boxExternalId}/files/{fileExternalId}/download-link", GetFileDownloadLink)
             .WithName("BoxExternalAccess_GetFileDownloadLink")
@@ -355,7 +354,7 @@ public static class BoxExternalAccessEndpoints
             folderExternalId: folderExternalId);
     }
 
-    private static Results<Ok<GetFolderContentResponseDto>, NotFound<HttpError>> GetBoxContent(
+    private static IResult GetBoxContent(
         [FromRoute] FolderExtId? folderExternalId,
         HttpContext httpContext,
         BoxExternalAccessHandler boxExternalAccessHandler)

@@ -9,6 +9,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import DOMPurify from 'dompurify';
 import { Subscription, filter } from 'rxjs';
 import { DataStore } from '../../services/data-store.service';
+import { FolderContentStream } from '../../services/folder-content-stream';
 import { PrefetchDirective } from '../../shared/prefetch.directive';
 import { SearchInputComponent } from '../../shared/search-input/search-input.component';
 import { SearchComponent } from '../../shared/search/search.component';

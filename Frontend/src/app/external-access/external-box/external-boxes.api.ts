@@ -4,7 +4,8 @@ import { Observable, firstValueFrom } from "rxjs";
 import { BoxMoveItemsToFolderRequest, BoxUpdateFolderNameRequest, BoxUpdateFileNameRequest, GetBoxDetailsAndFolderResponse, BoxCompleteFilePartUploadRequest, BoxInitiateFilePartUploadResponse, BoxCompleteFileUploadResponse, BoxGetUploadListResponse, GetBoxHtmlResponse, BoxGetFileUploadDetailsResponse } from "../contracts/external-access.contracts";
 import { DataStore } from "../../services/data-store.service";
 import { ZipPreviewDetails } from "../../files-explorer/file-inline-preview/file-inline-preview.component";
-import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, SearchFilesTreeRequest, SearchFilesTreeResponse } from "../../services/folders-and-files.api";
+import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CreateFolderRequest, CreateFolderResponse, folderContentStreamFields, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, SearchFilesTreeRequest, SearchFilesTreeResponse } from "../../services/folders-and-files.api";
+import { FolderContentStream } from "../../services/folder-content-stream";
 import { ZipEntry } from "../../services/zip";
 import { BulkInitiateFileUploadRequest, BulkInitiateFileUploadResponse, BulkInitiateFileUploadResponseRaw, deserializeBulkUploadResponse, InitiateFileUploadRequest, InitiateFileUploadResponse } from "../../services/uploads.api";
 import { getZipFileDetailsDtoProtobuf } from "../../protobuf/zip-file-details-dto.protobuf";
@@ -296,6 +297,14 @@ export class ExternalBoxesGetApi {
             route: `/api/boxes/${boxExternalId}/content/${folderExternalId ?? ''}`,
             responseProtoType: folderContentDtoProtobuf
         });
+    }
+
+    public getContentStream(boxExternalId: string, folderExternalId: string | null): FolderContentStream {
+        return FolderContentStream.fromChunkProducer(push => this._protoHttp.getStream({
+            route: `/api/boxes/${boxExternalId}/content/${folderExternalId ?? ''}`,
+            fields: folderContentStreamFields,
+            onChunk: push
+        }));
     }
 
     public getUploadList(boxExternalId: string): Promise<BoxGetUploadListResponse> {

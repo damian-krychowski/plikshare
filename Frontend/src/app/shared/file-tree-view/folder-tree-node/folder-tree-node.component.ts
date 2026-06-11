@@ -41,7 +41,7 @@ export class FolderTreeNodeComponent {
     prefetchFolder() {
         const folder = this.folder();
 
-        if(folder.wasLoaded)
+        if(folder.wasLoaded || folder.isExpanded())
             return;
 
         this.prefetchFolderHandler()(this.folder());

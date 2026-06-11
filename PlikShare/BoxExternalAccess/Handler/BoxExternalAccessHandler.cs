@@ -107,7 +107,7 @@ public class BoxExternalAccessHandler(
             folderExternalId: folderExternalId);
     }
     
-    public Results<Ok<GetFolderContentResponseDto>, NotFound<HttpError>> GetBoxContent(
+    public IResult GetBoxContent(
         HttpContext httpContext,
         BoxAccess boxAccess,
         FolderExtId? folderExternalId)

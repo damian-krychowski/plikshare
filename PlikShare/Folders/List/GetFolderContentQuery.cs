@@ -26,6 +26,9 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 		UploadedByUserOnly
 	}
 
+    public const int FirstFilesChunkSize = 200;
+    public const int NextFilesChunkSize = 1000;
+
     public GetFolderContentResponseDto? Execute(
 	    WorkspaceContext workspace,
 	    FolderExtId folderExternalId,
@@ -34,67 +37,188 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 	    ExecutionFlags executionFlags,
 	    WorkspaceEncryptionSession? workspaceEncryptionSession)
     {
-	    using var connection = plikShareDb.OpenConnection();
+        var chunks = ExecuteStreamed(
+            workspace: workspace,
+            folderExternalId: folderExternalId,
+            boxFolderId: boxFolderId,
+            userIdentity: userIdentity,
+            executionFlags: executionFlags,
+            workspaceEncryptionSession: workspaceEncryptionSession);
 
-		//todo what to do with this isEmpty?
-	    var (isCurrentFolderEmpty, currentFolderId) = TryGetCurrentFolderId(
-		    workspace,
-		    folderExternalId,
-		    boxFolderId,
-		    connection);
-
-        if (isCurrentFolderEmpty)
+        if (chunks is null)
             return null;
 
-        var currentFolder = GetCurrentFolder(
-            workspace,
-            boxFolderId,
-            currentFolderId,
-            connection,
-            executionFlags.GetCurrentFolder,
-            workspaceEncryptionSession);
+        CurrentFolderDto? folder = null;
+        var subfolders = new List<SubfolderDto>();
+        var files = new List<FileDto>();
+        var uploads = new List<UploadDto>();
 
-        var subfolders = GetSubfolders(
-            currentFolderId,
-            userIdentity,
-            connection,
-            executionFlags.GetSubfolders,
-            executionFlags.ExposeCreatedAt,
-            workspaceEncryptionSession);
+        int? totalFileCount = null;
 
-        var allFiles = GetAllFiles(
-            workspace,
-            userIdentity,
-            currentFolderId,
-            connection,
-            executionFlags.GetFiles == FilesExecutionFlag.All,
-            executionFlags.ExposeCreatedAt,
-            workspaceEncryptionSession);
+        foreach (var chunk in chunks)
+        {
+            folder ??= chunk.Folder;
+            totalFileCount ??= chunk.TotalFileCount;
 
-        var filesUploadedByUser = GetFilesUploadedByUser(
-            workspace,
-            userIdentity,
-            currentFolderId,
-            connection,
-            executionFlags.GetFiles == FilesExecutionFlag.UploadedByUserOnly,
-            executionFlags.ExposeCreatedAt,
-            workspaceEncryptionSession);
-        
-        var uploads = GetUploads(
-            workspace,
-            userIdentity,
-            currentFolderId,
-            connection,
-            executionFlags.GetUploads,
-            workspaceEncryptionSession);
+            if (chunk.Subfolders is not null)
+                subfolders.AddRange(chunk.Subfolders);
+
+            if (chunk.Files is not null)
+                files.AddRange(chunk.Files);
+
+            if (chunk.Uploads is not null)
+                uploads.AddRange(chunk.Uploads);
+        }
 
         return new GetFolderContentResponseDto
         {
-            Folder = currentFolder,
-            Files = [..allFiles, ..filesUploadedByUser],
+            Folder = folder,
+            Files = files,
             Subfolders = subfolders,
-            Uploads = uploads
+            Uploads = uploads,
+            TotalFileCount = totalFileCount
         };
+    }
+
+    public IEnumerable<GetFolderContentResponseDto>? ExecuteStreamed(
+	    WorkspaceContext workspace,
+	    FolderExtId folderExternalId,
+	    int? boxFolderId,
+	    IUserIdentity userIdentity,
+	    ExecutionFlags executionFlags,
+	    WorkspaceEncryptionSession? workspaceEncryptionSession)
+    {
+	    var connection = plikShareDb.OpenConnection();
+
+        try
+        {
+            //todo what to do with this isEmpty?
+            var (isCurrentFolderEmpty, currentFolderId) = TryGetCurrentFolderId(
+                workspace,
+                folderExternalId,
+                boxFolderId,
+                connection);
+
+            if (isCurrentFolderEmpty)
+            {
+                connection.Dispose();
+                return null;
+            }
+
+            return StreamContent(
+                connection,
+                workspace,
+                currentFolderId,
+                boxFolderId,
+                userIdentity,
+                executionFlags,
+                workspaceEncryptionSession);
+        }
+        catch
+        {
+            connection.Dispose();
+            throw;
+        }
+    }
+
+    private static IEnumerable<GetFolderContentResponseDto> StreamContent(
+        SqliteConnection connection,
+        WorkspaceContext workspace,
+        int currentFolderId,
+        int? boxFolderId,
+        IUserIdentity userIdentity,
+        ExecutionFlags executionFlags,
+        WorkspaceEncryptionSession? workspaceEncryptionSession)
+    {
+        using (connection)
+        {
+            var currentFolder = GetCurrentFolder(
+                workspace,
+                boxFolderId,
+                currentFolderId,
+                connection,
+                executionFlags.GetCurrentFolder,
+                workspaceEncryptionSession);
+
+            var subfolders = GetSubfolders(
+                currentFolderId,
+                userIdentity,
+                connection,
+                executionFlags.GetSubfolders,
+                executionFlags.ExposeCreatedAt,
+                workspaceEncryptionSession);
+
+            var uploads = GetUploads(
+                workspace,
+                userIdentity,
+                currentFolderId,
+                connection,
+                executionFlags.GetUploads,
+                workspaceEncryptionSession);
+
+            var totalFileCount = CountFiles(
+                workspace,
+                userIdentity,
+                currentFolderId,
+                connection,
+                executionFlags.GetFiles);
+
+            var files = EnumerateAllFiles(
+                    workspace,
+                    userIdentity,
+                    currentFolderId,
+                    connection,
+                    executionFlags.GetFiles == FilesExecutionFlag.All,
+                    executionFlags.ExposeCreatedAt,
+                    workspaceEncryptionSession)
+                .Concat(EnumerateFilesUploadedByUser(
+                    workspace,
+                    userIdentity,
+                    currentFolderId,
+                    connection,
+                    executionFlags.GetFiles == FilesExecutionFlag.UploadedByUserOnly,
+                    executionFlags.ExposeCreatedAt,
+                    workspaceEncryptionSession));
+
+            var isFirstChunkYielded = false;
+            var batch = new List<FileDto>();
+
+            GetFolderContentResponseDto BuildChunk()
+            {
+                var chunk = new GetFolderContentResponseDto
+                {
+                    Folder = isFirstChunkYielded ? null : currentFolder,
+                    Subfolders = isFirstChunkYielded ? null : subfolders,
+                    Uploads = isFirstChunkYielded ? null : uploads,
+                    Files = batch
+                };
+
+                isFirstChunkYielded = true;
+                batch = [];
+
+                return chunk;
+            }
+
+            yield return new GetFolderContentResponseDto
+            {
+                Folder = null,
+                Subfolders = null,
+                Files = null,
+                Uploads = null,
+                TotalFileCount = totalFileCount
+            };
+
+            foreach (var file in files)
+            {
+                batch.Add(file);
+
+                if (batch.Count == (isFirstChunkYielded ? NextFilesChunkSize : FirstFilesChunkSize))
+                    yield return BuildChunk();
+            }
+
+            if (!isFirstChunkYielded || batch.Count > 0)
+                yield return BuildChunk();
+        }
     }
 
     private static List<UploadDto> GetUploads(
@@ -151,7 +275,58 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 		    .Execute();
     }
 
-    private static List<FileDto> GetFilesUploadedByUser(
+    private static int CountFiles(
+	    WorkspaceContext workspace,
+	    IUserIdentity userIdentity,
+	    int currentFolderId,
+	    SqliteConnection connection,
+        FilesExecutionFlag filesExecutionFlag)
+    {
+        if (filesExecutionFlag == FilesExecutionFlag.All)
+        {
+            return connection
+                .OneRowCmd(
+                    sql: @"
+						SELECT COUNT(*)
+						FROM fi_files
+						WHERE
+							fi_workspace_id = $workspaceId
+							AND fi_folder_id = $folderId
+							AND fi_parent_file_id IS NULL
+							AND fi_deleted_at IS NULL
+					",
+                    readRowFunc: reader => reader.GetInt32(0),
+                    name: "folder_content.count_all_files")
+                .WithParameter("$workspaceId", workspace.Id)
+                .WithParameter("$folderId", currentFolderId)
+                .Execute()
+                .Value;
+        }
+
+        return connection
+            .OneRowCmd(
+                sql: @"
+					SELECT COUNT(*)
+					FROM fi_files
+					WHERE
+						fi_workspace_id = $workspaceId
+						AND fi_uploader_identity_type = $uploaderIdentityType
+						AND fi_uploader_identity = $uploaderIdentity
+						AND fi_folder_id = $folderId
+						AND fi_parent_file_id IS NULL
+						AND fi_deleted_at IS NULL
+				",
+                readRowFunc: reader => reader.GetInt32(0),
+                name: "folder_content.count_files_uploaded_by_user")
+            .WithParameter("$workspaceId", workspace.Id)
+            .WithParameter("$uploaderIdentityType", userIdentity.IdentityType)
+            .WithParameter("$uploaderIdentity", userIdentity.Identity)
+            .WithParameter("$folderId", currentFolderId)
+            .Execute()
+            .Value;
+    }
+
+    private static IEnumerable<FileDto> EnumerateFilesUploadedByUser(
 	    WorkspaceContext workspace,
 	    IUserIdentity userIdentity,
 	    int currentFolderId,
@@ -231,10 +406,10 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 		    .WithParameter("$workspaceId", workspace.Id)
 		    .WithParameter("$folderId", currentFolderId)
 		    .WithParameter("$exposeCreatedAt", exposeCreatedAt)
-		    .Execute();
+		    .ExecuteEnumerable();
     }
 
-    private static List<FileDto> GetAllFiles(
+    private static IEnumerable<FileDto> EnumerateAllFiles(
 	    WorkspaceContext workspace,
 	    IUserIdentity userIdentity,
 	    int currentFolderId,
@@ -315,7 +490,7 @@ public class GetFolderContentQuery(PlikShareDb plikShareDb)
 		    .WithParameter("$workspaceId", workspace.Id)
 		    .WithParameter("$folderId", currentFolderId)
 		    .WithParameter("$exposeCreatedAt", exposeCreatedAt)
-		    .Execute();
+		    .ExecuteEnumerable();
     }
 
     private static Dictionary<int, List<string>> GetChildFilesMetadataByParentId(

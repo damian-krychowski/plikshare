@@ -20,6 +20,8 @@ import { EditableTxtComponent } from '../shared/editable-txt/editable-txt.compon
 import { BulkUploadPreviewComponent, BulkFileUpload, SingleBulkFileUpload, CreatedFolder } from './bulk-upload-preview/bulk-upload-preview.component';
 import { BulkCreateFolderRequest, BulkCreateFolderResponse, BulkDeleteResponse, CheckTextractJobsStatusRequest, CheckTextractJobsStatusResponse, ContentDisposition, CountSelectedItemsRequest, CountSelectedItemsResponse, CountThumbnailableFilesRequest, CountThumbnailableFilesResponse, CreateFolderRequest, CreateFolderResponse, CurrentFolderDto, DownloadImageFormat, FileDto, FilePreviewDetailsField, GetAiMessagesResponse, GetBulkDownloadLinkRequest, GetBulkDownloadLinkResponse, GetFileDownloadLinkResponse, GenerateFileThumbnailsResponse, GenerateThumbnailsBulkRequest, GenerateThumbnailsBulkResponse, FileProcessingEvent, GetFilePreviewDetailsResponse, GetFolderResponse, GetZipBulkDownloadLinkRequest, GetZipBulkDownloadLinkResponse, mapFileDtosToItems, mapFolderDtosToItems, mapFolderDtoToItem, mapGetFolderResponseToItems, mapUploadDtosToItems, SearchFilesTreeRequest, SearchFilesTreeResponse, SendAiFileMessageRequest, SortDirection, SortMode, StartTextractJobRequest, StartTextractJobResponse, SubfolderDto, ThumbnailGenerationStatus, ThumbnailVariant, UpdateAiConversationNameRequest, UpdatePositionsRequest, UploadDto, UploadFileAttachmentRequest, UploadFileThumbnailRequest } from '../services/folders-and-files.api';
 import { ZipEntry } from '../services/zip';
+import { preparePath, subscribeFolderTreeChildren } from '../services/folders-and-files.api';
+import { FolderContentChunk, FolderContentStream } from '../services/folder-content-stream';
 import { FileSlicer } from '../services/file-upload-manager/file-slicer';
 import { TextractJobStatusService } from '../services/textract-job-status.service';
 import { FileTreeDeleteSelectionState, FileTreeSearchRequest, FileTreeSelectionState, FileTreeViewComponent, LoadFolderNodeRequest, SearchedFilesSelection } from '../shared/file-tree-view/file-tree-view.component';
@@ -49,9 +51,9 @@ export interface FilesExplorerApi {
     invalidatePrefetchedEntries: () => void;
 
     prefetchTopFolders: () => void;
-    getTopFolders: () => Promise<GetFolderResponse>;
+    getTopFolders: () => Promise<FolderContentStream>;
     prefetchFolder: (folderExternalId: string) => void;
-    getFolder: (folderExternalId: string) => Promise<GetFolderResponse>;
+    getFolder: (folderExternalId: string) => Promise<FolderContentStream>;
     createFolder: (request: CreateFolderRequest) => Promise<CreateFolderResponse>;
     bulkCreateFolders: (request: BulkCreateFolderRequest) => Promise<BulkCreateFolderResponse>;
 
@@ -289,6 +291,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     
     filesStats = computed(() => this.getFilesStats(this.files()))
     filesCount = computed(() => this.filesStats().count);
+    displayedFilesCount = computed(() => this.filesExpectedTotalCount() ?? this.filesCount());
     selectedFilesCount = computed(() => this.filesStats().selectedCount);
     isAnyFileSelected = computed(() => this.selectedFilesCount() > 0);
     isAnyFileNotSelected = computed(() => this.selectedFilesCount() < this.filesCount());
@@ -434,7 +437,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     canCutItems = computed(() => this.isAnyItemSelected() && this.allowMoveItems());
     canPasteItems = computed(() => this.isAnyItemCut() && this.allowMoveItems());
 
-    hasFiles = computed(() => this.filesCount() > 0);
+    hasFiles = computed(() => this.displayedFilesCount() > 0);
     hasUploads = computed(() => this.uploadsCount() > 0);
     hasFolders = computed(() => this.foldersCount() > 0);
     hasAnyItem = computed(() => this.itemsCount() > 0);
@@ -1101,99 +1104,267 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         }
     }
 
-    private async getTopFolder() {
+    private async getTopFolder(): Promise<FolderContentStream> {
         const initialContent = this.initialContent();
 
         if (initialContent
             && !this._wasInitialContentLoaded
             && initialContent.folder?.externalId == this.topFolderExternalId()) {
             this._wasInitialContentLoaded = true;
-            return initialContent;
+            return FolderContentStream.fromResponse(initialContent);
         }
 
-        const folderResponse = await this
+        return await this
             .filesApi()
             .getTopFolders();
-
-        return folderResponse;
     }
 
     private async loadTopFolders() {
-        const folderResponse = await this.getTopFolder();
+        const stream = await this.getTopFolder();
 
-        if (!folderResponse)
+        if (!stream)
             return;
 
-        const selectedFolder = folderResponse.folder
-            ? mapFolderDtoToItem(
-                folderResponse.folder,
-                folderResponse.folder.ancestors)
-            : null;
+        const generation = ++this._folderLoadGeneration;
 
-        this.selectedFolder.set(selectedFolder);
+        await this.consumeFolderContentStream({
+            stream: stream,
+            generation: generation,
 
-        const ancestors = folderResponse.folder
-                ? [...(folderResponse.folder.ancestors ?? []), {
-                    externalId: folderResponse.folder.externalId,
-                    name: folderResponse.folder.name
-                }]
-                : [];
+            onFirstChunk: chunk => {
+                const folder = chunk.folder ?? null;
 
-        this.folders.set(mapFolderDtosToItems(
-            folderResponse.subfolders,
-            ancestors));
+                const selectedFolder = folder
+                    ? mapFolderDtoToItem(
+                        folder,
+                        folder.ancestors)
+                    : null;
 
-        this.files.set(mapFileDtosToItems(
-            folderResponse.files,
-            folderResponse.folder?.externalId ?? null));
+                this.selectedFolder.set(selectedFolder);
 
-        this.uploads.set(mapUploadDtosToItems(
-            folderResponse.uploads,
-            folderResponse.folder?.externalId ?? null));
+                this._streamedFolderAncestors = folder
+                    ? [...(folder.ancestors ?? []), {
+                        externalId: folder.externalId,
+                        name: folder.name
+                    }]
+                    : [];
 
-        this.wasTopFolderLoaded = true;
+                this._streamedFolderExternalId = folder?.externalId ?? null;
+
+                this.folders.set(mapFolderDtosToItems(
+                    chunk.subfolders ?? [],
+                    this._streamedFolderAncestors));
+
+                this.files.set(mapFileDtosToItems(
+                    chunk.files ?? [],
+                    this._streamedFolderExternalId));
+
+                this.uploads.set(mapUploadDtosToItems(
+                    chunk.uploads ?? [],
+                    this._streamedFolderExternalId));
+
+                this.wasTopFolderLoaded = true;
+            }
+        });
     }
 
-    private async getFolder(folderExternalId: string): Promise<GetFolderResponse> {
+    private async getFolder(folderExternalId: string): Promise<FolderContentStream> {
         const initialContent = this.initialContent();
-        
+
         if (initialContent
             && !this._wasInitialContentLoaded
             && initialContent.folder
             && initialContent.folder.externalId === folderExternalId) {
             this._wasInitialContentLoaded = true;
 
-            return initialContent as GetFolderResponse;
+            return FolderContentStream.fromResponse(initialContent);
         }
 
-        const folderResponse = await this
+        return await this
             .filesApi()
             .getFolder(folderExternalId);
-
-        return folderResponse;
     }
 
     private async loadFolder(folderExternalId: string) {
-        const folderResponse = await this.getFolder(
+        const stream = await this.getFolder(
             folderExternalId);
 
-        const { selectedFolder, subfolders, files, uploads } = mapGetFolderResponseToItems(
-            this.topFolderExternalId() ?? null,
-            folderResponse);
-       
-        this.selectedFolder.set(
-            selectedFolder);
+        const generation = ++this._folderLoadGeneration;
 
-        this.folders.set(subfolders);
+        await this.consumeFolderContentStream({
+            stream: stream,
+            generation: generation,
 
-        this.folderSelected.emit(
-            this.selectedFolder());
+            onFirstChunk: chunk => {
+                const folder = chunk.folder;
 
-        this.files.set(files);
+                if (!folder)
+                    return;
 
-        this.uploads.set(uploads);
+                const path = preparePath(
+                    this.topFolderExternalId() ?? null,
+                    folder.ancestors ?? []);
 
-        this.wasTopFolderLoaded = false;
+                this._streamedFolderAncestors = [...path, {
+                    externalId: folder.externalId,
+                    name: folder.name
+                }];
+
+                this._streamedFolderExternalId = folder.externalId;
+
+                this.selectedFolder.set(mapFolderDtoToItem(
+                    folder,
+                    path));
+
+                this.folders.set(mapFolderDtosToItems(
+                    chunk.subfolders ?? [],
+                    this._streamedFolderAncestors));
+
+                this.folderSelected.emit(
+                    this.selectedFolder());
+
+                this.files.set(mapFileDtosToItems(
+                    chunk.files ?? [],
+                    this._streamedFolderExternalId));
+
+                this.uploads.set(mapUploadDtosToItems(
+                    chunk.uploads ?? [],
+                    this._streamedFolderExternalId));
+
+                this.wasTopFolderLoaded = false;
+            }
+        });
+    }
+
+    private _folderLoadGeneration = 0;
+    private _streamedFolderAncestors: { externalId: string, name: string }[] = [];
+    private _streamedFolderExternalId: string | null = null;
+
+    private _pendingStreamFolders: AppFolderItem[] = [];
+    private _pendingStreamFiles: AppFileItem[] = [];
+    private _pendingStreamUploads: AppUploadItem[] = [];
+    private _filesNeededCount = 0;
+
+    filesExpectedTotalCount = signal<number | null>(null);
+
+    onFilesVisibleRangeEndChanged(end: number) {
+        this._filesNeededCount = end;
+        this.flushPendingStreamItemsIfNeeded();
+    }
+
+    private flushPendingStreamItemsIfNeeded() {
+        if (this._pendingStreamFiles.length === 0)
+            return;
+
+        if (this._filesNeededCount > this.files().length) {
+            this.flushPendingStreamItems();
+        }
+    }
+
+    private flushPendingStreamItems() {
+        if (this._pendingStreamFolders.length > 0) {
+            const items = this._pendingStreamFolders;
+            this._pendingStreamFolders = [];
+            this.folders.update(values => [...values, ...items]);
+        }
+
+        if (this._pendingStreamFiles.length > 0) {
+            const items = this._pendingStreamFiles;
+            this._pendingStreamFiles = [];
+            this.files.update(values => [...values, ...items]);
+        }
+
+        if (this._pendingStreamUploads.length > 0) {
+            const items = this._pendingStreamUploads;
+            this._pendingStreamUploads = [];
+            this.uploads.update(values => [...values, ...items]);
+        }
+    }
+
+    private consumeFolderContentStream(args: {
+        stream: FolderContentStream,
+        generation: number,
+        onFirstChunk: (chunk: FolderContentChunk) => void
+    }): Promise<void> {
+        this.filesExpectedTotalCount.set(null);
+        this._pendingStreamFolders = [];
+        this._pendingStreamFiles = [];
+        this._pendingStreamUploads = [];
+
+        return new Promise<void>((resolve, reject) => {
+            let wasFirstChunkApplied = false;
+
+            args.stream.subscribe({
+                onChunk: chunk => {
+                    if (this._folderLoadGeneration !== args.generation)
+                        return;
+
+                    if (chunk.totalFileCount != null) {
+                        this.filesExpectedTotalCount.set(chunk.totalFileCount);
+                    }
+
+                    const hasContent = !!(chunk.folder
+                        || chunk.subfolders?.length
+                        || chunk.files?.length
+                        || chunk.uploads?.length);
+
+                    if (!hasContent)
+                        return;
+
+                    if (!wasFirstChunkApplied) {
+                        wasFirstChunkApplied = true;
+                        args.onFirstChunk(chunk);
+                        resolve();
+                        return;
+                    }
+
+                    if (chunk.subfolders?.length) {
+                        this._pendingStreamFolders.push(...mapFolderDtosToItems(
+                            chunk.subfolders,
+                            this._streamedFolderAncestors));
+                    }
+
+                    if (chunk.files?.length) {
+                        this._pendingStreamFiles.push(...mapFileDtosToItems(
+                            chunk.files,
+                            this._streamedFolderExternalId));
+                    }
+
+                    if (chunk.uploads?.length) {
+                        this._pendingStreamUploads.push(...mapUploadDtosToItems(
+                            chunk.uploads,
+                            this._streamedFolderExternalId));
+                    }
+
+                    this.flushPendingStreamItemsIfNeeded();
+                },
+
+                onCompleted: () => {
+                    if (this._folderLoadGeneration === args.generation) {
+                        if (!wasFirstChunkApplied) {
+                            wasFirstChunkApplied = true;
+                            args.onFirstChunk({});
+                        }
+
+                        this.flushPendingStreamItems();
+                        this.filesExpectedTotalCount.set(null);
+                    }
+
+                    resolve();
+                },
+
+                onError: error => {
+                    console.error(error);
+
+                    if (this._folderLoadGeneration === args.generation) {
+                        this.flushPendingStreamItems();
+                        this.filesExpectedTotalCount.set(null);
+                    }
+
+                    reject(error);
+                }
+            });
+        });
     }
 
     async createNewFolder() {
@@ -2113,16 +2284,14 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     }
 
     async onFolderTreeLoadRequested(request: LoadFolderNodeRequest) {
-
-        const folderResponse = await this.filesApi().getFolder(
+        const stream = await this.filesApi().getFolder(
             request.folder.externalId);
 
-        const { selectedFolder, subfolders, files, uploads } = mapGetFolderResponseToItems(
-            this.topFolderExternalId() ?? null,
-            folderResponse);
-        
-        request.folderLoadedCallback(
-            [...subfolders, ...files]);
+        subscribeFolderTreeChildren({
+            stream: stream,
+            topFolderExternalId: this.topFolderExternalId() ?? null,
+            callback: request.folderLoadedCallback
+        });
     }
 
     onFolderTreeSetToRoot(folder: AppFolderItem) {

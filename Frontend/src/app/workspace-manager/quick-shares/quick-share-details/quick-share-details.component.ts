@@ -256,7 +256,11 @@ export class QuickShareDetailsComponent implements OnInit {
             const folders = mapFolderDtosToItems(response.subfolders, ancestors);
             const files = mapFileDtosToItems(response.files, response.folder?.externalId ?? null);
             this.applySelectedFlagFromSaved(folders, files);
-            request.folderLoadedCallback([...folders, ...files]);
+            request.folderLoadedCallback({
+                children: [...folders, ...files],
+                expectedTotalCount: null,
+                isCompleted: true
+            });
         } catch (error) {
             console.error(error);
             this._toastr.error('Failed to load folder content');

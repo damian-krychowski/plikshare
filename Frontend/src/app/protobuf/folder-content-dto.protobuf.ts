@@ -13,5 +13,6 @@ export function getFolderContentDtoProtobuf() {
         .add(new protobuf.Field("folder", 1, "CurrentFolderDto"))
         .add(new protobuf.Field("subfolders", 2, "SubfolderDto", "repeated"))
         .add(new protobuf.Field("files", 3, "FileDto", "repeated"))
-        .add(new protobuf.Field("uploads", 4, "UploadDto", "repeated"));
+        .add(new protobuf.Field("uploads", 4, "UploadDto", "repeated"))
+        .add(new protobuf.Field("totalFileCount", 5, "int32"));
 }

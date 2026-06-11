@@ -37,8 +37,20 @@ export class FilesListComponent implements OnDestroy {
     showThumbnails = input(false);
     processingFileIds = input<ReadonlySet<string>>(new Set());
 
+    // While folder content is still streaming in, the parent passes the total
+    // file count delivered in the first chunk so the scrollbar is sized for
+    // the full list upfront — rows beyond the loaded prefix stay blank until
+    // the stream completes. Null once the list is complete.
+    expectedTotalCount = input<number | null>(null);
+
     deleted = output<AppFileItem>();
     previewed = output<AppFileItem>();
+
+    // How many rows from the top the current viewport (plus render buffer)
+    // reaches into — lets the parent flush its streaming buffer the moment
+    // the user scrolls past the loaded prefix instead of waiting for the
+    // stream to complete.
+    visibleRangeEndChanged = output<number>();
 
     @ViewChild('filesFlip') filesFlip?: FlipAnimationDirective;
 
@@ -77,9 +89,26 @@ export class FilesListComponent implements OnDestroy {
     // doesn't reveal an unrendered gap before the next recompute lands.
     private static readonly RENDER_BUFFER_ROWS = 30;
 
+    // Row count driving the host height and the virtualization range. During
+    // streaming it is the expected total (scrollbar correct from the first
+    // chunk); search falls back to the loaded list because filtered-out state
+    // of not-yet-loaded rows is unknown.
+    private _virtualItemCount = computed(() => {
+        const visibleCount = this.visibleFiles().length;
+
+        if (this.isSearchActive())
+            return visibleCount;
+
+        const expected = this.expectedTotalCount();
+
+        return expected == null
+            ? visibleCount
+            : Math.max(visibleCount, expected);
+    });
+
     // Host gets `height: totalHeightPx` so the page scrollbar reflects the
     // real list size — rows are absolutely positioned within this height.
-    totalHeightPx = computed(() => this.visibleFiles().length * FilesListComponent.ROW_HEIGHT_PX);
+    totalHeightPx = computed(() => this._virtualItemCount() * FilesListComponent.ROW_HEIGHT_PX);
 
     // Visible-window slice that's actually rendered to the DOM. Updated by
     // recomputeRange() on scroll/resize and on visibleFiles content changes.
@@ -130,18 +159,22 @@ export class FilesListComponent implements OnDestroy {
         // updated.
         effect(() => {
             this.visibleFiles();
+            this._virtualItemCount();
             requestAnimationFrame(() => this.recomputeRange());
         });
     }
 
     // Inspects the host's position within the window viewport and updates
     // the rendered range to cover only the on-screen slice (plus buffer).
+    private _lastEmittedRangeEnd = -1;
+
     private recomputeRange(): void {
         const el = this._hostRef()?.nativeElement;
-        const itemCount = this.visibleFiles().length;
+        const itemCount = this._virtualItemCount();
 
         if (!el || itemCount === 0) {
             this._renderedRange.set({ start: 0, end: 0 });
+            this.emitRangeEnd(0);
             return;
         }
 
@@ -155,10 +188,22 @@ export class FilesListComponent implements OnDestroy {
         const endIdx = Math.ceil((overflowAbove + visiblePx) / FilesListComponent.ROW_HEIGHT_PX);
 
         const buffer = FilesListComponent.RENDER_BUFFER_ROWS;
+        const end = Math.min(itemCount, endIdx + buffer);
+
         this._renderedRange.set({
             start: Math.max(0, startIdx - buffer),
-            end: Math.min(itemCount, endIdx + buffer)
+            end: end
         });
+
+        this.emitRangeEnd(end);
+    }
+
+    private emitRangeEnd(end: number): void {
+        if (end === this._lastEmittedRangeEnd)
+            return;
+
+        this._lastEmittedRangeEnd = end;
+        this.visibleRangeEndChanged.emit(end);
     }
 
     ngOnDestroy(): void {

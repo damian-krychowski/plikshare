@@ -41,12 +41,10 @@ public static class FoldersEndpoints
             .WithProtobufResponse();
 
         group.MapGet("/", GetTopFolders)
-            .WithName("GetTopFolders")
-            .WithProtobufResponse();
+            .WithName("GetTopFolders");
 
         group.MapGet("/{folderExternalId}", GetFolder)
-            .WithName("GetFolder")
-            .WithProtobufResponse();
+            .WithName("GetFolder");
 
         group.MapPatch("/{folderExternalId}/name", UpdateFolderName)
             .WithName("UpdateFolderName");
@@ -167,28 +165,28 @@ public static class FoldersEndpoints
         }
     }
 
-    private static GetTopFolderContentResponseDto GetTopFolders(
+    private static IResult GetTopFolders(
         HttpContext httpContext,
         GetTopFolderContentQuery getTopFolderContentQuery)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
 
-        var response = getTopFolderContentQuery.Execute(
+        var chunks = getTopFolderContentQuery.ExecuteStreamed(
             workspace: workspaceMembership.Workspace,
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
-        return response;
+        return new ProtobufStreamResult<GetTopFolderContentResponseDto>(chunks);
     }
 
-    private static Results<Ok<GetFolderContentResponseDto>, NotFound<HttpError>> GetFolder(
+    private static IResult GetFolder(
         [FromRoute] FolderExtId folderExternalId,
         HttpContext httpContext,
         GetFolderContentQuery getFolderContentQuery)
     {
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
 
-        var response = getFolderContentQuery.Execute(
+        var chunks = getFolderContentQuery.ExecuteStreamed(
             workspace: workspaceMembership.Workspace,
             folderExternalId: folderExternalId,
             boxFolderId: null,
@@ -201,11 +199,9 @@ public static class FoldersEndpoints
                 ExposeCreatedAt: true),
             workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
 
-        return response switch
-        {
-            null => HttpErrors.Folder.NotFound(folderExternalId),
-            _ => TypedResults.Ok(response)
-        };
+        return chunks is null
+            ? HttpErrors.Folder.NotFound(folderExternalId)
+            : new ProtobufStreamResult<GetFolderContentResponseDto>(chunks);
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>>> UpdateFolderName(

@@ -414,7 +414,7 @@
                         <span class="context-bar__stuck-name">Files</span>
                         <app-selection-count
                             [visibleCount]="filteredFilesCount()"
-                            [totalCount]="filesCount()"
+                            [totalCount]="displayedFilesCount()"
                             [selectedCount]="selectedFilesCount()"
                             [isFiltered]="isSearchActive()"
                             noun="files"
@@ -600,7 +600,7 @@
                     <span class="files-section__title">Files</span>
                     <app-selection-count
                         [visibleCount]="filteredFilesCount()"
-                        [totalCount]="filesCount()"
+                        [totalCount]="displayedFilesCount()"
                         [selectedCount]="selectedFilesCount()"
                         [isFiltered]="isSearchActive()"
                         noun="files"
@@ -633,6 +633,7 @@
                     <div class="files-section__content">
                         <app-files-list
                             [files]="files()"
+                            [expectedTotalCount]="filesExpectedTotalCount()"
                             [sortMode]="sortMode()"
                             [sortDirection]="sortDirection()"
                             [searchPhrase]="searchPhrase()"
@@ -646,7 +647,8 @@
                             [permissions]="filePermissions()"
                             [filesApi]="filesApi()"
                             (deleted)="onFileDeleted($event)"
-                            (previewed)="onFilePreviewed($event)">
+                            (previewed)="onFilePreviewed($event)"
+                            (visibleRangeEndChanged)="onFilesVisibleRangeEndChanged($event)">
                         </app-files-list>
 
                         @if(canUpload()) {

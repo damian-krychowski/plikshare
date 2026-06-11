@@ -20,6 +20,8 @@ public class GetFolderContentResponseDto
     [ProtoMember(4)]
     public required List<UploadDto>? Uploads { get; init; }
 
+    [ProtoMember(5)]
+    public int? TotalFileCount { get; init; }
 }
 
 [ProtoContract]

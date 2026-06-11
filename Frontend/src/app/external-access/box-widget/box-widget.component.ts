@@ -4,6 +4,7 @@ import { BoxWidgetApi } from './box-widget.api';
 import { FileUploadApi } from '../../services/file-upload-manager/file-upload-manager';
 import { GetBoxDetails } from '../contracts/external-access.contracts';
 import { DataStore } from '../../services/data-store.service';
+import { FolderContentStream } from '../../services/folder-content-stream';
 import { AppFolderItem } from '../../shared/folder-item/folder-item.component';
 import { AppFileItem } from '../../shared/file-item/file-item.component';
 import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, ContentDisposition, CountSelectedItemsRequest, CreateFolderRequest, FilePreviewDetailsField, GetBulkDownloadLinkRequest, GetFolderResponse, SearchFilesTreeRequest, SendAiFileMessageRequest, StartTextractJobRequest, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
@@ -258,21 +259,21 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
                 key => key.startsWith(`external-link/${this.url()}`)
             ),
 
-            prefetchTopFolders: () => this._dataStore.prefetch(
+            prefetchTopFolders: () => this._dataStore.prefetch<FolderContentStream>(
                 `external-link/${this.url()}/folders`,
-                () => this._boxWidgetApi.getContent(this.url(), null)),
+                () => Promise.resolve(this._boxWidgetApi.getContentStream(this.url(), null))),
 
-            getTopFolders: () => this._dataStore.get(
+            getTopFolders: () => this._dataStore.get<FolderContentStream>(
                 `external-link/${this.url()}/folders`,
-                () => this._boxWidgetApi.getContent(this.url(), null)),
+                () => Promise.resolve(this._boxWidgetApi.getContentStream(this.url(), null))),
 
-            prefetchFolder: (folderExternalId: string) => this._dataStore.prefetch(
+            prefetchFolder: (folderExternalId: string) => this._dataStore.prefetch<FolderContentStream>(
                 `external-link/${this.url()}/folders/${folderExternalId}`,
-                () => this._boxWidgetApi.getContent(this.url(), folderExternalId)),
+                () => Promise.resolve(this._boxWidgetApi.getContentStream(this.url(), folderExternalId))),
 
-            getFolder: (folderExternalId: string) => this._dataStore.get(
+            getFolder: (folderExternalId: string) => this._dataStore.get<FolderContentStream>(
                 `external-link/${this.url()}/folders/${folderExternalId}`,
-                () => this._boxWidgetApi.getContent(this.url(), folderExternalId)),
+                () => Promise.resolve(this._boxWidgetApi.getContentStream(this.url(), folderExternalId))),
 
             createFolder: (request: CreateFolderRequest) => this._boxWidgetApi.createFolder(
                 this.url(), request),

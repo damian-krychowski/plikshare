@@ -10,7 +10,12 @@ import { getZipFileDetailsDtoProtobuf } from "../protobuf/zip-file-details-dto.p
 import { getGenerateFileThumbnailsBulkRequestDtoProtobuf } from "../protobuf/generate-file-thumbnails-bulk-request-dto.protobuf";
 import { getGenerateFileThumbnailsBulkResponseDtoProtobuf } from "../protobuf/generate-file-thumbnails-bulk-response-dto.protobuf";
 import { getCountThumbnailableFilesRequestDtoProtobuf, getCountThumbnailableFilesResponseDtoProtobuf } from "../protobuf/count-thumbnailable-files-request-dto.protobuf";
-import { ProtoHttp } from "./protobuf-http.service";
+import { ProtoHttp, ProtoStreamField } from "./protobuf-http.service";
+import { FolderContentStream } from "./folder-content-stream";
+import { getCurrentFolderDtoProtobuf } from "../protobuf/current-folder-dto.protobuf";
+import { getSubfolderDtoProtobuf } from "../protobuf/subfolder-dto.protobuf";
+import { getFileDtoProtobuf } from "../protobuf/file-dto.protobuf";
+import { getUploadDtoProtobuf } from "../protobuf/upload-dto.protobuf";
 import { getBulkCreateFolderResponseDtoProtobuf } from "../protobuf/bulk-create-folder-response-dto.protobuf";
 import { getBulkCreateFolderRequestDtoProtobuf } from "../protobuf/bulk-create-folder-request-dto.protobuf";
 import { AppFileItem } from "../shared/file-item/file-item.component";
@@ -491,6 +496,26 @@ export interface BulkDeleteResponse {
 const zipFileDetailsDtoProtobuf = getZipFileDetailsDtoProtobuf();
 const folderContentDtoProtobuf = getFolderContentDtoProtobuf();
 const topFolderContentDtoProtobuf = getTopFolderContetDtoProtobuf();
+
+const currentFolderDtoProtobufType = getCurrentFolderDtoProtobuf();
+const subfolderDtoProtobufType = getSubfolderDtoProtobuf();
+const fileDtoProtobufType = getFileDtoProtobuf();
+const uploadDtoProtobufType = getUploadDtoProtobuf();
+
+export const folderContentStreamFields: Record<number, ProtoStreamField> = {
+    1: { name: 'folder', type: currentFolderDtoProtobufType, repeated: false },
+    2: { name: 'subfolders', type: subfolderDtoProtobufType, repeated: true },
+    3: { name: 'files', type: fileDtoProtobufType, repeated: true },
+    4: { name: 'uploads', type: uploadDtoProtobufType, repeated: true },
+    5: { name: 'totalFileCount', scalar: 'uint32', repeated: false }
+};
+
+const topFolderContentStreamFields: Record<number, ProtoStreamField> = {
+    1: { name: 'subfolders', type: subfolderDtoProtobufType, repeated: true },
+    2: { name: 'files', type: fileDtoProtobufType, repeated: true },
+    3: { name: 'uploads', type: uploadDtoProtobufType, repeated: true },
+    4: { name: 'totalFileCount', scalar: 'uint32', repeated: false }
+};
 
 const bulkCreateFolderRequestDtoProtobuf = getBulkCreateFolderRequestDtoProtobuf();
 const bulkCreateFolderResponseDtoProtobuf = getBulkCreateFolderResponseDtoProtobuf();
@@ -1011,11 +1036,27 @@ export class FoldersAndFilesGetApi {
         });
     }
 
+    public getFolderStream(workspaceExternalId: string, externalId: string): FolderContentStream {
+        return FolderContentStream.fromChunkProducer(push => this._protoHttp.getStream({
+            route: `/api/workspaces/${workspaceExternalId}/folders/${externalId}`,
+            fields: folderContentStreamFields,
+            onChunk: push
+        }));
+    }
+
     public getTopFolders(workspaceExternalId: string): Promise<GetFolderResponse> {
         return this._protoHttp.get<GetFolderResponse>({
             route: `/api/workspaces/${workspaceExternalId}/folders`,
             responseProtoType: topFolderContentDtoProtobuf
         });
+    }
+
+    public getTopFoldersStream(workspaceExternalId: string): FolderContentStream {
+        return FolderContentStream.fromChunkProducer(push => this._protoHttp.getStream({
+            route: `/api/workspaces/${workspaceExternalId}/folders`,
+            fields: topFolderContentStreamFields,
+            onChunk: push
+        }));
     }
 
     public getDownloadLink(workspaceExternalId: string, fileExternalId: string, contentDisposition: ContentDisposition): Promise<GetFileDownloadLinkResponse> {
@@ -1146,6 +1187,100 @@ export class FoldersAndFilesGetApi {
         
         return result;
     }
+}
+
+export type FolderTreeStreamUpdate = {
+    children: (AppFolderItem | AppFileItem)[];
+    expectedTotalCount: number | null;
+    isCompleted: boolean;
+}
+
+export function subscribeFolderTreeChildren(args: {
+    stream: FolderContentStream,
+    topFolderExternalId: string | null,
+    callback: (update: FolderTreeStreamUpdate) => void
+}): void {
+    const collected: (AppFolderItem | AppFileItem)[] = [];
+
+    let childAncestors: { externalId: string, name: string }[] = [];
+    let folderExternalId: string | null = null;
+    let subfoldersCount = 0;
+    let totalFileCount: number | null = null;
+    let wasAnyContentDelivered = false;
+
+    args.stream.subscribe({
+        onChunk: chunk => {
+            if (chunk.totalFileCount != null) {
+                totalFileCount = chunk.totalFileCount;
+            }
+
+            if (chunk.folder) {
+                const path = preparePath(
+                    args.topFolderExternalId,
+                    chunk.folder.ancestors ?? []);
+
+                childAncestors = [...path, {
+                    externalId: chunk.folder.externalId,
+                    name: chunk.folder.name
+                }];
+
+                folderExternalId = chunk.folder.externalId;
+            }
+
+            let hasNewItems = false;
+
+            if (chunk.subfolders?.length) {
+                subfoldersCount += chunk.subfolders.length;
+
+                collected.push(...mapFolderDtosToItems(
+                    chunk.subfolders,
+                    childAncestors));
+
+                hasNewItems = true;
+            }
+
+            if (chunk.files?.length) {
+                collected.push(...mapFileDtosToItems(
+                    chunk.files,
+                    folderExternalId));
+
+                hasNewItems = true;
+            }
+
+            if (!hasNewItems)
+                return;
+
+            wasAnyContentDelivered = true;
+
+            args.callback({
+                children: [...collected],
+                expectedTotalCount: totalFileCount == null
+                    ? null
+                    : subfoldersCount + totalFileCount,
+                isCompleted: false
+            });
+        },
+
+        onCompleted: () => {
+            args.callback({
+                children: [...collected],
+                expectedTotalCount: null,
+                isCompleted: true
+            });
+        },
+
+        onError: error => {
+            console.error(error);
+
+            if (wasAnyContentDelivered) {
+                args.callback({
+                    children: [...collected],
+                    expectedTotalCount: null,
+                    isCompleted: true
+                });
+            }
+        }
+    });
 }
 
 export function mapFileDtosToItems(files: FileDto[], folderExternalId: string | null): AppFileItem[] {

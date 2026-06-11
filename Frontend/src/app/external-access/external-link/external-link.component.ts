@@ -9,6 +9,7 @@ import DOMPurify from 'dompurify';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { filter, Subscription } from 'rxjs';
 import { DataStore } from '../../services/data-store.service';
+import { FolderContentStream } from '../../services/folder-content-stream';
 import { AppFolderItem } from '../../shared/folder-item/folder-item.component';
 import { AppFileItem } from '../../shared/file-item/file-item.component';
 import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, ContentDisposition, CountSelectedItemsRequest, CreateFolderRequest, FilePreviewDetailsField, GetBulkDownloadLinkRequest, GetFolderResponse, SearchFilesTreeRequest, SendAiFileMessageRequest, StartTextractJobRequest, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
@@ -258,21 +259,21 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
                 key => key.startsWith(`external-link/${this._accessCodeValue}`)
             ),
 
-            prefetchTopFolders: () => this._dataStore.prefetch(
+            prefetchTopFolders: () => this._dataStore.prefetch<FolderContentStream>(
                 `external-link/${this._accessCodeValue}/folders`,
-                () => this._accessCodesApi.getContent(this._accessCodeValue, null)),
+                () => Promise.resolve(this._accessCodesApi.getContentStream(this._accessCodeValue, null))),
 
-            getTopFolders: () => this._dataStore.get(
+            getTopFolders: () => this._dataStore.get<FolderContentStream>(
                 `external-link/${this._accessCodeValue}/folders`,
-                () => this._accessCodesApi.getContent(this._accessCodeValue, null)),
+                () => Promise.resolve(this._accessCodesApi.getContentStream(this._accessCodeValue, null))),
 
-            prefetchFolder: (folderExternalId: string) => this._dataStore.prefetch(
+            prefetchFolder: (folderExternalId: string) => this._dataStore.prefetch<FolderContentStream>(
                 `external-link/${this._accessCodeValue}/folders/${folderExternalId}`,
-                () => this._accessCodesApi.getContent(this._accessCodeValue, folderExternalId)),
+                () => Promise.resolve(this._accessCodesApi.getContentStream(this._accessCodeValue, folderExternalId))),
 
-            getFolder: (folderExternalId: string) => this._dataStore.get(
+            getFolder: (folderExternalId: string) => this._dataStore.get<FolderContentStream>(
                 `external-link/${this._accessCodeValue}/folders/${folderExternalId}`,
-                () => this._accessCodesApi.getContent(this._accessCodeValue, folderExternalId)),
+                () => Promise.resolve(this._accessCodesApi.getContentStream(this._accessCodeValue, folderExternalId))),
 
             createFolder: (request: CreateFolderRequest) => this._accessCodesApi.createFolder(
                 this._accessCodeValue, request),

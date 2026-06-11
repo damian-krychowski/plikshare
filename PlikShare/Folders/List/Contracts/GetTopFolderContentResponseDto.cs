@@ -9,13 +9,16 @@ namespace PlikShare.Folders.List.Contracts;
 public class GetTopFolderContentResponseDto
 {
     [ProtoMember(1)]
-    public required List<SubfolderDto> Subfolders { get; init; }
+    public required List<SubfolderDto>? Subfolders { get; init; }
 
     [ProtoMember(2)]
     public required List<FileDto> Files { get; init; }
 
     [ProtoMember(3)]
-    public required List<UploadDto> Uploads { get; init; }
+    public required List<UploadDto>? Uploads { get; init; }
+
+    [ProtoMember(4)]
+    public int? TotalFileCount { get; init; }
 }
 
 [ProtoContract]

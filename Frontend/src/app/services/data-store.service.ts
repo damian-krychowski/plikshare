@@ -3,6 +3,7 @@ import { BoxesGetApi, GetBoxListResponse, GetBoxResponse } from "./boxes.api";
 import { GetWorkspaceDetailsResponse, GetWorkspaceMembersList, WorkspacesApi } from "./workspaces.api";
 import { GetUploadListResponse, UploadsApi } from "./uploads.api";
 import { FoldersAndFilesGetApi, GetAiMessagesResponse, GetFolderResponse } from "./folders-and-files.api";
+import { FolderContentStream } from "./folder-content-stream";
 import { DashboardApi, GetDashboardDataResponse } from "./dashboard.api";
 import { GetBoxDetailsAndFolderResponse, GetBoxHtmlResponse } from "../external-access/contracts/external-access.contracts";
 import { ExternalBoxesGetApi } from "../external-access/external-box/external-boxes.api";
@@ -232,15 +233,15 @@ export class DataStore {
     }
 
     public prefetchWorkspaceTopFolders(workspaceExternalId: string): void {
-        this.prefetch<GetFolderResponse>(
+        this.prefetch<FolderContentStream>(
             this.topFolderKey(workspaceExternalId),
-            () => this._foldersAndFilesApi.getTopFolders(workspaceExternalId));
+            () => Promise.resolve(this._foldersAndFilesApi.getTopFoldersStream(workspaceExternalId)));
     }
 
-    public getWorkspaceTopFolders(workspaceExternalId: string): Promise<GetFolderResponse> {
-        return this.get<GetFolderResponse>(
+    public getWorkspaceTopFolders(workspaceExternalId: string): Promise<FolderContentStream> {
+        return this.get<FolderContentStream>(
             this.topFolderKey(workspaceExternalId),
-            () => this._foldersAndFilesApi.getTopFolders(workspaceExternalId));
+            () => Promise.resolve(this._foldersAndFilesApi.getTopFoldersStream(workspaceExternalId)));
     }
 
     public workspaceDetailsKey(workspaceExternalId: string): string {
@@ -252,15 +253,15 @@ export class DataStore {
     }
 
     public prefetchWorkspaceFolder(workspaceExternalId: string, folderExternalId: string): void {
-        this.prefetch(
+        this.prefetch<FolderContentStream>(
             this.folderKey(workspaceExternalId, folderExternalId),
-            () => this._foldersAndFilesApi.getFolder(workspaceExternalId, folderExternalId));
+            () => Promise.resolve(this._foldersAndFilesApi.getFolderStream(workspaceExternalId, folderExternalId)));
     }
 
-    public getWorkspaceFolder(workspaceExternalId: string, folderExternalId: string): Promise<GetFolderResponse> {
-        return this.get(
+    public getWorkspaceFolder(workspaceExternalId: string, folderExternalId: string): Promise<FolderContentStream> {
+        return this.get<FolderContentStream>(
             this.folderKey(workspaceExternalId, folderExternalId),
-            () => this._foldersAndFilesApi.getFolder(workspaceExternalId, folderExternalId));
+            () => Promise.resolve(this._foldersAndFilesApi.getFolderStream(workspaceExternalId, folderExternalId)));
     }
 
     public folderKey(workspaceExternalId: string, folderExternalId: string): string {
@@ -366,27 +367,27 @@ export class DataStore {
     }
 
     public prefetchExternalBoxFolders(boxExternalId: string): void {
-        this.prefetch<GetFolderResponse>(
+        this.prefetch<FolderContentStream>(
             this.externalBoxFoldersKey(boxExternalId),
-            () => this._externalBoxesGetApi.getContent(boxExternalId, null));
+            () => Promise.resolve(this._externalBoxesGetApi.getContentStream(boxExternalId, null)));
     }
 
-    public getExternalBoxFolders(boxExternalId: string): Promise<GetFolderResponse> {
-        return this.get(
+    public getExternalBoxFolders(boxExternalId: string): Promise<FolderContentStream> {
+        return this.get<FolderContentStream>(
             this.externalBoxFoldersKey(boxExternalId),
-            () => this._externalBoxesGetApi.getContent(boxExternalId, null));
+            () => Promise.resolve(this._externalBoxesGetApi.getContentStream(boxExternalId, null)));
     }
 
     public prefetchExternalBoxFolder(boxExternalId: string, folderExternalId: string): void {
-        this.prefetch(
+        this.prefetch<FolderContentStream>(
             this.externalBoxFolderKey(boxExternalId, folderExternalId),
-            () => this._externalBoxesGetApi.getContent(boxExternalId, folderExternalId));
+            () => Promise.resolve(this._externalBoxesGetApi.getContentStream(boxExternalId, folderExternalId)));
     }
 
-    public getExternalBoxFolder(boxExternalId: string, folderExternalId: string): Promise<GetFolderResponse> {
-        return this.get(
+    public getExternalBoxFolder(boxExternalId: string, folderExternalId: string): Promise<FolderContentStream> {
+        return this.get<FolderContentStream>(
             this.externalBoxFolderKey(boxExternalId, folderExternalId),
-            () => this._externalBoxesGetApi.getContent(boxExternalId, folderExternalId));
+            () => Promise.resolve(this._externalBoxesGetApi.getContentStream(boxExternalId, folderExternalId)));
     }
 
     public externalBoxKeysPrefix(boxExternalId: string): string {

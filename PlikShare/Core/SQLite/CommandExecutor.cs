@@ -61,6 +61,42 @@ public class SQLiteCommandExecutor<TRow>
         return this;
     }
 
+    public IEnumerable<TRow> ExecuteEnumerable()
+    {
+        var startTimestamp = Stopwatch.GetTimestamp();
+        var rows = 0;
+        var success = false;
+
+        try
+        {
+            using var reader = _command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                var row = _readRowFunc(reader);
+                rows++;
+                yield return row;
+            }
+
+            reader.Close();
+            success = true;
+        }
+        finally
+        {
+            SqliteQueryMetrics.Record(
+                source: _source,
+                kind: SqliteQueryMetrics.KindRows,
+                startTimestamp: startTimestamp,
+                rows: rows,
+                success: success);
+
+            if (_shouldDispose)
+            {
+                _command.Dispose();
+            }
+        }
+    }
+
     public List<TRow> Execute()
     {
         var startTimestamp = Stopwatch.GetTimestamp();
