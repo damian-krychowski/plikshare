@@ -21,6 +21,8 @@ Release notes for PlikShare.
 - [IMPROVEMENT] UI performance — smoother scrolling in large tree views and cheaper marquee animation of truncated file names
 - [FIX] Refreshing the browser on the workspace settings page no longer hides the ffmpeg-dependent sections (image dimensions, thumbnails) — the capability flags are now loaded when the workspace opens, not only when the file explorer does
 
+[Workspace Thumbnails Config](https://github.com/user-attachments/assets/3499a289-651d-4962-9bd5-625d0db46990)
+
 ## 1.1.38
 
 - [IMPROVEMENT] Large folders open noticeably faster — listing a folder with thousands of files is 20–30% quicker: thumbnail metadata is fetched in a single query instead of once per file (backed by a new index), and parsed with a lightweight token scanner instead of full JSON deserialization
@@ -183,6 +185,98 @@ User settings details:
 
 [Drag and drop for files and folders](https://github.com/user-attachments/assets/08035dd2-02f7-4790-8d00-1eb78d24a8cb)
 
----
+### 1.0.22
+- **[FEATURE]** Added AWS Textract integration - enabling text extraction from PDF/JPEG/etc with OCR engine
 
-> Versions prior to `1.1.23` are not documented here — this changelog was introduced mid-stream. For older history see the git log.
+
+### 1.0.21
+- **[IMPROVEMENT]** File preview can open files which are not recognized and display their content as text
+- **[IMPROVEMENT]** Bulk zip upload for S3 storages optimized in terms of memory usage
+
+### 1.0.20
+- **[BUG FIX]** PDF files preview opens the file instead of downloading it
+
+### 1.0.19
+- **[FEATURE]** Bulk zip upload - initial version
+- **[IMPROVEMENT]** Performance improvements on most major features (uploads, deletes, folders creation, file previews etc)
+- **[BUG FIX]** Decryption of files in some special edge-cases was failing.
+
+### 1.0.18
+- **[IMPROVEMENT]** Zip preview supports Zip64 format (zip files larger than 4GB* etc.)
+
+### 1.0.17
+- **[IMPROVEMENT]** Application search now enables file opening and preview redirection
+- **[BUG FIX]** Fixed UI issues for box content preview
+- **[BUG FIX]** Fixed UI issues in box folder picker dialog
+- **[BUG FIX]** Search item highlight animation now disappears after 5 seconds (previously remained indefinitely)
+
+### 1.0.16
+- **[IMPROVEMENT]** ZIP archive preview is now available within boxes.
+- **[IMPROVEMENT]** ZIP archive preview now allows users to search for content within archives.
+
+### 1.0.15
+- **[FEATURE]** File preview now displays contents of ZIP archives and enables direct downloads of individual files within the archive.
+
+### 1.0.14
+- **[IMPROVEMENT]** File preview is now available for all file types - including those without preview capability - allowing users to add notes and comments to any file.
+- **[IMPROVEMENT]** Email picker now suggests existing users when inviting new members to workspaces and boxes.
+
+### 1.0.13
+- **[FEATURE]** File preview now supports adding notes and comments.
+- **[IMPROVEMENT]** Files opened in preview are reflected in the URL and can be accessed directly via link.
+
+### 1.0.12
+- **[IMPROVEMENT]** File preview UI/UX improved. More files types supported: video, audio, pfds, images and text files.
+- **[BUG FIX]** File lock checking happens only when needed
+
+### 1.0.11
+- **[IMPROVEMENT]** Storage creation view improved (separate pages instead of dialog boxes)
+- **[IMPROVEMENT]** Better memory efficiency in range download requests for encrypted file storages
+
+### 1.0.10
+- **[IMPROVEMENT]** Video preview works on encrypted storages
+
+### 1.0.9
+- **[IMPROVEMENT]** S3 multipart upload mode is used only for large enough files
+
+### 1.0.8
+- **[BUG FIX]** Resolved length limitation issue affecting internal pre-signed links used for bulk downloads and hard-drive storage operations
+- **[IMPROVEMENT]** Users with upload-only permissions can now bulk-delete their own files from storage boxes
+- **[IMPROVEMENT]** Refined UI elements and enhanced encryption option descriptions for S3 integration
+
+### 1.0.7
+- **[FEATURE]** Added managed encryption to storages
+- **[IMPROVEMENT]** File Explorer displays counts of folders, files and uploads, allowing selection by clicking
+- **[IMPROVEMENT]** File Explorer supports CTRL+A for selecting all items and includes an additional checkbox in the top bar for this function
+- **[IMPROVEMENT]** More efficient uploads based on file sizes (app determines upload method based on criteria: complete file or chunk-by-chunk)
+- **[BUG FIX]** Recently uploaded files remain locked until upload is complete to prevent potential issues
+
+### 1.0.6
+- **[FEATURE]** Bulk download now supports both files and folders while preserving folder structure in the output zip
+- **[BUG FIX]** Legal documents (Terms of Service and Privacy Policy) now display correctly after being uploaded in General Settings
+
+### 1.0.5
+- **[FEATURE]** Added initial version of bulk files download
+- **[BUG FIX]** When user enables or disables multi-factor authentication he no longer gets logged out
+
+### 1.0.4
+- **[FEATURE]** Added image and video preview functionality (click on image/video files to open preview dialog)
+- **[IMPROVEMENT]** File extensions now displayed in File Explorer item details
+
+### 1.0.3
+- **[IMPROVEMENT]** User who created a folder in a box has 5min to change its name when "rename folder" permission is not granted.
+
+### 1.0.2
+- **[BUG FIX]** Box header and footer should not be displayed if they are disabled even though they have some content.
+- **[BUG FIX]** Wrong email template is sent when user accepts workspace invitation or when user leaves shared workspace.
+- **[BUG FIX]** After accepting workspace invitation, new shared workspace size is always displayed as 0.
+- **[BUG FIX]** Email provider 'Send From Email' field is no longer converted to lower case letters only.
+- **[IMPROVEMENT]** Box details page performance improvements.
+
+
+### 1.0.1
+- **[BUG FIX]** Fixed handling of folder selection for a box in box list page when box's previously assigned folder has been deleted 
+
+
+### 1.0.0
+- Initial release 
