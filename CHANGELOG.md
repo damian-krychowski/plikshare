@@ -12,6 +12,8 @@ Release notes for PlikShare.
 - [IMPROVEMENT] Image preview and lightbox link to each other — one click in both directions
 - [IMPROVEMENT] Large-folder performance — folders with tens of thousands of files navigate, render and switch gallery layouts without lag
 
+[PlikShare gallery](https://github.com/user-attachments/assets/691cefe0-d4e9-4579-b99f-448eef951829)
+
 ## 1.1.39
 
 - [FEATURE] Automatic thumbnails — a new opt-in workspace setting generates WebP thumbnails (Mini / Small / Large, your pick) for every uploaded image, and backfills existing images with the sizes they're missing — already existing thumbnails, including manually uploaded ones, are never touched. Live progress in workspace settings; switching off cancels pending generation
