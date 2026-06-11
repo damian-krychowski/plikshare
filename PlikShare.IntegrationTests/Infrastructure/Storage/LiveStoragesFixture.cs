@@ -44,7 +44,18 @@ public sealed class LiveStoragesFixture : IAsyncLifetime
                 s.Provider == provider && s.Encryption == encryption);
 
             if (existing is not null)
-                return existing;
+            {
+                if (encryption != StorageEncryptionType.Full || IsFullEncryptionSetupStillValid(existing))
+                    return existing;
+
+                // ResetUserEncryption (run by other test classes in this collection) wipes the
+                // user encryption keys and EVERY workspace key wrap in the DB. From that moment
+                // all cached Full setups and the cached encryption cookie are unusable — any
+                // request against them ends with 403 workspace-encryption-pending-key-grant.
+                // Drop them all (the wipe is global, so one stale entry means all are stale)
+                // and fall through to a fresh rebuild.
+                await InvalidateFullEncryptionSetups();
+            }
 
             // For Full encryption: the first setup runs Reset+Setup of the user encryption
             // password (inside CreateStorage → SetupUserEncryptionPassword). Reset wipes
@@ -94,6 +105,58 @@ public sealed class LiveStoragesFixture : IAsyncLifetime
         {
             _lock.Release();
         }
+    }
+
+    private bool IsFullEncryptionSetupStillValid(LiveStorageSetup setup)
+    {
+        using var connection = _hostFixture!.Db.OpenConnection();
+
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT 1
+                     FROM wek_workspace_encryption_keys
+                     INNER JOIN w_workspaces ON w_id = wek_workspace_id
+                     INNER JOIN u_users ON u_id = wek_user_id
+                     WHERE
+                         w_external_id = $workspaceExternalId
+                         AND u_external_id = $userExternalId
+                         AND u_encryption_public_key IS NOT NULL
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => reader.GetInt32(0))
+            .WithParameter("$workspaceExternalId", setup.Workspace.ExternalId.Value)
+            .WithParameter("$userExternalId", setup.User.ExternalId.Value)
+            .Execute();
+
+        return rows.Count > 0;
+    }
+
+    private async Task InvalidateFullEncryptionSetups()
+    {
+        var fullSetups = _setups
+            .Where(s => s.Encryption == StorageEncryptionType.Full)
+            .ToList();
+
+        foreach (var setup in fullSetups)
+        {
+            _setups.Remove(setup);
+
+            Log.Warning("[LiveStoragesFixture] Cached Full-encryption setup for {Provider} is stale (user encryption keys were reset) — dropping it.",
+                setup.Provider);
+
+            try
+            {
+                await CleanupSetup(setup);
+            }
+            catch (Exception e)
+            {
+                Log.Warning(e, "[LiveStoragesFixture] Could not clean up stale Full-encryption setup {Provider}/{WorkspaceExtId} — leaving it orphaned.",
+                    setup.Provider, setup.Workspace.ExternalId);
+            }
+        }
+
+        _fullEncryptionCookie = null;
     }
 
     public Task InitializeAsync() => Task.CompletedTask;

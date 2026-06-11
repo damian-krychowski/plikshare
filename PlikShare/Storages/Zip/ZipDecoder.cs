@@ -186,14 +186,26 @@ public static class ZipDecoder
             zipFinalEocd = new ZipFinalEocdRecord(zipEocd!);
         }
         
+        //empty archive: there is no central directory to read and CentralDirectoryBytesRange
+        //would degenerate to (offset, offset - 1) — encrypted range reads throw on such input
+
+        if (zipFinalEocd.TotalNumberOfEntries == 0)
+        {
+            return new ZipEntriesLookupResult
+            {
+                Code = ZipDecodingResultCode.Ok,
+                Entries = []
+            };
+        }
+
         //at the end when we know how the final location of CDFH looks like
         //we can start reading zip entries
 
         var zipEntries = await ReadZipEntries(
-            file, 
+            file,
             workspace,
-            zipFinalEocd, 
-            pipe, 
+            zipFinalEocd,
+            pipe,
             getFileEncryptionMode,
             cancellationToken);
 

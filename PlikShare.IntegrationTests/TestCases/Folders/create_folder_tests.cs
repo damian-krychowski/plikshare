@@ -63,7 +63,8 @@ public class create_folder_tests: TestFixture
             ],
 
             Files = null,
-            Uploads = null
+            Uploads = null,
+            TotalFileCount = 0
         });
     }
 
@@ -154,7 +155,8 @@ public class create_folder_tests: TestFixture
             ],
 
             Files = null,
-            Uploads = null
+            Uploads = null,
+            TotalFileCount = 0
         });
     }
     
@@ -203,7 +205,8 @@ public class create_folder_tests: TestFixture
             },
             Subfolders = null,
             Uploads = null,
-            Files = null
+            Files = null,
+            TotalFileCount = 0
         });
     }
     
@@ -263,7 +266,8 @@ public class create_folder_tests: TestFixture
                 Position = 1 * ItemPosition.Step
             }],
             Uploads = null,
-            Files = null
+            Files = null,
+            TotalFileCount = 0
         });
     }
 
@@ -320,7 +324,8 @@ public class create_folder_tests: TestFixture
             },
             Subfolders = null,
             Uploads = null,
-            Files = null
+            Files = null,
+            TotalFileCount = 0
         });
     }
 
@@ -373,7 +378,8 @@ public class create_folder_tests: TestFixture
             ],
 
             Files = null,
-            Uploads = null
+            Uploads = null,
+            TotalFileCount = 0
         });
     }
 
@@ -452,7 +458,8 @@ public class create_folder_tests: TestFixture
             ],
 
             Files = null,
-            Uploads = null
+            Uploads = null,
+            TotalFileCount = 0
         });
     }
 
@@ -512,7 +519,8 @@ public class create_folder_tests: TestFixture
                 Position = 1 * ItemPosition.Step
             }],
             Uploads = null,
-            Files = null
+            Files = null,
+            TotalFileCount = 0
         });
     }
 
@@ -599,7 +607,8 @@ public class create_folder_tests: TestFixture
                 Position = 1 * ItemPosition.Step
             }],
             Uploads = null,
-            Files = null
+            Files = null,
+            TotalFileCount = 0
         });
     }
 
@@ -744,7 +753,8 @@ public class create_folder_tests: TestFixture
                 }
             ],
             Files = null,
-            Uploads = null
+            Uploads = null,
+            TotalFileCount = 0
         });
 
         // Verify Folder A structure
@@ -789,7 +799,8 @@ public class create_folder_tests: TestFixture
                 }
             ],
             Files = null,
-            Uploads = null
+            Uploads = null,
+            TotalFileCount = 0
         });
 
         // Verify Folder A_B structure
@@ -841,7 +852,8 @@ public class create_folder_tests: TestFixture
                 }
             ],
             Files = null,
-            Uploads = null
+            Uploads = null,
+            TotalFileCount = 0
         });
 
         // Verify Folder B structure
@@ -886,7 +898,8 @@ public class create_folder_tests: TestFixture
                 }
             ],
             Files = null,
-            Uploads = null
+            Uploads = null,
+            TotalFileCount = 0
         });
     }
 
