@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, DestroyRef, ElementRef, computed, effect, inject, input, linkedSignal, output, signal, untracked } from '@angular/core';
+import { AfterViewInit, Component, DestroyRef, ElementRef, computed, effect, inject, input, linkedSignal, output, signal, untracked, viewChild } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AppFileItem, AppFileItems, FileOperations } from '../../shared/file-item/file-item.component';
 import { FileIconPipe } from '../file-icon-pipe/file-icon.pipe';
@@ -7,6 +7,8 @@ import { getFileDetails } from '../../services/file-type';
 
 const SLIDESHOW_INTERVAL_MS = 4000;
 const STRIP_WINDOW_RADIUS = 30;
+const PRELOAD_AHEAD = 4;
+const PRELOAD_BEHIND = 2;
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 6;
 const SWIPE_THRESHOLD_PX = 60;
@@ -83,12 +85,49 @@ export class GalleryLightboxComponent implements AfterViewInit {
 
     previewThumbSrc = computed(() => {
         const file = this.current();
-        return file ? this.buildThumbUrl(file, 'large') : null;
+
+        if (!file)
+            return null;
+
+        const large = this.largeThumbUrl(file);
+
+        if (large && this._readyLargeUrls().has(large))
+            return large;
+
+        return this.quickThumbUrl(file) ?? large;
     });
 
     fullSrc = signal<string | null>(null);
     videoSrc = signal<string | null>(null);
     isLoadingFull = signal(false);
+    isImageLoaded = signal(false);
+
+    skeletonRect = computed<{ w: number, h: number } | null>(() => {
+        const file = this.current();
+        const dimensions = file?.metadata()?.dimensions;
+        const stage = this._stageSize();
+
+        if (!file || !dimensions || dimensions.width <= 0 || dimensions.height <= 0)
+            return null;
+
+        if (stage.w <= 0 || stage.h <= 0)
+            return null;
+
+        const scale = Math.min(
+            stage.w / dimensions.width,
+            stage.h / dimensions.height,
+            1);
+
+        return {
+            w: dimensions.width * scale,
+            h: dimensions.height * scale
+        };
+    });
+
+    showSkeleton = computed(() =>
+        !this.isImageLoaded()
+        && !this.currentIsVideo()
+        && this.skeletonRect() != null);
 
     displayedImageSrc = computed(() => this.fullSrc() ?? this.previewThumbSrc());
 
@@ -157,7 +196,12 @@ export class GalleryLightboxComponent implements AfterViewInit {
 
     isQualityRevealing = signal(false);
 
+    private _stageRef = viewChild<ElementRef<HTMLElement>>('stage');
+    private _stageSize = signal<{ w: number, h: number }>({ w: 0, h: 0 });
+
     private _fullSrcCache = new Map<string, string>();
+    private _readyLargeUrls = signal<ReadonlySet<string>>(new Set<string>());
+    private _preloadingUrls = new Set<string>();
     private _failedThumbUrls = signal<ReadonlySet<string>>(new Set<string>());
     private _loadGeneration = 0;
     private _slideshowTimer: ReturnType<typeof setTimeout> | null = null;
@@ -213,23 +257,39 @@ export class GalleryLightboxComponent implements AfterViewInit {
             untracked(() => this.onCurrentFileChanged(file));
         });
 
+        effect((onCleanup) => {
+            const stage = this._stageRef()?.nativeElement;
+
+            if (!stage)
+                return;
+
+            const resizeObserver = new ResizeObserver(() =>
+                this._stageSize.set({ w: stage.clientWidth, h: stage.clientHeight }));
+
+            resizeObserver.observe(stage);
+            this._stageSize.set({ w: stage.clientWidth, h: stage.clientHeight });
+
+            onCleanup(() => resizeObserver.disconnect());
+        });
+
         effect(() => {
             const files = this.files();
             const index = this.clampedIndex();
 
             untracked(() => {
-                for (const offset of [1, -1, 2, -2]) {
-                    const neighbor = files[index + offset];
+                const count = files.length;
 
-                    if (!neighbor)
-                        continue;
+                if (count === 0)
+                    return;
 
-                    const url = this.buildThumbUrl(neighbor, 'large');
+                this.preloadLargeFor(files[index]);
 
-                    if (url) {
-                        const img = new Image();
-                        img.src = url;
-                    }
+                for (let i = 1; i <= PRELOAD_AHEAD; i++) {
+                    this.preloadLargeFor(files[(index + i) % count]);
+                }
+
+                for (let i = 1; i <= PRELOAD_BEHIND; i++) {
+                    this.preloadLargeFor(files[(index - i + count) % count]);
                 }
             });
         });
@@ -251,6 +311,7 @@ export class GalleryLightboxComponent implements AfterViewInit {
         this.fullSrc.set(null);
         this.videoSrc.set(null);
         this.isLoadingFull.set(false);
+        this.isImageLoaded.set(false);
         this.resetZoom();
 
         if (!file || file.isLocked() || !this.allowDownload())
@@ -360,7 +421,7 @@ export class GalleryLightboxComponent implements AfterViewInit {
         this.loadFullImage(file, true);
     }
 
-    private buildThumbUrl(file: AppFileItem, variant: 'mini' | 'large'): string | null {
+    private variantUrl(file: AppFileItem, variant: 'large' | 'small' | 'mini'): string | null {
         const base = this.operations().getThumbnailUrl?.(file.externalId);
 
         if (!base)
@@ -368,22 +429,63 @@ export class GalleryLightboxComponent implements AfterViewInit {
 
         const separator = base.includes('?') ? '&' : '?';
         const thumbnail = file.metadata()?.thumbnail;
+
+        if (variant === 'large' && thumbnail?.largeEtag)
+            return `${base}${separator}variant=large&v=${thumbnail.largeEtag}`;
+
+        if (variant === 'small' && thumbnail?.smallEtag)
+            return `${base}${separator}variant=small&v=${thumbnail.smallEtag}`;
+
+        if (variant === 'mini' && thumbnail?.miniEtag)
+            return `${base}${separator}v=${thumbnail.miniEtag}`;
+
+        return null;
+    }
+
+    private largeThumbUrl(file: AppFileItem): string | null {
+        const url = this.variantUrl(file, 'large');
+
+        return url && !this._failedThumbUrls().has(url)
+            ? url
+            : null;
+    }
+
+    private quickThumbUrl(file: AppFileItem): string | null {
         const failedUrls = this._failedThumbUrls();
 
-        const candidates: string[] = [];
+        for (const variant of ['small', 'mini'] as const) {
+            const url = this.variantUrl(file, variant);
 
-        if (variant === 'large') {
-            if (thumbnail?.largeEtag)
-                candidates.push(`${base}${separator}variant=large&v=${thumbnail.largeEtag}`);
-
-            if (thumbnail?.smallEtag)
-                candidates.push(`${base}${separator}variant=small&v=${thumbnail.smallEtag}`);
+            if (url && !failedUrls.has(url))
+                return url;
         }
 
-        if (thumbnail?.miniEtag)
-            candidates.push(`${base}${separator}v=${thumbnail.miniEtag}`);
+        return null;
+    }
 
-        return candidates.find(url => !failedUrls.has(url)) ?? null;
+    private preloadLargeFor(file: AppFileItem | undefined) {
+        if (!file)
+            return;
+
+        const url = this.largeThumbUrl(file);
+
+        if (!url || this._preloadingUrls.has(url) || this._readyLargeUrls().has(url))
+            return;
+
+        this._preloadingUrls.add(url);
+
+        preloadImage(url)
+            .then(() => this._readyLargeUrls.update(ready => {
+                const next = new Set(ready);
+                next.add(url);
+                return next;
+            }))
+            .catch(() => this.onImageError(url))
+            .finally(() => this._preloadingUrls.delete(url));
+    }
+
+    onImageLoaded() {
+        this.isImageLoaded.set(true);
     }
 
     onImageError(url: string | null) {
@@ -398,7 +500,16 @@ export class GalleryLightboxComponent implements AfterViewInit {
     }
 
     stripThumbUrl(file: AppFileItem): string | null {
-        return this.buildThumbUrl(file, 'mini');
+        const failedUrls = this._failedThumbUrls();
+
+        for (const variant of ['mini', 'small'] as const) {
+            const url = this.variantUrl(file, variant);
+
+            if (url && !failedUrls.has(url))
+                return url;
+        }
+
+        return null;
     }
 
     next() {

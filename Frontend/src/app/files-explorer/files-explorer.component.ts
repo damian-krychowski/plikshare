@@ -909,17 +909,19 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
         effect(() => {
             const requestedId = this.currentLightboxFileExternalId();
+
+            if (!requestedId) {
+                untracked(() => {
+                    if (this.lightboxFile())
+                        this.lightboxFile.set(null);
+                });
+                return;
+            }
+
             const files = this.lightboxFiles();
 
             untracked(() => {
                 const current = this.lightboxFile();
-
-                if (!requestedId) {
-                    if (current)
-                        this.lightboxFile.set(null);
-                    return;
-                }
-
                 const fileInList = files.find(f => f.externalId === requestedId);
 
                 if (current?.externalId === requestedId) {
@@ -1511,6 +1513,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         onFirstChunk: (chunk: FolderContentChunk) => void
     }): Promise<void> {
         this.filesExpectedTotalCount.set(null);
+        this._filesNeededCount = 0;
         this._pendingStreamFolders = [];
         this._pendingStreamFiles = [];
         this._pendingStreamUploads = [];

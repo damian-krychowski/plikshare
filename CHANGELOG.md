@@ -2,6 +2,16 @@
 
 Release notes for PlikShare.
 
+## 1.1.40
+
+- [FEATURE] Gallery view — a third file view (next to list and tree), available in workspaces, boxes, widgets and quick shares; selection, search, sorting and bulk actions all keep working, and box owners can set it as the box default
+- [FEATURE] Gallery layouts — Justified, Mosaic (with multi-cell hero tiles) and Grid, plus an S/M/L tile-size control; choices persist per workspace and switching animates tiles into the new arrangement
+- [FEATURE] Fullscreen lightbox — keyboard/swipe navigation, zoom with pan, slideshow, film strip and permission-aware actions; thumbnails show instantly with neighbours preloaded, and the full-resolution original loads only on demand — saving bandwidth and storage egress. Slow connections get an exact-shape placeholder that morphs between photos
+- [FEATURE] Shareable photo links — the open photo is reflected in the URL, and a new single-file endpoint opens such links instantly even in folders with tens of thousands of files
+- [IMPROVEMENT] Thumbnail endpoints can serve the Small and Large variants, tiles pick the variant matching their rendered size, and manual generation now produces all three
+- [IMPROVEMENT] Image preview and lightbox link to each other — one click in both directions
+- [IMPROVEMENT] Large-folder performance — folders with tens of thousands of files navigate, render and switch gallery layouts without lag
+
 ## 1.1.39
 
 - [FEATURE] Automatic thumbnails — a new opt-in workspace setting generates WebP thumbnails (Mini / Small / Large, your pick) for every uploaded image, and backfills existing images with the sizes they're missing — already existing thumbnails, including manually uploaded ones, are never touched. Live progress in workspace settings; switching off cancels pending generation

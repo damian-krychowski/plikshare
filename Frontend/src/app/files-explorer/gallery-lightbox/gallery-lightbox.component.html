@@ -42,7 +42,7 @@
         </div>
     </div>
 
-    <div class="lightbox__stage"
+    <div #stage class="lightbox__stage"
         (wheel)="onWheel($event)"
         (dblclick)="onDoubleClick()"
         (pointerdown)="onPointerDown($event)"
@@ -51,6 +51,14 @@
         (pointercancel)="onPointerUp($event)">
 
         @if(currentVal) {
+            @if(showSkeleton()) {
+                @if(skeletonRect(); as rect) {
+                    <div class="lightbox__skeleton"
+                        [style.width.px]="rect.w"
+                        [style.height.px]="rect.h"></div>
+                }
+            }
+
             @if(currentIsVideo()) {
                 @if(videoSrc(); as videoUrl) {
                     <video class="lightbox__video"
@@ -60,7 +68,7 @@
                         playsinline>
                     </video>
                 } @else if(previewThumbSrc(); as thumbUrl) {
-                    <img class="lightbox__image"
+                    <img class="lightbox__image lightbox__image--loaded"
                         [src]="thumbUrl"
                         [style.max-width]="imageMaxWidth()"
                         [style.max-height]="imageMaxHeight()"
@@ -76,6 +84,7 @@
             } @else {
                 @if(displayedImageSrc(); as imageUrl) {
                     <img class="lightbox__image"
+                        [class.lightbox__image--loaded]="isImageLoaded()"
                         [class.lightbox__image--zoomed]="isZoomed()"
                         [class.lightbox__image--quality-reveal]="isQualityRevealing()"
                         [src]="imageUrl"
@@ -84,8 +93,9 @@
                         [style.max-height]="imageMaxHeight()"
                         draggable="false"
                         alt=""
+                        (load)="onImageLoaded()"
                         (error)="onImageError(imageUrl)" />
-                } @else {
+                } @else if(!showSkeleton()) {
                     <div class="lightbox__fallback">
                         <i class="icon icon-{{ currentVal.extension | fileIcon }}"></i>
                         <span>{{ currentVal.name() }}{{ currentVal.extension }}</span>

@@ -70,15 +70,34 @@ type RenderedTile = {
     isProcessing: boolean;
 };
 
-function getTileAspectRatio(file: AppFileItem): number {
-    const dimensions = file.metadata()?.dimensions;
+type TileGeometry = {
+    ratio: number;
+    hash: number;
+};
 
-    if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0)
-        return 1;
+const tileGeometryCache = new WeakMap<AppFileItem, TileGeometry>();
 
-    return Math.min(
-        MAX_ASPECT_RATIO,
-        Math.max(MIN_ASPECT_RATIO, dimensions.width / dimensions.height));
+function getTileGeometry(file: AppFileItem): TileGeometry {
+    let entry = tileGeometryCache.get(file);
+
+    if (!entry) {
+        const dimensions = untracked(() => file.metadata())?.dimensions;
+
+        const ratio = !dimensions || dimensions.width <= 0 || dimensions.height <= 0
+            ? 1
+            : Math.min(
+                MAX_ASPECT_RATIO,
+                Math.max(MIN_ASPECT_RATIO, dimensions.width / dimensions.height));
+
+        entry = {
+            ratio,
+            hash: hashExternalId(file.externalId)
+        };
+
+        tileGeometryCache.set(file, entry);
+    }
+
+    return entry;
 }
 
 function getMonthLabel(date: Date | null): string {
@@ -163,7 +182,7 @@ function buildJustifiedLayout(args: {
             }
         }
 
-        const ratio = getTileAspectRatio(file);
+        const ratio = getTileGeometry(file).ratio;
 
         row.push({ file, index, ratio });
         rowRatioSum += ratio;
@@ -269,8 +288,7 @@ function getMosaicSpan(file: AppFileItem, cols: number): { w: number, h: number 
     if (fileType !== 'image' && fileType !== 'video')
         return { w: 1, h: 1 };
 
-    const hash = hashExternalId(file.externalId);
-    const ratio = getTileAspectRatio(file);
+    const { ratio, hash } = getTileGeometry(file);
 
     if (cols >= SHOWCASE_MIN_COLS && hash % SHOWCASE_EVERY_NTH === 0) {
         if (ratio >= PANORAMA_RATIO)
@@ -462,7 +480,8 @@ export class FilesGalleryComponent {
     });
 
     hasNoSearchMatches = computed(() =>
-        this.isSearchActive()
+        this.isActive()
+        && this.isSearchActive()
         && this.visibleFiles().length === 0
         && this.files().length > 0);
 
@@ -508,6 +527,9 @@ export class FilesGalleryComponent {
     });
 
     totalHeightPx = computed(() => {
+        if (!this.isActive())
+            return 0;
+
         const layout = this.layout();
         const expected = this.expectedTotalCount();
 
@@ -532,6 +554,9 @@ export class FilesGalleryComponent {
     private _viewport = signal<{ top: number, bottom: number }>({ top: 0, bottom: 0 });
 
     renderedTiles = computed<RenderedTile[]>(() => {
+        if (!this.isActive())
+            return [];
+
         const { tiles } = this.layout();
         const viewport = this._viewport();
         const top = viewport.top - RENDER_BUFFER_PX;
@@ -569,6 +594,9 @@ export class FilesGalleryComponent {
     });
 
     renderedHeaders = computed<GalleryHeader[]>(() => {
+        if (!this.isActive())
+            return [];
+
         const { headers } = this.layout();
         const viewport = this._viewport();
         const top = viewport.top - RENDER_BUFFER_PX;
@@ -593,7 +621,8 @@ export class FilesGalleryComponent {
     }));
 
     showGenerateBanner = computed(() =>
-        this.canGenerateThumbnails()
+        this.isActive()
+        && this.canGenerateThumbnails()
         && this.filesMissingThumbnails().length > 0);
 
     generateBannerSubtitle = computed(() => {

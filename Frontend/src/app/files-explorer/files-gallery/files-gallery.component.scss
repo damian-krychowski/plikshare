@@ -71,7 +71,7 @@
     overflow: hidden;
     border-radius: 4px;
     background: var(--company-grey-accent-light);
-    transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease;
+    transition: left 0.15s ease, top 0.15s ease, width 0.15s ease, height 0.15s ease;
 
     @media (prefers-reduced-motion: reduce) {
         transition: none;
