@@ -16,7 +16,13 @@ public class FileMetadataDto
 public class ThumbnailMetadataDto
 {
     [ProtoMember(1)]
-    public required string MiniEtag { get; init; }
+    public string? MiniEtag { get; init; }
+
+    [ProtoMember(2)]
+    public string? SmallEtag { get; init; }
+
+    [ProtoMember(3)]
+    public string? LargeEtag { get; init; }
 }
 
 [ProtoContract]

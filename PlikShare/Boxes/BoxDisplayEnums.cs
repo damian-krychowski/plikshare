@@ -3,7 +3,8 @@ namespace PlikShare.Boxes;
 public enum BoxViewMode
 {
     ListView,
-    TreeView
+    TreeView,
+    GalleryView
 }
 
 public enum BoxSortMode

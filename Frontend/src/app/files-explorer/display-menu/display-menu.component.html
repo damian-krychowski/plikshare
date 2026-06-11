@@ -22,6 +22,13 @@
                 <i class="icon" [class.icon-lucide-check]="isViewActive('tree-view')"></i>
             </button>
 
+            <button type="button" class="display-menu__item"
+                [class.display-menu__item--active]="isViewActive('gallery-view')"
+                (click)="selectView('gallery-view')">
+                <span class="display-menu__item-label">Gallery</span>
+                <i class="icon" [class.icon-lucide-check]="isViewActive('gallery-view')"></i>
+            </button>
+
             <div class="display-menu__divider"></div>
         }
 

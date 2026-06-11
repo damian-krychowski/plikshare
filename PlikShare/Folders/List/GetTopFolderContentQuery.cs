@@ -209,9 +209,7 @@ public class GetTopFolderContentQuery(PlikShareDb plikShareDb)
                         CreatedAt = reader.GetDateTimeOffsetOrNull(8)?.UtcDateTime,
                         Position = position,
                         Metadata = FileMetadataFactory.Prepare(
-                            thumbnail: MiniThumbnailMetadata.GetMiniEtag(childrenMetadata, workspaceEncryptionSession) is { } etag
-                                ? new ThumbnailMetadataDto { MiniEtag = etag }
-                                : null,
+                            thumbnail: ThumbnailEtagsMetadata.PrepareDto(childrenMetadata, workspaceEncryptionSession),
                             dimensions: ImageDimensionsMetadata.Read(reader, 9, workspaceEncryptionSession) is { } dimensions
                                 ? new DimensionsMetadataDto { Width = dimensions.Width, Height = dimensions.Height }
                                 : null)

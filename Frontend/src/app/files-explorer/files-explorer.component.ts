@@ -37,6 +37,7 @@ import { SortChange } from './sort-menu/sort-menu.component';
 import { DisplayMenuComponent } from './display-menu/display-menu.component';
 import { computePositionForInsertion } from '../shared/drag-drop/item-positioning.utils';
 import { FilesListComponent } from './files-list/files-list.component';
+import { FilesGalleryComponent } from './files-gallery/files-gallery.component';
 import { ThumbnailProgressComponent } from './thumbnail-progress/thumbnail-progress.component';
 import { SelectionCountComponent } from './selection-count/selection-count.component';
 import { thumbnailListDisplay } from '../services/thumbnail-list-display';
@@ -147,7 +148,7 @@ export type ItemToHighlight = {
     externalId: string;
 }
 
-type ViewMode = 'list-view' | 'tree-view';
+type ViewMode = 'list-view' | 'tree-view' | 'gallery-view';
 
 @Component({
     selector: 'app-files-explorer',
@@ -157,6 +158,7 @@ type ViewMode = 'list-view' | 'tree-view';
         ConfirmOperationDirective,
         FoldersListComponent,
         FilesListComponent,
+        FilesGalleryComponent,
         DropFilesDirective,
         DragOverStayDirective,
         ConfirmOperationDirective,
@@ -799,7 +801,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                     const current = file.metadata();
                     if (current?.thumbnail?.miniEtag !== etag)
                         file.metadata.set({
-                            thumbnail: { miniEtag: etag },
+                            thumbnail: { miniEtag: etag, smallEtag: etag, largeEtag: etag },
                             dimensions: current?.dimensions ?? null
                         });
                 });
@@ -879,7 +881,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             : null;
 
         this.viewMode.set(
-            urlView === 'tree-view' || urlView === 'list-view'
+            urlView === 'tree-view' || urlView === 'list-view' || urlView === 'gallery-view'
                 ? urlView
                 : this.initialViewMode());
 
@@ -1894,9 +1896,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         if (fileExternalIds.length === 0 && folderExternalIds.length === 0)
             return;
 
-        // Only the Mini variant is rendered today (list rows). Small/Large are reserved for the
-        // future gallery mode and would just triple ffmpeg work + storage with nothing reading them.
-        const variants: ThumbnailVariant[] = ['Mini'];
+        // Mini feeds the list rows, Small the gallery tiles, Large the lightbox preview.
+        const variants: ThumbnailVariant[] = ['Mini', 'Small', 'Large'];
 
         try {
             const response = await this.filesApi().generateBulkThumbnails({
@@ -1923,6 +1924,39 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         }
     }
 
+    canGenerateGalleryThumbnails = computed(() =>
+        this._capabilities.capabilities().isFfmpegAvailable
+        && this.workspaceExternalId() != null);
+
+    async generateThumbnailsForGalleryFiles(fileExternalIds: string[]) {
+        const workspaceExternalId = this.workspaceExternalId();
+
+        if (workspaceExternalId == null || fileExternalIds.length === 0)
+            return;
+
+        const variants: ThumbnailVariant[] = ['Mini', 'Small', 'Large'];
+
+        try {
+            const response = await this.filesApi().generateBulkThumbnails({
+                selectedFiles: fileExternalIds,
+                selectedFolders: [],
+                excludedFiles: [],
+                excludedFolders: [],
+                variants
+            });
+
+            this._thumbnailBatches.track({
+                workspaceExternalId,
+                batchId: response.batchId,
+                name: `Generating thumbnails — ${response.totalFiles} file(s)`,
+                total: response.totalFiles,
+                handlers: this.thumbnailBatchHandlers(),
+            });
+        } catch (err) {
+            console.error('Gallery thumbnail generation failed:', err);
+        }
+    }
+
     async generateThumbnailsForTreeSelection() {
         const workspaceExternalId = this.workspaceExternalId();
 
@@ -1934,9 +1968,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         if (s.selectedFileExternalIds.length === 0 && s.selectedFolderExternalIds.length === 0)
             return;
 
-        // Only the Mini variant is rendered today (list rows). Small/Large are reserved for the
-        // future gallery mode and would just triple ffmpeg work + storage with nothing reading them.
-        const variants: ThumbnailVariant[] = ['Mini'];
+        // Mini feeds the list rows, Small the gallery tiles, Large the lightbox preview.
+        const variants: ThumbnailVariant[] = ['Mini', 'Small', 'Large'];
 
         try {
             const response = await this.filesApi().generateBulkThumbnails({

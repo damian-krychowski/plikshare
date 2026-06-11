@@ -15,6 +15,7 @@ using PlikShare.Core.Protobuf;
 using PlikShare.Core.Utils;
 using PlikShare.Files.BulkDownload.Contracts;
 using PlikShare.Files.Id;
+using PlikShare.Files.Metadata;
 using PlikShare.MediaProcessing;
 using PlikShare.Files.Preview.GetZipBulkDownloadLink.Contracts;
 using PlikShare.Files.Preview.GetZipContentDownloadLink.Contracts;
@@ -437,12 +438,26 @@ public static class BoxLinkAccessCodesEndpoints
 
     private static Task<IResult> GetFileThumbnail(
         [FromRoute] FileExtId fileExternalId,
+        [FromQuery] string? variant,
         HttpContext httpContext,
         BoxFileThumbnailHandler boxFileThumbnailHandler,
         CancellationToken cancellationToken)
     {
+        var thumbnailVariant = ThumbnailVariant.Mini;
+
+        if (variant is not null
+            && !Enum.TryParse(
+                variant,
+                ignoreCase: true,
+                out thumbnailVariant))
+        {
+            return Task.FromResult<IResult>(
+                HttpErrors.File.InvalidThumbnailVariant());
+        }
+
         return boxFileThumbnailHandler.Handle(
             fileExternalId: fileExternalId,
+            variant: thumbnailVariant,
             boxAccess: httpContext.GetBoxAccess(),
             httpContext: httpContext,
             cancellationToken: cancellationToken);

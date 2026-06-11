@@ -2,7 +2,9 @@
 @let pendingBulkUploadVal = pendingBulkUpload();
 @let uploadApiVal = uploadsApi();
 @let viewModeVal = viewMode();
-@let isListViewMode =viewModeVal == 'list-view';
+@let isListViewMode = viewModeVal == 'list-view';
+@let isGalleryViewMode = viewModeVal == 'gallery-view';
+@let isFlatViewMode = isListViewMode || isGalleryViewMode;
 
 <input #fileUpload
     type="file"
@@ -177,7 +179,7 @@
 
             <div class="title-header__actions-row flex-row flex-gap-05"
                 [class.title-header__actions-row--search-expanded]="isSearchExpandedOnMobile()">
-                @if(isListViewMode) {
+                @if(isFlatViewMode) {
                     <span class="title-header__actions"
                         [class.title-header__actions--hidden-on-mobile]="isSearchExpandedOnMobile()">
                     @if(canBulkDownload()) {
@@ -430,7 +432,7 @@
                          (the component hides itself when there's no active batch). -->
                     <app-thumbnail-progress></app-thumbnail-progress>
 
-                    @if(isListViewMode) {
+                    @if(isFlatViewMode) {
                         @if(fileUploadManager.pendingQueueSize() > 0) {
                             <span class="context-item context-count context-count--queued"
                                 matTooltip="Queued uploads">
@@ -713,7 +715,43 @@
 
     </div>
 
-    @let isFileTreeViewActive = !(fileInPreviewVal || pendingBulkUploadVal || isListViewMode);
+    @let isGalleryActive = !(fileInPreviewVal || pendingBulkUploadVal) && isGalleryViewMode;
+
+    <div [style.display]="isGalleryActive ? 'unset' : 'none'">
+        <app-files-gallery
+            [files]="files()"
+            [folders]="folders()"
+            [sortMode]="sortMode()"
+            [sortDirection]="sortDirection()"
+            [searchPhrase]="searchPhrase()"
+            [expectedTotalCount]="filesExpectedTotalCount()"
+            [operations]="operations"
+            [canSelect]="canSelectItems() && !hideSelectCheckboxes()"
+            [allowDownload]="allowDownload()"
+            [canGenerateThumbnails]="canGenerateGalleryThumbnails()"
+            [processingFileIds]="processingFileIds()"
+            [isActive]="isGalleryActive"
+            (folderOpened)="openFolderByExternalId($event.externalId)"
+            (folderPrefetched)="prefetchFolder($event.externalId)"
+            (fileDetailsRequested)="onFilePreviewed($event)"
+            (visibleRangeEndChanged)="onFilesVisibleRangeEndChanged($event)"
+            (thumbnailsGenerationRequested)="generateThumbnailsForGalleryFiles($event)">
+        </app-files-gallery>
+
+        @if(canUpload() && isDragging()) {
+            <div class="drop-area"
+                appDropFiles
+                (filesDropped)="onFilesDropped($event)">
+                <i class="icon icon-nucleo-upload-2"></i>
+
+                <div class="drop-area__message">
+                    Drop files here!
+                </div>
+            </div>
+        }
+    </div>
+
+    @let isFileTreeViewActive = !(fileInPreviewVal || pendingBulkUploadVal) && viewModeVal == 'tree-view';
 
     <div [style.display]="isFileTreeViewActive ? 'unset' : 'none'">
         <app-file-tree-view  #fileTreeView

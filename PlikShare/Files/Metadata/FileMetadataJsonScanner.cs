@@ -36,6 +36,67 @@ public static class FileMetadataJsonScanner
 
     public readonly record struct ImageDimensions(int Width, int Height);
 
+    public readonly record struct ThumbnailVariantEtag(ThumbnailVariant Variant, string Etag);
+
+    public static ThumbnailVariantEtag? GetThumbnailVariantEtag(string metadataJson)
+    {
+        var buffer = ArrayPool<byte>.Shared.Rent(
+            Encoding.UTF8.GetMaxByteCount(metadataJson.Length));
+
+        try
+        {
+            var length = Encoding.UTF8.GetBytes(
+                metadataJson,
+                buffer);
+
+            var reader = new Utf8JsonReader(
+                buffer.AsSpan(0, length));
+
+            string? etag = null;
+            ThumbnailVariant? variant = null;
+
+            while (reader.Read())
+            {
+                if (reader.TokenType != JsonTokenType.PropertyName || reader.CurrentDepth != 1)
+                    continue;
+
+                if (reader.ValueTextEquals("$type"u8))
+                {
+                    reader.Read();
+
+                    if (!reader.ValueTextEquals(ThumbnailDiscriminator))
+                        return null;
+                }
+                else if (reader.ValueTextEquals(VariantPropertyName))
+                {
+                    reader.Read();
+
+                    variant = ReadVariant(ref reader);
+                }
+                else if (reader.ValueTextEquals(EtagPropertyName))
+                {
+                    reader.Read();
+
+                    if (reader.TokenType == JsonTokenType.String)
+                        etag = reader.GetString();
+                }
+                else
+                {
+                    reader.Read();
+                    reader.Skip();
+                }
+            }
+
+            return variant is { } v && etag is { } e
+                ? new ThumbnailVariantEtag(v, e)
+                : null;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
     public static string? GetThumbnailMiniEtag(string metadataJson)
     {
         return GetThumbnailEtag(
@@ -160,6 +221,34 @@ public static class FileMetadataJsonScanner
         {
             ArrayPool<byte>.Shared.Return(buffer);
         }
+    }
+
+    private static ThumbnailVariant? ReadVariant(ref Utf8JsonReader reader)
+    {
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            for (var i = 0; i < VariantNamesByValue.Length; i++)
+            {
+                if (reader.ValueTextEquals(VariantNamesByValue[i])
+                    || reader.ValueTextEquals(VariantCamelCaseNamesByValue[i]))
+                {
+                    return (ThumbnailVariant)i;
+                }
+            }
+
+            return null;
+        }
+
+        if (reader.TokenType == JsonTokenType.Number)
+        {
+            var value = reader.GetInt32();
+
+            return Enum.IsDefined((ThumbnailVariant)value)
+                ? (ThumbnailVariant)value
+                : null;
+        }
+
+        return null;
     }
 
     private static bool IsVariant(ref Utf8JsonReader reader, ThumbnailVariant variant)

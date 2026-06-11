@@ -25,7 +25,8 @@ export class BoxDefaultDisplayConfigComponent implements OnInit, OnChanges {
 
     viewModeOptions: { value: ViewMode, label: string }[] = [
         { value: 'list-view', label: 'List view' },
-        { value: 'tree-view', label: 'Tree view' }
+        { value: 'tree-view', label: 'Tree view' },
+        { value: 'gallery-view', label: 'Gallery view' }
     ];
     selectedViewMode: ViewMode = 'list-view';
 
@@ -50,7 +51,9 @@ export class BoxDefaultDisplayConfigComponent implements OnInit, OnChanges {
 
     private initialize() {
         const cfg = this.configuration();
-        this.selectedViewMode = cfg.viewMode === 'tree-view' ? 'tree-view' : 'list-view';
+        this.selectedViewMode = cfg.viewMode === 'tree-view' || cfg.viewMode === 'gallery-view'
+            ? cfg.viewMode
+            : 'list-view';
         this.selectedSort = this.toSortChoice(cfg.sortMode, cfg.sortDirection);
         this.thumbnailsEnabled = cfg.thumbnailsEnabled;
     }

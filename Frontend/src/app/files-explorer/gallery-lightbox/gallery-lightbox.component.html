@@ -1,0 +1,131 @@
+@let currentVal = current();
+
+<div class="lightbox">
+    <div class="lightbox__header">
+        <div class="lightbox__title">
+            @if(currentVal) {
+                <span class="lightbox__name">{{ currentVal.name() }}{{ currentVal.extension }}</span>
+                <span class="lightbox__meta">{{ clampedIndex() + 1 }} / {{ count() }} · {{ currentVal.sizeInBytes | storageSize }}</span>
+            }
+        </div>
+
+        <div class="lightbox__actions">
+            @if(count() > 1) {
+                <button type="button" class="lightbox__btn"
+                    [matTooltip]="isSlideshowPlaying() ? 'Pause slideshow' : 'Play slideshow'"
+                    (click)="toggleSlideshow()">
+                    <i class="icon" [class.icon-nucleo-play]="!isSlideshowPlaying()" [class.icon-nucleo-pause]="isSlideshowPlaying()"></i>
+                </button>
+            }
+
+            @if(canShowDetails()) {
+                <button type="button" class="lightbox__btn"
+                    matTooltip="Details"
+                    (click)="showDetails()">
+                    <i class="icon icon-nucleo-eye"></i>
+                </button>
+            }
+
+            @if(canDownload()) {
+                <button type="button" class="lightbox__btn"
+                    matTooltip="Download"
+                    (click)="downloadCurrent()">
+                    <i class="icon icon-nucleo-download"></i>
+                </button>
+            }
+
+            <button type="button" class="lightbox__btn"
+                matTooltip="Close"
+                (click)="close()">
+                <i class="icon icon-lucide-xmark"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="lightbox__stage"
+        (wheel)="onWheel($event)"
+        (dblclick)="onDoubleClick()"
+        (pointerdown)="onPointerDown($event)"
+        (pointermove)="onPointerMove($event)"
+        (pointerup)="onPointerUp($event)"
+        (pointercancel)="onPointerUp($event)">
+
+        @if(currentVal) {
+            @if(currentIsVideo()) {
+                @if(videoSrc(); as videoUrl) {
+                    <video class="lightbox__video"
+                        [src]="videoUrl"
+                        controls
+                        autoplay
+                        playsinline>
+                    </video>
+                } @else if(previewThumbSrc(); as thumbUrl) {
+                    <img class="lightbox__image"
+                        [src]="thumbUrl"
+                        draggable="false"
+                        alt=""
+                        (error)="onImageError(thumbUrl)" />
+                } @else {
+                    <div class="lightbox__fallback">
+                        <i class="icon icon-{{ currentVal.extension | fileIcon }}"></i>
+                        <span>{{ currentVal.name() }}{{ currentVal.extension }}</span>
+                    </div>
+                }
+            } @else {
+                @if(displayedImageSrc(); as imageUrl) {
+                    <img class="lightbox__image"
+                        [class.lightbox__image--zoomed]="isZoomed()"
+                        [src]="imageUrl"
+                        [style.transform]="imageTransform()"
+                        draggable="false"
+                        alt=""
+                        (error)="onImageError(imageUrl)" />
+                } @else {
+                    <div class="lightbox__fallback">
+                        <i class="icon icon-{{ currentVal.extension | fileIcon }}"></i>
+                        <span>{{ currentVal.name() }}{{ currentVal.extension }}</span>
+                    </div>
+                }
+            }
+        }
+
+        @if(isLoadingFull()) {
+            <div class="lightbox__loading-bar"></div>
+        }
+
+        @if(isSlideshowPlaying()) {
+            @for(key of [clampedIndex()]; track key) {
+                <div class="lightbox__slideshow-progress"
+                    [style.animation-duration.ms]="slideshowIntervalMs"></div>
+            }
+        }
+
+        @if(count() > 1) {
+            <button type="button" class="lightbox__nav lightbox__nav--prev"
+                (click)="previous()">
+                <i class="icon icon-lucide-chevron-left"></i>
+            </button>
+
+            <button type="button" class="lightbox__nav lightbox__nav--next"
+                (click)="next()">
+                <i class="icon icon-lucide-chevron-right"></i>
+            </button>
+        }
+    </div>
+
+    @if(count() > 1) {
+        <div class="lightbox__strip">
+            @for(item of stripWindow(); track item.file.externalId) {
+                <button type="button" class="lightbox__strip-item"
+                    [class.lightbox__strip-item--active]="item.index === clampedIndex()"
+                    (click)="goTo(item.index)">
+                    @if(stripThumbUrl(item.file); as thumbUrl) {
+                        <img [src]="thumbUrl" loading="lazy" decoding="async" alt="" (error)="onImageError(thumbUrl)" />
+                    } @else {
+                        <i class="icon icon-{{ item.file.extension | fileIcon }}"></i>
+                    }
+                </button>
+            }
+        </div>
+    }
+</div>

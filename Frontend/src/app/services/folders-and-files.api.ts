@@ -105,7 +105,9 @@ export interface SubfolderDto {
 }
 
 export interface ThumbnailMetadataDto {
-    miniEtag: string;
+    miniEtag?: string | null;
+    smallEtag?: string | null;
+    largeEtag?: string | null;
 }
 
 export interface DimensionsMetadataDto {

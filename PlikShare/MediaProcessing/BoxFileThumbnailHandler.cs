@@ -13,7 +13,7 @@ using PlikShare.Workspaces.Cache;
 namespace PlikShare.MediaProcessing;
 
 /// <summary>
-/// Streams a parent file's Mini thumbnail (decrypted) for a caller authenticated through
+/// Streams a parent file's thumbnail (decrypted) for a caller authenticated through
 /// <see cref="BoxAccess"/> — either a box team-member (cookie) or an anonymous external-link
 /// session. Mirrors the workspace-side <c>GetFileThumbnail</c> in <c>MediaProcessingEndpoints</c>,
 /// but instead of trusting the workspace cookie it scopes the lookup to the box's folder subtree
@@ -27,6 +27,7 @@ public class BoxFileThumbnailHandler(
 {
     public async Task<IResult> Handle(
         FileExtId fileExternalId,
+        ThumbnailVariant variant,
         BoxAccess boxAccess,
         HttpContext httpContext,
         CancellationToken cancellationToken)
@@ -39,7 +40,7 @@ public class BoxFileThumbnailHandler(
         var thumbnail = getThumbnailDownloadDetailsQuery.Execute(
             workspace: workspace,
             parentFileExternalId: fileExternalId,
-            variant: ThumbnailVariant.Mini,
+            variant: variant,
             workspaceEncryptionSession: null,
             boxFolderId: boxAccess.Box.Folder.Id);
 

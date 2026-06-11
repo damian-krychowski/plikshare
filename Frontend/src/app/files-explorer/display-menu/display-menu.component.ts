@@ -6,7 +6,7 @@ import { SortChange } from '../sort-menu/sort-menu.component';
 // context bar. Combines both behind a single trigger so the mobile toolbar
 // stays compact. Desktop keeps using the inline controls — this menu is
 // hidden via d-none-on-desktop.
-export type ViewMode = 'list-view' | 'tree-view';
+export type ViewMode = 'list-view' | 'tree-view' | 'gallery-view';
 
 @Component({
     selector: 'app-display-menu',
@@ -37,7 +37,12 @@ export class DisplayMenuComponent {
         return m === 'name' ? `Name ${arrow}` : `Date ${arrow}`;
     });
 
-    viewLabel = computed(() => this.viewMode() === 'list-view' ? 'List' : 'Tree');
+    viewLabel = computed(() => {
+        const mode = this.viewMode();
+        if (mode === 'tree-view') return 'Tree';
+        if (mode === 'gallery-view') return 'Gallery';
+        return 'List';
+    });
 
     triggerLabel = computed(() => this.allowList()
         ? `${this.viewLabel()} · ${this.sortLabel()}`

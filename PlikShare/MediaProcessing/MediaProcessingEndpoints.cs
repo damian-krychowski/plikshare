@@ -635,17 +635,30 @@ public static class MediaProcessingEndpoints
     }
 
     /// <summary>
-    /// Streams a file's Mini thumbnail (decrypted) for use as an &lt;img src&gt; in the file list.
+    /// Streams a file's thumbnail (decrypted) for use as an &lt;img src&gt; — Mini for the file
+    /// list, Small/Large for the gallery view via the ?variant query param (defaults to Mini).
     /// Cookie-authenticated like the rest of the workspace API, so a plain &lt;img&gt; works.
-    /// 404 when the file has no Mini thumbnail. ETag is the thumbnail content hash, so an
-    /// identical re-upload keeps the cache and a changed one busts it.
+    /// 404 when the file has no thumbnail of the requested variant. ETag is the thumbnail
+    /// content hash, so an identical re-upload keeps the cache and a changed one busts it.
     /// </summary>
     private static async Task<IResult> GetFileThumbnail(
         [FromRoute] FileExtId fileExternalId,
+        [FromQuery] string? variant,
         HttpContext httpContext,
         GetThumbnailDownloadDetailsQuery getThumbnailDownloadDetailsQuery,
         CancellationToken cancellationToken)
     {
+        var thumbnailVariant = ThumbnailVariant.Mini;
+
+        if (variant is not null
+            && !Enum.TryParse(
+                variant,
+                ignoreCase: true,
+                out thumbnailVariant))
+        {
+            return HttpErrors.File.InvalidThumbnailVariant();
+        }
+
         var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
         var workspace = workspaceMembership.Workspace;
         var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
@@ -653,7 +666,7 @@ public static class MediaProcessingEndpoints
         var thumbnail = getThumbnailDownloadDetailsQuery.Execute(
             workspace: workspace,
             parentFileExternalId: fileExternalId,
-            variant: ThumbnailVariant.Mini,
+            variant: thumbnailVariant,
             workspaceEncryptionSession: workspaceEncryptionSession);
 
         if (thumbnail is null)
