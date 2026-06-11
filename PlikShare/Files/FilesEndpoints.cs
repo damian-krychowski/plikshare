@@ -12,6 +12,7 @@ using PlikShare.Files.BulkDownload;
 using PlikShare.Files.BulkDownload.Contracts;
 using PlikShare.Files.Download;
 using PlikShare.Files.Download.Contracts;
+using PlikShare.Files.Get;
 using PlikShare.Files.Id;
 using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Files.Preview.Comment;
@@ -31,6 +32,7 @@ using PlikShare.Files.Preview.GetZipDetails.Contracts;
 using PlikShare.Files.Preview.SaveNote;
 using PlikShare.Files.Preview.SaveNote.Contracts;
 using PlikShare.Files.Records;
+using PlikShare.Folders.List.Contracts;
 using PlikShare.Files.Rename;
 using PlikShare.Files.Rename.Contracts;
 using PlikShare.Files.UpdateSize;
@@ -71,6 +73,9 @@ public static class FilesEndpoints
         group.MapGet("/{fileExternalId}/download-link", GetFileDownloadLink)
             .WithName("GetFileDownloadLink");
 
+        group.MapGet("/{fileExternalId}", GetFile)
+            .WithName("GetFile");
+
         group.MapPatch("/{fileExternalId}/name", UpdateFileName)
             .WithName("UpdateFileName");
 
@@ -103,6 +108,27 @@ public static class FilesEndpoints
 
 
     private const int MaximumFileUploadPayloadSizeInBytes = Aes256GcmStreamingV1.MaximumPayloadSize;
+
+    private static Results<Ok<FileDto>, NotFound<HttpError>> GetFile(
+        [FromRoute] FileExtId fileExternalId,
+        HttpContext httpContext,
+        GetFileQuery getFileQuery)
+    {
+        var workspaceMembership = httpContext.GetWorkspaceMembershipDetails();
+        var workspaceEncryptionSession = httpContext.TryGetWorkspaceEncryptionSession();
+
+        var file = getFileQuery.Execute(
+            workspace: workspaceMembership.Workspace,
+            fileExternalId: fileExternalId,
+            userIdentity: new UserIdentity(
+                UserExternalId: workspaceMembership.User.ExternalId),
+            workspaceEncryptionSession: workspaceEncryptionSession);
+
+        if (file is null)
+            return HttpErrors.File.NotFound(fileExternalId);
+
+        return TypedResults.Ok(file);
+    }
 
     private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UploadFileAttachment(
     [FromRoute] FileExtId fileExternalId,

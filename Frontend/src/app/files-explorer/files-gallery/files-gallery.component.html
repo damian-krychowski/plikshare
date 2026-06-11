@@ -1,38 +1,6 @@
 @let canSelectVal = canSelect();
 
 <div class="gallery">
-    @if(visibleFolders().length > 0) {
-        <div class="gallery__folders">
-            @for(folder of visibleFolders(); track folder.externalId) {
-                <div class="gallery-folder"
-                    [class.gallery-folder--selected]="folder.isSelected()"
-                    [class.gallery-folder--cut]="folder.isCut()"
-                    appCtrlClick
-                    (ctrlClick)="toggleFolderSelection(folder)"
-                    (shiftClick)="onFolderShiftClicked(folder)"
-                    (click)="!($event.ctrlKey || $event.metaKey || $event.shiftKey) && openFolder(folder)"
-                    (mouseenter)="prefetchFolder(folder)">
-
-                    <span class="gallery-folder__lead">
-                        <i class="icon icon-xl icon-nucleo-folder"></i>
-
-                        @if(canSelectVal) {
-                            <span class="gallery-folder__check"
-                                (click)="$event.stopPropagation()">
-                                <mat-checkbox
-                                    [ngModel]="folder.isSelected()"
-                                    (change)="toggleFolderSelection(folder)">
-                                </mat-checkbox>
-                            </span>
-                        }
-                    </span>
-
-                    <span class="gallery-folder__name">{{ folder.name() }}</span>
-                </div>
-            }
-        </div>
-    }
-
     @if(showGenerateBanner()) {
         <div class="gallery__banner">
             <i class="icon icon-nucleo-image-scale"></i>
@@ -124,27 +92,8 @@
     @if(hasNoSearchMatches()) {
         <div class="nothing-to-show">
             <div class="nothing-to-show__label">
-                No items match your search
-            </div>
-        </div>
-    }
-
-    @if(isEmpty()) {
-        <div class="nothing-to-show">
-            <div class="nothing-to-show__label">
-                This folder is empty
+                No files match your search
             </div>
         </div>
     }
 </div>
-
-@if(lightboxIndex() !== null) {
-    <app-gallery-lightbox
-        [files]="lightboxFiles()"
-        [startIndex]="lightboxIndex()!"
-        [operations]="operations()"
-        [allowDownload]="allowDownload()"
-        (closed)="closeLightbox()"
-        (detailsRequested)="onLightboxDetails($event)">
-    </app-gallery-lightbox>
-}

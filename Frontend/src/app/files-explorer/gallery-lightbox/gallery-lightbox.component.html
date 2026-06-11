@@ -62,6 +62,8 @@
                 } @else if(previewThumbSrc(); as thumbUrl) {
                     <img class="lightbox__image"
                         [src]="thumbUrl"
+                        [style.max-width]="imageMaxWidth()"
+                        [style.max-height]="imageMaxHeight()"
                         draggable="false"
                         alt=""
                         (error)="onImageError(thumbUrl)" />
@@ -75,8 +77,11 @@
                 @if(displayedImageSrc(); as imageUrl) {
                     <img class="lightbox__image"
                         [class.lightbox__image--zoomed]="isZoomed()"
+                        [class.lightbox__image--quality-reveal]="isQualityRevealing()"
                         [src]="imageUrl"
                         [style.transform]="imageTransform()"
+                        [style.max-width]="imageMaxWidth()"
+                        [style.max-height]="imageMaxHeight()"
                         draggable="false"
                         alt=""
                         (error)="onImageError(imageUrl)" />
@@ -91,6 +96,18 @@
 
         @if(isLoadingFull()) {
             <div class="lightbox__loading-bar"></div>
+        }
+
+        @if(currentVal && showFullQualityPill()) {
+            <button type="button" class="lightbox__full-pill"
+                [disabled]="isLoadingFull()"
+                (click)="requestFullQuality()">
+                @if(isLoadingFull()) {
+                    Loading full quality…
+                } @else {
+                    Load full quality · {{ currentVal.sizeInBytes | storageSize }}
+                }
+            </button>
         }
 
         @if(isSlideshowPlaying()) {

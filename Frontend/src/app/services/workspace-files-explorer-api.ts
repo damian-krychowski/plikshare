@@ -89,9 +89,15 @@ export class WorkspaceFilesExplorerApi implements FilesExplorerApi {
             request);
     }
 
+    getFile(fileExternalId: string) {
+        return this._getApi.getFile(
+            this._workspaceExternalId,
+            fileExternalId);
+    }
+
     getDownloadLink(fileExternalId: string, contentDisposition: ContentDisposition){
         return this._getApi.getDownloadLink(
-            this._workspaceExternalId, 
+            this._workspaceExternalId,
             fileExternalId,
             contentDisposition);
     }

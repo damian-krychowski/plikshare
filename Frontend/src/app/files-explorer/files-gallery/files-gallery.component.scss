@@ -6,13 +6,6 @@
 }
 
 .gallery {
-    &__folders {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        padding-bottom: 0.75rem;
-    }
-
     &__banner {
         display: flex;
         align-items: center;
@@ -73,85 +66,16 @@
     }
 }
 
-.gallery-folder {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    max-width: 16rem;
-    padding: 0.45rem 0.7rem;
-    border: 1px solid var(--company-grey-accent-light);
-    border-radius: 6px;
-    cursor: pointer;
-    user-select: none;
-    background: var(--company-background);
-
-    &:hover {
-        background: var(--company-blue-hover);
-    }
-
-    &__lead {
-        position: relative;
-        flex-shrink: 0;
-        width: 1.5rem;
-        height: 1.5rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-
-        .icon {
-            color: var(--company-grey-font);
-            transition: opacity 0.1s ease;
-        }
-    }
-
-    &__name {
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    &__check {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.1s ease;
-    }
-
-    &:hover &__check,
-    &--selected &__check {
-        opacity: 1;
-        pointer-events: auto;
-    }
-
-    &:hover &__lead .icon,
-    &--selected &__lead .icon {
-        opacity: 0;
-    }
-
-    &--selected {
-        background: var(--company-blue-selected);
-        border-color: var(--company-blue-selected);
-
-        &:hover {
-            background: var(--company-blue-selected);
-        }
-    }
-
-    &--cut {
-        opacity: 0.4;
-    }
-}
-
 .gallery-tile {
     position: absolute;
     overflow: hidden;
     border-radius: 4px;
     background: var(--company-grey-accent-light);
+    transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease;
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
 
     &--clickable {
         cursor: pointer;

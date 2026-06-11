@@ -59,6 +59,14 @@
                             </app-action-btn>
                         }
 
+                        @if(canOpenPreviewInLightbox()) {
+                            <app-action-btn
+                                tooltip="Open in lightbox"
+                                icon="icon-nucleo-image"
+                                (clicked)="openLightboxFromPreview()">
+                            </app-action-btn>
+                        }
+
                         @if(allowDownload() || fileInPreviewVal.wasUploadedByUser) {
                             <app-action-btn
                                 tooltip="Download"
@@ -393,9 +401,18 @@
                         (sortChanged)="onSortChanged($event)"
                         (showThumbnailsChanged)="onShowThumbnailsChanged($event)">
                     </app-display-menu>
+
+                    @if(isGalleryViewMode) {
+                        <app-gallery-menu
+                            [layout]="galleryLayout()"
+                            [density]="galleryDensity()"
+                            (layoutChanged)="onGalleryLayoutChanged($event)"
+                            (densityChanged)="onGalleryDensityChanged($event)">
+                        </app-gallery-menu>
+                    }
                 }
 
-                @if(isListViewMode && allowList() && stuckSection() === 'folders') {
+                @if(isFlatViewMode && allowList() && stuckSection() === 'folders') {
                     <span class="context-bar__stuck">
                         <span class="context-bar__stuck-sep">|</span>
                         <span class="context-bar__stuck-name">Folders</span>
@@ -410,7 +427,7 @@
                             (clearSelection)="clearFoldersSelection()">
                         </app-selection-count>
                     </span>
-                } @else if(isListViewMode && allowList() && stuckSection() === 'files') {
+                } @else if(isFlatViewMode && allowList() && stuckSection() === 'files') {
                     <span class="context-bar__stuck">
                         <span class="context-bar__stuck-sep">|</span>
                         <span class="context-bar__stuck-name">Files</span>
@@ -525,7 +542,7 @@
         </app-bulk-upload-preview>
     }
 
-    <div [style.display]="(fileInPreviewVal || pendingBulkUploadVal || !isListViewMode) ? 'none' : 'unset'">
+    <div [style.display]="(fileInPreviewVal || pendingBulkUploadVal || !isFlatViewMode) ? 'none' : 'unset'">
         @if(showFoldersSection()) {
             @let isFoldersExpandedVal = isFoldersExpanded();
             <section class="files-section">
@@ -633,25 +650,49 @@
 
                 @if(isFilesExpandedVal) {
                     <div class="files-section__content">
-                        <app-files-list
-                            [files]="files()"
-                            [expectedTotalCount]="filesExpectedTotalCount()"
-                            [sortMode]="sortMode()"
-                            [sortDirection]="sortDirection()"
-                            [searchPhrase]="searchPhrase()"
-                            [currentFolderExternalId]="selectedFolder()?.externalId ?? null"
-                            [canReorder]="canReorder()"
-                            [showThumbnails]="showThumbnails()"
-                            [processingFileIds]="processingFileIds()"
-                            [operations]="operations"
-                            [hideActions]="hideItemsActions()"
-                            [hideSelectCheckboxes]="hideSelectCheckboxes()"
-                            [permissions]="filePermissions()"
-                            [filesApi]="filesApi()"
-                            (deleted)="onFileDeleted($event)"
-                            (previewed)="onFilePreviewed($event)"
-                            (visibleRangeEndChanged)="onFilesVisibleRangeEndChanged($event)">
-                        </app-files-list>
+                        <div [style.display]="isListViewMode ? 'unset' : 'none'">
+                            <app-files-list
+                                [files]="files()"
+                                [expectedTotalCount]="filesExpectedTotalCount()"
+                                [sortMode]="sortMode()"
+                                [sortDirection]="sortDirection()"
+                                [searchPhrase]="searchPhrase()"
+                                [currentFolderExternalId]="selectedFolder()?.externalId ?? null"
+                                [canReorder]="canReorder()"
+                                [showThumbnails]="showThumbnails()"
+                                [processingFileIds]="processingFileIds()"
+                                [operations]="operations"
+                                [hideActions]="hideItemsActions()"
+                                [hideSelectCheckboxes]="hideSelectCheckboxes()"
+                                [permissions]="filePermissions()"
+                                [filesApi]="filesApi()"
+                                (deleted)="onFileDeleted($event)"
+                                (previewed)="onFilePreviewed($event)"
+                                (visibleRangeEndChanged)="onFilesVisibleRangeEndChanged($event)">
+                            </app-files-list>
+                        </div>
+
+                        <div [style.display]="isGalleryViewMode ? 'unset' : 'none'">
+                            <app-files-gallery
+                                [files]="files()"
+                                [sortMode]="sortMode()"
+                                [sortDirection]="sortDirection()"
+                                [searchPhrase]="searchPhrase()"
+                                [layoutMode]="galleryLayout()"
+                                [density]="galleryDensity()"
+                                [expectedTotalCount]="filesExpectedTotalCount()"
+                                [operations]="operations"
+                                [canSelect]="canSelectItems() && !hideSelectCheckboxes()"
+                                [allowDownload]="allowDownload()"
+                                [canGenerateThumbnails]="canGenerateGalleryThumbnails()"
+                                [processingFileIds]="processingFileIds()"
+                                [isActive]="isGalleryViewMode"
+                                (fileDetailsRequested)="onFilePreviewed($event)"
+                                (lightboxRequested)="openLightboxForFile($event)"
+                                (visibleRangeEndChanged)="onFilesVisibleRangeEndChanged($event)"
+                                (thumbnailsGenerationRequested)="generateThumbnailsForGalleryFiles($event)">
+                            </app-files-gallery>
+                        </div>
 
                         @if(canUpload()) {
                             @for(upload of uploads(); track upload.externalId) {
@@ -715,42 +756,6 @@
 
     </div>
 
-    @let isGalleryActive = !(fileInPreviewVal || pendingBulkUploadVal) && isGalleryViewMode;
-
-    <div [style.display]="isGalleryActive ? 'unset' : 'none'">
-        <app-files-gallery
-            [files]="files()"
-            [folders]="folders()"
-            [sortMode]="sortMode()"
-            [sortDirection]="sortDirection()"
-            [searchPhrase]="searchPhrase()"
-            [expectedTotalCount]="filesExpectedTotalCount()"
-            [operations]="operations"
-            [canSelect]="canSelectItems() && !hideSelectCheckboxes()"
-            [allowDownload]="allowDownload()"
-            [canGenerateThumbnails]="canGenerateGalleryThumbnails()"
-            [processingFileIds]="processingFileIds()"
-            [isActive]="isGalleryActive"
-            (folderOpened)="openFolderByExternalId($event.externalId)"
-            (folderPrefetched)="prefetchFolder($event.externalId)"
-            (fileDetailsRequested)="onFilePreviewed($event)"
-            (visibleRangeEndChanged)="onFilesVisibleRangeEndChanged($event)"
-            (thumbnailsGenerationRequested)="generateThumbnailsForGalleryFiles($event)">
-        </app-files-gallery>
-
-        @if(canUpload() && isDragging()) {
-            <div class="drop-area"
-                appDropFiles
-                (filesDropped)="onFilesDropped($event)">
-                <i class="icon icon-nucleo-upload-2"></i>
-
-                <div class="drop-area__message">
-                    Drop files here!
-                </div>
-            </div>
-        }
-    </div>
-
     @let isFileTreeViewActive = !(fileInPreviewVal || pendingBulkUploadVal) && viewModeVal == 'tree-view';
 
     <div [style.display]="isFileTreeViewActive ? 'unset' : 'none'">
@@ -780,3 +785,15 @@
         </app-file-tree-view>
     </div>
 </div>
+
+@if(lightboxIndex() !== null) {
+    <app-gallery-lightbox
+        [files]="lightboxDisplayFiles()"
+        [startIndex]="lightboxIndex()!"
+        [operations]="operations"
+        [allowDownload]="allowDownload()"
+        (closed)="onLightboxClosed()"
+        (indexChanged)="onLightboxIndexChanged($event)"
+        (detailsRequested)="onLightboxDetailsRequested($event)">
+    </app-gallery-lightbox>
+}

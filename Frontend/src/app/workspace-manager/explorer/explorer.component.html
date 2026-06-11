@@ -41,6 +41,9 @@
         [currentFileExternalIdInPreview]="currentFileExternalIdInPreview()"
         (filePreviewed)="onFilePreviewed($event)"
 
+        [currentLightboxFileExternalId]="currentLightboxFileExternalId()"
+        (lightboxFileChanged)="onLightboxFileChanged($event)"
+
         (boxCreated)="onBoxCreated($event)"
         (quickShareRequested)="onQuickShareRequested($event)"
         (workspaceSizeUpdated)="onWorkspaceSizeUpdated($event)">

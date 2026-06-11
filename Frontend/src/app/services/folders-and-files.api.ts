@@ -1074,6 +1074,15 @@ export class FoldersAndFilesGetApi {
         return firstValueFrom(call);
     }
 
+    public getFile(workspaceExternalId: string, fileExternalId: string): Promise<FileDto> {
+        const call = this
+            ._http
+            .get<FileDto>(
+                `/api/workspaces/${workspaceExternalId}/files/${fileExternalId}`);
+
+        return firstValueFrom(call);
+    }
+
     public getFilePreviewDetails(workspaceExternalId: string, fileExternalId: string, fields: FilePreviewDetailsField[] | null): Promise<GetFilePreviewDetailsResponse> {
         // Create params object only if fields are specified
         let params = new HttpParams();

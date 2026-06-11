@@ -11,13 +11,27 @@ const MIN_ZOOM = 1;
 const MAX_ZOOM = 6;
 const SWIPE_THRESHOLD_PX = 60;
 
-function preloadImage(url: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error(`Could not preload image: ${url}`));
-        img.src = url;
-    });
+export function canOpenFileInLightbox(file: AppFileItem, allowDownload: boolean): boolean {
+    if (file.isLocked())
+        return false;
+
+    const fileType = getFileDetails(file.extension).type;
+
+    if (fileType !== 'image' && fileType !== 'video')
+        return false;
+
+    if (allowDownload)
+        return true;
+
+    const thumbnail = file.metadata()?.thumbnail;
+
+    return !!(thumbnail?.largeEtag || thumbnail?.smallEtag || thumbnail?.miniEtag);
+}
+
+async function preloadImage(url: string): Promise<void> {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
 }
 
 @Component({
@@ -38,6 +52,7 @@ export class GalleryLightboxComponent implements AfterViewInit {
 
     closed = output<void>();
     detailsRequested = output<AppFileItem>();
+    indexChanged = output<number>();
 
     index = linkedSignal(() => this.startIndex());
 
@@ -77,6 +92,16 @@ export class GalleryLightboxComponent implements AfterViewInit {
 
     displayedImageSrc = computed(() => this.fullSrc() ?? this.previewThumbSrc());
 
+    imageMaxWidth = computed(() => {
+        const dimensions = this.current()?.metadata()?.dimensions;
+        return dimensions ? `min(100%, ${dimensions.width}px)` : null;
+    });
+
+    imageMaxHeight = computed(() => {
+        const dimensions = this.current()?.metadata()?.dimensions;
+        return dimensions ? `min(100%, ${dimensions.height}px)` : null;
+    });
+
     canDownload = computed(() => {
         const file = this.current();
         return this.allowDownload() && file != null && !file.isLocked();
@@ -115,9 +140,28 @@ export class GalleryLightboxComponent implements AfterViewInit {
 
     readonly slideshowIntervalMs = SLIDESHOW_INTERVAL_MS;
 
+    showFullQualityPill = computed(() => {
+        const file = this.current();
+
+        if (!file || this.currentIsVideo())
+            return false;
+
+        if (!this.allowDownload() || file.isLocked())
+            return false;
+
+        if (this.fullSrc())
+            return false;
+
+        return this.previewThumbSrc() != null;
+    });
+
+    isQualityRevealing = signal(false);
+
+    private _fullSrcCache = new Map<string, string>();
     private _failedThumbUrls = signal<ReadonlySet<string>>(new Set<string>());
     private _loadGeneration = 0;
     private _slideshowTimer: ReturnType<typeof setTimeout> | null = null;
+    private _qualityRevealTimer: ReturnType<typeof setTimeout> | null = null;
     private _pointer: { id: number, startX: number, startY: number, startPanX: number, startPanY: number, moved: boolean } | null = null;
 
     ngAfterViewInit(): void {
@@ -158,11 +202,15 @@ export class GalleryLightboxComponent implements AfterViewInit {
             window.removeEventListener('keydown', onKeyDown, { capture: true });
             document.body.style.overflow = previousBodyOverflow;
             this.stopSlideshow();
+
+            if (this._qualityRevealTimer != null) {
+                clearTimeout(this._qualityRevealTimer);
+            }
         });
 
         effect(() => {
             const file = this.current();
-            untracked(() => this.loadFullContent(file));
+            untracked(() => this.onCurrentFileChanged(file));
         });
 
         effect(() => {
@@ -197,11 +245,12 @@ export class GalleryLightboxComponent implements AfterViewInit {
         });
     }
 
-    private async loadFullContent(file: AppFileItem | null) {
-        const generation = ++this._loadGeneration;
+    private onCurrentFileChanged(file: AppFileItem | null) {
+        this._loadGeneration++;
 
         this.fullSrc.set(null);
         this.videoSrc.set(null);
+        this.isLoadingFull.set(false);
         this.resetZoom();
 
         if (!file || file.isLocked() || !this.allowDownload())
@@ -209,8 +258,28 @@ export class GalleryLightboxComponent implements AfterViewInit {
 
         const kind = getFileDetails(file.extension).type;
 
-        if (kind !== 'image' && kind !== 'video')
+        if (kind === 'video') {
+            this.loadVideo(file);
             return;
+        }
+
+        if (kind !== 'image')
+            return;
+
+        const cached = this._fullSrcCache.get(file.externalId);
+
+        if (cached) {
+            this.fullSrc.set(cached);
+            return;
+        }
+
+        if (!this.previewThumbSrc()) {
+            this.loadFullImage(file);
+        }
+    }
+
+    private async loadVideo(file: AppFileItem) {
+        const generation = this._loadGeneration;
 
         try {
             this.isLoadingFull.set(true);
@@ -222,17 +291,7 @@ export class GalleryLightboxComponent implements AfterViewInit {
             if (generation !== this._loadGeneration)
                 return;
 
-            if (kind === 'video') {
-                this.videoSrc.set(response.downloadPreSignedUrl);
-                return;
-            }
-
-            await preloadImage(response.downloadPreSignedUrl);
-
-            if (generation !== this._loadGeneration)
-                return;
-
-            this.fullSrc.set(response.downloadPreSignedUrl);
+            this.videoSrc.set(response.downloadPreSignedUrl);
         } catch (error) {
             console.error(error);
         } finally {
@@ -240,6 +299,65 @@ export class GalleryLightboxComponent implements AfterViewInit {
                 this.isLoadingFull.set(false);
             }
         }
+    }
+
+    private async loadFullImage(file: AppFileItem, revealOnSwap = false) {
+        const generation = this._loadGeneration;
+
+        try {
+            this.isLoadingFull.set(true);
+
+            const response = await this.operations().getDownloadLink(
+                file.externalId,
+                'inline');
+
+            await preloadImage(response.downloadPreSignedUrl);
+
+            this._fullSrcCache.set(file.externalId, response.downloadPreSignedUrl);
+
+            if (generation !== this._loadGeneration)
+                return;
+
+            this.fullSrc.set(response.downloadPreSignedUrl);
+
+            if (revealOnSwap) {
+                this.triggerQualityReveal();
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            if (generation === this._loadGeneration) {
+                this.isLoadingFull.set(false);
+            }
+        }
+    }
+
+    private triggerQualityReveal() {
+        if (this._qualityRevealTimer != null) {
+            clearTimeout(this._qualityRevealTimer);
+        }
+
+        this.isQualityRevealing.set(true);
+
+        this._qualityRevealTimer = setTimeout(() => {
+            this.isQualityRevealing.set(false);
+            this._qualityRevealTimer = null;
+        }, 500);
+    }
+
+    requestFullQuality() {
+        const file = this.current();
+
+        if (!file || this.isLoadingFull() || this.fullSrc())
+            return;
+
+        if (file.isLocked() || !this.allowDownload())
+            return;
+
+        if (getFileDetails(file.extension).type !== 'image')
+            return;
+
+        this.loadFullImage(file, true);
     }
 
     private buildThumbUrl(file: AppFileItem, variant: 'mini' | 'large'): string | null {
@@ -288,6 +406,7 @@ export class GalleryLightboxComponent implements AfterViewInit {
 
         if (count > 0) {
             this.index.set((this.clampedIndex() + 1) % count);
+            this.indexChanged.emit(this.clampedIndex());
             this.rescheduleSlideshowIfPlaying();
         }
     }
@@ -297,12 +416,14 @@ export class GalleryLightboxComponent implements AfterViewInit {
 
         if (count > 0) {
             this.index.set((this.clampedIndex() - 1 + count) % count);
+            this.indexChanged.emit(this.clampedIndex());
             this.rescheduleSlideshowIfPlaying();
         }
     }
 
     goTo(index: number) {
         this.index.set(index);
+        this.indexChanged.emit(this.clampedIndex());
         this.rescheduleSlideshowIfPlaying();
     }
 

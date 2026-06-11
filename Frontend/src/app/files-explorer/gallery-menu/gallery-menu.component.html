@@ -1,0 +1,58 @@
+<button type="button" class="gallery-menu__trigger" (click)="toggle()">
+    {{ triggerLabel() }}
+    <i class="icon icon-lucide-chevron-down"></i>
+</button>
+
+@if(isOpen()) {
+    <div class="gallery-menu__panel">
+        <div class="gallery-menu__section-label">Layout</div>
+
+        <button type="button" class="gallery-menu__item"
+            [class.gallery-menu__item--active]="isLayoutActive('justified')"
+            (click)="selectLayout('justified')">
+            <span class="gallery-menu__item-label">Justified</span>
+            <i class="icon" [class.icon-lucide-check]="isLayoutActive('justified')"></i>
+        </button>
+
+        <button type="button" class="gallery-menu__item"
+            [class.gallery-menu__item--active]="isLayoutActive('mosaic')"
+            (click)="selectLayout('mosaic')">
+            <span class="gallery-menu__item-label">Mosaic</span>
+            <i class="icon" [class.icon-lucide-check]="isLayoutActive('mosaic')"></i>
+        </button>
+
+        <button type="button" class="gallery-menu__item"
+            [class.gallery-menu__item--active]="isLayoutActive('grid')"
+            (click)="selectLayout('grid')">
+            <span class="gallery-menu__item-label">Grid</span>
+            <i class="icon" [class.icon-lucide-check]="isLayoutActive('grid')"></i>
+        </button>
+
+        <div class="gallery-menu__divider"></div>
+
+        <div class="gallery-menu__section-label">Tile size</div>
+
+        <div class="gallery-menu__segmented">
+            <button type="button"
+                class="gallery-menu__segmented-btn"
+                [class.gallery-menu__segmented-btn--active]="isDensityActive('compact')"
+                (click)="selectDensity('compact')">
+                S
+            </button>
+
+            <button type="button"
+                class="gallery-menu__segmented-btn"
+                [class.gallery-menu__segmented-btn--active]="isDensityActive('standard')"
+                (click)="selectDensity('standard')">
+                M
+            </button>
+
+            <button type="button"
+                class="gallery-menu__segmented-btn"
+                [class.gallery-menu__segmented-btn--active]="isDensityActive('comfortable')"
+                (click)="selectDensity('comfortable')">
+                L
+            </button>
+        </div>
+    </div>
+}

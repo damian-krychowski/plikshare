@@ -35,9 +35,12 @@ import { DragStateService } from '../services/drag-state.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SortChange } from './sort-menu/sort-menu.component';
 import { DisplayMenuComponent } from './display-menu/display-menu.component';
+import { GalleryMenuComponent } from './gallery-menu/gallery-menu.component';
 import { computePositionForInsertion } from '../shared/drag-drop/item-positioning.utils';
 import { FilesListComponent } from './files-list/files-list.component';
-import { FilesGalleryComponent } from './files-gallery/files-gallery.component';
+import { FilesGalleryComponent, GalleryDensity, GalleryLayoutMode } from './files-gallery/files-gallery.component';
+import { GalleryLightboxComponent, canOpenFileInLightbox } from './gallery-lightbox/gallery-lightbox.component';
+import { sortFiles } from '../services/sort-items';
 import { ThumbnailProgressComponent } from './thumbnail-progress/thumbnail-progress.component';
 import { SelectionCountComponent } from './selection-count/selection-count.component';
 import { thumbnailListDisplay } from '../services/thumbnail-list-display';
@@ -69,6 +72,7 @@ export interface FilesExplorerApi {
     }) => Promise<void>;
     updatePositions: ((request: UpdatePositionsRequest) => Promise<void>) | null;
     updateFileName: (fileExternalId: string, request: { name: string }) => Promise<void>;
+    getFile?: (fileExternalId: string) => Promise<FileDto>;
     getDownloadLink: (fileExternalId: string, contentDisposition: ContentDisposition) => Promise<GetFileDownloadLinkResponse>;
     // Override the default workspace-scoped thumbnail URL. Box/external contexts supply their own
     // path (eg. `/api/access-codes/{code}/files/{id}/thumbnail`); workspace leaves this undefined
@@ -159,6 +163,7 @@ type ViewMode = 'list-view' | 'tree-view' | 'gallery-view';
         FoldersListComponent,
         FilesListComponent,
         FilesGalleryComponent,
+        GalleryLightboxComponent,
         DropFilesDirective,
         DragOverStayDirective,
         ConfirmOperationDirective,
@@ -174,6 +179,7 @@ type ViewMode = 'list-view' | 'tree-view' | 'gallery-view';
         FileTreeViewComponent,
         ItemSearchComponent,
         DisplayMenuComponent,
+        GalleryMenuComponent,
         ThumbnailProgressComponent,
         SelectionCountComponent
     ],
@@ -186,6 +192,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     uploadsApi = input.required<FileUploadApi | null>();
     currentFolderExternalId = input.required<string | null>();
     currentFileExternalIdInPreview = input.required<string | null>();
+    currentLightboxFileExternalId = input<string | null>(null);
     initialContent = input.required<InitialContent | null>();
     topFolderExternalId = input<string>();
     constHeightMode = input<boolean>(false);
@@ -279,11 +286,16 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     readonly readyMiniEtags = computed(() => this._fileProcessing.refreshedMiniEtags());
 
     private static readonly SORT_MODE_STORAGE_PREFIX = 'plikshare:sort-mode:';
+    private static readonly GALLERY_DISPLAY_STORAGE_PREFIX = 'plikshare:gallery-display:';
+
+    galleryLayout = signal<GalleryLayoutMode>('justified');
+    galleryDensity = signal<GalleryDensity>('standard');
 
     folderSelected = output<AppFolderItem | null>();
     boxCreated = output<AppFolderItem>();
     quickShareRequested = output<QuickShareSelection>();
     filePreviewed = output<AppFileItem | null>();
+    lightboxFileChanged = output<AppFileItem | null>();
     workspaceSizeUpdated = output<number>();
 
     isLoadingFolders = signal(false);
@@ -568,6 +580,48 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     treeSearchedFilesSelection = signal<SearchedFilesSelection | null>(null);
 
     fileInPreview: WritableSignal<AppFileItem | null> = signal(null);
+
+    lightboxFile = signal<AppFileItem | null>(null);
+
+    lightboxFiles = computed(() => {
+        const phrase = this.searchPhrase().toLowerCase();
+        const sorted = sortFiles(this.files(), this.sortMode(), this.sortDirection());
+
+        const visible = phrase
+            ? sorted.filter(f => (f.name() + f.extension).toLowerCase().includes(phrase))
+            : sorted;
+
+        return visible.filter(f => canOpenFileInLightbox(f, this.allowDownload()));
+    });
+
+    lightboxDisplayFiles = computed(() => {
+        const file = this.lightboxFile();
+
+        if (!file)
+            return [];
+
+        const files = this.lightboxFiles();
+
+        return files.some(f => f.externalId === file.externalId)
+            ? files
+            : [file];
+    });
+
+    lightboxIndex = computed(() => {
+        const file = this.lightboxFile();
+
+        if (!file)
+            return null;
+
+        const index = this.lightboxDisplayFiles().findIndex(f => f.externalId === file.externalId);
+
+        return index === -1 ? null : index;
+    });
+
+    canOpenPreviewInLightbox = computed(() => {
+        const file = this.fileInPreview();
+        return file != null && canOpenFileInLightbox(file, this.allowDownload());
+    });
     
     fileInPreviewCanEdit = computed(() => {
         const file = this.fileInPreview();
@@ -783,6 +837,30 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             this.sortDirection.set(dir);
         });
 
+        effect(() => {
+            const key = this.galleryDisplayStorageKey();
+            const stored = (!this.disablePreferencePersistence() && key) ? localStorage.getItem(key) : null;
+
+            let layout: GalleryLayoutMode = 'justified';
+            let density: GalleryDensity = 'standard';
+
+            if (stored) {
+                try {
+                    const parsed = JSON.parse(stored);
+
+                    if (parsed.layout === 'justified' || parsed.layout === 'mosaic' || parsed.layout === 'grid')
+                        layout = parsed.layout;
+
+                    if (parsed.density === 'compact' || parsed.density === 'standard' || parsed.density === 'comfortable')
+                        density = parsed.density;
+                } catch {
+                }
+            }
+
+            this.galleryLayout.set(layout);
+            this.galleryDensity.set(density);
+        });
+
         // Apply cache-busters for freshly-generated thumbnails onto the current file items. The
         // processing channel is workspace-wide, so this works regardless of which session (or
         // which user) started the generation.
@@ -828,6 +906,129 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                 untracked(() => this.expandFilesSection());
             }
         });
+
+        effect(() => {
+            const requestedId = this.currentLightboxFileExternalId();
+            const files = this.lightboxFiles();
+
+            untracked(() => {
+                const current = this.lightboxFile();
+
+                if (!requestedId) {
+                    if (current)
+                        this.lightboxFile.set(null);
+                    return;
+                }
+
+                const fileInList = files.find(f => f.externalId === requestedId);
+
+                if (current?.externalId === requestedId) {
+                    if (fileInList && fileInList !== current)
+                        this.lightboxFile.set(fileInList);
+                    return;
+                }
+
+                if (fileInList) {
+                    this.lightboxFile.set(fileInList);
+                    return;
+                }
+
+                this.fastTrackLightboxFile(requestedId);
+            });
+        });
+
+        effect(() => {
+            const files = this.files();
+
+            untracked(() => {
+                const current = this.fileInPreview();
+
+                if (!current)
+                    return;
+
+                const fileInList = files.find(f => f.externalId === current.externalId);
+
+                if (fileInList && fileInList !== current)
+                    this.fileInPreview.set(fileInList);
+            });
+        });
+    }
+
+    private _fastTrackLightboxRequestedId: string | null = null;
+
+    private async fastTrackLightboxFile(fileExternalId: string) {
+        if (this._fastTrackLightboxRequestedId === fileExternalId)
+            return;
+
+        this._fastTrackLightboxRequestedId = fileExternalId;
+
+        const api = this.filesApi();
+
+        if (!api.getFile)
+            return;
+
+        try {
+            const dto = await api.getFile(fileExternalId);
+
+            if (this.currentLightboxFileExternalId() !== fileExternalId || this.lightboxFile())
+                return;
+
+            const file = mapFileDtosToItems([dto], this.currentFolderExternalId())[0];
+
+            if (canOpenFileInLightbox(file, this.allowDownload())) {
+                this.lightboxFile.set(file);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    private async fastTrackFilePreview(fileExternalId: string) {
+        const api = this.filesApi();
+
+        if (!api.getFile)
+            return;
+
+        try {
+            const dto = await api.getFile(fileExternalId);
+
+            if (this.currentFileExternalIdInPreview() !== fileExternalId || this.fileInPreview())
+                return;
+
+            const file = mapFileDtosToItems([dto], this.currentFolderExternalId())[0];
+
+            this.setFileInPreview(file);
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    private galleryDisplayStorageKey(): string | null {
+        const wsId = this.workspaceExternalId();
+        if (!wsId) return null;
+        return `${FilesExplorerComponent.GALLERY_DISPLAY_STORAGE_PREFIX}${wsId}`;
+    }
+
+    onGalleryLayoutChanged(mode: GalleryLayoutMode) {
+        this.galleryLayout.set(mode);
+        this.persistGalleryDisplay();
+    }
+
+    onGalleryDensityChanged(density: GalleryDensity) {
+        this.galleryDensity.set(density);
+        this.persistGalleryDisplay();
+    }
+
+    private persistGalleryDisplay() {
+        if (this.disablePreferencePersistence()) return;
+
+        const key = this.galleryDisplayStorageKey();
+        if (!key) return;
+
+        localStorage.setItem(key, JSON.stringify({
+            layout: this.galleryLayout(),
+            density: this.galleryDensity()
+        }));
     }
 
     private parseStoredSortMode(stored: string | null): { mode: SortMode, direction: SortDirection } {
@@ -1051,11 +1252,17 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         }
 
         if(currentFileInPreviewChange) {
+            const requestedId = this.currentFileExternalIdInPreview();
+
             const file = this
                 .files()
-                .find(f => f.externalId == this.currentFileExternalIdInPreview()) ?? null;
+                .find(f => f.externalId == requestedId) ?? null;
 
-            this.setFileInPreview(file);
+            if (file || !requestedId) {
+                this.setFileInPreview(file);
+            } else {
+                await this.fastTrackFilePreview(requestedId);
+            }
         }
 
         const itemToHighlight = this.itemToHighlight();
@@ -1254,6 +1461,21 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         this.flushPendingStreamItemsIfNeeded();
     }
 
+    private shouldFastFlushStream(): boolean {
+        const lightboxId = this.currentLightboxFileExternalId();
+        const previewId = this.currentFileExternalIdInPreview();
+
+        if (!lightboxId && !previewId)
+            return false;
+
+        const files = this.files();
+
+        if (lightboxId && !files.some(f => f.externalId === lightboxId))
+            return true;
+
+        return !!previewId && !files.some(f => f.externalId === previewId);
+    }
+
     private flushPendingStreamItemsIfNeeded() {
         if (this._pendingStreamFiles.length === 0)
             return;
@@ -1338,7 +1560,11 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                             this._streamedFolderExternalId));
                     }
 
-                    this.flushPendingStreamItemsIfNeeded();
+                    if (this.shouldFastFlushStream()) {
+                        this.flushPendingStreamItems();
+                    } else {
+                        this.flushPendingStreamItemsIfNeeded();
+                    }
                 },
 
                 onCompleted: () => {
@@ -1428,6 +1654,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         // Reset the search phrase when navigating to a different folder so the user
         // does not see a filtered/highlighted view from a previous context.
         this.searchPhrase.set('');
+
+        this.lightboxFile.set(null);
 
         if (!folderExternalId) {
             await this.loadTopFoldersAndFiles();
@@ -1922,6 +2150,47 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         } catch (err) {
             console.error('Bulk thumbnail generation failed:', err);
         }
+    }
+
+    openLightboxForFile(file: AppFileItem) {
+        if (!canOpenFileInLightbox(file, this.allowDownload()))
+            return;
+
+        this.lightboxFile.set(file);
+        this.lightboxFileChanged.emit(file);
+    }
+
+    openLightboxFromPreview() {
+        const file = this.fileInPreview();
+
+        if (!file)
+            return;
+
+        this.closeFilePreview();
+        this.openLightboxForFile(file);
+    }
+
+    onLightboxIndexChanged(index: number) {
+        const file = this.lightboxFiles()[index];
+
+        if (!file || file.externalId === this.lightboxFile()?.externalId)
+            return;
+
+        this.lightboxFile.set(file);
+        this.lightboxFileChanged.emit(file);
+    }
+
+    onLightboxClosed() {
+        if (!this.lightboxFile())
+            return;
+
+        this.lightboxFile.set(null);
+        this.lightboxFileChanged.emit(null);
+    }
+
+    onLightboxDetailsRequested(file: AppFileItem) {
+        this.onLightboxClosed();
+        this.setFileInPreview(file);
     }
 
     canGenerateGalleryThumbnails = computed(() =>

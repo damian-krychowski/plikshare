@@ -54,11 +54,13 @@
         width: 2.25rem;
         height: 2.25rem;
         border-radius: 50%;
-        color: rgba(238, 238, 238, 0.85);
+        background: rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(6px);
+        color: rgba(255, 255, 255, 0.9);
         transition: background 0.15s ease, color 0.15s ease;
 
         &:hover {
-            background: rgba(255, 255, 255, 0.12);
+            background: rgba(0, 0, 0, 0.6);
             color: #fff;
         }
 
@@ -88,6 +90,14 @@
         &--zoomed {
             cursor: grab;
         }
+
+        &--quality-reveal {
+            animation: lightbox-quality-reveal 0.45s ease;
+
+            @media (prefers-reduced-motion: reduce) {
+                animation: none;
+            }
+        }
     }
 
     &__video {
@@ -114,11 +124,47 @@
         right: 0;
         bottom: 0;
         height: 3px;
-        background: rgba(255, 255, 255, 0.65);
-        transform-origin: left;
-        transform: scaleX(0);
-        animation: lightbox-slideshow-progress linear forwards;
+        background: rgba(0, 0, 0, 0.35);
         pointer-events: none;
+
+        &::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.85);
+            transform-origin: left;
+            transform: scaleX(0);
+            animation-name: lightbox-slideshow-progress;
+            animation-timing-function: linear;
+            animation-fill-mode: forwards;
+            animation-duration: inherit;
+        }
+    }
+
+    &__full-pill {
+        all: unset;
+        cursor: pointer;
+        position: absolute;
+        right: 0.75rem;
+        bottom: 0.75rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 1rem;
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(6px);
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.75rem;
+        font-variant-numeric: tabular-nums;
+        transition: background 0.15s ease, color 0.15s ease;
+
+        &:hover {
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+        }
+
+        &:disabled {
+            cursor: default;
+            color: rgba(255, 255, 255, 0.6);
+        }
     }
 
     &__loading-bar {
@@ -150,26 +196,28 @@
         align-items: center;
         justify-content: center;
         width: 3rem;
-        height: 5rem;
-        border-radius: 6px;
-        color: rgba(238, 238, 238, 0.6);
+        height: 3rem;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(6px);
+        color: rgba(255, 255, 255, 0.9);
         transition: background 0.15s ease, color 0.15s ease;
 
         &:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.7);
             color: #fff;
         }
 
         .icon {
-            font-size: 2rem;
+            font-size: 1.6rem;
         }
 
         &--prev {
-            left: 0.5rem;
+            left: 0.75rem;
         }
 
         &--next {
-            right: 0.5rem;
+            right: 0.75rem;
         }
     }
 
@@ -223,6 +271,23 @@
             opacity: 1;
             outline-color: rgba(255, 255, 255, 0.85);
         }
+    }
+}
+
+@keyframes lightbox-quality-reveal {
+    0% {
+        scale: 1;
+        filter: brightness(1);
+    }
+
+    35% {
+        scale: 1.02;
+        filter: brightness(1.06);
+    }
+
+    100% {
+        scale: 1;
+        filter: brightness(1);
     }
 }
 

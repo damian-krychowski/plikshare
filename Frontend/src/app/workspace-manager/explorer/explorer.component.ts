@@ -26,8 +26,9 @@ import { FileLockService } from '../../services/file-lock.service';
     styleUrl: './explorer.component.scss'
 })
 export class ExplorerComponent implements OnInit, OnDestroy {
-    currentFolderExternalId: WritableSignal<string | null> = signal(null);    
+    currentFolderExternalId: WritableSignal<string | null> = signal(null);
     currentFileExternalIdInPreview: WritableSignal<string | null> = signal(null);
+    currentLightboxFileExternalId: WritableSignal<string | null> = signal(null);
     itemToHighlight: WritableSignal<ItemToHighlight | null> = signal(null);
     filesApi: WritableSignal<FilesExplorerApi | null> = signal(null);
     uploadsApi: WritableSignal<FileUploadApi | null> = signal(null);
@@ -75,9 +76,14 @@ export class ExplorerComponent implements OnInit, OnDestroy {
         const folderExternalId = this._activatedRoute.snapshot.params['folderExternalId'] || null;
         const workspaceExternalId = this._activatedRoute.parent?.snapshot.params['workspaceExternalId'] || null;
         const fileExternalId = this._activatedRoute.snapshot.queryParams['fileId'] || null;
+        const lightboxFileExternalId = this._activatedRoute.snapshot.queryParams['photoId'] || null;
 
         if(fileExternalId != this.currentFileExternalIdInPreview()) {
             this.currentFileExternalIdInPreview.set(fileExternalId);
+        }
+
+        if(lightboxFileExternalId != this.currentLightboxFileExternalId()) {
+            this.currentLightboxFileExternalId.set(lightboxFileExternalId);
         }
 
         if(folderExternalId == this.currentFolderExternalId() && workspaceExternalId == this._workspaceExternalId){
@@ -168,6 +174,24 @@ export class ExplorerComponent implements OnInit, OnDestroy {
 
     public onWorkspaceSizeUpdated(newWorkspaceSizeInBytes: number) {
         this.context.updateWorkspaceSize(newWorkspaceSizeInBytes);
+    }
+
+    public onLightboxFileChanged(file: AppFileItem | null) {
+        if(this._workspaceExternalId == null) {
+            throw new Error('Workspace is not set');
+        }
+
+        const photoId = file?.externalId ?? null;
+
+        if(photoId == this.currentLightboxFileExternalId()) {
+            return;
+        }
+
+        this.currentLightboxFileExternalId.set(photoId);
+
+        this.setRoute(
+            this.currentFolderExternalId(),
+            photoId ? { photoId } : undefined);
     }
 
     public onFilePreviewed(file: AppFileItem | null) {

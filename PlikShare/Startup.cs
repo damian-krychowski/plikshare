@@ -113,6 +113,7 @@ using PlikShare.Files.Created;
 using PlikShare.Files.Delete;
 using PlikShare.Files.Delete.QueueJob;
 using PlikShare.Files.Download;
+using PlikShare.Files.Get;
 using PlikShare.Files.PreSignedLinks;
 using PlikShare.Files.PreSignedLinks.Validation;
 using PlikShare.Files.Processing;
@@ -819,6 +820,7 @@ public class Startup
         builder.Services.AddSingleton<InsertFileAttachmentQuery>();
         builder.Services.AddSingleton<MarkFileAsUploadedQuery>();
         builder.Services.AddSingleton<GetThumbnailsQuery>();
+        builder.Services.AddSingleton<GetFileQuery>();
         builder.Services.AddSingleton<GetThumbnailDownloadDetailsQuery>();
         builder.Services.AddSingleton<BoxFileThumbnailHandler>();
         builder.Services.AddSingleton<HardDeleteFilesWithStorageCleanupSubQuery>();
