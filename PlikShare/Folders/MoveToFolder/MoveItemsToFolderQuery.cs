@@ -335,6 +335,7 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
                              SELECT value FROM json_each($fileExternalIds)
                          )
                          AND fi_workspace_id = $workspaceId
+                         AND fi_parent_file_id IS NULL
                          AND fi_deleted_at IS NULL
                          AND (
                              $boxFolderId IS NULL
@@ -388,6 +389,29 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
                 .WithParameter("$workspaceId", workspace.Id)
                 .WithJsonParameter("$movedFileIds", movedFiles)
                 .Execute();
+
+            // In-flight dependent uploads must ride along as well — upload completion materializes
+            // the file with fi_folder_id taken from fu_folder_id, so a dependent upload left in the
+            // source folder would land its file away from the moved parent.
+            dbWriteContext
+                .Cmd(
+                    sql: """
+                         UPDATE fu_file_uploads
+                         SET fu_folder_id = $destinationFolderId
+                         WHERE
+                             fu_parent_file_id IN (
+                                 SELECT value FROM json_each($movedFileIds)
+                             )
+                             AND fu_workspace_id = $workspaceId
+                         RETURNING
+                             fu_id
+                         """,
+                    readRowFunc: reader => reader.GetInt32(0),
+                    transaction: transaction)
+                .WithParameter("$destinationFolderId", destinationFolderId)
+                .WithParameter("$workspaceId", workspace.Id)
+                .WithJsonParameter("$movedFileIds", movedFiles)
+                .Execute();
         }
 
         return movedFiles;
@@ -414,6 +438,7 @@ public class MoveItemsToFolderQuery(DbWriteQueue dbWriteQueue)
                              SELECT value FROM json_each($fileUploadExternalIds)
                          )
                          AND fu_workspace_id = $workspaceId
+                         AND fu_parent_file_id IS NULL
                          AND (
                              $boxFolderId IS NULL
                              OR EXISTS (
