@@ -15,7 +15,10 @@ public record BoxContext(
     BoxViewMode DefaultViewMode,
     BoxSortMode DefaultSortMode,
     BoxSortDirection DefaultSortDirection,
-    bool DefaultThumbnailsEnabled);
+    bool DefaultThumbnailsEnabled,
+    bool DefaultMinimapEnabled,
+    BoxGalleryLayout DefaultGalleryLayout,
+    BoxGalleryTileSize DefaultGalleryTileSize);
     
 public record FolderContext(
     int Id,

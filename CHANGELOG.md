@@ -2,6 +2,15 @@
 
 Release notes for PlikShare.
 
+## 1.1.41
+
+- [FEATURE] Minimap — a VS Code-style miniature of the file explorer (list and gallery views) with a draggable viewport lens; click or scroll it to navigate, hover highlights the real item in both directions, ctrl/shift-click selects straight from the map. Toggled in the display menu, persisted per workspace, smooth even with tens of thousands of files
+- [FEATURE] Box default display settings now also cover the minimap, gallery layout and gallery tile size — the card was redesigned into labeled dropdowns
+- [IMPROVEMENT] Gallery selection reworked — selected tiles get a passe-partout with a check badge and fade to grey, hover restores full color; mirrored 1:1 on the minimap
+- [IMPROVEMENT] Lightbox selection — select/unselect without leaving the lightbox (button or Space/S), with a counter and selection marks in the film strip
+- [IMPROVEMENT] Thumbnail loading hardened — prioritized scheduler with watchdog and retries; no more thumbnails stuck loading forever or HTTP/2 connection resets on rapid scrolling
+- [FIX] Interrupted thumbnail streams are now aborted properly server-side instead of leaving the browser waiting on a dead request; cancelled transfers no longer flood the server log
+
 ## 1.1.40
 
 - [FEATURE] Gallery view — a third file view (next to list and tree), available in workspaces, boxes, widgets and quick shares; selection, search, sorting and bulk actions all keep working, and box owners can set it as the box default

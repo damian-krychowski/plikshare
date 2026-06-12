@@ -575,7 +575,8 @@ public static class Aes256GcmStreamingV2
         }
         catch (Exception e)
         {
-            Log.Error(e, "Something went wrong while decrypting V2 file range");
+            if (!cancellationToken.IsCancellationRequested)
+                Log.Error(e, "Something went wrong while decrypting V2 file range");
             throw;
         }
         finally
@@ -701,7 +702,8 @@ public static class Aes256GcmStreamingV2
         }
         catch (Exception e)
         {
-            Log.Error(e, "Something went wrong while decrypting V2 file");
+            if (!cancellationToken.IsCancellationRequested)
+                Log.Error(e, "Something went wrong while decrypting V2 file");
             throw;
         }
         finally

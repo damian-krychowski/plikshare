@@ -380,17 +380,21 @@ public static class FileEncryption
             }
             catch (IOException e)
             {
-                _logger.Error(e, "IO error while downloading file");
+                if (!cancellationToken.IsCancellationRequested)
+                    _logger.Error(e, "IO error while downloading file");
+
                 throw;
             }
             catch (OperationCanceledException)
             {
-                _logger.Warning("Download operation cancelled");
+                _logger.Debug("Download operation cancelled");
                 throw;
             }
             catch (Exception e)
             {
-                _logger.Error(e, "Failed to download file. Error: {ErrorMessage}", e.Message);
+                if (!cancellationToken.IsCancellationRequested)
+                    _logger.Error(e, "Failed to download file. Error: {ErrorMessage}", e.Message);
+
                 throw;
             }
         }
@@ -538,19 +542,21 @@ public static class FileEncryption
             }
             catch (IOException e)
             {
-                _logger.Error(e, "IO error while downloading file");
+                if (!cancellationToken.IsCancellationRequested)
+                    _logger.Error(e, "IO error while downloading file");
+
                 throw;
             }
             catch (OperationCanceledException)
             {
-                _logger.Warning("Download operation cancelled");
-                //we don't throw here as constant cancelling is normal behavior for video players
-                //throw;
+                _logger.Debug("Download operation cancelled");
                 throw;
             }
             catch (Exception e)
             {
-                _logger.Error(e, "Failed to download file. Error: {ErrorMessage}", e.Message);
+                if (!cancellationToken.IsCancellationRequested)
+                    _logger.Error(e, "Failed to download file. Error: {ErrorMessage}", e.Message);
+
                 throw;
             }
         }

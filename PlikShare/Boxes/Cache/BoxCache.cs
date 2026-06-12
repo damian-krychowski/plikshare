@@ -128,7 +128,10 @@ public class BoxCache(
             DefaultViewMode: box.DefaultViewMode,
             DefaultSortMode: box.DefaultSortMode,
             DefaultSortDirection: box.DefaultSortDirection,
-            DefaultThumbnailsEnabled: box.DefaultThumbnailsEnabled);
+            DefaultThumbnailsEnabled: box.DefaultThumbnailsEnabled,
+            DefaultMinimapEnabled: box.DefaultMinimapEnabled,
+            DefaultGalleryLayout: box.DefaultGalleryLayout,
+            DefaultGalleryTileSize: box.DefaultGalleryTileSize);
     }
 
     public ValueTask InvalidateEntry(
@@ -191,7 +194,10 @@ public class BoxCache(
                          bo_default_view_mode,
                          bo_default_sort_mode,
                          bo_default_sort_direction,
-                         bo_default_thumbnails_enabled
+                         bo_default_thumbnails_enabled,
+                         bo_default_minimap_enabled,
+                         bo_default_gallery_layout,
+                         bo_default_gallery_tile_size
                      FROM bo_boxes
                      LEFT JOIN fo_folders
                          ON fo_id = bo_folder_id
@@ -210,7 +216,10 @@ public class BoxCache(
                     DefaultViewMode: reader.GetEnum<BoxViewMode>(8),
                     DefaultSortMode: reader.GetEnum<BoxSortMode>(9),
                     DefaultSortDirection: reader.GetEnum<BoxSortDirection>(10),
-                    DefaultThumbnailsEnabled: reader.GetBoolean(11)))
+                    DefaultThumbnailsEnabled: reader.GetBoolean(11),
+                    DefaultMinimapEnabled: reader.GetBoolean(12),
+                    DefaultGalleryLayout: reader.GetEnum<BoxGalleryLayout>(13),
+                    DefaultGalleryTileSize: reader.GetEnum<BoxGalleryTileSize>(14)))
             .WithParameter(lookup.ParamName, lookup.ParamValue)
             .Execute();
 
@@ -242,5 +251,8 @@ public class BoxCache(
         BoxViewMode DefaultViewMode,
         BoxSortMode DefaultSortMode,
         BoxSortDirection DefaultSortDirection,
-        bool DefaultThumbnailsEnabled);
+        bool DefaultThumbnailsEnabled,
+        bool DefaultMinimapEnabled,
+        BoxGalleryLayout DefaultGalleryLayout,
+        BoxGalleryTileSize DefaultGalleryTileSize);
 }

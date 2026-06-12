@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, HostListener, OnChanges, OnDestroy, OnInit, Renderer2, SimpleChanges, ViewChild, WritableSignal, computed, effect, input, output, signal, untracked } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, OnChanges, OnDestroy, OnInit, Renderer2, SimpleChanges, ViewChild, WritableSignal, computed, effect, input, output, signal, untracked, viewChild } from '@angular/core';
 import { FileToUpload, FileUploadApi, FileUploadManager, UploadsAbortedEvent, UploadCompletedEvent, UploadsInitiatedEvent } from '../services/file-upload-manager/file-upload-manager';
 import { AppUploadItem, UploadItemComponent } from './upload-item/upload-item.component';
 import { ConfirmOperationDirective } from '../shared/operation-confirm/confirm-operation.directive';
@@ -38,12 +38,15 @@ import { DisplayMenuComponent } from './display-menu/display-menu.component';
 import { GalleryMenuComponent } from './gallery-menu/gallery-menu.component';
 import { computePositionForInsertion } from '../shared/drag-drop/item-positioning.utils';
 import { FilesListComponent } from './files-list/files-list.component';
-import { FilesGalleryComponent, GalleryDensity, GalleryLayoutMode } from './files-gallery/files-gallery.component';
+import { FilesGalleryComponent, GalleryLayoutMode, GalleryTileSize } from './files-gallery/files-gallery.component';
 import { GalleryLightboxComponent, canOpenFileInLightbox } from './gallery-lightbox/gallery-lightbox.component';
 import { sortFiles } from '../services/sort-items';
 import { ThumbnailProgressComponent } from './thumbnail-progress/thumbnail-progress.component';
 import { SelectionCountComponent } from './selection-count/selection-count.component';
 import { thumbnailListDisplay } from '../services/thumbnail-list-display';
+import { minimapDisplay } from '../services/minimap-display';
+import { FilesMinimapComponent } from './files-minimap/files-minimap.component';
+import { EMPTY_MINIMAP_MODEL, MinimapItemRef, MinimapSegment } from './files-minimap/minimap-model';
 import { trackStuckSection } from '../services/track-stuck-section';
 import { ThumbnailBatchProgressService } from '../services/thumbnail-batch-progress.service';
 import { FileProcessingService } from '../services/file-processing.service';
@@ -181,7 +184,8 @@ type ViewMode = 'list-view' | 'tree-view' | 'gallery-view';
         DisplayMenuComponent,
         GalleryMenuComponent,
         ThumbnailProgressComponent,
-        SelectionCountComponent
+        SelectionCountComponent,
+        FilesMinimapComponent
     ],
     templateUrl: './files-explorer.component.html',
     styleUrl: './files-explorer.component.scss',
@@ -254,6 +258,9 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     initialSortMode = input<SortMode>('custom');
     initialSortDirection = input<SortDirection>('asc');
     initialShowThumbnails = input<boolean>(false);
+    initialShowMinimap = input<boolean>(false);
+    initialGalleryLayout = input<GalleryLayoutMode>('justified');
+    initialGalleryTileSize = input<GalleryTileSize>('medium');
 
     disablePreferencePersistence = input<boolean>(false);
 
@@ -277,6 +284,9 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     private _thumbnailDisplay = thumbnailListDisplay(this.workspaceExternalId, this.initialShowThumbnails, this.disablePreferencePersistence);
     readonly showThumbnails = this._thumbnailDisplay.showThumbnails;
 
+    private _minimapDisplay = minimapDisplay(this.workspaceExternalId, this.initialShowMinimap, this.disablePreferencePersistence);
+    readonly showMinimap = this._minimapDisplay.showMinimap;
+
     // Files with queue work in flight (any job type, any trigger — bulk action, upload, other
     // users) — drives the per-row spinner. Fed by the workspace file-processing channel.
     readonly processingFileIds = computed(() => this._fileProcessing.processingFileIds());
@@ -289,7 +299,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     private static readonly GALLERY_DISPLAY_STORAGE_PREFIX = 'plikshare:gallery-display:';
 
     galleryLayout = signal<GalleryLayoutMode>('justified');
-    galleryDensity = signal<GalleryDensity>('standard');
+    galleryTileSize = signal<GalleryTileSize>('medium');
 
     folderSelected = output<AppFolderItem | null>();
     boxCreated = output<AppFolderItem>();
@@ -790,6 +800,74 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
     viewMode = signal<ViewMode>('list-view');
     treeViewMode = signal<TreeViewMode>('show-all');
 
+    private _foldersListCmp = viewChild(FoldersListComponent);
+    private _filesListCmp = viewChild(FilesListComponent);
+    private _filesGalleryCmp = viewChild(FilesGalleryComponent);
+    private _foldersSectionRef = viewChild<ElementRef<HTMLElement>>('foldersSection');
+    private _filesSectionRef = viewChild<ElementRef<HTMLElement>>('filesSection');
+
+    isMinimapAvailable = computed(() =>
+        this.allowList()
+        && this.workspaceExternalId() != null
+        && !this.constHeightMode()
+        && !this.hideContextBar());
+
+    minimapHoveredItemId = signal<string | null>(null);
+    contentHoveredItemId = signal<string | null>(null);
+
+    onContentItemHovered(id: string | null) {
+        this.contentHoveredItemId.set(id);
+    }
+
+    isMinimapVisible = computed(() => {
+        const viewModeVal = this.viewMode();
+
+        return this.isMinimapAvailable()
+            && this.showMinimap()
+            && (viewModeVal === 'list-view' || viewModeVal === 'gallery-view')
+            && !this.fileInPreview()
+            && !this.pendingBulkUpload();
+    });
+
+    minimapSegments = computed<MinimapSegment[]>(() => {
+        const segments: MinimapSegment[] = [];
+        const foldersSection = this._foldersSectionRef()?.nativeElement ?? null;
+
+        if (foldersSection) {
+            const foldersList = this._foldersListCmp();
+
+            segments.push({
+                key: 'folders',
+                label: 'Folders',
+                sectionEl: foldersSection,
+                contentEl: foldersList?.minimapContentEl() ?? null,
+                model: foldersList?.minimapModel() ?? EMPTY_MINIMAP_MODEL,
+                itemState: foldersList ? () => foldersList.minimapItemState() : undefined
+            });
+        }
+
+        const filesSection = this._filesSectionRef()?.nativeElement ?? null;
+
+        if (filesSection) {
+            const isGalleryView = this.viewMode() === 'gallery-view';
+
+            const filesCmp = isGalleryView
+                ? this._filesGalleryCmp()
+                : this._filesListCmp();
+
+            segments.push({
+                key: isGalleryView ? 'files-gallery' : 'files-list',
+                label: 'Files',
+                sectionEl: filesSection,
+                contentEl: filesCmp?.minimapContentEl() ?? null,
+                model: filesCmp?.minimapModel() ?? EMPTY_MINIMAP_MODEL,
+                itemState: filesCmp ? () => filesCmp.minimapItemState() : undefined
+            });
+        }
+
+        return segments;
+    });
+
     fileInlinePreviewCommandsPipeline = new FileInlinePreviewCommandsPipeline()
     isFileInPreviewBeingSaved = signal(false);
 
@@ -841,8 +919,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             const key = this.galleryDisplayStorageKey();
             const stored = (!this.disablePreferencePersistence() && key) ? localStorage.getItem(key) : null;
 
-            let layout: GalleryLayoutMode = 'justified';
-            let density: GalleryDensity = 'standard';
+            let layout: GalleryLayoutMode = this.initialGalleryLayout();
+            let tileSize: GalleryTileSize = this.initialGalleryTileSize();
 
             if (stored) {
                 try {
@@ -851,14 +929,20 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
                     if (parsed.layout === 'justified' || parsed.layout === 'mosaic' || parsed.layout === 'grid')
                         layout = parsed.layout;
 
-                    if (parsed.density === 'compact' || parsed.density === 'standard' || parsed.density === 'comfortable')
-                        density = parsed.density;
+                    if (parsed.tileSize === 'small' || parsed.tileSize === 'medium' || parsed.tileSize === 'large')
+                        tileSize = parsed.tileSize;
+                    else if (parsed.density === 'compact')
+                        tileSize = 'small';
+                    else if (parsed.density === 'standard')
+                        tileSize = 'medium';
+                    else if (parsed.density === 'comfortable')
+                        tileSize = 'large';
                 } catch {
                 }
             }
 
             this.galleryLayout.set(layout);
-            this.galleryDensity.set(density);
+            this.galleryTileSize.set(tileSize);
         });
 
         // Apply cache-busters for freshly-generated thumbnails onto the current file items. The
@@ -1016,8 +1100,8 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
         this.persistGalleryDisplay();
     }
 
-    onGalleryDensityChanged(density: GalleryDensity) {
-        this.galleryDensity.set(density);
+    onGalleryTileSizeChanged(tileSize: GalleryTileSize) {
+        this.galleryTileSize.set(tileSize);
         this.persistGalleryDisplay();
     }
 
@@ -1029,7 +1113,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
         localStorage.setItem(key, JSON.stringify({
             layout: this.galleryLayout(),
-            density: this.galleryDensity()
+            tileSize: this.galleryTileSize()
         }));
     }
 
@@ -1065,6 +1149,111 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
 
     onShowThumbnailsChanged(value: boolean) {
         this._thumbnailDisplay.setShowThumbnails(value);
+    }
+
+    onShowMinimapChanged(value: boolean) {
+        this._minimapDisplay.setShowMinimap(value);
+
+        if (!value)
+            this.minimapHoveredItemId.set(null);
+    }
+
+    onMinimapItemHovered(ref: MinimapItemRef | null) {
+        this.minimapHoveredItemId.set(ref?.id ?? null);
+    }
+
+    onMinimapItemCtrlClicked(ref: MinimapItemRef) {
+        if (!this.canSelectItems())
+            return;
+
+        if (ref.kind === 'folder') {
+            const foldersList = this._foldersListCmp();
+            const folder = foldersList?.visibleFolders().find(f => f.externalId === ref.id);
+
+            if (!foldersList || !folder)
+                return;
+
+            folder.isSelected.update(value => !value);
+            foldersList.onFolderSelectionToggled(folder);
+            return;
+        }
+
+        if (this.hideSelectCheckboxes())
+            return;
+
+        if (ref.kind === 'tile') {
+            const gallery = this._filesGalleryCmp();
+            const file = gallery?.visibleFiles().find(f => f.externalId === ref.id);
+
+            if (gallery && file)
+                gallery.toggleFileSelection(file);
+
+            return;
+        }
+
+        const filesList = this._filesListCmp();
+        const file = filesList?.visibleFiles().find(f => f.externalId === ref.id);
+
+        if (!filesList || !file)
+            return;
+
+        file.isSelected.update(value => !value);
+        filesList.onFileSelectionToggled(file);
+    }
+
+    onLightboxSelectionToggled(file: AppFileItem) {
+        const gallery = this._filesGalleryCmp();
+        const inGallery = gallery?.visibleFiles().find(f => f.externalId === file.externalId);
+
+        if (gallery && inGallery) {
+            gallery.toggleFileSelection(inGallery);
+            return;
+        }
+
+        const filesList = this._filesListCmp();
+        const inList = filesList?.visibleFiles().find(f => f.externalId === file.externalId);
+
+        if (filesList && inList) {
+            inList.isSelected.update(value => !value);
+            filesList.onFileSelectionToggled(inList);
+            return;
+        }
+
+        file.isSelected.update(value => !value);
+    }
+
+    onMinimapItemShiftClicked(ref: MinimapItemRef) {
+        if (!this.canSelectItems())
+            return;
+
+        if (ref.kind === 'folder') {
+            const foldersList = this._foldersListCmp();
+            const folder = foldersList?.visibleFolders().find(f => f.externalId === ref.id);
+
+            if (foldersList && folder)
+                foldersList.onFolderShiftClicked(folder);
+
+            return;
+        }
+
+        if (this.hideSelectCheckboxes())
+            return;
+
+        if (ref.kind === 'tile') {
+            const gallery = this._filesGalleryCmp();
+            const file = gallery?.visibleFiles().find(f => f.externalId === ref.id);
+
+            if (gallery && file)
+                gallery.onFileShiftClicked(file);
+
+            return;
+        }
+
+        const filesList = this._filesListCmp();
+        const file = filesList?.visibleFiles().find(f => f.externalId === ref.id);
+
+        if (filesList && file)
+            filesList.onFileShiftClicked(file);
     }
 
 

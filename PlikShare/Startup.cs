@@ -376,6 +376,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_47_FolderChildrenMetadataIndexIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_48_QueueWorkspaceIdAndQueueFileJobs>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_49_ThumbnailJobsUploaderIdentityIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_50_BoxDefaultMinimapAndGalleryDisplayIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();

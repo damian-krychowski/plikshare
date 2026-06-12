@@ -1,10 +1,10 @@
 import { Component, OnChanges, OnInit, SimpleChanges, input, output } from "@angular/core";
 import { MatSelectModule } from "@angular/material/select";
-import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { FormsModule } from "@angular/forms";
 import { BoxDefaultDisplayConfiguration } from "../../../../services/boxes.api";
 import { ViewMode } from "../../../../files-explorer/display-menu/display-menu.component";
 import { SortDirection, SortMode } from "../../../../services/folders-and-files.api";
+import { GalleryLayoutMode, GalleryTileSize } from "../../../../files-explorer/files-gallery/files-gallery.component";
 
 type SortChoice = 'custom' | 'name-asc' | 'name-desc';
 
@@ -13,7 +13,6 @@ type SortChoice = 'custom' | 'name-asc' | 'name-desc';
     standalone: true,
     imports: [
         MatSelectModule,
-        MatSlideToggleModule,
         FormsModule
     ],
     templateUrl: './box-default-display-config.component.html',
@@ -37,7 +36,26 @@ export class BoxDefaultDisplayConfigComponent implements OnInit, OnChanges {
     ];
     selectedSort: SortChoice = 'custom';
 
-    thumbnailsEnabled: boolean = false;
+    visibilityOptions: { value: boolean, label: string }[] = [
+        { value: false, label: 'Hidden' },
+        { value: true, label: 'Visible' }
+    ];
+    selectedThumbnails: boolean = false;
+    selectedMinimap: boolean = false;
+
+    galleryLayoutOptions: { value: GalleryLayoutMode, label: string }[] = [
+        { value: 'justified', label: 'Justified' },
+        { value: 'mosaic', label: 'Mosaic' },
+        { value: 'grid', label: 'Grid' }
+    ];
+    selectedGalleryLayout: GalleryLayoutMode = 'justified';
+
+    galleryTileSizeOptions: { value: GalleryTileSize, label: string }[] = [
+        { value: 'small', label: 'Small' },
+        { value: 'medium', label: 'Medium' },
+        { value: 'large', label: 'Large' }
+    ];
+    selectedGalleryTileSize: GalleryTileSize = 'medium';
 
     ngOnInit() {
         this.initialize();
@@ -55,7 +73,14 @@ export class BoxDefaultDisplayConfigComponent implements OnInit, OnChanges {
             ? cfg.viewMode
             : 'list-view';
         this.selectedSort = this.toSortChoice(cfg.sortMode, cfg.sortDirection);
-        this.thumbnailsEnabled = cfg.thumbnailsEnabled;
+        this.selectedThumbnails = cfg.thumbnailsEnabled;
+        this.selectedMinimap = cfg.minimapEnabled;
+        this.selectedGalleryLayout = cfg.galleryLayout === 'mosaic' || cfg.galleryLayout === 'grid'
+            ? cfg.galleryLayout
+            : 'justified';
+        this.selectedGalleryTileSize = cfg.galleryTileSize === 'small' || cfg.galleryTileSize === 'large'
+            ? cfg.galleryTileSize
+            : 'medium';
     }
 
     private toSortChoice(mode: SortMode, direction: SortDirection): SortChoice {
@@ -82,7 +107,10 @@ export class BoxDefaultDisplayConfigComponent implements OnInit, OnChanges {
             viewMode: this.selectedViewMode,
             sortMode,
             sortDirection,
-            thumbnailsEnabled: this.thumbnailsEnabled
+            thumbnailsEnabled: this.selectedThumbnails,
+            minimapEnabled: this.selectedMinimap,
+            galleryLayout: this.selectedGalleryLayout,
+            galleryTileSize: this.selectedGalleryTileSize
         });
     }
 }

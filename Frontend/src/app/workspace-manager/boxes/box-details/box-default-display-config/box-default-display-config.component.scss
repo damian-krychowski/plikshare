@@ -1,15 +1,30 @@
 @forward "./../../../../../styles/config-row.scss";
 
-.config-row {
+.config-grid {
+    display: flex;
+    flex-direction: row;
     flex-wrap: wrap;
+    gap: 1rem 0.75rem;
 }
 
-.config-row__select--wide {
+.config-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
     width: 220px;
-    max-width: 220px;
     flex-shrink: 0;
-}
 
-.config-row--toggle {
-    margin-top: 0.75rem;
+    &__label {
+        font-size: var(--company-small-font);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: var(--company-grey-font);
+        padding-left: 0.25rem;
+        user-select: none;
+    }
+
+    .config-row__select {
+        width: 100%;
+    }
 }

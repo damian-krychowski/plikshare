@@ -4,12 +4,16 @@ import { firstValueFrom } from "rxjs";
 import { DataStore } from "./data-store.service";
 import { FileDto, SortDirection, SortMode, SubfolderDto } from "./folders-and-files.api";
 import { ViewMode } from "../files-explorer/display-menu/display-menu.component";
+import { GalleryLayoutMode, GalleryTileSize } from "../files-explorer/files-gallery/files-gallery.component";
 
 export interface BoxDefaultDisplayConfiguration {
     viewMode: ViewMode;
     sortMode: SortMode;
     sortDirection: SortDirection;
     thumbnailsEnabled: boolean;
+    minimapEnabled: boolean;
+    galleryLayout: GalleryLayoutMode;
+    galleryTileSize: GalleryTileSize;
 }
 
 export interface GetBoxListResponse {
@@ -91,6 +95,9 @@ export interface UpdateBoxDefaultDisplayConfigurationRequest {
     sortMode: SortMode;
     sortDirection: SortDirection;
     thumbnailsEnabled: boolean;
+    minimapEnabled: boolean;
+    galleryLayout: GalleryLayoutMode;
+    galleryTileSize: GalleryTileSize;
 }
 
 export interface GetBoxLinksResponse {

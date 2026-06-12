@@ -19,3 +19,17 @@ public enum BoxSortDirection
     Asc,
     Desc
 }
+
+public enum BoxGalleryLayout
+{
+    Justified,
+    Mosaic,
+    Grid
+}
+
+public enum BoxGalleryTileSize
+{
+    Small,
+    Medium,
+    Large
+}

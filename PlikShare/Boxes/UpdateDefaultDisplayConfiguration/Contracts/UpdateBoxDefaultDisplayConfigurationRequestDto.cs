@@ -4,4 +4,7 @@ public record UpdateBoxDefaultDisplayConfigurationRequestDto(
     BoxViewMode ViewMode,
     BoxSortMode SortMode,
     BoxSortDirection SortDirection,
-    bool ThumbnailsEnabled);
+    bool ThumbnailsEnabled,
+    bool MinimapEnabled,
+    BoxGalleryLayout GalleryLayout,
+    BoxGalleryTileSize GalleryTileSize);

@@ -71,20 +71,36 @@
             </button>
         }
 
-        @if(allowThumbnails()) {
+        @if(allowThumbnails() || allowMinimap()) {
             <div class="display-menu__divider"></div>
 
             <div class="display-menu__section-label">Display</div>
-            <button type="button"
-                class="display-menu__item display-menu__toggle"
-                role="switch"
-                [attr.aria-checked]="showThumbnails()"
-                (click)="toggleThumbnails()">
-                <span class="display-menu__toggle-label">Show thumbnails</span>
-                <span class="display-menu__switch" [class.display-menu__switch--on]="showThumbnails()">
-                    <span class="display-menu__switch-knob"></span>
-                </span>
-            </button>
+
+            @if(allowThumbnails()) {
+                <button type="button"
+                    class="display-menu__item display-menu__toggle"
+                    role="switch"
+                    [attr.aria-checked]="showThumbnails()"
+                    (click)="toggleThumbnails()">
+                    <span class="display-menu__toggle-label">Show thumbnails</span>
+                    <span class="display-menu__switch" [class.display-menu__switch--on]="showThumbnails()">
+                        <span class="display-menu__switch-knob"></span>
+                    </span>
+                </button>
+            }
+
+            @if(allowMinimap()) {
+                <button type="button"
+                    class="display-menu__item display-menu__toggle display-menu__item--desktop-only"
+                    role="switch"
+                    [attr.aria-checked]="showMinimap()"
+                    (click)="toggleMinimap()">
+                    <span class="display-menu__toggle-label">Show minimap</span>
+                    <span class="display-menu__switch" [class.display-menu__switch--on]="showMinimap()">
+                        <span class="display-menu__switch-knob"></span>
+                    </span>
+                </button>
+            }
         }
     </div>
 }

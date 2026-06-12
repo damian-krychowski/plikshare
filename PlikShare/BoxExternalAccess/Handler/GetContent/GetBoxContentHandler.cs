@@ -81,6 +81,9 @@ public class GetBoxContentHandler(
             DefaultSortMode = boxAccess.Box.DefaultSortMode.ToKebabCase(),
             DefaultSortDirection = boxAccess.Box.DefaultSortDirection.ToKebabCase(),
             DefaultThumbnailsEnabled = boxAccess.Box.DefaultThumbnailsEnabled,
+            DefaultMinimapEnabled = boxAccess.Box.DefaultMinimapEnabled,
+            DefaultGalleryLayout = boxAccess.Box.DefaultGalleryLayout.ToKebabCase(),
+            DefaultGalleryTileSize = boxAccess.Box.DefaultGalleryTileSize.ToKebabCase(),
         };
     }
 

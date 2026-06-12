@@ -77,4 +77,13 @@ public class BoxDetailsDto
 
     [ProtoMember(17)]
     public required bool DefaultThumbnailsEnabled { get; init; }
+
+    [ProtoMember(18)]
+    public required bool DefaultMinimapEnabled { get; init; }
+
+    [ProtoMember(19)]
+    public required string DefaultGalleryLayout { get; init; }
+
+    [ProtoMember(20)]
+    public required string DefaultGalleryTileSize { get; init; }
 }

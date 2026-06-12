@@ -13,6 +13,9 @@ public class UpdateBoxDefaultDisplayConfigurationQuery(DbWriteQueue dbWriteQueue
         BoxSortMode sortMode,
         BoxSortDirection sortDirection,
         bool thumbnailsEnabled,
+        bool minimapEnabled,
+        BoxGalleryLayout galleryLayout,
+        BoxGalleryTileSize galleryTileSize,
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
@@ -22,7 +25,10 @@ public class UpdateBoxDefaultDisplayConfigurationQuery(DbWriteQueue dbWriteQueue
                 viewMode: viewMode,
                 sortMode: sortMode,
                 sortDirection: sortDirection,
-                thumbnailsEnabled: thumbnailsEnabled),
+                thumbnailsEnabled: thumbnailsEnabled,
+                minimapEnabled: minimapEnabled,
+                galleryLayout: galleryLayout,
+                galleryTileSize: galleryTileSize),
             cancellationToken: cancellationToken);
     }
 
@@ -32,7 +38,10 @@ public class UpdateBoxDefaultDisplayConfigurationQuery(DbWriteQueue dbWriteQueue
         BoxViewMode viewMode,
         BoxSortMode sortMode,
         BoxSortDirection sortDirection,
-        bool thumbnailsEnabled)
+        bool thumbnailsEnabled,
+        bool minimapEnabled,
+        BoxGalleryLayout galleryLayout,
+        BoxGalleryTileSize galleryTileSize)
     {
         var result = dbWriteContext
             .OneRowCmd(
@@ -42,7 +51,10 @@ public class UpdateBoxDefaultDisplayConfigurationQuery(DbWriteQueue dbWriteQueue
                          bo_default_view_mode = $viewMode,
                          bo_default_sort_mode = $sortMode,
                          bo_default_sort_direction = $sortDirection,
-                         bo_default_thumbnails_enabled = $thumbnailsEnabled
+                         bo_default_thumbnails_enabled = $thumbnailsEnabled,
+                         bo_default_minimap_enabled = $minimapEnabled,
+                         bo_default_gallery_layout = $galleryLayout,
+                         bo_default_gallery_tile_size = $galleryTileSize
                      WHERE bo_id = $boxId
                      RETURNING bo_id
                      """,
@@ -51,6 +63,9 @@ public class UpdateBoxDefaultDisplayConfigurationQuery(DbWriteQueue dbWriteQueue
             .WithEnumParameter("$sortMode", sortMode)
             .WithEnumParameter("$sortDirection", sortDirection)
             .WithParameter("$thumbnailsEnabled", thumbnailsEnabled)
+            .WithParameter("$minimapEnabled", minimapEnabled)
+            .WithEnumParameter("$galleryLayout", galleryLayout)
+            .WithEnumParameter("$galleryTileSize", galleryTileSize)
             .WithParameter("$boxId", box.Id)
             .Execute();
 

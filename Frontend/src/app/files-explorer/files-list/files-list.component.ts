@@ -9,6 +9,7 @@ import { FlipAnimationDirective } from "../../shared/drag-drop/flip-animation.di
 import { DraggedFileItem, DraggingStoppedEvent, DragStateService, getAllDraggedFiles } from "../../services/drag-state.service";
 import { computePositionForInsertion } from "../../shared/drag-drop/item-positioning.utils";
 import { FilesExplorerApi } from "../files-explorer.component";
+import { MinimapItemState, MinimapModel, buildMiniThumbUrl, buildMinimapItemState, fileRowsToMinimapModel } from "../files-minimap/minimap-model";
 
 @Component({
     selector: 'app-files-list',
@@ -31,6 +32,7 @@ export class FilesListComponent implements OnDestroy {
     filesApi = input.required<FilesExplorerApi>();
 
     currentFolderExternalId = input<string | null>(null);
+    hoverHighlightId = input<string | null>(null);
     canReorder = input(false);
     hideActions = input(false);
     hideSelectCheckboxes = input(false);
@@ -45,6 +47,7 @@ export class FilesListComponent implements OnDestroy {
 
     deleted = output<AppFileItem>();
     previewed = output<AppFileItem>();
+    hoveredItemChanged = output<string | null>();
 
     // How many rows from the top the current viewport (plus render buffer)
     // reaches into — lets the parent flush its streaming buffer the moment
@@ -89,6 +92,12 @@ export class FilesListComponent implements OnDestroy {
     // doesn't reveal an unrendered gap before the next recompute lands.
     private static readonly RENDER_BUFFER_ROWS = 30;
 
+    // When the window teleports (minimap drag / fling) nothing in the rendered
+    // slice is reusable — every row component is destroyed and recreated, which
+    // costs tens of ms. Full replacements are capped to ~10/s; overlapping
+    // (wheel-speed) updates stay per-frame.
+    private static readonly FULL_REPLACEMENT_INTERVAL_MS = 100;
+
     // Row count driving the host height and the virtualization range. During
     // streaming it is the expected total (scrollbar correct from the first
     // chunk); search falls back to the loaded list because filtered-out state
@@ -127,8 +136,24 @@ export class FilesListComponent implements OnDestroy {
         return out;
     });
 
+    minimapModel = computed<MinimapModel>(() => fileRowsToMinimapModel({
+        files: this.visibleFiles(),
+        rowHeight: FilesListComponent.ROW_HEIGHT_PX,
+        totalHeight: this.totalHeightPx(),
+        buildThumbUrl: this.showThumbnails()
+            ? file => buildMiniThumbUrl(file, this.operations().getThumbnailUrl)
+            : null,
+        showCheckboxes: !this.hideSelectCheckboxes()
+    }));
+
+    minimapItemState = computed<MinimapItemState>(() => buildMinimapItemState(this.visibleFiles()));
+
+    minimapContentEl = computed<HTMLElement | null>(() => this._hostRef()?.nativeElement ?? null);
+
     private selectionAnchorExternalId: string | null = null;
     private _draggingStoppedSubscription: Subscription | null = null;
+
+    private _rangeRecomputeScheduled = false;
 
     constructor(private _dragState: DragStateService) {
         effect(() => this.handleFilesInputChange());
@@ -141,9 +166,11 @@ export class FilesListComponent implements OnDestroy {
         // Capture-phase scroll listener so we catch scroll on ANY ancestor —
         // the SPA shell often scrolls an inner element (router-outlet wrapper,
         // etc.) rather than the window itself, in which case window.scroll
-        // never fires. requestAnimationFrame batches multiple scroll events
-        // into one recompute per frame.
-        const onScroll = () => requestAnimationFrame(() => this.recomputeRange());
+        // never fires. The scroll-event burst is coalesced into one recompute
+        // per frame, and the range signal is only written when the rendered
+        // window actually shifts — scrolling within the buffer costs no
+        // change detection.
+        const onScroll = () => this.scheduleRecomputeRange();
 
         window.addEventListener('scroll', onScroll, { capture: true, passive: true });
         window.addEventListener('resize', onScroll, { passive: true });
@@ -160,7 +187,19 @@ export class FilesListComponent implements OnDestroy {
         effect(() => {
             this.visibleFiles();
             this._virtualItemCount();
-            requestAnimationFrame(() => this.recomputeRange());
+            this.scheduleRecomputeRange();
+        });
+    }
+
+    private scheduleRecomputeRange(): void {
+        if (this._rangeRecomputeScheduled)
+            return;
+
+        this._rangeRecomputeScheduled = true;
+
+        requestAnimationFrame(() => {
+            this._rangeRecomputeScheduled = false;
+            this.recomputeRange();
         });
     }
 
@@ -170,10 +209,10 @@ export class FilesListComponent implements OnDestroy {
 
     private recomputeRange(): void {
         const el = this._hostRef()?.nativeElement;
-        const itemCount = this._virtualItemCount();
+        const itemCount = untracked(() => this._virtualItemCount());
 
         if (!el || itemCount === 0) {
-            this._renderedRange.set({ start: 0, end: 0 });
+            this.applyRange(0, 0);
             this.emitRangeEnd(0);
             return;
         }
@@ -189,13 +228,51 @@ export class FilesListComponent implements OnDestroy {
 
         const buffer = FilesListComponent.RENDER_BUFFER_ROWS;
         const end = Math.min(itemCount, endIdx + buffer);
+        const start = Math.max(0, startIdx - buffer);
 
-        this._renderedRange.set({
-            start: Math.max(0, startIdx - buffer),
-            end: end
-        });
+        const current = untracked(() => this._renderedRange());
 
+        const isFullReplacement = current.end > current.start
+            && (start >= current.end || end <= current.start);
+
+        if (isFullReplacement) {
+            const now = performance.now();
+
+            if (now - this._lastFullReplacementAt < FilesListComponent.FULL_REPLACEMENT_INTERVAL_MS) {
+                this.scheduleTrailingRecompute();
+                this.emitRangeEnd(end);
+                return;
+            }
+
+            this._lastFullReplacementAt = now;
+        }
+
+        this.applyRange(start, end);
         this.emitRangeEnd(end);
+    }
+
+    private _lastFullReplacementAt = 0;
+    private _trailingRecomputeTimer: ReturnType<typeof setTimeout> | null = null;
+
+    private scheduleTrailingRecompute(): void {
+        if (this._trailingRecomputeTimer !== null)
+            return;
+
+        this._trailingRecomputeTimer = setTimeout(
+            () => {
+                this._trailingRecomputeTimer = null;
+                this.scheduleRecomputeRange();
+            },
+            FilesListComponent.FULL_REPLACEMENT_INTERVAL_MS);
+    }
+
+    private applyRange(start: number, end: number): void {
+        const current = untracked(() => this._renderedRange());
+
+        if (current.start === start && current.end === end)
+            return;
+
+        this._renderedRange.set({ start, end });
     }
 
     private emitRangeEnd(end: number): void {
@@ -208,6 +285,9 @@ export class FilesListComponent implements OnDestroy {
 
     ngOnDestroy(): void {
         this._draggingStoppedSubscription?.unsubscribe();
+
+        if (this._trailingRecomputeTimer !== null)
+            clearTimeout(this._trailingRecomputeTimer);
     }
 
     private onDraggingStopped(event: DraggingStoppedEvent) {

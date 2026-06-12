@@ -1,3 +1,5 @@
+@use "./../../../styles/variables.scss" as variables;
+
 :host {
     position: relative;
     display: inline-flex;
@@ -79,6 +81,12 @@
 
         &--active {
             font-weight: 500;
+        }
+
+        &--desktop-only {
+            @media (max-width: variables.$mobile-breakpoint) {
+                display: none;
+            }
         }
     }
 

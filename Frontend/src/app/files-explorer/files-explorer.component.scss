@@ -37,6 +37,22 @@
     &--no-overflow-y {
         overflow-y: unset !important;
     }
+
+    &__main {
+        min-width: 0;
+    }
+
+    &--with-minimap {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        overflow-y: visible;
+        gap: 1px; //this makes right selected border of gallery images not cut in half
+
+        .explorer-content__main {
+            flex: 1 1 auto;
+        }
+    }
 }
 
 a.drag-over {

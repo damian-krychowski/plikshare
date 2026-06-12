@@ -579,7 +579,8 @@ public static class Aes256GcmStreamingV1
         }
         catch (Exception e)
         {
-            Log.Error(e, "Something went wrong while decrypting file range");
+            if (!cancellationToken.IsCancellationRequested)
+                Log.Error(e, "Something went wrong while decrypting file range");
 
             throw;
         }
@@ -702,7 +703,9 @@ public static class Aes256GcmStreamingV1
         }
         catch (Exception e)
         {
-            Log.Error(e, "Something went wrong while decrypting file part");
+            if (!cancellationToken.IsCancellationRequested)
+                Log.Error(e, "Something went wrong while decrypting file part");
+
             throw;
         }
         finally

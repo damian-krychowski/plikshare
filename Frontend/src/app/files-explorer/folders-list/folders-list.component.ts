@@ -1,4 +1,4 @@
-import { Component, ViewChild, computed, effect, input, output, signal, untracked } from "@angular/core";
+import { Component, ElementRef, ViewChild, computed, effect, input, output, signal, untracked, viewChild } from "@angular/core";
 import { SortDirection, SortMode } from "../../services/folders-and-files.api";
 import { AppFolderItem, AppFolderPermissions, FolderItemComponent, FolderOperations } from "../../shared/folder-item/folder-item.component";
 import { sortFoldersInPlace } from "../../services/sort-items";
@@ -8,6 +8,7 @@ import { FlipAnimationDirective } from "../../shared/drag-drop/flip-animation.di
 import { DraggedFolderItem, DragStateService, getAllDraggedFiles, getAllDraggedFolders } from "../../services/drag-state.service";
 import { computePositionForInsertion } from "../../shared/drag-drop/item-positioning.utils";
 import { FilesExplorerApi } from "../files-explorer.component";
+import { MinimapItemState, MinimapModel, buildMinimapItemState, foldersToMinimapModel } from "../files-minimap/minimap-model";
 
 @Component({
     selector: 'app-folders-list',
@@ -27,6 +28,7 @@ export class FoldersListComponent {
     searchPhrase = input.required<string>();
 
     currentFolderExternalId = input<string | null>(null);
+    hoverHighlightId = input<string | null>(null);
     canReorder = input(false);
     operations = input.required<FolderOperations>();
     hideActions = input(false);
@@ -36,6 +38,7 @@ export class FoldersListComponent {
 
     deleted = output<AppFolderItem>();
     boxCreated = output<AppFolderItem>();
+    hoveredItemChanged = output<string | null>();
 
     @ViewChild('foldersFlip') foldersFlip?: FlipAnimationDirective;
 
@@ -48,6 +51,31 @@ export class FoldersListComponent {
     hasNoListSearchMatches = computed(() =>
         this.isSearchActive()
         && this.localFolders().length === this.filteredOutFolders().length);
+
+    private static readonly ROW_HEIGHT_PX = 72;
+
+    private _hostRef = viewChild<ElementRef<HTMLElement>>('foldersHost');
+
+    visibleFolders = computed<AppFolderItem[]>(() => {
+        const all = this.localFolders();
+
+        if (!this.isSearchActive())
+            return all;
+
+        const filteredOut = new Set(this.filteredOutFolders());
+
+        return all.filter(f => !filteredOut.has(f.externalId));
+    });
+
+    minimapModel = computed<MinimapModel>(() => foldersToMinimapModel({
+        folders: this.visibleFolders(),
+        rowHeight: FoldersListComponent.ROW_HEIGHT_PX,
+        showCheckboxes: true
+    }));
+
+    minimapItemState = computed<MinimapItemState>(() => buildMinimapItemState(this.visibleFolders()));
+
+    minimapContentEl = computed<HTMLElement | null>(() => this._hostRef()?.nativeElement ?? null);
 
     private selectionAnchorExternalId: string | null = null;
 

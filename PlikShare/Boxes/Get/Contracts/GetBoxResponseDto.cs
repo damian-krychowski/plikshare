@@ -27,6 +27,9 @@ public class GetBoxResponseDto
         public required BoxSortMode SortMode { get; set; }
         public required BoxSortDirection SortDirection { get; set; }
         public required bool ThumbnailsEnabled { get; set; }
+        public required bool MinimapEnabled { get; set; }
+        public required BoxGalleryLayout GalleryLayout { get; set; }
+        public required BoxGalleryTileSize GalleryTileSize { get; set; }
     }
     
     public class FolderItem

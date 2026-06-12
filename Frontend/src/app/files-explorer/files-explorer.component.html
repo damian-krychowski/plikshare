@@ -397,17 +397,20 @@
                         [allowList]="allowList()"
                         [allowThumbnails]="workspaceExternalId() != null"
                         [showThumbnails]="showThumbnails()"
+                        [allowMinimap]="isMinimapAvailable()"
+                        [showMinimap]="showMinimap()"
                         (viewModeChanged)="setViewMode($event)"
                         (sortChanged)="onSortChanged($event)"
-                        (showThumbnailsChanged)="onShowThumbnailsChanged($event)">
+                        (showThumbnailsChanged)="onShowThumbnailsChanged($event)"
+                        (showMinimapChanged)="onShowMinimapChanged($event)">
                     </app-display-menu>
 
                     @if(isGalleryViewMode) {
                         <app-gallery-menu
                             [layout]="galleryLayout()"
-                            [density]="galleryDensity()"
+                            [tileSize]="galleryTileSize()"
                             (layoutChanged)="onGalleryLayoutChanged($event)"
-                            (densityChanged)="onGalleryDensityChanged($event)">
+                            (tileSizeChanged)="onGalleryTileSizeChanged($event)">
                         </app-gallery-menu>
                     }
                 }
@@ -513,277 +516,298 @@
 <div class="explorer-content"
     [class.explorer-content--const-height]="constHeightMode()"
     [class.explorer-content--no-overflow-y]="fileInPreviewVal"
-    [class.explorer-content--no-scroll-anchor]="!scrollToTopOnOpen()">
+    [class.explorer-content--no-scroll-anchor]="!scrollToTopOnOpen()"
+    [class.explorer-content--with-minimap]="isMinimapVisible()">
 
-    @if(fileInPreviewVal) {
-        <app-file-inline-preview
-            [file]="fileInPreviewVal"
-            [operations]="operations"
-            [fileOperations]="operations"
-            [allowFileEdit]="allowFileEdit()"
-            [allowPreviewComments]="allowPreviewComment()"
-            [allowPreviewNotes]="allowPreviewNotes()"
-            [integrations]="integrations()"
-            [textractJobsStatusService]="textractJobStatusService"
-            [isInEditMode]="fileInPreviewIsEditMode()"
-            [commandsPipeline]="fileInlinePreviewCommandsPipeline">            
-        </app-file-inline-preview>
-    }
-
-    @if(pendingBulkUploadVal && uploadApiVal) {
-        <app-bulk-upload-preview
-            [bulkUpload]="pendingBulkUploadVal"
-            [folderExternalId]="selectedFolder()?.externalId ?? null"
-            [uploadsApi]="uploadApiVal"
-            [httpHeadersFactory]="operations"
-            [foldersApi]="filesApi()"
-            (foldersCreated)="addFoldersCreatedInBulkUpload($event)"
-            (closed)="closePendingBulkUpload()">            
-        </app-bulk-upload-preview>
-    }
-
-    <div [style.display]="(fileInPreviewVal || pendingBulkUploadVal || !isFlatViewMode) ? 'none' : 'unset'">
-        @if(showFoldersSection()) {
-            @let isFoldersExpandedVal = isFoldersExpanded();
-            <section class="files-section">
-                @if(showFolderBar()) {
-                    <div #foldersHeader class="files-section__header" role="button" tabindex="0"
-                        [attr.aria-expanded]="isFoldersExpandedVal"
-                        (click)="toggleFoldersExpanded()"
-                        (keydown.enter)="toggleFoldersExpanded()"
-                        (keydown.space)="$event.preventDefault(); toggleFoldersExpanded()"
-                        appDragOverStay
-                        (appDragOverStay)="expandFoldersSection()">
-                        <span class="files-section__title">Folders</span>
-
-                        <app-selection-count
-                            [visibleCount]="filteredFoldersCount()"
-                            [totalCount]="foldersCount()"
-                            [selectedCount]="selectedFoldersCount()"
-                            [isFiltered]="isSearchActive()"
-                            noun="folders"
-                            (selectVisible)="toggleVisibleFolders()"
-                            (selectAll)="toggleAllFolders()"
-                            (clearSelection)="clearFoldersSelection()">
-                        </app-selection-count>
-
-                        <i class="files-section__chevron icon"
-                            [class.icon-lucide-chevron-down]="isFoldersExpandedVal"
-                            [class.icon-lucide-chevron-right]="!isFoldersExpandedVal"></i>
-                    </div>
-                }
-
-                @if(isFoldersExpandedVal || !showFolderBar()) {
-                    <div class="files-section__content">
-                        <app-folders-list
-                            [folders]="folders()"
-                            [sortMode]="sortMode()"
-                            [sortDirection]="sortDirection()"
-                            [searchPhrase]="searchPhrase()"
-                            [currentFolderExternalId]="selectedFolder()?.externalId ?? null"
-                            [canReorder]="canReorder()"
-                            [operations]="operations"
-                            [hideActions]="hideItemsActions()"
-                            [hideShareAction]="hideItemShareAction()"
-                            [permissions]="folderPermissions()"
-                            [filesApi]="filesApi()"
-                            (deleted)="onFolderDeleted($event)"
-                            (boxCreated)="createBoxFromFolder($event)">
-                        </app-folders-list>
-
-                        @if(allowCreateFolder() && !hideBigAddFolderBtn()){
-                            <div class="mt-2"></div>
-
-                            <app-item-btn
-                                title="Add new folder"
-                                subtitle="Click here to create an empty folder!"
-                                icon="icon-nucleo-folder-plus"
-                                (clicked)="createNewFolder()">
-                            </app-item-btn>
-                        }
-                    </div>
-                }
-            </section>
+    <div #explorerMain class="explorer-content__main">
+        @if(fileInPreviewVal) {
+            <app-file-inline-preview
+                [file]="fileInPreviewVal"
+                [operations]="operations"
+                [fileOperations]="operations"
+                [allowFileEdit]="allowFileEdit()"
+                [allowPreviewComments]="allowPreviewComment()"
+                [allowPreviewNotes]="allowPreviewNotes()"
+                [integrations]="integrations()"
+                [textractJobsStatusService]="textractJobStatusService"
+                [isInEditMode]="fileInPreviewIsEditMode()"
+                [commandsPipeline]="fileInlinePreviewCommandsPipeline">            
+            </app-file-inline-preview>
         }
 
-        @if(showFilesSection()) {
-            @let isFilesExpandedVal = isFilesExpanded();
-            <section class="files-section" [class.drop-area__anchor]="allowUpload() && isFilesExpandedVal">
-                <div #filesHeader class="files-section__header" role="button" tabindex="0"
-                    [attr.aria-expanded]="isFilesExpandedVal"
-                    (click)="toggleFilesExpanded()"
-                    (keydown.enter)="toggleFilesExpanded()"
-                    (keydown.space)="$event.preventDefault(); toggleFilesExpanded()"
-                    appDragOverStay
-                    (appDragOverStay)="expandFilesSection()">
-                    <span class="files-section__title">Files</span>
-                    <app-selection-count
-                        [visibleCount]="filteredFilesCount()"
-                        [totalCount]="displayedFilesCount()"
-                        [selectedCount]="selectedFilesCount()"
-                        [isFiltered]="isSearchActive()"
-                        noun="files"
-                        (selectVisible)="toggleVisibleFiles()"
-                        (selectAll)="toggleAllFiles()"
-                        (clearSelection)="clearFilesSelection()">
-                    </app-selection-count>
+        @if(pendingBulkUploadVal && uploadApiVal) {
+            <app-bulk-upload-preview
+                [bulkUpload]="pendingBulkUploadVal"
+                [folderExternalId]="selectedFolder()?.externalId ?? null"
+                [uploadsApi]="uploadApiVal"
+                [httpHeadersFactory]="operations"
+                [foldersApi]="filesApi()"
+                (foldersCreated)="addFoldersCreatedInBulkUpload($event)"
+                (closed)="closePendingBulkUpload()">            
+            </app-bulk-upload-preview>
+        }
 
-                    @if(hasUploads()) {
-                        <span class="files-section__count-extra files-section__count--clickable"
-                            [matTooltip]="'Select all uploads'"
-                            (click)="$event.stopPropagation(); toggleAllUploads()">
-                            +{{uploadsCount()}} uploading
-                        </span>
-                        @if(selectedUploadsCount() > 0) {
-                            <span class="files-section__selected"
-                                [matTooltip]="'Clear uploads selection'"
-                                (click)="$event.stopPropagation(); toggleAllUploads()">
-                                <i class="icon icon-lucide-check"></i>{{selectedUploadsCount()}}
-                            </span>
-                        }
+        <div [style.display]="(fileInPreviewVal || pendingBulkUploadVal || !isFlatViewMode) ? 'none' : 'unset'">
+            @if(showFoldersSection()) {
+                @let isFoldersExpandedVal = isFoldersExpanded();
+                <section #foldersSection class="files-section">
+                    @if(showFolderBar()) {
+                        <div #foldersHeader class="files-section__header" role="button" tabindex="0"
+                            [attr.aria-expanded]="isFoldersExpandedVal"
+                            (click)="toggleFoldersExpanded()"
+                            (keydown.enter)="toggleFoldersExpanded()"
+                            (keydown.space)="$event.preventDefault(); toggleFoldersExpanded()"
+                            appDragOverStay
+                            (appDragOverStay)="expandFoldersSection()">
+                            <span class="files-section__title">Folders</span>
+
+                            <app-selection-count
+                                [visibleCount]="filteredFoldersCount()"
+                                [totalCount]="foldersCount()"
+                                [selectedCount]="selectedFoldersCount()"
+                                [isFiltered]="isSearchActive()"
+                                noun="folders"
+                                (selectVisible)="toggleVisibleFolders()"
+                                (selectAll)="toggleAllFolders()"
+                                (clearSelection)="clearFoldersSelection()">
+                            </app-selection-count>
+
+                            <i class="files-section__chevron icon"
+                                [class.icon-lucide-chevron-down]="isFoldersExpandedVal"
+                                [class.icon-lucide-chevron-right]="!isFoldersExpandedVal"></i>
+                        </div>
                     }
 
-                    <i class="files-section__chevron icon"
-                        [class.icon-lucide-chevron-down]="isFilesExpandedVal"
-                        [class.icon-lucide-chevron-right]="!isFilesExpandedVal"></i>
-                </div>
-
-                @if(isFilesExpandedVal) {
-                    <div class="files-section__content">
-                        <div [style.display]="isListViewMode ? 'unset' : 'none'">
-                            <app-files-list
-                                [files]="files()"
-                                [expectedTotalCount]="filesExpectedTotalCount()"
+                    @if(isFoldersExpandedVal || !showFolderBar()) {
+                        <div class="files-section__content">
+                            <app-folders-list
+                                [folders]="folders()"
+                                [hoverHighlightId]="minimapHoveredItemId()"
+                                (hoveredItemChanged)="onContentItemHovered($event)"
                                 [sortMode]="sortMode()"
                                 [sortDirection]="sortDirection()"
                                 [searchPhrase]="searchPhrase()"
                                 [currentFolderExternalId]="selectedFolder()?.externalId ?? null"
                                 [canReorder]="canReorder()"
-                                [showThumbnails]="showThumbnails()"
-                                [processingFileIds]="processingFileIds()"
                                 [operations]="operations"
                                 [hideActions]="hideItemsActions()"
-                                [hideSelectCheckboxes]="hideSelectCheckboxes()"
-                                [permissions]="filePermissions()"
+                                [hideShareAction]="hideItemShareAction()"
+                                [permissions]="folderPermissions()"
                                 [filesApi]="filesApi()"
-                                (deleted)="onFileDeleted($event)"
-                                (previewed)="onFilePreviewed($event)"
-                                (visibleRangeEndChanged)="onFilesVisibleRangeEndChanged($event)">
-                            </app-files-list>
-                        </div>
+                                (deleted)="onFolderDeleted($event)"
+                                (boxCreated)="createBoxFromFolder($event)">
+                            </app-folders-list>
 
-                        <div [style.display]="isGalleryViewMode ? 'unset' : 'none'">
-                            <app-files-gallery
-                                [files]="files()"
-                                [sortMode]="sortMode()"
-                                [sortDirection]="sortDirection()"
-                                [searchPhrase]="searchPhrase()"
-                                [layoutMode]="galleryLayout()"
-                                [density]="galleryDensity()"
-                                [expectedTotalCount]="filesExpectedTotalCount()"
-                                [operations]="operations"
-                                [canSelect]="canSelectItems() && !hideSelectCheckboxes()"
-                                [allowDownload]="allowDownload()"
-                                [canGenerateThumbnails]="canGenerateGalleryThumbnails()"
-                                [processingFileIds]="processingFileIds()"
-                                [isActive]="isGalleryViewMode"
-                                (fileDetailsRequested)="onFilePreviewed($event)"
-                                (lightboxRequested)="openLightboxForFile($event)"
-                                (visibleRangeEndChanged)="onFilesVisibleRangeEndChanged($event)"
-                                (thumbnailsGenerationRequested)="generateThumbnailsForGalleryFiles($event)">
-                            </app-files-gallery>
-                        </div>
-
-                        @if(canUpload()) {
-                            @for(upload of uploads(); track upload.externalId) {
-                                <app-upload-item
-                                    [fileUploadApi]="uploadApiVal"
-                                    [httpHeadersFactory]="operations"
-                                    [upload]="upload"
-                                    [hideActions]="hideItemsActions()"
-                                    (isSelectedChange)="upload.isSelected.set($event)"
-                                    (selectionToggled)="onUploadSelectionToggled(upload)"
-                                    (shiftClicked)="onUploadShiftClicked(upload)">
-                                </app-upload-item>
-                            }
-
-                            <div class="mt-2"></div>
-
-                            <app-item-btn
-                                title="Upload some files"
-                                subtitle="Click here to upload more files!"
-                                icon="icon-nucleo-upload-2"
-                                (clicked)="startUpload(fileUpload)">
-                            </app-item-btn>
-
-                            @if(uploadApiVal && allowCreateFolder()) {
+                            @if(allowCreateFolder() && !hideBigAddFolderBtn()){
                                 <div class="mt-2"></div>
 
                                 <app-item-btn
-                                    title="Bulk zip upload"
-                                    subtitle="Click here to upload files in bulk!"
-                                    icon="icon-nucleo-file-zip"
-                                    (clicked)="startBulkUpload()">
+                                    title="Add new folder"
+                                    subtitle="Click here to create an empty folder!"
+                                    icon="icon-nucleo-folder-plus"
+                                    (clicked)="createNewFolder()">
                                 </app-item-btn>
                             }
+                        </div>
+                    }
+                </section>
+            }
 
-                            @if(isDragging()) {
-                                <div class="drop-area"
-                                    appDropFiles
-                                    (filesDropped)="onFilesDropped($event)">
-                                    <i class="icon icon-nucleo-upload-2"></i>
+            @if(showFilesSection()) {
+                @let isFilesExpandedVal = isFilesExpanded();
+                <section #filesSection class="files-section" [class.drop-area__anchor]="allowUpload() && isFilesExpandedVal">
+                    <div #filesHeader class="files-section__header" role="button" tabindex="0"
+                        [attr.aria-expanded]="isFilesExpandedVal"
+                        (click)="toggleFilesExpanded()"
+                        (keydown.enter)="toggleFilesExpanded()"
+                        (keydown.space)="$event.preventDefault(); toggleFilesExpanded()"
+                        appDragOverStay
+                        (appDragOverStay)="expandFilesSection()">
+                        <span class="files-section__title">Files</span>
+                        <app-selection-count
+                            [visibleCount]="filteredFilesCount()"
+                            [totalCount]="displayedFilesCount()"
+                            [selectedCount]="selectedFilesCount()"
+                            [isFiltered]="isSearchActive()"
+                            noun="files"
+                            (selectVisible)="toggleVisibleFiles()"
+                            (selectAll)="toggleAllFiles()"
+                            (clearSelection)="clearFilesSelection()">
+                        </app-selection-count>
 
-                                    <div class="drop-area__message">
-                                        Drop files here!
-                                    </div>
-                                </div>
+                        @if(hasUploads()) {
+                            <span class="files-section__count-extra files-section__count--clickable"
+                                [matTooltip]="'Select all uploads'"
+                                (click)="$event.stopPropagation(); toggleAllUploads()">
+                                +{{uploadsCount()}} uploading
+                            </span>
+                            @if(selectedUploadsCount() > 0) {
+                                <span class="files-section__selected"
+                                    [matTooltip]="'Clear uploads selection'"
+                                    (click)="$event.stopPropagation(); toggleAllUploads()">
+                                    <i class="icon icon-lucide-check"></i>{{selectedUploadsCount()}}
+                                </span>
                             }
                         }
+
+                        <i class="files-section__chevron icon"
+                            [class.icon-lucide-chevron-down]="isFilesExpandedVal"
+                            [class.icon-lucide-chevron-right]="!isFilesExpandedVal"></i>
                     </div>
-                }
-            </section>
-        }
 
-        @if(isEmptyMessageVisible()){
-            <div class="nothing-to-show">
-                <div class="nothing-to-show__label">
-                    This folder is empty
+                    @if(isFilesExpandedVal) {
+                        <div class="files-section__content">
+                            <div [style.display]="isListViewMode ? 'unset' : 'none'">
+                                <app-files-list
+                                    [files]="files()"
+                                    [hoverHighlightId]="minimapHoveredItemId()"
+                                    (hoveredItemChanged)="onContentItemHovered($event)"
+                                    [expectedTotalCount]="filesExpectedTotalCount()"
+                                    [sortMode]="sortMode()"
+                                    [sortDirection]="sortDirection()"
+                                    [searchPhrase]="searchPhrase()"
+                                    [currentFolderExternalId]="selectedFolder()?.externalId ?? null"
+                                    [canReorder]="canReorder()"
+                                    [showThumbnails]="showThumbnails()"
+                                    [processingFileIds]="processingFileIds()"
+                                    [operations]="operations"
+                                    [hideActions]="hideItemsActions()"
+                                    [hideSelectCheckboxes]="hideSelectCheckboxes()"
+                                    [permissions]="filePermissions()"
+                                    [filesApi]="filesApi()"
+                                    (deleted)="onFileDeleted($event)"
+                                    (previewed)="onFilePreviewed($event)"
+                                    (visibleRangeEndChanged)="onFilesVisibleRangeEndChanged($event)">
+                                </app-files-list>
+                            </div>
+
+                            <div [style.display]="isGalleryViewMode ? 'unset' : 'none'">
+                                <app-files-gallery
+                                    [files]="files()"
+                                    [hoverHighlightId]="minimapHoveredItemId()"
+                                    (hoveredItemChanged)="onContentItemHovered($event)"
+                                    [sortMode]="sortMode()"
+                                    [sortDirection]="sortDirection()"
+                                    [searchPhrase]="searchPhrase()"
+                                    [layoutMode]="galleryLayout()"
+                                    [tileSize]="galleryTileSize()"
+                                    [expectedTotalCount]="filesExpectedTotalCount()"
+                                    [operations]="operations"
+                                    [canSelect]="canSelectItems() && !hideSelectCheckboxes()"
+                                    [allowDownload]="allowDownload()"
+                                    [canGenerateThumbnails]="canGenerateGalleryThumbnails()"
+                                    [processingFileIds]="processingFileIds()"
+                                    [isActive]="isGalleryViewMode"
+                                    (fileDetailsRequested)="onFilePreviewed($event)"
+                                    (lightboxRequested)="openLightboxForFile($event)"
+                                    (visibleRangeEndChanged)="onFilesVisibleRangeEndChanged($event)"
+                                    (thumbnailsGenerationRequested)="generateThumbnailsForGalleryFiles($event)">
+                                </app-files-gallery>
+                            </div>
+
+                            @if(canUpload()) {
+                                @for(upload of uploads(); track upload.externalId) {
+                                    <app-upload-item
+                                        [fileUploadApi]="uploadApiVal"
+                                        [httpHeadersFactory]="operations"
+                                        [upload]="upload"
+                                        [hideActions]="hideItemsActions()"
+                                        (isSelectedChange)="upload.isSelected.set($event)"
+                                        (selectionToggled)="onUploadSelectionToggled(upload)"
+                                        (shiftClicked)="onUploadShiftClicked(upload)">
+                                    </app-upload-item>
+                                }
+
+                                <div class="mt-2"></div>
+
+                                <app-item-btn
+                                    title="Upload some files"
+                                    subtitle="Click here to upload more files!"
+                                    icon="icon-nucleo-upload-2"
+                                    (clicked)="startUpload(fileUpload)">
+                                </app-item-btn>
+
+                                @if(uploadApiVal && allowCreateFolder()) {
+                                    <div class="mt-2"></div>
+
+                                    <app-item-btn
+                                        title="Bulk zip upload"
+                                        subtitle="Click here to upload files in bulk!"
+                                        icon="icon-nucleo-file-zip"
+                                        (clicked)="startBulkUpload()">
+                                    </app-item-btn>
+                                }
+
+                                @if(isDragging()) {
+                                    <div class="drop-area"
+                                        appDropFiles
+                                        (filesDropped)="onFilesDropped($event)">
+                                        <i class="icon icon-nucleo-upload-2"></i>
+
+                                        <div class="drop-area__message">
+                                            Drop files here!
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                </section>
+            }
+
+            @if(isEmptyMessageVisible()){
+                <div class="nothing-to-show">
+                    <div class="nothing-to-show__label">
+                        This folder is empty
+                    </div>
                 </div>
-            </div>
 
-            <div class="mt-2"></div>
-        }
+                <div class="mt-2"></div>
+            }
 
+        </div>
+
+        @let isFileTreeViewActive = !(fileInPreviewVal || pendingBulkUploadVal) && viewModeVal == 'tree-view';
+
+        <div [style.display]="isFileTreeViewActive ? 'unset' : 'none'">
+            <app-file-tree-view  #fileTreeView
+                [topLevelItems]="explorerTreeItems()"
+                [canSelect]="canSelectItems()"
+                [allowDownload]="allowDownload()"
+                [isActive]="isFileTreeViewActive"
+                [viewMode]="treeViewMode()"
+                [searchPhrase]="searchPhrase()"
+                [sortMode]="sortMode()"
+                [sortDirection]="sortDirection()"
+                [showThumbnails]="showThumbnails()"
+                [processingFileIds]="processingFileIds()"
+                [readyMiniEtags]="readyMiniEtags()"
+                [getThumbnailUrl]="operations.getThumbnailUrl"
+                (fileClicked)="onFilePreviewed($event)"
+                (fileDownloadClicked)="onDownloadFile($event)"
+                (folderPrefetchRequested)="onFolderTreePrefetchRequested($event)"
+                (folderLoadRequested)="onFolderTreeLoadRequested($event)"
+                (folderSetToRoot)="onFolderTreeSetToRoot($event)"
+                (selectionStateChanged)="onFileTreeSelectionStateChanged($event)"
+                (itemsDeleted)="onFileTreeSelectedItemsDelete($event)"
+                (searchRequested)="onTreeSearchRequested($event)"
+                (searchedFilesSelectionChanged)="onTreeSearchedFilesSelectionChanged($event)"
+                (searchActivated)="onTreeSearchActivated()">
+            </app-file-tree-view>
+        </div>
     </div>
 
-    @let isFileTreeViewActive = !(fileInPreviewVal || pendingBulkUploadVal) && viewModeVal == 'tree-view';
-
-    <div [style.display]="isFileTreeViewActive ? 'unset' : 'none'">
-        <app-file-tree-view  #fileTreeView
-            [topLevelItems]="explorerTreeItems()"
-            [canSelect]="canSelectItems()"
-            [allowDownload]="allowDownload()"
-            [isActive]="isFileTreeViewActive"
-            [viewMode]="treeViewMode()"
-            [searchPhrase]="searchPhrase()"
-            [sortMode]="sortMode()"
-            [sortDirection]="sortDirection()"
-            [showThumbnails]="showThumbnails()"
-            [processingFileIds]="processingFileIds()"
-            [readyMiniEtags]="readyMiniEtags()"
-            [getThumbnailUrl]="operations.getThumbnailUrl"
-            (fileClicked)="onFilePreviewed($event)"
-            (fileDownloadClicked)="onDownloadFile($event)"
-            (folderPrefetchRequested)="onFolderTreePrefetchRequested($event)"
-            (folderLoadRequested)="onFolderTreeLoadRequested($event)"
-            (folderSetToRoot)="onFolderTreeSetToRoot($event)"
-            (selectionStateChanged)="onFileTreeSelectionStateChanged($event)"
-            (itemsDeleted)="onFileTreeSelectedItemsDelete($event)"
-            (searchRequested)="onTreeSearchRequested($event)"
-            (searchedFilesSelectionChanged)="onTreeSearchedFilesSelectionChanged($event)"
-            (searchActivated)="onTreeSearchActivated()">
-        </app-file-tree-view>
-    </div>
+    @if(isMinimapVisible()) {
+        <app-files-minimap
+            [segments]="minimapSegments()"
+            [contentHost]="explorerMain"
+            [stickyHeader]="stickyWrapper"
+            [externalHoveredId]="contentHoveredItemId()"
+            (itemCtrlClicked)="onMinimapItemCtrlClicked($event)"
+            (itemShiftClicked)="onMinimapItemShiftClicked($event)"
+            (itemHovered)="onMinimapItemHovered($event)">
+        </app-files-minimap>
+    }
 </div>
 
 @if(lightboxIndex() !== null) {
@@ -792,8 +816,10 @@
         [startIndex]="lightboxIndex()!"
         [operations]="operations"
         [allowDownload]="allowDownload()"
+        [canSelect]="canSelectItems() && !hideSelectCheckboxes()"
         (closed)="onLightboxClosed()"
         (indexChanged)="onLightboxIndexChanged($event)"
-        (detailsRequested)="onLightboxDetailsRequested($event)">
+        (detailsRequested)="onLightboxDetailsRequested($event)"
+        (selectionToggled)="onLightboxSelectionToggled($event)">
     </app-gallery-lightbox>
 }

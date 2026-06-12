@@ -23,6 +23,7 @@ using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Validation;
 using System.Globalization;
 using PlikShare.Core.Clock;
+using Serilog;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.MediaProcessing;
@@ -642,11 +643,11 @@ public static class MediaProcessingEndpoints
     /// content hash, so an identical re-upload keeps the cache and a changed one busts it.
     /// </summary>
     private static async Task<IResult> GetFileThumbnail(
-        [FromRoute] FileExtId fileExternalId,
-        [FromQuery] string? variant,
-        HttpContext httpContext,
-        GetThumbnailDownloadDetailsQuery getThumbnailDownloadDetailsQuery,
-        CancellationToken cancellationToken)
+    [FromRoute] FileExtId fileExternalId,
+    [FromQuery] string? variant,
+    HttpContext httpContext,
+    GetThumbnailDownloadDetailsQuery getThumbnailDownloadDetailsQuery,
+    CancellationToken cancellationToken)
     {
         var thumbnailVariant = ThumbnailVariant.Mini;
 
@@ -677,9 +678,6 @@ public static class MediaProcessingEndpoints
 
         var etag = $"\"{thumbnail.Etag}\"";
 
-        // URLs carrying the ?v={etag} cache-buster are content-addressed — the bytes under such a
-        // URL never change (regeneration changes the etag, hence the URL), so the browser may cache
-        // them forever without revalidation. Unversioned URLs keep the short TTL + ETag fallback.
         response.Headers.CacheControl = httpContext.Request.Query.ContainsKey("v")
             ? "private, max-age=31536000, immutable"
             : "private, max-age=300";
@@ -717,8 +715,35 @@ public static class MediaProcessingEndpoints
 
             return Results.Empty;
         }
+        catch (InvalidOperationException ex)
+        {
+            Log.Error(
+                ex,
+                "Content-Length mismatch streaming thumbnail. " +
+                "ParentFileExternalId={ParentFileExternalId}, ThumbnailFileExternalId={ThumbnailFileExternalId}, " +
+                "Variant={Variant}, DeclaredContentLength={DeclaredContentLength}, " +
+                "FileSizeInBytes={FileSizeInBytes}, ContentType={ContentType}, " +
+                "Etag={Etag}, EncryptionMetadata={EncryptionMetadata}, WorkspaceId={WorkspaceId}",
+                fileExternalId,
+                file.FileKey.FileExternalId,
+                thumbnailVariant,
+                file.SizeInBytes,
+                file.SizeInBytes,
+                file.ContentType,
+                thumbnail.Etag,
+                file.EncryptionMetadata,
+                workspace.Id);
+
+            if (response.HasStarted)
+                httpContext.Abort();
+
+            return Results.Empty;
+        }
         catch (OperationCanceledException)
         {
+            if (response.HasStarted)
+                httpContext.Abort();
+
             return Results.Empty;
         }
         catch (FileNotFoundInStorageException)
@@ -731,9 +756,16 @@ public static class MediaProcessingEndpoints
 
             return HttpErrors.File.NotFound(fileExternalId);
         }
-        finally
+        catch (Exception) when (httpContext.RequestAborted.IsCancellationRequested)
         {
             if (response.HasStarted)
+                httpContext.Abort();
+
+            return Results.Empty;
+        }
+        finally
+        {
+            if (response.HasStarted && !httpContext.RequestAborted.IsCancellationRequested)
                 await response.BodyWriter.CompleteAsync();
         }
     }

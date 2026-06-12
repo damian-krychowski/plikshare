@@ -35,22 +35,22 @@
         <div class="gallery-menu__segmented">
             <button type="button"
                 class="gallery-menu__segmented-btn"
-                [class.gallery-menu__segmented-btn--active]="isDensityActive('compact')"
-                (click)="selectDensity('compact')">
+                [class.gallery-menu__segmented-btn--active]="isTileSizeActive('small')"
+                (click)="selectTileSize('small')">
                 S
             </button>
 
             <button type="button"
                 class="gallery-menu__segmented-btn"
-                [class.gallery-menu__segmented-btn--active]="isDensityActive('standard')"
-                (click)="selectDensity('standard')">
+                [class.gallery-menu__segmented-btn--active]="isTileSizeActive('medium')"
+                (click)="selectTileSize('medium')">
                 M
             </button>
 
             <button type="button"
                 class="gallery-menu__segmented-btn"
-                [class.gallery-menu__segmented-btn--active]="isDensityActive('comfortable')"
-                (click)="selectDensity('comfortable')">
+                [class.gallery-menu__segmented-btn--active]="isTileSizeActive('large')"
+                (click)="selectTileSize('large')">
                 L
             </button>
         </div>

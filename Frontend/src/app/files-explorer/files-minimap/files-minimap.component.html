@@ -1,0 +1,24 @@
+<div #rail class="files-minimap__rail"
+    role="scrollbar"
+    aria-orientation="vertical"
+    aria-label="Content minimap"
+    aria-valuemin="0"
+    aria-valuemax="100">
+
+    <div class="files-minimap__surface">
+        <canvas #canvas class="files-minimap__canvas"></canvas>
+
+        @if(isScrollable()) {
+            <div #liftAnchor class="files-minimap__lift-anchor">
+                <div class="files-minimap__lift-shade"></div>
+                <canvas #liftCanvas class="files-minimap__lift-card"></canvas>
+            </div>
+        }
+
+        @if(tooltip(); as tooltipVal) {
+            <div class="files-minimap__tooltip" [style.top.px]="tooltipVal.top">
+                {{ tooltipVal.label }}
+            </div>
+        }
+    </div>
+</div>

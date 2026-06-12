@@ -85,7 +85,10 @@ public class box_link_external_access_tests: TestFixture
                 DefaultViewMode = "list-view",
                 DefaultSortMode = "custom",
                 DefaultSortDirection = "asc",
-                DefaultThumbnailsEnabled = false
+                DefaultThumbnailsEnabled = false,
+                DefaultMinimapEnabled = false,
+                DefaultGalleryLayout = "justified",
+                DefaultGalleryTileSize = "medium"
             },
             Files = null,
             Folder = null,
@@ -183,7 +186,10 @@ public class box_link_external_access_tests: TestFixture
                 DefaultViewMode = "list-view",
                 DefaultSortMode = "custom",
                 DefaultSortDirection = "asc",
-                DefaultThumbnailsEnabled = false
+                DefaultThumbnailsEnabled = false,
+                DefaultMinimapEnabled = false,
+                DefaultGalleryLayout = "justified",
+                DefaultGalleryTileSize = "medium"
             },
             Files = null,
             Folder = null,

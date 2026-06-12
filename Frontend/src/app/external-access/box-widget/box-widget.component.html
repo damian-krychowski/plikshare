@@ -13,6 +13,9 @@
                 [initialSortMode]="details()?.defaultSortMode ?? 'custom'"
                 [initialSortDirection]="details()?.defaultSortDirection ?? 'asc'"
                 [initialShowThumbnails]="details()?.defaultThumbnailsEnabled ?? false"
+                [initialShowMinimap]="details()?.defaultMinimapEnabled ?? false"
+                [initialGalleryLayout]="details()?.defaultGalleryLayout || 'justified'"
+                [initialGalleryTileSize]="details()?.defaultGalleryTileSize || 'medium'"
                 [disablePreferencePersistence]="true"
 
                 [allowList]="allowList()"

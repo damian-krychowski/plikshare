@@ -131,6 +131,9 @@
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\49_thumbnail_jobs_uploader_identity_introduced.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\50_box_default_minimap_and_gallery_display_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\26_workspace_encryption_keys_introduced.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>

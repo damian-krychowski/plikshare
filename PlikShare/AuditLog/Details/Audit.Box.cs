@@ -77,6 +77,9 @@ public static partial class Audit
             public required BoxSortMode SortMode { get; init; }
             public required BoxSortDirection SortDirection { get; init; }
             public required bool ThumbnailsEnabled { get; init; }
+            public required bool MinimapEnabled { get; init; }
+            public required BoxGalleryLayout GalleryLayout { get; init; }
+            public required BoxGalleryTileSize GalleryTileSize { get; init; }
         }
 
         public class MemberInvited
@@ -317,7 +320,10 @@ public static partial class Audit
             BoxViewMode viewMode,
             BoxSortMode sortMode,
             BoxSortDirection sortDirection,
-            bool thumbnailsEnabled) => new()
+            bool thumbnailsEnabled,
+            bool minimapEnabled,
+            BoxGalleryLayout galleryLayout,
+            BoxGalleryTileSize galleryTileSize) => new()
         {
             Actor = actor.Identity,
             ActorEmail = actor.Email,
@@ -334,7 +340,10 @@ public static partial class Audit
                 ViewMode = viewMode,
                 SortMode = sortMode,
                 SortDirection = sortDirection,
-                ThumbnailsEnabled = thumbnailsEnabled })
+                ThumbnailsEnabled = thumbnailsEnabled,
+                MinimapEnabled = minimapEnabled,
+                GalleryLayout = galleryLayout,
+                GalleryTileSize = galleryTileSize })
         };
 
         public static AuditLogEntry MemberInvitedEntry(

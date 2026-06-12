@@ -6,6 +6,9 @@
     @for(row of renderedFiles(); track row.file.externalId) {
         <app-file-item
             class="virtual-file-row"
+            [class.forced-hover]="row.file.externalId === hoverHighlightId()"
+            (mouseenter)="hoveredItemChanged.emit(row.file.externalId)"
+            (mouseleave)="hoveredItemChanged.emit(null)"
             [style.top.px]="row.index * rowHeightPx"
             appDraggableItem
             [draggableType]="'file'"

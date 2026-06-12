@@ -1,5 +1,5 @@
 import { Component, computed, ElementRef, HostListener, input, output, signal } from '@angular/core';
-import { GalleryDensity, GalleryLayoutMode } from '../files-gallery/files-gallery.component';
+import { GalleryLayoutMode, GalleryTileSize } from '../files-gallery/files-gallery.component';
 
 @Component({
     selector: 'app-gallery-menu',
@@ -9,10 +9,10 @@ import { GalleryDensity, GalleryLayoutMode } from '../files-gallery/files-galler
 })
 export class GalleryMenuComponent {
     layout = input.required<GalleryLayoutMode>();
-    density = input.required<GalleryDensity>();
+    tileSize = input.required<GalleryTileSize>();
 
     layoutChanged = output<GalleryLayoutMode>();
-    densityChanged = output<GalleryDensity>();
+    tileSizeChanged = output<GalleryTileSize>();
 
     isOpen = signal(false);
 
@@ -23,14 +23,14 @@ export class GalleryMenuComponent {
         return 'Justified';
     });
 
-    densityLabel = computed(() => {
-        const density = this.density();
-        if (density === 'compact') return 'S';
-        if (density === 'comfortable') return 'L';
+    tileSizeLabel = computed(() => {
+        const tileSize = this.tileSize();
+        if (tileSize === 'small') return 'S';
+        if (tileSize === 'large') return 'L';
         return 'M';
     });
 
-    triggerLabel = computed(() => `${this.layoutLabel()} · ${this.densityLabel()}`);
+    triggerLabel = computed(() => `${this.layoutLabel()} · ${this.tileSizeLabel()}`);
 
     constructor(private _el: ElementRef<HTMLElement>) {}
 
@@ -42,16 +42,16 @@ export class GalleryMenuComponent {
         this.layoutChanged.emit(mode);
     }
 
-    selectDensity(density: GalleryDensity) {
-        this.densityChanged.emit(density);
+    selectTileSize(tileSize: GalleryTileSize) {
+        this.tileSizeChanged.emit(tileSize);
     }
 
     isLayoutActive(mode: GalleryLayoutMode): boolean {
         return this.layout() === mode;
     }
 
-    isDensityActive(density: GalleryDensity): boolean {
-        return this.density() === density;
+    isTileSizeActive(tileSize: GalleryTileSize): boolean {
+        return this.tileSize() === tileSize;
     }
 
     @HostListener('document:click', ['$event'])

@@ -1,5 +1,6 @@
 import { GetFolderResponse, SortDirection, SortMode } from "../../services/folders-and-files.api";
 import { ViewMode } from "../../files-explorer/display-menu/display-menu.component";
+import { GalleryLayoutMode, GalleryTileSize } from "../../files-explorer/files-gallery/files-gallery.component";
 
 export interface GetBoxDetailsAndFolderResponse extends GetFolderResponse {
     details: GetBoxDetails;
@@ -23,6 +24,9 @@ export interface GetBoxDetails {
     defaultSortMode: SortMode;
     defaultSortDirection: SortDirection;
     defaultThumbnailsEnabled: boolean;
+    defaultMinimapEnabled: boolean;
+    defaultGalleryLayout: GalleryLayoutMode;
+    defaultGalleryTileSize: GalleryTileSize;
 }
 
 export interface GetBoxHtmlResponse {

@@ -1,11 +1,14 @@
 @let filteredOut = filteredOutFolders();
 
-<div class="folders-list"
+<div #foldersHost class="folders-list"
     appFlipAnimation #foldersFlip="appFlipAnimation">
 
     @for(folder of localFolders(); track folder.externalId) {
         @if(!isSearchActive() || !filteredOut.includes(folder.externalId)) {
             <app-folder-item
+                [class.forced-hover]="folder.externalId === hoverHighlightId()"
+                (mouseenter)="hoveredItemChanged.emit(folder.externalId)"
+                (mouseleave)="hoveredItemChanged.emit(null)"
                 appDraggableItem
                 [draggableType]="'folder'"
                 [draggableExternalId]="folder.externalId"

@@ -241,6 +241,9 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
                      	    bo_default_sort_mode,
                      	    bo_default_sort_direction,
                      	    bo_default_thumbnails_enabled,
+                     	    bo_default_minimap_enabled,
+                     	    bo_default_gallery_layout,
+                     	    bo_default_gallery_tile_size,
                      	    (CASE
                      		    WHEN bo_folder_id IS NULL THEN '[]'
                                  ELSE (
@@ -280,7 +283,10 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
                     var defaultSortMode = reader.GetEnum<BoxSortMode>(8);
                     var defaultSortDirection = reader.GetEnum<BoxSortDirection>(9);
                     var defaultThumbnailsEnabled = reader.GetBoolean(10);
-                    var folderPath = reader.GetFromJson<List<GetBoxResponseDto.FolderItem>>(11, workspaceEncryptionSession);
+                    var defaultMinimapEnabled = reader.GetBoolean(11);
+                    var defaultGalleryLayout = reader.GetEnum<BoxGalleryLayout>(12);
+                    var defaultGalleryTileSize = reader.GetEnum<BoxGalleryTileSize>(13);
+                    var folderPath = reader.GetFromJson<List<GetBoxResponseDto.FolderItem>>(14, workspaceEncryptionSession);
 
                     return new GetBoxResponseDto.BoxDetails
                     {
@@ -303,7 +309,10 @@ public class GetBoxQuery(PlikShareDb plikShareDb)
                             ViewMode = defaultViewMode,
                             SortMode = defaultSortMode,
                             SortDirection = defaultSortDirection,
-                            ThumbnailsEnabled = defaultThumbnailsEnabled
+                            ThumbnailsEnabled = defaultThumbnailsEnabled,
+                            MinimapEnabled = defaultMinimapEnabled,
+                            GalleryLayout = defaultGalleryLayout,
+                            GalleryTileSize = defaultGalleryTileSize
                         }
                     };
                 })

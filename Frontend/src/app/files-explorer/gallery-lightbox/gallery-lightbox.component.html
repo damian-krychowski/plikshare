@@ -10,9 +10,22 @@
         </div>
 
         <div class="lightbox__actions">
+            @if(canSelectCurrent()) {
+                @if(selectedCount() > 0) {
+                    <span class="lightbox__select-count">{{ selectedCount() }} selected</span>
+                }
+
+                <button type="button" class="lightbox__select"
+                    [class.lightbox__select--checked]="isCurrentSelected()"
+                    [matTooltip]="isCurrentSelected() ? 'Unselect (Space)' : 'Select (Space)'"
+                    (click)="toggleCurrentSelection()">
+                    <i class="icon icon-lucide-check"></i>
+                </button>
+            }
+
             @if(count() > 1) {
                 <button type="button" class="lightbox__btn"
-                    [matTooltip]="isSlideshowPlaying() ? 'Pause slideshow' : 'Play slideshow'"
+                    [matTooltip]="isSlideshowPlaying() ? 'Pause slideshow (P)' : 'Play slideshow (P)'"
                     (click)="toggleSlideshow()">
                     <i class="icon" [class.icon-nucleo-play]="!isSlideshowPlaying()" [class.icon-nucleo-pause]="isSlideshowPlaying()"></i>
                 </button>
@@ -145,11 +158,18 @@
             @for(item of stripWindow(); track item.file.externalId) {
                 <button type="button" class="lightbox__strip-item"
                     [class.lightbox__strip-item--active]="item.index === clampedIndex()"
+                    [class.lightbox__strip-item--selected]="item.file.isSelected()"
                     (click)="goTo(item.index)">
                     @if(stripThumbUrl(item.file); as thumbUrl) {
                         <img [src]="thumbUrl" loading="lazy" decoding="async" alt="" (error)="onImageError(thumbUrl)" />
                     } @else {
                         <i class="icon icon-{{ item.file.extension | fileIcon }}"></i>
+                    }
+
+                    @if(item.file.isSelected()) {
+                        <span class="lightbox__strip-check">
+                            <i class="icon icon-lucide-check"></i>
+                        </span>
                     }
                 </button>
             }

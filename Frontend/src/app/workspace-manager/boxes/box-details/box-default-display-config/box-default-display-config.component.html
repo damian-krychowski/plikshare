@@ -1,33 +1,97 @@
-<div class="config-row">
-    <mat-select
-        class="config-row__select config-row__select--wide"
-        [(ngModel)]="selectedViewMode"
-        (selectionChange)="onChange()">
+<div class="config-grid">
+    <div class="config-field">
+        <span class="config-field__label">View</span>
 
-        @for (item of viewModeOptions; track item.value) {
-            <mat-option [value]="item.value">
-                {{ item.label }}
-            </mat-option>
-        }
-    </mat-select>
+        <mat-select
+            class="config-row__select config-row__select--wide"
+            [(ngModel)]="selectedViewMode"
+            (selectionChange)="onChange()">
 
-    <mat-select
-        class="config-row__select config-row__select--wide"
-        [(ngModel)]="selectedSort"
-        (selectionChange)="onChange()">
+            @for (item of viewModeOptions; track item.value) {
+                <mat-option [value]="item.value">
+                    {{ item.label }}
+                </mat-option>
+            }
+        </mat-select>
+    </div>
 
-        @for (item of sortOptions; track item.value) {
-            <mat-option [value]="item.value">
-                {{ item.label }}
-            </mat-option>
-        }
-    </mat-select>
-</div>
+    <div class="config-field">
+        <span class="config-field__label">Sorting</span>
 
-<div class="config-row config-row--toggle">
-    <mat-slide-toggle
-        [(ngModel)]="thumbnailsEnabled"
-        (change)="onChange()">
-        Show thumbnails by default
-    </mat-slide-toggle>
+        <mat-select
+            class="config-row__select config-row__select--wide"
+            [(ngModel)]="selectedSort"
+            (selectionChange)="onChange()">
+
+            @for (item of sortOptions; track item.value) {
+                <mat-option [value]="item.value">
+                    {{ item.label }}
+                </mat-option>
+            }
+        </mat-select>
+    </div>
+
+    <div class="config-field">
+        <span class="config-field__label">Thumbnails</span>
+
+        <mat-select
+            class="config-row__select config-row__select--wide"
+            [(ngModel)]="selectedThumbnails"
+            (selectionChange)="onChange()">
+
+            @for (item of visibilityOptions; track item.value) {
+                <mat-option [value]="item.value">
+                    {{ item.label }}
+                </mat-option>
+            }
+        </mat-select>
+    </div>
+
+    <div class="config-field">
+        <span class="config-field__label">Minimap</span>
+
+        <mat-select
+            class="config-row__select config-row__select--wide"
+            [(ngModel)]="selectedMinimap"
+            (selectionChange)="onChange()">
+
+            @for (item of visibilityOptions; track item.value) {
+                <mat-option [value]="item.value">
+                    {{ item.label }}
+                </mat-option>
+            }
+        </mat-select>
+    </div>
+
+    <div class="config-field">
+        <span class="config-field__label">Gallery layout</span>
+
+        <mat-select
+            class="config-row__select config-row__select--wide"
+            [(ngModel)]="selectedGalleryLayout"
+            (selectionChange)="onChange()">
+
+            @for (item of galleryLayoutOptions; track item.value) {
+                <mat-option [value]="item.value">
+                    {{ item.label }}
+                </mat-option>
+            }
+        </mat-select>
+    </div>
+
+    <div class="config-field">
+        <span class="config-field__label">Gallery tile size</span>
+
+        <mat-select
+            class="config-row__select config-row__select--wide"
+            [(ngModel)]="selectedGalleryTileSize"
+            (selectionChange)="onChange()">
+
+            @for (item of galleryTileSizeOptions; track item.value) {
+                <mat-option [value]="item.value">
+                    {{ item.label }}
+                </mat-option>
+            }
+        </mat-select>
+    </div>
 </div>

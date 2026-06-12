@@ -51,10 +51,12 @@ export class GalleryLightboxComponent implements AfterViewInit {
     startIndex = input.required<number>();
     operations = input.required<FileOperations>();
     allowDownload = input(false);
+    canSelect = input(false);
 
     closed = output<void>();
     detailsRequested = output<AppFileItem>();
     indexChanged = output<number>();
+    selectionToggled = output<AppFileItem>();
 
     index = linkedSignal(() => this.startIndex());
 
@@ -151,6 +153,17 @@ export class GalleryLightboxComponent implements AfterViewInit {
         return file != null && AppFileItems.canPreview(file, this.allowDownload());
     });
 
+    canSelectCurrent = computed(() => {
+        const file = this.current();
+        return this.canSelect() && file != null && !file.isLocked();
+    });
+
+    isCurrentSelected = computed(() => this.current()?.isSelected() ?? false);
+
+    selectedCount = computed(() => this.files().reduce(
+        (count, file) => count + (file.isSelected() ? 1 : 0),
+        0));
+
     isSlideshowPlaying = signal(false);
 
     zoomScale = signal(1);
@@ -231,6 +244,14 @@ export class GalleryLightboxComponent implements AfterViewInit {
                 event.stopPropagation();
                 this.close();
             } else if (event.key === ' ' && !this.currentIsVideo()) {
+                event.preventDefault();
+                event.stopPropagation();
+                this.toggleCurrentSelection();
+            } else if (event.key === 's' || event.key === 'S') {
+                event.preventDefault();
+                event.stopPropagation();
+                this.toggleCurrentSelection();
+            } else if (event.key === 'p' || event.key === 'P') {
                 event.preventDefault();
                 event.stopPropagation();
                 this.toggleSlideshow();
@@ -551,6 +572,15 @@ export class GalleryLightboxComponent implements AfterViewInit {
 
         this.stopSlideshow();
         this.detailsRequested.emit(file);
+    }
+
+    toggleCurrentSelection() {
+        const file = this.current();
+
+        if (!file || !this.canSelectCurrent())
+            return;
+
+        this.selectionToggled.emit(file);
     }
 
     async downloadCurrent() {

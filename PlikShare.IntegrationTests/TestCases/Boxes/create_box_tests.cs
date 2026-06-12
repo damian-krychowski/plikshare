@@ -131,7 +131,10 @@ public class create_box_tests: TestFixture
                     ViewMode = BoxViewMode.ListView,
                     SortMode = BoxSortMode.Custom,
                     SortDirection = BoxSortDirection.Asc,
-                    ThumbnailsEnabled = false
+                    ThumbnailsEnabled = false,
+                    MinimapEnabled = false,
+                    GalleryLayout = BoxGalleryLayout.Justified,
+                    GalleryTileSize = BoxGalleryTileSize.Medium
                 }
             },
             Files = [],

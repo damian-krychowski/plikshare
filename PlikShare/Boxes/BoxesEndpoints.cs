@@ -539,6 +539,9 @@ public static class BoxesEndpoints
             sortMode: request.SortMode,
             sortDirection: request.SortDirection,
             thumbnailsEnabled: request.ThumbnailsEnabled,
+            minimapEnabled: request.MinimapEnabled,
+            galleryLayout: request.GalleryLayout,
+            galleryTileSize: request.GalleryTileSize,
             cancellationToken: cancellationToken);
 
         switch (result)
@@ -560,7 +563,10 @@ public static class BoxesEndpoints
                         viewMode: request.ViewMode,
                         sortMode: request.SortMode,
                         sortDirection: request.SortDirection,
-                        thumbnailsEnabled: request.ThumbnailsEnabled),
+                        thumbnailsEnabled: request.ThumbnailsEnabled,
+                        minimapEnabled: request.MinimapEnabled,
+                        galleryLayout: request.GalleryLayout,
+                        galleryTileSize: request.GalleryTileSize),
                     cancellationToken);
 
                 return TypedResults.Ok();

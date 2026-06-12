@@ -18,5 +18,8 @@ export function getBoxDetailsDtoProtobuf() {
         .add(new protobuf.Field("defaultViewMode", 14, "string"))
         .add(new protobuf.Field("defaultSortMode", 15, "string"))
         .add(new protobuf.Field("defaultSortDirection", 16, "string"))
-        .add(new protobuf.Field("defaultThumbnailsEnabled", 17, "bool"));
+        .add(new protobuf.Field("defaultThumbnailsEnabled", 17, "bool"))
+        .add(new protobuf.Field("defaultMinimapEnabled", 18, "bool"))
+        .add(new protobuf.Field("defaultGalleryLayout", 19, "string"))
+        .add(new protobuf.Field("defaultGalleryTileSize", 20, "string"));
 }

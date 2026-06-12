@@ -22,10 +22,13 @@ export class DisplayMenuComponent {
     allowList = input(true);
     showThumbnails = input(false);
     allowThumbnails = input(false);
+    showMinimap = input(false);
+    allowMinimap = input(false);
 
     viewModeChanged = output<ViewMode>();
     sortChanged = output<SortChange>();
     showThumbnailsChanged = output<boolean>();
+    showMinimapChanged = output<boolean>();
 
     isOpen = signal(false);
 
@@ -68,6 +71,10 @@ export class DisplayMenuComponent {
     toggleThumbnails() {
         this.showThumbnailsChanged.emit(!this.showThumbnails());
         // Keep the menu open — toggling is a setting the user may flip back and forth.
+    }
+
+    toggleMinimap() {
+        this.showMinimapChanged.emit(!this.showMinimap());
     }
 
     isViewActive(mode: ViewMode): boolean {

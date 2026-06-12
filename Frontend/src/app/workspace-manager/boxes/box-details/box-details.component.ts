@@ -379,7 +379,10 @@ export class BoxDetailsComponent implements OnInit, OnDestroy {
             viewMode: configuration.viewMode,
             sortMode: configuration.sortMode,
             sortDirection: configuration.sortDirection,
-            thumbnailsEnabled: configuration.thumbnailsEnabled
+            thumbnailsEnabled: configuration.thumbnailsEnabled,
+            minimapEnabled: configuration.minimapEnabled,
+            galleryLayout: configuration.galleryLayout,
+            galleryTileSize: configuration.galleryTileSize
         });
 
         this._dataStore.invalidateEntries(

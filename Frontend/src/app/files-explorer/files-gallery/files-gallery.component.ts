@@ -1,6 +1,4 @@
 import { Component, DestroyRef, ElementRef, WritableSignal, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AppFileItem, AppFileItems, FileOperations } from '../../shared/file-item/file-item.component';
 import { SortDirection, SortMode } from '../../services/folders-and-files.api';
@@ -10,10 +8,15 @@ import { CtrlClickDirective } from '../../shared/ctrl-click.directive';
 import { FileIconPipe } from '../file-icon-pipe/file-icon.pipe';
 import { ConfirmOperationDirective } from '../../shared/operation-confirm/confirm-operation.directive';
 import { canOpenFileInLightbox } from '../gallery-lightbox/gallery-lightbox.component';
+import { EMPTY_MINIMAP_ITEM_STATE, EMPTY_MINIMAP_MODEL, MinimapItemState, MinimapModel, buildMiniThumbUrl, buildMinimapItemState, galleryToMinimapModel } from '../files-minimap/minimap-model';
 
 const TILE_GAP_PX = 6;
 const HEADER_HEIGHT_PX = 48;
 const RENDER_BUFFER_PX = 800;
+const VIEWPORT_QUANTUM_PX = 100;
+const THUMB_CONCURRENCY = 8;
+const THUMB_LOAD_TIMEOUT_MS = 15000;
+const THUMB_MAX_ATTEMPTS = 2;
 const MIN_ASPECT_RATIO = 0.35;
 const MAX_ASPECT_RATIO = 3;
 const LAST_ROW_MAX_STRETCH = 1.15;
@@ -28,18 +31,18 @@ const MOSAIC_LOOKBACK_ROWS = 3;
 const LARGE_VARIANT_THRESHOLD_PX = 420;
 
 export type GalleryLayoutMode = 'justified' | 'mosaic' | 'grid';
-export type GalleryDensity = 'compact' | 'standard' | 'comfortable';
+export type GalleryTileSize = 'small' | 'medium' | 'large';
 
-const JUSTIFIED_ROW_HEIGHTS: Record<GalleryDensity, number> = {
-    compact: 150,
-    standard: 220,
-    comfortable: 300
+const JUSTIFIED_ROW_HEIGHTS: Record<GalleryTileSize, number> = {
+    small: 150,
+    medium: 220,
+    large: 300
 };
 
-const CELL_SIZES: Record<GalleryDensity, number> = {
-    compact: 130,
-    standard: 180,
-    comfortable: 240
+const CELL_SIZES: Record<GalleryTileSize, number> = {
+    small: 130,
+    medium: 180,
+    large: 240
 };
 
 export type GalleryTile = {
@@ -65,6 +68,7 @@ type GalleryLayout = {
 type RenderedTile = {
     tile: GalleryTile;
     thumbUrl: string | null;
+    thumbSrc: string | null;
     isMedia: boolean;
     isVideo: boolean;
     isProcessing: boolean;
@@ -73,6 +77,11 @@ type RenderedTile = {
 type TileGeometry = {
     ratio: number;
     hash: number;
+};
+
+type ThumbLoad = {
+    controller: AbortController;
+    timedOut: boolean;
 };
 
 const tileGeometryCache = new WeakMap<AppFileItem, TileGeometry>();
@@ -426,8 +435,6 @@ function buildMosaicLayout(args: {
 @Component({
     selector: 'app-files-gallery',
     imports: [
-        FormsModule,
-        MatCheckboxModule,
         MatTooltipModule,
         CtrlClickDirective,
         FileIconPipe,
@@ -444,10 +451,11 @@ export class FilesGalleryComponent {
     operations = input.required<FileOperations>();
 
     layoutMode = input<GalleryLayoutMode>('justified');
-    density = input<GalleryDensity>('standard');
+    tileSize = input<GalleryTileSize>('medium');
 
     canSelect = input(false);
     allowDownload = input(false);
+    hoverHighlightId = input<string | null>(null);
     canGenerateThumbnails = input(false);
     processingFileIds = input<ReadonlySet<string>>(new Set());
     expectedTotalCount = input<number | null>(null);
@@ -455,6 +463,7 @@ export class FilesGalleryComponent {
 
     fileDetailsRequested = output<AppFileItem>();
     lightboxRequested = output<AppFileItem>();
+    hoveredItemChanged = output<string | null>();
     visibleRangeEndChanged = output<number>();
     thumbnailsGenerationRequested = output<string[]>();
 
@@ -485,14 +494,14 @@ export class FilesGalleryComponent {
         && this.visibleFiles().length === 0
         && this.files().length > 0);
 
-    private densityScale = computed(() =>
+    private tileSizeScale = computed(() =>
         this.containerWidth() < NARROW_WIDTH_PX ? NARROW_SCALE : 1);
 
     targetRowHeight = computed(() =>
-        Math.round(JUSTIFIED_ROW_HEIGHTS[this.density()] * this.densityScale()));
+        Math.round(JUSTIFIED_ROW_HEIGHTS[this.tileSize()] * this.tileSizeScale()));
 
     cellSize = computed(() =>
-        Math.round(CELL_SIZES[this.density()] * this.densityScale()));
+        Math.round(CELL_SIZES[this.tileSize()] * this.tileSizeScale()));
 
     layout = computed<GalleryLayout>(() => {
         const mode = this.layoutMode();
@@ -551,7 +560,9 @@ export class FilesGalleryComponent {
         return layout.contentHeight + fillerRows * (unit + TILE_GAP_PX);
     });
 
-    private _viewport = signal<{ top: number, bottom: number }>({ top: 0, bottom: 0 });
+    private _viewport = signal<{ top: number, bottom: number }>(
+        { top: 0, bottom: 0 },
+        { equal: (a, b) => a.top === b.top && a.bottom === b.bottom });
 
     renderedTiles = computed<RenderedTile[]>(() => {
         if (!this.isActive())
@@ -562,6 +573,7 @@ export class FilesGalleryComponent {
         const top = viewport.top - RENDER_BUFFER_PX;
         const bottom = viewport.bottom + RENDER_BUFFER_PX;
         const failedUrls = this._failedThumbnailUrls();
+        const readyUrls = this._readyThumbUrls();
         const processingIds = this.processingFileIds();
         const devicePixelRatio = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
 
@@ -584,6 +596,7 @@ export class FilesGalleryComponent {
             out.push({
                 tile,
                 thumbUrl,
+                thumbSrc: thumbUrl && readyUrls.has(thumbUrl) ? thumbUrl : null,
                 isMedia,
                 isVideo: fileType === 'video',
                 isProcessing: processingIds.has(tile.file.externalId)
@@ -631,9 +644,43 @@ export class FilesGalleryComponent {
         return `Thumbnails for ${count} ${fileLabel} will be generated in the background.`;
     });
 
+    minimapModel = computed<MinimapModel>(() => {
+        if (!this.isActive())
+            return EMPTY_MINIMAP_MODEL;
+
+        const layout = this.layout();
+
+        return galleryToMinimapModel({
+            tiles: layout.tiles,
+            headers: layout.headers,
+            headerHeight: HEADER_HEIGHT_PX,
+            contentWidth: this.containerWidth(),
+            contentHeight: this.totalHeightPx(),
+            buildThumbUrl: file => buildMiniThumbUrl(file, this.operations().getThumbnailUrl)
+        });
+    });
+
+    minimapItemState = computed<MinimapItemState>(() => {
+        if (!this.isActive())
+            return EMPTY_MINIMAP_ITEM_STATE;
+
+        return buildMinimapItemState(this.visibleFiles());
+    });
+
+    minimapContentEl = computed<HTMLElement | null>(() => this._hostRef()?.nativeElement ?? null);
+
     private _failedThumbnailUrls = signal<ReadonlySet<string>>(new Set<string>());
+    private _readyThumbUrls = signal<ReadonlySet<string>>(new Set<string>());
     private _fileSelectionAnchorId: string | null = null;
     private _lastEmittedRangeEnd = -1;
+
+    private readonly _thumbLoaders = new Map<string, ThumbLoad>();
+    private readonly _thumbAttempts = new Map<string, number>();
+    private _thumbWants = new Map<string, number>();
+    private readonly _settledThumbUrls = new Set<string>();
+    private readonly _pendingReadyUrls = new Set<string>();
+    private _readyFlushScheduled = false;
+    private _isDestroyed = false;
 
     constructor() {
         const destroyRef = inject(DestroyRef);
@@ -646,7 +693,7 @@ export class FilesGalleryComponent {
 
             const resizeObserver = new ResizeObserver(() => {
                 this.containerWidth.set(host.clientWidth);
-                requestAnimationFrame(() => this.recomputeViewport());
+                this.scheduleRecomputeViewport();
             });
 
             resizeObserver.observe(host);
@@ -655,7 +702,7 @@ export class FilesGalleryComponent {
             onCleanup(() => resizeObserver.disconnect());
         });
 
-        const onScroll = () => requestAnimationFrame(() => this.recomputeViewport());
+        const onScroll = () => this.scheduleRecomputeViewport();
 
         window.addEventListener('scroll', onScroll, { capture: true, passive: true });
         window.addEventListener('resize', onScroll, { passive: true });
@@ -668,7 +715,23 @@ export class FilesGalleryComponent {
         effect(() => {
             this.layout();
             this.totalHeightPx();
-            requestAnimationFrame(() => this.recomputeViewport());
+            this.scheduleRecomputeViewport();
+        });
+
+        effect(() => {
+            const tiles = this.renderedTiles();
+
+            untracked(() => this.replaceThumbWants(tiles));
+        });
+
+        destroyRef.onDestroy(() => {
+            this._isDestroyed = true;
+
+            for (const load of this._thumbLoaders.values())
+                load.controller.abort();
+
+            this._thumbLoaders.clear();
+            this._thumbWants.clear();
         });
 
         effect(() => {
@@ -700,6 +763,20 @@ export class FilesGalleryComponent {
         });
     }
 
+    private _viewportRecomputeScheduled = false;
+
+    private scheduleRecomputeViewport(): void {
+        if (this._viewportRecomputeScheduled)
+            return;
+
+        this._viewportRecomputeScheduled = true;
+
+        requestAnimationFrame(() => {
+            this._viewportRecomputeScheduled = false;
+            this.recomputeViewport();
+        });
+    }
+
     private recomputeViewport(): void {
         const host = this._hostRef()?.nativeElement;
 
@@ -715,8 +792,8 @@ export class FilesGalleryComponent {
         const visiblePx = Math.max(0, Math.min(rect.height, windowHeight - Math.max(0, rect.top)));
 
         this._viewport.set({
-            top: top,
-            bottom: top + visiblePx
+            top: Math.floor(top / VIEWPORT_QUANTUM_PX) * VIEWPORT_QUANTUM_PX,
+            bottom: Math.ceil((top + visiblePx) / VIEWPORT_QUANTUM_PX) * VIEWPORT_QUANTUM_PX
         });
     }
 
@@ -750,6 +827,154 @@ export class FilesGalleryComponent {
             : [smallUrl, miniUrl, largeUrl];
 
         return candidates.find(url => url != null && !failedUrls.has(url)) ?? null;
+    }
+
+    private replaceThumbWants(tiles: RenderedTile[]): void {
+        const wants = new Map<string, number>();
+
+        for (const item of tiles) {
+            const url = item.thumbUrl;
+
+            if (!url || this._settledThumbUrls.has(url))
+                continue;
+
+            wants.set(url, item.tile.y + item.tile.h / 2);
+        }
+
+        this._thumbWants = wants;
+        this.pumpThumbQueue();
+    }
+
+    private pumpThumbQueue(): void {
+        while (this._thumbLoaders.size < THUMB_CONCURRENCY) {
+            const url = this.pickNextThumbWant();
+
+            if (!url)
+                return;
+
+            this.loadThumb(url);
+        }
+    }
+
+    private pickNextThumbWant(): string | null {
+        const viewport = untracked(() => this._viewport());
+        const viewCenter = (viewport.top + viewport.bottom) / 2;
+
+        let bestUrl: string | null = null;
+        let bestDistance = Infinity;
+
+        for (const [url, centerY] of this._thumbWants) {
+            if (this._thumbLoaders.has(url) || this._settledThumbUrls.has(url))
+                continue;
+
+            const distance = Math.abs(centerY - viewCenter);
+
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestUrl = url;
+            }
+        }
+
+        return bestUrl;
+    }
+
+    private loadThumb(url: string): void {
+        const load: ThumbLoad = {
+            controller: new AbortController(),
+            timedOut: false
+        };
+
+        this._thumbLoaders.set(url, load);
+
+        const timeout = setTimeout(
+            () => {
+                load.timedOut = true;
+                load.controller.abort();
+            },
+            THUMB_LOAD_TIMEOUT_MS);
+
+        fetch(url, { signal: load.controller.signal, priority: 'high' })
+            .then(response => {
+                if (!response.ok)
+                    throw new Error(`gallery thumbnail failed with status ${response.status}`);
+
+                return response.blob();
+            })
+            .then(() => this.onThumbSettled(url, true))
+            .catch(() => {
+                if (this._isDestroyed)
+                    return;
+
+                if (!load.controller.signal.aborted) {
+                    this.onThumbSettled(url, false);
+                    return;
+                }
+
+                if (load.timedOut)
+                    this.onThumbTimeout(url);
+            })
+            .finally(() => {
+                clearTimeout(timeout);
+
+                if (this._thumbLoaders.get(url) === load)
+                    this._thumbLoaders.delete(url);
+
+                if (!this._isDestroyed)
+                    this.pumpThumbQueue();
+            });
+    }
+
+    private onThumbTimeout(url: string): void {
+        const attempts = (this._thumbAttempts.get(url) ?? 0) + 1;
+
+        this._thumbAttempts.set(url, attempts);
+
+        if (attempts >= THUMB_MAX_ATTEMPTS)
+            this.onThumbSettled(url, false);
+    }
+
+    private onThumbSettled(
+        url: string,
+        isLoaded: boolean
+    ): void {
+        if (this._isDestroyed || this._settledThumbUrls.has(url))
+            return;
+
+        this._settledThumbUrls.add(url);
+        this._thumbAttempts.delete(url);
+
+        if (isLoaded) {
+            this._pendingReadyUrls.add(url);
+            this.scheduleReadyFlush();
+        } else {
+            this.onThumbnailError(url);
+        }
+    }
+
+    private scheduleReadyFlush(): void {
+        if (this._readyFlushScheduled || this._isDestroyed)
+            return;
+
+        this._readyFlushScheduled = true;
+
+        requestAnimationFrame(() => {
+            this._readyFlushScheduled = false;
+
+            if (this._isDestroyed || this._pendingReadyUrls.size === 0)
+                return;
+
+            const pending = [...this._pendingReadyUrls];
+            this._pendingReadyUrls.clear();
+
+            this._readyThumbUrls.update(ready => {
+                const next = new Set(ready);
+
+                for (const url of pending)
+                    next.add(url);
+
+                return next;
+            });
+        });
     }
 
     onThumbnailLoaded(event: Event) {
