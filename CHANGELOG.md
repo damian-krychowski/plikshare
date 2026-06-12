@@ -2,6 +2,11 @@
 
 Release notes for PlikShare.
 
+## 1.1.42
+
+- [FIX] Saving box default display settings failed with 400 — the new gallery layout and tile size values were rejected by the API, so minimap/gallery defaults never reached shared links and widgets
+- [FIX] Thumbnails in widgets embedded on external domains could fail with CORS errors — thumbnail responses now send `Vary: Origin` and thumbnail images request in CORS mode, so the browser cache no longer mixes incompatible copies
+
 ## 1.1.41
 
 - [FEATURE] Minimap — a VS Code-style miniature of the file explorer (list and gallery views) with a draggable viewport lens; click or scroll it to navigate, hover highlights the real item in both directions, ctrl/shift-click selects straight from the map. Toggled in the display menu, persisted per workspace, smooth even with tens of thousands of files

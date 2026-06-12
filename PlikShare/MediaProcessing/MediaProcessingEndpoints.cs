@@ -682,6 +682,8 @@ public static class MediaProcessingEndpoints
             ? "private, max-age=31536000, immutable"
             : "private, max-age=300";
 
+        response.Headers.Vary = "Origin";
+
         response.Headers.ETag = etag;
 
         if (string.Equals(

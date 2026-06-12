@@ -83,6 +83,7 @@
                 } @else if(previewThumbSrc(); as thumbUrl) {
                     <img class="lightbox__image lightbox__image--loaded"
                         [src]="thumbUrl"
+                        crossorigin="anonymous"
                         [style.max-width]="imageMaxWidth()"
                         [style.max-height]="imageMaxHeight()"
                         draggable="false"
@@ -161,7 +162,7 @@
                     [class.lightbox__strip-item--selected]="item.file.isSelected()"
                     (click)="goTo(item.index)">
                     @if(stripThumbUrl(item.file); as thumbUrl) {
-                        <img [src]="thumbUrl" loading="lazy" decoding="async" alt="" (error)="onImageError(thumbUrl)" />
+                        <img [src]="thumbUrl" crossorigin="anonymous" loading="lazy" decoding="async" alt="" (error)="onImageError(thumbUrl)" />
                     } @else {
                         <i class="icon icon-{{ item.file.extension | fileIcon }}"></i>
                     }

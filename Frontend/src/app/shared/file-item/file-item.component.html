@@ -27,6 +27,7 @@
         } @else if(miniThumbnailUrl(); as thumbUrl) {
             <img class="item__thumb"
                 [src]="thumbUrl"
+                crossorigin="anonymous"
                 loading="lazy"
                 decoding="async"
                 alt=""
