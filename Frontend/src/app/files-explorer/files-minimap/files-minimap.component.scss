@@ -7,6 +7,7 @@
     width: 118px;
     margin-left: 0.5rem;
     border-left: 1px solid var(--company-grey-accent-light);
+    border-right: 1px solid var(--company-grey-accent-light);
     z-index: 2;
     animation: files-minimap-fade-in 0.18s ease;
 }
@@ -50,8 +51,8 @@
 .files-minimap__lift-anchor {
     position: absolute;
     top: 0;
-    left: -5.5px;
-    right: -4.5px;
+    left: -5px;
+    right: -5px;
     background: var(--company-background);
     transform-origin: center center;
     box-shadow:
@@ -61,26 +62,58 @@
     transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
 
+:host(.files-minimap--sunken) .files-minimap__lift-anchor::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--company-blue-hover);
+    opacity: 0.7;
+    pointer-events: none;
+    border: 1px solid var(--company-grey-accent);
+}
+
+:host(.files-minimap--lift-hovered) .files-minimap__lift-anchor::after {
+    background: transparent;
+    border: 1px solid var(--company-grey-accent);
+}
+
 :host(.files-minimap--sunken) .files-minimap__lift-anchor {
     box-shadow: none;
+    border-top: none;
+    border-bottom: none;
+    left: -8px;
+    right: -8px;
+    border-left: 1px solid var(--company-grey-accent-light);
+    border-right: 1px solid var(--company-grey-accent-light);
+    z-index: 0;
+    box-sizing: border-box;
 }
+
 
 .files-minimap__lift-card {
     position: absolute;
     top: 0;
-    left: 5.5px;
+    left: 5px;
     width: calc(100% - 10px);
     height: 100%;
     display: block;
     background: var(--company-background);
 }
 
+:host(.files-minimap--sunken) .files-minimap__lift-card {    
+    left: 2px;
+    width: calc(100% - 4px);
+    padding-left: 5px;
+    padding-right: 5px;
+    // display: none;
+}
+
 .files-minimap__lift-shade {
     position: absolute;
     inset: 0;
-    box-shadow:
-        inset 3px 0 5px rgba(67, 76, 82, 0.14),
-        inset -3px 0 5px rgba(67, 76, 82, 0.14);
+    // box-shadow:
+    //     inset 3px 0 5px rgba(67, 76, 82, 0.14),
+    //     inset -3px 0 5px rgba(67, 76, 82, 0.14);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.15s ease;

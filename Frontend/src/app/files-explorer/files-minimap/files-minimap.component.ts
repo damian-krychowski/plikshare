@@ -34,12 +34,11 @@ const COLORS = {
     selectedMat: '#ecf2f7',
     selectedMatStroke: '#b0bec5',
     hoverStroke: '#828c93',
-    monthLine: '#e2e5e8',
-    monthText: '#7c858b',
-    monthBarFill: '#fbfbfb',
-    sectionText: '#61676b',
-    sectionBarFill: '#f1f3f4',
-    rowText: '#6e777d',
+    divider: '#eeeff1',
+    monthText: '#61676b',
+    sectionText: '#444',
+    chevron: '#aab2b8',
+    rowText: '#61676b',
     selectedRowFill: 'rgba(67, 76, 82, 0.14)',
     fileGlyph: '#b6bfc6',
     folderGlyph: '#9fabb3',
@@ -228,7 +227,8 @@ function decodeThumb(blob: Blob): Promise<ImageBitmap> {
     host: {
         '[class.files-minimap--pressed]': 'isPressed()',
         '[class.files-minimap--sunken]': 'isRailHovered() && !isPressed()',
-        '[class.files-minimap--static]': '!isScrollable()'
+        '[class.files-minimap--static]': '!isScrollable()',
+        '[class.files-minimap--lift-hovered]': 'isLiftHovered()',
     }
 })
 export class FilesMinimapComponent {
@@ -264,6 +264,7 @@ export class FilesMinimapComponent {
     isDragging = signal(false);
     isPressed = signal(false);
     isRailHovered = signal(false);
+    isLiftHovered = signal(false);
 
     isScrollable = computed(() => this._isScrollableState());
 
@@ -523,6 +524,11 @@ export class FilesMinimapComponent {
             }
 
             this._thumbCache.clear();
+        });
+
+        document.fonts?.ready.then(() => {
+            if (!this._isDestroyed)
+                this.requestFullRender();
         });
 
         effect((onCleanup) => {
@@ -1070,8 +1076,10 @@ export class FilesMinimapComponent {
             w,
             sourceHeight / devicePixelRatio);
 
-        const isClearView = untracked(() => this.isRailHovered())
-            && !untracked(() => this.isPressed());
+        const isClearView = untracked(() => 
+            this.isRailHovered() 
+            && !this.isPressed() 
+            && !this.isLiftHovered())
 
         const scrimTarget = isClearView ? 0 : 1;
 
@@ -1480,20 +1488,25 @@ export class FilesMinimapComponent {
         height: number,
         canvasWidth: number
     ): void {
-        ctx.fillStyle = COLORS.sectionBarFill;
-        ctx.fillRect(0, top, canvasWidth, height);
-
-        ctx.fillStyle = COLORS.monthLine;
-        ctx.fillRect(0, top + height - 1, canvasWidth, 1);
+        ctx.fillStyle = COLORS.divider;
+        ctx.fillRect(0, top, canvasWidth, 1);
 
         ctx.font = SECTION_FONT;
         ctx.fillStyle = COLORS.sectionText;
+
+        const previousSpacing = (ctx as unknown as { letterSpacing?: string }).letterSpacing;
+
+        if (typeof previousSpacing === 'string')
+            (ctx as unknown as { letterSpacing: string }).letterSpacing = '0.4px';
 
         ctx.fillText(
             band.label.toUpperCase(),
             4,
             top + height / 2 + 2.5,
             canvasWidth - 18);
+
+        if (typeof previousSpacing === 'string')
+            (ctx as unknown as { letterSpacing: string }).letterSpacing = previousSpacing;
 
         this.drawChevron(
             ctx,
@@ -1508,7 +1521,7 @@ export class FilesMinimapComponent {
         cy: number,
         isExpanded: boolean
     ): void {
-        ctx.strokeStyle = COLORS.sectionText;
+        ctx.strokeStyle = COLORS.chevron;
         ctx.lineWidth = 1;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -1534,10 +1547,7 @@ export class FilesMinimapComponent {
         height: number,
         canvasWidth: number
     ): void {
-        ctx.fillStyle = COLORS.monthBarFill;
-        ctx.fillRect(0, top, canvasWidth, height);
-
-        ctx.fillStyle = COLORS.monthLine;
+        ctx.fillStyle = COLORS.divider;
         ctx.fillRect(0, top, canvasWidth, 1);
 
         ctx.font = MONTH_FONT;
@@ -1899,7 +1909,22 @@ export class FilesMinimapComponent {
         if (!canvas || scale <= 0) {
             this.setHovered(null);
             this.tooltip.set(null);
+
+            if (untracked(() => this.isLiftHovered())) {
+                this.isLiftHovered.set(false);
+                this.scheduleFlush();
+            }
+
             return;
+        }
+
+        const indicatorTop = this.indicatorTop();
+        const indicatorHeight = this.indicatorHeight();
+        const overLift = y >= indicatorTop && y <= indicatorTop + indicatorHeight;
+
+        if (untracked(() => this.isLiftHovered()) !== overLift) {
+            this.isLiftHovered.set(overLift);
+            this.scheduleFlush();
         }
 
         const rect = canvas.getBoundingClientRect();
