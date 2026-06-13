@@ -2,6 +2,14 @@
 
 Release notes for PlikShare.
 
+## 1.1.43
+
+- [FEATURE] Audit log size limit — admins can cap the database size; oldest entries are trimmed when exceeded (new installs default to 1 GB, existing stay unlimited), with a "Compact now" action to trim and shrink the file. Admin page split into Configuration and Management sections
+- [FIX] Audit log no longer bloats and slows startup — the writer checkpoints its WAL regularly
+- [IMPROVEMENT] Minimap — modern look (Inter labels, hairline section headers), full-height rail, and double-click to jump instantly
+- [FIX] Minimap ctrl/shift-click selection now works in folders that fit on screen
+- [FIX] Minimap no longer adds a stray scrollbar in folders with few items
+
 ## 1.1.42
 
 - [FIX] Saving box default display settings failed with 400 — the new gallery layout and tile size values were rejected by the API, so minimap/gallery defaults never reached shared links and widgets

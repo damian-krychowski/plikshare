@@ -3,6 +3,8 @@ import { EMPTY_MINIMAP_ITEM_STATE, MinimapBlock, MinimapItemRef, MinimapItemStat
 
 const DRAW_OVERSCAN_PX = 24;
 const DRAG_THRESHOLD_PX = 3;
+const DOUBLE_CLICK_MS = 250;
+const DOUBLE_CLICK_MOVE_PX = 6;
 const MIN_INDICATOR_HEIGHT_PX = 8;
 const SECTION_BAND_PX = 13;
 const SECTION_BAND_GAP_PX = 4;
@@ -491,6 +493,9 @@ export class FilesMinimapComponent {
     private _bandUrls = new Set<string>();
 
     private _drag: DragState | null = null;
+    private _lastClickY = 0;
+    private _lastClickTarget = 0;
+    private _clickTimer: ReturnType<typeof setTimeout> | null = null;
     private _measureScheduled = false;
     private _flushScheduled = false;
     private _isDestroyed = false;
@@ -508,6 +513,9 @@ export class FilesMinimapComponent {
 
         destroyRef.onDestroy(() => {
             this._isDestroyed = true;
+
+            if (this._clickTimer !== null)
+                clearTimeout(this._clickTimer);
 
             window.removeEventListener('scroll', onScrollOrResize, { capture: true });
             window.removeEventListener('resize', onScrollOrResize);
@@ -1849,9 +1857,33 @@ export class FilesMinimapComponent {
             return;
         }
 
-        this.scrollToCenterContentY(
-            this.miniToY(y + this.slideOffset()),
-            'smooth');
+        const targetContentY = this.miniToY(y + this.slideOffset());
+
+        const isDoubleClick =
+            this._clickTimer !== null
+            && Math.abs(y - this._lastClickY) < DOUBLE_CLICK_MOVE_PX;
+
+        if (this._clickTimer !== null) {
+            clearTimeout(this._clickTimer);
+            this._clickTimer = null;
+        }
+
+        if (isDoubleClick) {
+            this.scrollToCenterContentY(this._lastClickTarget, 'instant');
+            return;
+        }
+
+        this._lastClickY = y;
+        this._lastClickTarget = targetContentY;
+
+        this._clickTimer = setTimeout(
+            () => {
+                this._clickTimer = null;
+
+                if (!this._isDestroyed)
+                    this.scrollToCenterContentY(this._lastClickTarget, 'smooth');
+            },
+            DOUBLE_CLICK_MS);
     }
 
     private onRailPointerCancel(event: PointerEvent): void {
