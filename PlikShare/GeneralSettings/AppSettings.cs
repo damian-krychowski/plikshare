@@ -94,6 +94,35 @@ public class AppSettings(PlikShareDb plikShareDb)
         }
     }
 
+    public record AuditLogMaxSizeInBytesSetting(long? Value)
+    {
+        public const string Key = "audit-log-max-size-in-bytes";
+        public const long OneGigabyteInBytes = 1024L * 1024 * 1024;
+
+        public static AuditLogMaxSizeInBytesSetting Default => new(OneGigabyteInBytes);
+
+        public static AuditLogMaxSizeInBytesSetting FromString(string value)
+        {
+            if (long.TryParse(value, out var longValue))
+            {
+                if (longValue <= 0)
+                    return new(Value: null);
+
+                return new(Value: longValue);
+            }
+
+            throw new ArgumentOutOfRangeException(
+                $"Setting '{Key}' value was expected to be an int64 but found '{value}'");
+        }
+
+        public string Serialize()
+        {
+            return Value.HasValue
+                ? Value.Value.ToString()
+                : "-1";
+        }
+    }
+
     public record NewUserDefaultMaxWorkspaceTeamMembersSetting(int? Value)
     {
         public const string Key = "new-user-default-max-workspace-team-members";
@@ -356,6 +385,10 @@ public class AppSettings(PlikShareDb plikShareDb)
     private volatile AuditLogWorkspaceDefaultPolicySetting _auditLogWorkspaceDefaultPolicy = AuditLogWorkspaceDefaultPolicySetting.Default;
     public AuditLogPolicy AuditLogWorkspaceDefaultPolicy => _auditLogWorkspaceDefaultPolicy.Policy;
 
+
+    private volatile AuditLogMaxSizeInBytesSetting _auditLogMaxSizeInBytes = AuditLogMaxSizeInBytesSetting.Default;
+    public long? AuditLogMaxSizeInBytes => _auditLogMaxSizeInBytes.Value;
+
     public int AdminRoleId { get; private set; }
 
     public void SetAuditLogAppPolicy(AuditLogPolicy policy)
@@ -378,6 +411,17 @@ public class AppSettings(PlikShareDb plikShareDb)
             value: setting.Serialize());
 
         _auditLogWorkspaceDefaultPolicy = setting;
+    }
+
+    public void SetAuditLogMaxSizeInBytes(long? value)
+    {
+        var setting = new AuditLogMaxSizeInBytesSetting(value is > 0 ? value : null);
+
+        UpdateSettingInDatabase(
+            key: AuditLogMaxSizeInBytesSetting.Key,
+            value: setting.Serialize());
+
+        _auditLogMaxSizeInBytes = setting;
     }
 
     public void SetNewUserDefaultStorageAccess(UserStorageAccessMode mode, List<string> storageExternalIds)
@@ -525,6 +569,7 @@ public class AppSettings(PlikShareDb plikShareDb)
         _newUserDefaultStorageAccess = GetNewUserDefaultStorageAccessOrDefault(settings);
         _auditLogAppPolicy = GetAuditLogAppPolicyOrDefault(settings);
         _auditLogWorkspaceDefaultPolicy = GetAuditLogWorkspaceDefaultPolicyOrDefault(settings);
+        _auditLogMaxSizeInBytes = GetAuditLogMaxSizeInBytesOrDefault(settings);
 
         AdminRoleId = GetOrCreateAdminRole(connection);
     }
@@ -547,6 +592,16 @@ public class AppSettings(PlikShareDb plikShareDb)
         return setting is null
             ? AuditLogWorkspaceDefaultPolicySetting.Default
             : AuditLogWorkspaceDefaultPolicySetting.FromString(setting.Value);
+    }
+
+    private AuditLogMaxSizeInBytesSetting GetAuditLogMaxSizeInBytesOrDefault(IEnumerable<Setting> settings)
+    {
+        var setting = settings.FirstOrDefault(
+            s => s.Key.Equals(AuditLogMaxSizeInBytesSetting.Key));
+
+        return setting?.Value is null
+            ? AuditLogMaxSizeInBytesSetting.Default
+            : AuditLogMaxSizeInBytesSetting.FromString(setting.Value);
     }
 
     private NewUserDefaultStorageAccessSetting GetNewUserDefaultStorageAccessOrDefault(IEnumerable<Setting> settings)

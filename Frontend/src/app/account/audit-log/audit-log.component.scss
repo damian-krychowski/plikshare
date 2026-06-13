@@ -224,28 +224,18 @@
     text-align: center;
 }
 
-.management-grid {
+.audit-config-grid {
     padding-left: 0.5rem;
     padding-right: 0.5rem;
 
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
+}
 
-    &__row {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    &__label {
-        font-weight: 500;
-    }
-
-    &__controls {
-        display: flex;
-        gap: 0.75rem;
-        align-items: center;
-        flex-wrap: wrap;
-    }
+.audit-config-controls {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    flex-wrap: wrap;
 }

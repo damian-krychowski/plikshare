@@ -1,7 +1,9 @@
+using Microsoft.Data.Sqlite;
 using PlikShare.AuditLog.Id;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.AuditLogDatabase;
 using PlikShare.Core.SQLite;
+using PlikShare.GeneralSettings;
 using Serilog;
 
 namespace PlikShare.AuditLog;
@@ -9,9 +11,17 @@ namespace PlikShare.AuditLog;
 public class AuditLogWriter(
     AuditLogChannel channel,
     PlikShareAuditLogDb plikShareAuditLogDb,
+    AppSettings appSettings,
     IClock clock) : BackgroundService
 {
     private static readonly Serilog.ILogger Logger = Log.ForContext<AuditLogWriter>();
+
+    private const int CheckpointAfterEntries = 1000;
+    private static readonly TimeSpan CheckpointInterval = TimeSpan.FromSeconds(30);
+
+    private const double MaxSizeLowWaterFraction = 0.9;
+    private const int MaxSizeDeleteBatch = 5000;
+    private const int MaxSizeMaxBatchesPerCycle = 20;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -26,19 +36,34 @@ public class AuditLogWriter(
             CommandsPool = commandsPool
         };
 
+        var entriesSinceCheckpoint = 0;
+        var lastCheckpointAt = clock.UtcNow;
+
         try
         {
-            await foreach (var entry in channel.Reader.ReadAllAsync(stoppingToken))
+            while (await channel.Reader.WaitToReadAsync(stoppingToken))
             {
-                try
+                while (channel.Reader.TryRead(out var entry))
                 {
-                    WriteEntry(context, entry);
+                    try
+                    {
+                        WriteEntry(context, entry);
+                        entriesSinceCheckpoint++;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex,
+                            "Failed to write audit log entry: {EventType}",
+                            entry.EventType);
+                    }
                 }
-                catch (Exception ex)
+
+                if (ShouldCheckpoint(entriesSinceCheckpoint, lastCheckpointAt))
                 {
-                    Logger.Error(ex,
-                        "Failed to write audit log entry: {EventType}",
-                        entry.EventType);
+                    Checkpoint(context);
+                    EnforceMaxSize(context);
+                    entriesSinceCheckpoint = 0;
+                    lastCheckpointAt = clock.UtcNow;
                 }
             }
         }
@@ -48,8 +73,121 @@ public class AuditLogWriter(
         }
 
         DrainRemaining(context);
+        Checkpoint(context);
 
         Logger.Information("AuditLogWriter stopped.");
+    }
+
+    private bool ShouldCheckpoint(
+        int entriesSinceCheckpoint,
+        DateTimeOffset lastCheckpointAt)
+    {
+        if (entriesSinceCheckpoint == 0)
+            return false;
+
+        return entriesSinceCheckpoint >= CheckpointAfterEntries
+            || clock.UtcNow - lastCheckpointAt >= CheckpointInterval;
+    }
+
+    private void Checkpoint(SqliteWriteContext context)
+    {
+        try
+        {
+            context
+                .Connection
+                .NonQueryCmd(sql: "PRAGMA wal_checkpoint(TRUNCATE)")
+                .Execute();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Failed to checkpoint audit log WAL.");
+        }
+    }
+
+    private void EnforceMaxSize(SqliteWriteContext context)
+    {
+        var maxSize = appSettings.AuditLogMaxSizeInBytes;
+
+        if (maxSize is null or <= 0)
+            return;
+
+        try
+        {
+            var connection = context.Connection;
+            var usedBytes = GetUsedBytes(connection);
+
+            if (usedBytes <= maxSize.Value)
+                return;
+
+            var lowWater = (long)(maxSize.Value * MaxSizeLowWaterFraction);
+            var totalDeleted = 0;
+            var batches = 0;
+
+            while (usedBytes > lowWater && batches < MaxSizeMaxBatchesPerCycle)
+            {
+                var deleted = DeleteOldestBatch(connection, MaxSizeDeleteBatch);
+
+                if (deleted == 0)
+                    break;
+
+                totalDeleted += deleted;
+                batches++;
+                usedBytes = GetUsedBytes(connection);
+            }
+
+            if (totalDeleted == 0)
+                return;
+
+            Checkpoint(context);
+
+            Logger.Information(
+                "Audit log exceeded max size {MaxSizeBytes} B; deleted {DeletedCount} oldest entries, now {UsedBytes} B.",
+                maxSize.Value,
+                totalDeleted,
+                usedBytes);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex, "Failed to enforce audit log max size.");
+        }
+    }
+
+    private static long GetUsedBytes(SqliteConnection connection)
+    {
+        var pageSize = connection
+            .OneRowCmd(sql: "PRAGMA page_size", readRowFunc: reader => reader.GetInt64(0))
+            .Execute();
+
+        var pageCount = connection
+            .OneRowCmd(sql: "PRAGMA page_count", readRowFunc: reader => reader.GetInt64(0))
+            .Execute();
+
+        var freeCount = connection
+            .OneRowCmd(sql: "PRAGMA freelist_count", readRowFunc: reader => reader.GetInt64(0))
+            .Execute();
+
+        if (pageSize.IsEmpty || pageCount.IsEmpty || freeCount.IsEmpty)
+            return 0;
+
+        return (pageCount.Value - freeCount.Value) * pageSize.Value;
+    }
+
+    private static int DeleteOldestBatch(SqliteConnection connection, int batchSize)
+    {
+        return connection
+            .NonQueryCmd(
+                sql: """
+                    DELETE FROM al_audit_logs
+                    WHERE al_id IN (
+                        SELECT al_id
+                        FROM al_audit_logs
+                        ORDER BY al_id
+                        LIMIT $batch
+                    )
+                    """)
+            .WithParameter("$batch", batchSize)
+            .Execute()
+            .AffectedRows;
     }
 
     private void DrainRemaining(SqliteWriteContext context)

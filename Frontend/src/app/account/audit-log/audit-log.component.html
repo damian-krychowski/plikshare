@@ -300,24 +300,67 @@
 
         <div class="title-header">
             <div>
+                Configuration
+            </div>
+        </div>
+
+        <div class="mt-2"></div>
+
+        <div class="audit-config-grid">
+            <app-config-card
+                title="Maximum database size"
+                description="When the audit log database grows beyond this size, the oldest entries are automatically deleted to make room for new ones. This permanently removes data and cannot be undone. Leave empty for no limit.">
+
+                <div class="audit-config-controls">
+                    <mat-form-field>
+                        <mat-label>Max size (MB)</mat-label>
+                        <input matInput type="number" min="0" [ngModel]="maxSizeMb()" (ngModelChange)="maxSizeMb.set($event)" placeholder="No limit">
+                    </mat-form-field>
+
+                    <app-action-text-btn
+                        tooltip=""
+                        [text]="isSavingMaxSize() ? 'Saving...' : 'Save'"
+                        [disabled]="isSavingMaxSize() || !isMaxSizeDirty()"
+                        (clicked)="saveMaxSize()">
+                    </app-action-text-btn>
+
+                    <app-action-text-btn
+                        tooltip="Trim the log down to the configured limit and shrink the database file on disk."
+                        [text]="isCompacting() ? 'Compacting...' : 'Compact now'"
+                        [disabled]="isCompacting()"
+                        [operationItem]="'the audit log database'"
+                        [verb]="'compact'"
+                        appConfirmOperation
+                        (confirmedClick)="compactDb()">
+                    </app-action-text-btn>
+                </div>
+
+                @if(lastMaxSizeResult()) {
+                    <div class="explanation">{{ lastMaxSizeResult() }}</div>
+                }
+
+                @if(lastCompactResult()) {
+                    <div class="explanation">{{ lastCompactResult() }}</div>
+                }
+            </app-config-card>
+        </div>
+
+        <div class="mt-3"></div>
+
+        <div class="title-header">
+            <div>
                 Management
             </div>
         </div>
 
         <div class="mt-2"></div>
 
-        <div class="management-grid">
-            <div class="management-grid__row">
-                <div class="management-grid__label">
-                    Delete old logs
-                </div>
+        <div class="audit-config-grid">
+            <app-config-card
+                title="Delete old logs"
+                description="Permanently removes all audit log entries created before the selected date. This action cannot be undone. Consider archiving logs before deleting them.">
 
-                <div class="explanation">
-                    Permanently removes all audit log entries created before the selected date.
-                    This action cannot be undone. Consider archiving logs before deleting them.
-                </div>
-
-                <div class="management-grid__controls">
+                <div class="audit-config-controls">
                     <mat-form-field>
                         <mat-label>Delete before date</mat-label>
                         <input matInput [matDatepicker]="deletePicker" [ngModel]="deleteBeforeDate()" (ngModelChange)="deleteBeforeDate.set($event)" placeholder="YYYY-MM-DD">
@@ -340,20 +383,13 @@
                 @if(lastDeleteResult()) {
                     <div class="explanation">{{ lastDeleteResult() }}</div>
                 }
-            </div>
+            </app-config-card>
 
-            <div class="management-grid__row">
-                <div class="management-grid__label">
-                    Archive logs to file
-                </div>
+            <app-config-card
+                title="Archive logs to file"
+                description="Exports audit log entries to a JSON file stored in the database volume directory (audit-log-archives/). If a date is specified, only entries before that date are archived. Otherwise, all entries are included. Archiving does not delete the original log entries.">
 
-                <div class="explanation">
-                    Exports audit log entries to a JSON file stored in the database volume directory
-                    (audit-log-archives/). If a date is specified, only entries before that date are archived.
-                    Otherwise, all entries are included. Archiving does not delete the original log entries.
-                </div>
-
-                <div class="management-grid__controls">
+                <div class="audit-config-controls">
                     <mat-form-field>
                         <mat-label>Before date (optional)</mat-label>
                         <input matInput [matDatepicker]="archivePicker" [ngModel]="archiveBeforeDate()" (ngModelChange)="archiveBeforeDate.set($event)" placeholder="YYYY-MM-DD">
@@ -375,7 +411,7 @@
                 @if(lastArchiveResult()) {
                     <div class="explanation">{{ lastArchiveResult() }}</div>
                 }
-            </div>
+            </app-config-card>
         </div>
 
         <div class="mt-6"></div>

@@ -54,6 +54,7 @@ export interface AuditLogStats {
     totalLogCount: number;
     oldestEntryDate: string | null;
     newestEntryDate: string | null;
+    maxSizeInBytes: number | null;
 }
 
 export interface AuditLogFilterOptions {
@@ -68,6 +69,11 @@ export interface DeleteOldLogsResponse {
 export interface ArchiveLogsResponse {
     fileName: string;
     archivedCount: number;
+}
+
+export interface CompactResponse {
+    deletedCount: number;
+    dbSizeInBytes: number;
 }
 
 const auditLogResponseProtobuf = getAuditLogResponseDtoProtobuf();
@@ -101,6 +107,18 @@ export class AuditLogApi {
 
     async getFilterOptions(): Promise<AuditLogFilterOptions> {
         const call = this._http.get<AuditLogFilterOptions>('/api/audit-log/filter-options');
+        return await firstValueFrom(call);
+    }
+
+    async setMaxSize(maxSizeInBytes: number | null): Promise<void> {
+        const call = this._http.post<void>('/api/audit-log/max-size', {
+            maxSizeInBytes
+        });
+        await firstValueFrom(call);
+    }
+
+    async compact(): Promise<CompactResponse> {
+        const call = this._http.post<CompactResponse>('/api/audit-log/compact', {});
         return await firstValueFrom(call);
     }
 

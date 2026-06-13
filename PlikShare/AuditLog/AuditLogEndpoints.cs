@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog.Contracts;
 using PlikShare.AuditLog.Decryption;
+using PlikShare.AuditLog.Details;
 using PlikShare.AuditLog.Id;
 using PlikShare.AuditLog.Queries;
 using PlikShare.Core.Authorization;
+using PlikShare.GeneralSettings;
 using PlikShare.Core.Protobuf;
 using PlikShare.Core.Utils;
 using PlikShare.Storages.Encryption;
@@ -33,6 +35,12 @@ public static class AuditLogEndpoints
 
         group.MapGet("/stats", GetAuditLogStats)
             .WithName("GetAuditLogStats");
+
+        group.MapPost("/max-size", UpdateMaxSize)
+            .WithName("UpdateAuditLogMaxSize");
+
+        group.MapPost("/compact", CompactDatabase)
+            .WithName("CompactAuditLog");
 
         group.MapGet("/filter-options", GetFilterOptions)
             .WithName("GetAuditLogFilterOptions");
@@ -64,6 +72,43 @@ public static class AuditLogEndpoints
         GetAuditLogFilterOptionsQuery getAuditLogFilterOptionsQuery)
     {
         return getAuditLogFilterOptionsQuery.Execute();
+    }
+
+    private static async Task<IResult> UpdateMaxSize(
+        [FromBody] UpdateAuditLogMaxSizeRequestDto request,
+        AppSettings appSettings,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        appSettings.SetAuditLogMaxSizeInBytes(
+            request.MaxSizeInBytes);
+
+        await auditLogService.Log(
+            Audit.Settings.AuditLogMaxSizeChangedEntry(
+                actor: httpContext.GetAuditLogActorContext(),
+                value: appSettings.AuditLogMaxSizeInBytes),
+            cancellationToken);
+
+        return TypedResults.Ok();
+    }
+
+    private static async Task<IResult> CompactDatabase(
+        CompactAuditLogQuery compactAuditLogQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var result = compactAuditLogQuery.Execute();
+
+        await auditLogService.Log(
+            Audit.Settings.AuditLogCompactedEntry(
+                actor: httpContext.GetAuditLogActorContext(),
+                deletedCount: result.DeletedCount,
+                dbSizeInBytes: result.DbSizeInBytes),
+            cancellationToken);
+
+        return TypedResults.Ok(result);
     }
 
     private static async Task<IResult> GetAuditLogEntryDetails(

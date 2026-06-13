@@ -1,10 +1,13 @@
 using PlikShare.AuditLog.Contracts;
 using PlikShare.Core.Database.AuditLogDatabase;
 using PlikShare.Core.SQLite;
+using PlikShare.GeneralSettings;
 
 namespace PlikShare.AuditLog.Queries;
 
-public class GetAuditLogStatsQuery(PlikShareAuditLogDb plikShareAuditLogDb)
+public class GetAuditLogStatsQuery(
+    PlikShareAuditLogDb plikShareAuditLogDb,
+    AppSettings appSettings)
 {
     public AuditLogStatsResponseDto Execute()
     {
@@ -35,7 +38,8 @@ public class GetAuditLogStatsQuery(PlikShareAuditLogDb plikShareAuditLogDb)
             DbSizeInBytes = dbSizeInBytes,
             TotalLogCount = stats.IsEmpty ? 0 : stats.Value.TotalCount,
             OldestEntryDate = stats.IsEmpty ? null : stats.Value.OldestDate,
-            NewestEntryDate = stats.IsEmpty ? null : stats.Value.NewestDate
+            NewestEntryDate = stats.IsEmpty ? null : stats.Value.NewestDate,
+            MaxSizeInBytes = appSettings.AuditLogMaxSizeInBytes
         };
     }
 }

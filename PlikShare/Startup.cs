@@ -377,6 +377,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_48_QueueWorkspaceIdAndQueueFileJobs>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_49_ThumbnailJobsUploaderIdentityIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_50_BoxDefaultMinimapAndGalleryDisplayIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_51_AuditLogMaxSizeGrandfatherExistingInstalls>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -400,6 +401,7 @@ public class Startup
         builder.Services.AddSingleton<GetWorkspacesWithAuditLogPolicyQuery>();
         builder.Services.AddSingleton<DeleteOldAuditLogsQuery>();
         builder.Services.AddSingleton<ArchiveAuditLogsQuery>();
+        builder.Services.AddSingleton<CompactAuditLogQuery>();
         builder.Services.AddSingleton<GetFileAuditContextQuery>();
         builder.Services.AddSingleton<GetFolderAuditContextQuery>();
         builder.Services.AddSingleton<GetFileUploadAuditContextQuery>();

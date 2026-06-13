@@ -16,6 +16,7 @@ import { DatePipe } from "@angular/common";
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
 import { ActionTextButtonComponent } from "../../shared/buttons/action-text-btn/action-text-btn.component";
 import { ConfirmOperationDirective } from "../../shared/operation-confirm/confirm-operation.directive";
+import { ConfigCardComponent } from "../../shared/config-card/config-card.component";
 import { getNameWithHighlight } from "../../shared/name-with-highlight";
 
 @Component({
@@ -32,7 +33,8 @@ import { getNameWithHighlight } from "../../shared/name-with-highlight";
         DatePipe,
         ActionButtonComponent,
         ActionTextButtonComponent,
-        ConfirmOperationDirective
+        ConfirmOperationDirective,
+        ConfigCardComponent
     ],
     providers: [
         { provide: DateAdapter, useClass: IsoDateAdapter },
@@ -108,6 +110,21 @@ export class AuditLogComponent implements OnInit, OnDestroy {
     isArchiving = signal(false);
     lastDeleteResult = signal<string | null>(null);
     lastArchiveResult = signal<string | null>(null);
+
+    maxSizeMb = signal<number | null>(null);
+    savedMaxSizeMb = signal<number | null>(null);
+    isSavingMaxSize = signal(false);
+    lastMaxSizeResult = signal<string | null>(null);
+
+    isCompacting = signal(false);
+    lastCompactResult = signal<string | null>(null);
+
+    private normalizeMaxSizeMb(value: number | null): number | null {
+        return value && value > 0 ? value : null;
+    }
+
+    isMaxSizeDirty = computed(() =>
+        this.normalizeMaxSizeMb(this.maxSizeMb()) !== this.savedMaxSizeMb());
 
     dbSizeFormatted = computed(() => {
         const s = this.stats();
@@ -231,6 +248,16 @@ export class AuditLogComponent implements OnInit, OnDestroy {
         try {
             const stats = await this._auditLogApi.getStats();
             this.stats.set(stats);
+
+            const persistedMb = stats.maxSizeInBytes != null
+                ? Math.round(stats.maxSizeInBytes / (1024 * 1024))
+                : null;
+
+            if (!this.isMaxSizeDirty()) {
+                this.maxSizeMb.set(persistedMb);
+            }
+
+            this.savedMaxSizeMb.set(persistedMb);
         } catch (error) {
             console.error('Failed to load stats', error);
         }
@@ -396,6 +423,52 @@ export class AuditLogComponent implements OnInit, OnDestroy {
             this.lastArchiveResult.set('Failed to archive logs.');
         } finally {
             this.isArchiving.set(false);
+        }
+    }
+
+    async saveMaxSize() {
+        this.isSavingMaxSize.set(true);
+        this.lastMaxSizeResult.set(null);
+        try {
+            const mb = this.normalizeMaxSizeMb(this.maxSizeMb());
+            const bytes = mb != null
+                ? Math.round(mb * 1024 * 1024)
+                : null;
+
+            await this._auditLogApi.setMaxSize(bytes);
+
+            this.lastMaxSizeResult.set(bytes === null
+                ? 'Saved. No size limit.'
+                : `Saved. Limit set to ${this.formatBytes(bytes)}.`);
+
+            await this.loadStats();
+        } catch (error) {
+            console.error('Failed to save max size', error);
+            this.lastMaxSizeResult.set('Failed to save max size.');
+        } finally {
+            this.isSavingMaxSize.set(false);
+        }
+    }
+
+    async compactDb() {
+        this.isCompacting.set(true);
+        this.lastCompactResult.set(null);
+        try {
+            const result = await this._auditLogApi.compact();
+
+            const parts: string[] = [];
+            if (result.deletedCount > 0) {
+                parts.push(`Removed ${result.deletedCount} oldest entries.`);
+            }
+            parts.push(`Database size: ${this.formatBytes(result.dbSizeInBytes)}.`);
+
+            this.lastCompactResult.set(parts.join(' '));
+            await this.loadStats();
+        } catch (error) {
+            console.error('Failed to compact database', error);
+            this.lastCompactResult.set('Failed to compact database.');
+        } finally {
+            this.isCompacting.set(false);
         }
     }
 

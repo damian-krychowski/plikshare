@@ -78,6 +78,8 @@ public static class AuditLogEventTypes
         public const string SignUpCheckboxDeleted = "settings.sign-up-checkbox-deleted";
         public const string PasswordLoginToggled = "settings.password-login-toggled";
         public const string NewUserDefaultStorageAccessUpdated = "settings.new-user-default-storage-access-updated";
+        public const string AuditLogMaxSizeChanged = "settings.audit-log-max-size-changed";
+        public const string AuditLogCompacted = "settings.audit-log-compacted";
 
         public static readonly string[] All =
         [
@@ -89,7 +91,9 @@ public static class AuditLogEventTypes
             PrivacyPolicyUploaded, PrivacyPolicyDeleted,
             SignUpCheckboxCreatedOrUpdated, SignUpCheckboxDeleted,
             PasswordLoginToggled,
-            NewUserDefaultStorageAccessUpdated
+            NewUserDefaultStorageAccessUpdated,
+            AuditLogMaxSizeChanged,
+            AuditLogCompacted
         ];
     }
 

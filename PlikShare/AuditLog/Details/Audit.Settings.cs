@@ -124,6 +124,44 @@ public static partial class Audit
                 Value = value?.ToString() })
         };
 
+        public static AuditLogEntry AuditLogMaxSizeChangedEntry(
+            AuditLogActorContext actor,
+            long? value) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Settings,
+            EventType = AuditLogEventTypes.Settings.AuditLogMaxSizeChanged,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new ValueChanged {
+                Value = value?.ToString() })
+        };
+
+        public class AuditLogCompacted
+        {
+            public required int DeletedCount { get; init; }
+            public required long DbSizeInBytes { get; init; }
+        }
+
+        public static AuditLogEntry AuditLogCompactedEntry(
+            AuditLogActorContext actor,
+            int deletedCount,
+            long dbSizeInBytes) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Settings,
+            EventType = AuditLogEventTypes.Settings.AuditLogCompacted,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new AuditLogCompacted {
+                DeletedCount = deletedCount,
+                DbSizeInBytes = dbSizeInBytes })
+        };
+
         public static AuditLogEntry AlertOnNewUserChangedEntry(
             AuditLogActorContext actor,
             bool value) => new()
