@@ -2,6 +2,10 @@
 
 Release notes for PlikShare.
 
+## 1.1.44
+
+- [FIX] Minimap in embedded box widgets — it could collapse to zero height (invisible) when the host page was scrolled, and viewport dragging didn't track the cursor; both fixed
+
 ## 1.1.43
 
 - [FEATURE] Audit log size limit — admins can cap the database size; oldest entries are trimmed when exceeded (new installs default to 1 GB, existing stay unlimited), with a "Compact now" action to trim and shrink the file. Admin page split into Configuration and Management sections
