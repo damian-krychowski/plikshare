@@ -481,7 +481,7 @@ export class FilesMinimapComponent {
     private _scrimAlpha = 1;
     private _scrimLastTick = 0;
     private _lastHostHeight = '';
-    private _contentTopDoc = 0;
+    private _contentTopViewport = 0;
     private _bottomReserve = 0;
     private _lastLiftTransform = '';
     private _lastLiftHeight = -1;
@@ -720,7 +720,7 @@ export class FilesMinimapComponent {
     private measure(): void {
         const host = this.contentHost();
         const hostRect = host.getBoundingClientRect();
-        this._contentTopDoc = hostRect.top + window.scrollY;
+        this._contentTopViewport = hostRect.top;
         this._bottomReserve = this.measureBottomReserve();
         const header = this.stickyHeader();
         const headerRect = header?.getBoundingClientRect() ?? null;
@@ -807,7 +807,7 @@ export class FilesMinimapComponent {
 
         const available = scrollable
             ? window.innerHeight - untracked(() => this._headerHeight()) - HOST_BOTTOM_GAP_PX
-            : window.innerHeight - this._contentTopDoc - this._bottomReserve - HOST_BOTTOM_GAP_PX;
+            : window.innerHeight - this._contentTopViewport - this._bottomReserve - HOST_BOTTOM_GAP_PX;
 
         const value = `${Math.max(0, Math.floor(available))}px`;
 
@@ -1781,7 +1781,7 @@ export class FilesMinimapComponent {
         event.preventDefault();
     }
 
-    private onRailPointerMove(event: PointerEvent): void {
+private onRailPointerMove(event: PointerEvent): void {
         const canvas = this._canvasRef()?.nativeElement;
 
         if (!canvas)
