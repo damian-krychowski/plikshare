@@ -94,6 +94,10 @@
     cursor: grabbing;
 }
 
+:host(.files-minimap--static) .files-minimap__rail {
+    cursor: default;
+}
+
 .files-minimap__tooltip {
     position: absolute;
     right: calc(100% + 10px);

@@ -18,8 +18,7 @@ const BACK_BUFFER_SCREENS = 5;
 const BACK_BUFFER_LEAD_SCREENS = 2;
 const BACK_BUFFER_REFILL_SCREENS = 0.75;
 const WHEEL_LINE_HEIGHT_PX = 16;
-const HOST_BOTTOM_GAP_PX = 12;
-const RAIL_VERTICAL_PADDING_PX = 8;
+const HOST_BOTTOM_GAP_PX = 16;
 const SCRIM_FADE_MS = 150;
 
 const SECTION_FONT = '600 7.5px Inter, sans-serif';
@@ -228,7 +227,8 @@ function decodeThumb(blob: Blob): Promise<ImageBitmap> {
     styleUrl: './files-minimap.component.scss',
     host: {
         '[class.files-minimap--pressed]': 'isPressed()',
-        '[class.files-minimap--sunken]': 'isRailHovered() && !isPressed()'
+        '[class.files-minimap--sunken]': 'isRailHovered() && !isPressed()',
+        '[class.files-minimap--static]': '!isScrollable()'
     }
 })
 export class FilesMinimapComponent {
@@ -478,6 +478,8 @@ export class FilesMinimapComponent {
     private _scrimAlpha = 1;
     private _scrimLastTick = 0;
     private _lastHostHeight = '';
+    private _contentTopDoc = 0;
+    private _bottomReserve = 0;
     private _lastLiftTransform = '';
     private _lastLiftHeight = -1;
     private _lastAriaValue = -1;
@@ -704,6 +706,8 @@ export class FilesMinimapComponent {
     private measure(): void {
         const host = this.contentHost();
         const hostRect = host.getBoundingClientRect();
+        this._contentTopDoc = hostRect.top + window.scrollY;
+        this._bottomReserve = this.measureBottomReserve();
         const header = this.stickyHeader();
         const headerRect = header?.getBoundingClientRect() ?? null;
         const windowHeight = window.innerHeight;
@@ -785,18 +789,29 @@ export class FilesMinimapComponent {
     }
 
     private updateHostHeight(): void {
-        const headerHeight = untracked(() => this._headerHeight());
-        const available = window.innerHeight - headerHeight - HOST_BOTTOM_GAP_PX;
-        const needed = Math.ceil(this.minimapContentHeight()) + RAIL_VERTICAL_PADDING_PX;
+        const scrollable = untracked(() => this._isScrollableState());
 
-        const value = needed > 0 && needed < available
-            ? `${needed}px`
-            : `calc(100dvh - ${headerHeight + HOST_BOTTOM_GAP_PX}px)`;
+        const available = scrollable
+            ? window.innerHeight - untracked(() => this._headerHeight()) - HOST_BOTTOM_GAP_PX
+            : window.innerHeight - this._contentTopDoc - this._bottomReserve - HOST_BOTTOM_GAP_PX;
+
+        const value = `${Math.max(0, Math.floor(available))}px`;
 
         if (value !== this._lastHostHeight) {
             this._lastHostHeight = value;
             this._hostEl.style.height = value;
         }
+    }
+
+    private measureBottomReserve(): number {
+        const footer = this._hostEl
+            .ownerDocument
+            .querySelector('app-footer') as HTMLElement | null;
+
+        if (!footer || footer.getClientRects().length === 0)
+            return 0;
+
+        return footer.getBoundingClientRect().height;
     }
 
     private paintLiftCard(slide: number): void {
@@ -1714,7 +1729,7 @@ export class FilesMinimapComponent {
     }
 
     private onRailPointerDown(event: PointerEvent): void {
-        if (event.button !== 0 || !untracked(() => this._isScrollableState()))
+        if (event.button !== 0)
             return;
 
         const canvas = this._canvasRef()?.nativeElement;
@@ -1740,7 +1755,7 @@ export class FilesMinimapComponent {
             expectedTop: this._viewportValue.top
         };
 
-        if (isInsideViewport) {
+        if (isInsideViewport && untracked(() => this._isScrollableState())) {
             this.isPressed.set(true);
             this.scheduleFlush();
         }
@@ -1761,14 +1776,17 @@ export class FilesMinimapComponent {
                 return;
 
             this._drag.moved = true;
-            this.isDragging.set(true);
-            this.isPressed.set(true);
-            this.setHovered(null);
-            this.tooltip.set(null);
 
-            this.dragToIndicatorTop(
-                this._drag,
-                y - this._drag.grabOffset);
+            if (untracked(() => this._isScrollableState())) {
+                this.isDragging.set(true);
+                this.isPressed.set(true);
+                this.setHovered(null);
+                this.tooltip.set(null);
+
+                this.dragToIndicatorTop(
+                    this._drag,
+                    y - this._drag.grabOffset);
+            }
 
             return;
         }
