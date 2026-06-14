@@ -2,6 +2,12 @@
 
 Release notes for PlikShare.
 
+## 1.1.45
+
+- [FIX] Minimap height reworked to size correctly in every embedding context — the app, page-scrolling widgets and fixed-height widget containers. It no longer keeps growing as you scroll, no longer disappears after scrolling back up when there's content above or below the widget, and folders with only a few items no longer get a stray scrollbar. Long lists keep the full-height sticky rail; short lists now show a full-height rail track behind the (short) map, so it looks consistent everywhere
+- [IMPROVEMENT] Minimap idle dimming moved from the canvas to a CSS layer — smoother fade and less per-frame canvas work
+- [IMPROVEMENT] Widget preview page can simulate page content above and below the widget, to test embedding at different scroll positions
+
 ## 1.1.44
 
 - [FIX] Minimap in embedded box widgets — it could collapse to zero height (invisible) when the host page was scrolled, and viewport dragging didn't track the cursor; both fixed

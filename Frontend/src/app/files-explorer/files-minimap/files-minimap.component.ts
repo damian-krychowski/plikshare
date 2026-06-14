@@ -22,7 +22,6 @@ const BACK_BUFFER_REFILL_SCREENS = 0.75;
 const WHEEL_LINE_HEIGHT_PX = 16;
 const HOST_BOTTOM_GAP_PX = 16;
 const RAIL_VERTICAL_PADDING_PX = 8;
-const SCRIM_FADE_MS = 150;
 
 const SECTION_FONT = '600 7.5px Inter, sans-serif';
 const MONTH_FONT = '500 8px Inter, sans-serif';
@@ -46,8 +45,7 @@ const COLORS = {
     fileGlyph: '#b6bfc6',
     folderGlyph: '#9fabb3',
     checkboxBorder: '#b0bcc3',
-    checkboxCheck: '#ffffff',
-    scrimFill: 'rgba(236, 242, 247, 0.62)'
+    checkboxCheck: '#ffffff'
 };
 
 type SegmentGeometry = {
@@ -479,8 +477,6 @@ export class FilesMinimapComponent {
     private _viewportValue: MinimapViewport = { top: 0, height: 0 };
     private _hovered: AbsoluteBlock | null = null;
     private _externalHovered: AbsoluteBlock | null = null;
-    private _scrimAlpha = 1;
-    private _scrimLastTick = 0;
     private _lastHostHeight = '';
     private _viewportHeight = 0;
     private _lastLiftTransform = '';
@@ -1091,40 +1087,6 @@ export class FilesMinimapComponent {
             0,
             w,
             sourceHeight / devicePixelRatio);
-
-        const isClearView = untracked(() => 
-            this.isRailHovered() 
-            && !this.isPressed() 
-            && !this.isLiftHovered())
-
-        const scrimTarget = isClearView ? 0 : 1;
-
-        if (this._scrimAlpha !== scrimTarget) {
-            const now = performance.now();
-            const elapsed = this._scrimLastTick > 0 ? now - this._scrimLastTick : 16;
-            const step = elapsed / SCRIM_FADE_MS;
-
-            this._scrimLastTick = now;
-
-            this._scrimAlpha = scrimTarget > this._scrimAlpha
-                ? Math.min(scrimTarget, this._scrimAlpha + step)
-                : Math.max(scrimTarget, this._scrimAlpha - step);
-
-            this.scheduleFlush();
-        } else {
-            this._scrimLastTick = 0;
-        }
-
-        if (untracked(() => this._isScrollableState()) && this._scrimAlpha > 0.01) {
-            const scrimHeight = Math.min(h, Math.max(0, this.minimapContentHeight() - slide));
-
-            if (scrimHeight > 0) {
-                ctx.globalAlpha = this._scrimAlpha;
-                ctx.fillStyle = COLORS.scrimFill;
-                ctx.fillRect(0, 0, w, scrimHeight);
-                ctx.globalAlpha = 1;
-            }
-        }
 
         const hovered = this._hovered ?? this._externalHovered;
         const scale = untracked(() => this._scale());
