@@ -481,8 +481,7 @@ export class FilesMinimapComponent {
     private _scrimAlpha = 1;
     private _scrimLastTick = 0;
     private _lastHostHeight = '';
-    private _contentTopViewport = 0;
-    private _bottomReserve = 0;
+    private _viewportHeight = 0;
     private _lastLiftTransform = '';
     private _lastLiftHeight = -1;
     private _lastAriaValue = -1;
@@ -720,8 +719,7 @@ export class FilesMinimapComponent {
     private measure(): void {
         const host = this.contentHost();
         const hostRect = host.getBoundingClientRect();
-        this._contentTopViewport = hostRect.top;
-        this._bottomReserve = this.measureBottomReserve();
+        this._viewportHeight = this.resolveScrollViewportHeight();
         const header = this.stickyHeader();
         const headerRect = header?.getBoundingClientRect() ?? null;
         const windowHeight = window.innerHeight;
@@ -784,6 +782,8 @@ export class FilesMinimapComponent {
     }
 
     private flush(): void {
+        this.updateHostHeight();
+
         const { w, h } = untracked(() => this._canvasSize());
 
         if (w <= 0 || h <= 0)
@@ -799,17 +799,13 @@ export class FilesMinimapComponent {
         this.blit(slide);
         this.updateIndicator();
         this.paintLiftCard(slide);
-        this.updateHostHeight();
     }
 
     private updateHostHeight(): void {
-        const scrollable = untracked(() => this._isScrollableState());
+        const headerHeight = untracked(() => this._headerHeight());
+        const available = Math.max(0, this._viewportHeight - headerHeight - HOST_BOTTOM_GAP_PX);
 
-        const available = scrollable
-            ? window.innerHeight - untracked(() => this._headerHeight()) - HOST_BOTTOM_GAP_PX
-            : window.innerHeight - this._contentTopViewport - this._bottomReserve - HOST_BOTTOM_GAP_PX;
-
-        const value = `${Math.max(0, Math.floor(available))}px`;
+        const value = `${Math.floor(available)}px`;
 
         if (value !== this._lastHostHeight) {
             this._lastHostHeight = value;
@@ -817,15 +813,21 @@ export class FilesMinimapComponent {
         }
     }
 
-    private measureBottomReserve(): number {
-        const footer = this._hostEl
-            .ownerDocument
-            .querySelector('app-footer') as HTMLElement | null;
+    private resolveScrollViewportHeight(): number {
+        let element = this.contentHost().parentElement;
 
-        if (!footer || footer.getClientRects().length === 0)
-            return 0;
+        while (element) {
+            if (getComputedStyle(element).overflowY !== 'visible') {
+                const clientHeight = element.clientHeight;
 
-        return footer.getBoundingClientRect().height;
+                if (clientHeight > 0)
+                    return clientHeight;
+            }
+
+            element = element.parentElement;
+        }
+
+        return window.innerHeight;
     }
 
     private paintLiftCard(slide: number): void {

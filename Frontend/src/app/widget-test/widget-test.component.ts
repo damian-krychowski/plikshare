@@ -32,6 +32,8 @@ export class WidgetTestComponent implements OnInit {
     url = signal<string>('');
     heightMode = signal<HeightMode>('fixed');
     fixedHeight = signal<number>(600);
+    contentBefore = signal<number>(0);
+    contentAfter = signal<number>(0);
 
     hasWidget = signal<boolean>(false);
     collapsed = signal<boolean>(false);

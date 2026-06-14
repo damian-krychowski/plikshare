@@ -51,12 +51,40 @@
                 }
             </div>
 
+            <div class="widget-test__row">
+                <mat-form-field class="widget-test__height" subscriptSizing="dynamic">
+                    <mat-label>Content above (px)</mat-label>
+                    <input matInput
+                        [ngModel]="contentBefore()"
+                        (ngModelChange)="contentBefore.set($event)"
+                        type="number"
+                        min="0"
+                        step="100">
+                </mat-form-field>
+
+                <mat-form-field class="widget-test__height" subscriptSizing="dynamic">
+                    <mat-label>Content below (px)</mat-label>
+                    <input matInput
+                        [ngModel]="contentAfter()"
+                        (ngModelChange)="contentAfter.set($event)"
+                        type="number"
+                        min="0"
+                        step="100">
+                </mat-form-field>
+            </div>
+
             <div class="widget-test__actions">
                 <app-action-text-btn text="Render" (clicked)="render()"></app-action-text-btn>
                 <app-action-text-btn text="Clear" (clicked)="clear()"></app-action-text-btn>
             </div>
         }
     </app-config-card>
+
+    @if (contentBefore() > 0) {
+        <div class="widget-test__spacer" [style.height.px]="contentBefore()">
+            <span class="widget-test__spacer-label">Page content above — {{ contentBefore() }}px</span>
+        </div>
+    }
 
     <div class="widget-test__stage">
         <div #stage class="widget-test__host"></div>
@@ -67,6 +95,12 @@
             </div>
         }
     </div>
+
+    @if (contentAfter() > 0) {
+        <div class="widget-test__spacer" [style.height.px]="contentAfter()">
+            <span class="widget-test__spacer-label">Page content below — {{ contentAfter() }}px</span>
+        </div>
+    }
 
     @if (log().length) {
         <div class="widget-test__log">

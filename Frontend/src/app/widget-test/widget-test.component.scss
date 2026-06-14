@@ -44,6 +44,32 @@
         gap: 0.5rem;
     }
 
+    &__spacer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        border: 1px dashed var(--company-grey-accent);
+        border-radius: var(--mdc-filled-button-container-shape);
+        background: repeating-linear-gradient(
+            45deg,
+            var(--company-grey-accent-light) 0,
+            var(--company-grey-accent-light) 12px,
+            transparent 12px,
+            transparent 24px);
+    }
+
+    &__spacer-label {
+        position: sticky;
+        top: 0.5rem;
+        color: var(--company-grey-font);
+        font-size: var(--company-medium-font);
+        background-color: var(--company-background);
+        border: 1px solid var(--company-grey-accent-light);
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
+    }
+
     &__stage {
         background-color: white;
     }
