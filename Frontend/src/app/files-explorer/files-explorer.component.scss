@@ -52,6 +52,21 @@
         .explorer-content__main {
             flex: 1 1 auto;
         }
+
+        &::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            width: 118px;
+            border-left: 1px solid var(--company-grey-accent-light);
+            border-right: 1px solid var(--company-grey-accent-light);
+            background: var(--company-background);
+            z-index: 0;
+            pointer-events: none;
+            box-sizing: border-box;
+        }
     }
 }
 

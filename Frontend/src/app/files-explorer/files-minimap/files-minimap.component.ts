@@ -21,6 +21,7 @@ const BACK_BUFFER_LEAD_SCREENS = 2;
 const BACK_BUFFER_REFILL_SCREENS = 0.75;
 const WHEEL_LINE_HEIGHT_PX = 16;
 const HOST_BOTTOM_GAP_PX = 16;
+const RAIL_VERTICAL_PADDING_PX = 8;
 const SCRIM_FADE_MS = 150;
 
 const SECTION_FONT = '600 7.5px Inter, sans-serif';
@@ -803,7 +804,12 @@ export class FilesMinimapComponent {
 
     private updateHostHeight(): void {
         const headerHeight = untracked(() => this._headerHeight());
-        const available = Math.max(0, this._viewportHeight - headerHeight - HOST_BOTTOM_GAP_PX);
+        const viewportAvailable = Math.max(0, this._viewportHeight - headerHeight - HOST_BOTTOM_GAP_PX);
+        const mapHeight = this.minimapContentHeight();
+
+        const available = mapHeight > 0
+            ? Math.min(viewportAvailable, mapHeight + RAIL_VERTICAL_PADDING_PX)
+            : viewportAvailable;
 
         const value = `${Math.floor(available)}px`;
 
