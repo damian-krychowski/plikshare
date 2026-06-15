@@ -223,6 +223,7 @@ public static class AuditLogEventTypes
         public const string DefaultMaxWorkspaceSizeUpdated = "agent.default-max-workspace-size-updated";
         public const string DefaultMaxWorkspaceTeamMembersUpdated = "agent.default-max-workspace-team-members-updated";
         public const string StorageAccessUpdated = "agent.storage-access-updated";
+        public const string WorkspacesListed = "agent.workspaces-listed";
 
         public static readonly string[] All =
         [
@@ -234,7 +235,8 @@ public static class AuditLogEventTypes
             MaxWorkspaceNumberUpdated,
             DefaultMaxWorkspaceSizeUpdated,
             DefaultMaxWorkspaceTeamMembersUpdated,
-            StorageAccessUpdated
+            StorageAccessUpdated,
+            WorkspacesListed
         ];
     }
 

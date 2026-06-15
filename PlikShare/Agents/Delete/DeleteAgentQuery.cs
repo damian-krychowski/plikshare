@@ -89,6 +89,7 @@ public class DeleteAgentQuery(DbWriteQueue dbWriteQueue)
 
             return new Result(
                 Code: ResultCode.Ok,
+                Id: agentId,
                 Name: agent.Value.Name);
         }
         catch (Exception e)
@@ -108,6 +109,7 @@ public class DeleteAgentQuery(DbWriteQueue dbWriteQueue)
 
     public readonly record struct Result(
         ResultCode Code,
+        int Id = 0,
         string? Name = null);
 
     public enum ResultCode

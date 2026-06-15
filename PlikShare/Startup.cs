@@ -10,6 +10,7 @@ using PlikShare.Account.GetKnownUsers;
 using PlikShare.Agents;
 using PlikShare.Agents.Authorization;
 using PlikShare.Agents.BoxAccess;
+using PlikShare.Agents.Cache;
 using PlikShare.Agents.Create;
 using PlikShare.Agents.Delete;
 using PlikShare.Agents.Get;
@@ -18,6 +19,9 @@ using PlikShare.Agents.ListWorkspaceBoxes;
 using PlikShare.Agents.RotateToken;
 using PlikShare.Agents.UpdateSettings;
 using PlikShare.Agents.WorkspaceAccess;
+using PlikShare.AgentSkills;
+using PlikShare.Mcp;
+using PlikShare.Mcp.Workspaces.List;
 using PlikShare.Antiforgery;
 using PlikShare.AuditLog;
 using PlikShare.AuditLog.Decryption;
@@ -530,6 +534,7 @@ public class Startup
         builder.Services.AddSingleton<BoxLinkTokenService>();
         builder.Services.AddSingleton<AgentTokenService>();
         builder.Services.AddSingleton<AgentTokenVerifier>();
+        builder.Services.AddSingleton<AgentCache>();
         builder.Services.AddSingleton<CreateAgentQuery>();
         builder.Services.AddSingleton<GetAgentsQuery>();
         builder.Services.AddSingleton<GetAgentDetailsQuery>();
@@ -539,6 +544,9 @@ public class Startup
         builder.Services.AddSingleton<AgentWorkspaceAccessQuery>();
         builder.Services.AddSingleton<AgentBoxAccessQuery>();
         builder.Services.AddSingleton<UpdateAgentSettingsQuery>();
+
+        builder.Services.AddSingleton<GetAgentWorkspacesQuery>();
+        builder.AddPlikShareMcp();
 
         builder.Services.AddSingleton<IOneTimeCode, OneTimeCode>();
         builder.Services.AddSingleton<IConfig, AppConfig>();
@@ -585,6 +593,7 @@ public class Startup
         AddNormalQueueJob<DeleteEphemeralWorkspaceEncryptionKeysQueueJobExecutor>();
         builder.Services.AddSingleton<WorkspaceCache>();
         builder.Services.AddSingleton<WorkspaceMembershipCache>();
+        builder.Services.AddSingleton<WorkspaceAgentMembershipCache>();
         builder.Services.AddSingleton<ScheduleWorkspaceDeleteQuery>();
         builder.Services.AddSingleton<DeleteWorkspaceWithDependenciesQuery>();
         AddNormalQueueJob<DeleteWorkspaceQueueJobExecutor>();
@@ -989,6 +998,8 @@ public class Startup
         app.MapBoxesEndpoints();
         app.MapIntegrationsEndpoints();
         app.MapAgentsEndpoints();
+        app.MapPlikShareMcp();
+        app.MapAgentSkillsEndpoints();
         app.MapTextractEndpoints();
         app.MapChatGptEndpoints();
         app.MapAiEndpoints();

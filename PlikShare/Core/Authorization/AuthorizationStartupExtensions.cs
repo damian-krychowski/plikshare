@@ -11,6 +11,7 @@ public static class AuthPolicy
     public const string BoxLinkCookie = "box-link-cookie";
     public const string Internal = "internal";
     public const string InternalOrBoxLink = "internal-or-box-link";
+    public const string AgentToken = "agent-token";
 }
 
 public static class AuthScheme
@@ -63,6 +64,12 @@ public static class AuthorizationStartupExtensions
             {
                 policy.AddAuthenticationSchemes(AuthScheme.BoxLinkSessionScheme);
                 policy.RequireClaim(Claims.BoxLinkSessionIdClaim);
+            });
+
+            options.AddPolicy(AuthPolicy.AgentToken, policy =>
+            {
+                policy.AddAuthenticationSchemes(AuthScheme.AgentTokenScheme);
+                policy.RequireClaim(Claims.AgentExternalIdClaim);
             });
 
             //this policy is a mix of two polices above

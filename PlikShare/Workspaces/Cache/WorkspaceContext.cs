@@ -1,3 +1,4 @@
+using PlikShare.Agents.Cache;
 using PlikShare.Core.Encryption;
 using PlikShare.Integrations.Aws.Textract;
 using PlikShare.Integrations.OpenAi.ChatGpt;
@@ -20,6 +21,7 @@ public sealed class WorkspaceContext
     public required bool IsBucketCreated { get; init; }
     public required bool IsBeingDeleted { get; init; }
     public required UserContext Owner { get; init; }
+    public required AgentContext? OwnerAgent { get; init; }
     public required IStorageClient Storage { get; init; }
     public required WorkspaceEncryptionMetadata? EncryptionMetadata { get; init; }
     public required WorkspaceIntegrations Integrations { get; init; }

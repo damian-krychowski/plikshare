@@ -11,7 +11,7 @@ import { MatDatepickerModule } from "@angular/material/datepicker";
 import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE, MAT_NATIVE_DATE_FORMATS } from "@angular/material/core";
 import { IsoDateAdapter } from "./iso-date-adapter";
 import { AuthService } from "../../services/auth.service";
-import { AuditLogApi, AuditLogItem, AuditLogEntryDetails, AuditLogStats, AuditLogFilters } from "./audit-log.api";
+import { AuditLogApi, AuditLogItem, AuditLogEntryDetails, AuditLogStats, AuditLogFilters, ActorOption } from "./audit-log.api";
 import { DatePipe } from "@angular/common";
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
 import { ActionTextButtonComponent } from "../../shared/buttons/action-text-btn/action-text-btn.component";
@@ -71,7 +71,7 @@ export class AuditLogComponent implements OnInit, OnDestroy {
 
     // Filter options (from API)
     availableEventTypes = signal<string[]>([]);
-    availableActors = signal<string[]>([]);
+    availableActors = signal<ActorOption[]>([]);
 
     // Search within dropdowns
     eventTypeSearch = signal('');
@@ -100,7 +100,7 @@ export class AuditLogComponent implements OnInit, OnDestroy {
         const search = this.actorSearch().toLowerCase();
         const selected = new Set(this.filterActorIdentities());
         if (!search) return this.availableActors();
-        return this.availableActors().filter(a => selected.has(a) || a.toLowerCase().includes(search));
+        return this.availableActors().filter(a => selected.has(a.value) || a.label.toLowerCase().includes(search));
     });
 
     // Management
@@ -133,9 +133,9 @@ export class AuditLogComponent implements OnInit, OnDestroy {
     });
 
     eventCategories = [
-        'auth', 'auth-provider', 'box', 'box-link',
+        'agent', 'auth', 'auth-provider', 'box', 'box-link',
         'email-provider', 'file', 'folder', 'integration',
-        'settings', 'storage', 'upload', 'user', 'workspace'
+        'quick-share', 'settings', 'storage', 'upload', 'user', 'workspace'
     ];
 
     severities = ['critical', 'info', 'verbose', 'warning'];
@@ -267,7 +267,12 @@ export class AuditLogComponent implements OnInit, OnDestroy {
         try {
             const options = await this._auditLogApi.getFilterOptions();
             this.availableEventTypes.set([...options.eventTypes].sort());
-            this.availableActors.set([...options.actors].sort());
+
+            const userActors: ActorOption[] = options.actors.map(email => ({ value: email, label: email }));
+            const agentActors: ActorOption[] = options.agents.map(agent => ({ value: agent.externalId, label: agent.name }));
+
+            this.availableActors.set(
+                [...userActors, ...agentActors].sort((a, b) => a.label.localeCompare(b.label)));
         } catch (error) {
             console.error('Failed to load filter options', error);
         }

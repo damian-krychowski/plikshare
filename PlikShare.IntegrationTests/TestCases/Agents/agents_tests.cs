@@ -158,8 +158,7 @@ public class agents_tests : TestFixture
                 CanManageEmailProviders = false,
                 CanManageAuth = false,
                 CanManageIntegrations = true,
-                CanManageAuditLog = false,
-                CanManageAgents = true
+                CanManageAuditLog = false
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -173,7 +172,7 @@ public class agents_tests : TestFixture
         details.Agent.Permissions.CanAddWorkspace.Should().BeTrue();
         details.Agent.Permissions.CanManageUsers.Should().BeTrue();
         details.Agent.Permissions.CanManageIntegrations.Should().BeTrue();
-        details.Agent.Permissions.CanManageAgents.Should().BeTrue();
+        details.Agent.Permissions.CanManageAgents.Should().BeFalse();
         details.Agent.Permissions.CanManageGeneralSettings.Should().BeFalse();
         details.Agent.Permissions.CanManageStorages.Should().BeFalse();
     }
@@ -622,8 +621,7 @@ public class agents_tests : TestFixture
                 CanManageEmailProviders = false,
                 CanManageAuth = false,
                 CanManageIntegrations = false,
-                CanManageAuditLog = false,
-                CanManageAgents = false
+                CanManageAuditLog = false
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);

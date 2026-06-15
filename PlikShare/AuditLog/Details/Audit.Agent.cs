@@ -188,6 +188,26 @@ public static partial class Audit
             AgentRef agent) => SettingsUpdatedEntry(
                 actor, agent, AuditLogEventTypes.Agent.StorageAccessUpdated, AuditLogSeverities.Warning);
 
+        public class WorkspacesListed
+        {
+            public required int Count { get; init; }
+        }
+
+        public static AuditLogEntry WorkspacesListedEntry(
+            AuditLogActorContext actor,
+            int count) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Agent,
+            EventType = AuditLogEventTypes.Agent.WorkspacesListed,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new WorkspacesListed {
+                Count = count })
+        };
+
         private static AuditLogEntry SettingsUpdatedEntry(
             AuditLogActorContext actor,
             AgentRef agent,

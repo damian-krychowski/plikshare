@@ -126,6 +126,7 @@ public static class AuditLogEventCatalog
         new(AuditLogEventTypes.Agent.DefaultMaxWorkspaceSizeUpdated,        AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent default max-workspace-size quota updated.",      AuditLogEventScope.Application),
         new(AuditLogEventTypes.Agent.DefaultMaxWorkspaceTeamMembersUpdated, AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent default max-workspace-team-members quota updated.", AuditLogEventScope.Application),
         new(AuditLogEventTypes.Agent.StorageAccessUpdated,                  AuditLogEventCategories.Agent, AuditLogSeverities.Warning, "Agent storage access policy updated.",                 AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.WorkspacesListed,                      AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent listed the workspaces it can access.",          AuditLogEventScope.Application),
 
         // ── Workspaces ───────────────────────────────────────────────────────────
         new(AuditLogEventTypes.Workspace.Created,                          AuditLogEventCategories.Workspace, AuditLogSeverities.Info,     "Workspace created.",                                AuditLogEventScope.Workspace),

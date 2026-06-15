@@ -163,8 +163,8 @@
                                 noEntriesFoundLabel="No matching actors"
                                 [hideClearSearchButton]="true">
                             </ngx-mat-select-search>
-                            @for(actor of filteredActors(); track actor) {
-                                <mat-option [value]="actor"><span [innerHTML]="highlightMatch(actor, actorSearch())"></span></mat-option>
+                            @for(actor of filteredActors(); track actor.value) {
+                                <mat-option [value]="actor.value"><span [innerHTML]="highlightMatch(actor.label, actorSearch())"></span></mat-option>
                             }
                         </mat-select>
                     </mat-form-field>

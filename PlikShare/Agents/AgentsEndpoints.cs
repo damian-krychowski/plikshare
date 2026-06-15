@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.Agents.BoxAccess;
 using PlikShare.Agents.BoxAccess.Contracts;
+using PlikShare.Agents.Cache;
 using PlikShare.Agents.Create;
 using PlikShare.Agents.Create.Contracts;
 using PlikShare.Agents.Delete;
@@ -24,6 +25,7 @@ using PlikShare.Boxes.Permissions;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Utils;
 using PlikShare.Users.Middleware;
+using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Id;
 using Audit = PlikShare.AuditLog.Details.Audit;
 
@@ -150,6 +152,8 @@ public static class AgentsEndpoints
     private static async Task<Results<Ok, NotFound<HttpError>>> DeleteAgent(
         [FromRoute] AgentExtId agentExternalId,
         DeleteAgentQuery deleteAgentQuery,
+        AgentCache agentCache,
+        WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
         HttpContext httpContext,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
@@ -160,6 +164,14 @@ public static class AgentsEndpoints
 
         if (result.Code == DeleteAgentQuery.ResultCode.Ok)
         {
+            await agentCache.InvalidateEntry(
+                result.Id,
+                cancellationToken);
+
+            await workspaceAgentMembershipCache.InvalidateAllForAgent(
+                result.Id,
+                cancellationToken);
+
             await auditLogService.Log(
                 Audit.Agent.DeletedEntry(
                     actor: httpContext.GetAuditLogActorContext(),
@@ -220,6 +232,7 @@ public static class AgentsEndpoints
         [FromRoute] AgentExtId agentExternalId,
         [FromRoute] WorkspaceExtId workspaceExternalId,
         AgentWorkspaceAccessQuery agentWorkspaceAccessQuery,
+        WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
         HttpContext httpContext,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
@@ -232,6 +245,11 @@ public static class AgentsEndpoints
         switch (result.Code)
         {
             case AgentWorkspaceAccessQuery.ResultCode.Ok:
+                await workspaceAgentMembershipCache.InvalidateEntry(
+                    workspaceId: result.WorkspaceId,
+                    agentId: result.AgentId,
+                    cancellationToken);
+
                 await auditLogService.Log(
                     Audit.Agent.WorkspaceAccessGrantedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
@@ -266,6 +284,7 @@ public static class AgentsEndpoints
         [FromRoute] AgentExtId agentExternalId,
         [FromRoute] WorkspaceExtId workspaceExternalId,
         AgentWorkspaceAccessQuery agentWorkspaceAccessQuery,
+        WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
         HttpContext httpContext,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
@@ -278,6 +297,11 @@ public static class AgentsEndpoints
         switch (result.Code)
         {
             case AgentWorkspaceAccessQuery.ResultCode.Ok:
+                await workspaceAgentMembershipCache.InvalidateEntry(
+                    workspaceId: result.WorkspaceId,
+                    agentId: result.AgentId,
+                    cancellationToken);
+
                 await auditLogService.Log(
                     Audit.Agent.WorkspaceAccessRevokedEntry(
                         actor: httpContext.GetAuditLogActorContext(),
@@ -415,6 +439,7 @@ public static class AgentsEndpoints
         [FromRoute] AgentExtId agentExternalId,
         [FromBody] UpdateAgentPermissionsAndRolesRequestDto request,
         UpdateAgentSettingsQuery updateAgentSettingsQuery,
+        AgentCache agentCache,
         HttpContext httpContext,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
@@ -426,6 +451,10 @@ public static class AgentsEndpoints
 
         if (result.Code == UpdateAgentSettingsQuery.ResultCode.NotFound)
             return HttpErrors.Agent.NotFound(agentExternalId);
+
+        await agentCache.InvalidateEntry(
+            agentExternalId,
+            cancellationToken);
 
         await auditLogService.Log(
             Audit.Agent.PermissionsAndRolesUpdatedEntry(

@@ -3,7 +3,7 @@ namespace PlikShare.Core.Angular;
 public class AngularRoutingMiddleware(RequestDelegate next)
 {
     private readonly string[] _fileExtensions = [
-        "js", "css", "png", "jpg", "jpeg", "svg", "woff", "woff2", "ico", "map", "json", "webp", "webm", "txt", "xml", "pdf"
+        "js", "css", "png", "jpg", "jpeg", "svg", "woff", "woff2", "ico", "map", "json", "webp", "webm", "txt", "xml", "pdf", "md"
     ];
 
     public async Task InvokeAsync(HttpContext context)

@@ -22,6 +22,11 @@ public static class AuditLogHttpContextExtensions
 
     private static IUserIdentity? TryGetUserIdentity(HttpContext httpContext)
     {
+        var agentExternalId = httpContext.User.TryGetAgentExternalId();
+
+        if (agentExternalId is not null)
+            return new AgentIdentity(agentExternalId.Value);
+
         try
         {
             var externalId = httpContext.User.GetExternalId();

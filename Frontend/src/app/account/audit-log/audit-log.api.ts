@@ -60,6 +60,17 @@ export interface AuditLogStats {
 export interface AuditLogFilterOptions {
     eventTypes: string[];
     actors: string[];
+    agents: AuditLogAgentActor[];
+}
+
+export interface AuditLogAgentActor {
+    externalId: string;
+    name: string;
+}
+
+export interface ActorOption {
+    value: string;
+    label: string;
 }
 
 export interface DeleteOldLogsResponse {

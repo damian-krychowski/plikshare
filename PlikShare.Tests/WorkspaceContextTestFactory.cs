@@ -79,6 +79,7 @@ internal static class WorkspaceContextTestFactory
             IsBucketCreated = true,
             IsBeingDeleted = false,
             Owner = CreateOwner(),
+            OwnerAgent = null,
             Storage = storage,
             EncryptionMetadata = encryption is FullStorageEncryption
                 ? new WorkspaceEncryptionMetadata { Salt = RandomNumberGenerator.GetBytes(32) }

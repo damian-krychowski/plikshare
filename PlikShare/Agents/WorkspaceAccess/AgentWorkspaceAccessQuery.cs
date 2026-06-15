@@ -87,7 +87,9 @@ public class AgentWorkspaceAccessQuery(
 
             return new Result(
                 Code: ResultCode.Ok,
+                AgentId: targets.AgentId,
                 AgentName: targets.AgentName,
+                WorkspaceId: targets.WorkspaceId,
                 WorkspaceName: targets.WorkspaceName);
         }
         catch (Exception e)
@@ -143,7 +145,9 @@ public class AgentWorkspaceAccessQuery(
 
             return new Result(
                 Code: ResultCode.Ok,
+                AgentId: targets.AgentId,
                 AgentName: targets.AgentName,
+                WorkspaceId: targets.WorkspaceId,
                 WorkspaceName: targets.WorkspaceName);
         }
         catch (Exception e)
@@ -228,7 +232,9 @@ public class AgentWorkspaceAccessQuery(
 
     public readonly record struct Result(
         ResultCode Code,
+        int AgentId = 0,
         string? AgentName = null,
+        int WorkspaceId = 0,
         string? WorkspaceName = null);
 
     public enum ResultCode

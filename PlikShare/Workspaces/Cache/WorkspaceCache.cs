@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Caching.Hybrid;
+using PlikShare.Agents.Cache;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.SQLite;
@@ -18,6 +19,7 @@ public class WorkspaceCache(
     PlikShareDb plikShareDb,
     HybridCache cache,
     UserCache userCache,
+    AgentCache agentCache,
     StorageClientStore storageClientStore,
     TextractClientStore textractClientStore,
     ChatGptClientStore chatGptClientStore)
@@ -141,6 +143,18 @@ public class WorkspaceCache(
                 $"Owner of workspace '{workspace.ExternalId}' was not found.");
         }
 
+        var ownerAgent = workspace.OwnerAgentId is null
+            ? null
+            : await agentCache.TryGetAgent(
+                agentId: workspace.OwnerAgentId.Value,
+                cancellationToken: cancellationToken);
+
+        if (workspace.OwnerAgentId is not null && ownerAgent is null)
+        {
+            throw new InvalidOperationException(
+                $"Owner agent of workspace '{workspace.ExternalId}' was not found.");
+        }
+
         if (!storageClientStore.TryGetClient(
                 storageId: workspace.StorageId,
                 out var storageClient))
@@ -164,6 +178,7 @@ public class WorkspaceCache(
             IsBucketCreated = workspace.IsBucketCreated,
             IsBeingDeleted = workspace.IsBeingDeleted,
             Owner = owner,
+            OwnerAgent = ownerAgent,
             Storage = storageClient,
             EncryptionMetadata = workspace.EncryptionMetadata,
             Integrations = integrations,
@@ -253,7 +268,8 @@ public class WorkspaceCache(
                          w_storage_id,
                          w_encryption_salt,
                          w_trash_policy_json,
-                         w_media_processing_policy_json
+                         w_media_processing_policy_json,
+                         w_owner_agent_id
                      FROM w_workspaces
                      WHERE {lookup.WhereClause}
                      LIMIT 1
@@ -278,7 +294,8 @@ public class WorkspaceCache(
                             ? null
                             : new WorkspaceEncryptionMetadata { Salt = salt },
                         TrashPolicy = reader.GetFromJson<TrashPolicy>(11),
-                        MediaProcessingPolicy = reader.GetFromJsonOrNull<MediaProcessingPolicy>(12)
+                        MediaProcessingPolicy = reader.GetFromJsonOrNull<MediaProcessingPolicy>(12),
+                        OwnerAgentId = reader.GetInt32OrNull(13)
                     };
                 })
             .WithParameter(lookup.ParamName, lookup.ParamValue)
@@ -314,5 +331,6 @@ public class WorkspaceCache(
         public required WorkspaceEncryptionMetadata? EncryptionMetadata { get; init; }
         public required TrashPolicy TrashPolicy { get; init; }
         public required MediaProcessingPolicy? MediaProcessingPolicy { get; init; }
+        public required int? OwnerAgentId { get; init; }
     }
 }
