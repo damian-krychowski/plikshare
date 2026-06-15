@@ -19,6 +19,13 @@ export interface WorkspacePickerDialogData {
      * "user will be added as a member" message when not provided.
      */
     subtitle?: string;
+
+    /**
+     * Workspaces that are already accessible to the target (e.g. already granted to an
+     * agent). They are still shown — dimmed, badged "Already granted" and not selectable —
+     * so the picker reflects the full set rather than silently hiding entries.
+     */
+    alreadyGrantedExternalIds?: string[];
 }
 
 @Component({
@@ -35,6 +42,7 @@ export interface WorkspacePickerDialogData {
 export class WorkspacePickerComponent implements OnInit {
     private _allWorkspaces: AdminWorkspaceListItem[] = [];
     private _excludeMemberOrOwnerExternalId: string | undefined;
+    private _alreadyGrantedExternalIds = new Set<string>();
 
     isLoading = signal(false);
     workspaces: WritableSignal<AdminWorkspaceListItem[]> = signal([]);
@@ -52,6 +60,7 @@ export class WorkspacePickerComponent implements OnInit {
         public dialogRef: MatDialogRef<WorkspacePickerComponent>,
         @Optional() @Inject(MAT_DIALOG_DATA) data: WorkspacePickerDialogData | null) {
         this._excludeMemberOrOwnerExternalId = data?.excludeMemberOrOwnerExternalId;
+        this._alreadyGrantedExternalIds = new Set<string>(data?.alreadyGrantedExternalIds ?? []);
         this.subtitle = signal(data?.subtitle
             ?? 'The selected workspace will gain this user as a member. '
              + 'For full-encryption workspaces you must have your encryption password unlocked '
@@ -72,7 +81,14 @@ export class WorkspacePickerComponent implements OnInit {
         }
     }
 
+    public isAlreadyGranted(externalId: string): boolean {
+        return this._alreadyGrantedExternalIds.has(externalId);
+    }
+
     public onWorkspacePicked(workspace: AdminWorkspaceListItem) {
+        if (this.isAlreadyGranted(workspace.externalId))
+            return;
+
         this.dialogRef.close(workspace);
     }
 

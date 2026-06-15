@@ -91,6 +91,7 @@ public sealed class UserPermissions
     public required bool CanManageAuth { get; init; }
     public required bool CanManageIntegrations { get; init; }
     public required bool CanManageAuditLog { get; init; }
+    public required bool CanManageAgents { get; init; }
 }
 
 public sealed class UserSecurityStamps

@@ -405,7 +405,8 @@ public class audit_log_decryption_tests : TestFixture
                 CanManageEmailProviders = false,
                 CanManageAuth = false,
                 CanManageIntegrations = false,
-                CanManageAuditLog = true
+                CanManageAuditLog = true,
+                CanManageAgents = false
             },
             cookie: actor.Cookie,
             antiforgery: actor.Antiforgery);

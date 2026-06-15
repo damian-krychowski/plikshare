@@ -211,6 +211,7 @@ public class UserCache(
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuth)}) AS u_can_manage_auth,
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageIntegrations)}) AS u_can_manage_integrations,
                     ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAuditLog)}) AS u_can_manage_audit_log,
+                    ({UserSql.HasClaim(Claims.Permission, Permissions.ManageAgents)}) AS u_can_manage_agents,
                     u_max_workspace_number,
                     u_default_max_workspace_size_in_bytes,
                     u_default_max_workspace_team_members,
@@ -230,7 +231,7 @@ public class UserCache(
                 readRowFunc: reader =>
                 {
                     var email = reader.GetEmail(1);
-                    var encryptionPublicKey = reader.GetFieldValueOrNull<byte[]>(20);
+                    var encryptionPublicKey = reader.GetFieldValueOrNull<byte[]>(21);
 
                     return new UserRow(
                         Status: reader.GetBoolean(0)
@@ -259,25 +260,26 @@ public class UserCache(
                             CanManageEmailProviders = reader.GetBoolean(12),
                             CanManageAuth = reader.GetBoolean(13),
                             CanManageIntegrations = reader.GetBoolean(14),
-                            CanManageAuditLog = reader.GetBoolean(15)
+                            CanManageAuditLog = reader.GetBoolean(15),
+                            CanManageAgents = reader.GetBoolean(16)
                         },
-                        MaxWorkspaceNumber: reader.GetInt32OrNull(16),
-                        DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(17),
-                        DefaultMaxWorkspaceTeamMembers: reader.GetInt32OrNull(18),
-                        HasPassword: reader.GetBoolean(19),
+                        MaxWorkspaceNumber: reader.GetInt32OrNull(17),
+                        DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(18),
+                        DefaultMaxWorkspaceTeamMembers: reader.GetInt32OrNull(19),
+                        HasPassword: reader.GetBoolean(20),
                         EncryptionMetadata: encryptionPublicKey is null
                             ? null
                             : new UserEncryptionMetadata
                             {
                                 PublicKey = encryptionPublicKey,
-                                EncryptedPrivateKey = reader.GetFieldValue<byte[]>(21),
-                                KdfSalt = reader.GetFieldValue<byte[]>(22),
-                                KdfParams = EncryptionPasswordKdf.DeserializeParams(reader.GetString(23)),
-                                VerifyHash = reader.GetFieldValue<byte[]>(24),
-                                RecoveryWrappedPrivateKey = reader.GetFieldValue<byte[]>(25),
-                                RecoveryVerifyHash = reader.GetFieldValue<byte[]>(26)
+                                EncryptedPrivateKey = reader.GetFieldValue<byte[]>(22),
+                                KdfSalt = reader.GetFieldValue<byte[]>(23),
+                                KdfParams = EncryptionPasswordKdf.DeserializeParams(reader.GetString(24)),
+                                VerifyHash = reader.GetFieldValue<byte[]>(25),
+                                RecoveryWrappedPrivateKey = reader.GetFieldValue<byte[]>(26),
+                                RecoveryVerifyHash = reader.GetFieldValue<byte[]>(27)
                             },
-                        StorageAccessMode: reader.GetEnum<UserStorageAccessMode>(27));
+                        StorageAccessMode: reader.GetEnum<UserStorageAccessMode>(28));
                 })
             .WithParameter(lookup.ParamName, lookup.ParamValue)
             .Execute();

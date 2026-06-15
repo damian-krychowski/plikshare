@@ -289,7 +289,8 @@ public static class GeneralSettingsEndpoints
                 CanManageUsers = appSettings.NewUserDefaultPermissionsAndRoles.CanManageUsers,
                 CanManageAuth = appSettings.NewUserDefaultPermissionsAndRoles.CanManageAuth,
                 CanManageIntegrations= appSettings.NewUserDefaultPermissionsAndRoles.CanManageIntegrations,
-                CanManageAuditLog = appSettings.NewUserDefaultPermissionsAndRoles.CanManageAuditLog
+                CanManageAuditLog = appSettings.NewUserDefaultPermissionsAndRoles.CanManageAuditLog,
+                CanManageAgents = appSettings.NewUserDefaultPermissionsAndRoles.CanManageAgents
             },
             AlertOnNewUserRegistered = appSettings.AlertOnNewUserRegistered.IsTurnedOn,
             NewUserDefaultStorageAccess = new NewUserDefaultStorageAccessDto

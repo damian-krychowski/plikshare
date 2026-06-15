@@ -1,0 +1,35 @@
+.grant-box {
+    padding: 1.5rem 2rem 1rem;
+
+    &__title {
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin-bottom: 1.25rem;
+    }
+
+    &__field {
+        margin-bottom: 0.5rem;
+    }
+
+    &__select {
+        width: 100%;
+    }
+
+    &__permissions-label {
+        font-weight: 500;
+        margin: 0.5rem 0 0.75rem;
+    }
+
+    &__actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-top: 1.5rem;
+    }
+
+    &__granted-badge {
+        margin-left: 0.5rem;
+        font-size: var(--company-small-font);
+        color: var(--company-grey-font);
+    }
+}

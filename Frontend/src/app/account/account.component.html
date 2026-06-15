@@ -220,6 +220,19 @@
                     </button>
                 }
 
+                @if(auth.canManageAgents()){
+                    <button
+                        class="action-text-btn"
+                        aria-label="Agents"
+                        mat-flat-button
+                        (click)="goToAgents()">
+                        <div class="action-text-btn__content">
+                            <i class="icon icon-lg icon-nucleo-robot"></i>
+                            <div>Agents</div>
+                        </div>
+                    </button>
+                }
+
                 @if(auth.canManageAuditLog()){
                     <button
                         class="action-text-btn"

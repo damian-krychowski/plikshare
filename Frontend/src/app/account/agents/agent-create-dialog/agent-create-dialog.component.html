@@ -1,0 +1,45 @@
+<div class="questionaire">
+    <div class="questionaire__title">
+        Create a new agent
+    </div>
+
+    <form #agentForm="ngForm" class="questionaire__form" (submit)="onCreate()" autocomplete="off">
+        <div class="agent-create">
+            <div class="agent-create__info">
+                Agents are machine accounts that access PlikShare through an API token.
+                Give the agent a name so you can recognise it later, then grant it access to workspaces or boxes.
+            </div>
+
+            <mat-form-field class="questionaire__form-field">
+                <mat-label>Agent name</mat-label>
+
+                <input #nameInput="ngModel"
+                    name="name"
+                    [(ngModel)]="name"
+                    type="text"
+                    matInput
+                    required
+                    placeholder="My agent"
+                    autofocus>
+
+                @if(nameInput.hasError('required')) {
+                    <mat-error>
+                        Agent name is <strong>required</strong>
+                    </mat-error>
+                }
+            </mat-form-field>
+        </div>
+
+        <div class="questionaire__actions">
+            <button type="button" class="questionaire__btn mr-1" mat-flat-button
+                aria-label="Cancel"
+                (click)="onCancel()">
+                Cancel
+            </button>
+
+            <button type="submit" class="questionaire__btn" mat-flat-button [disabled]="!agentForm.valid">
+                Create agent
+            </button>
+        </div>
+    </form>
+</div>

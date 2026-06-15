@@ -103,7 +103,8 @@ public class general_settings_tests : TestFixture, IDisposable
                 CanManageGeneralSettings = false,
                 CanManageStorages = false,
                 CanManageUsers = false,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -129,7 +130,8 @@ public class general_settings_tests : TestFixture, IDisposable
                 CanManageGeneralSettings = false,
                 CanManageStorages = false,
                 CanManageUsers = false,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);

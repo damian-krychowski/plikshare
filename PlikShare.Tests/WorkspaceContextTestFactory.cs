@@ -123,7 +123,8 @@ internal static class WorkspaceContextTestFactory
                 CanManageEmailProviders = false,
                 CanManageAuth = false,
                 CanManageIntegrations = false,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             HasPassword = true,
             MaxWorkspaceNumber = null,

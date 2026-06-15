@@ -7,6 +7,17 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Caching.Hybrid;
 using PlikShare.Account;
 using PlikShare.Account.GetKnownUsers;
+using PlikShare.Agents;
+using PlikShare.Agents.Authorization;
+using PlikShare.Agents.BoxAccess;
+using PlikShare.Agents.Create;
+using PlikShare.Agents.Delete;
+using PlikShare.Agents.Get;
+using PlikShare.Agents.List;
+using PlikShare.Agents.ListWorkspaceBoxes;
+using PlikShare.Agents.RotateToken;
+using PlikShare.Agents.UpdateSettings;
+using PlikShare.Agents.WorkspaceAccess;
 using PlikShare.Antiforgery;
 using PlikShare.AuditLog;
 using PlikShare.AuditLog.Decryption;
@@ -378,6 +389,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_49_ThumbnailJobsUploaderIdentityIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_50_BoxDefaultMinimapAndGalleryDisplayIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_51_AuditLogMaxSizeGrandfatherExistingInstalls>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_52_AgentsIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -516,6 +528,17 @@ public class Startup
         }
 
         builder.Services.AddSingleton<BoxLinkTokenService>();
+        builder.Services.AddSingleton<AgentTokenService>();
+        builder.Services.AddSingleton<AgentTokenVerifier>();
+        builder.Services.AddSingleton<CreateAgentQuery>();
+        builder.Services.AddSingleton<GetAgentsQuery>();
+        builder.Services.AddSingleton<GetAgentDetailsQuery>();
+        builder.Services.AddSingleton<ListWorkspaceBoxesQuery>();
+        builder.Services.AddSingleton<DeleteAgentQuery>();
+        builder.Services.AddSingleton<RotateAgentTokenQuery>();
+        builder.Services.AddSingleton<AgentWorkspaceAccessQuery>();
+        builder.Services.AddSingleton<AgentBoxAccessQuery>();
+        builder.Services.AddSingleton<UpdateAgentSettingsQuery>();
 
         builder.Services.AddSingleton<IOneTimeCode, OneTimeCode>();
         builder.Services.AddSingleton<IConfig, AppConfig>();
@@ -965,6 +988,7 @@ public class Startup
         app.MapBoxExternalAccessEndpoints();
         app.MapBoxesEndpoints();
         app.MapIntegrationsEndpoints();
+        app.MapAgentsEndpoints();
         app.MapTextractEndpoints();
         app.MapChatGptEndpoints();
         app.MapAiEndpoints();

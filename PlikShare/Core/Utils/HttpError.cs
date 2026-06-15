@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using PlikShare.Agents.Id;
 using PlikShare.AuditLog.Id;
 using PlikShare.Boxes.Id;
 using PlikShare.Core.Encryption;
@@ -548,6 +549,15 @@ public static class HttpErrors
         {
             Code = "integration-not-supported-on-encrypted-storage",
             Message = "Integrations are not supported on fully-encrypted storages."
+        });
+    }
+
+    public static class Agent
+    {
+        public static NotFound<HttpError> NotFound(AgentExtId externalId) => TypedResults.NotFound(new HttpError
+        {
+            Code = "agent-doesnt-exist",
+            Message = $"Agent with externalId '{externalId}' was not found"
         });
     }
 

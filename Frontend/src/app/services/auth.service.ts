@@ -23,6 +23,7 @@ export class AuthService {
     public canManageAuth = computed(() => this.userDetails()?.permissions?.canManageAuth ?? false);
     public canManageIntegrations = computed(() => this.userDetails()?.permissions?.canManageIntegrations ?? false);
     public canManageAuditLog = computed(() => this.userDetails()?.permissions?.canManageAuditLog ?? false);
+    public canManageAgents = computed(() => this.userDetails()?.permissions?.canManageAgents ?? false);
 
     public hasPassword = computed(() => this.userDetails()?.hasPassword ?? false);
     public isEncryptionConfigured = computed(() => this.userDetails()?.isEncryptionConfigured ?? false);
@@ -51,7 +52,8 @@ export class AuthService {
         || this.canManageEmailProviders()
         || this.canManageAuth()
         || this.canManageIntegrations()
-        || this.canManageAuditLog());
+        || this.canManageAuditLog()
+        || this.canManageAgents());
 
     private _userDetails: Promise<GetAccountDetailsResponse> | null = null;
 

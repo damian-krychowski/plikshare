@@ -1,0 +1,67 @@
+<div class="grant-box">
+    <div class="grant-box__title">
+        Grant box access
+    </div>
+
+    <div class="grant-box__field">
+        <mat-form-field appearance="outline" class="grant-box__select">
+            <mat-label>Workspace</mat-label>
+            <mat-select
+                [value]="selectedWorkspaceExternalId()"
+                (selectionChange)="onWorkspaceChange($event.value)">
+                @for(workspace of workspaces(); track workspace.externalId) {
+                    <mat-option [value]="workspace.externalId">
+                        {{ workspace.name }}
+                    </mat-option>
+                }
+            </mat-select>
+        </mat-form-field>
+    </div>
+
+    @if(selectedWorkspaceExternalId()) {
+        <div class="grant-box__field">
+            <mat-form-field appearance="outline" class="grant-box__select">
+                <mat-label>Box</mat-label>
+                <mat-select
+                    [value]="selectedBoxExternalId()"
+                    (selectionChange)="selectedBoxExternalId.set($event.value)">
+                    @for(box of boxes(); track box.externalId) {
+                        <mat-option [value]="box.externalId" [disabled]="isBoxAlreadyGranted(box.externalId)">
+                            {{ box.name }}
+                            @if(isBoxAlreadyGranted(box.externalId)) {
+                                <span class="grant-box__granted-badge">already granted</span>
+                            }
+                        </mat-option>
+                    } @empty {
+                        <mat-option [disabled]="true">
+                            No boxes in this workspace
+                        </mat-option>
+                    }
+                </mat-select>
+            </mat-form-field>
+        </div>
+    }
+
+    @if(selectedBoxExternalId()) {
+        <div class="grant-box__permissions-label">
+            Permissions:
+        </div>
+
+        <app-box-permissions-list
+            [permissions]="permissions">
+        </app-box-permissions-list>
+    }
+
+    <div class="grant-box__actions">
+        <button mat-stroked-button type="button"
+            (click)="onCancel()">
+            Cancel
+        </button>
+
+        <button mat-flat-button type="button"
+            [disabled]="!selectedBoxExternalId()"
+            (click)="onGrant()">
+            Grant access
+        </button>
+    </div>
+</div>

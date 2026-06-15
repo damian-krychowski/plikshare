@@ -209,6 +209,35 @@ public static class AuditLogEventTypes
         ];
     }
 
+    public static class Agent
+    {
+        public const string Created = "agent.created";
+        public const string Deleted = "agent.deleted";
+        public const string TokenRotated = "agent.token-rotated";
+        public const string WorkspaceAccessGranted = "agent.workspace-access-granted";
+        public const string WorkspaceAccessRevoked = "agent.workspace-access-revoked";
+        public const string BoxAccessGranted = "agent.box-access-granted";
+        public const string BoxAccessRevoked = "agent.box-access-revoked";
+        public const string PermissionsAndRolesUpdated = "agent.permissions-and-roles-updated";
+        public const string MaxWorkspaceNumberUpdated = "agent.max-workspace-number-updated";
+        public const string DefaultMaxWorkspaceSizeUpdated = "agent.default-max-workspace-size-updated";
+        public const string DefaultMaxWorkspaceTeamMembersUpdated = "agent.default-max-workspace-team-members-updated";
+        public const string StorageAccessUpdated = "agent.storage-access-updated";
+
+        public static readonly string[] All =
+        [
+            Created, Deleted,
+            TokenRotated,
+            WorkspaceAccessGranted, WorkspaceAccessRevoked,
+            BoxAccessGranted, BoxAccessRevoked,
+            PermissionsAndRolesUpdated,
+            MaxWorkspaceNumberUpdated,
+            DefaultMaxWorkspaceSizeUpdated,
+            DefaultMaxWorkspaceTeamMembersUpdated,
+            StorageAccessUpdated
+        ];
+    }
+
     public static class Folder
     {
         public const string Created = "folder.created";
@@ -335,7 +364,7 @@ public static class AuditLogEventTypes
     public static readonly string[] All = [
         ..Auth.All, ..User.All, ..Settings.All,
         ..EmailProvider.All, ..AuthProvider.All,
-        ..Storage.All, ..Integration.All,
+        ..Storage.All, ..Integration.All, ..Agent.All,
         ..Workspace.All, ..Trash.All, ..Folder.All, ..Box.All, ..BoxLink.All,
         ..File.All, ..Upload.All,
         ..QuickShare.All
@@ -353,6 +382,7 @@ public static class AuditLogEventCategories
     public const string BoxLink = "box-link";
     public const string Storage = "storage";
     public const string Integration = "integration";
+    public const string Agent = "agent";
     public const string EmailProvider = "email-provider";
     public const string AuthProvider = "auth-provider";
     public const string Settings = "settings";
@@ -362,7 +392,7 @@ public static class AuditLogEventCategories
     public static readonly string[] All =
     [
         Auth, User, Workspace, File, Folder,
-        Box, BoxLink, Storage, Integration,
+        Box, BoxLink, Storage, Integration, Agent,
         EmailProvider, AuthProvider, Settings, Upload,
         QuickShare
     ];

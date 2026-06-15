@@ -71,7 +71,8 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
                 IsAdmin = false,
                 CanManageAuth = false,
                 CanManageIntegrations = false,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             AlertOnNewUserRegistered = false,
             NewUserDefaultStorageAccess = new NewUserDefaultStorageAccessDto
@@ -151,7 +152,8 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
                         CanManageEmailProviders = false,
                         CanManageAuth = false,
                         CanManageIntegrations = false,
-                        CanManageAuditLog = false
+                        CanManageAuditLog = false,
+                        CanManageAgents = false
                     },
                     MaxWorkspaceNumber = null,
                     DefaultMaxWorkspaceSizeInBytes = null,
@@ -171,6 +173,7 @@ public class first_use_of_plikshare_tests : TestFixture, IClassFixture<HostFixtu
                     {
                         CanAddWorkspace = false,
                         CanManageAuditLog = false,
+                        CanManageAgents = false,
                         CanManageAuth = false,
                         CanManageEmailProviders = false,
                         CanManageGeneralSettings = false,

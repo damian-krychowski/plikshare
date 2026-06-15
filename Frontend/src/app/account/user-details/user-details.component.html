@@ -320,14 +320,42 @@
             <div class="mt-2"></div>    
         
             @for(invitation of boxInvitations(); track invitation.boxExternalId()) {
-                <app-box-invitation-item 
+                <app-box-invitation-item
                     [invitation]="invitation"
                     [isAdminView]="true"
                     (permissionsChange)="onBoxPermissionsChange(invitation)"
                     (cancelled)="onBoxAccessRevoked(invitation)">
                 </app-box-invitation-item>
             }
-        }  
+        }
+
+        @if(auth.isAppOwner()) {
+            <div class="mt-3"></div>
+
+            <div class="title-header">
+                <div>
+                    Agents owned by user:
+                </div>
+            </div>
+
+            <div class="mt-2"></div>
+
+            @if(ownedAgents().length > 0) {
+                @for(agent of ownedAgents(); track agent.externalId) {
+                    <app-agent-item
+                        [agent]="agent"
+                        (clicked)="goToAgent(agent.externalId)"
+                        (deleted)="onOwnedAgentDeleted($event, agent)">
+                    </app-agent-item>
+                }
+            } @else {
+                <div class="nothing-to-show">
+                    <div class="nothing-to-show__label">
+                        User does not own any agent
+                    </div>
+                </div>
+            }
+        }
 
         <div class="mt-5"></div>
     </div>

@@ -36,6 +36,7 @@ export interface GetApplicationSettingsResponse {
         canManageAuth: boolean;
         canManageIntegrations: boolean;
         canManageAuditLog: boolean;
+        canManageAgents: boolean;
     },
     alertOnNewUserRegistered: boolean;
     newUserDefaultStorageAccess: NewUserDefaultStorageAccessDto;

@@ -32,6 +32,7 @@ export interface GetUserDetailsResponse {
             canManageAuth: boolean;
             canManageIntegrations: boolean;
             canManageAuditLog: boolean;
+            canManageAgents: boolean;
         };
         hasPassword: boolean;
         ssoProviders: string[];
@@ -101,6 +102,13 @@ export interface GetUserDetailsResponse {
             allowDeleteFolder: boolean;
         };
     }[];
+
+    ownedAgents: {
+        externalId: string;
+        name: string;
+        isEnabled: boolean;
+        createdAt: string;
+    }[];
 };
 
 export interface GetUsersResponseDto {
@@ -126,6 +134,7 @@ export interface UserItemDto {
         canManageAuth: boolean;
         canManageIntegrations: boolean;
         canManageAuditLog: boolean;
+        canManageAgents: boolean;
     };
     maxWorkspaceNumber: number | null;
     defaultMaxWorkspaceSizeInBytes: number | null;
@@ -143,6 +152,7 @@ export interface UserPermissionsAndRolesDto {
     canManageAuth: boolean;
     canManageIntegrations: boolean;
     canManageAuditLog: boolean;
+    canManageAgents: boolean;
 }
 
 export type InvitationDeliveryMethod = 'email' | 'link';

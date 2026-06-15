@@ -22,7 +22,9 @@ import { AdminWorkspaceListItem, WorkspacesApi } from "../../services/workspaces
 import { AppStorageEncryptionType, StorageNameItem, StoragesApi } from "../../services/storages.api";
 import { StorageAccessChangedEvent, StorageAccessConfigComponent } from "../../shared/storage-access-config/storage-access-config.component";
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
-import { pushItems, removeItems } from "../../shared/signal-utils";
+import { pushItems, removeItems, removeItem, insertItem } from "../../shared/signal-utils";
+import { AppAgent, AgentItemComponent } from "../../shared/agent-item/agent-item.component";
+import { OptimisticOperation } from "../../services/optimistic-operation";
 import { UsersApi } from "../../services/users.api";
 import { WorkspaceMaxSizeInBytesChangedEvent, WorkspaceSizeConfigComponent } from "../../shared/workspace-size-config/workspace-size-config.component";
 import { Debouncer } from "../../services/debouncer";
@@ -47,6 +49,7 @@ import { ConfigCardComponent } from "../../shared/config-card/config-card.compon
         WorkspaceInvitationItemComponent,
         BoxInvitationItemComponent,
         ActionButtonComponent,
+        AgentItemComponent,
         WorkspaceSizeConfigComponent,
         WorkspaceNumberConfigComponent,
         WorkspaceTeamConfigComponent,
@@ -67,6 +70,7 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
     sharedBoxes: WritableSignal<AppExternalBox[]> = signal([]);
     workspaceInvitations: WritableSignal<AppWorkspaceInvitation[]> = signal([]);
     boxInvitations: WritableSignal<AppBoxInvitation[]> = signal([]);
+    ownedAgents: WritableSignal<AppAgent[]> = signal([]);
 
     isUserLoaded = computed(() => this.user() != null);
     workspacesCount = computed(() => this.user()?.workspacesCount() ?? 0);
@@ -290,6 +294,14 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                     return box;
                 }));
 
+            this.ownedAgents.set(userDetails.ownedAgents.map(a => ({
+                externalId: a.externalId,
+                name: signal(a.name),
+                isEnabled: signal(a.isEnabled),
+                createdAt: a.createdAt,
+                isHighlighted: signal(false)
+            })));
+
             this.user.set({
                 externalId: signal(userDetails.user.externalId),
                 email: signal(userDetails.user.email),
@@ -306,7 +318,8 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
                     canManageEmailProviders: signal(userDetails.user.permissions.canManageEmailProviders),
                     canManageAuth: signal(userDetails.user.permissions.canManageAuth),
                     canManageIntegrations: signal(userDetails.user.permissions.canManageIntegrations),
-                    canManageAuditLog: signal(userDetails.user.permissions.canManageAuditLog)
+                    canManageAuditLog: signal(userDetails.user.permissions.canManageAuditLog),
+                    canManageAgents: signal(userDetails.user.permissions.canManageAgents)
                 },
                 roles: {
                     isAdmin: signal(userDetails.user.roles.isAdmin),
@@ -331,6 +344,20 @@ export class UserDetailsComponent implements OnInit, OnDestroy {
 
     goToUsers() {
         this._router.navigate(['/settings/users']);
+    }
+
+    goToAgent(agentExternalId: string) {
+        this._router.navigate(['settings/agents', agentExternalId]);
+    }
+
+    async onOwnedAgentDeleted(operation: OptimisticOperation, agent: AppAgent) {
+        const itemRemoved = removeItem(this.ownedAgents, agent);
+
+        const result = await operation.wait();
+
+        if (result.type === 'failure') {
+            insertItem(this.ownedAgents, agent, itemRemoved.index);
+        }
     }
 
     onWorkspaceDelete(workspace: AppWorkspace) {

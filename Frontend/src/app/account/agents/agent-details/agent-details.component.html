@@ -1,0 +1,258 @@
+<div class="app-container">
+    <div class="top-bar">
+        <div class="top-bar__header">
+            <button class="top-nav-btn"
+                aria-label="Agents"
+                mat-flat-button
+                matTooltip="Go back to Agents"
+                matTooltipPosition="below"
+                (click)="goToAgents()">
+                <div class="icon-merge">
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>
+                    <i class="icon icon-xl icon-nucleo-robot icon-merge--front"></i>
+                </div>
+            </button>
+
+            <div class="flex-column">
+                <div class="top-bar__title">
+                    Agent details
+                </div>
+
+                <div class="top-bar__subtitle">
+                    {{ agent()?.agent?.name }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    @if(agent(); as agentVal) {
+        <div class="content">
+            <div class="mt-3 hide-on-mobile"></div>
+
+            <div class="title-header">
+                <div>
+                    Agent details:
+                </div>
+
+                <div class="flex-row flex-gap-05 ml-auto">
+                    <app-action-btn
+                        tooltip="{{ hasOwnedWorkspaces() ? 'Cannot delete agent that owns workspaces. Delete or reassign its workspaces first.' : 'Delete' }}"
+                        icon="icon-nucleo-remove"
+                        appConfirmOperation
+                        [disabled]="hasOwnedWorkspaces()"
+                        [isOperationDisabled]="hasOwnedWorkspaces()"
+                        [operationItem]="'this agent'"
+                        [verb]="'delete'"
+                        [isOperationDanger]="true"
+                        (confirmedClick)="onDelete()">
+                    </app-action-btn>
+                </div>
+            </div>
+
+            <div class="mt-2"></div>
+
+            <div class="item agent-details__identity">
+                @if(agentVal.agent.roles.isAdmin) {
+                    <i class="icon icon-xl icon-nucleo-user-crown" matTooltip="Admin agent" matTooltipPosition="above"></i>
+                } @else {
+                    <i class="icon icon-xl icon-nucleo-robot" matTooltip="Agent" matTooltipPosition="above"></i>
+                }
+
+                <div class="item__details">
+                    <div class="item__title">
+                        {{ agentVal.agent.name }}
+                    </div>
+
+                    <div class="item__subtitle">
+                        @if(!agentVal.agent.isEnabled) {
+                            <span class="agent-details__disabled">Disabled</span>
+                        } @else {
+                            <span>Created by {{ agentVal.agent.owner.email }}</span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-3"></div>
+
+            <app-config-card
+                title="API token"
+                description="The agent authenticates with this token as a Bearer token in the Authorization header. The full token is shown only once, at creation or rotation.">
+                <div configCardActions>
+                    <app-action-btn
+                        tooltip="Rotate token"
+                        icon="icon-nucleo-reload"
+                        [operationItem]="'this agent token'"
+                        [verb]="'rotate'"
+                        [isOperationDanger]="true"
+                        operationSubtitle="The current token will stop working immediately and a new one will be generated."
+                        appConfirmOperation
+                        (confirmedClick)="onRotateToken()">
+                    </app-action-btn>
+                </div>
+
+                <div class="agent-details__token">
+                    <span class="agent-details__token-value">{{ agentVal.agent.tokenMasked }}</span>
+                </div>
+
+                <div class="agent-details__token-meta">
+                    @if(agentVal.agent.tokenLastUsedAt) {
+                        Last used <app-relative-time [datetime]="agentVal.agent.tokenLastUsedAt"></app-relative-time>
+                    } @else {
+                        Never used yet
+                    }
+                </div>
+            </app-config-card>
+
+            <div class="mt-3"></div>
+
+            @if(permissionsModel(); as pm) {
+                <app-config-card
+                    title="Agent permissions"
+                    description="The permissions and roles granted to this agent.">
+                    <app-user-permissions-list
+                        [user]="pm"
+                        [canManageAgentsAvailable]="false"
+                        (configChanged)="onPermissionsChange($event)">
+                    </app-user-permissions-list>
+                </app-config-card>
+
+                <div class="mt-3"></div>
+            }
+
+            <app-config-card
+                title="Max number of workspaces"
+                description="How many workspaces this agent is allowed to create.">
+                <app-workspace-number-config
+                    [maxNumber]="maxWorkspaceNumber()"
+                    (configChanged)="onMaxWorkspaceNumberChange($event)">
+                </app-workspace-number-config>
+            </app-config-card>
+
+            <div class="mt-3"></div>
+
+            <app-config-card
+                title="Default workspace size"
+                description="The default maximum size for workspaces created by this agent.">
+                <app-workspace-size-config
+                    [maxSizeInBytes]="defaultMaxWorkspaceSizeInBytes()"
+                    (configChanged)="onDefaultMaxWorkspaceSizeChange($event)">
+                </app-workspace-size-config>
+            </app-config-card>
+
+            <div class="mt-3"></div>
+
+            <app-config-card
+                title="Default team members"
+                description="The default maximum number of members for workspaces created by this agent.">
+                <app-workspace-team-config
+                    [maxTeamMembers]="defaultMaxWorkspaceTeamMembers()"
+                    (configChanged)="onDefaultMaxWorkspaceTeamMembersChange($event)">
+                </app-workspace-team-config>
+            </app-config-card>
+
+            <div class="mt-3"></div>
+
+            <app-config-card
+                title="Storage access"
+                description="Which storages this agent is allowed to use for its workspaces.">
+                <app-storage-access-config
+                    [mode]="storageAccessMode()"
+                    [storageExternalIds]="storageAccessExternalIds()"
+                    [availableStorages]="availableStorages()"
+                    (configChanged)="onStorageAccessChange($event)">
+                </app-storage-access-config>
+            </app-config-card>
+
+            <div class="mt-3"></div>
+
+            <div class="title-header">
+                <div>
+                    Workspaces owned by agent:
+                </div>
+            </div>
+
+            <div class="mt-2"></div>
+
+            <div class="nothing-to-show">
+                <div class="nothing-to-show__label">
+                    Agent does not own any workspace
+                </div>
+            </div>
+
+            <div class="mt-3"></div>
+
+            <div class="title-header">
+                <div>
+                    Shared workspaces:
+                </div>
+
+                <div class="flex-row flex-gap-05 ml-auto">
+                    <app-action-btn
+                        tooltip="Grant access to a workspace"
+                        icon="icon-lucide-plus"
+                        (clicked)="onGrantWorkspace()">
+                    </app-action-btn>
+                </div>
+            </div>
+
+            <div class="mt-2"></div>
+
+            @if(sharedWorkspaceItems().length > 0) {
+                @for(workspace of sharedWorkspaceItems(); track workspace.externalId()) {
+                    <app-workspace-item
+                        [workspace]="workspace"
+                        [isAdminView]="true"
+                        [revokeOnly]="true"
+                        [canLocate]="false"
+                        (accessRevoked)="onSharedWorkspaceAccessRevoked(workspace)">
+                    </app-workspace-item>
+                }
+            } @else {
+                <div class="nothing-to-show">
+                    <div class="nothing-to-show__label">
+                        Agent is not assigned to any shared workspace
+                    </div>
+                </div>
+            }
+
+            <div class="mt-3"></div>
+
+            <div class="title-header">
+                <div>
+                    Shared boxes:
+                </div>
+
+                <div class="flex-row flex-gap-05 ml-auto">
+                    <app-action-btn
+                        tooltip="Grant access to a box"
+                        icon="icon-lucide-plus"
+                        (clicked)="onGrantBox()">
+                    </app-action-btn>
+                </div>
+            </div>
+
+            <div class="mt-2"></div>
+
+            @if(sharedBoxItems().length > 0) {
+                @for(box of sharedBoxItems(); track box.boxExternalId()) {
+                    <app-external-box-item
+                        [externalBox]="box"
+                        [isAdminView]="true"
+                        (permissionsChange)="onSharedBoxPermissionsChange(box)"
+                        (accessRevoked)="onSharedBoxAccessRevoked(box)">
+                    </app-external-box-item>
+                }
+            } @else {
+                <div class="nothing-to-show">
+                    <div class="nothing-to-show__label">
+                        Agent does not have access to any box
+                    </div>
+                </div>
+            }
+
+            <div class="mt-5"></div>
+        </div>
+    }
+</div>

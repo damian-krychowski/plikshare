@@ -1,3 +1,4 @@
+using PlikShare.Agents.Id;
 using PlikShare.Boxes.Id;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Id;
@@ -14,6 +15,15 @@ public static class GetUserDetails
         public required List<WorkspaceDto> Workspaces { get; init; }
         public required List<SharedWorkspaceDto> SharedWorkspaces { get; init; }
         public required List<SharedBoxDto> SharedBoxes { get; init; }
+        public required List<OwnedAgentDto> OwnedAgents { get; init; }
+    }
+
+    public class OwnedAgentDto
+    {
+        public required AgentExtId ExternalId { get; init; }
+        public required string Name { get; init; }
+        public required bool IsEnabled { get; init; }
+        public required DateTimeOffset CreatedAt { get; init; }
     }
 
     public class UserDetailsDto

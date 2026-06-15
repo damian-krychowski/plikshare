@@ -326,7 +326,8 @@ public class InviteUsersQuery(
                 CanManageUsers = permissionsAndRoles.CanManageUsers,
                 CanManageAuth = permissionsAndRoles.CanManageAuth,
                 CanManageIntegrations = permissionsAndRoles.CanManageIntegrations,
-                CanManageAuditLog = permissionsAndRoles.CanManageAuditLog
+                CanManageAuditLog = permissionsAndRoles.CanManageAuditLog,
+                CanManageAgents = permissionsAndRoles.CanManageAgents
             },
             InvitationLink = invitationLink
         };

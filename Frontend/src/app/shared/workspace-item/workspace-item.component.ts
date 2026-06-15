@@ -66,6 +66,7 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
 
     canLocate = input(false);
     isAdminView = input(false);
+    revokeOnly = input(false);
 
     left = output<void>();
     deleted = output<void>();
@@ -94,12 +95,12 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
     isUsedByIntegration = computed(() => this.workspace().isUsedByIntegration);
     isBucketCreated = computed(() => this.workspace().isBucketCreated());
 
-    canLeave = computed(() => this.wasUserInvited() && !this.isAdminView());
+    canLeave = computed(() => !this.revokeOnly() && this.wasUserInvited() && !this.isAdminView());
     canRevokeAccess = computed(() => this.wasUserInvited() && this.isAdminView());
-    canShare = computed(() => this.workspace().permissions.allowShare || this.isAdminView());
+    canShare = computed(() => !this.revokeOnly() && (this.workspace().permissions.allowShare || this.isAdminView()));
 
-    canDelete = computed(() => this.isOwnedByUser() || this.auth.isAdmin());
-    canChangeOwner = computed(() => this.auth.canManageUsers());
+    canDelete = computed(() => !this.revokeOnly() && (this.isOwnedByUser() || this.auth.isAdmin()));
+    canChangeOwner = computed(() => !this.revokeOnly() && this.auth.canManageUsers());
 
     areActionsVisible = signal(false);
 

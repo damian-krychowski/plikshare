@@ -25,6 +25,7 @@ export function hasUserAnyPermission(userSignal: Signal<AppUserPermissionsAndRol
         || user.permissions.canManageAuth()
         || user.permissions.canManageIntegrations()
         || user.permissions.canManageAuditLog()
+        || user.permissions.canManageAgents()
     });
 }
 
@@ -39,6 +40,7 @@ export type UserPermissionsAndRolesChangedEvent = {
     canManageAuth: boolean;
     canManageIntegrations: boolean;
     canManageAuditLog: boolean;
+    canManageAgents: boolean;
 }
 
 @Component({
@@ -52,6 +54,7 @@ export type UserPermissionsAndRolesChangedEvent = {
 export class UserPermissionsListComponent {
     user = input.required<AppUserPermissionsAndRoles>();
     isReadOnly = input(false);
+    canManageAgentsAvailable = input(true);
     configChanged = output<UserPermissionsAndRolesChangedEvent>();
 
     canAddWorkspace = computed(() => this.user().permissions.canAddWorkspace());
@@ -80,6 +83,9 @@ export class UserPermissionsListComponent {
 
     canManageAuditLog = computed(() => this.user().permissions.canManageAuditLog());
     isCanManageAuditLogReadOnly = computed(() => this.isReadOnly() || !this.auth.isAppOwner());
+
+    canManageAgents = computed(() => this.user().permissions.canManageAgents());
+    isCanManageAgentsReadOnly = computed(() => this.isReadOnly() || !this.auth.isAppOwner());
 
     constructor(
         public auth: AuthService
@@ -130,6 +136,11 @@ export class UserPermissionsListComponent {
         this.emitConfigChange();
     }
 
+    public onCanManageAgentsChange() {
+        toggle(this.user().permissions.canManageAgents);
+        this.emitConfigChange();
+    }
+
     private emitConfigChange() {
         const isAdmin = this.isAdmin();
 
@@ -144,7 +155,8 @@ export class UserPermissionsListComponent {
             canManageUsers: isAdmin && this.canManageUsers(),
             canManageAuth: isAdmin && this.canManageAuth(),
             canManageIntegrations: isAdmin && this.canManageIntegrations(),
-            canManageAuditLog: isAdmin && this.canManageAuditLog()
+            canManageAuditLog: isAdmin && this.canManageAuditLog(),
+            canManageAgents: this.canManageAgentsAvailable() && isAdmin && this.canManageAgents()
         });
     }
 }

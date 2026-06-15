@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using PlikShare.Agents.Id;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Users.Entities;
 using PlikShare.Users.Id;
@@ -14,6 +15,7 @@ public static class Claims
 
     public const string BoxLinkSessionIdClaim = "http://plikshare.com/claims/boxlinksessionid";
     public const string UserExternalIdClaim = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
+    public const string AgentExternalIdClaim = "http://plikshare.com/claims/agentexternalid";
     public const string RememberMeClaim = "remember_me";
     public const string IsAppOwnerClaim = "is_app_owner";
     public const string SecurityStampClaim = "AspNet.Identity.SecurityStamp";
@@ -129,6 +131,25 @@ public static class Claims
         return externalId;
     }
     
+    public static AgentExtId? TryGetAgentExternalId(this ClaimsPrincipal claimsPrincipal)
+    {
+        var claim = claimsPrincipal
+            .Claims
+            .FirstOrDefault(c =>
+                string.Equals(c.Type, AgentExternalIdClaim, StringComparison.InvariantCultureIgnoreCase));
+
+        if (claim is null)
+            return null;
+
+        if (!AgentExtId.TryParse(claim.Value, out var externalId))
+        {
+            throw new InvalidOperationException(
+                $"'AgentExternalId' value '{claim.Value}' is in wrong format.");
+        }
+
+        return externalId;
+    }
+
     public static string GetSecurityStamp(this ClaimsPrincipal claimsPrincipal)
     {
         var claim = claimsPrincipal

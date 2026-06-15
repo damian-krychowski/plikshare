@@ -113,6 +113,20 @@ public static class AuditLogEventCatalog
         new(AuditLogEventTypes.Integration.Activated,    AuditLogEventCategories.Integration, AuditLogSeverities.Info,    "Integration activated.",   AuditLogEventScope.Application),
         new(AuditLogEventTypes.Integration.Deactivated,  AuditLogEventCategories.Integration, AuditLogSeverities.Warning, "Integration deactivated.", AuditLogEventScope.Application),
 
+        // ── Agents ───────────────────────────────────────────────────────────────
+        new(AuditLogEventTypes.Agent.Created,                  AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent created.",                          AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.Deleted,                  AuditLogEventCategories.Agent, AuditLogSeverities.Warning, "Agent deleted.",                          AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.TokenRotated,             AuditLogEventCategories.Agent, AuditLogSeverities.Warning, "Agent token rotated.",                    AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.WorkspaceAccessGranted,   AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent granted access to a workspace.",    AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.WorkspaceAccessRevoked,   AuditLogEventCategories.Agent, AuditLogSeverities.Warning, "Agent access to a workspace revoked.",    AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.BoxAccessGranted,         AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent granted access to a box.",          AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.BoxAccessRevoked,         AuditLogEventCategories.Agent, AuditLogSeverities.Warning, "Agent access to a box revoked.",          AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.PermissionsAndRolesUpdated,            AuditLogEventCategories.Agent, AuditLogSeverities.Warning, "Agent permissions or roles updated.",                  AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.MaxWorkspaceNumberUpdated,             AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent max-workspace-number quota updated.",            AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.DefaultMaxWorkspaceSizeUpdated,        AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent default max-workspace-size quota updated.",      AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.DefaultMaxWorkspaceTeamMembersUpdated, AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent default max-workspace-team-members quota updated.", AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.StorageAccessUpdated,                  AuditLogEventCategories.Agent, AuditLogSeverities.Warning, "Agent storage access policy updated.",                 AuditLogEventScope.Application),
+
         // ── Workspaces ───────────────────────────────────────────────────────────
         new(AuditLogEventTypes.Workspace.Created,                          AuditLogEventCategories.Workspace, AuditLogSeverities.Info,     "Workspace created.",                                AuditLogEventScope.Workspace),
         new(AuditLogEventTypes.Workspace.Deleted,                          AuditLogEventCategories.Workspace, AuditLogSeverities.Critical, "Workspace deleted.",                                AuditLogEventScope.Workspace),

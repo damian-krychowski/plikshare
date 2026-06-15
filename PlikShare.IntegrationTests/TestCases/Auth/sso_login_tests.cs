@@ -495,7 +495,8 @@ public class sso_login_tests : TestFixture, IDisposable
                 CanManageEmailProviders = false,
                 CanManageAuth = false,
                 CanManageIntegrations = false,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             cookie: admin.Cookie,
             antiforgery: admin.Antiforgery);

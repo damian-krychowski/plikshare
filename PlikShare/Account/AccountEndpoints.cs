@@ -109,6 +109,7 @@ public static class AccountEndpoints
                 CanManageAuth = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageAuth),
                 CanManageIntegrations = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageIntegrations),
                 CanManageAuditLog = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageAuditLog),
+                CanManageAgents = user.Roles.IsAppOwner || (user.Roles.IsAdmin && user.Permissions.CanManageAgents),
             },
             HasPassword = user.HasPassword,
             IsEncryptionConfigured = user.IsEncryptionConfigured,

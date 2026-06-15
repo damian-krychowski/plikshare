@@ -185,6 +185,7 @@ public class AppSettings(PlikShareDb plikShareDb)
         public bool CanManageAuth => permissionsAndRoles.Contains(Permissions.ManageAuth);
         public bool CanManageIntegrations => permissionsAndRoles.Contains(Permissions.ManageIntegrations);
         public bool CanManageAuditLog => permissionsAndRoles.Contains(Permissions.ManageAuditLog);
+        public bool CanManageAgents => permissionsAndRoles.Contains(Permissions.ManageAgents);
         public List<string> GetPermissions() => permissionsAndRoles.Where(Permissions.IsValidPermission).ToList();
     }
 

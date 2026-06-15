@@ -1,0 +1,23 @@
+@forward "./../../../../styles/questionaire.scss";
+
+.agent-create {
+    padding-left: 2rem;
+    padding-right: 2rem;
+
+    &__info {
+        font-size: var(--company-medium-font);
+        color: var(--company-grey-font);
+        padding-bottom: 2rem;
+    }
+}
+
+.questionaire__form {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+
+    .questionaire__actions {
+        padding-top: 0 !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+}

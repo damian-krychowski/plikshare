@@ -74,7 +74,8 @@ export class UserPickerComponent implements OnInit  {
                         canManageEmailProviders: signal(user.permissions.canManageEmailProviders),
                         canManageAuth: signal(user.permissions.canManageAuth),
                         canManageIntegrations: signal(user.permissions.canManageIntegrations),
-                        canManageAuditLog: signal(user.permissions.canManageAuditLog)
+                        canManageAuditLog: signal(user.permissions.canManageAuditLog),
+                        canManageAgents: signal(user.permissions.canManageAgents)
                     },
                     maxWorkspaceNumber: signal(user.maxWorkspaceNumber),
                     defaultMaxWorkspaceSizeInBytes: signal(user.defaultMaxWorkspaceSizeInBytes),

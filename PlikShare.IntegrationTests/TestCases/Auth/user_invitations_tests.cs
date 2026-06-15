@@ -79,7 +79,8 @@ public class user_invitation_tests : TestFixture
                         CanManageUsers = false,
                         CanManageAuth = false,
                         CanManageIntegrations = false,
-                        CanManageAuditLog = false
+                        CanManageAuditLog = false,
+                        CanManageAgents = false
                     }
                 },
 
@@ -100,7 +101,8 @@ public class user_invitation_tests : TestFixture
                         CanManageUsers = false,
                         CanManageAuth = false,
                         CanManageIntegrations = false,
-                        CanManageAuditLog = false
+                        CanManageAuditLog = false,
+                        CanManageAgents = false
                     }
                 }
             ]
@@ -249,7 +251,8 @@ public class user_invitation_tests : TestFixture
                 CanManageUsers = false,
                 CanManageAuth = false,
                 CanManageIntegrations = false,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             MaxWorkspaceNumber = 0,
             HasPassword = true,

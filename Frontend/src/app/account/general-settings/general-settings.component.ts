@@ -101,7 +101,8 @@ export class GeneralSettingsComponent implements OnInit {
                 canManageUsers: signal(false),
                 canManageAuth: signal(false),
                 canManageIntegrations: signal(false),
-                canManageAuditLog: signal(false)
+                canManageAuditLog: signal(false),
+                canManageAgents: signal(false)
             },
 
             roles: {
@@ -176,6 +177,7 @@ export class GeneralSettingsComponent implements OnInit {
         this.defaultUser.permissionsAndRoles.permissions.canManageAuth.set(result.newUserDefaultPermissionsAndRoles.canManageAuth);
         this.defaultUser.permissionsAndRoles.permissions.canManageIntegrations.set(result.newUserDefaultPermissionsAndRoles.canManageIntegrations);
         this.defaultUser.permissionsAndRoles.permissions.canManageAuditLog.set(result.newUserDefaultPermissionsAndRoles.canManageAuditLog);
+        this.defaultUser.permissionsAndRoles.permissions.canManageAgents.set(result.newUserDefaultPermissionsAndRoles.canManageAgents);
 
         this.alertOnNewUserRegistered.set(result.alertOnNewUserRegistered);
 

@@ -1,0 +1,41 @@
+<div class="agent-token">
+    <div class="agent-token__title">
+        {{ data.title }}
+    </div>
+
+    <div class="agent-token__warning">
+        <strong>This is the only time you will see this token.</strong>
+        Copy it now and store it in a safe place. If you lose it, rotate the token to generate a new one.
+    </div>
+
+    <div class="agent-token__value">
+        {{ data.token }}
+    </div>
+
+    <div class="agent-token__actions-row">
+        <button mat-stroked-button type="button"
+            (click)="copyToClipboard()"
+            aria-label="Copy token to clipboard">
+            {{ copied() ? 'Copied' : 'Copy' }}
+        </button>
+    </div>
+
+    <div class="agent-token__danger-notice">
+        Anyone with this token can act as this agent with all granted permissions. Treat it like a password.
+    </div>
+
+    <mat-checkbox class="agent-token__confirm"
+        [checked]="hasSaved()"
+        (change)="hasSaved.set($event.checked)">
+        I have saved this token in a safe place. I understand it will not be shown again.
+    </mat-checkbox>
+
+    <div class="agent-token__actions">
+        <button class="questionaire__btn" mat-flat-button type="button"
+            [disabled]="!hasSaved()"
+            (click)="onDone()"
+            aria-label="Done">
+            Done
+        </button>
+    </div>
+</div>

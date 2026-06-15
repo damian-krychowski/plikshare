@@ -1,0 +1,51 @@
+@let agentVal = agent();
+
+<div class="item-bar flex-row">
+    <div class="item"
+        [class.item--highlighted]="isHighlighted()"
+        [class.item--in-background]="areActionsVisible()"
+        (click)="onClicked()">
+        <i class="icon icon-xl icon-nucleo-robot"></i>
+
+        <div class="item__details">
+            <div class="item__title">
+                {{ agentVal.name() }}
+            </div>
+
+            <div class="item__subtitle">
+                @if(!agentVal.isEnabled()) {
+                    <span class="agent-item__disabled">Disabled</span>
+                } @else {
+                    <span>Created <app-relative-time [datetime]="agentVal.createdAt"></app-relative-time></span>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="item-bar__actions">
+        <app-action-btn
+            tooltip="Manage"
+            icon="icon-nucleo-settings"
+            [class.d-none-on-mobile]="!areActionsVisible()"
+            (clicked)="onClicked()">
+        </app-action-btn>
+
+        <app-action-btn
+            tooltip="Delete"
+            icon="icon-nucleo-remove"
+            [class.d-none-on-mobile]="!areActionsVisible()"
+            [operationItem]="'this agent'"
+            [verb]="'delete'"
+            [isOperationDanger]="true"
+            appConfirmOperation
+            (confirmedClick)="delete()">
+        </app-action-btn>
+
+        <app-action-btn
+            tooltip="Actions"
+            icon="icon-lucide-dots"
+            class="d-none-on-desktop"
+            (clicked)="toggleActions()">
+        </app-action-btn>
+    </div>
+</div>

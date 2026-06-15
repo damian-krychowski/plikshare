@@ -156,7 +156,8 @@ public class user_registration_tests : TestFixture
                 CanManageStorages = false,
                 CanManageEmailProviders = false,
                 CanAddWorkspace = false,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             Roles = new UserRoles
             {

@@ -41,7 +41,8 @@ public class user_permissions_tests : TestFixture
                 CanManageGeneralSettings = false,
                 CanManageStorages = false,
                 CanManageUsers = false,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -66,7 +67,8 @@ public class user_permissions_tests : TestFixture
             CanManageUsers = false,
             CanManageAuth = false,
             CanManageIntegrations = false,
-            CanManageAuditLog = false
+            CanManageAuditLog = false,
+            CanManageAgents = false
         });
     }
 
@@ -102,7 +104,8 @@ public class user_permissions_tests : TestFixture
                 CanManageGeneralSettings = canManageGeneralSettings,
                 CanManageStorages = canManageStorages,
                 CanManageUsers = canManageUsers,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -127,7 +130,8 @@ public class user_permissions_tests : TestFixture
             CanManageUsers = canManageUsers,
             CanManageAuth = canManageAuth,
             CanManageIntegrations = canManageIntegrations,
-            CanManageAuditLog = false
+            CanManageAuditLog = false,
+            CanManageAgents = false
         });
     }
 
@@ -165,7 +169,8 @@ public class user_permissions_tests : TestFixture
                 CanManageGeneralSettings = canManageGeneralSettings,
                 CanManageStorages = canManageStorages,
                 CanManageUsers = canManageUsers,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -188,7 +193,8 @@ public class user_permissions_tests : TestFixture
                 CanManageGeneralSettings = canManageGeneralSettings,
                 CanManageStorages = canManageStorages,
                 CanManageUsers = canManageUsers,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             Roles = new UserRoles
             {
@@ -218,7 +224,8 @@ public class user_permissions_tests : TestFixture
                 CanManageGeneralSettings = false,
                 CanManageStorages = false,
                 CanManageUsers = false,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);

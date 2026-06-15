@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using PlikShare.Agents.Id;
 using PlikShare.Boxes.Id;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
@@ -35,6 +36,10 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
             user: user,
             connection: connection);
 
+        var ownedAgents = GetOwnedAgents(
+            user: user,
+            connection: connection);
+
         var storageAccessExternalIds = user.StorageAccess.Mode == UserStorageAccessMode.All
             ? new List<string>()
             : GetStorageAccessExternalIds(
@@ -64,8 +69,36 @@ public class GetUserDetailsQuery(PlikShareDb plikShareDb)
             },
             Workspaces = workspaces,
             SharedWorkspaces = sharedWorkspaces,
-            SharedBoxes = sharedBoxes
+            SharedBoxes = sharedBoxes,
+            OwnedAgents = ownedAgents
         };
+    }
+
+    private static List<GetUserDetails.OwnedAgentDto> GetOwnedAgents(
+        UserContext user,
+        SqliteConnection connection)
+    {
+        return connection
+            .Cmd(
+                sql: """
+                     SELECT
+                         a_external_id,
+                         a_name,
+                         a_is_enabled,
+                         a_created_at
+                     FROM a_agents
+                     WHERE a_owner_user_id = $userId
+                     ORDER BY a_id DESC
+                     """,
+                readRowFunc: reader => new GetUserDetails.OwnedAgentDto
+                {
+                    ExternalId = reader.GetExtId<AgentExtId>(0),
+                    Name = reader.GetString(1),
+                    IsEnabled = reader.GetBoolean(2),
+                    CreatedAt = reader.GetFieldValue<DateTimeOffset>(3)
+                })
+            .WithParameter("$userId", user.Id)
+            .Execute();
     }
     
      private static List<GetUserDetails.WorkspaceDto> GetWorkspaces(

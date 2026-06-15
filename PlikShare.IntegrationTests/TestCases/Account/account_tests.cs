@@ -42,6 +42,7 @@ public class account_tests : TestFixture
             CanManageAuth = true,
             CanManageIntegrations = true,
             CanManageAuditLog = true,
+            CanManageAgents = true,
         });
 
         accountDetails.Roles.Should().BeEquivalentTo(new UserRoles
@@ -1076,7 +1077,8 @@ public class account_tests : TestFixture
                 CanManageUsers = false,
                 CanManageAuth = false,
                 CanManageIntegrations = false,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             MaxWorkspaceNumber = 0,
             HasPassword = true,

@@ -18,7 +18,11 @@
             <div class="mt-3">Loading workspaces…</div>
         } @else {
             @for(workspace of workspaces(); track workspace.externalId) {
-                <div class="item-bar item-bar--clickable flex-row"
+                @let granted = isAlreadyGranted(workspace.externalId);
+
+                <div class="item-bar flex-row"
+                    [class.item-bar--clickable]="!granted"
+                    [class.workspace-picker__item--granted]="granted"
                     (click)="onWorkspacePicked(workspace)">
                     <div class="item">
                         <div class="icon-container">
@@ -34,6 +38,10 @@
                         <div class="item__details">
                             <div class="item__title">
                                 {{ workspace.name }}
+
+                                @if(granted) {
+                                    <span class="workspace-picker__granted-badge">Already granted</span>
+                                }
                             </div>
 
                             <div class="item__subtitle">

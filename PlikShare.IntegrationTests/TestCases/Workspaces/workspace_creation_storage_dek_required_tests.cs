@@ -58,7 +58,8 @@ public class workspace_creation_storage_dek_required_tests : TestFixture
                 CanManageGeneralSettings = false,
                 CanManageStorages = false,
                 CanManageUsers = false,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
@@ -122,7 +123,8 @@ public class workspace_creation_storage_dek_required_tests : TestFixture
                 CanManageGeneralSettings = false,
                 CanManageStorages = false,
                 CanManageUsers = false,
-                CanManageAuditLog = false
+                CanManageAuditLog = false,
+                CanManageAgents = false
             },
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);

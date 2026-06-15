@@ -1,2 +1,16 @@
 @forward "./../../../styles/questionaire.scss";
 @forward "./../../../styles/item-bar.scss";
+
+.workspace-picker__item--granted {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.workspace-picker__granted-badge {
+    margin-left: 0.5rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 4px;
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    border: 1px solid var(--company-grey-accent);
+}

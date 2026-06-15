@@ -71,5 +71,15 @@
             [isReadOnly]="isCanManageAuditLogReadOnly()"
             (clicked)="onCanManageAuditLogChange()">
         </app-permission-btn>
+
+        @if(canManageAgentsAvailable()) {
+            <app-permission-btn
+                tooltip="Can manage agents"
+                icon="icon-nucleo-robot"
+                [isSelected]="canManageAgents()"
+                [isReadOnly]="isCanManageAgentsReadOnly()"
+                (clicked)="onCanManageAgentsChange()">
+            </app-permission-btn>
+        }
     }
 </div>

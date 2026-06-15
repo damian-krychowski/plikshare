@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using PlikShare.Agents.Authorization;
 using PlikShare.Users.Cache;
 using PlikShare.Users.Entities;
 using Serilog;
@@ -15,7 +16,8 @@ public static class AuthPolicy
 public static class AuthScheme
 {
     public const string BoxLinkSessionScheme = "box-link-schema";
-    
+    public const string AgentTokenScheme = "agent-token-schema";
+
     //the same value as  IdentityConstants.ApplicationScheme
     public const string IdentityApplication = "Identity.Application";
 }
@@ -145,6 +147,9 @@ public static class AuthorizationStartupExtensions
 
         authenticationBuilder.AddScheme<BoxLinkTokenAuthenticationOptions, BoxLinkTokenAuthenticationHandler>(
             AuthScheme.BoxLinkSessionScheme, _ => { });
+
+        authenticationBuilder.AddScheme<AgentTokenAuthenticationOptions, AgentTokenAuthenticationHandler>(
+            AuthScheme.AgentTokenScheme, _ => { });
 
         Log.Information("[SETUP] Auth setup finished.");
     }

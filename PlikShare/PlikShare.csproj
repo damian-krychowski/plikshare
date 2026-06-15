@@ -137,6 +137,9 @@
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\51_audit_log_max_size_grandfather_existing_installs.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\52_agents_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\26_workspace_encryption_keys_introduced.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>

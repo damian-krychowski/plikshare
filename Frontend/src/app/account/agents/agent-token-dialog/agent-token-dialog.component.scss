@@ -1,0 +1,63 @@
+@forward "./../../../../styles/questionaire.scss";
+
+.agent-token {
+    padding: 1.5rem 2rem 1rem;
+    max-height: calc(100vh - 80px - 1rem);
+    overflow-y: auto;
+
+    &__title {
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    &__warning {
+        background: #fff8e1;
+        border-left: 4px solid #f9a825;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+        line-height: 1.4;
+    }
+
+    &__value {
+        padding: 1rem;
+        background: #f5f5f5;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+        font-family: var(--company-monospace-font);
+        font-size: 0.95rem;
+        word-break: break-all;
+        user-select: text;
+    }
+
+    &__actions-row {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    &__danger-notice {
+        background: #ffebee;
+        border-left: 4px solid #c62828;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+
+    &__confirm {
+        display: block;
+        margin-bottom: 1.25rem;
+    }
+
+    &__actions {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    @media (max-width: 600px) {
+        padding: 1rem;
+    }
+}

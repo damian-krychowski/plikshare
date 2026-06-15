@@ -107,6 +107,10 @@ export class AccountComponent implements OnInit {
         this._router.navigate(['settings/integrations']);
     }
 
+    goToAgents(){
+        this._router.navigate(['settings/agents']);
+    }
+
     goToAuditLog(){
         this._router.navigate(['settings/audit-log']);
     }

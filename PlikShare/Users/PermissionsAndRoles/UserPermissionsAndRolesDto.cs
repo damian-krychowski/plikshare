@@ -14,6 +14,7 @@ public class UserPermissionsAndRolesDto
     public required bool CanManageAuth { get; init; }
     public required bool CanManageIntegrations { get; init; }
     public required bool CanManageAuditLog { get; init; }
+    public required bool CanManageAgents { get; init; }
 }
 
 public static class UserPermissionsAndRolesDtoExtensions
@@ -45,6 +46,9 @@ public static class UserPermissionsAndRolesDtoExtensions
 
         if(dto.CanManageAuditLog)
             result.Add(Permissions.ManageAuditLog);
+
+        if(dto.CanManageAgents)
+            result.Add(Permissions.ManageAgents);
 
         return result;
     }
