@@ -18,8 +18,8 @@ public static class PlikShareAgentSkill
                name: plikshare
                description: Manage files and folders in this PlikShare instance on behalf of users, using the PlikShare agent tools.
                metadata:
-                 version: 0.9.0
-               allowed-tools: list_workspaces list_workspace_content search get_file read_file get_file_download_link get_bulk_download_link rename_file create_folder rename_folder bulk_delete create_share_link list_share_links get_share_link update_share_link delete_share_link
+                 version: 0.10.0
+               allowed-tools: list_workspaces list_workspace_content search get_file read_file get_file_download_link get_bulk_download_link create_file rename_file create_folder rename_folder bulk_delete create_share_link list_share_links get_share_link update_share_link delete_share_link
                ---
 
                # PlikShare
@@ -121,6 +121,19 @@ public static class PlikShareAgentSkill
 
                The tool returns the `url` and `expiresAt`. Like `get_file_download_link`, the URL is a
                capability: anyone with it can download the ZIP without logging in until it expires.
+
+               ## Creating a file
+
+               Use the `create_file` tool to save text content as a new file:
+
+               - `workspaceExternalId` (required) and `name` (required, including the extension, e.g.
+                 `report.md`).
+               - `content` (required) — the file content as UTF-8 text, at most 10 MB.
+               - `folderExternalId` (optional) — the folder to create it in; omit for the workspace root.
+               - `contentType` (optional) — derived from the extension if omitted.
+
+               The tool returns the new file's `fileExternalId`. It is for text content; binary files are not
+               supported.
 
                ## Renaming a file
 

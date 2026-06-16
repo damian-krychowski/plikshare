@@ -135,6 +135,7 @@ public static class AuditLogEventCatalog
         new(AuditLogEventTypes.Agent.FileDownloadLinkGenerated,             AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent generated a download link for a file.",         AuditLogEventScope.Application),
         new(AuditLogEventTypes.Agent.BulkDownloadLinkGenerated,             AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent generated a bulk download link.",               AuditLogEventScope.Application),
         new(AuditLogEventTypes.Agent.SearchPerformed,                       AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent searched files and folders.",                   AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.FileCreated,                           AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent created a file.",                               AuditLogEventScope.Application),
 
         // ── Workspaces ───────────────────────────────────────────────────────────
         new(AuditLogEventTypes.Workspace.Created,                          AuditLogEventCategories.Workspace, AuditLogSeverities.Info,     "Workspace created.",                                AuditLogEventScope.Workspace),

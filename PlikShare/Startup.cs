@@ -22,6 +22,7 @@ using PlikShare.Agents.WorkspaceAccess;
 using PlikShare.AgentSkills;
 using PlikShare.Mcp;
 using PlikShare.Mcp.Files.Get;
+using PlikShare.Mcp.Files.Create;
 using PlikShare.Mcp.Search;
 using PlikShare.Mcp.Workspaces.Content;
 using PlikShare.Mcp.Workspaces.List;
@@ -554,6 +555,8 @@ public class Startup
         builder.Services.AddSingleton<GetWorkspaceContentForAgentQuery>();
         builder.Services.AddSingleton<GetFileForAgentQuery>();
         builder.Services.AddSingleton<SearchForAgentQuery>();
+        builder.Services.AddSingleton<InsertCompletedFileQuery>();
+        builder.Services.AddSingleton<CreateFileForAgentOperation>();
         builder.AddPlikShareMcp();
 
         builder.Services.AddSingleton<IOneTimeCode, OneTimeCode>();

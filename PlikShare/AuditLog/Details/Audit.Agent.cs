@@ -294,6 +294,35 @@ public static partial class Audit
             public required long BytesReturned { get; init; }
         }
 
+        public class FileCreated
+        {
+            public required string WorkspaceExternalId { get; init; }
+            public required string FileExternalId { get; init; }
+            public required string? FolderExternalId { get; init; }
+            public required long SizeInBytes { get; init; }
+        }
+
+        public static AuditLogEntry FileCreatedEntry(
+            AuditLogActorContext actor,
+            string workspaceExternalId,
+            string fileExternalId,
+            string? folderExternalId,
+            long sizeInBytes) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Agent,
+            EventType = AuditLogEventTypes.Agent.FileCreated,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new FileCreated {
+                WorkspaceExternalId = workspaceExternalId,
+                FileExternalId = fileExternalId,
+                FolderExternalId = folderExternalId,
+                SizeInBytes = sizeInBytes })
+        };
+
         public static AuditLogEntry FileContentReadEntry(
             AuditLogActorContext actor,
             string workspaceExternalId,

@@ -2,6 +2,7 @@ using PlikShare.Antiforgery;
 using PlikShare.Core.Authorization;
 using PlikShare.Mcp.BulkDelete;
 using PlikShare.Mcp.Files.BulkDownloadLink;
+using PlikShare.Mcp.Files.Create;
 using PlikShare.Mcp.Files.DownloadLink;
 using PlikShare.Mcp.Files.Get;
 using PlikShare.Mcp.Files.Read;
@@ -36,6 +37,7 @@ public static class McpStartupExtensions
             .WithTools<ReadFileTool>()
             .WithTools<GetFileDownloadLinkTool>()
             .WithTools<GetBulkDownloadLinkTool>()
+            .WithTools<CreateFileTool>()
             .WithTools<RenameFileTool>()
             .WithTools<CreateFolderTool>()
             .WithTools<RenameFolderTool>()
