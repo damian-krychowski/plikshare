@@ -134,7 +134,6 @@ public static class QuickShareExternalAccessEndpoints
         HttpContext httpContext,
         QuickShareCache quickShareCache,
         QuickShareUnlockSession unlockSession,
-        QuickSharePasswordHasher passwordHasher,
         AuditLogService auditLogService,
         IClock clock,
         CancellationToken cancellationToken)
@@ -178,7 +177,7 @@ public static class QuickShareExternalAccessEndpoints
             Ip: httpContext.Connection.RemoteIpAddress?.ToString(),
             CorrelationId: httpContext.GetCorrelationId());
 
-        var isValid = await passwordHasher.Verify(
+        var isValid = await QuickSharePasswordHasher.Verify(
             password: request.Password ?? string.Empty,
             expectedHashBase64: quickShare.PasswordHash,
             salt: quickShare.PasswordSalt);

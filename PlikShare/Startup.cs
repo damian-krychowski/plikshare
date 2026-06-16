@@ -21,6 +21,9 @@ using PlikShare.Agents.UpdateSettings;
 using PlikShare.Agents.WorkspaceAccess;
 using PlikShare.AgentSkills;
 using PlikShare.Mcp;
+using PlikShare.Mcp.Files.Get;
+using PlikShare.Mcp.Search;
+using PlikShare.Mcp.Workspaces.Content;
 using PlikShare.Mcp.Workspaces.List;
 using PlikShare.Antiforgery;
 using PlikShare.AuditLog;
@@ -285,6 +288,7 @@ using PlikShare.QuickShares.EffectiveSet;
 using PlikShare.QuickShares.Get;
 using PlikShare.QuickShares.List;
 using PlikShare.QuickShares.TrackDownload;
+using PlikShare.QuickShares.Update;
 using PlikShare.QuickShares.UpdateExpiration;
 using PlikShare.QuickShares.UpdateItems;
 using PlikShare.QuickShares.UpdateMaxDownloads;
@@ -394,6 +398,7 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_50_BoxDefaultMinimapAndGalleryDisplayIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_51_AuditLogMaxSizeGrandfatherExistingInstalls>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_52_AgentsIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_53_QuickShareAgentCreatorIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -546,6 +551,9 @@ public class Startup
         builder.Services.AddSingleton<UpdateAgentSettingsQuery>();
 
         builder.Services.AddSingleton<GetAgentWorkspacesQuery>();
+        builder.Services.AddSingleton<GetWorkspaceContentForAgentQuery>();
+        builder.Services.AddSingleton<GetFileForAgentQuery>();
+        builder.Services.AddSingleton<SearchForAgentQuery>();
         builder.AddPlikShareMcp();
 
         builder.Services.AddSingleton<IOneTimeCode, OneTimeCode>();
@@ -899,9 +907,9 @@ public class Startup
 
         builder.Services.AddSingleton<QuickShareCache>();
         builder.Services.AddSingleton<QuickShareUrlBuilder>();
-        builder.Services.AddSingleton<QuickSharePasswordHasher>();
         builder.Services.AddSingleton<QuickShareUnlockSession>();
         builder.Services.AddSingleton<CreateQuickShareQuery>();
+        builder.Services.AddSingleton<UpdateQuickShareQuery>();
         builder.Services.AddSingleton<DeleteQuickShareQuery>();
         builder.Services.AddSingleton<GetQuickShareItemsQuery>();
         builder.Services.AddSingleton<GetQuickSharesQuery>();
@@ -1061,4 +1069,4 @@ public class Startup
             }
         });
     }
-}
+}

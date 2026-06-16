@@ -1226,7 +1226,10 @@ public static class WorkspacesEndpoints
                 fileUploads: itemsContext.FileUploads),
             cancellationToken);
 
-        return result;
+        return new BulkDeleteResponseDto
+        {
+            NewWorkspaceSizeInBytes = result.NewWorkspaceSizeInBytes
+        };
     }
 
     private static BadRequest<HttpError>? ValidateTeamMembersLimit(

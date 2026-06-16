@@ -43,6 +43,7 @@ export interface GetQuickShareResponse {
     externalId: string;
     name: string;
     creatorExternalId: string;
+    creatorAgentExternalId: string | null;
     createdAt: string;
     expiresAt: string | null;
     hasPassword: boolean;

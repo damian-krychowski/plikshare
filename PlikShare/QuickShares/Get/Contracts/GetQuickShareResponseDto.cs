@@ -1,3 +1,4 @@
+using PlikShare.Agents.Id;
 using PlikShare.QuickShares.Id;
 using PlikShare.Users.Id;
 
@@ -7,6 +8,7 @@ public record GetQuickShareResponseDto(
     QuickShareExtId ExternalId,
     string Name,
     UserExtId CreatorExternalId,
+    AgentExtId? CreatorAgentExternalId,
     DateTimeOffset CreatedAt,
     DateTimeOffset? ExpiresAt,
     bool HasPassword,

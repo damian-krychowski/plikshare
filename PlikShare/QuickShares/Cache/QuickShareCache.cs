@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Caching.Hybrid;
+using PlikShare.Agents.Id;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.QuickShares.Id;
@@ -151,6 +152,7 @@ public class QuickShareCache(
             Name: quickShare.Name,
             Workspace: workspace,
             CreatorExternalId: quickShare.CreatorExternalId,
+            CreatorAgentExternalId: quickShare.CreatorAgentExternalId,
             Slug: quickShare.Slug,
             SecretHash: quickShare.SecretHash,
             CreatedAt: quickShare.CreatedAt,
@@ -209,9 +211,11 @@ public class QuickShareCache(
                      qsh_downloads_count,
                      qsh_mode,
                      qsh_allow_individual_file_download,
-                     qsh_last_accessed_at
+                     qsh_last_accessed_at,
+                     a_external_id
                  FROM qsh_quick_shares
                  INNER JOIN u_users ON u_id = qsh_creator_id
+                 LEFT JOIN a_agents ON a_id = qsh_creator_agent_id
                  WHERE {lookup.WhereClause}
                  LIMIT 1
                  """,
@@ -231,7 +235,10 @@ public class QuickShareCache(
                 DownloadsCount: reader.GetInt32(12),
                 Mode: reader.GetEnum<QuickShareMode>(13),
                 AllowIndividualFileDownload: reader.GetBoolean(14),
-                LastAccessedAt: reader.GetDateTimeOffsetOrNull(15)));
+                LastAccessedAt: reader.GetDateTimeOffsetOrNull(15),
+                CreatorAgentExternalId: reader.IsDBNull(16)
+                    ? null
+                    : reader.GetExtId<AgentExtId>(16)));
 
         foreach (var (name, value) in lookup.Parameters)
             cmd = cmd.WithParameter(name, value);
@@ -275,5 +282,6 @@ public class QuickShareCache(
         int DownloadsCount,
         QuickShareMode Mode,
         bool AllowIndividualFileDownload,
-        DateTimeOffset? LastAccessedAt);
+        DateTimeOffset? LastAccessedAt,
+        AgentExtId? CreatorAgentExternalId);
 }

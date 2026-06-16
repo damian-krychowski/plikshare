@@ -7,6 +7,7 @@ using PlikShare.BoxExternalAccess.Handler.GetContent;
 using PlikShare.BoxExternalAccess.Handler.GetHtml;
 using PlikShare.BulkDelete;
 using PlikShare.BulkDelete.Contracts;
+using PlikShare.Core.Clock;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Utils;
 using PlikShare.Files.BulkDownload;
@@ -70,7 +71,8 @@ public class BoxExternalAccessHandler(
     CountSelectedItemsQuery countSelectedItemsQuery,
     SearchFilesTreeQuery searchFilesTreeQuery,
     WorkspaceCache workspaceCache,
-    AuditLogService auditLogService)
+    AuditLogService auditLogService,
+    IClock clock)
 {
     public Results<Ok<GetBoxHtmlResponseDto>, NotFound<HttpError>> GetBoxHtml(
         BoxAccess boxAccess)
@@ -141,6 +143,7 @@ public class BoxExternalAccessHandler(
             userIdentity: boxAccess.UserIdentity,
             enforceInternalPassThrough: enforceInternalPassThrough,
             workspaceEncryptionSession: null, //todo: box external access to full-encryption storage not supported yet
+            expiresAt: null,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -184,7 +187,8 @@ public class BoxExternalAccessHandler(
             userIdentity: boxAccess.UserIdentity,
             boxFolderId: boxAccess.Box.Folder.Id,
             boxLinkId: boxAccess.BoxLink?.Id,
-            workspaceEncryptionSession: null); //todo: box external access to full-encryption storage not supported yet
+            workspaceEncryptionSession: null, //todo: box external access to full-encryption storage not supported yet
+            expiresAt: clock.UtcNow.Add(TimeSpan.FromMinutes(1)));
 
         switch (result.Code)
         {
@@ -392,7 +396,7 @@ public class BoxExternalAccessHandler(
             fileExternalIds: fileExternalIds.ToList(),
             fileUploadExternalIds: fileUploadExternalIds.ToList());
 
-        var response = await bulkDeleteQuery.Execute(
+        var result = await bulkDeleteQuery.Execute(
             workspace: boxAccess.Box.Workspace,
             fileExternalIds: fileExternalIds,
             folderExternalIds: folderExternalIds,
@@ -414,7 +418,10 @@ public class BoxExternalAccessHandler(
                 fileUploads: itemsContext.FileUploads),
             cancellationToken);
 
-        return TypedResults.Ok(response);
+        return TypedResults.Ok(new BulkDeleteResponseDto
+        {
+            NewWorkspaceSizeInBytes = result.NewWorkspaceSizeInBytes
+        });
     }
 
     public async Task<Results<Ok<BulkCreateFolderResponseDto>, BadRequest<HttpError>, NotFound<HttpError>, StatusCodeHttpResult>> BulkCreateFolders(
@@ -913,4 +920,4 @@ public class BoxExternalAccessHandler(
 
         return TypedResults.Ok(response);
     }
-}
+}

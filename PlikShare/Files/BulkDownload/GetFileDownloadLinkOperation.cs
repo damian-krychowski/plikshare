@@ -1,4 +1,3 @@
-using PlikShare.Core.Clock;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Files.BulkDownload.Contracts;
@@ -9,7 +8,6 @@ namespace PlikShare.Files.BulkDownload;
 
 public class GetBulkDownloadLinkOperation(
     IMasterDataEncryption masterDataEncryption,
-    IClock clock,
     PreSignedUrlsService preSignedUrlsService,
     GetBulkDownloadDetailsQuery getBulkDownloadDetailsQuery)
 {
@@ -19,7 +17,8 @@ public class GetBulkDownloadLinkOperation(
         IUserIdentity userIdentity,
         int? boxFolderId,
         int? boxLinkId,
-        WorkspaceEncryptionSession? workspaceEncryptionSession)
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
+        DateTimeOffset expiresAt)
     {
         var selectedFolders = request.SelectedFolders ?? [];
         var selectedFiles = request.SelectedFiles ?? [];
@@ -75,7 +74,7 @@ public class GetBulkDownloadLinkOperation(
                     Identity = userIdentity.Identity,
                     IdentityType = userIdentity.IdentityType
                 },
-                ExpirationDate = clock.UtcNow.Add(TimeSpan.FromMinutes(1)),
+                ExpirationDate = expiresAt,
                 BoxLinkId = boxLinkId,
                 WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
             });
@@ -97,4 +96,4 @@ public class GetBulkDownloadLinkOperation(
         FilesNotFound,
         FoldersNotFound
     }
-}
+}

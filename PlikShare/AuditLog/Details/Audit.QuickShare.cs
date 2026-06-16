@@ -28,6 +28,19 @@ public static partial class Audit
             public required QuickShareRef QuickShare { get; init; }
         }
 
+        public class Updated
+        {
+            public required WorkspaceRef Workspace { get; init; }
+            public required QuickShareRef QuickShare { get; init; }
+            public required bool NameUpdated { get; init; }
+            public required bool ExpirationUpdated { get; init; }
+            public required DateTimeOffset? ExpiresAt { get; init; }
+            public required bool MaxDownloadsUpdated { get; init; }
+            public required int? MaxDownloads { get; init; }
+            public required bool PasswordUpdated { get; init; }
+            public required bool PasswordSet { get; init; }
+        }
+
         public class NameUpdated
         {
             public required WorkspaceRef Workspace { get; init; }
@@ -176,6 +189,40 @@ public static partial class Audit
             {
                 Workspace = workspace,
                 QuickShare = quickShare
+            })
+        };
+
+        public static AuditLogEntry UpdatedEntry(
+            AuditLogActorContext actor,
+            WorkspaceRef workspace,
+            QuickShareRef quickShare,
+            bool nameUpdated,
+            bool expirationUpdated,
+            DateTimeOffset? expiresAt,
+            bool maxDownloadsUpdated,
+            int? maxDownloads,
+            bool passwordUpdated,
+            bool passwordSet) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.QuickShare,
+            EventType = AuditLogEventTypes.QuickShare.Updated,
+            Severity = AuditLogSeverities.Warning,
+            WorkspaceExternalId = workspace.ExternalId.Value,
+            DetailsJson = Json.Serialize(new Updated
+            {
+                Workspace = workspace,
+                QuickShare = quickShare,
+                NameUpdated = nameUpdated,
+                ExpirationUpdated = expirationUpdated,
+                ExpiresAt = expiresAt,
+                MaxDownloadsUpdated = maxDownloadsUpdated,
+                MaxDownloads = maxDownloads,
+                PasswordUpdated = passwordUpdated,
+                PasswordSet = passwordSet
             })
         };
 

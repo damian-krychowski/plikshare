@@ -11,8 +11,8 @@ namespace PlikShare.Mcp.Workspaces.List;
 public class ListWorkspacesTool
 {
     [McpServerTool(Name = "list_workspaces")]
-    [Description("Lists the workspaces this agent can access, with their external ids and names. " +
-                 "Use a returned workspaceExternalId as input to other tools such as create_folder.")]
+    [Description("Lists the workspaces this agent can access, with their external ids, names and current " +
+                 "size in bytes. Use a returned workspaceExternalId as input to other tools such as create_folder.")]
     public static async Task<ListWorkspacesResponseDto> Execute(
         IHttpContextAccessor httpContextAccessor,
         GetAgentWorkspacesQuery getAgentWorkspacesQuery,

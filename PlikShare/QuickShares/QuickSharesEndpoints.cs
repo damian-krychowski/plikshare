@@ -95,7 +95,6 @@ public static class QuickSharesEndpoints
     private static async Task<IResult> CreateQuickShare(
         HttpContext httpContext,
         CreateQuickShareQuery createQuickShareQuery,
-        QuickSharePasswordHasher passwordHasher,
         QuickShareUrlBuilder urlBuilder,
         AuditLogService auditLogService,
         IClock clock,
@@ -146,7 +145,9 @@ public static class QuickSharesEndpoints
 
         if (!string.IsNullOrEmpty(request.Password))
         {
-            var (hash, salt) = await passwordHasher.Hash(request.Password);
+            var (hash, salt) = await QuickSharePasswordHasher.Hash(
+                request.Password);
+
             passwordHashBase64 = hash;
             passwordSalt = salt;
         }
@@ -160,6 +161,7 @@ public static class QuickSharesEndpoints
         var result = await createQuickShareQuery.Execute(
             workspace: workspace,
             creatorExternalId: creatorExternalId,
+            creatorAgentExternalId: null,
             name: name,
             customSlug: customSlug,
             selectedFiles: selectedFiles ?? [],
@@ -265,6 +267,7 @@ public static class QuickSharesEndpoints
             ExternalId: quickShare.ExternalId,
             Name: quickShare.Name,
             CreatorExternalId: quickShare.CreatorExternalId,
+            CreatorAgentExternalId: quickShare.CreatorAgentExternalId,
             CreatedAt: quickShare.CreatedAt,
             ExpiresAt: quickShare.ExpiresAt,
             HasPassword: quickShare.PasswordHash is not null,
@@ -486,7 +489,6 @@ public static class QuickSharesEndpoints
         [FromBody] UpdateQuickSharePasswordRequestDto request,
         HttpContext httpContext,
         UpdateQuickSharePasswordQuery updateQuickSharePasswordQuery,
-        QuickSharePasswordHasher passwordHasher,
         QuickShareCache quickShareCache,
         AuditLogService auditLogService,
         CancellationToken cancellationToken)
@@ -498,7 +500,9 @@ public static class QuickSharesEndpoints
 
         if (!string.IsNullOrEmpty(request.Password))
         {
-            var (hash, salt) = await passwordHasher.Hash(request.Password);
+            var (hash, salt) = await QuickSharePasswordHasher.Hash(
+                request.Password);
+
             passwordHashBase64 = hash;
             passwordSalt = salt;
         }

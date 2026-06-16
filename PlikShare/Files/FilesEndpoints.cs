@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.AuditLog;
 using PlikShare.Core.Authorization;
+using PlikShare.Core.Clock;
 using PlikShare.Core.CorrelationId;
 using PlikShare.Core.Encryption;
 using PlikShare.Core.Protobuf;
@@ -672,6 +673,7 @@ public static class FilesEndpoints
             HttpContext httpContext,
             GetBulkDownloadLinkOperation getBulkDownloadLinkOperation,
             AuditLogService auditLogService,
+            IClock clock,
             CancellationToken cancellationToken)
     {
         var request = httpContext.GetProtobufRequest<GetBulkDownloadLinkRequestDto>();
@@ -684,7 +686,8 @@ public static class FilesEndpoints
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             boxFolderId: null,
             boxLinkId: null,
-            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession());
+            workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
+            expiresAt: clock.UtcNow.Add(TimeSpan.FromMinutes(1)));
 
         switch (result.Code)
         {
@@ -739,6 +742,7 @@ public static class FilesEndpoints
             userIdentity: new UserIdentity(workspaceMembership.User.ExternalId),
             enforceInternalPassThrough: false,
             workspaceEncryptionSession: httpContext.TryGetWorkspaceEncryptionSession(),
+            expiresAt: null,
             cancellationToken: cancellationToken);
 
         switch (result.Code)
@@ -811,4 +815,4 @@ public static class FilesEndpoints
                     resultValueStr: resultCode.ToString());
         }
     }
-}
+}

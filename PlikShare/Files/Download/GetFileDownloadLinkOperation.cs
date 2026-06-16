@@ -26,6 +26,7 @@ public class GetFileDownloadLinkOperation(
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
         WorkspaceEncryptionSession? workspaceEncryptionSession,
+        DateTimeOffset? expiresAt,
         CancellationToken cancellationToken)
     {
         var fileQueryResult = getFileDetailsQuery.Execute(
@@ -47,10 +48,11 @@ public class GetFileDownloadLinkOperation(
         {
             HardDriveStorageClient => HandleHardDrivePreSignedDownloadFileLink(
                 key: key,
-                contentDisposition: contentDisposition, 
-                boxLinkId: boxLinkId, 
-                userIdentity: userIdentity, 
-                workspaceEncryptionSession: workspaceEncryptionSession),
+                contentDisposition: contentDisposition,
+                boxLinkId: boxLinkId,
+                userIdentity: userIdentity,
+                workspaceEncryptionSession: workspaceEncryptionSession,
+                expiresAt: expiresAt),
 
             IObjectStorageClient objectStorageClient => await HandleObjectStoragePreSignedDownloadFileLink(
                 objectStorageClient: objectStorageClient,
@@ -63,6 +65,7 @@ public class GetFileDownloadLinkOperation(
                 userIdentity: userIdentity,
                 enforceInternalPassThrough: enforceInternalPassThrough,
                 workspaceEncryptionSession: workspaceEncryptionSession,
+                expiresAt: expiresAt,
                 cancellationToken: cancellationToken),
 
             _ => throw new ArgumentOutOfRangeException(nameof(workspace.Storage))
@@ -78,7 +81,8 @@ public class GetFileDownloadLinkOperation(
         ContentDispositionType contentDisposition,
         int? boxLinkId,
         IUserIdentity userIdentity,
-        WorkspaceEncryptionSession? workspaceEncryptionSession)
+        WorkspaceEncryptionSession? workspaceEncryptionSession,
+        DateTimeOffset? expiresAt)
     {
         return preSignedUrlsService.GeneratePreSignedDownloadUrl(
             payload: new PreSignedUrlsService.DownloadPayload
@@ -90,7 +94,7 @@ public class GetFileDownloadLinkOperation(
                     IdentityType = userIdentity.IdentityType
                 },
                 ContentDisposition = contentDisposition,
-                ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
+                ExpirationDate = expiresAt ?? clock.UtcNow.Add(TimeSpan.FromDays(1)),
                 BoxLinkId = boxLinkId,
                 WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
             });
@@ -107,6 +111,7 @@ public class GetFileDownloadLinkOperation(
         IUserIdentity userIdentity,
         bool enforceInternalPassThrough,
         WorkspaceEncryptionSession? workspaceEncryptionSession,
+        DateTimeOffset? expiresAt,
         CancellationToken cancellationToken = default)
     {
         if (objectStorageClient.Encryption is ManagedStorageEncryption or FullStorageEncryption || enforceInternalPassThrough)
@@ -121,7 +126,7 @@ public class GetFileDownloadLinkOperation(
                         IdentityType = userIdentity.IdentityType
                     },
                     ContentDisposition = contentDisposition,
-                    ExpirationDate = clock.UtcNow.Add(TimeSpan.FromDays(1)),
+                    ExpirationDate = expiresAt ?? clock.UtcNow.Add(TimeSpan.FromDays(1)),
                     BoxLinkId = boxLinkId,
                     WorkspaceDeks = workspaceEncryptionSession.ToWires(masterDataEncryption)
                 });
@@ -135,7 +140,7 @@ public class GetFileDownloadLinkOperation(
                 contentType: contentType,
                 contentDisposition: contentDisposition,
                 fileName: fileName,
-                expiresAt: clock.UtcNow.AddHours(3));
+                expiresAt: expiresAt ?? clock.UtcNow.AddHours(3));
         }
 
         throw new NotImplementedException($"Unknown encryption type: '{objectStorageClient.Encryption.GetType()}'");
@@ -150,4 +155,4 @@ public class GetFileDownloadLinkOperation(
         Ok = 0,
         FileNotFound
     }
-}
+}

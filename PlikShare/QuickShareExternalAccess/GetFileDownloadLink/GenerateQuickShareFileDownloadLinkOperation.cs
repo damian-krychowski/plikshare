@@ -31,6 +31,7 @@ public class GenerateQuickShareFileDownloadLinkOperation(
             userIdentity: userIdentity,
             enforceInternalPassThrough: enforceInternalPassThrough,
             workspaceEncryptionSession: null,
+            expiresAt: null,
             cancellationToken: cancellationToken);
 
         return result.Code switch

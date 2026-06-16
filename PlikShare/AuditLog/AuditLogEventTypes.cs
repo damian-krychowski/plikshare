@@ -224,6 +224,14 @@ public static class AuditLogEventTypes
         public const string DefaultMaxWorkspaceTeamMembersUpdated = "agent.default-max-workspace-team-members-updated";
         public const string StorageAccessUpdated = "agent.storage-access-updated";
         public const string WorkspacesListed = "agent.workspaces-listed";
+        public const string WorkspaceContentListed = "agent.workspace-content-listed";
+        public const string ShareLinksListed = "agent.share-links-listed";
+        public const string ShareLinkViewed = "agent.share-link-viewed";
+        public const string FileViewed = "agent.file-viewed";
+        public const string FileContentRead = "agent.file-content-read";
+        public const string FileDownloadLinkGenerated = "agent.file-download-link-generated";
+        public const string BulkDownloadLinkGenerated = "agent.bulk-download-link-generated";
+        public const string SearchPerformed = "agent.search-performed";
 
         public static readonly string[] All =
         [
@@ -236,7 +244,15 @@ public static class AuditLogEventTypes
             DefaultMaxWorkspaceSizeUpdated,
             DefaultMaxWorkspaceTeamMembersUpdated,
             StorageAccessUpdated,
-            WorkspacesListed
+            WorkspacesListed,
+            WorkspaceContentListed,
+            ShareLinksListed,
+            ShareLinkViewed,
+            FileViewed,
+            FileContentRead,
+            FileDownloadLinkGenerated,
+            BulkDownloadLinkGenerated,
+            SearchPerformed
         ];
     }
 
@@ -338,6 +354,7 @@ public static class AuditLogEventTypes
     {
         public const string Created = "quick-share.created";
         public const string Deleted = "quick-share.deleted";
+        public const string Updated = "quick-share.updated";
         public const string NameUpdated = "quick-share.name-updated";
         public const string SlugUpdated = "quick-share.slug-updated";
         public const string ExpirationUpdated = "quick-share.expiration-updated";
@@ -354,7 +371,7 @@ public static class AuditLogEventTypes
 
         public static readonly string[] All =
         [
-            Created, Deleted, NameUpdated, SlugUpdated,
+            Created, Deleted, Updated, NameUpdated, SlugUpdated,
             ExpirationUpdated, PasswordUpdated, MaxDownloadsUpdated,
             ModeUpdated, ItemsUpdated,
             Unlocked, UnlockFailed,

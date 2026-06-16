@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using PlikShare.Agents.Id;
 using PlikShare.Users.Cache;
+using PlikShare.Users.Id;
 
 namespace PlikShare.Agents.Cache;
 
@@ -11,6 +12,7 @@ public sealed class AgentContext
     public required AgentExtId ExternalId { get; init; }
     public required string Name { get; init; }
     public required bool IsEnabled { get; init; }
+    public required AgentOwnerContext Owner { get; init; }
     public required AgentRoles Roles { get; init; }
     public required AgentPermissions Permissions { get; init; }
     public required int? MaxWorkspaceNumber { get; init; }
@@ -27,6 +29,12 @@ public sealed class AgentContext
 
         return StorageAccess.Allows(storageId);
     }
+}
+
+public sealed class AgentOwnerContext
+{
+    public required int Id { get; init; }
+    public required UserExtId ExternalId { get; init; }
 }
 
 public sealed class AgentRoles

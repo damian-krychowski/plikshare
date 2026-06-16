@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using PlikShare.Agents.Id;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
@@ -18,6 +19,7 @@ public class CreateQuickShareQuery(
     public Task<Result> Execute(
         WorkspaceContext workspace,
         UserExtId creatorExternalId,
+        AgentExtId? creatorAgentExternalId,
         string name,
         string? customSlug,
         List<string> selectedFiles,
@@ -37,6 +39,7 @@ public class CreateQuickShareQuery(
                 dbWriteContext: context,
                 workspace: workspace,
                 creatorExternalId: creatorExternalId,
+                creatorAgentExternalId: creatorAgentExternalId,
                 name: name,
                 customSlug: customSlug,
                 selectedFiles: selectedFiles,
@@ -56,6 +59,7 @@ public class CreateQuickShareQuery(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         UserExtId creatorExternalId,
+        AgentExtId? creatorAgentExternalId,
         string name,
         string? customSlug,
         List<string> selectedFiles,
@@ -96,6 +100,22 @@ public class CreateQuickShareQuery(
             {
                 transaction.Rollback();
                 return new Result(ResultCode.CreatorNotFound);
+            }
+
+            int? creatorAgentId = null;
+
+            if (creatorAgentExternalId is { } agentExternalId)
+            {
+                creatorAgentId = GetAgentCreatorId(
+                    agentExternalId,
+                    dbWriteContext,
+                    transaction);
+
+                if (creatorAgentId is null)
+                {
+                    transaction.Rollback();
+                    return new Result(ResultCode.CreatorNotFound);
+                }
             }
 
             var selectedFileIds = ResolveFiles(
@@ -153,6 +173,7 @@ public class CreateQuickShareQuery(
                 slug,
                 workspace.Id,
                 creatorId.Value,
+                creatorAgentId,
                 name,
                 expiresAt,
                 passwordHashBase64,
@@ -228,6 +249,7 @@ public class CreateQuickShareQuery(
         string slug,
         int workspaceId,
         int creatorId,
+        int? creatorAgentId,
         string name,
         DateTimeOffset? expiresAt,
         string? passwordHashBase64,
@@ -245,6 +267,7 @@ public class CreateQuickShareQuery(
                          qsh_external_id,
                          qsh_workspace_id,
                          qsh_creator_id,
+                         qsh_creator_agent_id,
                          qsh_slug,
                          qsh_secret_hash,
                          qsh_name,
@@ -261,6 +284,7 @@ public class CreateQuickShareQuery(
                          $externalId,
                          $workspaceId,
                          $creatorId,
+                         $creatorAgentId,
                          $slug,
                          NULL,
                          $name,
@@ -281,6 +305,7 @@ public class CreateQuickShareQuery(
             .WithParameter("$externalId", externalId.Value)
             .WithParameter("$workspaceId", workspaceId)
             .WithParameter("$creatorId", creatorId)
+            .WithParameter("$creatorAgentId", creatorAgentId)
             .WithParameter("$slug", slug)
             .WithParameter("$name", name)
             .WithParameter("$createdAt", clock.UtcNow)
@@ -304,6 +329,22 @@ public class CreateQuickShareQuery(
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)
             .WithParameter("$externalId", creatorExternalId.Value)
+            .Execute();
+
+        return result.IsEmpty ? null : result.Value;
+    }
+
+    private static int? GetAgentCreatorId(
+        AgentExtId agentExternalId,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction)
+    {
+        var result = dbWriteContext
+            .OneRowCmd(
+                sql: "SELECT a_id FROM a_agents WHERE a_external_id = $externalId LIMIT 1",
+                readRowFunc: reader => reader.GetInt32(0),
+                transaction: transaction)
+            .WithParameter("$externalId", agentExternalId.Value)
             .Execute();
 
         return result.IsEmpty ? null : result.Value;

@@ -1,5 +1,4 @@
 using Microsoft.Data.Sqlite;
-using PlikShare.BulkDelete.Contracts;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
@@ -34,7 +33,7 @@ public class BulkDeleteQuery(
     DeleteTextractJobsSubQuery deleteTextractJobsSubQuery,
     GetWorkspaceSizeQuery getWorkspaceSizeQuery)
 {
-    public async Task<BulkDeleteResponseDto> Execute(
+    public async Task<BulkDeleteResult> Execute(
         WorkspaceContext workspace,
         FileExtId[] fileExternalIds,
         FolderExtId[] folderExternalIds,
@@ -45,38 +44,31 @@ public class BulkDeleteQuery(
         Guid correlationId,
         CancellationToken cancellationToken)
     {
-        await dbWriteQueue.Execute(
+        var deleted = await dbWriteQueue.Execute(
             operationToEnqueue: context => ExecuteOperation(
                 dbWriteContext: context,
-                workspace: workspace, 
-                fileExternalIds: fileExternalIds, 
-                folderExternalIds: folderExternalIds, 
-                fileUploadExternalIds: fileUploadExternalIds, 
-                boxFolderId: boxFolderId, 
+                workspace: workspace,
+                fileExternalIds: fileExternalIds,
+                folderExternalIds: folderExternalIds,
+                fileUploadExternalIds: fileUploadExternalIds,
+                boxFolderId: boxFolderId,
                 userIdentity: userIdentity,
-                isFileDeleteAllowedByBoxPermissions: isFileDeleteAllowedByBoxPermissions, 
+                isFileDeleteAllowedByBoxPermissions: isFileDeleteAllowedByBoxPermissions,
                 correlationId: correlationId),
             cancellationToken: cancellationToken);
 
-        if(boxFolderId is null)
+        return new BulkDeleteResult
         {
-            var workspaceSize = getWorkspaceSizeQuery.Execute(
-                workspace);
-
-            return new BulkDeleteResponseDto
-            {
-                NewWorkspaceSizeInBytes = workspaceSize
-            };
-        }
-
-        return new BulkDeleteResponseDto
-        {
-            NewWorkspaceSizeInBytes = null
+            NewWorkspaceSizeInBytes = boxFolderId is null
+                ? getWorkspaceSizeQuery.Execute(workspace)
+                : null,
+            DeletedFileCount = deleted.DeletedFileCount,
+            DeletedSizeInBytes = deleted.DeletedSizeInBytes
         };
     }
 
 
-    private void ExecuteOperation(
+    private (int DeletedFileCount, long DeletedSizeInBytes) ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         WorkspaceContext workspace,
         FileExtId[] fileExternalIds,
@@ -108,6 +100,12 @@ public class BulkDeleteQuery(
                 boxFolderId,
                 userIdentity,
                 isFileDeleteAllowedByBoxPermissions,
+                dbWriteContext,
+                transaction);
+
+            var explicitFilesAggregate = AggregateFilesByIds(
+                workspace.Id,
+                filesToDelete,
                 dbWriteContext,
                 transaction);
 
@@ -176,6 +174,13 @@ public class BulkDeleteQuery(
                 transaction);
 
             jobsToEnqueue.AddRange(foldersJobs);
+
+            var folderFilesAggregate = AggregateFilesInFolders(
+                workspace.Id,
+                foldersMarkedAsBeingDeleted,
+                excludeFileIds: filesToDelete,
+                dbWriteContext,
+                transaction);
 
             // Trash-mode folder delete: pre-soft-delete every still-live file in the marked
             // subtree (snapshotting each file's path with its true parent folder) BEFORE the
@@ -279,6 +284,10 @@ public class BulkDeleteQuery(
                     queueJobs.Count,
                     queueJobIds);
             }
+
+            return (
+                explicitFilesAggregate.Count + folderFilesAggregate.Count,
+                explicitFilesAggregate.Size + folderFilesAggregate.Size);
         }
         catch (Exception e)
         {
@@ -286,9 +295,68 @@ public class BulkDeleteQuery(
 
             Log.Error(e, "Something whet wrong while deleting Files '{FileExternalIds}'",
                 fileExternalIds);
-            
+
             throw;
         }
+    }
+
+    private static (int Count, long Size) AggregateFilesByIds(
+        int workspaceId,
+        List<int> fileIds,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction)
+    {
+        if (fileIds.Count == 0)
+            return (0, 0);
+
+        return dbWriteContext
+            .Cmd(
+                sql: @"
+                    SELECT COUNT(*), COALESCE(SUM(fi_size_in_bytes), 0)
+                    FROM fi_files
+                    WHERE
+                        fi_workspace_id = $workspaceId
+                        AND fi_id IN (SELECT value FROM json_each($fileIds))
+                        AND fi_deleted_at IS NULL
+                        AND fi_is_upload_completed = TRUE
+                        AND fi_parent_file_id IS NULL
+                ",
+                readRowFunc: reader => (Count: reader.GetInt32(0), Size: reader.GetInt64(1)),
+                transaction: transaction)
+            .WithParameter("$workspaceId", workspaceId)
+            .WithJsonParameter("$fileIds", fileIds)
+            .Execute()[0];
+    }
+
+    private static (int Count, long Size) AggregateFilesInFolders(
+        int workspaceId,
+        List<int> folderIds,
+        List<int> excludeFileIds,
+        SqliteWriteContext dbWriteContext,
+        SqliteTransaction transaction)
+    {
+        if (folderIds.Count == 0)
+            return (0, 0);
+
+        return dbWriteContext
+            .Cmd(
+                sql: @"
+                    SELECT COUNT(*), COALESCE(SUM(fi_size_in_bytes), 0)
+                    FROM fi_files
+                    WHERE
+                        fi_workspace_id = $workspaceId
+                        AND fi_folder_id IN (SELECT value FROM json_each($folderIds))
+                        AND fi_deleted_at IS NULL
+                        AND fi_is_upload_completed = TRUE
+                        AND fi_parent_file_id IS NULL
+                        AND fi_id NOT IN (SELECT value FROM json_each($excludeFileIds))
+                ",
+                readRowFunc: reader => (Count: reader.GetInt32(0), Size: reader.GetInt64(1)),
+                transaction: transaction)
+            .WithParameter("$workspaceId", workspaceId)
+            .WithJsonParameter("$folderIds", folderIds)
+            .WithJsonParameter("$excludeFileIds", excludeFileIds)
+            .Execute()[0];
     }
     
     private static List<int> GetFilesToDelete(

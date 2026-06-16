@@ -127,6 +127,14 @@ public static class AuditLogEventCatalog
         new(AuditLogEventTypes.Agent.DefaultMaxWorkspaceTeamMembersUpdated, AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent default max-workspace-team-members quota updated.", AuditLogEventScope.Application),
         new(AuditLogEventTypes.Agent.StorageAccessUpdated,                  AuditLogEventCategories.Agent, AuditLogSeverities.Warning, "Agent storage access policy updated.",                 AuditLogEventScope.Application),
         new(AuditLogEventTypes.Agent.WorkspacesListed,                      AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent listed the workspaces it can access.",          AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.WorkspaceContentListed,                AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent listed the content of a workspace folder.",     AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.ShareLinksListed,                      AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent listed the share links of a workspace.",        AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.ShareLinkViewed,                       AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent viewed a share link.",                          AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.FileViewed,                            AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent viewed the details of a file.",                 AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.FileContentRead,                       AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent read the content of a file.",                   AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.FileDownloadLinkGenerated,             AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent generated a download link for a file.",         AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.BulkDownloadLinkGenerated,             AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent generated a bulk download link.",               AuditLogEventScope.Application),
+        new(AuditLogEventTypes.Agent.SearchPerformed,                       AuditLogEventCategories.Agent, AuditLogSeverities.Info,    "Agent searched files and folders.",                   AuditLogEventScope.Application),
 
         // ── Workspaces ───────────────────────────────────────────────────────────
         new(AuditLogEventTypes.Workspace.Created,                          AuditLogEventCategories.Workspace, AuditLogSeverities.Info,     "Workspace created.",                                AuditLogEventScope.Workspace),
@@ -202,6 +210,7 @@ public static class AuditLogEventCatalog
         // ── Quick shares ─────────────────────────────────────────────────────────
         new(AuditLogEventTypes.QuickShare.Created,                   AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share created.",                       AuditLogEventScope.Workspace),
         new(AuditLogEventTypes.QuickShare.Deleted,                   AuditLogEventCategories.QuickShare, AuditLogSeverities.Warning, "Quick share deleted.",                       AuditLogEventScope.Workspace),
+        new(AuditLogEventTypes.QuickShare.Updated,                   AuditLogEventCategories.QuickShare, AuditLogSeverities.Warning, "Quick share settings updated.",              AuditLogEventScope.Workspace),
         new(AuditLogEventTypes.QuickShare.NameUpdated,               AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share renamed.",                       AuditLogEventScope.Workspace),
         new(AuditLogEventTypes.QuickShare.SlugUpdated,               AuditLogEventCategories.QuickShare, AuditLogSeverities.Warning, "Quick share slug updated.",                  AuditLogEventScope.Workspace),
         new(AuditLogEventTypes.QuickShare.ExpirationUpdated,         AuditLogEventCategories.QuickShare, AuditLogSeverities.Info,    "Quick share expiration updated.",            AuditLogEventScope.Workspace),

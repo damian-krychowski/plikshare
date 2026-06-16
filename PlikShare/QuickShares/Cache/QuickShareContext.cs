@@ -1,3 +1,4 @@
+using PlikShare.Agents.Id;
 using PlikShare.QuickShares.Id;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Cache;
@@ -10,6 +11,7 @@ public record QuickShareContext(
     string Name,
     WorkspaceContext Workspace,
     UserExtId CreatorExternalId,
+    AgentExtId? CreatorAgentExternalId,
     string Slug,
     byte[]? SecretHash,
     DateTimeOffset CreatedAt,

@@ -1,6 +1,4 @@
-using System.Net.Http.Headers;
 using FluentAssertions;
-using ModelContextProtocol.Client;
 using PlikShare.Agents.Create.Contracts;
 using PlikShare.AuditLog;
 using PlikShare.Core.SQLite;
@@ -38,35 +36,17 @@ public class mcp_create_folder_tests : TestFixture
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
 
-        using var httpHandler = new HttpClientHandler
-        {
-            ServerCertificateCustomValidationCallback =
-                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
-        };
-
-        using var httpClient = new HttpClient(httpHandler);
-        httpClient.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", agent.Token);
-
-        await using var transport = new HttpClientTransport(
-            new HttpClientTransportOptions
-            {
-                Endpoint = new Uri($"{AppUrl}/mcp"),
-                TransportMode = HttpTransportMode.StreamableHttp
-            },
-            httpClient);
-
         //when
-        await using var mcpClient = await McpClient.CreateAsync(transport);
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
 
-        var tools = await mcpClient.ListToolsAsync();
+        var tools = await mcp.Client.ListToolsAsync();
 
         //then
         tools.Select(t => t.Name).Should().Contain("list_workspaces");
         tools.Select(t => t.Name).Should().Contain("create_folder");
 
         //and when - agent discovers its workspaces (this is how it learns the workspaceExternalId)
-        var listResult = await mcpClient.CallToolAsync(
+        var listResult = await mcp.Client.CallToolAsync(
             toolName: "list_workspaces");
 
         //then
@@ -77,7 +57,7 @@ public class mcp_create_folder_tests : TestFixture
         //and when
         const string folderName = "agent-created-folder";
 
-        var result = await mcpClient.CallToolAsync(
+        var result = await mcp.Client.CallToolAsync(
             toolName: "create_folder",
             arguments: new Dictionary<string, object?>
             {

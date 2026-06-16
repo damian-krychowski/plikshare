@@ -5,7 +5,6 @@ using PlikShare.AuditLog;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Folders.Id;
 using PlikShare.Folders.Rename;
-using PlikShare.Mcp.Folders.Rename.Contracts;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Id;
 using Audit = PlikShare.AuditLog.Details.Audit;
@@ -17,7 +16,7 @@ public class RenameFolderTool
 {
     [McpServerTool(Name = "rename_folder")]
     [Description("Renames an existing folder in a workspace the agent has access to.")]
-    public static async Task<RenameFolderResponseDto> Execute(
+    public static async Task Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
         UpdateFolderNameQuery updateFolderNameQuery,
@@ -64,11 +63,7 @@ public class RenameFolderTool
                         folder: folderRef),
                     cancellationToken);
 
-                return new RenameFolderResponseDto
-                {
-                    FolderExternalId = folderId.Value,
-                    Name = name
-                };
+                return;
 
             case UpdateFolderNameQuery.ResultCode.FolderNotFound:
                 throw new McpException(

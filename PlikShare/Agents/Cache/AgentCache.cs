@@ -4,6 +4,7 @@ using PlikShare.Agents.Id;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
 using PlikShare.Users.Cache;
+using PlikShare.Users.Id;
 using PlikShare.Users.StorageAccess;
 
 namespace PlikShare.Agents.Cache;
@@ -160,6 +161,11 @@ public class AgentCache(
             ExternalId = row.ExternalId,
             Name = row.Name,
             IsEnabled = row.IsEnabled,
+            Owner = new AgentOwnerContext
+            {
+                Id = row.OwnerId,
+                ExternalId = row.OwnerExternalId
+            },
             Roles = new AgentRoles
             {
                 IsAdmin = row.IsAdmin
@@ -210,8 +216,11 @@ public class AgentCache(
                          a_max_workspace_number,
                          a_default_max_workspace_size_in_bytes,
                          a_default_max_workspace_team_members,
-                         a_storage_access_mode
+                         a_storage_access_mode,
+                         a_owner_user_id,
+                         u_external_id
                      FROM a_agents
+                     INNER JOIN u_users ON u_id = a_owner_user_id
                      WHERE {lookup.WhereClause}
                      LIMIT 1
                      """,
@@ -233,7 +242,9 @@ public class AgentCache(
                     MaxWorkspaceNumber: reader.GetInt32OrNull(14),
                     DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(15),
                     DefaultMaxWorkspaceTeamMembers: reader.GetInt32OrNull(16),
-                    StorageAccessMode: reader.GetEnum<UserStorageAccessMode>(17)))
+                    StorageAccessMode: reader.GetEnum<UserStorageAccessMode>(17),
+                    OwnerId: reader.GetInt32(18),
+                    OwnerExternalId: reader.GetExtId<UserExtId>(19)))
             .WithParameter(lookup.ParamName, lookup.ParamValue)
             .Execute();
 
@@ -273,7 +284,9 @@ public class AgentCache(
         int? MaxWorkspaceNumber,
         long? DefaultMaxWorkspaceSizeInBytes,
         int? DefaultMaxWorkspaceTeamMembers,
-        UserStorageAccessMode StorageAccessMode);
+        UserStorageAccessMode StorageAccessMode,
+        int OwnerId,
+        UserExtId OwnerExternalId);
 
     private readonly record struct AgentLookup(
         string WhereClause,
