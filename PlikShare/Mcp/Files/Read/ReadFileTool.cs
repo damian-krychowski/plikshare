@@ -4,6 +4,7 @@ using System.Text;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Files.Download;
 using PlikShare.Files.Id;
@@ -24,7 +25,7 @@ public class ReadFileTool
     private const int MinMaxBytes = 1024;
     private const int HardMaxBytes = 256 * 1024;
 
-    [McpServerTool(Name = "read_file")]
+    [McpServerTool(Name = AgentToolNames.ReadFile)]
     [Description("Reads the text content of a file by its external id, decoded as UTF-8. The file is resolved " +
                  "across all workspaces the agent can access; if the agent has no access it is reported as not " +
                  "found. Only text files are returned — binary files (images, video, PDF, archives) are " +

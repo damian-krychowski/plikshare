@@ -155,6 +155,8 @@ public class AgentCache(
             ? []
             : ReadStorageAccessIds(connection, row.Id);
 
+        var toolConfigs = ReadToolConfigs(connection, row.Id);
+
         return new AgentContext
         {
             Id = row.Id,
@@ -189,8 +191,41 @@ public class AgentCache(
             {
                 Mode = row.StorageAccessMode,
                 StorageIds = storageAccessIds
-            }
+            },
+            ToolConfigs = toolConfigs
         };
+    }
+
+    private static IReadOnlyDictionary<string, AgentToolConfigEntry> ReadToolConfigs(
+        SqliteConnection connection,
+        int agentId)
+    {
+        var rows = connection
+            .Cmd(
+                sql: """
+                     SELECT
+                         atc_tool_name,
+                         atc_is_enabled,
+                         atc_requires_approval
+                     FROM atc_agent_tool_configs
+                     WHERE atc_agent_id = $agentId
+                     """,
+                readRowFunc: reader => new
+                {
+                    ToolName = reader.GetString(0),
+                    IsEnabled = reader.GetBoolean(1),
+                    RequiresApproval = reader.GetBoolean(2)
+                })
+            .WithParameter("$agentId", agentId)
+            .Execute();
+
+        return rows.ToDictionary(
+            row => row.ToolName,
+            row => new AgentToolConfigEntry
+            {
+                IsEnabled = row.IsEnabled,
+                RequiresApproval = row.RequiresApproval
+            });
     }
 
     private static AgentRow? ReadAgentRow(SqliteConnection connection, AgentLookup lookup)

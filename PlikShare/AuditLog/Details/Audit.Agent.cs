@@ -188,6 +188,34 @@ public static partial class Audit
             AgentRef agent) => SettingsUpdatedEntry(
                 actor, agent, AuditLogEventTypes.Agent.StorageAccessUpdated, AuditLogSeverities.Warning);
 
+        public static AuditLogEntry ToolConfigUpdatedEntry(
+            AuditLogActorContext actor,
+            AgentRef agent) => SettingsUpdatedEntry(
+                actor, agent, AuditLogEventTypes.Agent.ToolConfigUpdated, AuditLogSeverities.Warning);
+
+        public class ToolWorkspaceOverrideUpdated
+        {
+            public required AgentRef Agent { get; init; }
+            public required WorkspaceRef Workspace { get; init; }
+        }
+
+        public static AuditLogEntry ToolWorkspaceOverrideUpdatedEntry(
+            AuditLogActorContext actor,
+            AgentRef agent,
+            WorkspaceRef workspace) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Agent,
+            EventType = AuditLogEventTypes.Agent.ToolWorkspaceOverrideUpdated,
+            Severity = AuditLogSeverities.Warning,
+            DetailsJson = Json.Serialize(new ToolWorkspaceOverrideUpdated {
+                Agent = agent,
+                Workspace = workspace })
+        };
+
         public class WorkspacesListed
         {
             public required int Count { get; init; }
@@ -205,6 +233,26 @@ public static partial class Audit
             EventType = AuditLogEventTypes.Agent.WorkspacesListed,
             Severity = AuditLogSeverities.Info,
             DetailsJson = Json.Serialize(new WorkspacesListed {
+                Count = count })
+        };
+
+        public class StoragesListed
+        {
+            public required int Count { get; init; }
+        }
+
+        public static AuditLogEntry StoragesListedEntry(
+            AuditLogActorContext actor,
+            int count) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Agent,
+            EventType = AuditLogEventTypes.Agent.StoragesListed,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new StoragesListed {
                 Count = count })
         };
 

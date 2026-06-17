@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS at_agent_tokens
     at_last_used_at TEXT NULL,
     at_revoked_at TEXT NULL,
 
-    FOREIGN KEY (at_agent_id) REFERENCES a_agents (a_id)
+    FOREIGN KEY (at_agent_id) REFERENCES a_agents (a_id) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS index__at_agent_tokens__at_token_hash ON at_agent_tokens (at_token_hash);
@@ -73,8 +73,8 @@ CREATE TABLE IF NOT EXISTS wa_workspace_agents
     wa_created_at TEXT NOT NULL,
 
     PRIMARY KEY (wa_workspace_id, wa_agent_id),
-    FOREIGN KEY (wa_workspace_id) REFERENCES w_workspaces (w_id),
-    FOREIGN KEY (wa_agent_id) REFERENCES a_agents (a_id)
+    FOREIGN KEY (wa_workspace_id) REFERENCES w_workspaces (w_id) ON DELETE CASCADE,
+    FOREIGN KEY (wa_agent_id) REFERENCES a_agents (a_id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS index__wa_workspace_agents__wa_workspace_id ON wa_workspace_agents (wa_workspace_id);
@@ -98,8 +98,8 @@ CREATE TABLE IF NOT EXISTS ba_box_agents
     ba_created_at TEXT NOT NULL,
 
     PRIMARY KEY (ba_box_id, ba_agent_id),
-    FOREIGN KEY (ba_box_id) REFERENCES bo_boxes (bo_id),
-    FOREIGN KEY (ba_agent_id) REFERENCES a_agents (a_id)
+    FOREIGN KEY (ba_box_id) REFERENCES bo_boxes (bo_id) ON DELETE CASCADE,
+    FOREIGN KEY (ba_agent_id) REFERENCES a_agents (a_id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS index__ba_box_agents__ba_box_id ON ba_box_agents (ba_box_id);

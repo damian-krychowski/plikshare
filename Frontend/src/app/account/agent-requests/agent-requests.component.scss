@@ -1,0 +1,69 @@
+@forward "./../../../styles/app-header.scss";
+@forward "./../../../styles/top-bar.scss";
+@forward "./../../../styles/top-nav-btn.scss";
+@forward "./../../../styles/icon-merge.scss";
+@forward "./../../../styles/mobile-display.scss";
+
+.agent-request-card {
+    border: 1px solid var(--company-grey-accent);
+    background: white;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.agent-request-card__bar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+}
+
+.agent-request-card__main {
+    flex: 1;
+    min-width: 0;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+
+    cursor: pointer;
+}
+
+.agent-request-card__text {
+    flex: 1;
+    min-width: 0;
+}
+
+.agent-request-card__title {
+    font-weight: 600;
+}
+
+.agent-request-card__subtitle {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.agent-request-card__meta {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    margin-top: 2px;
+}
+
+.agent-request-card__actions {
+    flex: 0 0 auto;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.agent-request-card__details {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed var(--company-grey-accent);
+}

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Core.Clock;
 using PlikShare.Core.UserIdentity;
@@ -20,7 +21,7 @@ public class GetBulkDownloadLinkTool
     private const int MinExpiryMinutes = 1;
     private const int MaxExpiryMinutes = 24 * 60;
 
-    [McpServerTool(Name = "get_bulk_download_link")]
+    [McpServerTool(Name = AgentToolNames.GetBulkDownloadLink)]
     [Description("Creates a short-lived link that downloads the selected files and/or folders from a workspace " +
                  "as a single ZIP archive, to hand to a user. Folders are included with all their contents. " +
                  "Provide at least one id in fileExternalIds or folderExternalIds. Anyone with the link can " +

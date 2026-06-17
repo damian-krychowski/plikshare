@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ViewEncapsulation, computed, effect, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewEncapsulation, computed, effect, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { ActivatedRoute, Router, RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -17,6 +17,7 @@ import { SignOutService } from '../services/sign-out.service';
 import { FooterComponent } from '../static-pages/shared/footer/footer.component';
 import { WorkspaceSizeComponent } from '../shared/workspace-size/workspace-size.component';
 import { AppCapabilitiesService } from '../services/app-capabilities.service';
+import { MobileMenuStateService } from '../services/mobile-menu-state.service';
 
 @Component({
     selector: 'app-workspace-manager',
@@ -41,7 +42,7 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
     private _workspaceExternalId: string = '';
 
     isFirstWorkspaceLoaded = signal(false);
-    isMenuOpen = signal(false);
+    isMenuOpen = inject(MobileMenuStateService).isOpen;
     pendingUploadCount = signal(0);
 
     anyPendingUploads = computed(() => this.pendingUploadCount() > 0);
@@ -140,6 +141,7 @@ export class WorkspaceManagerComponent implements OnInit, OnDestroy  {
     ngOnDestroy(): void {
         this._subscription?.unsubscribe();
         this._uploadsCountChangedSubscription?.unsubscribe();
+        this.isMenuOpen.set(false);
     }
 
     goToDashboard() {

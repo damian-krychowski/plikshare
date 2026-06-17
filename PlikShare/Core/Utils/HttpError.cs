@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using PlikShare.Agents.Id;
+using PlikShare.Agents.Operations.Id;
 using PlikShare.AuditLog.Id;
 using PlikShare.Boxes.Id;
 using PlikShare.Core.Encryption;
@@ -558,6 +559,18 @@ public static class HttpErrors
         {
             Code = "agent-doesnt-exist",
             Message = $"Agent with externalId '{externalId}' was not found"
+        });
+
+        public static NotFound<HttpError> OperationNotFound(AgentOperationExtId externalId) => TypedResults.NotFound(new HttpError
+        {
+            Code = "agent-operation-doesnt-exist",
+            Message = $"Agent operation with externalId '{externalId}' was not found"
+        });
+
+        public static NotFound<HttpError> OperationNotPending(AgentOperationExtId externalId) => TypedResults.NotFound(new HttpError
+        {
+            Code = "agent-operation-not-pending",
+            Message = $"Agent operation with externalId '{externalId}' is no longer pending approval"
         });
     }
 

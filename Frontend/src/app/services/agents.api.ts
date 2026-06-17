@@ -64,6 +64,47 @@ export interface AgentStorageAccess {
     storageExternalIds: string[];
 }
 
+export interface GetAgentToolsResponse {
+    tools: AgentToolConfig[];
+}
+
+export interface AgentToolConfig {
+    name: string;
+    description: string;
+    scope: string;
+    requiredPermission: string | null;
+    isAvailable: boolean;
+    isEnabled: boolean;
+    requiresApproval: boolean;
+    isDefault: boolean;
+}
+
+export interface UpdateAgentToolConfigRequest {
+    isEnabled: boolean;
+    requiresApproval: boolean;
+}
+
+export interface GetAgentWorkspaceToolsResponse {
+    tools: AgentWorkspaceToolConfig[];
+}
+
+export interface AgentWorkspaceToolConfig {
+    name: string;
+    description: string;
+    isAvailable: boolean;
+    globalIsEnabled: boolean;
+    globalRequiresApproval: boolean;
+    overrideIsEnabled: boolean | null;
+    overrideRequiresApproval: boolean | null;
+    effectiveIsEnabled: boolean;
+    effectiveRequiresApproval: boolean;
+}
+
+export interface UpdateAgentWorkspaceToolOverrideRequest {
+    isEnabled: boolean | null;
+    requiresApproval: boolean | null;
+}
+
 export interface AgentWorkspace {
     externalId: string;
     name: string;
@@ -71,6 +112,7 @@ export interface AgentWorkspace {
     maxSizeInBytes: number | null;
     isBucketCreated: boolean;
     storageName: string;
+    overriddenToolsCount: number;
 }
 
 export interface AgentSharedWorkspace {
@@ -83,6 +125,7 @@ export interface AgentSharedWorkspace {
     owner: AgentOwner;
     isBucketCreated: boolean;
     storageEncryptionType: string;
+    overriddenToolsCount: number;
 }
 
 export interface AgentSharedBox {
@@ -120,6 +163,51 @@ export interface UpdateAgentPermissionsAndRolesRequest {
     canManageAuth: boolean;
     canManageIntegrations: boolean;
     canManageAuditLog: boolean;
+}
+
+export interface GetPendingAgentOperationsResponse {
+    items: PendingAgentOperation[];
+}
+
+export interface PendingAgentOperation {
+    externalId: string;
+    toolName: string;
+    parameters: any;
+    agent: PendingAgentOperationAgent;
+    workspace: PendingAgentOperationWorkspace | null;
+    createdAt: string;
+    expiresAt: string;
+}
+
+export interface PendingAgentOperationAgent {
+    externalId: string;
+    name: string;
+}
+
+export interface PendingAgentOperationWorkspace {
+    externalId: string;
+    name: string;
+}
+
+export type AgentOperationDetails = BulkDeleteOperationDetails;
+
+export interface BulkDeleteOperationDetails {
+    $type: 'bulk_delete';
+    folders: BulkDeleteFolderDetail[];
+    files: BulkDeleteFileDetail[];
+}
+
+export interface BulkDeleteFolderDetail {
+    externalId: string;
+    name: string;
+    path: string | null;
+}
+
+export interface BulkDeleteFileDetail {
+    externalId: string;
+    folderExternalId: string | null;
+    name: string;
+    path: string | null;
 }
 
 export interface ListWorkspaceBoxesResponse {
@@ -209,6 +297,84 @@ export class AgentsApi {
             ._http
             .patch(
                 `/api/agents/${externalId}/permissions-and-roles`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async getAgentTools(externalId: string): Promise<GetAgentToolsResponse> {
+        const call = this
+            ._http
+            .get<GetAgentToolsResponse>(
+                `/api/agents/${externalId}/tools`, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        return await firstValueFrom(call);
+    }
+
+    public async updateAgentToolConfig(externalId: string, toolName: string, request: UpdateAgentToolConfigRequest): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/agents/${externalId}/tools/${toolName}`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async resetAgentToolConfig(externalId: string, toolName: string): Promise<void> {
+        const call = this
+            ._http
+            .delete(
+                `/api/agents/${externalId}/tools/${toolName}`, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async getAgentWorkspaceTools(externalId: string, workspaceExternalId: string): Promise<GetAgentWorkspaceToolsResponse> {
+        const call = this
+            ._http
+            .get<GetAgentWorkspaceToolsResponse>(
+                `/api/agents/${externalId}/workspaces/${workspaceExternalId}/tools`, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        return await firstValueFrom(call);
+    }
+
+    public async updateAgentWorkspaceToolOverride(externalId: string, workspaceExternalId: string, toolName: string, request: UpdateAgentWorkspaceToolOverrideRequest): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/agents/${externalId}/workspaces/${workspaceExternalId}/tools/${toolName}`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async resetAgentWorkspaceToolOverride(externalId: string, workspaceExternalId: string, toolName: string): Promise<void> {
+        const call = this
+            ._http
+            .delete(
+                `/api/agents/${externalId}/workspaces/${workspaceExternalId}/tools/${toolName}`, {
                 headers: new HttpHeaders({
                     'Content-Type': 'application/json'
                 })
@@ -313,6 +479,58 @@ export class AgentsApi {
             ._http
             .delete(
                 `/api/agents/${externalId}/boxes/${boxExternalId}`, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async getPendingOperations(): Promise<GetPendingAgentOperationsResponse> {
+        const call = this
+            ._http
+            .get<GetPendingAgentOperationsResponse>(
+                `/api/agents/operations/pending`, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        return await firstValueFrom(call);
+    }
+
+    public async getOperationDetails(operationExternalId: string): Promise<AgentOperationDetails> {
+        const call = this
+            ._http
+            .get<AgentOperationDetails>(
+                `/api/agents/operations/${operationExternalId}/details`, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        return await firstValueFrom(call);
+    }
+
+    public async approveOperation(agentExternalId: string, operationExternalId: string): Promise<void> {
+        const call = this
+            ._http
+            .post(
+                `/api/agents/${agentExternalId}/operations/${operationExternalId}/approve`, {}, {
+                headers: new HttpHeaders({
+                    'Content-Type': 'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async denyOperation(agentExternalId: string, operationExternalId: string): Promise<void> {
+        const call = this
+            ._http
+            .post(
+                `/api/agents/${agentExternalId}/operations/${operationExternalId}/deny`, {}, {
                 headers: new HttpHeaders({
                     'Content-Type': 'application/json'
                 })

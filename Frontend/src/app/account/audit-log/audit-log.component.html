@@ -24,8 +24,6 @@
 
 
     <div class="content">
-        <div class="mt-3 hide-on-mobile"></div>
-
         <div class="title-header audit-title-header">
             <div>
                 Overview
@@ -218,7 +216,10 @@
                             <div class="col-time__date">{{ item.createdAt | date:'yyyy-MM-dd' }}</div>
                         </div>
                         <div class="col-actor" [title]="item.actorEmail || item.actorIdentity">
-                            {{ item.actorEmail || item.actorIdentity }}
+                            @if(isAgentActor(item)) {
+                                <i class="icon icon-sm icon-nucleo-robot col-actor__agent-icon"></i>
+                            }
+                            <span class="col-actor__text">{{ item.actorEmail || item.actorIdentity }}</span>
                         </div>
                         <div class="col-event">{{ item.eventType }}</div>
                         <div class="col-severity">

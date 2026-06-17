@@ -74,7 +74,7 @@
                         <app-user-link
                             class="ml-1"
                             prefix="Owner:"
-                            [user]="owner()">                            
+                            [user]="owner()">
                         </app-user-link>
                     }
                 </div>
@@ -123,6 +123,22 @@
                 </app-action-btn>
             }
         
+            @if(agentToolsEnabled()) {
+                @if(customisedToolsCount() > 0) {
+                    <span class="workspace-item__tools-count"
+                        matTooltip="{{ customisedToolsCount() }} tool override{{ customisedToolsCount() === 1 ? '' : 's' }} in this workspace"
+                        matTooltipPosition="above">
+                        {{ customisedToolsCount() }}
+                    </span>
+                }
+
+                <app-action-btn
+                    tooltip="Configure tool overrides for this workspace"
+                    icon="icon-nucleo-tools"
+                    (clicked)="agentToolsClicked.emit()">
+                </app-action-btn>
+            }
+
             @if(canRevokeAccess()) {
                 <app-action-btn
                     tooltip="Revoke access"

@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using PlikShare.Agents.Cache;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
@@ -52,10 +53,47 @@ public class CreateWorkspaceQuery(
                 dbWriteContext: context,
                 storage: storage,
                 ownerId: user.Id,
+                ownerAgentId: null,
                 artifacts: artifacts,
                 name: name,
                 maxSizeInBytes: user.DefaultMaxWorkspaceSizeInBytes,
                 maxTeamMembers: user.DefaultMaxWorkspaceTeamMembers,
+                correlationId: correlationId),
+            cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
+    /// Agent-owned workspace creation. The owner is the agent's owner-user (so the workspace
+    /// shows up under that user, exactly like an agent-created quick-share records its creator),
+    /// and <c>w_owner_agent_id</c> records the agent so it can reach the workspace it created.
+    /// Agents never use full-encryption storages, hence no <see cref="WorkspaceFullEncryptionArtifacts"/>.
+    /// </summary>
+    public async Task<Result> Execute(
+        IStorageClient storage,
+        AgentContext agent,
+        string name,
+        Guid correlationId,
+        CancellationToken cancellationToken)
+    {
+        if (agent.MaxWorkspaceNumber.HasValue)
+        {
+            var currentNumber = GetCurrentNumberOfAgentWorkspaces(
+                ownerAgentId: agent.Id);
+
+            if (currentNumber >= agent.MaxWorkspaceNumber)
+                return new Result(Code: ResultCode.MaxNumberOfWorkspacesReached);
+        }
+
+        return await dbWriteQueue.Execute(
+            operationToEnqueue: context => ExecuteOperation(
+                dbWriteContext: context,
+                storage: storage,
+                ownerId: agent.Owner.Id,
+                ownerAgentId: agent.Id,
+                artifacts: null,
+                name: name,
+                maxSizeInBytes: agent.DefaultMaxWorkspaceSizeInBytes,
+                maxTeamMembers: agent.DefaultMaxWorkspaceTeamMembers,
                 correlationId: correlationId),
             cancellationToken: cancellationToken);
     }
@@ -78,10 +116,29 @@ public class CreateWorkspaceQuery(
             .ExecuteOrThrow();
     }
 
+    private int GetCurrentNumberOfAgentWorkspaces(int ownerAgentId)
+    {
+        using var connection = plikShareDb.OpenConnection();
+
+        return connection
+            .OneRowCmd(
+                sql: """
+                SELECT COUNT(*)
+                FROM w_workspaces
+                WHERE w_owner_agent_id = $ownerAgentId
+                    AND w_is_being_deleted = FALSE
+                """,
+                readRowFunc: reader => reader.GetInt32(0)
+            )
+            .WithParameter("$ownerAgentId", ownerAgentId)
+            .ExecuteOrThrow();
+    }
+
     private Result ExecuteOperation(
         SqliteWriteContext dbWriteContext,
         IStorageClient storage,
         int ownerId,
+        int? ownerAgentId,
         WorkspaceFullEncryptionArtifacts? artifacts,
         string name,
         long? maxSizeInBytes,
@@ -96,6 +153,7 @@ public class CreateWorkspaceQuery(
                 dbWriteContext: dbWriteContext,
                 storage: storage,
                 ownerId: ownerId,
+                ownerAgentId: ownerAgentId,
                 artifacts: artifacts,
                 name: name,
                 maxSizeInBytes: maxSizeInBytes,
@@ -157,6 +215,7 @@ public class CreateWorkspaceQuery(
         SqliteWriteContext dbWriteContext,
         IStorageClient storage,
         int ownerId,
+        int? ownerAgentId,
         WorkspaceFullEncryptionArtifacts? artifacts,
         string name,
         long? maxSizeInBytes,
@@ -188,6 +247,7 @@ public class CreateWorkspaceQuery(
                       INSERT INTO w_workspaces(
                          w_external_id,
                          w_owner_id,
+                         w_owner_agent_id,
                          w_storage_id,
                          w_name,
                          w_current_size_in_bytes,
@@ -202,6 +262,7 @@ public class CreateWorkspaceQuery(
                      ) VALUES (
                          $externalId,
                          $userId,
+                         $ownerAgentId,
                          $storageId,
                          $name,
                          0,
@@ -222,6 +283,7 @@ public class CreateWorkspaceQuery(
             .WithParameter("$externalId", workspaceExternalId.Value)
             .WithParameter("$storageId", storage.StorageId)
             .WithParameter("$userId", ownerId)
+            .WithParameter("$ownerAgentId", ownerAgentId)
             .WithParameter("$name", name)
             .WithParameter("$bucketName", finalBucketName)
             .WithParameter("$maxSizeInBytes", maxSizeInBytes)

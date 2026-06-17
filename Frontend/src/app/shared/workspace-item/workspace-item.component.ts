@@ -68,10 +68,14 @@ export class WorkspaceItemComponent implements OnInit, OnDestroy {
     isAdminView = input(false);
     revokeOnly = input(false);
 
+    agentToolsEnabled = input(false);
+    customisedToolsCount = input(0);
+
     left = output<void>();
     deleted = output<void>();
     accessRevoked = output<void>();
     ownerChanged = output<void>();
+    agentToolsClicked = output<void>();
 
     externalId = computed(() => this.workspace().externalId());
     name = computed(() => this.workspace().name());

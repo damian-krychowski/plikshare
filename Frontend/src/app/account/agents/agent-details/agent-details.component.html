@@ -28,8 +28,6 @@
 
     @if(agent(); as agentVal) {
         <div class="content">
-            <div class="mt-3 hide-on-mobile"></div>
-
             <div class="title-header">
                 <div>
                     Agent details:
@@ -107,6 +105,15 @@
 
             <div class="mt-3"></div>
 
+            
+            <div class="title-header">
+                <div>
+                    Agent configuration:
+                </div>
+            </div>
+
+            <div class="mt-2"></div>       
+
             @if(permissionsModel(); as pm) {
                 <app-config-card
                     title="Agent permissions"
@@ -116,6 +123,20 @@
                         [canManageAgentsAvailable]="false"
                         (configChanged)="onPermissionsChange($event)">
                     </app-user-permissions-list>
+                </app-config-card>
+
+                <div class="mt-3"></div>
+            }     
+
+            @if (agent(); as agentData) {
+                <app-config-card
+                    title="Default tools"
+                    description="Which agent tools are enabled and which require human approval. Workspace-scoped tools can be overridden per workspace."
+                    [collapsible]="true"
+                    [initiallyCollapsed]="true">
+                    <app-agent-tools-config
+                        [agentExternalId]="agentData.agent.externalId">
+                    </app-agent-tools-config>
                 </app-config-card>
 
                 <div class="mt-3"></div>
@@ -206,6 +227,9 @@
                         [isAdminView]="true"
                         [revokeOnly]="true"
                         [canLocate]="false"
+                        [agentToolsEnabled]="true"
+                        [customisedToolsCount]="toolsCountOf(workspace.externalId())"
+                        (agentToolsClicked)="openToolsDialog(workspace)"
                         (accessRevoked)="onSharedWorkspaceAccessRevoked(workspace)">
                     </app-workspace-item>
                 }

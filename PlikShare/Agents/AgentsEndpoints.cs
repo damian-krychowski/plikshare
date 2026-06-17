@@ -10,12 +10,20 @@ using PlikShare.Agents.Delete;
 using PlikShare.Agents.Get;
 using PlikShare.Agents.Get.Contracts;
 using PlikShare.Agents.Id;
+using PlikShare.Agents.Operations;
+using PlikShare.Agents.Operations.Details;
+using PlikShare.Agents.Operations.Details.Contracts;
+using PlikShare.Agents.Operations.Id;
+using PlikShare.Agents.Operations.List;
+using PlikShare.Agents.Operations.List.Contracts;
 using PlikShare.Agents.List;
 using PlikShare.Agents.List.Contracts;
 using PlikShare.Agents.ListWorkspaceBoxes;
 using PlikShare.Agents.ListWorkspaceBoxes.Contracts;
 using PlikShare.Agents.RotateToken;
 using PlikShare.Agents.RotateToken.Contracts;
+using PlikShare.Agents.Tools;
+using PlikShare.Agents.Tools.Contracts;
 using PlikShare.Agents.UpdateSettings;
 using PlikShare.Agents.UpdateSettings.Contracts;
 using PlikShare.Agents.WorkspaceAccess;
@@ -28,6 +36,12 @@ using PlikShare.Users.Middleware;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Id;
 using Audit = PlikShare.AuditLog.Details.Audit;
+#if DEBUG
+using PlikShare.Core.Clock;
+using PlikShare.Core.Database.MainDatabase;
+using PlikShare.Core.SQLite;
+using PlikShare.Mcp.BulkDelete;
+#endif
 
 namespace PlikShare.Agents;
 
@@ -52,6 +66,12 @@ public static class AgentsEndpoints
 
         group.MapGet("/workspaces/{workspaceExternalId}/boxes", ListWorkspaceBoxes)
             .WithName("ListAgentWorkspaceBoxes");
+
+        group.MapGet("/operations/pending", GetPendingOperations)
+            .WithName("GetPendingAgentOperations");
+
+        group.MapGet("/operations/{operationExternalId}/details", GetOperationDetails)
+            .WithName("GetAgentOperationDetails");
 
         group.MapPost("/", CreateAgent)
             .WithName("CreateAgent");
@@ -88,6 +108,35 @@ public static class AgentsEndpoints
 
         group.MapPatch("/{agentExternalId}/storage-access", UpdateStorageAccess)
             .WithName("UpdateAgentStorageAccess");
+
+        group.MapGet("/{agentExternalId}/tools", GetAgentTools)
+            .WithName("GetAgentTools");
+
+        group.MapPatch("/{agentExternalId}/tools/{toolName}", UpdateAgentToolConfig)
+            .WithName("UpdateAgentToolConfig");
+
+        group.MapDelete("/{agentExternalId}/tools/{toolName}", ResetAgentToolConfig)
+            .WithName("ResetAgentToolConfig");
+
+        group.MapGet("/{agentExternalId}/workspaces/{workspaceExternalId}/tools", GetAgentWorkspaceTools)
+            .WithName("GetAgentWorkspaceTools");
+
+        group.MapPatch("/{agentExternalId}/workspaces/{workspaceExternalId}/tools/{toolName}", UpdateAgentWorkspaceToolOverride)
+            .WithName("UpdateAgentWorkspaceToolOverride");
+
+        group.MapDelete("/{agentExternalId}/workspaces/{workspaceExternalId}/tools/{toolName}", ResetAgentWorkspaceToolOverride)
+            .WithName("ResetAgentWorkspaceToolOverride");
+
+        group.MapPost("/{agentExternalId}/operations/{operationExternalId}/approve", ApproveAgentOperation)
+            .WithName("ApproveAgentOperation");
+
+        group.MapPost("/{agentExternalId}/operations/{operationExternalId}/deny", DenyAgentOperation)
+            .WithName("DenyAgentOperation");
+
+#if DEBUG
+        group.MapGet("/{agentExternalId}/operations/dev-seed", DevSeedOperation)
+            .WithName("DevSeedAgentOperation");
+#endif
     }
 
     private static GetAgentsResponseDto GetAgents(
@@ -579,6 +628,428 @@ public static class AgentsEndpoints
                 throw new UnexpectedOperationResultException(
                     operationName: nameof(UpdateAgentSettingsQuery),
                     resultValueStr: result.ToString());
+        }
+    }
+
+    private static async Task<Results<Ok<GetAgentToolsResponseDto>, NotFound<HttpError>>> GetAgentTools(
+        [FromRoute] AgentExtId agentExternalId,
+        GetAgentToolsQuery getAgentToolsQuery,
+        CancellationToken cancellationToken)
+    {
+        var result = await getAgentToolsQuery.Execute(
+            agentExternalId: agentExternalId,
+            cancellationToken: cancellationToken);
+
+        if (result is null)
+            return HttpErrors.Agent.NotFound(agentExternalId);
+
+        return TypedResults.Ok(result);
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateAgentToolConfig(
+        [FromRoute] AgentExtId agentExternalId,
+        [FromRoute] string toolName,
+        [FromBody] UpdateAgentToolConfigRequestDto request,
+        AgentToolConfigQuery agentToolConfigQuery,
+        AgentCache agentCache,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        if (AgentToolCatalog.TryGet(toolName) is null)
+            return TypedResults.BadRequest(new HttpError
+            {
+                Code = "unknown-tool",
+                Message = $"Unknown tool '{toolName}'."
+            });
+
+        var result = await agentToolConfigQuery.Upsert(
+            agentExternalId: agentExternalId,
+            toolName: toolName,
+            isEnabled: request.IsEnabled,
+            requiresApproval: request.RequiresApproval,
+            cancellationToken: cancellationToken);
+
+        if (result.Code == AgentToolConfigQuery.ResultCode.NotFound)
+            return HttpErrors.Agent.NotFound(agentExternalId);
+
+        await agentCache.InvalidateEntry(
+            agentExternalId,
+            cancellationToken);
+
+        await auditLogService.Log(
+            Audit.Agent.ToolConfigUpdatedEntry(
+                actor: httpContext.GetAuditLogActorContext(),
+                agent: new Audit.AgentRef { ExternalId = agentExternalId, Name = result.AgentName! }),
+            cancellationToken);
+
+        return TypedResults.Ok();
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> ResetAgentToolConfig(
+        [FromRoute] AgentExtId agentExternalId,
+        [FromRoute] string toolName,
+        AgentToolConfigQuery agentToolConfigQuery,
+        AgentCache agentCache,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        if (AgentToolCatalog.TryGet(toolName) is null)
+            return TypedResults.BadRequest(new HttpError
+            {
+                Code = "unknown-tool",
+                Message = $"Unknown tool '{toolName}'."
+            });
+
+        var result = await agentToolConfigQuery.Reset(
+            agentExternalId: agentExternalId,
+            toolName: toolName,
+            cancellationToken: cancellationToken);
+
+        if (result.Code == AgentToolConfigQuery.ResultCode.NotFound)
+            return HttpErrors.Agent.NotFound(agentExternalId);
+
+        await agentCache.InvalidateEntry(
+            agentExternalId,
+            cancellationToken);
+
+        await auditLogService.Log(
+            Audit.Agent.ToolConfigUpdatedEntry(
+                actor: httpContext.GetAuditLogActorContext(),
+                agent: new Audit.AgentRef { ExternalId = agentExternalId, Name = result.AgentName! }),
+            cancellationToken);
+
+        return TypedResults.Ok();
+    }
+
+    private static async Task<Results<Ok<GetAgentWorkspaceToolsResponseDto>, NotFound<HttpError>>> GetAgentWorkspaceTools(
+        [FromRoute] AgentExtId agentExternalId,
+        [FromRoute] WorkspaceExtId workspaceExternalId,
+        GetAgentWorkspaceToolsQuery getAgentWorkspaceToolsQuery,
+        CancellationToken cancellationToken)
+    {
+        var result = await getAgentWorkspaceToolsQuery.Execute(
+            agentExternalId: agentExternalId,
+            workspaceExternalId: workspaceExternalId,
+            cancellationToken: cancellationToken);
+
+        return result.Code switch
+        {
+            GetAgentWorkspaceToolsQuery.ResultCode.Ok =>
+                TypedResults.Ok(result.Response!),
+
+            GetAgentWorkspaceToolsQuery.ResultCode.AgentNotFound =>
+                HttpErrors.Agent.NotFound(agentExternalId),
+
+            GetAgentWorkspaceToolsQuery.ResultCode.WorkspaceNotFound =>
+                HttpErrors.Workspace.NotFound(workspaceExternalId),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(GetAgentWorkspaceToolsQuery),
+                resultValueStr: result.Code.ToString())
+        };
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateAgentWorkspaceToolOverride(
+        [FromRoute] AgentExtId agentExternalId,
+        [FromRoute] WorkspaceExtId workspaceExternalId,
+        [FromRoute] string toolName,
+        [FromBody] UpdateAgentWorkspaceToolOverrideRequestDto request,
+        AgentToolWorkspaceOverrideQuery agentToolWorkspaceOverrideQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var badRequest = ValidateWorkspaceTool(toolName);
+
+        if (badRequest is not null)
+            return badRequest;
+
+        var result = await agentToolWorkspaceOverrideQuery.Upsert(
+            agentExternalId: agentExternalId,
+            workspaceExternalId: workspaceExternalId,
+            toolName: toolName,
+            isEnabled: request.IsEnabled,
+            requiresApproval: request.RequiresApproval,
+            cancellationToken: cancellationToken);
+
+        return await HandleOverrideResult(
+            result, agentExternalId, workspaceExternalId, httpContext, auditLogService, cancellationToken);
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> ResetAgentWorkspaceToolOverride(
+        [FromRoute] AgentExtId agentExternalId,
+        [FromRoute] WorkspaceExtId workspaceExternalId,
+        [FromRoute] string toolName,
+        AgentToolWorkspaceOverrideQuery agentToolWorkspaceOverrideQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var badRequest = ValidateWorkspaceTool(toolName);
+
+        if (badRequest is not null)
+            return badRequest;
+
+        var result = await agentToolWorkspaceOverrideQuery.Reset(
+            agentExternalId: agentExternalId,
+            workspaceExternalId: workspaceExternalId,
+            toolName: toolName,
+            cancellationToken: cancellationToken);
+
+        return await HandleOverrideResult(
+            result, agentExternalId, workspaceExternalId, httpContext, auditLogService, cancellationToken);
+    }
+
+#if DEBUG
+    // Development-only helper: drops a pending bulk_delete into the ledger for one of your agents
+    // so the approval banner/inbox lights up without driving a real MCP agent. The dummy ids are
+    // never committed, so nothing is actually deleted. Compiled out of Release builds entirely.
+    private static async Task<Results<Ok<string>, NotFound<HttpError>>> DevSeedOperation(
+        [FromRoute] AgentExtId agentExternalId,
+        AgentCache agentCache,
+        AgentOperationLedger operationLedger,
+        AgentOperationsOptions operationsOptions,
+        PlikShareDb plikShareDb,
+        IClock clock,
+        CancellationToken cancellationToken)
+    {
+        var agent = await agentCache.TryGetAgent(agentExternalId, cancellationToken);
+
+        if (agent is null)
+            return HttpErrors.Agent.NotFound(agentExternalId);
+
+        // Prefer real folders/files from a workspace the owner owns, so the resolved details show
+        // actual names. Falls back to placeholder ids (which resolve to nothing) if none exist.
+        var target = FindDevSeedTarget(plikShareDb, agent.Owner.Id);
+
+        var parameters = new BulkDeleteParams
+        {
+            WorkspaceExternalId = target?.WorkspaceExternalId ?? "ws_dev_seed",
+            FolderExternalIds = target?.FolderExternalIds ?? ["fo_dev_seed_1", "fo_dev_seed_2"],
+            FileExternalIds = target?.FileExternalIds ?? ["fi_dev_seed_1"]
+        };
+
+        var operationId = await operationLedger.CreatePending(
+            agentId: agent.Id,
+            workspaceId: target?.WorkspaceId,
+            toolName: AgentToolNames.BulkDelete,
+            paramsJson: Json.Serialize(parameters),
+            expiresAt: clock.UtcNow.AddHours(operationsOptions.ApprovalWindowHours),
+            cancellationToken: cancellationToken);
+
+        return TypedResults.Ok(operationId.Value);
+    }
+
+    private static DevSeedTarget? FindDevSeedTarget(PlikShareDb plikShareDb, int ownerUserId)
+    {
+        using var connection = plikShareDb.OpenConnection();
+
+        var workspace = connection
+            .OneRowCmd(
+                sql: """
+                     SELECT w_id, w_external_id
+                     FROM w_workspaces
+                     WHERE w_owner_id = $ownerId
+                       AND w_is_being_deleted = FALSE
+                       AND (EXISTS (SELECT 1 FROM fo_folders WHERE fo_workspace_id = w_id AND fo_is_being_deleted = FALSE)
+                            OR EXISTS (SELECT 1 FROM fi_files WHERE fi_workspace_id = w_id AND fi_deleted_at IS NULL AND fi_is_upload_completed = TRUE))
+                     ORDER BY w_id DESC
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => new { Id = reader.GetInt32(0), ExternalId = reader.GetString(1) })
+            .WithParameter("$ownerId", ownerUserId)
+            .Execute();
+
+        if (workspace.IsEmpty)
+            return null;
+
+        var workspaceId = workspace.Value.Id;
+
+        var folders = connection
+            .Cmd(
+                sql: """
+                     SELECT fo_external_id FROM fo_folders
+                     WHERE fo_workspace_id = $workspaceId AND fo_is_being_deleted = FALSE
+                     ORDER BY fo_id DESC LIMIT 3
+                     """,
+                readRowFunc: reader => reader.GetString(0))
+            .WithParameter("$workspaceId", workspaceId)
+            .Execute();
+
+        var files = connection
+            .Cmd(
+                sql: """
+                     SELECT fi_external_id FROM fi_files
+                     WHERE fi_workspace_id = $workspaceId AND fi_deleted_at IS NULL
+                       AND fi_is_upload_completed = TRUE AND fi_parent_file_id IS NULL
+                     ORDER BY fi_id DESC LIMIT 3
+                     """,
+                readRowFunc: reader => reader.GetString(0))
+            .WithParameter("$workspaceId", workspaceId)
+            .Execute();
+
+        return new DevSeedTarget(
+            WorkspaceId: workspaceId,
+            WorkspaceExternalId: workspace.Value.ExternalId,
+            FolderExternalIds: folders.ToArray(),
+            FileExternalIds: files.ToArray());
+    }
+
+    private sealed record DevSeedTarget(
+        int WorkspaceId,
+        string WorkspaceExternalId,
+        string[] FolderExternalIds,
+        string[] FileExternalIds);
+#endif
+
+    private static async Task<Results<Ok<AgentOperationDetails>, NotFound<HttpError>>> GetOperationDetails(
+        [FromRoute] AgentOperationExtId operationExternalId,
+        AgentOperationLedger operationLedger,
+        AgentCache agentCache,
+        AgentOperationDetailsResolver detailsResolver,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var operation = operationLedger.GetByExternalId(operationExternalId);
+
+        if (operation is null)
+            return HttpErrors.Agent.OperationNotFound(operationExternalId);
+
+        var agent = await agentCache.TryGetAgent(operation.AgentId, cancellationToken);
+        var user = await httpContext.GetUserContext();
+
+        if (agent is null || agent.Owner.Id != user.Id)
+            return HttpErrors.Agent.OperationNotFound(operationExternalId);
+
+        var details = detailsResolver.Resolve(operation);
+
+        return TypedResults.Ok(details);
+    }
+
+    private static async Task<Ok<GetPendingAgentOperationsResponseDto>> GetPendingOperations(
+        GetPendingAgentOperationsQuery getPendingAgentOperationsQuery,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var user = await httpContext.GetUserContext();
+
+        var response = getPendingAgentOperationsQuery.Execute(
+            ownerUserId: user.Id);
+
+        return TypedResults.Ok(response);
+    }
+
+    private static Task<Results<Ok, NotFound<HttpError>>> ApproveAgentOperation(
+        [FromRoute] AgentExtId agentExternalId,
+        [FromRoute] AgentOperationExtId operationExternalId,
+        AgentCache agentCache,
+        AgentOperationLedger operationLedger,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+        => ResolveAgentOperation(
+            AgentOperationStatuses.Approved,
+            agentExternalId,
+            operationExternalId,
+            agentCache,
+            operationLedger,
+            httpContext,
+            cancellationToken);
+
+    private static Task<Results<Ok, NotFound<HttpError>>> DenyAgentOperation(
+        [FromRoute] AgentExtId agentExternalId,
+        [FromRoute] AgentOperationExtId operationExternalId,
+        AgentCache agentCache,
+        AgentOperationLedger operationLedger,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+        => ResolveAgentOperation(
+            AgentOperationStatuses.Denied,
+            agentExternalId,
+            operationExternalId,
+            agentCache,
+            operationLedger,
+            httpContext,
+            cancellationToken);
+
+    private static async Task<Results<Ok, NotFound<HttpError>>> ResolveAgentOperation(
+        string targetStatus,
+        AgentExtId agentExternalId,
+        AgentOperationExtId operationExternalId,
+        AgentCache agentCache,
+        AgentOperationLedger operationLedger,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        var agent = await agentCache.TryGetAgent(agentExternalId, cancellationToken);
+
+        if (agent is null)
+            return HttpErrors.Agent.NotFound(agentExternalId);
+
+        var operation = operationLedger.GetByExternalId(operationExternalId);
+
+        if (operation is null || operation.AgentId != agent.Id)
+            return HttpErrors.Agent.OperationNotFound(operationExternalId);
+
+        var user = await httpContext.GetUserContext();
+
+        var result = await operationLedger.Resolve(
+            externalId: operationExternalId,
+            targetStatus: targetStatus,
+            resolvedByUserId: user.Id,
+            cancellationToken: cancellationToken);
+
+        if (result == AgentOperationLedger.ResolveResultCode.NotPending)
+            return HttpErrors.Agent.OperationNotPending(operationExternalId);
+
+        return TypedResults.Ok();
+    }
+
+    private static BadRequest<HttpError>? ValidateWorkspaceTool(string toolName)
+    {
+        var definition = AgentToolCatalog.TryGet(toolName);
+
+        if (definition is null || !definition.IsWorkspaceOverridable)
+            return TypedResults.BadRequest(new HttpError
+            {
+                Code = "not-a-workspace-tool",
+                Message = $"'{toolName}' cannot be overridden per workspace."
+            });
+
+        return null;
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> HandleOverrideResult(
+        AgentToolWorkspaceOverrideQuery.Result result,
+        AgentExtId agentExternalId,
+        WorkspaceExtId workspaceExternalId,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        switch (result.Code)
+        {
+            case AgentToolWorkspaceOverrideQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Agent.ToolWorkspaceOverrideUpdatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        agent: new Audit.AgentRef { ExternalId = agentExternalId, Name = result.AgentName! },
+                        workspace: new Audit.WorkspaceRef { ExternalId = workspaceExternalId, Name = result.WorkspaceName! }),
+                    cancellationToken);
+
+                return TypedResults.Ok();
+
+            case AgentToolWorkspaceOverrideQuery.ResultCode.AgentNotFound:
+                return HttpErrors.Agent.NotFound(agentExternalId);
+
+            case AgentToolWorkspaceOverrideQuery.ResultCode.WorkspaceNotFound:
+                return HttpErrors.Workspace.NotFound(workspaceExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(AgentToolWorkspaceOverrideQuery),
+                    resultValueStr: result.Code.ToString());
         }
     }
 }

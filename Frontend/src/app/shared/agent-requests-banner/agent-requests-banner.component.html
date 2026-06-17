@@ -1,0 +1,21 @@
+@if(agentRequests.count() > 0 && !isOnInboxPage()) {
+    <div class="agent-requests-tab-slot" [class.agent-requests-tab-slot--hidden]="mobileMenu.isOpen()">
+        <div class="agent-requests-tab-slot__frame">
+            <button class="agent-requests-tab" type="button" (click)="open()"
+                appOnScreen (visibilityChange)="onTabVisibility($event)">
+                <span class="agent-requests-tab__pulse"></span>
+                <i class="icon icon-sm icon-nucleo-robot agent-requests-tab__icon"></i>
+                <span>{{ agentRequests.count() }}</span>
+                <span class="agent-requests-tab__label">to approve</span>
+            </button>
+        </div>
+    </div>
+
+    @if(!isTabVisible()) {
+        <button class="agent-requests-fab" type="button" (click)="open()">
+            <span class="agent-requests-fab__pulse"></span>
+            <i class="icon icon-md icon-nucleo-robot"></i>
+            <span class="agent-requests-fab__count">{{ agentRequests.count() }}</span>
+        </button>
+    }
+}

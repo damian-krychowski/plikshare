@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Files.Id;
@@ -14,7 +15,7 @@ namespace PlikShare.Mcp.Files.Rename;
 [McpServerToolType]
 public class RenameFileTool
 {
-    [McpServerTool(Name = "rename_file")]
+    [McpServerTool(Name = AgentToolNames.RenameFile)]
     [Description("Renames an existing file in a workspace the agent can access. Only the file name changes; " +
                  "its extension is kept unchanged.")]
     public static async Task Execute(

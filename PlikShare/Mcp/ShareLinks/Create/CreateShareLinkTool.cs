@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Core.Clock;
 using PlikShare.Mcp.ShareLinks.Create.Contracts;
@@ -15,7 +16,7 @@ namespace PlikShare.Mcp.ShareLinks.Create;
 [McpServerToolType]
 public class CreateShareLinkTool
 {
-    [McpServerTool(Name = "create_share_link")]
+    [McpServerTool(Name = AgentToolNames.CreateShareLink)]
     [Description("Creates a public link that shares the selected files and/or folders from a workspace the " +
                  "agent can access. Anyone with the link can download the shared items — no login required. " +
                  "Provide at least one id in fileExternalIds or folderExternalIds. Optional: expiresAt " +

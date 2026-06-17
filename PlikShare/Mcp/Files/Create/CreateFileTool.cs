@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Mcp.Files.Create.Contracts;
@@ -14,7 +15,7 @@ namespace PlikShare.Mcp.Files.Create;
 [McpServerToolType]
 public class CreateFileTool
 {
-    [McpServerTool(Name = "create_file")]
+    [McpServerTool(Name = AgentToolNames.CreateFile)]
     [Description("Creates a new text file in a workspace the agent can access, from content the agent provides " +
                  "inline as UTF-8 text. Use it to save generated text artifacts (notes, reports, configs). " +
                  "The content must be UTF-8 text and at most 10 MB. The content type is derived from the file " +

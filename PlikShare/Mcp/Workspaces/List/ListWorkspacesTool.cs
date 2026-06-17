@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Mcp.Workspaces.List.Contracts;
 using Audit = PlikShare.AuditLog.Details.Audit;
@@ -10,7 +11,7 @@ namespace PlikShare.Mcp.Workspaces.List;
 [McpServerToolType]
 public class ListWorkspacesTool
 {
-    [McpServerTool(Name = "list_workspaces")]
+    [McpServerTool(Name = AgentToolNames.ListWorkspaces)]
     [Description("Lists the workspaces this agent can access, with their external ids, names and current " +
                  "size in bytes. Use a returned workspaceExternalId as input to other tools such as create_folder.")]
     public static async Task<ListWorkspacesResponseDto> Execute(

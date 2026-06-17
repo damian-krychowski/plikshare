@@ -16,7 +16,11 @@ using PlikShare.Agents.Delete;
 using PlikShare.Agents.Get;
 using PlikShare.Agents.List;
 using PlikShare.Agents.ListWorkspaceBoxes;
+using PlikShare.Agents.Operations;
+using PlikShare.Agents.Operations.Details;
+using PlikShare.Agents.Operations.List;
 using PlikShare.Agents.RotateToken;
+using PlikShare.Agents.Tools;
 using PlikShare.Agents.UpdateSettings;
 using PlikShare.Agents.WorkspaceAccess;
 using PlikShare.AgentSkills;
@@ -24,6 +28,7 @@ using PlikShare.Mcp;
 using PlikShare.Mcp.Files.Get;
 using PlikShare.Mcp.Files.Create;
 using PlikShare.Mcp.Search;
+using PlikShare.Mcp.Storages.List;
 using PlikShare.Mcp.Workspaces.Content;
 using PlikShare.Mcp.Workspaces.List;
 using PlikShare.Antiforgery;
@@ -400,6 +405,9 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_51_AuditLogMaxSizeGrandfatherExistingInstalls>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_52_AgentsIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_53_QuickShareAgentCreatorIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_54_AgentToolConfigsIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_55_AgentToolWorkspaceOverridesIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_56_AgentOperationsIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -550,8 +558,23 @@ public class Startup
         builder.Services.AddSingleton<AgentWorkspaceAccessQuery>();
         builder.Services.AddSingleton<AgentBoxAccessQuery>();
         builder.Services.AddSingleton<UpdateAgentSettingsQuery>();
+        builder.Services.AddSingleton<GetAgentToolsQuery>();
+        builder.Services.AddSingleton<AgentToolConfigQuery>();
+        builder.Services.AddSingleton<GetAgentWorkspaceToolsQuery>();
+        builder.Services.AddSingleton<AgentToolWorkspaceOverrideQuery>();
+        builder.Services.AddSingleton<AgentWorkspaceToolOverrideReader>();
+        builder.Services.AddSingleton<AgentOperationLedger>();
+        builder.Services.AddSingleton<GetPendingAgentOperationsQuery>();
+        builder.Services.AddSingleton<AgentOperationDetailsResolver>();
+
+        builder.Services.AddSingleton(_ =>
+            builder.Configuration.GetSection("AgentOperations").Get<AgentOperationsOptions>()
+            ?? new AgentOperationsOptions());
+
+        builder.Services.AddHostedService<AgentOperationsSweeperHostedService>();
 
         builder.Services.AddSingleton<GetAgentWorkspacesQuery>();
+        builder.Services.AddSingleton<GetAgentStoragesQuery>();
         builder.Services.AddSingleton<GetWorkspaceContentForAgentQuery>();
         builder.Services.AddSingleton<GetFileForAgentQuery>();
         builder.Services.AddSingleton<SearchForAgentQuery>();

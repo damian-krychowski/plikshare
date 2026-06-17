@@ -71,6 +71,11 @@ public static class Json
         return JsonSerializer.Serialize(item, Options);
     }
 
+    public static string Serialize(object item, Type inputType)
+    {
+        return JsonSerializer.Serialize(item, inputType, Options);
+    }
+
     public static T? Deserialize<T>(string json)
     {
         return JsonSerializer.Deserialize<T>(

@@ -187,7 +187,14 @@ public class GetAgentDetailsQuery(PlikShareDb plikShareDb)
                          w_current_size_in_bytes,
                          w_max_size_in_bytes,
                          w_is_bucket_created,
-                         storage.s_name
+                         storage.s_name,
+                         (
+                             SELECT COUNT(*)
+                             FROM atwo_agent_tool_workspace_overrides
+                             WHERE atwo_agent_id = $agentId
+                                 AND atwo_workspace_id = w_id
+                                 AND (atwo_is_enabled IS NOT NULL OR atwo_requires_approval IS NOT NULL)
+                         )
                      FROM w_workspaces
                      INNER JOIN s_storages AS storage
                          ON storage.s_id = w_storage_id
@@ -202,7 +209,8 @@ public class GetAgentDetailsQuery(PlikShareDb plikShareDb)
                     CurrentSizeInBytes = reader.GetInt64(2),
                     MaxSizeInBytes = reader.GetInt64OrNull(3),
                     IsBucketCreated = reader.GetBoolean(4),
-                    StorageName = reader.GetString(5)
+                    StorageName = reader.GetString(5),
+                    OverriddenToolsCount = reader.GetInt32(6)
                 })
             .WithParameter("$agentId", agentId)
             .Execute();
@@ -223,7 +231,14 @@ public class GetAgentDetailsQuery(PlikShareDb plikShareDb)
                          storage.s_encryption_type,
                          w_is_bucket_created,
                          owner.u_external_id,
-                         owner.u_email
+                         owner.u_email,
+                         (
+                             SELECT COUNT(*)
+                             FROM atwo_agent_tool_workspace_overrides
+                             WHERE atwo_agent_id = $agentId
+                                 AND atwo_workspace_id = w_id
+                                 AND (atwo_is_enabled IS NOT NULL OR atwo_requires_approval IS NOT NULL)
+                         )
                      FROM wa_workspace_agents
                      INNER JOIN w_workspaces
                          ON w_id = wa_workspace_id
@@ -249,7 +264,8 @@ public class GetAgentDetailsQuery(PlikShareDb plikShareDb)
                     {
                         ExternalId = reader.GetExtId<UserExtId>(8),
                         Email = reader.GetString(9)
-                    }
+                    },
+                    OverriddenToolsCount = reader.GetInt32(10)
                 })
             .WithParameter("$agentId", agentId)
             .Execute();

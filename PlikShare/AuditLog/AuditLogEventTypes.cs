@@ -223,7 +223,10 @@ public static class AuditLogEventTypes
         public const string DefaultMaxWorkspaceSizeUpdated = "agent.default-max-workspace-size-updated";
         public const string DefaultMaxWorkspaceTeamMembersUpdated = "agent.default-max-workspace-team-members-updated";
         public const string StorageAccessUpdated = "agent.storage-access-updated";
+        public const string ToolConfigUpdated = "agent.tool-config-updated";
+        public const string ToolWorkspaceOverrideUpdated = "agent.tool-workspace-override-updated";
         public const string WorkspacesListed = "agent.workspaces-listed";
+        public const string StoragesListed = "agent.storages-listed";
         public const string WorkspaceContentListed = "agent.workspace-content-listed";
         public const string ShareLinksListed = "agent.share-links-listed";
         public const string ShareLinkViewed = "agent.share-link-viewed";
@@ -245,7 +248,10 @@ public static class AuditLogEventTypes
             DefaultMaxWorkspaceSizeUpdated,
             DefaultMaxWorkspaceTeamMembersUpdated,
             StorageAccessUpdated,
+            ToolConfigUpdated,
+            ToolWorkspaceOverrideUpdated,
             WorkspacesListed,
+            StoragesListed,
             WorkspaceContentListed,
             ShareLinksListed,
             ShareLinkViewed,

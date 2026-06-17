@@ -109,6 +109,10 @@ export const routes: Routes = [{
     loadComponent: () => import('./account/agents/agent-details/agent-details.component').then(m => m.AgentDetailsComponent),
     canActivate: [AdminGuardService]
 }, {
+    path: 'settings/agent-requests',
+    loadComponent: () => import('./account/agent-requests/agent-requests.component').then(m => m.AgentRequestsComponent),
+    canActivate: [AdminGuardService]
+}, {
     path: 'settings/audit-log',
     loadComponent: () => import('./account/audit-log/audit-log.component').then(m => m.AuditLogComponent),
     canActivate: [AdminGuardService]

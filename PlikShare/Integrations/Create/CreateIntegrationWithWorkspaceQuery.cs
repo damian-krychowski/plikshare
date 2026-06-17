@@ -72,6 +72,7 @@ public class CreateIntegrationWithWorkspaceQuery(
                 dbWriteContext: dbWriteContext,
                 storage: storage,
                 ownerId: ownerId,
+                ownerAgentId: null,
                 artifacts: null,
                 name: workspaceName,
                 maxSizeInBytes: null,

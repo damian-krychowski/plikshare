@@ -575,12 +575,26 @@ public class DeleteWorkspaceWithDependenciesQuery(
         SqliteWriteContext dbWriteContext,
         SqliteTransaction transaction)
     {
+        dbWriteContext.Connection
+            .NonQueryCmd(
+                sql: "DELETE FROM atwo_agent_tool_workspace_overrides WHERE atwo_workspace_id = $workspaceId",
+                transaction: transaction)
+            .WithParameter("$workspaceId", workspaceId)
+            .Execute();
+
+        dbWriteContext.Connection
+            .NonQueryCmd(
+                sql: "DELETE FROM wa_workspace_agents WHERE wa_workspace_id = $workspaceId",
+                transaction: transaction)
+            .WithParameter("$workspaceId", workspaceId)
+            .Execute();
+
         var deletedWorkspace = dbWriteContext
             .OneRowCmd(
                 sql: $@"
                     DELETE FROM w_workspaces
                     WHERE w_id = $workspaceId
-                    RETURNING w_id                        
+                    RETURNING w_id
                 ",
                 readRowFunc: reader => reader.GetInt32(0),
                 transaction: transaction)

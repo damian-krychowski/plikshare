@@ -2,6 +2,7 @@ using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Core.Clock;
 using PlikShare.Core.UserIdentity;
@@ -23,7 +24,7 @@ public class GetFileDownloadLinkTool
     private const int MinExpiryMinutes = 1;
     private const int MaxExpiryMinutes = 24 * 60;
 
-    [McpServerTool(Name = "get_file_download_link")]
+    [McpServerTool(Name = AgentToolNames.GetFileDownloadLink)]
     [Description("Creates a short-lived, ready-to-download link for a file the agent can access, to hand to a " +
                  "user. Anyone with the link can download the file without logging in until it expires, so " +
                  "treat it as a capability and keep the expiry short. The file is resolved across all " +

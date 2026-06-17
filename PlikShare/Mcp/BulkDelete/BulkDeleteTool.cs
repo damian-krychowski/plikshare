@@ -1,33 +1,33 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
-using PlikShare.AuditLog;
-using PlikShare.BulkDelete;
-using PlikShare.Core.CorrelationId;
-using PlikShare.Core.UserIdentity;
-using PlikShare.Files.Id;
-using PlikShare.Folders.Id;
-using PlikShare.Mcp.BulkDelete.Contracts;
+using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Operations;
+using PlikShare.Agents.Tools;
+using PlikShare.Core.Clock;
+using PlikShare.Core.Utils;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Id;
-using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Mcp.BulkDelete;
 
 [McpServerToolType]
 public class BulkDeleteTool
 {
-    [McpServerTool(Name = "bulk_delete")]
+    [McpServerTool(Name = AgentToolNames.BulkDelete)]
     [Description("Deletes files and/or folders in a workspace the agent can access. Each listed folder is " +
                  "deleted together with everything inside it (all subfolders and files), like 'rm -rf'. " +
-                 "Provide at least one id in folderExternalIds or fileExternalIds. If the workspace has a " +
-                 "trash policy enabled the deleted files can be restored from trash; otherwise the deletion " +
-                 "is permanent. Returns the number and total size of files that were deleted.")]
-    public static async Task<BulkDeleteResponseDto> Execute(
+                 "Provide at least one id in folderExternalIds or fileExternalIds. If this tool requires " +
+                 "approval the call returns status 'waits_for_approval' with an approvalRequestId — poll " +
+                 "check_approvals and, once approved, call execute_operation to run it.")]
+    public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
-        BulkDeleteQuery bulkDeleteQuery,
-        AuditLogService auditLogService,
+        AgentWorkspaceToolOverrideReader workspaceToolOverrideReader,
+        BulkDeleteForAgentExecutor executor,
+        AgentOperationLedger operationLedger,
+        AgentOperationsOptions operationsOptions,
+        IClock clock,
         [Description("External id of the workspace.")]
         string workspaceExternalId,
         [Description("External ids of folders to delete, together with their entire contents. Optional if files are given.")]
@@ -37,53 +37,71 @@ public class BulkDeleteTool
         CancellationToken cancellationToken = default)
     {
         var httpContext = httpContextAccessor.HttpContext!;
+        var agent = await httpContext.GetAgentContext();
 
+        var folders = folderExternalIds ?? [];
+        var files = fileExternalIds ?? [];
+
+        if (folders.Length == 0 && files.Length == 0)
+            throw new McpException("Provide at least one id in folderExternalIds or fileExternalIds.");
+
+        // Validate access up front so we never queue an approval for something the agent can't do.
         var membership = await httpContext.GetWorkspaceAgentMembershipDetails(
             workspaceAgentMembershipCache,
             WorkspaceExtId.Parse(workspaceExternalId),
             cancellationToken);
 
-        var workspace = membership.Workspace;
-        workspace.ThrowIfFullyEncrypted();
+        membership.Workspace.ThrowIfFullyEncrypted();
 
-        var folders = (folderExternalIds ?? []).ToList();
-        var files = (fileExternalIds ?? []).ToList();
-
-        if (folders.Count == 0 && files.Count == 0)
-            throw new McpException(
-                "Provide at least one id in folderExternalIds or fileExternalIds.");
-
-        var itemsContext = auditLogService.GetBulkItemsContext(
-            folderExternalIds: folders,
-            fileExternalIds: files,
-            fileUploadExternalIds: []);
-
-        var result = await bulkDeleteQuery.Execute(
-            workspace: workspace,
-            fileExternalIds: files.Select(FileExtId.Parse).ToArray(),
-            folderExternalIds: folders.Select(FolderExtId.Parse).ToArray(),
-            fileUploadExternalIds: [],
-            boxFolderId: null,
-            userIdentity: new AgentIdentity(membership.Agent.ExternalId),
-            isFileDeleteAllowedByBoxPermissions: true,
-            correlationId: httpContext.GetCorrelationId(),
-            cancellationToken: cancellationToken);
-
-        await auditLogService.LogWithStorageContext(
-            storageExternalId: workspace.Storage.ExternalId,
-            buildEntry: storageRef => Audit.Workspace.BulkDeleteRequestedEntry(
-                actor: httpContext.GetAuditLogActorContext(),
-                storage: storageRef,
-                workspace: workspace.ToAuditLogWorkspaceRef(),
-                files: itemsContext.Files,
-                folders: itemsContext.Folders,
-                fileUploads: itemsContext.FileUploads),
-            cancellationToken);
-
-        return new BulkDeleteResponseDto
+        var parameters = new BulkDeleteParams
         {
-            DeletedFileCount = result.DeletedFileCount,
-            DeletedSizeInBytes = result.DeletedSizeInBytes
+            WorkspaceExternalId = workspaceExternalId,
+            FolderExternalIds = folders,
+            FileExternalIds = files
         };
+
+        // Cascade the agent's config for this workspace: per-workspace override → global → catalog
+        // default. The workspace override governs both whether the tool is usable here and whether
+        // it needs approval — evaluating without it would ignore the admin's per-workspace settings.
+        var definition = AgentToolCatalog.TryGet(AgentToolNames.BulkDelete)!;
+
+        var workspaceOverride = workspaceToolOverrideReader.TryGet(
+            agentId: agent.Id,
+            workspaceId: membership.Workspace.Id,
+            toolName: AgentToolNames.BulkDelete);
+
+        var effective = AgentToolCatalog.Resolve(
+            agent,
+            definition,
+            workspaceOverride);
+
+        if (!effective.IsUsable)
+            throw new McpException("The bulk_delete tool is not enabled for this workspace.");
+
+        if (effective.RequiresApproval)
+        {
+            var expiresAt = clock.UtcNow.AddHours(
+                operationsOptions.ApprovalWindowHours);
+
+            var operationId = await operationLedger.CreatePending(
+                agentId: agent.Id,
+                workspaceId: membership.Workspace.Id,
+                toolName: AgentToolNames.BulkDelete,
+                paramsJson: Json.Serialize(parameters),
+                expiresAt: expiresAt,
+                cancellationToken: cancellationToken);
+
+            return AgentToolResponse.WaitsForApproval(
+                approvalRequestId: operationId.Value,
+                expiresAt: expiresAt);
+        }
+
+        var result = await executor.Execute(
+            httpContext,
+            parameters,             
+            cancellationToken);
+            
+        return AgentToolResponse.Executed(
+            result);
     }
 }

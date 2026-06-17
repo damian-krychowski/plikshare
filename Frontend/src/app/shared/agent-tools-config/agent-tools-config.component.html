@@ -1,0 +1,97 @@
+<div class="tools-config">
+    @if (isLoading()) {
+        <div class="tools-config__loading">Loading tools…</div>
+    } @else {
+        <div class="tools-config__section-title">
+            Instance tools
+            <hr class="tools-config__hr" />
+        </div>
+
+        <div class="tools-config__list">
+            @for (tool of instanceTools(); track tool.name) {
+                <div class="tool-row" [class.tool-row--unavailable]="!tool.isAvailable">
+                    <div class="tool-row__info">
+                        <div class="tool-row__name-line">
+                            <span class="tool-row__name">{{ tool.name }}</span>
+                            @if (!tool.isAvailable) {
+                                <span class="tool-row__badge tool-row__badge--muted"
+                                    matTooltip="The agent needs the '{{ tool.requiredPermission }}' permission for this tool to be available">
+                                    needs permission
+                                </span>
+                            } @else if (!tool.isDefault) {
+                                <span class="tool-row__badge tool-row__badge--custom">customised</span>
+                            }
+                        </div>
+                        <div class="tool-row__description">{{ tool.description }}</div>
+                    </div>
+
+                    <div class="tool-row__controls">
+                        <label class="tool-row__toggle">
+                            <span>Enabled</span>
+                            <mat-slide-toggle
+                                [checked]="tool.isEnabled"
+                                [disabled]="!tool.isAvailable"
+                                (change)="onToggleGlobalEnabled(tool)">
+                            </mat-slide-toggle>
+                        </label>
+
+                        <label class="tool-row__toggle">
+                            <span>Approval</span>
+                            <mat-slide-toggle
+                                [checked]="tool.requiresApproval"
+                                [disabled]="!tool.isAvailable"
+                                (change)="onToggleGlobalApproval(tool)">
+                            </mat-slide-toggle>
+                        </label>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="tools-config__section-title">
+            Workspace tools
+            <hr class="tools-config__hr" />
+        </div>
+
+        <div class="tools-config__list">
+            @for (tool of workspaceGlobalTools(); track tool.name) {
+                <div class="tool-row" [class.tool-row--unavailable]="!tool.isAvailable">
+                    <div class="tool-row__info">
+                        <div class="tool-row__name-line">
+                            <span class="tool-row__name">{{ tool.name }}</span>
+                            @if (!tool.isAvailable) {
+                                <span class="tool-row__badge tool-row__badge--muted"
+                                    matTooltip="The agent needs the '{{ tool.requiredPermission }}' permission for this tool to be available">
+                                    needs permission
+                                </span>
+                            } @else if (!tool.isDefault) {
+                                <span class="tool-row__badge tool-row__badge--custom">customised</span>
+                            }
+                        </div>
+                        <div class="tool-row__description">{{ tool.description }}</div>
+                    </div>
+
+                    <div class="tool-row__controls">
+                        <label class="tool-row__toggle">
+                            <span>Enabled</span>
+                            <mat-slide-toggle
+                                [checked]="tool.isEnabled"
+                                [disabled]="!tool.isAvailable"
+                                (change)="onToggleGlobalEnabled(tool)">
+                            </mat-slide-toggle>
+                        </label>
+
+                        <label class="tool-row__toggle">
+                            <span>Approval</span>
+                            <mat-slide-toggle
+                                [checked]="tool.requiresApproval"
+                                [disabled]="!tool.isAvailable"
+                                (change)="onToggleGlobalApproval(tool)">
+                            </mat-slide-toggle>
+                        </label>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

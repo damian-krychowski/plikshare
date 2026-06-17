@@ -72,6 +72,7 @@ public static class GetAgentDetails
         public required long? MaxSizeInBytes { get; init; }
         public required bool IsBucketCreated { get; init; }
         public required string StorageName { get; init; }
+        public required int OverriddenToolsCount { get; init; }
     }
 
     public class SharedWorkspaceDto
@@ -85,6 +86,7 @@ public static class GetAgentDetails
         public required OwnerDto Owner { get; init; }
         public required bool IsBucketCreated { get; init; }
         public required string StorageEncryptionType { get; init; }
+        public required int OverriddenToolsCount { get; init; }
     }
 
     public class SharedBoxDto

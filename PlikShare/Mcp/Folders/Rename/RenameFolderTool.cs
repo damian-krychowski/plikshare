@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Folders.Id;
@@ -14,7 +15,7 @@ namespace PlikShare.Mcp.Folders.Rename;
 [McpServerToolType]
 public class RenameFolderTool
 {
-    [McpServerTool(Name = "rename_folder")]
+    [McpServerTool(Name = AgentToolNames.RenameFolder)]
     [Description("Renames an existing folder in a workspace the agent has access to.")]
     public static async Task Execute(
         IHttpContextAccessor httpContextAccessor,

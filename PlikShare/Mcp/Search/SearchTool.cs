@@ -3,6 +3,7 @@ using System.Globalization;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Mcp.Search.Contracts;
 using Audit = PlikShare.AuditLog.Details.Audit;
@@ -15,7 +16,7 @@ public class SearchTool
     private const int DefaultLimit = 200;
     private const int MaxLimit = 1000;
 
-    [McpServerTool(Name = "search")]
+    [McpServerTool(Name = AgentToolNames.Search)]
     [Description(
         "Searches for files and folders the agent can access, across one or more workspaces. Every list " +
         "filter follows the same rule: values inside one list are combined with OR, different filters are " +

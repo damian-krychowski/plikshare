@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Mcp.ShareLinks.List.Contracts;
 using PlikShare.QuickShares.List;
@@ -12,7 +13,7 @@ namespace PlikShare.Mcp.ShareLinks.List;
 [McpServerToolType]
 public class ListShareLinksTool
 {
-    [McpServerTool(Name = "list_share_links")]
+    [McpServerTool(Name = AgentToolNames.ListShareLinks)]
     [Description("Lists all public share links in a workspace the agent can access, with their external ids, " +
                  "names, public URLs, expiration, download counts and how many files/folders each shares.")]
     public static async Task<ListShareLinksResponseDto> Execute(

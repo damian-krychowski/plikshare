@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Core.Clock;
 using PlikShare.QuickShares;
@@ -16,7 +17,7 @@ namespace PlikShare.Mcp.ShareLinks.Update;
 [McpServerToolType]
 public class UpdateShareLinkTool
 {
-    [McpServerTool(Name = "update_share_link")]
+    [McpServerTool(Name = AgentToolNames.UpdateShareLink)]
     [Description("Updates settings of an existing share link in a workspace the agent can access. Only the " +
                  "fields you choose are changed; anything left out is kept. Pass name to rename. For a " +
                  "nullable setting (expiry, max downloads, password) set its shouldUpdate* flag to true and " +

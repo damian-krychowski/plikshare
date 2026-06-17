@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Mcp.ShareLinks.Get.Contracts;
 using PlikShare.QuickShares;
@@ -16,7 +17,7 @@ namespace PlikShare.Mcp.ShareLinks.Get;
 [McpServerToolType]
 public class GetShareLinkTool
 {
-    [McpServerTool(Name = "get_share_link")]
+    [McpServerTool(Name = AgentToolNames.GetShareLink)]
     [Description("Returns the details of a single share link in a workspace the agent can access: its public " +
                  "URL, expiration, download limits, whether it is password protected, the agent that created " +
                  "it (if any), and exactly which files and folders are shared and excluded.")]

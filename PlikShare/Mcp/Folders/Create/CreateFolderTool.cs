@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Core.UserIdentity;
 using PlikShare.Folders.Create;
@@ -15,7 +16,7 @@ namespace PlikShare.Mcp.Folders.Create;
 [McpServerToolType]
 public class CreateFolderTool
 {
-    [McpServerTool(Name = "create_folder")]
+    [McpServerTool(Name = AgentToolNames.CreateFolder)]
     [Description("Creates a new folder in a workspace the agent has access to. " +
                  "Pass parentFolderExternalId to create a subfolder, or leave it empty to create a top-level folder.")]
     public static async Task<CreateFolderResponseDto> Execute(

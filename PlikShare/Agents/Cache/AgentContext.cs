@@ -20,6 +20,12 @@ public sealed class AgentContext
     public required int? DefaultMaxWorkspaceTeamMembers { get; init; }
     public required UserStorageAccess StorageAccess { get; init; }
 
+    /// <summary>
+    /// Per-tool overrides explicitly set for this agent, keyed by tool name. A missing entry
+    /// means "use the catalog default" — resolution happens in <c>AgentToolCatalog.Resolve</c>.
+    /// </summary>
+    public required IReadOnlyDictionary<string, AgentToolConfigEntry> ToolConfigs { get; init; }
+
     public bool HasAdminRole => Roles.IsAdmin;
 
     public bool CanAccessStorage(int storageId)
@@ -35,6 +41,12 @@ public sealed class AgentOwnerContext
 {
     public required int Id { get; init; }
     public required UserExtId ExternalId { get; init; }
+}
+
+public sealed class AgentToolConfigEntry
+{
+    public required bool IsEnabled { get; init; }
+    public required bool RequiresApproval { get; init; }
 }
 
 public sealed class AgentRoles

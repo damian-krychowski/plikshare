@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.QuickShares.Cache;
 using PlikShare.QuickShares.Delete;
@@ -14,7 +15,7 @@ namespace PlikShare.Mcp.ShareLinks.Delete;
 [McpServerToolType]
 public class DeleteShareLinkTool
 {
-    [McpServerTool(Name = "delete_share_link")]
+    [McpServerTool(Name = AgentToolNames.DeleteShareLink)]
     [Description("Deletes a share link in a workspace the agent can access. The public URL stops working " +
                  "immediately. The shared files and folders themselves are not deleted.")]
     public static async Task Execute(

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Folders.Id;
 using PlikShare.Mcp.Workspaces.Content.Contracts;
@@ -14,7 +15,7 @@ namespace PlikShare.Mcp.Workspaces.Content;
 [McpServerToolType]
 public class ListWorkspaceContentTool
 {
-    [McpServerTool(Name = "list_workspace_content")]
+    [McpServerTool(Name = AgentToolNames.ListWorkspaceContent)]
     [Description("Lists the folders and files inside a workspace the agent can access. " +
                  "Omit folderExternalId to list the workspace root. Returns a single entries[] list " +
                  "where each entry has a 'type' of 'folder' or 'file'. Folders are returned before files. " +

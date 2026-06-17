@@ -395,6 +395,10 @@ export class AuditLogComponent implements OnInit, OnDestroy {
         }
     }
 
+    isAgentActor(item: AuditLogItem): boolean {
+        return item.actorIdentity.startsWith('a_');
+    }
+
     async deleteOldLogs() {
         const date = this.deleteBeforeDate();
         if (!date) return;

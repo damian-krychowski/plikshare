@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using PlikShare.Agents.Tools;
 
 namespace PlikShare.AgentSkills;
 
@@ -13,13 +14,23 @@ public static class PlikShareAgentSkill
 
     public static string BuildSkillMarkdown()
     {
-        return """
+        // The allowed-tools list is generated from the catalog (plus the approval-protocol tools)
+        // so it can never drift from the tools actually registered. Catalog order is stable, which
+        // keeps the rendered markdown — and its digest — deterministic.
+        var allowedTools = string.Join(
+            " ",
+            AgentToolCatalog.All
+                .Select(tool => tool.Name)
+                .Append(AgentToolNames.CheckApprovals)
+                .Append(AgentToolNames.ExecuteOperation));
+
+        return $$"""
                ---
                name: plikshare
                description: Manage files and folders in this PlikShare instance on behalf of users, using the PlikShare agent tools.
                metadata:
-                 version: 0.10.0
-               allowed-tools: list_workspaces list_workspace_content search get_file read_file get_file_download_link get_bulk_download_link create_file rename_file create_folder rename_folder bulk_delete create_share_link list_share_links get_share_link update_share_link delete_share_link
+                 version: 0.15.0
+               allowed-tools: {{allowedTools}}
                ---
 
                # PlikShare
@@ -31,14 +42,40 @@ public static class PlikShareAgentSkill
                ## Finding a workspace
 
                You always need a `workspaceExternalId` (format `w_...`) before working with folders.
-               Call the `list_workspaces` tool to see the workspaces you can access, then pick one. If
-               the list is empty, ask an administrator to grant your agent access to a workspace.
+               Call the `{{AgentToolNames.ListWorkspaces}}` tool to see the workspaces you can access, then pick one. If
+               the list is empty, either create one (see below) or ask an administrator to grant your agent
+               access to a workspace.
+
+               ## Listing storages
+
+               Use the `{{AgentToolNames.ListStorages}}` tool to see the storages you can create workspaces on. Each entry has a
+               `storageExternalId` (pass it to `{{AgentToolNames.CreateWorkspace}}`), a `name` and an `encryptionType`. Only
+               storages you have access to are listed; storages with full client-side encryption are omitted
+               because you cannot use them.
+
+               ## Creating a workspace
+
+               Use the `{{AgentToolNames.CreateWorkspace}}` tool to create a new workspace you will own:
+
+               - `name` (required) — a name for the workspace.
+               - `storageExternalId` (required) — the storage to create it on. Call `{{AgentToolNames.ListStorages}}` first to
+                 see the storages you can use and pick one's `storageExternalId`.
+
+               The tool returns the new workspace's `workspaceExternalId`, which you can immediately use with
+               the other tools. Creating a workspace requires the "add workspace" permission; storages that
+               use full client-side encryption cannot be used. If you have run out of your workspace
+               allowance the tool reports it.
+
+               ## Renaming a workspace
+
+               Use the `{{AgentToolNames.RenameWorkspace}}` tool with the `workspaceExternalId` of a workspace you can access and
+               the new `name` to rename it.
 
                ## Browsing a workspace
 
-               Use the `list_workspace_content` tool to see what a workspace contains:
+               Use the `{{AgentToolNames.ListWorkspaceContent}}` tool to see what a workspace contains:
 
-               - `workspaceExternalId` (required) — a workspace id from `list_workspaces`.
+               - `workspaceExternalId` (required) — a workspace id from `{{AgentToolNames.ListWorkspaces}}`.
                - `folderExternalId` (optional) — a folder id `fo_...` to list that folder; omit it to
                  list the workspace root.
                - `type` (optional) — `all` (default), `folder` or `file` to filter the results.
@@ -53,7 +90,7 @@ public static class PlikShareAgentSkill
 
                ## Searching across workspaces
 
-               Use the `search` tool to find files and folders by attributes, across one or many workspaces.
+               Use the `{{AgentToolNames.Search}}` tool to find files and folders by attributes, across one or many workspaces.
                One rule governs every list filter: **values inside a list are OR-ed, different filters are
                AND-ed, and an empty/omitted list disables that filter.** So
                `extensions: ["jpg","png"]` + `nameContains: ["invoice"]` finds items whose name contains
@@ -78,16 +115,16 @@ public static class PlikShareAgentSkill
 
                ## Looking up a file
 
-               Use the `get_file` tool with just a `fileExternalId` (no workspace needed) to read a file's
+               Use the `{{AgentToolNames.GetFile}}` tool with just a `fileExternalId` (no workspace needed) to read a file's
                details: name, extension, content type, size, creation time and the folder path it lives in.
                The file is resolved across every workspace you can access; if you cannot access it, the tool
                reports it as not found.
 
                ## Reading a file's content
 
-               Use the `read_file` tool with a `fileExternalId` (no workspace needed) to read a file's content as
+               Use the `{{AgentToolNames.ReadFile}}` tool with a `fileExternalId` (no workspace needed) to read a file's content as
                UTF-8 text. Only text files are returned; binary files (images, video, PDF, archives) are rejected
-               with a clear error — use `get_file` for their metadata instead.
+               with a clear error — use `{{AgentToolNames.GetFile}}` for their metadata instead.
 
                - `offset` (optional) — byte position to start from; defaults to 0.
                - `maxBytes` (optional) — page size in bytes (default 65536, min 1024, max 262144).
@@ -99,17 +136,17 @@ public static class PlikShareAgentSkill
 
                ## Getting a download link for a file
 
-               Use the `get_file_download_link` tool with a `fileExternalId` (no workspace needed) to create a
+               Use the `{{AgentToolNames.GetFileDownloadLink}}` tool with a `fileExternalId` (no workspace needed) to create a
                short-lived link a user can click to download the file. Optionally pass `expiresInMinutes`
                (default 15, max 1440). The tool returns the `url`, the `fileName` and the `expiresAt`.
 
                This link is a capability: anyone who has it can download the file without logging in until it
                expires, so keep the expiry short and only share it with the intended user. Use it when a user
-               wants the actual file; use `read_file` when you only need to read text content yourself.
+               wants the actual file; use `{{AgentToolNames.ReadFile}}` when you only need to read text content yourself.
 
                ## Getting a download link for many files or folders
 
-               Use the `get_bulk_download_link` tool to download several files and/or whole folders from one
+               Use the `{{AgentToolNames.GetBulkDownloadLink}}` tool to download several files and/or whole folders from one
                workspace as a single ZIP archive:
 
                - `workspaceExternalId` (required).
@@ -119,12 +156,12 @@ public static class PlikShareAgentSkill
                  included folders.
                - `expiresInMinutes` (optional, default 15, max 1440).
 
-               The tool returns the `url` and `expiresAt`. Like `get_file_download_link`, the URL is a
+               The tool returns the `url` and `expiresAt`. Like `{{AgentToolNames.GetFileDownloadLink}}`, the URL is a
                capability: anyone with it can download the ZIP without logging in until it expires.
 
                ## Creating a file
 
-               Use the `create_file` tool to save text content as a new file:
+               Use the `{{AgentToolNames.CreateFile}}` tool to save text content as a new file:
 
                - `workspaceExternalId` (required) and `name` (required, including the extension, e.g.
                  `report.md`).
@@ -137,15 +174,15 @@ public static class PlikShareAgentSkill
 
                ## Renaming a file
 
-               Use the `rename_file` tool with `workspaceExternalId`, the `fileExternalId` of the file to
+               Use the `{{AgentToolNames.RenameFile}}` tool with `workspaceExternalId`, the `fileExternalId` of the file to
                rename, and the new `name`. Provide the name only, without the extension — the extension is
                kept unchanged.
 
                ## Creating a folder
 
-               Use the `create_folder` tool:
+               Use the `{{AgentToolNames.CreateFolder}}` tool:
 
-               - `workspaceExternalId` (required) — a workspace id from `list_workspaces`.
+               - `workspaceExternalId` (required) — a workspace id from `{{AgentToolNames.ListWorkspaces}}`.
                - `name` (required) — the folder name.
                - `parentFolderExternalId` (optional) — a folder id `fo_...` to create a subfolder;
                  omit it to create a top-level folder.
@@ -154,24 +191,41 @@ public static class PlikShareAgentSkill
 
                ## Renaming a folder
 
-               Use the `rename_folder` tool with `workspaceExternalId`, the `folderExternalId` of the
+               Use the `{{AgentToolNames.RenameFolder}}` tool with `workspaceExternalId`, the `folderExternalId` of the
                folder to rename, and the new `name`.
 
                ## Deleting files and folders
 
-               Use the `bulk_delete` tool with `workspaceExternalId` and any combination of:
+               Use the `{{AgentToolNames.BulkDelete}}` tool with `workspaceExternalId` and any combination of:
 
                - `folderExternalIds` — folders to delete. Each folder is deleted **together with everything
                  inside it** (all subfolders and files), like `rm -rf`.
                - `fileExternalIds` — individual files to delete.
 
-               Provide at least one id. The tool returns `deletedFileCount` and `deletedSizeInBytes` (the
-               number and total size of files removed). If the workspace has a trash policy enabled the
-               deleted files can be restored from trash; otherwise the deletion is permanent.
+               Provide at least one id. The response is wrapped: on success it has `status: "executed"`
+               with a `result` holding `deletedFileCount` and `deletedSizeInBytes` (the number and total
+               size of files removed). Because deleting is destructive an administrator may require human
+               approval first — then the tool instead returns `status: "waits_for_approval"`; see
+               **Approvals** below. If the workspace has a trash policy enabled the deleted files can be
+               restored from trash; otherwise the deletion is permanent.
+
+               ## Moving files and folders
+
+               Use the `{{AgentToolNames.MoveItems}}` tool to move files and/or folders into another folder within the same
+               workspace:
+
+               - `workspaceExternalId` (required) — the workspace that holds the items and the destination.
+               - `folderExternalIds` / `fileExternalIds` — what to move; provide at least one. Each folder is
+                 moved together with everything inside it.
+               - `destinationFolderExternalId` (optional) — where to move them; omit to move to the workspace
+                 root.
+
+               All items and the destination must live in the same workspace — moving items between workspaces
+               is not supported. A folder cannot be moved into itself or one of its own subfolders.
 
                ## Sharing files with a public link
 
-               Use the `create_share_link` tool to turn files and/or folders into a public link anyone can
+               Use the `{{AgentToolNames.CreateShareLink}}` tool to turn files and/or folders into a public link anyone can
                open without logging in:
 
                - `workspaceExternalId` (required) and `name` (required).
@@ -182,18 +236,48 @@ public static class PlikShareAgentSkill
 
                ## Managing share links
 
-               - `list_share_links` (with `workspaceExternalId`) lists every share link in the workspace.
-               - `get_share_link` (with `workspaceExternalId` and `shareLinkExternalId`) returns one link's
+               - `{{AgentToolNames.ListShareLinks}}` (with `workspaceExternalId`) lists every share link in the workspace.
+               - `{{AgentToolNames.GetShareLink}}` (with `workspaceExternalId` and `shareLinkExternalId`) returns one link's
                  details, including which files and folders it shares and excludes.
-               - `update_share_link` (with `workspaceExternalId` and `shareLinkExternalId`) changes a link's
+               - `{{AgentToolNames.UpdateShareLink}}` (with `workspaceExternalId` and `shareLinkExternalId`) changes a link's
                  settings. Only the fields you choose are touched — anything left out is kept. Pass `name` to
                  rename. For the nullable settings, set the matching flag and provide a value to set it, or set
                  the flag and leave the value empty to clear it:
                  `shouldUpdateExpiry` + `expiresAt` (ISO 8601; empty = no expiry),
                  `shouldUpdateMaxDownloads` + `maxDownloads` (empty = unlimited),
                  `shouldUpdatePassword` + `password` (empty = no password).
-               - `delete_share_link` (with `workspaceExternalId` and `shareLinkExternalId`) deletes a link;
+               - `{{AgentToolNames.DeleteShareLink}}` (with `workspaceExternalId` and `shareLinkExternalId`) deletes a link;
                  its public URL stops working but the shared files and folders are left intact.
+
+               ## Approvals
+
+               Some operations can be configured to require a human's approval before they run — typically
+               destructive ones such as `{{AgentToolNames.BulkDelete}}` and `{{AgentToolNames.DeleteShareLink}}`. Whether a given tool needs
+               approval is decided per agent by an administrator, so the same tool may run immediately for
+               one agent and need approval for another. You cannot tell in advance — react to what the
+               tool returns.
+
+               A tool that needs approval does **not** act when you call it. Instead it returns
+               `status: "waits_for_approval"` with an `approvalRequestId` and an `expiresAt`. When you get
+               this:
+
+               1. Tell the user the operation is waiting for their approval in PlikShare, under **Agent
+                  requests**, where they can see exactly what it will affect and approve or deny it. Nothing
+                  happens until they act.
+               2. Poll the `{{AgentToolNames.CheckApprovals}}` tool to follow your outstanding operations. Each entry has its
+                  `approvalRequestId`, `toolName` and a `status`: `pending` (still waiting), `approved`
+                  (ready to run), `denied` or `expired`.
+               3. Once an operation shows `approved`, call the `{{AgentToolNames.ExecuteOperation}}` tool with its
+                  `approvalRequestId` to actually run it. It returns `status: "executed"` with the tool's
+                  normal result under `result`.
+
+               If the user denies the request, or it expires before they act, `{{AgentToolNames.ExecuteOperation}}` returns
+               `status: "rejected"` with the reason — do not retry, the operation will not run.
+               `{{AgentToolNames.ExecuteOperation}}` is safe to call more than once for the same `approvalRequestId`: an
+               already-executed operation returns its stored result without running again.
+
+               A tool that does **not** require approval simply returns `status: "executed"` with its
+               `result` right away — there is nothing to confirm.
 
                ## Notes
 

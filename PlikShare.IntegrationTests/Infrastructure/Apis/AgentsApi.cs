@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Flurl.Http;
 using PlikShare.Agents.BoxAccess.Contracts;
 using PlikShare.Agents.Create.Contracts;
@@ -5,7 +6,9 @@ using PlikShare.Agents.Get.Contracts;
 using PlikShare.Agents.Id;
 using PlikShare.Agents.List.Contracts;
 using PlikShare.Agents.ListWorkspaceBoxes.Contracts;
+using PlikShare.Agents.Operations.List.Contracts;
 using PlikShare.Agents.RotateToken.Contracts;
+using PlikShare.Agents.Tools.Contracts;
 using PlikShare.Agents.UpdateSettings.Contracts;
 using PlikShare.Boxes.Id;
 using PlikShare.Workspaces.Id;
@@ -31,6 +34,132 @@ public class AgentsApi(IFlurlClient flurlClient, string appUrl)
             appUrl: appUrl,
             apiPath: $"api/agents/{externalId}",
             cookie: cookie);
+    }
+
+    public async Task<GetAgentToolsResponseDto> GetTools(
+        AgentExtId externalId,
+        SessionAuthCookie? cookie)
+    {
+        return await flurlClient.ExecuteGet<GetAgentToolsResponseDto>(
+            appUrl: appUrl,
+            apiPath: $"api/agents/{externalId}/tools",
+            cookie: cookie);
+    }
+
+    public async Task UpdateToolConfig(
+        AgentExtId externalId,
+        string toolName,
+        UpdateAgentToolConfigRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/agents/{externalId}/tools/{toolName}",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task ResetToolConfig(
+        AgentExtId externalId,
+        string toolName,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecuteDelete(
+            appUrl: appUrl,
+            apiPath: $"api/agents/{externalId}/tools/{toolName}",
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task<GetAgentWorkspaceToolsResponseDto> GetWorkspaceTools(
+        AgentExtId externalId,
+        WorkspaceExtId workspaceExternalId,
+        SessionAuthCookie? cookie)
+    {
+        return await flurlClient.ExecuteGet<GetAgentWorkspaceToolsResponseDto>(
+            appUrl: appUrl,
+            apiPath: $"api/agents/{externalId}/workspaces/{workspaceExternalId}/tools",
+            cookie: cookie);
+    }
+
+    public async Task UpdateWorkspaceToolOverride(
+        AgentExtId externalId,
+        WorkspaceExtId workspaceExternalId,
+        string toolName,
+        UpdateAgentWorkspaceToolOverrideRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePatch(
+            appUrl: appUrl,
+            apiPath: $"api/agents/{externalId}/workspaces/{workspaceExternalId}/tools/{toolName}",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task ResetWorkspaceToolOverride(
+        AgentExtId externalId,
+        WorkspaceExtId workspaceExternalId,
+        string toolName,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecuteDelete(
+            appUrl: appUrl,
+            apiPath: $"api/agents/{externalId}/workspaces/{workspaceExternalId}/tools/{toolName}",
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task<GetPendingAgentOperationsResponseDto> GetPendingOperations(
+        SessionAuthCookie? cookie)
+    {
+        return await flurlClient.ExecuteGet<GetPendingAgentOperationsResponseDto>(
+            appUrl: appUrl,
+            apiPath: "api/agents/operations/pending",
+            cookie: cookie);
+    }
+
+    public async Task<JsonElement> GetOperationDetails(
+        string operationExternalId,
+        SessionAuthCookie? cookie)
+    {
+        return await flurlClient.ExecuteGet<JsonElement>(
+            appUrl: appUrl,
+            apiPath: $"api/agents/operations/{operationExternalId}/details",
+            cookie: cookie);
+    }
+
+    public async Task ApproveOperation(
+        AgentExtId externalId,
+        string operationExternalId,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePost(
+            appUrl: appUrl,
+            apiPath: $"api/agents/{externalId}/operations/{operationExternalId}/approve",
+            request: new object(),
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task DenyOperation(
+        AgentExtId externalId,
+        string operationExternalId,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        await flurlClient.ExecutePost(
+            appUrl: appUrl,
+            apiPath: $"api/agents/{externalId}/operations/{operationExternalId}/deny",
+            request: new object(),
+            cookie: cookie,
+            antiforgery: antiforgery);
     }
 
     public async Task<CreateAgentResponseDto> Create(

@@ -24,6 +24,8 @@ import { AppExternalBox, ExternalBoxItemComponent } from "../../../shared/extern
 import { mapDtoToPermissions, mapPermissionsToDto } from "../../../shared/box-permissions/box-permissions-list.component";
 import { AgentTokenDialogComponent, AgentTokenDialogData } from "../agent-token-dialog/agent-token-dialog.component";
 import { GrantBoxAccessDialogComponent, GrantBoxAccessResult } from "../grant-box-access-dialog/grant-box-access-dialog.component";
+import { AgentToolsConfigComponent } from "../../../shared/agent-tools-config/agent-tools-config.component";
+import { AgentWorkspaceToolsDialogComponent, AgentWorkspaceToolsDialogData } from "../agent-workspace-tools-dialog/agent-workspace-tools-dialog.component";
 
 @Component({
     selector: 'app-agent-details',
@@ -40,7 +42,8 @@ import { GrantBoxAccessDialogComponent, GrantBoxAccessResult } from "../grant-bo
         WorkspaceTeamConfigComponent,
         StorageAccessConfigComponent,
         WorkspaceItemComponent,
-        ExternalBoxItemComponent
+        ExternalBoxItemComponent,
+        AgentToolsConfigComponent
     ],
     templateUrl: './agent-details.component.html',
     styleUrl: './agent-details.component.scss'
@@ -59,6 +62,46 @@ export class AgentDetailsComponent implements OnInit, OnDestroy {
     storageAccessExternalIds = computed(() => this.agent()?.agent.storageAccess.storageExternalIds ?? []);
 
     hasOwnedWorkspaces = computed(() => (this.agent()?.ownedWorkspaces.length ?? 0) > 0);
+
+    toolsCountOf(workspaceExternalId: string | null): number {
+        if (!workspaceExternalId)
+            return 0;
+
+        const agent = this.agent();
+
+        if (!agent)
+            return 0;
+
+        const owned = agent.ownedWorkspaces.find(w => w.externalId === workspaceExternalId);
+
+        if (owned)
+            return owned.overriddenToolsCount;
+
+        return agent.sharedWorkspaces.find(w => w.externalId === workspaceExternalId)?.overriddenToolsCount ?? 0;
+    }
+
+    openToolsDialog(workspace: AppWorkspace) {
+        const workspaceExternalId = workspace.externalId();
+
+        if (!this._agentExternalId || !workspaceExternalId)
+            return;
+
+        const dialogRef = this._dialog.open(AgentWorkspaceToolsDialogComponent, {
+            width: '720px',
+            maxWidth: '95vw',
+            maxHeight: '85vh',
+            position: { top: '60px' },
+            data: {
+                agentExternalId: this._agentExternalId,
+                workspaceExternalId,
+                workspaceName: workspace.name()
+            } as AgentWorkspaceToolsDialogData
+        });
+
+        dialogRef.afterClosed().subscribe(async () => {
+            await this.loadAgent();
+        });
+    }
 
     sharedWorkspaceItems: WritableSignal<AppWorkspace[]> = signal([]);
     sharedBoxItems: WritableSignal<AppExternalBox[]> = signal([]);
