@@ -1,0 +1,29 @@
+<div class="op-details__section-title">
+    File — create
+</div>
+
+<div class="op-details__item"
+    [class.op-details__item--clickable]="workspaceExternalId()"
+    (click)="openParent()">
+    <i class="icon icon-xl icon-nucleo-file op-details__icon"></i>
+    <div class="op-details__text">
+        <div class="op-details__name">{{ details().name }}</div>
+        <div class="op-details__path">
+            @if(details().parentLocation) {
+                in {{ details().parentLocation }}
+            } @else {
+                at the workspace root
+            }
+            · {{ formatSize(details().sizeInBytes) }}
+        </div>
+    </div>
+</div>
+
+@if(details().contentPreview) {
+    <div class="op-details__preview">
+        <pre>{{ details().contentPreview }}</pre>
+        @if(details().isPreviewTruncated) {
+            <div class="op-details__preview-more">… preview truncated</div>
+        }
+    </div>
+}

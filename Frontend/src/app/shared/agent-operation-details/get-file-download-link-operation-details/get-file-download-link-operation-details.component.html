@@ -1,0 +1,18 @@
+<div class="op-details__section-title">
+    File — create download link
+</div>
+
+<div class="op-details__item">
+    <i class="icon icon-xl icon-nucleo-file op-details__icon"></i>
+    <div class="op-details__text">
+        <div class="op-details__name">{{ details().name ?? details().fileExternalId }}</div>
+        @if(details().path) {
+            <div class="op-details__path">{{ details().path }}</div>
+        }
+        <div class="op-details__path">link valid {{ details().expiresInMinutes ?? 15 }} minutes</div>
+    </div>
+</div>
+
+<div class="explanation">
+    Anyone with the link can download the file without logging in until it expires.
+</div>

@@ -1,14 +1,13 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Operations;
 using PlikShare.Agents.Tools;
-using PlikShare.AuditLog;
-using PlikShare.Core.UserIdentity;
-using PlikShare.Files.Id;
-using PlikShare.Files.Rename;
+using PlikShare.Core.Clock;
+using PlikShare.Core.Utils;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Id;
-using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Mcp.Files.Rename;
 
@@ -17,12 +16,17 @@ public class RenameFileTool
 {
     [McpServerTool(Name = AgentToolNames.RenameFile)]
     [Description("Renames an existing file in a workspace the agent can access. Only the file name changes; " +
-                 "its extension is kept unchanged.")]
-    public static async Task Execute(
+                 "its extension is kept unchanged. If this tool requires approval the call returns status " +
+                 "'waits_for_approval' with an approvalRequestId — poll check_approvals and, once approved, " +
+                 "call execute_operation to run it.")]
+    public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
-        UpdateFileNameQuery updateFileNameQuery,
-        AuditLogService auditLogService,
+        AgentWorkspaceToolOverrideReader workspaceToolOverrideReader,
+        RenameFileAgentOperation renameFileOperation,
+        AgentOperationLedger operationLedger,
+        AgentOperationsOptions operationsOptions,
+        IClock clock,
         [Description("External id of the workspace.")]
         string workspaceExternalId,
         [Description("External id of the file to rename.")]
@@ -32,6 +36,7 @@ public class RenameFileTool
         CancellationToken cancellationToken = default)
     {
         var httpContext = httpContextAccessor.HttpContext!;
+        var agent = await httpContext.GetAgentContext();
 
         var membership = await httpContext.GetWorkspaceAgentMembershipDetails(
             workspaceAgentMembershipCache,
@@ -41,39 +46,52 @@ public class RenameFileTool
         var workspace = membership.Workspace;
         workspace.ThrowIfFullyEncrypted();
 
-        var fileId = FileExtId.Parse(fileExternalId);
-
-        var resultCode = await updateFileNameQuery.Execute(
-            workspace: workspace,
-            fileExternalId: fileId,
-            name: workspace.EncodeMetadata(
-                value: name,
-                workspaceEncryptionSession: null),
-            boxFolderId: null,
-            userIdentity: new AgentIdentity(membership.Agent.ExternalId),
-            isRenameAllowedByBoxPermissions: true,
-            cancellationToken: cancellationToken);
-
-        switch (resultCode)
+        var parameters = new RenameFileParams
         {
-            case UpdateFileNameQuery.ResultCode.Ok:
-                await auditLogService.LogWithFileContext(
-                    fileExternalId: fileId,
-                    buildEntry: fileRef => Audit.File.RenamedEntry(
-                        actor: httpContext.GetAuditLogActorContext(),
-                        workspace: workspace.ToAuditLogWorkspaceRef(),
-                        file: fileRef),
-                    cancellationToken);
+            WorkspaceExternalId = workspaceExternalId,
+            FileExternalId = fileExternalId,
+            Name = name
+        };
 
-                return;
+        var definition = AgentToolCatalog.TryGet(AgentToolNames.RenameFile)!;
 
-            case UpdateFileNameQuery.ResultCode.FileNotFound:
-                throw new McpException(
-                    $"File '{fileExternalId}' was not found in workspace '{workspaceExternalId}'.");
+        var workspaceOverride = workspaceToolOverrideReader.TryGet(
+            agentId: agent.Id,
+            workspaceId: workspace.Id,
+            toolName: AgentToolNames.RenameFile);
 
-            default:
-                throw new McpException(
-                    $"Unexpected result while renaming file: {resultCode}.");
+        var effective = AgentToolCatalog.Resolve(
+            agent,
+            definition,
+            workspaceOverride);
+
+        if (!effective.IsUsable)
+            throw new McpException("The rename_file tool is not enabled for this workspace.");
+
+        if (effective.RequiresApproval)
+        {
+            var expiresAt = clock.UtcNow.AddHours(
+                operationsOptions.ApprovalWindowHours);
+
+            var operationId = await operationLedger.CreatePending(
+                agentId: agent.Id,
+                workspaceId: workspace.Id,
+                toolName: AgentToolNames.RenameFile,
+                paramsJson: Json.Serialize(parameters),
+                expiresAt: expiresAt,
+                cancellationToken: cancellationToken);
+
+            return AgentToolResponse.WaitsForApproval(
+                approvalRequestId: operationId.Value,
+                expiresAt: expiresAt);
         }
+
+        var result = await renameFileOperation.Execute(
+            httpContext,
+            parameters,
+            cancellationToken);
+
+        return AgentToolResponse.Executed(
+            result);
     }
 }

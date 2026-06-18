@@ -2,13 +2,10 @@ using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Operations;
 using PlikShare.Agents.Tools;
-using PlikShare.AuditLog;
-using PlikShare.Files.Id;
-using PlikShare.Mcp.Files.Get.Contracts;
-using PlikShare.Workspaces.Cache;
-using PlikShare.Workspaces.Id;
-using Audit = PlikShare.AuditLog.Details.Audit;
+using PlikShare.Core.Clock;
+using PlikShare.Core.Utils;
 
 namespace PlikShare.Mcp.Files.Get;
 
@@ -19,58 +16,69 @@ public class GetFileTool
     [Description("Returns the details of a single file by its external id: name, extension, content type, " +
                  "size, creation time and the folder path it lives in. The file is resolved across all " +
                  "workspaces the agent can access; if the agent has no access to it, the tool reports it as " +
-                 "not found without revealing whether it exists.")]
-    public static async Task<GetFileResponseDto> Execute(
+                 "not found without revealing whether it exists. If this tool requires approval the call " +
+                 "returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals and, " +
+                 "once approved, call execute_operation to run it.")]
+    public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
-        WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
-        GetFileForAgentQuery getFileForAgentQuery,
-        AuditLogService auditLogService,
+        AgentFileWorkspaceLocator fileWorkspaceLocator,
+        GetFileAgentOperation getFileOperation,
+        AgentOperationLedger operationLedger,
+        AgentOperationsOptions operationsOptions,
+        IClock clock,
         [Description("External id of the file.")]
         string fileExternalId,
         CancellationToken cancellationToken = default)
     {
         var httpContext = httpContextAccessor.HttpContext!;
-
         var agent = await httpContext.GetAgentContext();
 
-        var file = getFileForAgentQuery.Execute(
-            FileExtId.Parse(fileExternalId));
+        var parameters = new GetFileParams
+        {
+            FileExternalId = fileExternalId
+        };
 
-        if (file is null)
-            throw new McpException($"File '{fileExternalId}' was not found.");
+        var definition = AgentToolCatalog.TryGet(AgentToolNames.GetFile)!;
 
-        var membership = await workspaceAgentMembershipCache.TryGetWorkspaceAgentMembership(
-            workspaceExternalId: WorkspaceExtId.Parse(file.WorkspaceExternalId),
-            agentExternalId: agent.ExternalId,
-            cancellationToken: cancellationToken);
-
-        if (membership is null || !membership.IsAvailableForAgent)
-            throw new McpException($"File '{fileExternalId}' was not found.");
-
-        membership.Workspace.ThrowIfFullyEncrypted();
-
-        await auditLogService.Log(
-            Audit.Agent.FileViewedEntry(
-                actor: httpContext.GetAuditLogActorContext(),
-                workspaceExternalId: file.WorkspaceExternalId,
-                fileExternalId: file.ExternalId),
+        // The file's workspace isn't an argument — resolve it so a per-workspace override applies.
+        var located = await fileWorkspaceLocator.Locate(
+            agent,
+            fileExternalId,
+            AgentToolNames.GetFile,
             cancellationToken);
 
-        return new GetFileResponseDto
+        var effective = AgentToolCatalog.Resolve(
+            agent,
+            definition,
+            located.Override);
+
+        if (!effective.IsUsable)
+            throw new McpException("The get_file tool is not enabled.");
+
+        if (effective.RequiresApproval)
         {
-            ExternalId = file.ExternalId,
-            Name = file.Name,
-            Extension = file.Extension,
-            ContentType = file.ContentType,
-            SizeInBytes = file.SizeInBytes,
-            CreatedAt = file.CreatedAt,
-            Path = file.Path
-                .Select(item => new FilePathItemDto
-                {
-                    ExternalId = item.ExternalId,
-                    Name = item.Name
-                })
-                .ToList()
-        };
+            var expiresAt = clock.UtcNow.AddHours(
+                operationsOptions.ApprovalWindowHours);
+
+            var operationId = await operationLedger.CreatePending(
+                agentId: agent.Id,
+                workspaceId: located.WorkspaceId,
+                toolName: AgentToolNames.GetFile,
+                paramsJson: Json.Serialize(parameters),
+                expiresAt: expiresAt,
+                cancellationToken: cancellationToken);
+
+            return AgentToolResponse.WaitsForApproval(
+                approvalRequestId: operationId.Value,
+                expiresAt: expiresAt);
+        }
+
+        var result = await getFileOperation.Execute(
+            httpContext,
+            parameters,
+            cancellationToken);
+
+        return AgentToolResponse.Executed(
+            result);
     }
 }

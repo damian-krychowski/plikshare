@@ -24,7 +24,7 @@ public class BulkDeleteTool
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
         AgentWorkspaceToolOverrideReader workspaceToolOverrideReader,
-        BulkDeleteForAgentExecutor executor,
+        BulkDeleteAgentOperation bulkDeleteOperation,
         AgentOperationLedger operationLedger,
         AgentOperationsOptions operationsOptions,
         IClock clock,
@@ -96,7 +96,7 @@ public class BulkDeleteTool
                 expiresAt: expiresAt);
         }
 
-        var result = await executor.Execute(
+        var result = await bulkDeleteOperation.Execute(
             httpContext,
             parameters,             
             cancellationToken);

@@ -1,0 +1,15 @@
+<div class="op-details__section-title">
+    List contents
+</div>
+
+<div class="op-details__item">
+    <i class="icon icon-xl icon-nucleo-folder op-details__icon"></i>
+    <div class="op-details__text">
+        <div class="op-details__name">
+            {{ details().folderExternalId ? (details().folderName ?? details().folderExternalId) : 'Workspace root' }}
+        </div>
+        @if(details().type && details().type !== 'all') {
+            <div class="op-details__path">{{ details().type }} only</div>
+        }
+    </div>
+</div>

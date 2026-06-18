@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentAssertions;
 using ModelContextProtocol.Protocol;
 using PlikShare.Agents.Create.Contracts;
+using PlikShare.Agents.Tools.Contracts;
 using PlikShare.AuditLog;
 using PlikShare.BulkDelete.Contracts;
 using PlikShare.Folders.Id;
@@ -263,14 +264,133 @@ public class mcp_list_workspace_content_tests : TestFixture
         await AssertAuditLogContains(AuditLogEventTypes.Agent.WorkspaceContentListed);
     }
 
+    [Fact]
+    public async Task when_approval_required_the_call_waits_instead_of_listing()
+    {
+        //given
+        var (_, workspace, agent) = await CreateOwnerWorkspaceAgent(listWorkspaceContentRequiresApproval: true);
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        //when
+        var pending = await CallTool(mcp, "list_workspace_content", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value
+        });
+
+        //then
+        pending.GetProperty("status").GetString().Should().Be("waits_for_approval");
+        pending.GetProperty("approvalRequestId").GetString().Should().StartWith("aop_");
+
+        (await OperationStatus(mcp, pending.GetProperty("approvalRequestId").GetString()!))
+            .Should().Be("pending");
+    }
+
+    [Fact]
+    public async Task approving_then_executing_returns_the_content()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(listWorkspaceContentRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        var pending = await CallTool(mcp, "list_workspace_content", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value
+        });
+        pending.GetProperty("status").GetString().Should().Be("waits_for_approval");
+        var approvalRequestId = pending.GetProperty("approvalRequestId").GetString()!;
+
+        //when
+        await Api.Agents.ApproveOperation(
+            externalId: agent.ExternalId,
+            operationExternalId: approvalRequestId,
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        var committed = await CallTool(mcp, "execute_operation", new Dictionary<string, object?>
+        {
+            ["approvalRequestId"] = approvalRequestId
+        });
+
+        //then
+        committed.GetProperty("status").GetString().Should().Be("executed");
+        committed.GetProperty("result").GetProperty("entries").EnumerateArray()
+            .Select(e => e.GetProperty("externalId").GetString())
+            .Should().Contain(folder.ExternalId.Value);
+    }
+
+    [Fact]
+    public async Task operation_details_resolve_the_folder_being_listed()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(listWorkspaceContentRequiresApproval: true);
+        var folder = await CreateFolder("reports", workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        var pending = await CallTool(mcp, "list_workspace_content", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value,
+            ["folderExternalId"] = folder.ExternalId.Value
+        });
+        var approvalRequestId = pending.GetProperty("approvalRequestId").GetString()!;
+
+        //when
+        var details = await Api.Agents.GetOperationDetails(approvalRequestId, owner.Cookie);
+
+        //then
+        details.GetProperty("$type").GetString().Should().Be("list_workspace_content");
+        details.GetProperty("folderExternalId").GetString().Should().Be(folder.ExternalId.Value);
+        details.GetProperty("folderName").GetString().Should().Be("reports");
+    }
+
+    [Fact]
+    public async Task workspace_override_can_require_approval()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(listWorkspaceContentRequiresApproval: false);
+
+        await Api.Agents.UpdateWorkspaceToolOverride(
+            externalId: agent.ExternalId,
+            workspaceExternalId: workspace.ExternalId,
+            toolName: "list_workspace_content",
+            request: new UpdateAgentWorkspaceToolOverrideRequestDto { IsEnabled = null, RequiresApproval = true },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        //when
+        var result = await CallTool(mcp, "list_workspace_content", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value
+        });
+
+        //then — the workspace override wins
+        result.GetProperty("status").GetString().Should().Be("waits_for_approval");
+    }
+
     private async Task<(AppSignedInUser Owner, AppWorkspace Workspace, CreateAgentResponseDto Agent)> CreateOwnerWorkspaceAgent(
-        bool grantWorkspaceAccess = true)
+        bool grantWorkspaceAccess = true,
+        bool listWorkspaceContentRequiresApproval = false)
     {
         var owner = await SignIn(Users.AppOwner);
         var workspace = await CreateWorkspace(owner);
 
         var agent = await Api.Agents.Create(
             request: new CreateAgentRequestDto { Name = Random.Name("Agent") },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        await Api.Agents.UpdateToolConfig(
+            externalId: agent.ExternalId,
+            toolName: "list_workspace_content",
+            request: new UpdateAgentToolConfigRequestDto
+            {
+                IsEnabled = true,
+                RequiresApproval = listWorkspaceContentRequiresApproval
+            },
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
 
@@ -338,7 +458,42 @@ public class mcp_list_workspace_content_tests : TestFixture
         text.Should().NotBeNullOrEmpty("list_workspace_content should return its result as JSON content");
 
         using var document = JsonDocument.Parse(text!);
+        var envelope = document.RootElement.Clone();
+
+        envelope.GetProperty("status").GetString().Should().Be("executed");
+        return envelope.GetProperty("result");
+    }
+
+    private static async Task<JsonElement> CallTool(
+        McpAgentSession mcp,
+        string toolName,
+        Dictionary<string, object?> arguments)
+    {
+        var result = await mcp.Client.CallToolAsync(
+            toolName: toolName,
+            arguments: arguments);
+
+        result.IsError.Should().NotBe(true);
+
+        var text = result.Content
+            .OfType<TextContentBlock>()
+            .Select(block => block.Text)
+            .FirstOrDefault();
+
+        text.Should().NotBeNullOrEmpty($"{toolName} should return its result as JSON content");
+
+        using var document = JsonDocument.Parse(text!);
         return document.RootElement.Clone();
+    }
+
+    private static async Task<string?> OperationStatus(McpAgentSession mcp, string approvalRequestId)
+    {
+        var approvals = await CallTool(mcp, "check_approvals", new Dictionary<string, object?>());
+
+        return approvals.GetProperty("approvals").EnumerateArray()
+            .Where(a => a.GetProperty("approvalRequestId").GetString() == approvalRequestId)
+            .Select(a => a.GetProperty("status").GetString())
+            .FirstOrDefault();
     }
 
     private static List<JsonElement> ArrayOf(JsonElement json, string property)

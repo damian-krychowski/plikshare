@@ -189,12 +189,184 @@ export interface PendingAgentOperationWorkspace {
     name: string;
 }
 
-export type AgentOperationDetails = BulkDeleteOperationDetails;
+export type AgentOperationDetails = BulkDeleteOperationDetails | DeleteShareLinkOperationDetails | RenameFolderOperationDetails | RenameFileOperationDetails | CreateFolderOperationDetails | MoveItemsOperationDetails | CreateFileOperationDetails | RenameWorkspaceOperationDetails | CreateShareLinkOperationDetails | UpdateShareLinkOperationDetails | CreateWorkspaceOperationDetails | ReadFileOperationDetails | GetFileOperationDetails | GetFileDownloadLinkOperationDetails | ListWorkspacesOperationDetails | ListStoragesOperationDetails | ListShareLinksOperationDetails | GetShareLinkOperationDetails | SearchOperationDetails | ListWorkspaceContentOperationDetails | GetBulkDownloadLinkOperationDetails;
 
 export interface BulkDeleteOperationDetails {
     $type: 'bulk_delete';
     folders: BulkDeleteFolderDetail[];
     files: BulkDeleteFileDetail[];
+}
+
+export interface DeleteShareLinkOperationDetails {
+    $type: 'delete_share_link';
+    externalId: string;
+    name: string | null;
+}
+
+export interface RenameFolderOperationDetails {
+    $type: 'rename_folder';
+    folderExternalId: string;
+    currentName: string | null;
+    newName: string;
+    path: string | null;
+}
+
+export interface RenameFileOperationDetails {
+    $type: 'rename_file';
+    fileExternalId: string;
+    folderExternalId: string | null;
+    currentName: string | null;
+    newName: string;
+    path: string | null;
+}
+
+export interface CreateFolderOperationDetails {
+    $type: 'create_folder';
+    name: string;
+    parentFolderExternalId: string | null;
+    parentLocation: string | null;
+}
+
+export interface MoveItemsOperationDetails {
+    $type: 'move_items';
+    destinationFolderExternalId: string | null;
+    destinationName: string | null;
+    destinationPath: string | null;
+    folders: MoveItemDetail[];
+    files: MoveItemDetail[];
+}
+
+export interface MoveItemDetail {
+    externalId: string;
+    name: string;
+    path: string | null;
+}
+
+export interface CreateFileOperationDetails {
+    $type: 'create_file';
+    name: string;
+    folderExternalId: string | null;
+    parentLocation: string | null;
+    sizeInBytes: number;
+    contentPreview: string;
+    isPreviewTruncated: boolean;
+}
+
+export interface RenameWorkspaceOperationDetails {
+    $type: 'rename_workspace';
+    workspaceExternalId: string;
+    currentName: string | null;
+    newName: string;
+}
+
+export interface CreateShareLinkOperationDetails {
+    $type: 'create_share_link';
+    name: string;
+    sharedFolders: ShareLinkItemDetail[];
+    sharedFiles: ShareLinkItemDetail[];
+    excludedFolders: ShareLinkItemDetail[];
+    excludedFiles: ShareLinkItemDetail[];
+    expiresAt: string | null;
+    maxDownloads: number | null;
+    hasPassword: boolean;
+}
+
+export interface ShareLinkItemDetail {
+    externalId: string;
+    name: string;
+    path: string | null;
+}
+
+export interface UpdateShareLinkOperationDetails {
+    $type: 'update_share_link';
+    shareLinkExternalId: string;
+    currentName: string | null;
+    updateName: boolean;
+    newName: string | null;
+    updateExpiration: boolean;
+    expiresAt: string | null;
+    updateMaxDownloads: boolean;
+    maxDownloads: number | null;
+    updatePassword: boolean;
+    passwordSet: boolean;
+}
+
+export interface CreateWorkspaceOperationDetails {
+    $type: 'create_workspace';
+    name: string;
+    storageExternalId: string;
+    storageName: string | null;
+}
+
+export interface ReadFileOperationDetails {
+    $type: 'read_file';
+    fileExternalId: string;
+    name: string | null;
+    path: string | null;
+    offset: number;
+    maxBytes: number | null;
+}
+
+export interface GetFileOperationDetails {
+    $type: 'get_file';
+    fileExternalId: string;
+    name: string | null;
+    path: string | null;
+}
+
+export interface GetFileDownloadLinkOperationDetails {
+    $type: 'get_file_download_link';
+    fileExternalId: string;
+    name: string | null;
+    path: string | null;
+    expiresInMinutes: number | null;
+}
+
+export interface ListWorkspacesOperationDetails {
+    $type: 'list_workspaces';
+}
+
+export interface ListStoragesOperationDetails {
+    $type: 'list_storages';
+}
+
+export interface ListShareLinksOperationDetails {
+    $type: 'list_share_links';
+}
+
+export interface GetShareLinkOperationDetails {
+    $type: 'get_share_link';
+    shareLinkExternalId: string;
+    name: string | null;
+}
+
+export interface SearchOperationDetails {
+    $type: 'search';
+    nameContains: string[];
+    types: string[];
+    extensions: string[];
+}
+
+export interface ListWorkspaceContentOperationDetails {
+    $type: 'list_workspace_content';
+    folderExternalId: string | null;
+    folderName: string | null;
+    type: string | null;
+}
+
+export interface GetBulkDownloadLinkOperationDetails {
+    $type: 'get_bulk_download_link';
+    folders: BulkDownloadItemDetail[];
+    files: BulkDownloadItemDetail[];
+    excludedFolders: BulkDownloadItemDetail[];
+    excludedFiles: BulkDownloadItemDetail[];
+    expiresInMinutes: number | null;
+}
+
+export interface BulkDownloadItemDetail {
+    externalId: string;
+    name: string;
+    path: string | null;
 }
 
 export interface BulkDeleteFolderDetail {

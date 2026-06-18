@@ -1,15 +1,14 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Operations;
 using PlikShare.Agents.Tools;
-using PlikShare.AuditLog;
-using PlikShare.Core.UserIdentity;
-using PlikShare.Folders.Create;
+using PlikShare.Core.Clock;
+using PlikShare.Core.Utils;
 using PlikShare.Folders.Id;
-using PlikShare.Mcp.Folders.Create.Contracts;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Id;
-using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Mcp.Folders.Create;
 
@@ -17,13 +16,18 @@ namespace PlikShare.Mcp.Folders.Create;
 public class CreateFolderTool
 {
     [McpServerTool(Name = AgentToolNames.CreateFolder)]
-    [Description("Creates a new folder in a workspace the agent has access to. " +
-                 "Pass parentFolderExternalId to create a subfolder, or leave it empty to create a top-level folder.")]
-    public static async Task<CreateFolderResponseDto> Execute(
+    [Description("Creates a new folder in a workspace the agent has access to. Pass parentFolderExternalId " +
+                 "to create a subfolder, or leave it empty to create a top-level folder. If this tool requires " +
+                 "approval the call returns status 'waits_for_approval' with an approvalRequestId — poll " +
+                 "check_approvals and, once approved, call execute_operation to run it.")]
+    public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
-        CreateFolderQuery createFolderQuery,
-        AuditLogService auditLogService,
+        AgentWorkspaceToolOverrideReader workspaceToolOverrideReader,
+        CreateFolderAgentOperation createFolderOperation,
+        AgentOperationLedger operationLedger,
+        AgentOperationsOptions operationsOptions,
+        IClock clock,
         [Description("External id of the workspace.")]
         string workspaceExternalId,
         [Description("Name of the new folder.")]
@@ -33,6 +37,7 @@ public class CreateFolderTool
         CancellationToken cancellationToken = default)
     {
         var httpContext = httpContextAccessor.HttpContext!;
+        var agent = await httpContext.GetAgentContext();
 
         var membership = await httpContext.GetWorkspaceAgentMembershipDetails(
             workspaceAgentMembershipCache,
@@ -42,48 +47,55 @@ public class CreateFolderTool
         var workspace = membership.Workspace;
         workspace.ThrowIfFullyEncrypted();
 
-        var folderExternalId = FolderExtId.NewId();
-
-        FolderExtId? parentExternalId = string.IsNullOrWhiteSpace(parentFolderExternalId)
-            ? null
-            : FolderExtId.Parse(parentFolderExternalId);
-
-        var result = await createFolderQuery.Execute(
-            workspace: workspace,
-            folderExternalId: folderExternalId,
-            parentFolderExternalId: parentExternalId,
-            name: workspace.EncodeMetadata(
-                value: name,
-                workspaceEncryptionSession: null),
-            boxFolderId: null,
-            userIdentity: new AgentIdentity(membership.Agent.ExternalId),
-            cancellationToken: cancellationToken);
-
-        switch (result)
+        var parameters = new CreateFolderParams
         {
-            case CreateFolderQuery.ResultCode.Ok:
-                await auditLogService.LogWithFolderContext(
-                    folderExternalId: folderExternalId,
-                    buildEntry: folderRef => Audit.Folder.CreatedEntry(
-                        actor: httpContext.GetAuditLogActorContext(),
-                        workspace: workspace.ToAuditLogWorkspaceRef(),
-                        folder: folderRef),
-                    cancellationToken);
+            WorkspaceExternalId = workspaceExternalId,
+            FolderExternalId = FolderExtId.NewId().Value,
+            Name = name,
+            ParentFolderExternalId = string.IsNullOrWhiteSpace(parentFolderExternalId)
+                ? null
+                : parentFolderExternalId
+        };
 
-                return new CreateFolderResponseDto
-                {
-                    FolderExternalId = folderExternalId.Value,
-                    Name = name,
-                    ParentFolderExternalId = parentExternalId?.Value
-                };
+        var definition = AgentToolCatalog.TryGet(AgentToolNames.CreateFolder)!;
 
-            case CreateFolderQuery.ResultCode.ParentFolderNotFound:
-                throw new McpException(
-                    $"Parent folder '{parentFolderExternalId}' was not found in workspace '{workspaceExternalId}'.");
+        var workspaceOverride = workspaceToolOverrideReader.TryGet(
+            agentId: agent.Id,
+            workspaceId: workspace.Id,
+            toolName: AgentToolNames.CreateFolder);
 
-            default:
-                throw new McpException(
-                    $"Unexpected result while creating folder: {result}.");
+        var effective = AgentToolCatalog.Resolve(
+            agent,
+            definition,
+            workspaceOverride);
+
+        if (!effective.IsUsable)
+            throw new McpException("The create_folder tool is not enabled for this workspace.");
+
+        if (effective.RequiresApproval)
+        {
+            var expiresAt = clock.UtcNow.AddHours(
+                operationsOptions.ApprovalWindowHours);
+
+            var operationId = await operationLedger.CreatePending(
+                agentId: agent.Id,
+                workspaceId: workspace.Id,
+                toolName: AgentToolNames.CreateFolder,
+                paramsJson: Json.Serialize(parameters),
+                expiresAt: expiresAt,
+                cancellationToken: cancellationToken);
+
+            return AgentToolResponse.WaitsForApproval(
+                approvalRequestId: operationId.Value,
+                expiresAt: expiresAt);
         }
+
+        var result = await createFolderOperation.Execute(
+            httpContext,
+            parameters,
+            cancellationToken);
+
+        return AgentToolResponse.Executed(
+            result);
     }
 }

@@ -2,13 +2,12 @@ using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Operations;
 using PlikShare.Agents.Tools;
-using PlikShare.AuditLog;
-using PlikShare.Folders.Id;
-using PlikShare.Mcp.Workspaces.Content.Contracts;
+using PlikShare.Core.Clock;
+using PlikShare.Core.Utils;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Id;
-using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Mcp.Workspaces.Content;
 
@@ -20,12 +19,17 @@ public class ListWorkspaceContentTool
                  "Omit folderExternalId to list the workspace root. Returns a single entries[] list " +
                  "where each entry has a 'type' of 'folder' or 'file'. Folders are returned before files. " +
                  "Use the returned nextCursor to fetch the next page (with hasMore=true), reusing the same " +
-                 "workspace, folder and type.")]
-    public static async Task<ListWorkspaceContentResponseDto> Execute(
+                 "workspace, folder and type. If this tool requires approval the call returns status " +
+                 "'waits_for_approval' with an approvalRequestId — poll check_approvals and, once approved, " +
+                 "call execute_operation to run it.")]
+    public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
-        GetWorkspaceContentForAgentQuery getWorkspaceContentForAgentQuery,
-        AuditLogService auditLogService,
+        AgentWorkspaceToolOverrideReader workspaceToolOverrideReader,
+        ListWorkspaceContentAgentOperation listWorkspaceContentOperation,
+        AgentOperationLedger operationLedger,
+        AgentOperationsOptions operationsOptions,
+        IClock clock,
         [Description("External id of the workspace.")]
         string workspaceExternalId,
         [Description("Optional external id of the folder to list. Leave empty to list the workspace root.")]
@@ -39,6 +43,7 @@ public class ListWorkspaceContentTool
         CancellationToken cancellationToken = default)
     {
         var httpContext = httpContextAccessor.HttpContext!;
+        var agent = await httpContext.GetAgentContext();
 
         var membership = await httpContext.GetWorkspaceAgentMembershipDetails(
             workspaceAgentMembershipCache,
@@ -48,81 +53,56 @@ public class ListWorkspaceContentTool
         var workspace = membership.Workspace;
         workspace.ThrowIfFullyEncrypted();
 
-        var typeFilter = ParseTypeFilter(type);
+        var parameters = new ListWorkspaceContentParams
+        {
+            WorkspaceExternalId = workspaceExternalId,
+            FolderExternalId = string.IsNullOrWhiteSpace(folderExternalId)
+                ? null
+                : folderExternalId,
+            Type = type,
+            Cursor = cursor,
+            Limit = limit
+        };
 
-        FolderExtId? folderId = string.IsNullOrWhiteSpace(folderExternalId)
-            ? null
-            : FolderExtId.Parse(folderExternalId);
+        var definition = AgentToolCatalog.TryGet(AgentToolNames.ListWorkspaceContent)!;
 
-        var parsedCursor = ParseCursor(
-            cursor,
-            typeFilter);
+        var workspaceOverride = workspaceToolOverrideReader.TryGet(
+            agentId: agent.Id,
+            workspaceId: workspace.Id,
+            toolName: AgentToolNames.ListWorkspaceContent);
 
-        var resolvedLimit = Math.Clamp(limit ?? 200, 1, 1000);
+        var effective = AgentToolCatalog.Resolve(
+            agent,
+            definition,
+            workspaceOverride);
 
-        var result = getWorkspaceContentForAgentQuery.Execute(
-            workspace: workspace,
-            folderExternalId: folderId,
-            typeFilter: typeFilter,
-            cursor: parsedCursor,
-            limit: resolvedLimit);
+        if (!effective.IsUsable)
+            throw new McpException("The list_workspace_content tool is not enabled for this workspace.");
 
-        if (result.Code == GetWorkspaceContentForAgentQuery.ResultCode.FolderNotFound)
-            throw new McpException(
-                $"Folder '{folderExternalId}' was not found in workspace '{workspaceExternalId}'.");
+        if (effective.RequiresApproval)
+        {
+            var expiresAt = clock.UtcNow.AddHours(
+                operationsOptions.ApprovalWindowHours);
 
-        await auditLogService.Log(
-            Audit.Agent.WorkspaceContentListedEntry(
-                actor: httpContext.GetAuditLogActorContext(),
-                workspaceExternalId: workspaceExternalId,
-                folderExternalId: folderId?.Value,
-                count: result.Entries.Count),
+            var operationId = await operationLedger.CreatePending(
+                agentId: agent.Id,
+                workspaceId: workspace.Id,
+                toolName: AgentToolNames.ListWorkspaceContent,
+                paramsJson: Json.Serialize(parameters),
+                expiresAt: expiresAt,
+                cancellationToken: cancellationToken);
+
+            return AgentToolResponse.WaitsForApproval(
+                approvalRequestId: operationId.Value,
+                expiresAt: expiresAt);
+        }
+
+        var result = await listWorkspaceContentOperation.Execute(
+            httpContext,
+            parameters,
             cancellationToken);
 
-        return new ListWorkspaceContentResponseDto
-        {
-            Path = result.Path,
-            Entries = result.Entries,
-            NextCursor = result.NextCursor?.Encode(),
-            HasMore = result.HasMore
-        };
-    }
-
-    private static WorkspaceContentTypeFilter ParseTypeFilter(
-        string? type)
-    {
-        if (string.IsNullOrWhiteSpace(type))
-            return WorkspaceContentTypeFilter.All;
-
-        return type.Trim().ToLowerInvariant() switch
-        {
-            "all" => WorkspaceContentTypeFilter.All,
-            "folder" => WorkspaceContentTypeFilter.Folder,
-            "file" => WorkspaceContentTypeFilter.File,
-            _ => throw new McpException(
-                $"Invalid type '{type}'. Allowed values are \"all\", \"folder\" and \"file\".")
-        };
-    }
-
-    private static WorkspaceContentCursor? ParseCursor(
-        string? cursor,
-        WorkspaceContentTypeFilter typeFilter)
-    {
-        if (string.IsNullOrWhiteSpace(cursor))
-            return null;
-
-        var parsed = WorkspaceContentCursor.TryDecode(cursor)
-            ?? throw new McpException(
-                $"Invalid cursor '{cursor}'. Pass back the nextCursor value from a previous call.");
-
-        var mismatch =
-            (typeFilter == WorkspaceContentTypeFilter.Folder && parsed.Phase != WorkspaceContentPhase.Folder)
-            || (typeFilter == WorkspaceContentTypeFilter.File && parsed.Phase != WorkspaceContentPhase.File);
-
-        if (mismatch)
-            throw new McpException(
-                "The cursor does not match the requested type filter. Reuse the cursor with the same type.");
-
-        return parsed;
+        return AgentToolResponse.Executed(
+            result);
     }
 }

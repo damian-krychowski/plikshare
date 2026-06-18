@@ -18,7 +18,7 @@ namespace PlikShare.Mcp.BulkDelete;
 /// access), performs the delete and writes the audit entry. Called directly by the tool when no
 /// approval is required, and by the commit flow once a human has approved the operation.
 /// </summary>
-public class BulkDeleteForAgentExecutor(
+public class BulkDeleteAgentOperation(
     WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
     BulkDeleteQuery bulkDeleteQuery,
     AuditLogService auditLogService)

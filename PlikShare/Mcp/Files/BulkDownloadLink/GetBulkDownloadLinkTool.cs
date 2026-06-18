@@ -1,36 +1,33 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Operations;
 using PlikShare.Agents.Tools;
-using PlikShare.AuditLog;
 using PlikShare.Core.Clock;
-using PlikShare.Core.UserIdentity;
-using PlikShare.Files.BulkDownload;
-using PlikShare.Mcp.Files.BulkDownloadLink.Contracts;
+using PlikShare.Core.Utils;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Id;
-using Audit = PlikShare.AuditLog.Details.Audit;
-using BulkDownloadRequest = PlikShare.Files.BulkDownload.Contracts.GetBulkDownloadLinkRequestDto;
 
 namespace PlikShare.Mcp.Files.BulkDownloadLink;
 
 [McpServerToolType]
 public class GetBulkDownloadLinkTool
 {
-    private const int DefaultExpiryMinutes = 15;
-    private const int MinExpiryMinutes = 1;
-    private const int MaxExpiryMinutes = 24 * 60;
-
     [McpServerTool(Name = AgentToolNames.GetBulkDownloadLink)]
     [Description("Creates a short-lived link that downloads the selected files and/or folders from a workspace " +
                  "as a single ZIP archive, to hand to a user. Folders are included with all their contents. " +
                  "Provide at least one id in fileExternalIds or folderExternalIds. Anyone with the link can " +
-                 "download without logging in until it expires, so keep the expiry short.")]
-    public static async Task<GetBulkDownloadLinkResponseDto> Execute(
+                 "download without logging in until it expires, so keep the expiry short. If this tool requires " +
+                 "approval the call returns status 'waits_for_approval' with an approvalRequestId — poll " +
+                 "check_approvals and, once approved, call execute_operation to run it.")]
+    public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
-        GetBulkDownloadLinkOperation getBulkDownloadLinkOperation,
-        AuditLogService auditLogService,
+        AgentWorkspaceToolOverrideReader workspaceToolOverrideReader,
+        GetBulkDownloadLinkAgentOperation getBulkDownloadLinkOperation,
+        AgentOperationLedger operationLedger,
+        AgentOperationsOptions operationsOptions,
         IClock clock,
         [Description("External id of the workspace.")]
         string workspaceExternalId,
@@ -47,6 +44,7 @@ public class GetBulkDownloadLinkTool
         CancellationToken cancellationToken = default)
     {
         var httpContext = httpContextAccessor.HttpContext!;
+        var agent = await httpContext.GetAgentContext();
 
         var membership = await httpContext.GetWorkspaceAgentMembershipDetails(
             workspaceAgentMembershipCache,
@@ -56,67 +54,61 @@ public class GetBulkDownloadLinkTool
         var workspace = membership.Workspace;
         workspace.ThrowIfFullyEncrypted();
 
-        var files = (fileExternalIds ?? []).ToList();
-        var folders = (folderExternalIds ?? []).ToList();
-        var excludedFiles = (excludedFileExternalIds ?? []).ToList();
-        var excludedFolders = (excludedFolderExternalIds ?? []).ToList();
+        var files = fileExternalIds ?? [];
+        var folders = folderExternalIds ?? [];
 
-        if (files.Count == 0 && folders.Count == 0)
+        if (files.Length == 0 && folders.Length == 0)
             throw new McpException("Provide at least one id in fileExternalIds or folderExternalIds.");
 
-        var effectiveMinutes = Math.Clamp(
-            expiresInMinutes ?? DefaultExpiryMinutes,
-            MinExpiryMinutes,
-            MaxExpiryMinutes);
-
-        var expiresAt = clock.UtcNow.AddMinutes(effectiveMinutes);
-
-        var result = getBulkDownloadLinkOperation.Execute(
-            workspace: workspace,
-            request: new BulkDownloadRequest
-            {
-                SelectedFiles = files,
-                SelectedFolders = folders,
-                ExcludedFiles = excludedFiles,
-                ExcludedFolders = excludedFolders
-            },
-            userIdentity: new AgentIdentity(membership.Agent.ExternalId),
-            boxFolderId: null,
-            boxLinkId: null,
-            workspaceEncryptionSession: null,
-            expiresAt: expiresAt);
-
-        switch (result.Code)
+        var parameters = new GetBulkDownloadLinkParams
         {
-            case GetBulkDownloadLinkOperation.ResultCode.Ok:
-                await auditLogService.Log(
-                    Audit.Agent.BulkDownloadLinkGeneratedEntry(
-                        actor: httpContext.GetAuditLogActorContext(),
-                        workspaceExternalId: workspaceExternalId,
-                        selectedFileCount: files.Count,
-                        selectedFolderCount: folders.Count,
-                        expiresAt: expiresAt),
-                    cancellationToken);
+            WorkspaceExternalId = workspaceExternalId,
+            FileExternalIds = files,
+            FolderExternalIds = folders,
+            ExcludedFileExternalIds = excludedFileExternalIds ?? [],
+            ExcludedFolderExternalIds = excludedFolderExternalIds ?? [],
+            ExpiresInMinutes = expiresInMinutes
+        };
 
-                return new GetBulkDownloadLinkResponseDto
-                {
-                    Url = result.PreSignedUrl!,
-                    ExpiresAt = expiresAt
-                };
+        var definition = AgentToolCatalog.TryGet(AgentToolNames.GetBulkDownloadLink)!;
 
-            case GetBulkDownloadLinkOperation.ResultCode.FilesNotFound:
-                throw new McpException(
-                    $"These files were not found in workspace '{workspaceExternalId}': " +
-                    $"{string.Join(", ", result.NotFoundFileExternalIds ?? [])}.");
+        var workspaceOverride = workspaceToolOverrideReader.TryGet(
+            agentId: agent.Id,
+            workspaceId: workspace.Id,
+            toolName: AgentToolNames.GetBulkDownloadLink);
 
-            case GetBulkDownloadLinkOperation.ResultCode.FoldersNotFound:
-                throw new McpException(
-                    $"These folders were not found in workspace '{workspaceExternalId}': " +
-                    $"{string.Join(", ", result.NotFoundFolderExternalIds ?? [])}.");
+        var effective = AgentToolCatalog.Resolve(
+            agent,
+            definition,
+            workspaceOverride);
 
-            default:
-                throw new McpException(
-                    $"Could not create a bulk download link: {result.Code}.");
+        if (!effective.IsUsable)
+            throw new McpException("The get_bulk_download_link tool is not enabled for this workspace.");
+
+        if (effective.RequiresApproval)
+        {
+            var expiresAt = clock.UtcNow.AddHours(
+                operationsOptions.ApprovalWindowHours);
+
+            var operationId = await operationLedger.CreatePending(
+                agentId: agent.Id,
+                workspaceId: workspace.Id,
+                toolName: AgentToolNames.GetBulkDownloadLink,
+                paramsJson: Json.Serialize(parameters),
+                expiresAt: expiresAt,
+                cancellationToken: cancellationToken);
+
+            return AgentToolResponse.WaitsForApproval(
+                approvalRequestId: operationId.Value,
+                expiresAt: expiresAt);
         }
+
+        var result = await getBulkDownloadLinkOperation.Execute(
+            httpContext,
+            parameters,
+            cancellationToken);
+
+        return AgentToolResponse.Executed(
+            result);
     }
 }

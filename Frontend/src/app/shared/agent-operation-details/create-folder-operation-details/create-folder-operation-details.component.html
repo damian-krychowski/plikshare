@@ -1,0 +1,17 @@
+<div class="op-details__section-title">
+    Folder — create
+</div>
+
+<div class="op-details__item"
+    [class.op-details__item--clickable]="workspaceExternalId()"
+    (click)="openParent()">
+    <i class="icon icon-xl icon-nucleo-folder op-details__icon"></i>
+    <div class="op-details__text">
+        <div class="op-details__name">{{ details().name }}</div>
+        @if(details().parentLocation) {
+            <div class="op-details__path">in {{ details().parentLocation }}</div>
+        } @else {
+            <div class="op-details__path">at the workspace root</div>
+        }
+    </div>
+</div>

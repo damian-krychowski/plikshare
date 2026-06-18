@@ -1,16 +1,16 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Operations;
 using PlikShare.Agents.Tools;
-using PlikShare.AuditLog;
 using PlikShare.Core.Clock;
+using PlikShare.Core.Utils;
 using PlikShare.QuickShares;
 using PlikShare.QuickShares.Cache;
 using PlikShare.QuickShares.Id;
-using PlikShare.QuickShares.Update;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Id;
-using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Mcp.ShareLinks.Update;
 
@@ -22,13 +22,17 @@ public class UpdateShareLinkTool
                  "fields you choose are changed; anything left out is kept. Pass name to rename. For a " +
                  "nullable setting (expiry, max downloads, password) set its shouldUpdate* flag to true and " +
                  "provide the new value to set it, or set the flag to true and leave the value empty to clear " +
-                 "it (no expiry / unlimited downloads / no password).")]
-    public static async Task Execute(
+                 "it (no expiry / unlimited downloads / no password). If this tool requires approval the call " +
+                 "returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals and, " +
+                 "once approved, call execute_operation to run it.")]
+    public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
+        AgentWorkspaceToolOverrideReader workspaceToolOverrideReader,
         QuickShareCache quickShareCache,
-        UpdateQuickShareQuery updateQuickShareQuery,
-        AuditLogService auditLogService,
+        UpdateShareLinkAgentOperation updateShareLinkOperation,
+        AgentOperationLedger operationLedger,
+        AgentOperationsOptions operationsOptions,
         IClock clock,
         [Description("External id of the workspace.")]
         string workspaceExternalId,
@@ -51,6 +55,7 @@ public class UpdateShareLinkTool
         CancellationToken cancellationToken = default)
     {
         var httpContext = httpContextAccessor.HttpContext!;
+        var agent = await httpContext.GetAgentContext();
 
         var membership = await httpContext.GetWorkspaceAgentMembershipDetails(
             workspaceAgentMembershipCache,
@@ -60,6 +65,7 @@ public class UpdateShareLinkTool
         var workspace = membership.Workspace;
         workspace.ThrowIfFullyEncrypted();
 
+        // Resolve the share link up front so we never queue an approval for one that does not exist.
         var quickShare = await quickShareCache.TryGetQuickShare(
             new QuickShareExtId(shareLinkExternalId),
             cancellationToken);
@@ -120,48 +126,61 @@ public class UpdateShareLinkTool
             passwordSet = true;
         }
 
-        var resultCode = await updateQuickShareQuery.Execute(
-            quickShare: quickShare,
-            updateName: updateName,
-            name: trimmedName,
-            updateExpiration: shouldUpdateExpiry,
-            expiresAt: expires,
-            updateMaxDownloads: shouldUpdateMaxDownloads,
-            maxDownloads: newMaxDownloads,
-            updatePassword: shouldUpdatePassword,
-            passwordHashBase64: passwordHashBase64,
-            passwordSalt: passwordSalt,
-            cancellationToken: cancellationToken);
-
-        switch (resultCode)
+        var parameters = new UpdateShareLinkParams
         {
-            case UpdateQuickShareQuery.ResultCode.Ok:
-                await quickShareCache.InvalidateEntry(
-                    quickShareId: quickShare.Id,
-                    cancellationToken: cancellationToken);
+            WorkspaceExternalId = workspaceExternalId,
+            ShareLinkExternalId = shareLinkExternalId,
+            UpdateName = updateName,
+            Name = trimmedName,
+            UpdateExpiration = shouldUpdateExpiry,
+            ExpiresAt = expires,
+            UpdateMaxDownloads = shouldUpdateMaxDownloads,
+            MaxDownloads = newMaxDownloads,
+            UpdatePassword = shouldUpdatePassword,
+            PasswordHashBase64 = passwordHashBase64,
+            PasswordSalt = passwordSalt,
+            PasswordSet = passwordSet
+        };
 
-                await auditLogService.Log(
-                    Audit.QuickShare.UpdatedEntry(
-                        actor: httpContext.GetAuditLogActorContext(),
-                        workspace: quickShare.Workspace.ToAuditLogWorkspaceRef(),
-                        quickShare: quickShare.ToAuditLogQuickShareRef(),
-                        nameUpdated: updateName,
-                        expirationUpdated: shouldUpdateExpiry,
-                        expiresAt: expires,
-                        maxDownloadsUpdated: shouldUpdateMaxDownloads,
-                        maxDownloads: newMaxDownloads,
-                        passwordUpdated: shouldUpdatePassword,
-                        passwordSet: passwordSet),
-                    cancellationToken);
+        var definition = AgentToolCatalog.TryGet(AgentToolNames.UpdateShareLink)!;
 
-                return;
+        var workspaceOverride = workspaceToolOverrideReader.TryGet(
+            agentId: agent.Id,
+            workspaceId: workspace.Id,
+            toolName: AgentToolNames.UpdateShareLink);
 
-            case UpdateQuickShareQuery.ResultCode.NotFound:
-                throw new McpException(
-                    $"Share link '{shareLinkExternalId}' was not found in workspace '{workspaceExternalId}'.");
+        var effective = AgentToolCatalog.Resolve(
+            agent,
+            definition,
+            workspaceOverride);
 
-            default:
-                throw new McpException($"Could not update the share link: {resultCode}.");
+        if (!effective.IsUsable)
+            throw new McpException("The update_share_link tool is not enabled for this workspace.");
+
+        if (effective.RequiresApproval)
+        {
+            var operationExpiresAt = clock.UtcNow.AddHours(
+                operationsOptions.ApprovalWindowHours);
+
+            var operationId = await operationLedger.CreatePending(
+                agentId: agent.Id,
+                workspaceId: workspace.Id,
+                toolName: AgentToolNames.UpdateShareLink,
+                paramsJson: Json.Serialize(parameters),
+                expiresAt: operationExpiresAt,
+                cancellationToken: cancellationToken);
+
+            return AgentToolResponse.WaitsForApproval(
+                approvalRequestId: operationId.Value,
+                expiresAt: operationExpiresAt);
         }
+
+        var result = await updateShareLinkOperation.Execute(
+            httpContext,
+            parameters,
+            cancellationToken);
+
+        return AgentToolResponse.Executed(
+            result);
     }
 }

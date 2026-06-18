@@ -1,6 +1,7 @@
+using PlikShare.Agents.Operations.Details.Contracts;
 using PlikShare.Agents.Tools;
 
-namespace PlikShare.Agents.Operations.Details.Contracts;
+namespace PlikShare.Mcp.BulkDelete.Contracts;
 
 public class BulkDeleteOperationDetails : AgentOperationDetails
 {

@@ -1,112 +1,123 @@
-using System.Text.Json;
 using PlikShare.Agents.Operations.Details.Contracts;
 using PlikShare.Agents.Tools;
-using PlikShare.AuditLog;
-using PlikShare.Core.Database.MainDatabase;
-using PlikShare.Core.SQLite;
-using PlikShare.Core.Utils;
+using PlikShare.Mcp.BulkDelete;
+using PlikShare.Mcp.Files.BulkDownloadLink;
+using PlikShare.Mcp.Files.Create;
+using PlikShare.Mcp.Files.DownloadLink;
+using PlikShare.Mcp.Files.Get;
+using PlikShare.Mcp.Files.Read;
+using PlikShare.Mcp.Files.Rename;
+using PlikShare.Mcp.Folders.Create;
+using PlikShare.Mcp.Folders.Rename;
+using PlikShare.Mcp.MoveItems;
+using PlikShare.Mcp.Search;
+using PlikShare.Mcp.ShareLinks.Create;
+using PlikShare.Mcp.ShareLinks.Delete;
+using PlikShare.Mcp.ShareLinks.Get;
+using PlikShare.Mcp.ShareLinks.List;
+using PlikShare.Mcp.ShareLinks.Update;
+using PlikShare.Mcp.Storages.List;
+using PlikShare.Mcp.Workspaces.Content;
+using PlikShare.Mcp.Workspaces.Create;
+using PlikShare.Mcp.Workspaces.List;
+using PlikShare.Mcp.Workspaces.Rename;
 
 namespace PlikShare.Agents.Operations.Details;
 
 /// <summary>
-/// Turns a pending operation's stored parameters into the tool-specific, polymorphic details the
-/// approval inbox renders. Each approval-capable tool owns one branch and resolves its own params
-/// (ids → names, parent folders, etc.) into its concrete <see cref="AgentOperationDetails"/> subtype.
+/// Routes an operation to the resolver that owns its tool. Each approval-capable tool has its own
+/// resolver, listed explicitly in the constructor; supporting a new tool means adding its resolver
+/// here and one branch below.
 /// </summary>
 public class AgentOperationDetailsResolver(
-    AuditLogService auditLogService,
-    PlikShareDb plikShareDb)
+    BulkDeleteOperationDetailsResolver bulkDelete,
+    DeleteShareLinkOperationDetailsResolver deleteShareLink,
+    RenameFolderOperationDetailsResolver renameFolder,
+    RenameFileOperationDetailsResolver renameFile,
+    CreateFolderOperationDetailsResolver createFolder,
+    MoveItemsOperationDetailsResolver moveItems,
+    CreateFileOperationDetailsResolver createFile,
+    RenameWorkspaceOperationDetailsResolver renameWorkspace,
+    CreateShareLinkOperationDetailsResolver createShareLink,
+    UpdateShareLinkOperationDetailsResolver updateShareLink,
+    CreateWorkspaceOperationDetailsResolver createWorkspace,
+    ReadFileOperationDetailsResolver readFile,
+    GetFileOperationDetailsResolver getFile,
+    GetFileDownloadLinkOperationDetailsResolver getFileDownloadLink,
+    ListWorkspacesOperationDetailsResolver listWorkspaces,
+    ListStoragesOperationDetailsResolver listStorages,
+    ListShareLinksOperationDetailsResolver listShareLinks,
+    GetShareLinkOperationDetailsResolver getShareLink,
+    SearchOperationDetailsResolver search,
+    ListWorkspaceContentOperationDetailsResolver listWorkspaceContent,
+    GetBulkDownloadLinkOperationDetailsResolver getBulkDownloadLink)
 {
     public AgentOperationDetails Resolve(AgentOperation operation)
     {
-        return operation.ToolName switch
-        {
-            AgentToolNames.BulkDelete => ResolveBulkDelete(operation),
-            _ => throw new InvalidOperationException(
-                $"No details resolver for tool '{operation.ToolName}'.")
-        };
-    }
+        if (operation.ToolName == AgentToolNames.BulkDelete)
+            return bulkDelete.Resolve(operation);
 
-    private BulkDeleteOperationDetails ResolveBulkDelete(AgentOperation operation)
-    {
-        using var document = JsonDocument.Parse(operation.ParamsJson);
-        var root = document.RootElement;
+        if (operation.ToolName == AgentToolNames.DeleteShareLink)
+            return deleteShareLink.Resolve(operation);
 
-        var fileExternalIds = ReadStringArray(root, "fileExternalIds");
+        if (operation.ToolName == AgentToolNames.RenameFolder)
+            return renameFolder.Resolve(operation);
 
-        var items = auditLogService.GetBulkItemsContext(
-            folderExternalIds: ReadStringArray(root, "folderExternalIds"),
-            fileExternalIds: fileExternalIds,
-            fileUploadExternalIds: []);
+        if (operation.ToolName == AgentToolNames.RenameFile)
+            return renameFile.Resolve(operation);
 
-        var parentFolderByFile = GetParentFolders(fileExternalIds);
+        if (operation.ToolName == AgentToolNames.CreateFolder)
+            return createFolder.Resolve(operation);
 
-        return new BulkDeleteOperationDetails
-        {
-            Folders = items.Folders
-                .Select(folder => new BulkDeleteOperationDetails.FolderToDelete
-                {
-                    ExternalId = folder.ExternalId.Value,
-                    Name = folder.Name.Encoded,
-                    Path = BuildPath(folder.FolderPath)
-                })
-                .ToList(),
+        if (operation.ToolName == AgentToolNames.MoveItems)
+            return moveItems.Resolve(operation);
 
-            Files = items.Files
-                .Select(file => new BulkDeleteOperationDetails.FileToDelete
-                {
-                    ExternalId = file.ExternalId.Value,
-                    FolderExternalId = parentFolderByFile.GetValueOrDefault(file.ExternalId.Value),
-                    Name = $"{file.Name.Encoded}{file.Extension.Encoded}",
-                    Path = BuildPath(file.FolderPath)
-                })
-                .ToList()
-        };
-    }
+        if (operation.ToolName == AgentToolNames.CreateFile)
+            return createFile.Resolve(operation);
 
-    private Dictionary<string, string?> GetParentFolders(List<string> fileExternalIds)
-    {
-        if (fileExternalIds.Count == 0)
-            return [];
+        if (operation.ToolName == AgentToolNames.RenameWorkspace)
+            return renameWorkspace.Resolve(operation);
 
-        using var connection = plikShareDb.OpenConnection();
+        if (operation.ToolName == AgentToolNames.CreateShareLink)
+            return createShareLink.Resolve(operation);
 
-        var rows = connection
-            .Cmd(
-                sql: """
-                     SELECT fi.fi_external_id, parent.fo_external_id
-                     FROM fi_files AS fi
-                     LEFT JOIN fo_folders AS parent ON fi.fi_folder_id = parent.fo_id
-                     WHERE fi.fi_external_id IN (SELECT value FROM json_each($fileExternalIds))
-                     """,
-                readRowFunc: reader => new
-                {
-                    FileExternalId = reader.GetString(0),
-                    FolderExternalId = reader.GetStringOrNull(1)
-                })
-            .WithParameter("$fileExternalIds", Json.Serialize(fileExternalIds))
-            .Execute();
+        if (operation.ToolName == AgentToolNames.UpdateShareLink)
+            return updateShareLink.Resolve(operation);
 
-        return rows.ToDictionary(
-            row => row.FileExternalId,
-            row => row.FolderExternalId);
-    }
+        if (operation.ToolName == AgentToolNames.CreateWorkspace)
+            return createWorkspace.Resolve(operation);
 
-    private static string? BuildPath(List<Core.Encryption.EncodedMetadataValue>? path) =>
-        path is null or { Count: 0 }
-            ? null
-            : string.Join(" / ", path.Select(segment => segment.Encoded));
+        if (operation.ToolName == AgentToolNames.ReadFile)
+            return readFile.Resolve(operation);
 
-    private static List<string> ReadStringArray(JsonElement root, string propertyName)
-    {
-        if (!root.TryGetProperty(propertyName, out var array) || array.ValueKind != JsonValueKind.Array)
-            return [];
+        if (operation.ToolName == AgentToolNames.GetFile)
+            return getFile.Resolve(operation);
 
-        return array
-            .EnumerateArray()
-            .Select(element => element.GetString())
-            .Where(value => value is not null)
-            .Select(value => value!)
-            .ToList();
+        if (operation.ToolName == AgentToolNames.GetFileDownloadLink)
+            return getFileDownloadLink.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.ListWorkspaces)
+            return listWorkspaces.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.ListStorages)
+            return listStorages.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.ListShareLinks)
+            return listShareLinks.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.GetShareLink)
+            return getShareLink.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.Search)
+            return search.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.ListWorkspaceContent)
+            return listWorkspaceContent.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.GetBulkDownloadLink)
+            return getBulkDownloadLink.Resolve(operation);
+
+        throw new InvalidOperationException(
+            $"No details resolver for tool '{operation.ToolName}'.");
     }
 }

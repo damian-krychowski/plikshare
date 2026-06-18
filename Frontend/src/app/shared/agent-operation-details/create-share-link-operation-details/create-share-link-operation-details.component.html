@@ -1,0 +1,84 @@
+<div class="op-details__section-title">
+    Share link — create
+</div>
+
+<div class="op-details__link-name">{{ details().name }}</div>
+
+@if(details().sharedFolders.length > 0) {
+    <div class="op-details__section-title">Shared folders</div>
+
+    @for(folder of details().sharedFolders; track folder.externalId) {
+        <div class="op-details__item"
+            [class.op-details__item--clickable]="workspaceExternalId()"
+            (click)="openFolder(folder)">
+            <i class="icon icon-xl icon-nucleo-folder op-details__icon"></i>
+            <div class="op-details__text">
+                <div class="op-details__name">{{ folder.name }}</div>
+                @if(folder.path) {
+                    <div class="op-details__path">{{ folder.path }}</div>
+                }
+            </div>
+        </div>
+    }
+}
+
+@if(details().sharedFiles.length > 0) {
+    <div class="op-details__section-title">Shared files</div>
+
+    @for(file of details().sharedFiles; track file.externalId) {
+        <div class="op-details__item">
+            <i class="icon icon-xl icon-nucleo-file op-details__icon"></i>
+            <div class="op-details__text">
+                <div class="op-details__name">{{ file.name }}</div>
+                @if(file.path) {
+                    <div class="op-details__path">{{ file.path }}</div>
+                }
+            </div>
+        </div>
+    }
+}
+
+@if(details().excludedFolders.length > 0 || details().excludedFiles.length > 0) {
+    <div class="op-details__section-title">Excluded</div>
+
+    @for(folder of details().excludedFolders; track folder.externalId) {
+        <div class="op-details__item"
+            [class.op-details__item--clickable]="workspaceExternalId()"
+            (click)="openFolder(folder)">
+            <i class="icon icon-xl icon-nucleo-folder op-details__icon"></i>
+            <div class="op-details__text">
+                <div class="op-details__name">{{ folder.name }}</div>
+                @if(folder.path) {
+                    <div class="op-details__path">{{ folder.path }}</div>
+                }
+            </div>
+        </div>
+    }
+
+    @for(file of details().excludedFiles; track file.externalId) {
+        <div class="op-details__item">
+            <i class="icon icon-xl icon-nucleo-file op-details__icon"></i>
+            <div class="op-details__text">
+                <div class="op-details__name">{{ file.name }}</div>
+                @if(file.path) {
+                    <div class="op-details__path">{{ file.path }}</div>
+                }
+            </div>
+        </div>
+    }
+}
+
+<div class="op-details__settings">
+    <div class="op-details__setting">
+        <span class="op-details__setting-label">Expiry</span>
+        <span>{{ details().expiresAt ? (details().expiresAt | date:'medium') : 'No expiry' }}</span>
+    </div>
+    <div class="op-details__setting">
+        <span class="op-details__setting-label">Downloads</span>
+        <span>{{ details().maxDownloads !== null ? details().maxDownloads : 'Unlimited' }}</span>
+    </div>
+    <div class="op-details__setting">
+        <span class="op-details__setting-label">Password</span>
+        <span>{{ details().hasPassword ? 'Yes' : 'No' }}</span>
+    </div>
+</div>

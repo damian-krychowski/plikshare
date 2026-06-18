@@ -2,15 +2,10 @@ using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Operations;
 using PlikShare.Agents.Tools;
-using PlikShare.AuditLog;
-using PlikShare.Core.CorrelationId;
-using PlikShare.Mcp.Workspaces.Create.Contracts;
-using PlikShare.Storages;
-using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Id;
-using PlikShare.Workspaces.Create;
-using Audit = PlikShare.AuditLog.Details.Audit;
+using PlikShare.Core.Clock;
+using PlikShare.Core.Utils;
 
 namespace PlikShare.Mcp.Workspaces.Create;
 
@@ -21,12 +16,15 @@ public class CreateWorkspaceTool
     [Description("Creates a new workspace owned by this agent, on the given storage. The agent must have " +
                  "the 'add workspace' permission and access to the storage. Use list_storages to discover " +
                  "the storages the agent can use. Storages with full client-side encryption are not " +
-                 "supported. Returns the new workspace's external id.")]
-    public static async Task<CreateWorkspaceResponseDto> Execute(
+                 "supported. Returns the new workspace's external id. If this tool requires approval the " +
+                 "call returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals " +
+                 "and, once approved, call execute_operation to run it.")]
+    public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
-        StorageClientStore storageClientStore,
-        CreateWorkspaceQuery createWorkspaceQuery,
-        AuditLogService auditLogService,
+        CreateWorkspaceAgentOperation createWorkspaceOperation,
+        AgentOperationLedger operationLedger,
+        AgentOperationsOptions operationsOptions,
+        IClock clock,
         [Description("Name for the new workspace.")]
         string name,
         [Description("External id of the storage to create the workspace on. Use list_storages to find it.")]
@@ -34,70 +32,49 @@ public class CreateWorkspaceTool
         CancellationToken cancellationToken = default)
     {
         var httpContext = httpContextAccessor.HttpContext!;
-
         var agent = await httpContext.GetAgentContext();
 
-        if (!agent.HasAdminRole && !agent.Permissions.CanAddWorkspace)
-            throw new McpException(
-                "This agent does not have permission to create workspaces.");
-
-        var hasStorage = storageClientStore.TryGetClient(
-            externalId: StorageExtId.Parse(storageExternalId),
-            client: out var storage);
-
-        if (!hasStorage)
-            throw new McpException(
-                $"Storage '{storageExternalId}' was not found.");
-
-        if (!agent.CanAccessStorage(storage.StorageId))
-            throw new McpException(
-                $"This agent does not have access to storage '{storageExternalId}'.");
-
-        if (storage.EncryptionType == StorageEncryptionType.Full)
-            throw new McpException(
-                $"Storage '{storageExternalId}' uses full client-side encryption, which agents cannot use. " +
-                "Pick a storage without full encryption.");
-
-        var result = await createWorkspaceQuery.Execute(
-            storage: storage,
-            agent: agent,
-            name: name,
-            correlationId: httpContext.GetCorrelationId(),
-            cancellationToken: cancellationToken);
-
-        switch (result.Code)
+        var parameters = new CreateWorkspaceParams
         {
-            case CreateWorkspaceQuery.ResultCode.Ok:
-                await auditLogService.LogWithStorageContext(
-                    storageExternalId: storage.ExternalId,
-                    buildEntry: storageRef => Audit.Workspace.CreatedEntry(
-                        actor: httpContext.GetAuditLogActorContext(),
-                        storage: storageRef,
-                        workspace: new Audit.WorkspaceRef
-                        {
-                            ExternalId = result.Workspace.ExternalId,
-                            Name = name
-                        },
-                        maxSizeInBytes: result.Workspace.MaxSizeInBytes,
-                        bucketName: result.Workspace.BucketName),
-                    cancellationToken);
+            Name = name,
+            StorageExternalId = storageExternalId
+        };
 
-                return new CreateWorkspaceResponseDto
-                {
-                    WorkspaceExternalId = result.Workspace.ExternalId.Value
-                };
+        var definition = AgentToolCatalog.TryGet(AgentToolNames.CreateWorkspace)!;
 
-            case CreateWorkspaceQuery.ResultCode.MaxNumberOfWorkspacesReached:
-                throw new McpException(
-                    "This agent has reached its maximum number of workspaces.");
+        // create_workspace is an instance-level tool with no workspace argument, so there is no
+        // per-workspace override — availability comes from the 'add workspace' permission.
+        var effective = AgentToolCatalog.Resolve(
+            agent,
+            definition);
 
-            case CreateWorkspaceQuery.ResultCode.StorageNotFound:
-                throw new McpException(
-                    $"Storage '{storageExternalId}' was not found.");
+        if (!effective.IsUsable)
+            throw new McpException("The create_workspace tool is not enabled for this agent.");
 
-            default:
-                throw new McpException(
-                    $"Unexpected result while creating workspace: {result.Code}.");
+        if (effective.RequiresApproval)
+        {
+            var expiresAt = clock.UtcNow.AddHours(
+                operationsOptions.ApprovalWindowHours);
+
+            var operationId = await operationLedger.CreatePending(
+                agentId: agent.Id,
+                workspaceId: null,
+                toolName: AgentToolNames.CreateWorkspace,
+                paramsJson: Json.Serialize(parameters),
+                expiresAt: expiresAt,
+                cancellationToken: cancellationToken);
+
+            return AgentToolResponse.WaitsForApproval(
+                approvalRequestId: operationId.Value,
+                expiresAt: expiresAt);
         }
+
+        var result = await createWorkspaceOperation.Execute(
+            httpContext,
+            parameters,
+            cancellationToken);
+
+        return AgentToolResponse.Executed(
+            result);
     }
 }

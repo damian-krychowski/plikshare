@@ -1,0 +1,20 @@
+@if(details().currentName) {
+    <div class="op-details__section-title">
+        Workspace — rename
+    </div>
+
+    <div class="op-details__item">
+        <i class="icon icon-xl icon-nucleo-workspace op-details__icon"></i>
+        <div class="op-details__text">
+            <div class="op-details__name">
+                <span class="op-details__old-name">{{ details().currentName }}</span>
+                <span class="op-details__arrow">&#8594;</span>
+                {{ details().newName }}
+            </div>
+        </div>
+    </div>
+} @else {
+    <div class="explanation">
+        This workspace no longer exists.
+    </div>
+}

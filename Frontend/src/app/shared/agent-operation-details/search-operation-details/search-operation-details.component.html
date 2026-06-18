@@ -1,0 +1,21 @@
+<div class="op-details__section-title">
+    Search
+</div>
+
+@if(details().nameContains.length > 0 || details().types.length > 0 || details().extensions.length > 0) {
+    <ul class="op-details__filters">
+        @if(details().nameContains.length > 0) {
+            <li>name contains: {{ details().nameContains.join(', ') }}</li>
+        }
+        @if(details().types.length > 0) {
+            <li>types: {{ details().types.join(', ') }}</li>
+        }
+        @if(details().extensions.length > 0) {
+            <li>extensions: {{ details().extensions.join(', ') }}</li>
+        }
+    </ul>
+} @else {
+    <div class="explanation">
+        Searches everything the agent can access.
+    </div>
+}

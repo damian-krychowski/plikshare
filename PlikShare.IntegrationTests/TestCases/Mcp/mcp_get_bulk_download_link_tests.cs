@@ -4,6 +4,7 @@ using System.Text.Json;
 using FluentAssertions;
 using ModelContextProtocol.Protocol;
 using PlikShare.Agents.Create.Contracts;
+using PlikShare.Agents.Tools.Contracts;
 using PlikShare.AuditLog;
 using PlikShare.Files.Id;
 using PlikShare.IntegrationTests.Infrastructure;
@@ -56,7 +57,7 @@ public class mcp_get_bulk_download_link_tests : TestFixture
         });
 
         //then
-        var url = json.GetProperty("url").GetString();
+        var url = json.GetProperty("result").GetProperty("url").GetString();
         url.Should().NotBeNullOrEmpty();
 
         // the link is a capability — it downloads the ZIP without any auth cookie
@@ -87,7 +88,7 @@ public class mcp_get_bulk_download_link_tests : TestFixture
         });
 
         //then
-        var url = json.GetProperty("url").GetString();
+        var url = json.GetProperty("result").GetProperty("url").GetString();
         var zipBytes = await Api.PreSignedFiles.DownloadFile(preSignedUrl: url!, cookie: null);
         var contents = ReadZipEntryContents(zipBytes);
         contents.Should().Contain("decrypted A");
@@ -188,6 +189,129 @@ public class mcp_get_bulk_download_link_tests : TestFixture
         (customExpiry - defaultExpiry).Should().BeGreaterThan(TimeSpan.FromMinutes(60));
     }
 
+    [Fact]
+    public async Task when_approval_required_the_call_waits_instead_of_creating_a_link()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(getBulkDownloadLinkRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+        await UploadTextFile("a.txt", "x", folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        //when
+        var pending = await CallTool(mcp, "get_bulk_download_link", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value,
+            ["folderExternalIds"] = new[] { folder.ExternalId.Value }
+        });
+
+        //then
+        pending.GetProperty("status").GetString().Should().Be("waits_for_approval");
+        pending.GetProperty("approvalRequestId").GetString().Should().StartWith("aop_");
+
+        (await OperationStatus(mcp, pending.GetProperty("approvalRequestId").GetString()!))
+            .Should().Be("pending");
+    }
+
+    [Fact]
+    public async Task approving_then_executing_creates_the_link()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(getBulkDownloadLinkRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+        await UploadTextFile("a.txt", "content A", folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        var pending = await CallTool(mcp, "get_bulk_download_link", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value,
+            ["folderExternalIds"] = new[] { folder.ExternalId.Value }
+        });
+        pending.GetProperty("status").GetString().Should().Be("waits_for_approval");
+        var approvalRequestId = pending.GetProperty("approvalRequestId").GetString()!;
+
+        //when
+        await Api.Agents.ApproveOperation(
+            externalId: agent.ExternalId,
+            operationExternalId: approvalRequestId,
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        var committed = await CallTool(mcp, "execute_operation", new Dictionary<string, object?>
+        {
+            ["approvalRequestId"] = approvalRequestId
+        });
+
+        //then
+        committed.GetProperty("status").GetString().Should().Be("executed");
+
+        var url = committed.GetProperty("result").GetProperty("url").GetString();
+        url.Should().NotBeNullOrEmpty();
+
+        var zipBytes = await Api.PreSignedFiles.DownloadFile(preSignedUrl: url!, cookie: null);
+        ReadZipEntryContents(zipBytes).Should().Contain("content A");
+    }
+
+    [Fact]
+    public async Task operation_details_resolve_the_selected_items()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(getBulkDownloadLinkRequiresApproval: true);
+        var folder = await CreateFolder("exports", workspace, owner);
+        await UploadTextFile("a.txt", "x", folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        var pending = await CallTool(mcp, "get_bulk_download_link", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value,
+            ["folderExternalIds"] = new[] { folder.ExternalId.Value },
+            ["expiresInMinutes"] = 30
+        });
+        var approvalRequestId = pending.GetProperty("approvalRequestId").GetString()!;
+
+        //when
+        var details = await Api.Agents.GetOperationDetails(approvalRequestId, owner.Cookie);
+
+        //then
+        details.GetProperty("$type").GetString().Should().Be("get_bulk_download_link");
+        details.GetProperty("expiresInMinutes").GetInt32().Should().Be(30);
+        details.GetProperty("folders").EnumerateArray()
+            .Select(f => f.GetProperty("name").GetString())
+            .Should().Contain("exports");
+    }
+
+    [Fact]
+    public async Task workspace_override_can_require_approval()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(getBulkDownloadLinkRequiresApproval: false);
+        var folder = await CreateFolder(workspace, owner);
+        await UploadTextFile("a.txt", "x", folder, workspace, owner);
+
+        await Api.Agents.UpdateWorkspaceToolOverride(
+            externalId: agent.ExternalId,
+            workspaceExternalId: workspace.ExternalId,
+            toolName: "get_bulk_download_link",
+            request: new UpdateAgentWorkspaceToolOverrideRequestDto { IsEnabled = null, RequiresApproval = true },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        //when
+        var result = await CallTool(mcp, "get_bulk_download_link", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value,
+            ["folderExternalIds"] = new[] { folder.ExternalId.Value }
+        });
+
+        //then — the workspace override wins
+        result.GetProperty("status").GetString().Should().Be("waits_for_approval");
+    }
+
     private static List<string> ReadZipEntryContents(byte[] zipBytes)
     {
         using var archive = new ZipArchive(new MemoryStream(zipBytes), ZipArchiveMode.Read);
@@ -206,7 +330,7 @@ public class mcp_get_bulk_download_link_tests : TestFixture
 
     private static DateTimeOffset ParseExpiry(JsonElement json)
     {
-        return DateTimeOffset.Parse(json.GetProperty("expiresAt").GetString()!);
+        return DateTimeOffset.Parse(json.GetProperty("result").GetProperty("expiresAt").GetString()!);
     }
 
     private Task<AppFile> UploadTextFile(
@@ -226,13 +350,25 @@ public class mcp_get_bulk_download_link_tests : TestFixture
     }
 
     private async Task<(AppSignedInUser Owner, AppWorkspace Workspace, CreateAgentResponseDto Agent)> CreateOwnerWorkspaceAgent(
-        bool grantWorkspaceAccess = true)
+        bool grantWorkspaceAccess = true,
+        bool getBulkDownloadLinkRequiresApproval = false)
     {
         var owner = await SignIn(Users.AppOwner);
         var workspace = await CreateWorkspace(owner);
 
         var agent = await Api.Agents.Create(
             request: new CreateAgentRequestDto { Name = Random.Name("Agent") },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        await Api.Agents.UpdateToolConfig(
+            externalId: agent.ExternalId,
+            toolName: "get_bulk_download_link",
+            request: new UpdateAgentToolConfigRequestDto
+            {
+                IsEnabled = true,
+                RequiresApproval = getBulkDownloadLinkRequiresApproval
+            },
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
 
@@ -244,6 +380,16 @@ public class mcp_get_bulk_download_link_tests : TestFixture
                 antiforgery: owner.Antiforgery);
 
         return (owner, workspace, agent);
+    }
+
+    private static async Task<string?> OperationStatus(McpAgentSession mcp, string approvalRequestId)
+    {
+        var approvals = await CallTool(mcp, "check_approvals", new Dictionary<string, object?>());
+
+        return approvals.GetProperty("approvals").EnumerateArray()
+            .Where(a => a.GetProperty("approvalRequestId").GetString() == approvalRequestId)
+            .Select(a => a.GetProperty("status").GetString())
+            .FirstOrDefault();
     }
 
     private async Task<(AppSignedInUser Owner, AppWorkspace Workspace, CreateAgentResponseDto Agent)> CreateOwnerManagedWorkspaceAgent()

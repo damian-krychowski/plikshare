@@ -69,7 +69,7 @@ public class mcp_bulk_delete_tests : TestFixture
             ["workspaceExternalId"] = workspace.ExternalId.Value
         });
 
-        root.GetProperty("entries").EnumerateArray()
+        root.GetProperty("result").GetProperty("entries").EnumerateArray()
             .Select(e => e.GetProperty("externalId").GetString())
             .Should().NotContain(folderA.ExternalId.Value);
     }
@@ -102,7 +102,7 @@ public class mcp_bulk_delete_tests : TestFixture
             ["folderExternalId"] = folder.ExternalId.Value
         });
 
-        content.GetProperty("entries").EnumerateArray()
+        content.GetProperty("result").GetProperty("entries").EnumerateArray()
             .Select(e => e.GetProperty("externalId").GetString())
             .Should().Equal(keptFile.ExternalId.Value);
     }
@@ -347,7 +347,7 @@ public class mcp_bulk_delete_tests : TestFixture
             ["workspaceExternalId"] = workspace.ExternalId.Value
         });
 
-        root.GetProperty("entries").EnumerateArray()
+        root.GetProperty("result").GetProperty("entries").EnumerateArray()
             .Select(e => e.GetProperty("externalId").GetString())
             .Should().NotContain(folder.ExternalId.Value);
     }
@@ -691,7 +691,7 @@ public class mcp_bulk_delete_tests : TestFixture
             ["workspaceExternalId"] = workspace.ExternalId.Value
         });
 
-        root.GetProperty("entries").EnumerateArray()
+        root.GetProperty("result").GetProperty("entries").EnumerateArray()
             .Select(e => e.GetProperty("externalId").GetString())
             .Should().Contain(folder.ExternalId.Value);
     }

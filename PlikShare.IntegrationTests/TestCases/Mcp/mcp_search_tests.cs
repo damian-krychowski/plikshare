@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentAssertions;
 using ModelContextProtocol.Protocol;
 using PlikShare.Agents.Create.Contracts;
+using PlikShare.Agents.Tools.Contracts;
 using PlikShare.AuditLog;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -124,7 +125,7 @@ public class mcp_search_tests : TestFixture
         });
 
         //then
-        json.GetProperty("entries").EnumerateArray().Should().HaveCount(1);
+        json.GetProperty("result").GetProperty("entries").EnumerateArray().Should().HaveCount(1);
         Names(json).Should().BeEquivalentTo("invoice");
     }
 
@@ -228,7 +229,7 @@ public class mcp_search_tests : TestFixture
         });
 
         //then
-        inFuture.GetProperty("entries").EnumerateArray().Should().BeEmpty();
+        inFuture.GetProperty("result").GetProperty("entries").EnumerateArray().Should().BeEmpty();
         Names(inPast).Should().Contain("recent");
     }
 
@@ -474,6 +475,201 @@ public class mcp_search_tests : TestFixture
         result.IsError.Should().Be(true);
     }
 
+    [Fact]
+    public async Task when_approval_required_the_call_waits_instead_of_searching()
+    {
+        //given
+        var (_, _, agent) = await CreateOwnerWorkspaceAgent(searchRequiresApproval: true);
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        //when
+        var pending = await CallTool(mcp, "search", new Dictionary<string, object?>
+        {
+            ["types"] = new[] { "file" },
+            ["nameContains"] = new[] { "alpha" }
+        });
+
+        //then
+        pending.GetProperty("status").GetString().Should().Be("waits_for_approval");
+        pending.GetProperty("approvalRequestId").GetString().Should().StartWith("aop_");
+
+        (await OperationStatus(mcp, pending.GetProperty("approvalRequestId").GetString()!))
+            .Should().Be("pending");
+    }
+
+    [Fact]
+    public async Task approving_then_executing_returns_the_results()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(searchRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+        await UploadTextFile("alpha.txt", "a", "text/plain", folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        var pending = await CallTool(mcp, "search", new Dictionary<string, object?>
+        {
+            ["types"] = new[] { "file" },
+            ["nameContains"] = new[] { "alpha" }
+        });
+        pending.GetProperty("status").GetString().Should().Be("waits_for_approval");
+        var approvalRequestId = pending.GetProperty("approvalRequestId").GetString()!;
+
+        //when
+        await Api.Agents.ApproveOperation(
+            externalId: agent.ExternalId,
+            operationExternalId: approvalRequestId,
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        var committed = await CallTool(mcp, "execute_operation", new Dictionary<string, object?>
+        {
+            ["approvalRequestId"] = approvalRequestId
+        });
+
+        //then
+        committed.GetProperty("status").GetString().Should().Be("executed");
+        Names(committed).Should().Contain("alpha");
+    }
+
+    [Fact]
+    public async Task operation_details_surface_the_key_filters()
+    {
+        //given
+        var (owner, _, agent) = await CreateOwnerWorkspaceAgent(searchRequiresApproval: true);
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        var pending = await CallTool(mcp, "search", new Dictionary<string, object?>
+        {
+            ["types"] = new[] { "file" },
+            ["nameContains"] = new[] { "invoice" },
+            ["extensions"] = new[] { "pdf" }
+        });
+        var approvalRequestId = pending.GetProperty("approvalRequestId").GetString()!;
+
+        //when
+        var details = await Api.Agents.GetOperationDetails(approvalRequestId, owner.Cookie);
+
+        //then
+        details.GetProperty("$type").GetString().Should().Be("search");
+        details.GetProperty("nameContains").EnumerateArray()
+            .Select(e => e.GetString()).Should().Contain("invoice");
+        details.GetProperty("extensions").EnumerateArray()
+            .Select(e => e.GetString()).Should().Contain("pdf");
+        details.GetProperty("types").EnumerateArray()
+            .Select(e => e.GetString()).Should().Contain("file");
+    }
+
+    [Fact]
+    public async Task search_disabled_in_a_workspace_excludes_it_from_the_scope()
+    {
+        //given — two accessible workspaces, search disabled in one of them via a per-workspace override
+        var owner = await SignIn(Users.AppOwner);
+
+        var workspaceA = await CreateWorkspace(owner);
+        var workspaceB = await CreateWorkspace(owner);
+
+        var agent = await Api.Agents.Create(
+            request: new CreateAgentRequestDto { Name = Random.Name("Agent") },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        await GrantAccess(owner, agent, workspaceA);
+        await GrantAccess(owner, agent, workspaceB);
+
+        var folderA = await CreateFolder(workspaceA, owner);
+        var folderB = await CreateFolder(workspaceB, owner);
+        await UploadTextFile("in-a.txt", "x", "text/plain", folderA, workspaceA, owner);
+        await UploadTextFile("in-b.txt", "x", "text/plain", folderB, workspaceB, owner);
+
+        await Api.Agents.UpdateWorkspaceToolOverride(
+            externalId: agent.ExternalId,
+            workspaceExternalId: workspaceA.ExternalId,
+            toolName: "search",
+            request: new UpdateAgentWorkspaceToolOverrideRequestDto { IsEnabled = false, RequiresApproval = null },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        //when
+        var json = await CallTool(mcp, "search", new Dictionary<string, object?>
+        {
+            ["types"] = new[] { "file" },
+            ["extensions"] = new[] { "txt" }
+        });
+
+        //then — workspace A dropped out of the scope, only workspace B's file shows up
+        var names = Names(json);
+        names.Should().Contain("in-b");
+        names.Should().NotContain("in-a");
+    }
+
+    [Fact]
+    public async Task search_requires_approval_if_any_accessible_workspace_requires_it()
+    {
+        //given — approval is required for search in just one of the agent's accessible workspaces
+        var owner = await SignIn(Users.AppOwner);
+
+        var workspaceA = await CreateWorkspace(owner);
+        var workspaceB = await CreateWorkspace(owner);
+
+        var agent = await Api.Agents.Create(
+            request: new CreateAgentRequestDto { Name = Random.Name("Agent") },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        await GrantAccess(owner, agent, workspaceA);
+        await GrantAccess(owner, agent, workspaceB);
+
+        await Api.Agents.UpdateWorkspaceToolOverride(
+            externalId: agent.ExternalId,
+            workspaceExternalId: workspaceA.ExternalId,
+            toolName: "search",
+            request: new UpdateAgentWorkspaceToolOverrideRequestDto { IsEnabled = null, RequiresApproval = true },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        //when
+        var result = await CallTool(mcp, "search", new Dictionary<string, object?>
+        {
+            ["types"] = new[] { "file" }
+        });
+
+        //then — one workspace requiring approval gates the whole search
+        result.GetProperty("status").GetString().Should().Be("waits_for_approval");
+    }
+
+    [Fact]
+    public async Task search_disabled_in_every_accessible_workspace_is_not_usable()
+    {
+        //given — the agent's only workspace has search disabled
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent();
+
+        await Api.Agents.UpdateWorkspaceToolOverride(
+            externalId: agent.ExternalId,
+            workspaceExternalId: workspace.ExternalId,
+            toolName: "search",
+            request: new UpdateAgentWorkspaceToolOverrideRequestDto { IsEnabled = false, RequiresApproval = null },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        //when
+        var result = await mcp.Client.CallToolAsync(
+            toolName: "search",
+            arguments: new Dictionary<string, object?>
+            {
+                ["types"] = new[] { "file" }
+            });
+
+        //then
+        result.IsError.Should().Be(true);
+    }
+
     private async Task<List<string>> SearchAllNames(
         McpAgentSession mcp,
         Dictionary<string, object?> arguments)
@@ -490,10 +686,10 @@ public class mcp_search_tests : TestFixture
 
             names.AddRange(Names(json));
 
-            if (!json.GetProperty("hasMore").GetBoolean())
+            if (!json.GetProperty("result").GetProperty("hasMore").GetBoolean())
                 return names;
 
-            cursor = json.GetProperty("nextCursor").GetString();
+            cursor = json.GetProperty("result").GetProperty("nextCursor").GetString();
         }
 
         throw new InvalidOperationException("search did not finish paging within the page limit");
@@ -501,21 +697,21 @@ public class mcp_search_tests : TestFixture
 
     private static List<string> Names(JsonElement json)
     {
-        return json.GetProperty("entries").EnumerateArray()
+        return json.GetProperty("result").GetProperty("entries").EnumerateArray()
             .Select(e => e.GetProperty("name").GetString()!)
             .ToList();
     }
 
     private static List<string> Types(JsonElement json)
     {
-        return json.GetProperty("entries").EnumerateArray()
+        return json.GetProperty("result").GetProperty("entries").EnumerateArray()
             .Select(e => e.GetProperty("type").GetString()!)
             .ToList();
     }
 
     private static List<string> ExternalIds(JsonElement json)
     {
-        return json.GetProperty("entries").EnumerateArray()
+        return json.GetProperty("result").GetProperty("entries").EnumerateArray()
             .Select(e => e.GetProperty("externalId").GetString()!)
             .ToList();
     }
@@ -547,7 +743,8 @@ public class mcp_search_tests : TestFixture
     }
 
     private async Task<(AppSignedInUser Owner, AppWorkspace Workspace, CreateAgentResponseDto Agent)> CreateOwnerWorkspaceAgent(
-        bool grantWorkspaceAccess = true)
+        bool grantWorkspaceAccess = true,
+        bool searchRequiresApproval = false)
     {
         var owner = await SignIn(Users.AppOwner);
         var workspace = await CreateWorkspace(owner);
@@ -557,10 +754,31 @@ public class mcp_search_tests : TestFixture
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
 
+        await Api.Agents.UpdateToolConfig(
+            externalId: agent.ExternalId,
+            toolName: "search",
+            request: new UpdateAgentToolConfigRequestDto
+            {
+                IsEnabled = true,
+                RequiresApproval = searchRequiresApproval
+            },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
         if (grantWorkspaceAccess)
             await GrantAccess(owner, agent, workspace);
 
         return (owner, workspace, agent);
+    }
+
+    private static async Task<string?> OperationStatus(McpAgentSession mcp, string approvalRequestId)
+    {
+        var approvals = await CallTool(mcp, "check_approvals", new Dictionary<string, object?>());
+
+        return approvals.GetProperty("approvals").EnumerateArray()
+            .Where(a => a.GetProperty("approvalRequestId").GetString() == approvalRequestId)
+            .Select(a => a.GetProperty("status").GetString())
+            .FirstOrDefault();
     }
 
     private static async Task<JsonElement> CallTool(

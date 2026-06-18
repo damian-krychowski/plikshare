@@ -1,0 +1,45 @@
+<div class="op-details__section-title">
+    Share link — update settings
+</div>
+
+<div class="op-details__item">
+    <i class="icon icon-xl icon-nucleo-share op-details__icon"></i>
+    <div class="op-details__text">
+        <div class="op-details__name">{{ details().currentName ?? details().shareLinkExternalId }}</div>
+    </div>
+</div>
+
+<div class="op-details__section-title">Changes</div>
+
+<ul class="op-details__changes">
+    @if(details().updateName) {
+        <li>Rename to "{{ details().newName }}"</li>
+    }
+    @if(details().updateExpiration) {
+        <li>
+            @if(details().expiresAt) {
+                Set expiry to {{ details().expiresAt | date:'medium' }}
+            } @else {
+                Remove expiry
+            }
+        </li>
+    }
+    @if(details().updateMaxDownloads) {
+        <li>
+            @if(details().maxDownloads !== null) {
+                Set download limit to {{ details().maxDownloads }}
+            } @else {
+                Remove download limit (unlimited)
+            }
+        </li>
+    }
+    @if(details().updatePassword) {
+        <li>
+            @if(details().passwordSet) {
+                Set a new password
+            } @else {
+                Remove the password
+            }
+        </li>
+    }
+</ul>

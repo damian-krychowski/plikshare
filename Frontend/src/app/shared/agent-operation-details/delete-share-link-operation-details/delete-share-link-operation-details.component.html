@@ -1,0 +1,20 @@
+@if(details().name) {
+    <div class="op-details__section-title">
+        Share link — its public URL stops working
+    </div>
+
+    <div class="op-details__item">
+        <i class="icon icon-xl icon-nucleo-share op-details__icon"></i>
+        <div class="op-details__text">
+            <div class="op-details__name">{{ details().name }}</div>
+        </div>
+    </div>
+
+    <div class="explanation">
+        The shared files and folders are not deleted — only the public link is removed.
+    </div>
+} @else {
+    <div class="explanation">
+        This share link no longer exists.
+    </div>
+}

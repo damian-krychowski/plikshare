@@ -56,20 +56,23 @@ public sealed record EffectiveAgentToolConfig(
 
 public static class AgentToolCatalog
 {
-    // A tool can carry a per-workspace override only when its invocation already names the target
-    // workspace (an explicit workspaceExternalId argument), so the gate can resolve the override
-    // before execution. Tools that resolve their target across workspaces (by fileExternalId, or a
-    // multi-workspace search) are still grouped under Workspace for display, but are not overridable.
+    // Every workspace-scoped tool can carry a per-workspace override. When the invocation names the
+    // workspace explicitly (a workspaceExternalId argument) the gate resolves the override directly.
+    // When it does not, the tool resolves the workspace itself before gating: file-id tools (get_file,
+    // read_file, get_file_download_link) derive it from the file's workspace; search has no single
+    // workspace, so it folds each workspace's override into the search instead — a workspace where
+    // search is disabled drops out of the scope, and if any in-scope workspace requires approval the
+    // whole search does. Only instance-level tools (listing/creating workspaces) are not overridable.
     public static readonly IReadOnlyList<AgentToolDefinition> All =
     [
         Read(AgentToolNames.ListWorkspaces, "Lists the workspaces the agent can access.", AgentToolGroup.Instance, overridable: false),
         Read(AgentToolNames.ListStorages, "Lists the storages the agent can create workspaces on.", AgentToolGroup.Instance, overridable: false),
         Write(AgentToolNames.CreateWorkspace, "Creates a new workspace owned by the agent.", AgentToolGroup.Instance, overridable: false, permission: AgentToolPermission.AddWorkspace),
 
-        Read(AgentToolNames.GetFile, "Reads a single file's details — name, size, type and where it lives — by its id.", AgentToolGroup.Workspace, overridable: false),
-        Read(AgentToolNames.ReadFile, "Reads the text content of a file.", AgentToolGroup.Workspace, overridable: false),
-        Read(AgentToolNames.Search, "Searches for files and folders across the workspaces the agent can access.", AgentToolGroup.Workspace, overridable: false),
-        Read(AgentToolNames.GetFileDownloadLink, "Creates a short-lived link to download a single file.", AgentToolGroup.Workspace, overridable: false),
+        Read(AgentToolNames.GetFile, "Reads a single file's details — name, size, type and where it lives — by its id.", AgentToolGroup.Workspace, overridable: true),
+        Read(AgentToolNames.ReadFile, "Reads the text content of a file.", AgentToolGroup.Workspace, overridable: true),
+        Read(AgentToolNames.Search, "Searches for files and folders across the workspaces the agent can access.", AgentToolGroup.Workspace, overridable: true),
+        Read(AgentToolNames.GetFileDownloadLink, "Creates a short-lived link to download a single file.", AgentToolGroup.Workspace, overridable: true),
 
         Read(AgentToolNames.ListWorkspaceContent, "Lists the folders and files inside a workspace or one of its folders.", AgentToolGroup.Workspace, overridable: true),
         Read(AgentToolNames.ListShareLinks, "Lists the public share links of a workspace.", AgentToolGroup.Workspace, overridable: true),

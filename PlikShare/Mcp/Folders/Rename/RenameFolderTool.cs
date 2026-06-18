@@ -1,14 +1,13 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Operations;
 using PlikShare.Agents.Tools;
-using PlikShare.AuditLog;
-using PlikShare.Core.UserIdentity;
-using PlikShare.Folders.Id;
-using PlikShare.Folders.Rename;
+using PlikShare.Core.Clock;
+using PlikShare.Core.Utils;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Id;
-using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Mcp.Folders.Rename;
 
@@ -16,21 +15,27 @@ namespace PlikShare.Mcp.Folders.Rename;
 public class RenameFolderTool
 {
     [McpServerTool(Name = AgentToolNames.RenameFolder)]
-    [Description("Renames an existing folder in a workspace the agent has access to.")]
-    public static async Task Execute(
+    [Description("Renames an existing folder in a workspace the agent has access to. If this tool requires " +
+                 "approval the call returns status 'waits_for_approval' with an approvalRequestId — poll " +
+                 "check_approvals and, once approved, call execute_operation to run it.")]
+    public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
-        UpdateFolderNameQuery updateFolderNameQuery,
-        AuditLogService auditLogService,
+        AgentWorkspaceToolOverrideReader workspaceToolOverrideReader,
+        RenameFolderAgentOperation renameFolderOperation,
+        AgentOperationLedger operationLedger,
+        AgentOperationsOptions operationsOptions,
+        IClock clock,
         [Description("External id of the workspace.")]
         string workspaceExternalId,
         [Description("External id of the folder to rename.")]
         string folderExternalId,
         [Description("New name for the folder.")]
         string name,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         var httpContext = httpContextAccessor.HttpContext!;
+        var agent = await httpContext.GetAgentContext();
 
         var membership = await httpContext.GetWorkspaceAgentMembershipDetails(
             workspaceAgentMembershipCache,
@@ -40,39 +45,52 @@ public class RenameFolderTool
         var workspace = membership.Workspace;
         workspace.ThrowIfFullyEncrypted();
 
-        var folderId = FolderExtId.Parse(folderExternalId);
-
-        var resultCode = await updateFolderNameQuery.Execute(
-            workspace: workspace,
-            folderExternalId: folderId,
-            name: workspace.EncodeMetadata(
-                value: name,
-                workspaceEncryptionSession: null),
-            boxFolderId: null,
-            userIdentity: new AgentIdentity(membership.Agent.ExternalId),
-            isOperationAllowedByBoxPermissions: true,
-            cancellationToken: cancellationToken);
-
-        switch (resultCode)
+        var parameters = new RenameFolderParams
         {
-            case UpdateFolderNameQuery.ResultCode.Ok:
-                await auditLogService.LogWithFolderContext(
-                    folderExternalId: folderId,
-                    buildEntry: folderRef => Audit.Folder.NameUpdatedEntry(
-                        actor: httpContext.GetAuditLogActorContext(),
-                        workspace: workspace.ToAuditLogWorkspaceRef(),
-                        folder: folderRef),
-                    cancellationToken);
+            WorkspaceExternalId = workspaceExternalId,
+            FolderExternalId = folderExternalId,
+            Name = name
+        };
 
-                return;
+        var definition = AgentToolCatalog.TryGet(AgentToolNames.RenameFolder)!;
 
-            case UpdateFolderNameQuery.ResultCode.FolderNotFound:
-                throw new McpException(
-                    $"Folder '{folderExternalId}' was not found in workspace '{workspaceExternalId}'.");
+        var workspaceOverride = workspaceToolOverrideReader.TryGet(
+            agentId: agent.Id,
+            workspaceId: workspace.Id,
+            toolName: AgentToolNames.RenameFolder);
 
-            default:
-                throw new McpException(
-                    $"Unexpected result while renaming folder: {resultCode}.");
+        var effective = AgentToolCatalog.Resolve(
+            agent,
+            definition,
+            workspaceOverride);
+
+        if (!effective.IsUsable)
+            throw new McpException("The rename_folder tool is not enabled for this workspace.");
+
+        if (effective.RequiresApproval)
+        {
+            var expiresAt = clock.UtcNow.AddHours(
+                operationsOptions.ApprovalWindowHours);
+
+            var operationId = await operationLedger.CreatePending(
+                agentId: agent.Id,
+                workspaceId: workspace.Id,
+                toolName: AgentToolNames.RenameFolder,
+                paramsJson: Json.Serialize(parameters),
+                expiresAt: expiresAt,
+                cancellationToken: cancellationToken);
+
+            return AgentToolResponse.WaitsForApproval(
+                approvalRequestId: operationId.Value,
+                expiresAt: expiresAt);
         }
+
+        var result = await renameFolderOperation.Execute(
+            httpContext,
+            parameters,
+            cancellationToken);
+
+        return AgentToolResponse.Executed(
+            result);
     }
 }

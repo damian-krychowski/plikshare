@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentAssertions;
 using ModelContextProtocol.Protocol;
 using PlikShare.Agents.Create.Contracts;
+using PlikShare.Agents.Tools.Contracts;
 using PlikShare.AuditLog;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -33,7 +34,8 @@ public class mcp_update_share_link_tests : TestFixture
         var tools = await mcp.Client.ListToolsAsync();
 
         //then
-        tools.Select(t => t.Name).Should().Contain("update_share_link");
+        tools.Select(t => t.Name).Should().Contain(
+            ["update_share_link", "execute_operation", "check_approvals"]);
     }
 
     [Fact]
@@ -49,23 +51,22 @@ public class mcp_update_share_link_tests : TestFixture
         var linkId = await CreateShareLink(mcp, workspace, "original", fileExternalIds: [file.ExternalId.Value]);
 
         //when
-        var result = await mcp.Client.CallToolAsync(
-            toolName: "update_share_link",
-            arguments: new Dictionary<string, object?>
-            {
-                ["workspaceExternalId"] = workspace.ExternalId.Value,
-                ["shareLinkExternalId"] = linkId,
-                ["name"] = "renamed",
-                ["shouldUpdateExpiry"] = true,
-                ["expiresAt"] = FutureExpiry,
-                ["shouldUpdateMaxDownloads"] = true,
-                ["maxDownloads"] = 5,
-                ["shouldUpdatePassword"] = true,
-                ["password"] = "s3cret"
-            });
+        var result = await CallTool(mcp, "update_share_link", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value,
+            ["shareLinkExternalId"] = linkId,
+            ["name"] = "renamed",
+            ["shouldUpdateExpiry"] = true,
+            ["expiresAt"] = FutureExpiry,
+            ["shouldUpdateMaxDownloads"] = true,
+            ["maxDownloads"] = 5,
+            ["shouldUpdatePassword"] = true,
+            ["password"] = "s3cret"
+        });
 
         //then
-        result.IsError.Should().NotBe(true);
+        result.GetProperty("status").GetString().Should().Be("executed");
+        result.GetProperty("result").GetProperty("externalId").GetString().Should().Be(linkId);
 
         var json = await GetShareLink(mcp, workspace, linkId);
         json.GetProperty("name").GetString().Should().Be("renamed");
@@ -101,19 +102,17 @@ public class mcp_update_share_link_tests : TestFixture
         before.GetProperty("hasPassword").GetBoolean().Should().BeTrue();
 
         //when — flags true, values omitted => clear
-        var result = await mcp.Client.CallToolAsync(
-            toolName: "update_share_link",
-            arguments: new Dictionary<string, object?>
-            {
-                ["workspaceExternalId"] = workspace.ExternalId.Value,
-                ["shareLinkExternalId"] = linkId,
-                ["shouldUpdateExpiry"] = true,
-                ["shouldUpdateMaxDownloads"] = true,
-                ["shouldUpdatePassword"] = true
-            });
+        var result = await CallTool(mcp, "update_share_link", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value,
+            ["shareLinkExternalId"] = linkId,
+            ["shouldUpdateExpiry"] = true,
+            ["shouldUpdateMaxDownloads"] = true,
+            ["shouldUpdatePassword"] = true
+        });
 
         //then
-        result.IsError.Should().NotBe(true);
+        result.GetProperty("status").GetString().Should().Be("executed");
 
         var after = await GetShareLink(mcp, workspace, linkId);
         after.TryGetProperty("expiresAt", out _).Should().BeFalse("a cleared expiry is omitted from the response");
@@ -140,17 +139,15 @@ public class mcp_update_share_link_tests : TestFixture
             password: "pw");
 
         //when
-        var result = await mcp.Client.CallToolAsync(
-            toolName: "update_share_link",
-            arguments: new Dictionary<string, object?>
-            {
-                ["workspaceExternalId"] = workspace.ExternalId.Value,
-                ["shareLinkExternalId"] = linkId,
-                ["name"] = "after"
-            });
+        var result = await CallTool(mcp, "update_share_link", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value,
+            ["shareLinkExternalId"] = linkId,
+            ["name"] = "after"
+        });
 
         //then
-        result.IsError.Should().NotBe(true);
+        result.GetProperty("status").GetString().Should().Be("executed");
 
         var json = await GetShareLink(mcp, workspace, linkId);
         json.GetProperty("name").GetString().Should().Be("after");
@@ -225,6 +222,250 @@ public class mcp_update_share_link_tests : TestFixture
         result.IsError.Should().Be(true);
     }
 
+    [Fact]
+    public async Task when_approval_required_the_call_waits_instead_of_updating()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(updateShareLinkRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+        var file = await UploadTextFile("doc.txt", folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+        var linkId = await CreateShareLink(mcp, workspace, "original", fileExternalIds: [file.ExternalId.Value]);
+
+        //when
+        var pending = await CallTool(mcp, "update_share_link", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value,
+            ["shareLinkExternalId"] = linkId,
+            ["name"] = "renamed"
+        });
+
+        //then
+        pending.GetProperty("status").GetString().Should().Be("waits_for_approval");
+        pending.GetProperty("approvalRequestId").GetString().Should().StartWith("aop_");
+
+        (await OperationStatus(mcp, pending.GetProperty("approvalRequestId").GetString()!))
+            .Should().Be("pending");
+
+        var json = await GetShareLink(mcp, workspace, linkId);
+        json.GetProperty("name").GetString().Should().Be("original");
+    }
+
+    [Fact]
+    public async Task approving_then_executing_runs_the_update()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(updateShareLinkRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+        var file = await UploadTextFile("doc.txt", folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+        var linkId = await CreateShareLink(mcp, workspace, "original", fileExternalIds: [file.ExternalId.Value]);
+
+        var approvalRequestId = await SubmitUpdateForApproval(mcp, workspace, linkId, "renamed");
+
+        //when
+        await Api.Agents.ApproveOperation(
+            externalId: agent.ExternalId,
+            operationExternalId: approvalRequestId,
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        var approvedStatus = await OperationStatus(mcp, approvalRequestId);
+
+        var committed = await CallTool(mcp, "execute_operation", new Dictionary<string, object?>
+        {
+            ["approvalRequestId"] = approvalRequestId
+        });
+
+        //then
+        approvedStatus.Should().Be("approved");
+        committed.GetProperty("status").GetString().Should().Be("executed");
+        committed.GetProperty("result").GetProperty("externalId").GetString().Should().Be(linkId);
+
+        (await OperationStatus(mcp, approvalRequestId)).Should().BeNull();
+
+        var json = await GetShareLink(mcp, workspace, linkId);
+        json.GetProperty("name").GetString().Should().Be("renamed");
+    }
+
+    [Fact]
+    public async Task executing_twice_returns_the_stored_result_without_updating_again()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(updateShareLinkRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+        var file = await UploadTextFile("doc.txt", folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+        var linkId = await CreateShareLink(mcp, workspace, "original", fileExternalIds: [file.ExternalId.Value]);
+
+        var approvalRequestId = await SubmitUpdateForApproval(mcp, workspace, linkId, "renamed");
+
+        await Api.Agents.ApproveOperation(
+            externalId: agent.ExternalId,
+            operationExternalId: approvalRequestId,
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        //when
+        var first = await CallTool(mcp, "execute_operation", new Dictionary<string, object?>
+        {
+            ["approvalRequestId"] = approvalRequestId
+        });
+
+        var second = await CallTool(mcp, "execute_operation", new Dictionary<string, object?>
+        {
+            ["approvalRequestId"] = approvalRequestId
+        });
+
+        //then
+        first.GetProperty("result").GetProperty("externalId").GetString().Should().Be(linkId);
+
+        second.GetProperty("status").GetString().Should().Be("executed");
+        second.GetProperty("result").GetProperty("externalId").GetString().Should().Be(linkId);
+    }
+
+    [Fact]
+    public async Task denying_rejects_the_execution_and_does_not_update()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(updateShareLinkRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+        var file = await UploadTextFile("doc.txt", folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+        var linkId = await CreateShareLink(mcp, workspace, "original", fileExternalIds: [file.ExternalId.Value]);
+
+        var approvalRequestId = await SubmitUpdateForApproval(mcp, workspace, linkId, "renamed");
+
+        //when
+        await Api.Agents.DenyOperation(
+            externalId: agent.ExternalId,
+            operationExternalId: approvalRequestId,
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        var deniedStatus = await OperationStatus(mcp, approvalRequestId);
+
+        var committed = await CallTool(mcp, "execute_operation", new Dictionary<string, object?>
+        {
+            ["approvalRequestId"] = approvalRequestId
+        });
+
+        //then
+        deniedStatus.Should().Be("denied");
+        committed.GetProperty("status").GetString().Should().Be("rejected");
+        committed.GetProperty("reason").GetString().Should().Be("denied");
+
+        var json = await GetShareLink(mcp, workspace, linkId);
+        json.GetProperty("name").GetString().Should().Be("original");
+    }
+
+    [Fact]
+    public async Task a_workspace_override_can_require_approval_even_when_the_global_setting_does_not()
+    {
+        //given — globally update_share_link runs immediately, but this workspace overrides it to need approval
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(updateShareLinkRequiresApproval: false);
+        var folder = await CreateFolder(workspace, owner);
+        var file = await UploadTextFile("doc.txt", folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+        var linkId = await CreateShareLink(mcp, workspace, "original", fileExternalIds: [file.ExternalId.Value]);
+
+        await Api.Agents.UpdateWorkspaceToolOverride(
+            externalId: agent.ExternalId,
+            workspaceExternalId: workspace.ExternalId,
+            toolName: "update_share_link",
+            request: new UpdateAgentWorkspaceToolOverrideRequestDto { IsEnabled = null, RequiresApproval = true },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        //when
+        var result = await CallTool(mcp, "update_share_link", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value,
+            ["shareLinkExternalId"] = linkId,
+            ["name"] = "renamed"
+        });
+
+        //then — the workspace override wins; nothing is updated yet
+        result.GetProperty("status").GetString().Should().Be("waits_for_approval");
+
+        var json = await GetShareLink(mcp, workspace, linkId);
+        json.GetProperty("name").GetString().Should().Be("original");
+    }
+
+    [Fact]
+    public async Task operation_details_resolve_the_current_name_and_requested_changes()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(updateShareLinkRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+        var file = await UploadTextFile("doc.txt", folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+        var linkId = await CreateShareLink(mcp, workspace, "original", fileExternalIds: [file.ExternalId.Value]);
+
+        var pending = await CallTool(mcp, "update_share_link", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value,
+            ["shareLinkExternalId"] = linkId,
+            ["name"] = "renamed",
+            ["shouldUpdateMaxDownloads"] = true,
+            ["maxDownloads"] = 9,
+            ["shouldUpdatePassword"] = true,
+            ["password"] = "pw"
+        });
+
+        pending.GetProperty("status").GetString().Should().Be("waits_for_approval");
+        var approvalRequestId = pending.GetProperty("approvalRequestId").GetString()!;
+
+        //when
+        var details = await Api.Agents.GetOperationDetails(approvalRequestId, owner.Cookie);
+
+        //then
+        details.GetProperty("$type").GetString().Should().Be("update_share_link");
+        details.GetProperty("shareLinkExternalId").GetString().Should().Be(linkId);
+        details.GetProperty("currentName").GetString().Should().Be("original");
+        details.GetProperty("updateName").GetBoolean().Should().BeTrue();
+        details.GetProperty("newName").GetString().Should().Be("renamed");
+        details.GetProperty("updateMaxDownloads").GetBoolean().Should().BeTrue();
+        details.GetProperty("maxDownloads").GetInt32().Should().Be(9);
+        details.GetProperty("updatePassword").GetBoolean().Should().BeTrue();
+        details.GetProperty("passwordSet").GetBoolean().Should().BeTrue();
+    }
+
+    private async Task<string> SubmitUpdateForApproval(
+        McpAgentSession mcp,
+        AppWorkspace workspace,
+        string linkId,
+        string newName)
+    {
+        var pending = await CallTool(mcp, "update_share_link", new Dictionary<string, object?>
+        {
+            ["workspaceExternalId"] = workspace.ExternalId.Value,
+            ["shareLinkExternalId"] = linkId,
+            ["name"] = newName
+        });
+
+        pending.GetProperty("status").GetString().Should().Be("waits_for_approval");
+        return pending.GetProperty("approvalRequestId").GetString()!;
+    }
+
+    // The agent's own view of an operation's status via check_approvals — or null when it is not
+    // (or no longer) listed: executed, purged, or belonging to another agent.
+    private static async Task<string?> OperationStatus(McpAgentSession mcp, string approvalRequestId)
+    {
+        var approvals = await CallTool(mcp, "check_approvals", new Dictionary<string, object?>());
+
+        return approvals.GetProperty("approvals").EnumerateArray()
+            .Where(a => a.GetProperty("approvalRequestId").GetString() == approvalRequestId)
+            .Select(a => a.GetProperty("status").GetString())
+            .FirstOrDefault();
+    }
+
     private async Task<string> CreateShareLink(
         McpAgentSession mcp,
         AppWorkspace workspace,
@@ -254,29 +495,43 @@ public class mcp_update_share_link_tests : TestFixture
 
         var json = await CallTool(mcp, "create_share_link", arguments);
 
-        return json.GetProperty("externalId").GetString()!;
+        return json.GetProperty("result").GetProperty("externalId").GetString()!;
     }
 
-    private Task<JsonElement> GetShareLink(
+    private async Task<JsonElement> GetShareLink(
         McpAgentSession mcp,
         AppWorkspace workspace,
         string shareLinkExternalId)
     {
-        return CallTool(mcp, "get_share_link", new Dictionary<string, object?>
+        var json = await CallTool(mcp, "get_share_link", new Dictionary<string, object?>
         {
             ["workspaceExternalId"] = workspace.ExternalId.Value,
             ["shareLinkExternalId"] = shareLinkExternalId
         });
+
+        return json.GetProperty("result");
     }
 
     private async Task<(AppSignedInUser Owner, AppWorkspace Workspace, CreateAgentResponseDto Agent)> CreateOwnerWorkspaceAgent(
-        bool grantWorkspaceAccess = true)
+        bool grantWorkspaceAccess = true,
+        bool updateShareLinkRequiresApproval = false)
     {
         var owner = await SignIn(Users.AppOwner);
         var workspace = await CreateWorkspace(owner);
 
         var agent = await Api.Agents.Create(
             request: new CreateAgentRequestDto { Name = Random.Name("Agent") },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        await Api.Agents.UpdateToolConfig(
+            externalId: agent.ExternalId,
+            toolName: "update_share_link",
+            request: new UpdateAgentToolConfigRequestDto
+            {
+                IsEnabled = true,
+                RequiresApproval = updateShareLinkRequiresApproval
+            },
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
 

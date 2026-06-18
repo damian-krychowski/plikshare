@@ -1,15 +1,14 @@
 using System.ComponentModel;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
+using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Operations;
 using PlikShare.Agents.Tools;
-using PlikShare.AuditLog;
 using PlikShare.Core.Clock;
-using PlikShare.Mcp.ShareLinks.Create.Contracts;
+using PlikShare.Core.Utils;
 using PlikShare.QuickShares;
-using PlikShare.QuickShares.Create;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Id;
-using Audit = PlikShare.AuditLog.Details.Audit;
 
 namespace PlikShare.Mcp.ShareLinks.Create;
 
@@ -20,13 +19,16 @@ public class CreateShareLinkTool
     [Description("Creates a public link that shares the selected files and/or folders from a workspace the " +
                  "agent can access. Anyone with the link can download the shared items — no login required. " +
                  "Provide at least one id in fileExternalIds or folderExternalIds. Optional: expiresAt " +
-                 "(ISO 8601), maxDownloads, password. Returns the share's external id and public URL.")]
-    public static async Task<CreateShareLinkResponseDto> Execute(
+                 "(ISO 8601), maxDownloads, password. Returns the share's external id and public URL. If this " +
+                 "tool requires approval the call returns status 'waits_for_approval' with an approvalRequestId " +
+                 "— poll check_approvals and, once approved, call execute_operation to run it.")]
+    public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
-        CreateQuickShareQuery createQuickShareQuery,
-        QuickShareUrlBuilder urlBuilder,
-        AuditLogService auditLogService,
+        AgentWorkspaceToolOverrideReader workspaceToolOverrideReader,
+        CreateShareLinkAgentOperation createShareLinkOperation,
+        AgentOperationLedger operationLedger,
+        AgentOperationsOptions operationsOptions,
         IClock clock,
         [Description("External id of the workspace.")]
         string workspaceExternalId,
@@ -49,6 +51,7 @@ public class CreateShareLinkTool
         CancellationToken cancellationToken = default)
     {
         var httpContext = httpContextAccessor.HttpContext!;
+        var agent = await httpContext.GetAgentContext();
 
         var membership = await httpContext.GetWorkspaceAgentMembershipDetails(
             workspaceAgentMembershipCache,
@@ -63,12 +66,12 @@ public class CreateShareLinkTool
         if (string.IsNullOrWhiteSpace(trimmedName))
             throw new McpException("A name for the share link is required.");
 
-        var files = (fileExternalIds ?? []).ToList();
-        var folders = (folderExternalIds ?? []).ToList();
-        var excludedFiles = (excludedFileExternalIds ?? []).ToList();
-        var excludedFolders = (excludedFolderExternalIds ?? []).ToList();
+        var files = fileExternalIds ?? [];
+        var folders = folderExternalIds ?? [];
+        var excludedFiles = excludedFileExternalIds ?? [];
+        var excludedFolders = excludedFolderExternalIds ?? [];
 
-        if (files.Count == 0 && folders.Count == 0)
+        if (files.Length == 0 && folders.Length == 0)
             throw new McpException("Provide at least one id in fileExternalIds or folderExternalIds.");
 
         DateTimeOffset? expires = null;
@@ -99,74 +102,59 @@ public class CreateShareLinkTool
             passwordSalt = salt;
         }
 
-        var agent = membership.Agent;
-
-        var result = await createQuickShareQuery.Execute(
-            workspace: workspace,
-            creatorExternalId: agent.Owner.ExternalId,
-            creatorAgentExternalId: agent.ExternalId,
-            name: trimmedName,
-            customSlug: null,
-            selectedFiles: files,
-            selectedFolders: folders,
-            excludedFiles: excludedFiles,
-            excludedFolders: excludedFolders,
-            mode: QuickShareMode.Browser,
-            allowIndividualFileDownload: true,
-            expiresAt: expires,
-            passwordHashBase64: passwordHashBase64,
-            passwordSalt: passwordSalt,
-            maxDownloads: maxDownloads,
-            cancellationToken: cancellationToken);
-
-        switch (result.Code)
+        var parameters = new CreateShareLinkParams
         {
-            case CreateQuickShareQuery.ResultCode.Ok:
-                var selectedCtx = auditLogService.GetBulkItemsContext(
-                    folderExternalIds: folders,
-                    fileExternalIds: files,
-                    fileUploadExternalIds: []);
+            WorkspaceExternalId = workspaceExternalId,
+            Name = trimmedName,
+            FileExternalIds = files,
+            FolderExternalIds = folders,
+            ExcludedFileExternalIds = excludedFiles,
+            ExcludedFolderExternalIds = excludedFolders,
+            ExpiresAt = expires,
+            MaxDownloads = maxDownloads,
+            PasswordHashBase64 = passwordHashBase64,
+            PasswordSalt = passwordSalt
+        };
 
-                var excludedCtx = auditLogService.GetBulkItemsContext(
-                    folderExternalIds: excludedFolders,
-                    fileExternalIds: excludedFiles,
-                    fileUploadExternalIds: []);
+        var definition = AgentToolCatalog.TryGet(AgentToolNames.CreateShareLink)!;
 
-                await auditLogService.Log(
-                    Audit.QuickShare.CreatedEntry(
-                        actor: httpContext.GetAuditLogActorContext(),
-                        workspace: workspace.ToAuditLogWorkspaceRef(),
-                        quickShare: new Audit.QuickShareRef
-                        {
-                            ExternalId = result.QuickShareExternalId,
-                            Name = trimmedName
-                        },
-                        mode: QuickShareMode.Browser,
-                        allowIndividualFileDownload: true,
-                        hasPassword: passwordHashBase64 is not null,
-                        maxDownloads: maxDownloads,
-                        expiresAt: expires,
-                        selectedFiles: selectedCtx.Files,
-                        selectedFolders: selectedCtx.Folders,
-                        excludedFiles: excludedCtx.Files,
-                        excludedFolders: excludedCtx.Folders),
-                    cancellationToken);
+        var workspaceOverride = workspaceToolOverrideReader.TryGet(
+            agentId: agent.Id,
+            workspaceId: workspace.Id,
+            toolName: AgentToolNames.CreateShareLink);
 
-                return new CreateShareLinkResponseDto
-                {
-                    ExternalId = result.QuickShareExternalId.Value,
-                    Url = urlBuilder.BuildUrl(result.Slug!)
-                };
+        var effective = AgentToolCatalog.Resolve(
+            agent,
+            definition,
+            workspaceOverride);
 
-            case CreateQuickShareQuery.ResultCode.ItemsNotFound:
-                throw new McpException(
-                    "One or more of the specified files or folders were not found in the workspace.");
+        if (!effective.IsUsable)
+            throw new McpException("The create_share_link tool is not enabled for this workspace.");
 
-            case CreateQuickShareQuery.ResultCode.CreatorNotFound:
-                throw new McpException("The share link creator could not be resolved.");
+        if (effective.RequiresApproval)
+        {
+            var expiresAtUtc = clock.UtcNow.AddHours(
+                operationsOptions.ApprovalWindowHours);
 
-            default:
-                throw new McpException($"Could not create the share link: {result.Code}.");
+            var operationId = await operationLedger.CreatePending(
+                agentId: agent.Id,
+                workspaceId: workspace.Id,
+                toolName: AgentToolNames.CreateShareLink,
+                paramsJson: Json.Serialize(parameters),
+                expiresAt: expiresAtUtc,
+                cancellationToken: cancellationToken);
+
+            return AgentToolResponse.WaitsForApproval(
+                approvalRequestId: operationId.Value,
+                expiresAt: expiresAtUtc);
         }
+
+        var result = await createShareLinkOperation.Execute(
+            httpContext,
+            parameters,
+            cancellationToken);
+
+        return AgentToolResponse.Executed(
+            result);
     }
 }

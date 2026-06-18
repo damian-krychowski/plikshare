@@ -3,6 +3,7 @@ using System.Text.Json;
 using FluentAssertions;
 using ModelContextProtocol.Protocol;
 using PlikShare.Agents.Create.Contracts;
+using PlikShare.Agents.Tools.Contracts;
 using PlikShare.AuditLog;
 using PlikShare.Files.Id;
 using PlikShare.IntegrationTests.Infrastructure;
@@ -33,7 +34,8 @@ public class mcp_read_file_tests : TestFixture
         var tools = await mcp.Client.ListToolsAsync();
 
         //then
-        tools.Select(t => t.Name).Should().Contain("read_file");
+        tools.Select(t => t.Name).Should().Contain(
+            ["read_file", "execute_operation", "check_approvals"]);
     }
 
     [Fact]
@@ -54,10 +56,12 @@ public class mcp_read_file_tests : TestFixture
         });
 
         //then
-        json.GetProperty("content").GetString().Should().Be(text);
-        json.GetProperty("totalSizeInBytes").GetInt64().Should().Be(Encoding.UTF8.GetByteCount(text));
-        json.GetProperty("nextOffset").GetInt64().Should().Be(Encoding.UTF8.GetByteCount(text));
-        json.GetProperty("hasMore").GetBoolean().Should().BeFalse();
+        json.GetProperty("status").GetString().Should().Be("executed");
+        var result = json.GetProperty("result");
+        result.GetProperty("content").GetString().Should().Be(text);
+        result.GetProperty("totalSizeInBytes").GetInt64().Should().Be(Encoding.UTF8.GetByteCount(text));
+        result.GetProperty("nextOffset").GetInt64().Should().Be(Encoding.UTF8.GetByteCount(text));
+        result.GetProperty("hasMore").GetBoolean().Should().BeFalse();
 
         await AssertAuditLogContains(AuditLogEventTypes.Agent.FileContentRead);
     }
@@ -116,8 +120,8 @@ public class mcp_read_file_tests : TestFixture
         });
 
         //then
-        json.GetProperty("content").GetString().Should().Be(text);
-        json.GetProperty("hasMore").GetBoolean().Should().BeFalse();
+        json.GetProperty("result").GetProperty("content").GetString().Should().Be(text);
+        json.GetProperty("result").GetProperty("hasMore").GetBoolean().Should().BeFalse();
     }
 
     [Fact]
@@ -214,6 +218,174 @@ public class mcp_read_file_tests : TestFixture
         result.IsError.Should().Be(true);
     }
 
+    [Fact]
+    public async Task when_approval_required_the_call_waits_instead_of_reading()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(readFileRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+        var file = await UploadTextFile("doc.txt", "approval gated content", folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        //when
+        var pending = await CallTool(mcp, "read_file", new Dictionary<string, object?>
+        {
+            ["fileExternalId"] = file.ExternalId.Value
+        });
+
+        //then
+        pending.GetProperty("status").GetString().Should().Be("waits_for_approval");
+        pending.GetProperty("approvalRequestId").GetString().Should().StartWith("aop_");
+
+        (await OperationStatus(mcp, pending.GetProperty("approvalRequestId").GetString()!))
+            .Should().Be("pending");
+    }
+
+    [Fact]
+    public async Task approving_then_executing_returns_the_content()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(readFileRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+        const string text = "approved content";
+        var file = await UploadTextFile("doc.txt", text, folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+        var approvalRequestId = await SubmitReadForApproval(mcp, file.ExternalId.Value);
+
+        //when
+        await Api.Agents.ApproveOperation(
+            externalId: agent.ExternalId,
+            operationExternalId: approvalRequestId,
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        var approvedStatus = await OperationStatus(mcp, approvalRequestId);
+
+        var committed = await CallTool(mcp, "execute_operation", new Dictionary<string, object?>
+        {
+            ["approvalRequestId"] = approvalRequestId
+        });
+
+        //then
+        approvedStatus.Should().Be("approved");
+        committed.GetProperty("status").GetString().Should().Be("executed");
+        committed.GetProperty("result").GetProperty("content").GetString().Should().Be(text);
+    }
+
+    [Fact]
+    public async Task executing_twice_re_reads_the_content()
+    {
+        //given — an idempotent read is not persisted, so each execute re-reads the file
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(readFileRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+        const string text = "approved content";
+        var file = await UploadTextFile("doc.txt", text, folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+        var approvalRequestId = await SubmitReadForApproval(mcp, file.ExternalId.Value);
+
+        await Api.Agents.ApproveOperation(
+            externalId: agent.ExternalId,
+            operationExternalId: approvalRequestId,
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        //when
+        var first = await CallTool(mcp, "execute_operation", new Dictionary<string, object?>
+        {
+            ["approvalRequestId"] = approvalRequestId
+        });
+
+        var second = await CallTool(mcp, "execute_operation", new Dictionary<string, object?>
+        {
+            ["approvalRequestId"] = approvalRequestId
+        });
+
+        //then
+        first.GetProperty("result").GetProperty("content").GetString().Should().Be(text);
+
+        second.GetProperty("status").GetString().Should().Be("executed");
+        second.GetProperty("result").GetProperty("content").GetString().Should().Be(text);
+    }
+
+    [Fact]
+    public async Task denying_rejects_the_execution()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(readFileRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+        var file = await UploadTextFile("doc.txt", "secret", folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+        var approvalRequestId = await SubmitReadForApproval(mcp, file.ExternalId.Value);
+
+        //when
+        await Api.Agents.DenyOperation(
+            externalId: agent.ExternalId,
+            operationExternalId: approvalRequestId,
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        var deniedStatus = await OperationStatus(mcp, approvalRequestId);
+
+        var committed = await CallTool(mcp, "execute_operation", new Dictionary<string, object?>
+        {
+            ["approvalRequestId"] = approvalRequestId
+        });
+
+        //then
+        deniedStatus.Should().Be("denied");
+        committed.GetProperty("status").GetString().Should().Be("rejected");
+        committed.GetProperty("reason").GetString().Should().Be("denied");
+    }
+
+    [Fact]
+    public async Task operation_details_resolve_the_file_name()
+    {
+        //given
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent(readFileRequiresApproval: true);
+        var folder = await CreateFolder(workspace, owner);
+        var file = await UploadTextFile("budget.txt", "content", folder, workspace, owner);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+        var approvalRequestId = await SubmitReadForApproval(mcp, file.ExternalId.Value);
+
+        //when
+        var details = await Api.Agents.GetOperationDetails(approvalRequestId, owner.Cookie);
+
+        //then
+        details.GetProperty("$type").GetString().Should().Be("read_file");
+        details.GetProperty("fileExternalId").GetString().Should().Be(file.ExternalId.Value);
+        details.GetProperty("name").GetString().Should().Be("budget.txt");
+        details.GetProperty("offset").GetInt64().Should().Be(0);
+    }
+
+    private async Task<string> SubmitReadForApproval(McpAgentSession mcp, string fileExternalId)
+    {
+        var pending = await CallTool(mcp, "read_file", new Dictionary<string, object?>
+        {
+            ["fileExternalId"] = fileExternalId
+        });
+
+        pending.GetProperty("status").GetString().Should().Be("waits_for_approval");
+        return pending.GetProperty("approvalRequestId").GetString()!;
+    }
+
+    // The agent's own view of an operation's status via check_approvals — or null when it is not
+    // (or no longer) listed. Note: an idempotent read stays 'approved' after executing (it is not
+    // persisted), so it can be re-read until the approval window's retention purge removes it.
+    private static async Task<string?> OperationStatus(McpAgentSession mcp, string approvalRequestId)
+    {
+        var approvals = await CallTool(mcp, "check_approvals", new Dictionary<string, object?>());
+
+        return approvals.GetProperty("approvals").EnumerateArray()
+            .Where(a => a.GetProperty("approvalRequestId").GetString() == approvalRequestId)
+            .Select(a => a.GetProperty("status").GetString())
+            .FirstOrDefault();
+    }
+
     private async Task<string> ReadAll(
         McpAgentSession mcp,
         string fileExternalId,
@@ -231,17 +403,47 @@ public class mcp_read_file_tests : TestFixture
                 ["maxBytes"] = maxBytes
             });
 
-            builder.Append(json.GetProperty("content").GetString());
+            var result = json.GetProperty("result");
 
-            if (!json.GetProperty("hasMore").GetBoolean())
+            builder.Append(result.GetProperty("content").GetString());
+
+            if (!result.GetProperty("hasMore").GetBoolean())
                 return builder.ToString();
 
-            var nextOffset = json.GetProperty("nextOffset").GetInt64();
+            var nextOffset = result.GetProperty("nextOffset").GetInt64();
             nextOffset.Should().BeGreaterThan(offset, "each page must make progress");
             offset = nextOffset;
         }
 
         throw new InvalidOperationException("read_file did not finish paging within the page limit");
+    }
+
+    [Fact]
+    public async Task workspace_override_can_require_approval_for_files_in_that_workspace()
+    {
+        //given — globally read_file runs immediately; the file's workspace overrides it to need approval
+        var (owner, workspace, agent) = await CreateOwnerWorkspaceAgent();
+        var folder = await CreateFolder(workspace, owner);
+        var file = await UploadTextFile("doc.txt", "content", folder, workspace, owner);
+
+        await Api.Agents.UpdateWorkspaceToolOverride(
+            externalId: agent.ExternalId,
+            workspaceExternalId: workspace.ExternalId,
+            toolName: "read_file",
+            request: new UpdateAgentWorkspaceToolOverrideRequestDto { IsEnabled = null, RequiresApproval = true },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        await using var mcp = await Api.Mcp.ConnectAsAgent(agent.Token);
+
+        //when — the workspace is resolved from the file id, so the override applies
+        var result = await CallTool(mcp, "read_file", new Dictionary<string, object?>
+        {
+            ["fileExternalId"] = file.ExternalId.Value
+        });
+
+        //then
+        result.GetProperty("status").GetString().Should().Be("waits_for_approval");
     }
 
     private Task<AppFile> UploadTextFile(
@@ -261,13 +463,25 @@ public class mcp_read_file_tests : TestFixture
     }
 
     private async Task<(AppSignedInUser Owner, AppWorkspace Workspace, CreateAgentResponseDto Agent)> CreateOwnerWorkspaceAgent(
-        bool grantWorkspaceAccess = true)
+        bool grantWorkspaceAccess = true,
+        bool readFileRequiresApproval = false)
     {
         var owner = await SignIn(Users.AppOwner);
         var workspace = await CreateWorkspace(owner);
 
         var agent = await Api.Agents.Create(
             request: new CreateAgentRequestDto { Name = Random.Name("Agent") },
+            cookie: owner.Cookie,
+            antiforgery: owner.Antiforgery);
+
+        await Api.Agents.UpdateToolConfig(
+            externalId: agent.ExternalId,
+            toolName: "read_file",
+            request: new UpdateAgentToolConfigRequestDto
+            {
+                IsEnabled = true,
+                RequiresApproval = readFileRequiresApproval
+            },
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
 

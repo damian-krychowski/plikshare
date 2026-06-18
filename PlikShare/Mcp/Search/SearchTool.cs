@@ -1,21 +1,17 @@
 using System.ComponentModel;
-using System.Globalization;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Operations;
 using PlikShare.Agents.Tools;
-using PlikShare.AuditLog;
-using PlikShare.Mcp.Search.Contracts;
-using Audit = PlikShare.AuditLog.Details.Audit;
+using PlikShare.Core.Clock;
+using PlikShare.Core.Utils;
 
 namespace PlikShare.Mcp.Search;
 
 [McpServerToolType]
 public class SearchTool
 {
-    private const int DefaultLimit = 200;
-    private const int MaxLimit = 1000;
-
     [McpServerTool(Name = AgentToolNames.Search)]
     [Description(
         "Searches for files and folders the agent can access, across one or more workspaces. Every list " +
@@ -29,11 +25,16 @@ public class SearchTool
         "remove those workspaces or folder subtrees from the results. extensions, contentTypes and size filters " +
         "apply to files only; combining them with types=[\"folder\"] is rejected. createdAfter/createdBefore " +
         "(ISO 8601) and sizeMin/sizeMax are range bounds, not lists. Each result carries its workspaceExternalId " +
-        "and parent folderExternalId so you know where it lives.")]
-    public static async Task<SearchResponseDto> Execute(
+        "and parent folderExternalId so you know where it lives. If this tool requires approval the call " +
+        "returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals and, once " +
+        "approved, call execute_operation to run it.")]
+    public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
-        SearchForAgentQuery searchForAgentQuery,
-        AuditLogService auditLogService,
+        SearchAgentOperation searchOperation,
+        AgentSearchScopeResolver searchScopeResolver,
+        AgentOperationLedger operationLedger,
+        AgentOperationsOptions operationsOptions,
+        IClock clock,
         [Description("Workspace external ids to search in. Empty/omitted = all workspaces the agent can access.")]
         string[]? workspaceIds = null,
         [Description("Folder external ids to scope the search to (their whole subtrees). Empty/omitted = no folder scoping.")]
@@ -65,158 +66,57 @@ public class SearchTool
         CancellationToken cancellationToken = default)
     {
         var httpContext = httpContextAccessor.HttpContext!;
-
         var agent = await httpContext.GetAgentContext();
 
-        var workspaceExternalIds = CleanList(workspaceIds);
-        var folderExternalIds = CleanList(folderIds);
-        var excludeWorkspaceExternalIds = CleanList(excludeWorkspaceIds);
-        var excludeFolderExternalIds = CleanList(excludeFolderIds);
-        var nameContainsList = CleanList(nameContains);
-
-        var typesList = CleanList(types)
-            .Select(t => t.ToLowerInvariant())
-            .Distinct()
-            .ToList();
-
-        foreach (var type in typesList)
-            if (type is not ("file" or "folder"))
-                throw new McpException($"Invalid type '{type}'. Allowed types are 'file' and 'folder'.");
-
-        var includeFiles = typesList.Count == 0 || typesList.Contains("file");
-        var includeFolders = typesList.Count == 0 || typesList.Contains("folder");
-
-        var extensionsList = CleanList(extensions)
-            .Select(e => e.TrimStart('.').ToLowerInvariant())
-            .Where(e => e.Length > 0)
-            .Distinct()
-            .ToList();
-
-        var contentTypesList = CleanList(contentTypes)
-            .Select(c => c.ToLowerInvariant())
-            .Distinct()
-            .ToList();
-
-        var contentTypesPrefix = contentTypesList
-            .Where(c => c.EndsWith("/*", StringComparison.Ordinal))
-            .Select(c => c[..^1])
-            .ToList();
-
-        var contentTypesExact = contentTypesList
-            .Where(c => !c.EndsWith("/*", StringComparison.Ordinal))
-            .ToList();
-
-        var hasFileOnlyFilter =
-            extensionsList.Count > 0
-            || contentTypesList.Count > 0
-            || sizeMin.HasValue
-            || sizeMax.HasValue;
-
-        if (hasFileOnlyFilter && !includeFiles)
-            throw new McpException(
-                "extensions, contentTypes and size filters apply to files only — remove them or include " +
-                "'file' in types.");
-
-        if (hasFileOnlyFilter)
-            includeFolders = false;
-
-        var createdAfterValue = ParseTimestamp(createdAfter, nameof(createdAfter));
-        var createdBeforeValue = ParseTimestamp(createdBefore, nameof(createdBefore));
-
-        if (createdAfterValue is { } after && createdBeforeValue is { } before && after > before)
-            throw new McpException("createdAfter must not be later than createdBefore.");
-
-        if (sizeMin is < 0)
-            throw new McpException("sizeMin must be zero or greater.");
-
-        if (sizeMax is < 0)
-            throw new McpException("sizeMax must be zero or greater.");
-
-        if (sizeMin is { } min && sizeMax is { } max && min > max)
-            throw new McpException("sizeMin must not be greater than sizeMax.");
-
-        var effectiveLimit = Math.Clamp(limit ?? DefaultLimit, 1, MaxLimit);
-
-        SearchCursor? decodedCursor = null;
-
-        if (!string.IsNullOrWhiteSpace(cursor))
+        var parameters = new SearchParams
         {
-            decodedCursor = SearchCursor.TryDecode(cursor);
+            WorkspaceIds = workspaceIds,
+            FolderIds = folderIds,
+            ExcludeWorkspaceIds = excludeWorkspaceIds,
+            ExcludeFolderIds = excludeFolderIds,
+            Types = types,
+            NameContains = nameContains,
+            Extensions = extensions,
+            ContentTypes = contentTypes,
+            CreatedAfter = createdAfter,
+            CreatedBefore = createdBefore,
+            SizeMin = sizeMin,
+            SizeMax = sizeMax,
+            Cursor = cursor,
+            Limit = limit
+        };
 
-            if (decodedCursor is null)
-                throw new McpException("Invalid cursor.");
+        // search has no single workspace: a disabled workspace drops out of the scope (applied in the
+        // operation) and approval is required if any in-scope workspace requires it.
+        var scope = searchScopeResolver.Resolve(agent);
+
+        if (!scope.AnyEnabled)
+            throw new McpException("The search tool is not enabled for this agent.");
+
+        if (scope.RequiresApproval)
+        {
+            var expiresAt = clock.UtcNow.AddHours(
+                operationsOptions.ApprovalWindowHours);
+
+            var operationId = await operationLedger.CreatePending(
+                agentId: agent.Id,
+                workspaceId: null,
+                toolName: AgentToolNames.Search,
+                paramsJson: Json.Serialize(parameters),
+                expiresAt: expiresAt,
+                cancellationToken: cancellationToken);
+
+            return AgentToolResponse.WaitsForApproval(
+                approvalRequestId: operationId.Value,
+                expiresAt: expiresAt);
         }
 
-        var result = searchForAgentQuery.Execute(
-            agent: agent,
-            filters: new SearchForAgentQuery.Filters(
-                WorkspaceExternalIds: workspaceExternalIds,
-                FolderExternalIds: folderExternalIds,
-                ExcludeWorkspaceExternalIds: excludeWorkspaceExternalIds,
-                ExcludeFolderExternalIds: excludeFolderExternalIds,
-                IncludeFolders: includeFolders,
-                IncludeFiles: includeFiles,
-                NameContains: nameContainsList,
-                Extensions: extensionsList,
-                ContentTypesExact: contentTypesExact,
-                ContentTypesPrefix: contentTypesPrefix,
-                CreatedAfter: createdAfterValue,
-                CreatedBefore: createdBeforeValue,
-                SizeMin: sizeMin,
-                SizeMax: sizeMax),
-            cursor: decodedCursor,
-            limit: effectiveLimit);
-
-        await auditLogService.Log(
-            Audit.Agent.SearchPerformedEntry(
-                actor: httpContext.GetAuditLogActorContext(),
-                workspaceExternalIds: workspaceExternalIds,
-                folderExternalIds: folderExternalIds,
-                excludeWorkspaceExternalIds: excludeWorkspaceExternalIds,
-                excludeFolderExternalIds: excludeFolderExternalIds,
-                types: typesList,
-                nameContains: nameContainsList,
-                extensions: extensionsList,
-                contentTypes: contentTypesList,
-                createdAfter: createdAfterValue,
-                createdBefore: createdBeforeValue,
-                sizeMin: sizeMin,
-                sizeMax: sizeMax,
-                resultCount: result.Entries.Count),
+        var result = await searchOperation.Execute(
+            httpContext,
+            parameters,
             cancellationToken);
 
-        return new SearchResponseDto
-        {
-            Entries = result.Entries,
-            NextCursor = result.NextCursor?.Encode(),
-            HasMore = result.HasMore
-        };
-    }
-
-    private static List<string> CleanList(string[]? values)
-    {
-        if (values is null)
-            return [];
-
-        return values
-            .Where(v => !string.IsNullOrWhiteSpace(v))
-            .Select(v => v.Trim())
-            .Distinct()
-            .ToList();
-    }
-
-    private static DateTimeOffset? ParseTimestamp(string? value, string fieldName)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return null;
-
-        if (!DateTimeOffset.TryParse(
-                value,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                out var parsed))
-            throw new McpException($"Invalid {fieldName} '{value}'. Use an ISO 8601 timestamp.");
-
-        return parsed.ToUniversalTime();
+        return AgentToolResponse.Executed(
+            result);
     }
 }

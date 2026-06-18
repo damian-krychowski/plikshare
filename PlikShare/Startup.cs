@@ -579,7 +579,6 @@ public class Startup
         builder.Services.AddSingleton<GetFileForAgentQuery>();
         builder.Services.AddSingleton<SearchForAgentQuery>();
         builder.Services.AddSingleton<InsertCompletedFileQuery>();
-        builder.Services.AddSingleton<CreateFileForAgentOperation>();
         builder.AddPlikShareMcp();
 
         builder.Services.AddSingleton<IOneTimeCode, OneTimeCode>();
