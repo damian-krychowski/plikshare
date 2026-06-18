@@ -3,16 +3,6 @@ using PlikShare.Agents.Cache;
 namespace PlikShare.Agents.Tools;
 
 /// <summary>
-/// Agent permission that gates whether a tool is available at all (layer 1).
-/// Per-tool enabled/disabled (layer 2) can only narrow within an available tool, never widen.
-/// </summary>
-public enum AgentToolPermission
-{
-    None = 0,
-    AddWorkspace = 1
-}
-
-/// <summary>
 /// How a tool is grouped in the configuration UI. <see cref="Instance"/> tools act at the
 /// instance level (listing/creating workspaces); <see cref="Workspace"/> tools act on the
 /// content of workspaces. This is a display concern only — whether a tool can be overridden
@@ -26,32 +16,31 @@ public enum AgentToolGroup
 
 /// <summary>
 /// Canonical definition of an agent tool: the single source of truth for its UI group, whether it
-/// can carry a per-workspace override, the permission that gates it and the per-agent defaults used
-/// when no explicit config row exists.
+/// can carry a per-workspace override, and the per-agent defaults used when no explicit config row
+/// exists. An agent has no admin-console permissions — every capability is expressed here, by the
+/// tool's enabled/approval config alone.
 /// </summary>
 public sealed record AgentToolDefinition(
     string Name,
     string Description,
     AgentToolGroup Group,
     bool IsWorkspaceOverridable,
-    AgentToolPermission RequiredPermission,
     bool DefaultIsEnabled,
     bool DefaultRequiresApproval);
 
 /// <summary>
-/// A partial override at a single cascade level (workspace or box). A null dimension means
-/// "inherit this dimension from the next level down"; each dimension cascades independently.
+/// A partial override at a single cascade level (workspace or box). A null dimension means "inherit
+/// this dimension from the next level down"; each dimension cascades independently.
 /// </summary>
 public sealed record AgentToolScopeOverride(
     bool? IsEnabled,
     bool? RequiresApproval);
 
 public sealed record EffectiveAgentToolConfig(
-    bool IsAvailable,
     bool IsEnabled,
     bool RequiresApproval)
 {
-    public bool IsUsable => IsAvailable && IsEnabled;
+    public bool IsUsable => IsEnabled;
 }
 
 public static class AgentToolCatalog
@@ -67,7 +56,9 @@ public static class AgentToolCatalog
     [
         Read(AgentToolNames.ListWorkspaces, "Lists the workspaces the agent can access.", AgentToolGroup.Instance, overridable: false),
         Read(AgentToolNames.ListStorages, "Lists the storages the agent can create workspaces on.", AgentToolGroup.Instance, overridable: false),
-        Write(AgentToolNames.CreateWorkspace, "Creates a new workspace owned by the agent.", AgentToolGroup.Instance, overridable: false, permission: AgentToolPermission.AddWorkspace),
+        // create_workspace is the agent's most privileged instance-level action, so it stays off until
+        // an operator explicitly enables it for the agent.
+        Write(AgentToolNames.CreateWorkspace, "Creates a new workspace owned by the agent.", AgentToolGroup.Instance, overridable: false, enabledByDefault: false),
 
         Read(AgentToolNames.GetFile, "Reads a single file's details — name, size, type and where it lives — by its id.", AgentToolGroup.Workspace, overridable: true),
         Read(AgentToolNames.ReadFile, "Reads the text content of a file.", AgentToolGroup.Workspace, overridable: true),
@@ -103,8 +94,8 @@ public static class AgentToolCatalog
 
     /// <summary>
     /// Resolves the effective config for a tool invocation by cascading, per dimension,
-    /// box override → workspace override → agent global → catalog default. Availability is a
-    /// global concern (permission); admin bypasses the permission but not a disabled flag.
+    /// box override → workspace override → agent global → catalog default. The box override is the
+    /// finest scope; a tool that operates inside a box passes it, everything else leaves it null.
     /// </summary>
     public static EffectiveAgentToolConfig Resolve(
         AgentContext agent,
@@ -112,13 +103,6 @@ public static class AgentToolCatalog
         AgentToolScopeOverride? workspaceOverride = null,
         AgentToolScopeOverride? boxOverride = null)
     {
-        var isAvailable = agent.HasAdminRole || definition.RequiredPermission switch
-        {
-            AgentToolPermission.None => true,
-            AgentToolPermission.AddWorkspace => agent.Permissions.CanAddWorkspace,
-            _ => false
-        };
-
         var global = agent.ToolConfigs.GetValueOrDefault(definition.Name);
 
         var isEnabled =
@@ -134,7 +118,6 @@ public static class AgentToolCatalog
             ?? definition.DefaultRequiresApproval;
 
         return new EffectiveAgentToolConfig(
-            IsAvailable: isAvailable,
             IsEnabled: isEnabled,
             RequiresApproval: requiresApproval);
     }
@@ -144,22 +127,22 @@ public static class AgentToolCatalog
         string description,
         AgentToolGroup group,
         bool overridable,
-        AgentToolPermission permission = AgentToolPermission.None) =>
-        new(name, description, group, overridable, permission, DefaultIsEnabled: true, DefaultRequiresApproval: false);
+        bool enabledByDefault = true) =>
+        new(name, description, group, overridable, DefaultIsEnabled: enabledByDefault, DefaultRequiresApproval: false);
 
     private static AgentToolDefinition Write(
         string name,
         string description,
         AgentToolGroup group,
         bool overridable,
-        AgentToolPermission permission = AgentToolPermission.None) =>
-        new(name, description, group, overridable, permission, DefaultIsEnabled: true, DefaultRequiresApproval: false);
+        bool enabledByDefault = true) =>
+        new(name, description, group, overridable, DefaultIsEnabled: enabledByDefault, DefaultRequiresApproval: false);
 
     private static AgentToolDefinition Destructive(
         string name,
         string description,
         AgentToolGroup group,
         bool overridable,
-        AgentToolPermission permission = AgentToolPermission.None) =>
-        new(name, description, group, overridable, permission, DefaultIsEnabled: true, DefaultRequiresApproval: true);
+        bool enabledByDefault = true) =>
+        new(name, description, group, overridable, DefaultIsEnabled: enabledByDefault, DefaultRequiresApproval: true);
 }

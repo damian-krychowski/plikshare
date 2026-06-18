@@ -10,49 +10,6 @@ namespace PlikShare.Agents.UpdateSettings;
 
 public class UpdateAgentSettingsQuery(DbWriteQueue dbWriteQueue)
 {
-    public Task<Result> UpdatePermissionsAndRoles(
-        AgentExtId agentExternalId,
-        UpdateAgentPermissionsAndRolesRequestDto request,
-        CancellationToken cancellationToken)
-    {
-        return dbWriteQueue.Execute(
-            operationToEnqueue: context => ExecuteSimpleUpdate(
-                dbWriteContext: context,
-                agentExternalId: agentExternalId,
-                applyUpdate: (agentId, transaction) => context
-                    .OneRowCmd(
-                        sql: """
-                             UPDATE a_agents
-                             SET
-                                 a_is_admin = $isAdmin,
-                                 a_can_add_workspace = $canAddWorkspace,
-                                 a_can_manage_general_settings = $canManageGeneralSettings,
-                                 a_can_manage_users = $canManageUsers,
-                                 a_can_manage_storages = $canManageStorages,
-                                 a_can_manage_email_providers = $canManageEmailProviders,
-                                 a_can_manage_auth = $canManageAuth,
-                                 a_can_manage_integrations = $canManageIntegrations,
-                                 a_can_manage_audit_log = $canManageAuditLog,
-                                 a_can_manage_agents = FALSE
-                             WHERE a_id = $agentId
-                             RETURNING a_id
-                             """,
-                        readRowFunc: reader => reader.GetInt32(0),
-                        transaction: transaction)
-                    .WithParameter("$isAdmin", request.IsAdmin)
-                    .WithParameter("$canAddWorkspace", request.CanAddWorkspace)
-                    .WithParameter("$canManageGeneralSettings", request.CanManageGeneralSettings)
-                    .WithParameter("$canManageUsers", request.CanManageUsers)
-                    .WithParameter("$canManageStorages", request.CanManageStorages)
-                    .WithParameter("$canManageEmailProviders", request.CanManageEmailProviders)
-                    .WithParameter("$canManageAuth", request.CanManageAuth)
-                    .WithParameter("$canManageIntegrations", request.CanManageIntegrations)
-                    .WithParameter("$canManageAuditLog", request.CanManageAuditLog)
-                    .WithParameter("$agentId", agentId)
-                    .Execute()),
-            cancellationToken: cancellationToken);
-    }
-
     public Task<Result> UpdateMaxWorkspaceNumber(
         AgentExtId agentExternalId,
         int? maxWorkspaceNumber,

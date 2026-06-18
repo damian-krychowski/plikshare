@@ -2,10 +2,13 @@
     Share link — update settings
 </div>
 
-<div class="op-details__item">
-    <i class="icon icon-xl icon-nucleo-share op-details__icon"></i>
+<div class="op-details__item"
+    [class.op-details__item--clickable]="workspaceExternalId()"
+    (click)="openShareLink()">
+    <i class="icon icon-xl icon-nucleo-link op-details__icon"></i>
     <div class="op-details__text">
         <div class="op-details__name">{{ details().currentName ?? details().shareLinkExternalId }}</div>
+        <div class="op-details__path">Public download link</div>
     </div>
 </div>
 

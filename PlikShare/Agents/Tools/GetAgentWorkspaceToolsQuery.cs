@@ -90,7 +90,6 @@ public class GetAgentWorkspaceToolsQuery(
         {
             Name = definition.Name,
             Description = definition.Description,
-            IsAvailable = effective.IsAvailable,
             GlobalIsEnabled = global.IsEnabled,
             GlobalRequiresApproval = global.RequiresApproval,
             OverrideIsEnabled = workspaceOverride?.IsEnabled,

@@ -1,16 +1,1 @@
-.op-details__section-title {
-    font-size: var(--company-small-font);
-    font-weight: 600;
-    color: var(--company-grey-dark);
-    margin: 0.5rem 0 0.25rem;
-}
-
-.op-details__filters {
-    margin: 0;
-    padding-left: 1.2rem;
-    color: var(--company-grey-dark);
-
-    li {
-        margin: 0.15rem 0;
-    }
-}
+@forward '../op-details';

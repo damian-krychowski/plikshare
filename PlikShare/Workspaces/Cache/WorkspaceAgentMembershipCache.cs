@@ -75,14 +75,6 @@ public class WorkspaceAgentMembershipCache(
         if (workspace is null || agent is null)
             return null;
 
-        if (agent.HasAdminRole)
-        {
-            return new WorkspaceAgentMembershipContext(
-                Agent: agent,
-                Workspace: workspace,
-                IsSharedWithAgent: false);
-        }
-
         if (workspace.OwnerAgent?.Id == agent.Id)
         {
             return new WorkspaceAgentMembershipContext(

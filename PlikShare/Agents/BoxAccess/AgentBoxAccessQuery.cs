@@ -1,7 +1,5 @@
-using Microsoft.Data.Sqlite;
 using PlikShare.Agents.Id;
 using PlikShare.Boxes.Id;
-using PlikShare.Boxes.Permissions;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
@@ -9,6 +7,11 @@ using Serilog;
 
 namespace PlikShare.Agents.BoxAccess;
 
+/// <summary>
+/// Invites an agent to a box (or removes it). Membership only — what the agent may do inside the box is
+/// governed by the tool layer (global config + per-box overrides), so there are no per-box permission
+/// flags to set here.
+/// </summary>
 public class AgentBoxAccessQuery(
     DbWriteQueue dbWriteQueue,
     IClock clock)
@@ -16,15 +19,13 @@ public class AgentBoxAccessQuery(
     public Task<Result> Grant(
         AgentExtId agentExternalId,
         BoxExtId boxExternalId,
-        BoxPermissions permissions,
         CancellationToken cancellationToken)
     {
         return dbWriteQueue.Execute(
             operationToEnqueue: context => GrantOperation(
                 dbWriteContext: context,
                 agentExternalId: agentExternalId,
-                boxExternalId: boxExternalId,
-                permissions: permissions),
+                boxExternalId: boxExternalId),
             cancellationToken: cancellationToken);
     }
 
@@ -44,8 +45,7 @@ public class AgentBoxAccessQuery(
     private Result GrantOperation(
         SqliteWriteContext dbWriteContext,
         AgentExtId agentExternalId,
-        BoxExtId boxExternalId,
-        BoxPermissions permissions)
+        BoxExtId boxExternalId)
     {
         using var transaction = dbWriteContext.Connection.BeginTransaction();
 
@@ -69,59 +69,23 @@ public class AgentBoxAccessQuery(
                          INSERT INTO ba_box_agents (
                              ba_box_id,
                              ba_agent_id,
-                             ba_allow_download,
-                             ba_allow_upload,
-                             ba_allow_list,
-                             ba_allow_delete_file,
-                             ba_allow_rename_file,
-                             ba_allow_move_items,
-                             ba_allow_create_folder,
-                             ba_allow_delete_folder,
-                             ba_allow_rename_folder,
                              ba_created_at
                          ) VALUES (
                              $boxId,
                              $agentId,
-                             $allowDownload,
-                             $allowUpload,
-                             $allowList,
-                             $allowDeleteFile,
-                             $allowRenameFile,
-                             $allowMoveItems,
-                             $allowCreateFolder,
-                             $allowDeleteFolder,
-                             $allowRenameFolder,
                              $now
                          )
-                         ON CONFLICT (ba_box_id, ba_agent_id) DO UPDATE SET
-                             ba_allow_download = excluded.ba_allow_download,
-                             ba_allow_upload = excluded.ba_allow_upload,
-                             ba_allow_list = excluded.ba_allow_list,
-                             ba_allow_delete_file = excluded.ba_allow_delete_file,
-                             ba_allow_rename_file = excluded.ba_allow_rename_file,
-                             ba_allow_move_items = excluded.ba_allow_move_items,
-                             ba_allow_create_folder = excluded.ba_allow_create_folder,
-                             ba_allow_delete_folder = excluded.ba_allow_delete_folder,
-                             ba_allow_rename_folder = excluded.ba_allow_rename_folder
+                         ON CONFLICT (ba_box_id, ba_agent_id) DO NOTHING
                          """,
                     transaction: transaction)
                 .WithParameter("$boxId", targets.BoxId)
                 .WithParameter("$agentId", targets.AgentId)
-                .WithParameter("$allowDownload", permissions.AllowDownload)
-                .WithParameter("$allowUpload", permissions.AllowUpload)
-                .WithParameter("$allowList", permissions.AllowList)
-                .WithParameter("$allowDeleteFile", permissions.AllowDeleteFile)
-                .WithParameter("$allowRenameFile", permissions.AllowRenameFile)
-                .WithParameter("$allowMoveItems", permissions.AllowMoveItems)
-                .WithParameter("$allowCreateFolder", permissions.AllowCreateFolder)
-                .WithParameter("$allowDeleteFolder", permissions.AllowDeleteFolder)
-                .WithParameter("$allowRenameFolder", permissions.AllowRenameFolder)
                 .WithParameter("$now", clock.UtcNow)
                 .Execute();
 
             transaction.Commit();
 
-            Log.Information("Agent '{AgentExternalId}' was granted access to Box '{BoxExternalId}'.",
+            Log.Information("Agent '{AgentExternalId}' was invited to Box '{BoxExternalId}'.",
                 agentExternalId,
                 boxExternalId);
 
@@ -134,7 +98,7 @@ public class AgentBoxAccessQuery(
         {
             transaction.Rollback();
 
-            Log.Error(e, "Something went wrong while granting Agent '{AgentExternalId}' access to Box '{BoxExternalId}'.",
+            Log.Error(e, "Something went wrong while inviting Agent '{AgentExternalId}' to Box '{BoxExternalId}'.",
                 agentExternalId,
                 boxExternalId);
 
@@ -175,6 +139,18 @@ public class AgentBoxAccessQuery(
                 .WithParameter("$agentId", targets.AgentId)
                 .Execute();
 
+            dbWriteContext.Connection
+                .NonQueryCmd(
+                    sql: """
+                         DELETE FROM atbo_agent_tool_box_overrides
+                         WHERE atbo_box_id = $boxId
+                             AND atbo_agent_id = $agentId
+                         """,
+                    transaction: transaction)
+                .WithParameter("$boxId", targets.BoxId)
+                .WithParameter("$agentId", targets.AgentId)
+                .Execute();
+
             transaction.Commit();
 
             Log.Information("Agent '{AgentExternalId}' access to Box '{BoxExternalId}' was revoked.",
@@ -200,20 +176,13 @@ public class AgentBoxAccessQuery(
 
     private static (ResultCode Code, Targets Targets) ResolveTargets(
         SqliteWriteContext dbWriteContext,
-        SqliteTransaction transaction,
+        Microsoft.Data.Sqlite.SqliteTransaction transaction,
         AgentExtId agentExternalId,
         BoxExtId boxExternalId)
     {
-        var agent = dbWriteContext
+        var agent = dbWriteContext.Connection
             .OneRowCmd(
-                sql: """
-                     SELECT
-                         a_id,
-                         a_name
-                     FROM a_agents
-                     WHERE a_external_id = $externalId
-                     LIMIT 1
-                     """,
+                sql: "SELECT a_id, a_name FROM a_agents WHERE a_external_id = $externalId LIMIT 1",
                 readRowFunc: reader => new AgentRow(
                     Id: reader.GetInt32(0),
                     Name: reader.GetString(1)),
@@ -224,7 +193,7 @@ public class AgentBoxAccessQuery(
         if (agent.IsEmpty)
             return (ResultCode.AgentNotFound, default);
 
-        var box = dbWriteContext
+        var box = dbWriteContext.Connection
             .OneRowCmd(
                 sql: """
                      SELECT

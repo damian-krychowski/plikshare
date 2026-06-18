@@ -25,4 +25,15 @@ export class CreateShareLinkOperationDetailsComponent {
 
         this._router.navigate(['workspaces', workspaceExternalId, 'explorer', folder.externalId]);
     }
+
+    openFile(file: ShareLinkItemDetail) {
+        const workspaceExternalId = this.workspaceExternalId();
+
+        if (!workspaceExternalId)
+            return;
+
+        this._router.navigate(
+            ['workspaces', workspaceExternalId, 'explorer'],
+            { queryParams: { fileId: file.externalId } });
+    }
 }

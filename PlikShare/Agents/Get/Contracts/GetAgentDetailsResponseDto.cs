@@ -26,8 +26,6 @@ public static class GetAgentDetails
         public required OwnerDto Owner { get; init; }
         public required string TokenMasked { get; init; }
         public required DateTimeOffset? TokenLastUsedAt { get; init; }
-        public required AgentRolesDto Roles { get; init; }
-        public required AgentPermissionsDto Permissions { get; init; }
         public required int? MaxWorkspaceNumber { get; init; }
         public required long? DefaultMaxWorkspaceSizeInBytes { get; init; }
         public required int? DefaultMaxWorkspaceTeamMembers { get; init; }
@@ -38,24 +36,6 @@ public static class GetAgentDetails
     {
         public required UserExtId ExternalId { get; init; }
         public required string Email { get; init; }
-    }
-
-    public class AgentRolesDto
-    {
-        public required bool IsAdmin { get; init; }
-    }
-
-    public class AgentPermissionsDto
-    {
-        public required bool CanAddWorkspace { get; init; }
-        public required bool CanManageGeneralSettings { get; init; }
-        public required bool CanManageUsers { get; init; }
-        public required bool CanManageStorages { get; init; }
-        public required bool CanManageEmailProviders { get; init; }
-        public required bool CanManageAuth { get; init; }
-        public required bool CanManageIntegrations { get; init; }
-        public required bool CanManageAuditLog { get; init; }
-        public required bool CanManageAgents { get; init; }
     }
 
     public class StorageAccessDto
@@ -97,19 +77,6 @@ public static class GetAgentDetails
         public required OwnerDto Owner { get; init; }
         public required BoxExtId BoxExternalId { get; init; }
         public required string BoxName { get; init; }
-        public required BoxPermissionsDto Permissions { get; init; }
-    }
-
-    public class BoxPermissionsDto
-    {
-        public required bool AllowDownload { get; init; }
-        public required bool AllowUpload { get; init; }
-        public required bool AllowList { get; init; }
-        public required bool AllowDeleteFile { get; init; }
-        public required bool AllowRenameFile { get; init; }
-        public required bool AllowMoveItems { get; init; }
-        public required bool AllowCreateFolder { get; init; }
-        public required bool AllowRenameFolder { get; init; }
-        public required bool AllowDeleteFolder { get; init; }
+        public required int OverriddenToolsCount { get; init; }
     }
 }

@@ -141,18 +141,6 @@
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\52_agents_introduced.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>
-      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\53_quick_share_agent_creator_introduced.sql">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\54_agent_tool_configs_introduced.sql">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\55_agent_tool_workspace_overrides_introduced.sql">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </EmbeddedResource>
-      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\56_agent_operations_introduced.sql">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </EmbeddedResource>
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\26_workspace_encryption_keys_introduced.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>

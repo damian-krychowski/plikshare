@@ -41,7 +41,9 @@
         @for(op of agentRequests.pending(); track op.externalId) {
             <div class="agent-request-card">
                 <div class="agent-request-card__bar">
-                    <div class="agent-request-card__main" (click)="toggle(op)">
+                    <div class="agent-request-card__main"
+                        [class.agent-request-card__main--static]="!hasDetails(op)"
+                        (click)="toggle(op)">
                         <i class="icon icon-xl icon-nucleo-robot"></i>
 
                         <div class="agent-request-card__text">
@@ -61,11 +63,13 @@
                     </div>
 
                     <div class="agent-request-card__actions">
-                        <app-action-btn
-                            [tooltip]="expandedId() === op.externalId ? 'Hide details' : 'Show details'"
-                            [icon]="expandedId() === op.externalId ? 'icon-lucide-chevron-up' : 'icon-lucide-chevron-down'"
-                            (clicked)="toggle(op)">
-                        </app-action-btn>
+                        @if(hasDetails(op)) {
+                            <app-action-btn
+                                [tooltip]="expandedId() === op.externalId ? 'Hide details' : 'Show details'"
+                                [icon]="expandedId() === op.externalId ? 'icon-lucide-chevron-up' : 'icon-lucide-chevron-down'"
+                                (clicked)="toggle(op)">
+                            </app-action-btn>
+                        }
 
                         <app-action-btn
                             tooltip="Approve"

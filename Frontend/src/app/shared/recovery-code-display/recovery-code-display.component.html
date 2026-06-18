@@ -3,33 +3,40 @@
         {{ data.title }}
     </div>
 
-    <div class="recovery-code__warning">
-        <strong>This is the only time you will see this code.</strong>
-        {{ data.warning }}
-    </div>
+    <app-config-card
+        title="Recovery code"
+        [description]="'Shown only once. ' + data.warning">
+        <div configCardActions>
+            <app-action-btn
+                tooltip="Download as .txt"
+                icon="icon-nucleo-download"
+                (clicked)="downloadAsFile()">
+            </app-action-btn>
+        </div>
 
-    <div class="recovery-code__grid">
-        @for (word of words(); track $index; let i = $index) {
-            <div class="recovery-code__word">
-                <span class="recovery-code__word-number">{{ i + 1 }}.</span>
-                <span class="recovery-code__word-text">{{ word }}</span>
-            </div>
-        }
-    </div>
-
-    <div class="recovery-code__actions-row">
-        <button mat-stroked-button type="button"
+        <div class="recovery-code__code"
+            [class.recovery-code__code--copied]="copied()"
+            role="button"
+            tabindex="0"
             (click)="copyToClipboard()"
-            aria-label="Copy recovery code to clipboard">
-            {{ copied() ? 'Copied' : 'Copy' }}
-        </button>
+            (keydown.enter)="copyToClipboard()"
+            (keydown.space)="copyToClipboard()"
+            [attr.aria-label]="copied() ? 'Recovery code copied to clipboard' : 'Copy recovery code to clipboard'">
+            <div class="recovery-code__grid">
+                @for (word of words(); track $index; let i = $index) {
+                    <div class="recovery-code__word">
+                        <span class="recovery-code__word-number">{{ i + 1 }}.</span>
+                        <span class="recovery-code__word-text">{{ word }}</span>
+                    </div>
+                }
+            </div>
 
-        <button mat-stroked-button type="button"
-            (click)="downloadAsFile()"
-            aria-label="Download recovery code as .txt file">
-            Download .txt
-        </button>
-    </div>
+            <div class="recovery-code__hint">
+                <i class="icon icon-sm" [class.icon-nucleo-copy]="!copied()" [class.icon-lucide-check]="copied()"></i>
+                <span>{{ copied() ? 'Copied' : 'Click to copy' }}</span>
+            </div>
+        </div>
+    </app-config-card>
 
     <div class="recovery-code__danger-notice">
         {{ data.dangerNotice }}

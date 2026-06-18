@@ -8,17 +8,6 @@ CREATE TABLE IF NOT EXISTS a_agents
     a_name TEXT NOT NULL,
     a_is_enabled BOOLEAN NOT NULL,
 
-    a_is_admin BOOLEAN NOT NULL DEFAULT FALSE,
-    a_can_add_workspace BOOLEAN NOT NULL DEFAULT FALSE,
-    a_can_manage_general_settings BOOLEAN NOT NULL DEFAULT FALSE,
-    a_can_manage_users BOOLEAN NOT NULL DEFAULT FALSE,
-    a_can_manage_storages BOOLEAN NOT NULL DEFAULT FALSE,
-    a_can_manage_email_providers BOOLEAN NOT NULL DEFAULT FALSE,
-    a_can_manage_auth BOOLEAN NOT NULL DEFAULT FALSE,
-    a_can_manage_integrations BOOLEAN NOT NULL DEFAULT FALSE,
-    a_can_manage_audit_log BOOLEAN NOT NULL DEFAULT FALSE,
-    a_can_manage_agents BOOLEAN NOT NULL DEFAULT FALSE,
-
     a_max_workspace_number INTEGER NULL,
     a_default_max_workspace_size_in_bytes INTEGER NULL,
     a_default_max_workspace_team_members INTEGER NULL,
@@ -80,20 +69,12 @@ CREATE TABLE IF NOT EXISTS wa_workspace_agents
 CREATE INDEX IF NOT EXISTS index__wa_workspace_agents__wa_workspace_id ON wa_workspace_agents (wa_workspace_id);
 CREATE INDEX IF NOT EXISTS index__wa_workspace_agents__wa_agent_id ON wa_workspace_agents (wa_agent_id);
 
+-- An agent invited to a box. Membership only — what the agent may do is governed by the tool layer
+-- (global config + per-box overrides), not by per-box permission flags.
 CREATE TABLE IF NOT EXISTS ba_box_agents
 (
     ba_box_id INTEGER NOT NULL,
     ba_agent_id INTEGER NOT NULL,
-
-    ba_allow_download BOOLEAN NOT NULL,
-    ba_allow_upload BOOLEAN NOT NULL,
-    ba_allow_list BOOLEAN NOT NULL,
-    ba_allow_delete_file BOOLEAN NOT NULL,
-    ba_allow_rename_file BOOLEAN NOT NULL,
-    ba_allow_move_items BOOLEAN NOT NULL,
-    ba_allow_create_folder BOOLEAN NOT NULL,
-    ba_allow_delete_folder BOOLEAN NOT NULL,
-    ba_allow_rename_folder BOOLEAN NOT NULL,
 
     ba_created_at TEXT NOT NULL,
 
@@ -108,3 +89,89 @@ CREATE INDEX IF NOT EXISTS index__ba_box_agents__ba_agent_id ON ba_box_agents (b
 ALTER TABLE w_workspaces ADD COLUMN w_owner_agent_id INTEGER NULL REFERENCES a_agents (a_id);
 
 CREATE INDEX IF NOT EXISTS index__w_workspaces__w_owner_agent_id ON w_workspaces (w_owner_agent_id);
+
+-- Agent-created quick shares: the creating agent is recorded here, while qsh_creator_id keeps
+-- the responsible human owner (for an agent it is the agent's owner).
+ALTER TABLE qsh_quick_shares ADD COLUMN qsh_creator_agent_id INTEGER NULL REFERENCES a_agents (a_id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS index__qsh__creator_agent_id
+    ON qsh_quick_shares (qsh_creator_agent_id) WHERE qsh_creator_agent_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS atc_agent_tool_configs
+(
+    atc_agent_id INTEGER NOT NULL,
+    atc_tool_name TEXT NOT NULL,
+
+    atc_is_enabled BOOLEAN NOT NULL,
+    atc_requires_approval BOOLEAN NOT NULL,
+
+    PRIMARY KEY (atc_agent_id, atc_tool_name),
+    FOREIGN KEY (atc_agent_id) REFERENCES a_agents (a_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS index__atc_agent_tool_configs__atc_agent_id ON atc_agent_tool_configs (atc_agent_id);
+
+CREATE TABLE IF NOT EXISTS atwo_agent_tool_workspace_overrides
+(
+    atwo_agent_id INTEGER NOT NULL,
+    atwo_workspace_id INTEGER NOT NULL,
+    atwo_tool_name TEXT NOT NULL,
+
+    atwo_is_enabled BOOLEAN NULL,
+    atwo_requires_approval BOOLEAN NULL,
+
+    PRIMARY KEY (atwo_agent_id, atwo_workspace_id, atwo_tool_name),
+    FOREIGN KEY (atwo_agent_id) REFERENCES a_agents (a_id) ON DELETE CASCADE,
+    FOREIGN KEY (atwo_workspace_id) REFERENCES w_workspaces (w_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS index__atwo_agent_tool_workspace_overrides__atwo_agent_id ON atwo_agent_tool_workspace_overrides (atwo_agent_id);
+CREATE INDEX IF NOT EXISTS index__atwo_agent_tool_workspace_overrides__atwo_workspace_id ON atwo_agent_tool_workspace_overrides (atwo_workspace_id);
+
+CREATE TABLE IF NOT EXISTS atbo_agent_tool_box_overrides
+(
+    atbo_agent_id INTEGER NOT NULL,
+    atbo_box_id INTEGER NOT NULL,
+    atbo_tool_name TEXT NOT NULL,
+
+    atbo_is_enabled BOOLEAN NULL,
+    atbo_requires_approval BOOLEAN NULL,
+
+    PRIMARY KEY (atbo_agent_id, atbo_box_id, atbo_tool_name),
+    FOREIGN KEY (atbo_agent_id) REFERENCES a_agents (a_id) ON DELETE CASCADE,
+    FOREIGN KEY (atbo_box_id) REFERENCES bo_boxes (bo_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS index__atbo_agent_tool_box_overrides__atbo_agent_id ON atbo_agent_tool_box_overrides (atbo_agent_id);
+CREATE INDEX IF NOT EXISTS index__atbo_agent_tool_box_overrides__atbo_box_id ON atbo_agent_tool_box_overrides (atbo_box_id);
+
+CREATE TABLE IF NOT EXISTS aop_agent_operations
+(
+    aop_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    aop_external_id TEXT NOT NULL,
+
+    aop_agent_id INTEGER NOT NULL,
+    aop_workspace_id INTEGER NULL,
+
+    aop_tool_name TEXT NOT NULL,
+    aop_params_json TEXT NOT NULL,
+
+    aop_status TEXT NOT NULL,
+
+    aop_created_at TEXT NOT NULL,
+    aop_expires_at TEXT NOT NULL,
+
+    aop_resolved_by_user_id INTEGER NULL,
+    aop_resolved_at TEXT NULL,
+
+    aop_executed_at TEXT NULL,
+    aop_result_json TEXT NULL,
+
+    FOREIGN KEY (aop_agent_id) REFERENCES a_agents (a_id) ON DELETE CASCADE,
+    FOREIGN KEY (aop_workspace_id) REFERENCES w_workspaces (w_id) ON DELETE CASCADE,
+    FOREIGN KEY (aop_resolved_by_user_id) REFERENCES u_users (u_id) ON DELETE SET NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS index__aop_agent_operations__aop_external_id ON aop_agent_operations (aop_external_id);
+CREATE INDEX IF NOT EXISTS index__aop_agent_operations__aop_agent_id ON aop_agent_operations (aop_agent_id);
+CREATE INDEX IF NOT EXISTS index__aop_agent_operations__aop_status ON aop_agent_operations (aop_status);

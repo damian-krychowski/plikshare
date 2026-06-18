@@ -29,10 +29,8 @@ public class CreateWorkspaceAgentOperation(
     {
         var agent = await httpContext.GetAgentContext();
 
-        if (!agent.HasAdminRole && !agent.Permissions.CanAddWorkspace)
-            throw new McpException(
-                "This agent does not have permission to create workspaces.");
-
+        // create_workspace availability is gated by the tool's enabled flag at the tool layer; here the
+        // operation only validates the requested storage and quotas.
         var hasStorage = storageClientStore.TryGetClient(
             externalId: StorageExtId.Parse(parameters.StorageExternalId),
             client: out var storage);

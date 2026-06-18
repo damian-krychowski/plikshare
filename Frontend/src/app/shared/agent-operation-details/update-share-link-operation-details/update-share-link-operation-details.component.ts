@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, input } from '@angular/core';
+import { Router } from '@angular/router';
 import { UpdateShareLinkOperationDetails } from '../../../services/agents.api';
 
 @Component({
@@ -11,4 +12,18 @@ import { UpdateShareLinkOperationDetails } from '../../../services/agents.api';
 })
 export class UpdateShareLinkOperationDetailsComponent {
     details = input.required<UpdateShareLinkOperationDetails>();
+    workspaceExternalId = input<string | null>(null);
+
+    constructor(private _router: Router) {
+    }
+
+    openShareLink() {
+        const workspaceExternalId = this.workspaceExternalId();
+
+        if (!workspaceExternalId)
+            return;
+
+        this._router.navigate(
+            ['workspaces', workspaceExternalId, 'quick-shares', this.details().shareLinkExternalId]);
+    }
 }

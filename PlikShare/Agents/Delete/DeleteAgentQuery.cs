@@ -55,13 +55,6 @@ public class DeleteAgentQuery(DbWriteQueue dbWriteQueue)
 
             dbWriteContext.Connection
                 .NonQueryCmd(
-                    sql: "DELETE FROM ba_box_agents WHERE ba_agent_id = $agentId",
-                    transaction: transaction)
-                .WithParameter("$agentId", agentId)
-                .Execute();
-
-            dbWriteContext.Connection
-                .NonQueryCmd(
                     sql: "DELETE FROM wa_workspace_agents WHERE wa_agent_id = $agentId",
                     transaction: transaction)
                 .WithParameter("$agentId", agentId)
@@ -84,6 +77,20 @@ public class DeleteAgentQuery(DbWriteQueue dbWriteQueue)
             dbWriteContext.Connection
                 .NonQueryCmd(
                     sql: "DELETE FROM atwo_agent_tool_workspace_overrides WHERE atwo_agent_id = $agentId",
+                    transaction: transaction)
+                .WithParameter("$agentId", agentId)
+                .Execute();
+
+            dbWriteContext.Connection
+                .NonQueryCmd(
+                    sql: "DELETE FROM atbo_agent_tool_box_overrides WHERE atbo_agent_id = $agentId",
+                    transaction: transaction)
+                .WithParameter("$agentId", agentId)
+                .Execute();
+
+            dbWriteContext.Connection
+                .NonQueryCmd(
+                    sql: "DELETE FROM ba_box_agents WHERE ba_agent_id = $agentId",
                     transaction: transaction)
                 .WithParameter("$agentId", agentId)
                 .Execute();

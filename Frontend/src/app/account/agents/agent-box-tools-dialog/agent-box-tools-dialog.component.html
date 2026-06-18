@@ -1,0 +1,78 @@
+<div class="box-tools">
+    <div class="box-tools__title">Tool overrides</div>
+    <div class="box-tools__subtitle">{{ data.boxName }}</div>
+    <div class="box-tools__description">
+        Add overrides for specific tools in this box. Tools without an override follow the agent's
+        global settings — remove an override to go back to them.
+    </div>
+
+    @if (isLoading()) {
+        <div class="box-tools__empty">Loading…</div>
+    } @else {
+        @if (visibleOverrides().length === 0) {
+            <div class="box-tools__empty">
+                No overrides yet — this box uses the agent's global settings.
+            </div>
+        } @else {
+            <div class="box-tools__list">
+                @for (tool of visibleOverrides(); track tool.name) {
+                    <div class="tool-row">
+                        <div class="tool-row__info">
+                            <div class="tool-row__name">{{ tool.name }}</div>
+                            <div class="tool-row__description">{{ tool.description }}</div>
+                        </div>
+
+                        <div class="tool-row__controls">
+                            <label class="tool-row__toggle">
+                                <span>Enabled</span>
+                                <mat-slide-toggle
+                                    [checked]="tool.effectiveIsEnabled"
+                                    (change)="onToggleEnabled(tool)">
+                                </mat-slide-toggle>
+                            </label>
+
+                            <label class="tool-row__toggle">
+                                <span>Approval</span>
+                                <mat-slide-toggle
+                                    [checked]="tool.effectiveRequiresApproval"
+                                    (change)="onToggleApproval(tool)">
+                                </mat-slide-toggle>
+                            </label>
+
+                            <app-action-btn
+                                tooltip="Remove override"
+                                icon="icon-nucleo-remove"
+                                (clicked)="onRemoveOverride(tool)">
+                            </app-action-btn>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (availableToAdd().length > 0) {
+            <mat-select
+                class="box-tools__add-select"
+                placeholder="Add an override…"
+                [ngModel]="null"
+                (ngModelChange)="onAddOverride($event)">
+                <ngx-mat-select-search
+                    [ngModel]="addSearch()"
+                    (ngModelChange)="addSearch.set($event)"
+                    placeholderLabel="Search tools..."
+                    noEntriesFoundLabel="No matching tools"
+                    [hideClearSearchButton]="true">
+                </ngx-mat-select-search>
+                @for (tool of filteredAvailableToAdd(); track tool.name) {
+                    <mat-option [value]="tool.name">{{ tool.name }}</mat-option>
+                }
+            </mat-select>
+        }
+    }
+
+    <div class="box-tools__actions">
+        <button class="box-tools__done-btn" mat-flat-button type="button" (click)="onDone()" aria-label="Done">
+            Done
+        </button>
+    </div>
+</div>

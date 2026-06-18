@@ -46,22 +46,6 @@ public class GetAgentDetailsQuery(PlikShareDb plikShareDb)
                 },
                 TokenMasked = token?.Masked ?? "",
                 TokenLastUsedAt = token?.LastUsedAt,
-                Roles = new GetAgentDetails.AgentRolesDto
-                {
-                    IsAdmin = agent.IsAdmin
-                },
-                Permissions = new GetAgentDetails.AgentPermissionsDto
-                {
-                    CanAddWorkspace = agent.CanAddWorkspace,
-                    CanManageGeneralSettings = agent.CanManageGeneralSettings,
-                    CanManageUsers = agent.CanManageUsers,
-                    CanManageStorages = agent.CanManageStorages,
-                    CanManageEmailProviders = agent.CanManageEmailProviders,
-                    CanManageAuth = agent.CanManageAuth,
-                    CanManageIntegrations = agent.CanManageIntegrations,
-                    CanManageAuditLog = agent.CanManageAuditLog,
-                    CanManageAgents = agent.CanManageAgents
-                },
                 MaxWorkspaceNumber = agent.MaxWorkspaceNumber,
                 DefaultMaxWorkspaceSizeInBytes = agent.DefaultMaxWorkspaceSizeInBytes,
                 DefaultMaxWorkspaceTeamMembers = agent.DefaultMaxWorkspaceTeamMembers,
@@ -77,6 +61,58 @@ public class GetAgentDetailsQuery(PlikShareDb plikShareDb)
         };
     }
 
+    private static List<GetAgentDetails.SharedBoxDto> ReadSharedBoxes(SqliteConnection connection, int agentId)
+    {
+        return connection
+            .Cmd(
+                sql: """
+                     SELECT
+                         w_external_id,
+                         w_name,
+                         storage.s_name,
+                         owner.u_external_id,
+                         owner.u_email,
+                         bo_external_id,
+                         bo_name,
+                         (
+                             SELECT COUNT(*)
+                             FROM atbo_agent_tool_box_overrides
+                             WHERE atbo_agent_id = $agentId
+                                 AND atbo_box_id = bo_id
+                                 AND (atbo_is_enabled IS NOT NULL OR atbo_requires_approval IS NOT NULL)
+                         )
+                     FROM ba_box_agents
+                     INNER JOIN bo_boxes
+                         ON bo_id = ba_box_id
+                     INNER JOIN w_workspaces
+                         ON w_id = bo_workspace_id
+                     INNER JOIN s_storages AS storage
+                         ON storage.s_id = w_storage_id
+                     INNER JOIN u_users AS owner
+                         ON owner.u_id = w_owner_id
+                     WHERE bo_is_being_deleted = FALSE
+                         AND w_is_being_deleted = FALSE
+                         AND ba_agent_id = $agentId
+                     ORDER BY bo_id ASC
+                     """,
+                readRowFunc: reader => new GetAgentDetails.SharedBoxDto
+                {
+                    WorkspaceExternalId = reader.GetExtId<WorkspaceExtId>(0),
+                    WorkspaceName = reader.GetString(1),
+                    StorageName = reader.GetString(2),
+                    Owner = new GetAgentDetails.OwnerDto
+                    {
+                        ExternalId = reader.GetExtId<UserExtId>(3),
+                        Email = reader.GetString(4)
+                    },
+                    BoxExternalId = reader.GetExtId<BoxExtId>(5),
+                    BoxName = reader.GetString(6),
+                    OverriddenToolsCount = reader.GetInt32(7)
+                })
+            .WithParameter("$agentId", agentId)
+            .Execute();
+    }
+
     private static AgentRow? ReadAgent(SqliteConnection connection, AgentExtId externalId)
     {
         var result = connection
@@ -87,16 +123,6 @@ public class GetAgentDetailsQuery(PlikShareDb plikShareDb)
                          a_name,
                          a_is_enabled,
                          a_created_at,
-                         a_is_admin,
-                         a_can_add_workspace,
-                         a_can_manage_general_settings,
-                         a_can_manage_users,
-                         a_can_manage_storages,
-                         a_can_manage_email_providers,
-                         a_can_manage_auth,
-                         a_can_manage_integrations,
-                         a_can_manage_audit_log,
-                         a_can_manage_agents,
                          a_max_workspace_number,
                          a_default_max_workspace_size_in_bytes,
                          a_default_max_workspace_team_members,
@@ -114,22 +140,12 @@ public class GetAgentDetailsQuery(PlikShareDb plikShareDb)
                     Name: reader.GetString(1),
                     IsEnabled: reader.GetBoolean(2),
                     CreatedAt: reader.GetFieldValue<DateTimeOffset>(3),
-                    IsAdmin: reader.GetBoolean(4),
-                    CanAddWorkspace: reader.GetBoolean(5),
-                    CanManageGeneralSettings: reader.GetBoolean(6),
-                    CanManageUsers: reader.GetBoolean(7),
-                    CanManageStorages: reader.GetBoolean(8),
-                    CanManageEmailProviders: reader.GetBoolean(9),
-                    CanManageAuth: reader.GetBoolean(10),
-                    CanManageIntegrations: reader.GetBoolean(11),
-                    CanManageAuditLog: reader.GetBoolean(12),
-                    CanManageAgents: reader.GetBoolean(13),
-                    MaxWorkspaceNumber: reader.GetInt32OrNull(14),
-                    DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(15),
-                    DefaultMaxWorkspaceTeamMembers: reader.GetInt32OrNull(16),
-                    StorageAccessMode: reader.GetEnum<UserStorageAccessMode>(17),
-                    OwnerExternalId: reader.GetExtId<UserExtId>(18),
-                    OwnerEmail: reader.GetString(19)))
+                    MaxWorkspaceNumber: reader.GetInt32OrNull(4),
+                    DefaultMaxWorkspaceSizeInBytes: reader.GetInt64OrNull(5),
+                    DefaultMaxWorkspaceTeamMembers: reader.GetInt32OrNull(6),
+                    StorageAccessMode: reader.GetEnum<UserStorageAccessMode>(7),
+                    OwnerExternalId: reader.GetExtId<UserExtId>(8),
+                    OwnerEmail: reader.GetString(9)))
             .WithParameter("$externalId", externalId.Value)
             .Execute();
 
@@ -271,86 +287,11 @@ public class GetAgentDetailsQuery(PlikShareDb plikShareDb)
             .Execute();
     }
 
-    private static List<GetAgentDetails.SharedBoxDto> ReadSharedBoxes(SqliteConnection connection, int agentId)
-    {
-        return connection
-            .Cmd(
-                sql: """
-                     SELECT
-                         w_external_id,
-                         w_name,
-                         storage.s_name,
-                         owner.u_external_id,
-                         owner.u_email,
-                         bo_external_id,
-                         bo_name,
-                         ba_allow_download,
-                         ba_allow_upload,
-                         ba_allow_list,
-                         ba_allow_delete_file,
-                         ba_allow_rename_file,
-                         ba_allow_move_items,
-                         ba_allow_create_folder,
-                         ba_allow_delete_folder,
-                         ba_allow_rename_folder
-                     FROM ba_box_agents
-                     INNER JOIN bo_boxes
-                         ON bo_id = ba_box_id
-                     INNER JOIN w_workspaces
-                         ON w_id = bo_workspace_id
-                     INNER JOIN s_storages AS storage
-                         ON storage.s_id = w_storage_id
-                     INNER JOIN u_users AS owner
-                         ON owner.u_id = w_owner_id
-                     WHERE bo_is_being_deleted = FALSE
-                         AND w_is_being_deleted = FALSE
-                         AND ba_agent_id = $agentId
-                     ORDER BY bo_id ASC
-                     """,
-                readRowFunc: reader => new GetAgentDetails.SharedBoxDto
-                {
-                    WorkspaceExternalId = reader.GetExtId<WorkspaceExtId>(0),
-                    WorkspaceName = reader.GetString(1),
-                    StorageName = reader.GetString(2),
-                    Owner = new GetAgentDetails.OwnerDto
-                    {
-                        ExternalId = reader.GetExtId<UserExtId>(3),
-                        Email = reader.GetString(4)
-                    },
-                    BoxExternalId = reader.GetExtId<BoxExtId>(5),
-                    BoxName = reader.GetString(6),
-                    Permissions = new GetAgentDetails.BoxPermissionsDto
-                    {
-                        AllowDownload = reader.GetBoolean(7),
-                        AllowUpload = reader.GetBoolean(8),
-                        AllowList = reader.GetBoolean(9),
-                        AllowDeleteFile = reader.GetBoolean(10),
-                        AllowRenameFile = reader.GetBoolean(11),
-                        AllowMoveItems = reader.GetBoolean(12),
-                        AllowCreateFolder = reader.GetBoolean(13),
-                        AllowDeleteFolder = reader.GetBoolean(14),
-                        AllowRenameFolder = reader.GetBoolean(15)
-                    }
-                })
-            .WithParameter("$agentId", agentId)
-            .Execute();
-    }
-
     private readonly record struct AgentRow(
         int Id,
         string Name,
         bool IsEnabled,
         DateTimeOffset CreatedAt,
-        bool IsAdmin,
-        bool CanAddWorkspace,
-        bool CanManageGeneralSettings,
-        bool CanManageUsers,
-        bool CanManageStorages,
-        bool CanManageEmailProviders,
-        bool CanManageAuth,
-        bool CanManageIntegrations,
-        bool CanManageAuditLog,
-        bool CanManageAgents,
         int? MaxWorkspaceNumber,
         long? DefaultMaxWorkspaceSizeInBytes,
         int? DefaultMaxWorkspaceTeamMembers,

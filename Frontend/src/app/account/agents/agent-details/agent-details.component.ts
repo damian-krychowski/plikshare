@@ -14,18 +14,16 @@ import { WorkspacePickerComponent } from "../../../shared/workspace-picker/works
 import { AdminWorkspaceListItem } from "../../../services/workspaces.api";
 import { StorageNameItem, StoragesApi, AppStorageEncryptionType } from "../../../services/storages.api";
 import { UserStorageAccessMode } from "../../../services/general-settings.api";
-import { AppUserPermissionsAndRoles, UserPermissionsAndRolesChangedEvent, UserPermissionsListComponent } from "../../../shared/user-permissions/user-permissions-list.component";
 import { WorkspaceMaxNumberChangedEvent, WorkspaceNumberConfigComponent } from "../../../shared/workspace-number-config/workspace-number-config.component";
 import { WorkspaceMaxSizeInBytesChangedEvent, WorkspaceSizeConfigComponent } from "../../../shared/workspace-size-config/workspace-size-config.component";
 import { WorkspaceMaxTeamMembersChangedEvent, WorkspaceTeamConfigComponent } from "../../../shared/workspace-team-config/workspace-team-config.component";
 import { StorageAccessChangedEvent, StorageAccessConfigComponent } from "../../../shared/storage-access-config/storage-access-config.component";
 import { AppWorkspace, WorkspaceItemComponent } from "../../../shared/workspace-item/workspace-item.component";
-import { AppExternalBox, ExternalBoxItemComponent } from "../../../shared/external-box-item/external-box-item.component";
-import { mapDtoToPermissions, mapPermissionsToDto } from "../../../shared/box-permissions/box-permissions-list.component";
 import { AgentTokenDialogComponent, AgentTokenDialogData } from "../agent-token-dialog/agent-token-dialog.component";
-import { GrantBoxAccessDialogComponent, GrantBoxAccessResult } from "../grant-box-access-dialog/grant-box-access-dialog.component";
 import { AgentToolsConfigComponent } from "../../../shared/agent-tools-config/agent-tools-config.component";
 import { AgentWorkspaceToolsDialogComponent, AgentWorkspaceToolsDialogData } from "../agent-workspace-tools-dialog/agent-workspace-tools-dialog.component";
+import { GrantBoxAccessDialogComponent, GrantBoxAccessResult } from "../grant-box-access-dialog/grant-box-access-dialog.component";
+import { AgentBoxToolsDialogComponent, AgentBoxToolsDialogData } from "../agent-box-tools-dialog/agent-box-tools-dialog.component";
 
 @Component({
     selector: 'app-agent-details',
@@ -36,13 +34,11 @@ import { AgentWorkspaceToolsDialogComponent, AgentWorkspaceToolsDialogData } fro
         ActionButtonComponent,
         ConfigCardComponent,
         RelativeTimeComponent,
-        UserPermissionsListComponent,
         WorkspaceNumberConfigComponent,
         WorkspaceSizeConfigComponent,
         WorkspaceTeamConfigComponent,
         StorageAccessConfigComponent,
         WorkspaceItemComponent,
-        ExternalBoxItemComponent,
         AgentToolsConfigComponent
     ],
     templateUrl: './agent-details.component.html',
@@ -52,7 +48,6 @@ export class AgentDetailsComponent implements OnInit, OnDestroy {
     isLoading = signal(false);
     agent: WritableSignal<GetAgentDetailsResponse | null> = signal(null);
 
-    permissionsModel: WritableSignal<AppUserPermissionsAndRoles | null> = signal(null);
     availableStorages = signal<StorageNameItem[]>([]);
 
     maxWorkspaceNumber = computed(() => this.agent()?.agent.maxWorkspaceNumber ?? null);
@@ -104,7 +99,6 @@ export class AgentDetailsComponent implements OnInit, OnDestroy {
     }
 
     sharedWorkspaceItems: WritableSignal<AppWorkspace[]> = signal([]);
-    sharedBoxItems: WritableSignal<AppExternalBox[]> = signal([]);
 
     private _agentExternalId: string | null = null;
     private _subscription: Subscription | null = null;
@@ -152,25 +146,7 @@ export class AgentDetailsComponent implements OnInit, OnDestroy {
             const result = await this._agentsApi.getAgentDetails(this._agentExternalId);
             this.agent.set(result);
 
-            this.permissionsModel.set({
-                roles: {
-                    isAdmin: signal(result.agent.roles.isAdmin)
-                },
-                permissions: {
-                    canAddWorkspace: signal(result.agent.permissions.canAddWorkspace),
-                    canManageGeneralSettings: signal(result.agent.permissions.canManageGeneralSettings),
-                    canManageUsers: signal(result.agent.permissions.canManageUsers),
-                    canManageStorages: signal(result.agent.permissions.canManageStorages),
-                    canManageEmailProviders: signal(result.agent.permissions.canManageEmailProviders),
-                    canManageAuth: signal(result.agent.permissions.canManageAuth),
-                    canManageIntegrations: signal(result.agent.permissions.canManageIntegrations),
-                    canManageAuditLog: signal(result.agent.permissions.canManageAuditLog),
-                    canManageAgents: signal(result.agent.permissions.canManageAgents)
-                }
-            });
-
             this.sharedWorkspaceItems.set(result.sharedWorkspaces.map(w => this.toAppWorkspace(w)));
-            this.sharedBoxItems.set(result.sharedBoxes.map(b => this.toAppExternalBox(b)));
         } catch (error) {
             console.error(error);
         } finally {
@@ -199,45 +175,8 @@ export class AgentDetailsComponent implements OnInit, OnDestroy {
         };
     }
 
-    private toAppExternalBox(b: GetAgentDetailsResponse['sharedBoxes'][number]): AppExternalBox {
-        return {
-            type: 'app-external-box',
-            boxExternalId: signal(b.boxExternalId),
-            boxName: signal(b.boxName),
-            owner: signal({ email: signal(b.owner.email), externalId: b.owner.externalId }),
-            isHighlighted: signal(false),
-            permissions: signal(mapDtoToPermissions(b.permissions)),
-            workspace: signal({
-                externalId: b.workspaceExternalId,
-                name: signal(b.workspaceName),
-                storageName: signal(b.storageName)
-            })
-        };
-    }
-
     goToAgents() {
         this._router.navigate(['settings/agents']);
-    }
-
-    async onPermissionsChange(event: UserPermissionsAndRolesChangedEvent) {
-        if (!this._agentExternalId)
-            return;
-
-        try {
-            await this._agentsApi.updatePermissionsAndRoles(this._agentExternalId, {
-                isAdmin: event.isAdmin,
-                canAddWorkspace: event.canAddWorkspace,
-                canManageGeneralSettings: event.canManageGeneralSettings,
-                canManageUsers: event.canManageUsers,
-                canManageStorages: event.canManageStorages,
-                canManageEmailProviders: event.canManageEmailProviders,
-                canManageAuth: event.canManageAuth,
-                canManageIntegrations: event.canManageIntegrations,
-                canManageAuditLog: event.canManageAuditLog
-            });
-        } catch (error) {
-            console.error(error);
-        }
     }
 
     async onMaxWorkspaceNumberChange(event: WorkspaceMaxNumberChangedEvent) {
@@ -365,7 +304,7 @@ export class AgentDetailsComponent implements OnInit, OnDestroy {
     }
 
     onGrantBox() {
-        const alreadyGrantedBoxExternalIds = this.sharedBoxItems().map(b => b.boxExternalId());
+        const alreadyGrantedBoxExternalIds = this.agent()?.sharedBoxes.map(b => b.boxExternalId) ?? [];
 
         const dialogRef = this._dialog.open(GrantBoxAccessDialogComponent, {
             width: '560px',
@@ -381,7 +320,7 @@ export class AgentDetailsComponent implements OnInit, OnDestroy {
                 return;
 
             try {
-                await this._agentsApi.grantBoxAccess(this._agentExternalId, result.boxExternalId, result.permissions);
+                await this._agentsApi.grantBoxAccess(this._agentExternalId, result.boxExternalId);
                 await this.loadAgent();
             } catch (error) {
                 console.error(error);
@@ -389,29 +328,36 @@ export class AgentDetailsComponent implements OnInit, OnDestroy {
         });
     }
 
-    async onSharedBoxPermissionsChange(box: AppExternalBox) {
+    async onRevokeBox(box: GetAgentDetailsResponse['sharedBoxes'][number]) {
         if (!this._agentExternalId)
             return;
 
         try {
-            await this._agentsApi.grantBoxAccess(
-                this._agentExternalId,
-                box.boxExternalId(),
-                mapPermissionsToDto(box.permissions()));
+            await this._agentsApi.revokeBoxAccess(this._agentExternalId, box.boxExternalId);
+            await this.loadAgent();
         } catch (error) {
             console.error(error);
         }
     }
 
-    async onSharedBoxAccessRevoked(box: AppExternalBox) {
+    openBoxToolsDialog(box: GetAgentDetailsResponse['sharedBoxes'][number]) {
         if (!this._agentExternalId)
             return;
 
-        try {
-            await this._agentsApi.revokeBoxAccess(this._agentExternalId, box.boxExternalId());
+        const dialogRef = this._dialog.open(AgentBoxToolsDialogComponent, {
+            width: '720px',
+            maxWidth: '95vw',
+            maxHeight: '85vh',
+            position: { top: '60px' },
+            data: {
+                agentExternalId: this._agentExternalId,
+                boxExternalId: box.boxExternalId,
+                boxName: box.boxName
+            } as AgentBoxToolsDialogData
+        });
+
+        dialogRef.afterClosed().subscribe(async () => {
             await this.loadAgent();
-        } catch (error) {
-            console.error(error);
-        }
+        });
     }
 }

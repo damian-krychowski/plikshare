@@ -58,7 +58,8 @@ import { GetBulkDownloadLinkOperationDetailsComponent } from './get-bulk-downloa
             }
             @case('delete_share_link') {
                 <app-delete-share-link-operation-details
-                    [details]="$any(details())">
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
                 </app-delete-share-link-operation-details>
             }
             @case('rename_folder') {
@@ -75,8 +76,7 @@ import { GetBulkDownloadLinkOperationDetailsComponent } from './get-bulk-downloa
             }
             @case('create_folder') {
                 <app-create-folder-operation-details
-                    [details]="$any(details())"
-                    [workspaceExternalId]="workspaceExternalId()">
+                    [details]="$any(details())">
                 </app-create-folder-operation-details>
             }
             @case('move_items') {
@@ -87,8 +87,7 @@ import { GetBulkDownloadLinkOperationDetailsComponent } from './get-bulk-downloa
             }
             @case('create_file') {
                 <app-create-file-operation-details
-                    [details]="$any(details())"
-                    [workspaceExternalId]="workspaceExternalId()">
+                    [details]="$any(details())">
                 </app-create-file-operation-details>
             }
             @case('rename_workspace') {
@@ -104,7 +103,8 @@ import { GetBulkDownloadLinkOperationDetailsComponent } from './get-bulk-downloa
             }
             @case('update_share_link') {
                 <app-update-share-link-operation-details
-                    [details]="$any(details())">
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
                 </app-update-share-link-operation-details>
             }
             @case('create_workspace') {
@@ -114,17 +114,20 @@ import { GetBulkDownloadLinkOperationDetailsComponent } from './get-bulk-downloa
             }
             @case('read_file') {
                 <app-read-file-operation-details
-                    [details]="$any(details())">
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
                 </app-read-file-operation-details>
             }
             @case('get_file') {
                 <app-get-file-operation-details
-                    [details]="$any(details())">
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
                 </app-get-file-operation-details>
             }
             @case('get_file_download_link') {
                 <app-get-file-download-link-operation-details
-                    [details]="$any(details())">
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
                 </app-get-file-download-link-operation-details>
             }
             @case('list_workspaces') {
@@ -144,7 +147,8 @@ import { GetBulkDownloadLinkOperationDetailsComponent } from './get-bulk-downloa
             }
             @case('get_share_link') {
                 <app-get-share-link-operation-details
-                    [details]="$any(details())">
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
                 </app-get-share-link-operation-details>
             }
             @case('search') {
@@ -154,12 +158,14 @@ import { GetBulkDownloadLinkOperationDetailsComponent } from './get-bulk-downloa
             }
             @case('list_workspace_content') {
                 <app-list-workspace-content-operation-details
-                    [details]="$any(details())">
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
                 </app-list-workspace-content-operation-details>
             }
             @case('get_bulk_download_link') {
                 <app-get-bulk-download-link-operation-details
-                    [details]="$any(details())">
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
                 </app-get-bulk-download-link-operation-details>
             }
             @default {

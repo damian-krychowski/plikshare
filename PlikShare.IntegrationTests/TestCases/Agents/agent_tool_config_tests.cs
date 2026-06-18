@@ -2,7 +2,6 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using PlikShare.Agents.Create.Contracts;
 using PlikShare.Agents.Tools.Contracts;
-using PlikShare.Agents.UpdateSettings.Contracts;
 using PlikShare.AuditLog;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -38,20 +37,20 @@ public class agent_tool_config_tests : TestFixture
         bulkDelete.IsEnabled.Should().BeTrue();
         bulkDelete.RequiresApproval.Should().BeTrue();
         bulkDelete.IsDefault.Should().BeTrue();
-        bulkDelete.IsAvailable.Should().BeTrue();
         bulkDelete.Scope.Should().Be("workspace");
 
         var createFile = result.Tools.Single(t => t.Name == "create_file");
         createFile.RequiresApproval.Should().BeFalse();
 
+        // create_workspace is the most privileged instance action — it stays disabled by default.
         var createWorkspace = result.Tools.Single(t => t.Name == "create_workspace");
-        createWorkspace.RequiredPermission.Should().Be("add_workspace");
-        createWorkspace.IsAvailable.Should().BeFalse();
+        createWorkspace.IsEnabled.Should().BeFalse();
+        createWorkspace.IsDefault.Should().BeTrue();
         createWorkspace.Scope.Should().Be("instance");
 
         var listWorkspaces = result.Tools.Single(t => t.Name == "list_workspaces");
-        listWorkspaces.IsAvailable.Should().BeTrue();
-        listWorkspaces.RequiredPermission.Should().BeNull();
+        listWorkspaces.IsEnabled.Should().BeTrue();
+        listWorkspaces.Scope.Should().Be("instance");
     }
 
     [Fact]
@@ -128,32 +127,22 @@ public class agent_tool_config_tests : TestFixture
     }
 
     [Fact]
-    public async Task granting_add_workspace_permission_makes_create_workspace_available()
+    public async Task enabling_create_workspace_makes_it_usable()
     {
-        //given
+        //given — create_workspace is disabled by default
         var agent = await CreateAgent();
 
         //when
-        await Api.Agents.UpdatePermissionsAndRoles(
+        await Api.Agents.UpdateToolConfig(
             externalId: agent.ExternalId,
-            request: new UpdateAgentPermissionsAndRolesRequestDto
-            {
-                IsAdmin = false,
-                CanAddWorkspace = true,
-                CanManageGeneralSettings = false,
-                CanManageUsers = false,
-                CanManageStorages = false,
-                CanManageEmailProviders = false,
-                CanManageAuth = false,
-                CanManageIntegrations = false,
-                CanManageAuditLog = false
-            },
+            toolName: "create_workspace",
+            request: new UpdateAgentToolConfigRequestDto { IsEnabled = true, RequiresApproval = false },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
         //then
         var result = await Api.Agents.GetTools(agent.ExternalId, AppOwner.Cookie);
-        result.Tools.Single(t => t.Name == "create_workspace").IsAvailable.Should().BeTrue();
+        result.Tools.Single(t => t.Name == "create_workspace").IsEnabled.Should().BeTrue();
     }
 
     [Fact]

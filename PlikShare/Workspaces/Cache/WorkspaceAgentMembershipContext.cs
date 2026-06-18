@@ -8,7 +8,7 @@ public record WorkspaceAgentMembershipContext(
     bool IsSharedWithAgent)
 {
     public bool IsAvailableForAgent =>
-        !Workspace.IsBeingDeleted && (Agent.HasAdminRole || IsOwnedByAgent || IsSharedWithAgent);
+        !Workspace.IsBeingDeleted && (IsOwnedByAgent || IsSharedWithAgent);
 
     public bool IsOwnedByAgent => Workspace.OwnerAgent?.Id == Agent.Id;
 }

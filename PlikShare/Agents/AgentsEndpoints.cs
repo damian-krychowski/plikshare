@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using PlikShare.Agents.BoxAccess;
-using PlikShare.Agents.BoxAccess.Contracts;
 using PlikShare.Agents.Cache;
 using PlikShare.Agents.Create;
 using PlikShare.Agents.Create.Contracts;
@@ -29,7 +28,6 @@ using PlikShare.Agents.UpdateSettings.Contracts;
 using PlikShare.Agents.WorkspaceAccess;
 using PlikShare.AuditLog;
 using PlikShare.Boxes.Id;
-using PlikShare.Boxes.Permissions;
 using PlikShare.Core.Authorization;
 using PlikShare.Core.Utils;
 using PlikShare.Users.Middleware;
@@ -40,7 +38,26 @@ using Audit = PlikShare.AuditLog.Details.Audit;
 using PlikShare.Core.Clock;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.SQLite;
+using PlikShare.Folders.Id;
 using PlikShare.Mcp.BulkDelete;
+using PlikShare.Mcp.Files.BulkDownloadLink;
+using PlikShare.Mcp.Files.Create;
+using PlikShare.Mcp.Files.DownloadLink;
+using PlikShare.Mcp.Files.Get;
+using PlikShare.Mcp.Files.Read;
+using PlikShare.Mcp.Files.Rename;
+using PlikShare.Mcp.Folders.Create;
+using PlikShare.Mcp.Folders.Rename;
+using PlikShare.Mcp.MoveItems;
+using PlikShare.Mcp.Search;
+using PlikShare.Mcp.ShareLinks.Create;
+using PlikShare.Mcp.ShareLinks.Delete;
+using PlikShare.Mcp.ShareLinks.Get;
+using PlikShare.Mcp.ShareLinks.List;
+using PlikShare.Mcp.ShareLinks.Update;
+using PlikShare.Mcp.Workspaces.Content;
+using PlikShare.Mcp.Workspaces.Create;
+using PlikShare.Mcp.Workspaces.Rename;
 #endif
 
 namespace PlikShare.Agents;
@@ -64,9 +81,6 @@ public static class AgentsEndpoints
         group.MapGet("/{agentExternalId}", GetAgentDetailsHandler)
             .WithName("GetAgentDetails");
 
-        group.MapGet("/workspaces/{workspaceExternalId}/boxes", ListWorkspaceBoxes)
-            .WithName("ListAgentWorkspaceBoxes");
-
         group.MapGet("/operations/pending", GetPendingOperations)
             .WithName("GetPendingAgentOperations");
 
@@ -87,15 +101,6 @@ public static class AgentsEndpoints
 
         group.MapDelete("/{agentExternalId}/workspaces/{workspaceExternalId}", RevokeWorkspaceAccess)
             .WithName("RevokeAgentWorkspaceAccess");
-
-        group.MapPut("/{agentExternalId}/boxes/{boxExternalId}", GrantBoxAccess)
-            .WithName("GrantAgentBoxAccess");
-
-        group.MapDelete("/{agentExternalId}/boxes/{boxExternalId}", RevokeBoxAccess)
-            .WithName("RevokeAgentBoxAccess");
-
-        group.MapPatch("/{agentExternalId}/permissions-and-roles", UpdatePermissionsAndRoles)
-            .WithName("UpdateAgentPermissionsAndRoles");
 
         group.MapPatch("/{agentExternalId}/max-workspace-number", UpdateMaxWorkspaceNumber)
             .WithName("UpdateAgentMaxWorkspaceNumber");
@@ -127,6 +132,24 @@ public static class AgentsEndpoints
         group.MapDelete("/{agentExternalId}/workspaces/{workspaceExternalId}/tools/{toolName}", ResetAgentWorkspaceToolOverride)
             .WithName("ResetAgentWorkspaceToolOverride");
 
+        group.MapGet("/workspaces/{workspaceExternalId}/boxes", ListWorkspaceBoxes)
+            .WithName("ListAgentWorkspaceBoxes");
+
+        group.MapPut("/{agentExternalId}/boxes/{boxExternalId}", GrantBoxAccess)
+            .WithName("GrantAgentBoxAccess");
+
+        group.MapDelete("/{agentExternalId}/boxes/{boxExternalId}", RevokeBoxAccess)
+            .WithName("RevokeAgentBoxAccess");
+
+        group.MapGet("/{agentExternalId}/boxes/{boxExternalId}/tools", GetAgentBoxTools)
+            .WithName("GetAgentBoxTools");
+
+        group.MapPatch("/{agentExternalId}/boxes/{boxExternalId}/tools/{toolName}", UpdateAgentBoxToolOverride)
+            .WithName("UpdateAgentBoxToolOverride");
+
+        group.MapDelete("/{agentExternalId}/boxes/{boxExternalId}/tools/{toolName}", ResetAgentBoxToolOverride)
+            .WithName("ResetAgentBoxToolOverride");
+
         group.MapPost("/{agentExternalId}/operations/{operationExternalId}/approve", ApproveAgentOperation)
             .WithName("ApproveAgentOperation");
 
@@ -136,6 +159,9 @@ public static class AgentsEndpoints
 #if DEBUG
         group.MapGet("/{agentExternalId}/operations/dev-seed", DevSeedOperation)
             .WithName("DevSeedAgentOperation");
+
+        group.MapGet("/{agentExternalId}/operations/dev-seed-all", DevSeedAllOperations)
+            .WithName("DevSeedAllAgentOperations");
 #endif
     }
 
@@ -156,14 +182,6 @@ public static class AgentsEndpoints
             return HttpErrors.Agent.NotFound(agentExternalId);
 
         return TypedResults.Ok(result);
-    }
-
-    private static ListWorkspaceBoxesResponseDto ListWorkspaceBoxes(
-        [FromRoute] WorkspaceExtId workspaceExternalId,
-        ListWorkspaceBoxesQuery listWorkspaceBoxesQuery)
-    {
-        return listWorkspaceBoxesQuery.Execute(
-            workspaceExternalId: workspaceExternalId);
     }
 
     private static async Task<Ok<CreateAgentResponseDto>> CreateAgent(
@@ -379,139 +397,6 @@ public static class AgentsEndpoints
                     operationName: nameof(AgentWorkspaceAccessQuery),
                     resultValueStr: result.ToString());
         }
-    }
-
-    private static async Task<Results<Ok, NotFound<HttpError>>> GrantBoxAccess(
-        [FromRoute] AgentExtId agentExternalId,
-        [FromRoute] BoxExtId boxExternalId,
-        [FromBody] GrantAgentBoxAccessRequestDto request,
-        AgentBoxAccessQuery agentBoxAccessQuery,
-        HttpContext httpContext,
-        AuditLogService auditLogService,
-        CancellationToken cancellationToken)
-    {
-        var result = await agentBoxAccessQuery.Grant(
-            agentExternalId: agentExternalId,
-            boxExternalId: boxExternalId,
-            permissions: new BoxPermissions(
-                AllowDownload: request.AllowDownload,
-                AllowUpload: request.AllowUpload,
-                AllowList: request.AllowList,
-                AllowDeleteFile: request.AllowDeleteFile,
-                AllowRenameFile: request.AllowRenameFile,
-                AllowMoveItems: request.AllowMoveItems,
-                AllowCreateFolder: request.AllowCreateFolder,
-                AllowRenameFolder: request.AllowRenameFolder,
-                AllowDeleteFolder: request.AllowDeleteFolder),
-            cancellationToken: cancellationToken);
-
-        switch (result.Code)
-        {
-            case AgentBoxAccessQuery.ResultCode.Ok:
-                await auditLogService.Log(
-                    Audit.Agent.BoxAccessGrantedEntry(
-                        actor: httpContext.GetAuditLogActorContext(),
-                        agent: new Audit.AgentRef
-                        {
-                            ExternalId = agentExternalId,
-                            Name = result.AgentName!
-                        },
-                        box: new Audit.BoxRef
-                        {
-                            ExternalId = boxExternalId,
-                            Name = result.BoxName!
-                        }),
-                    cancellationToken);
-
-                return TypedResults.Ok();
-
-            case AgentBoxAccessQuery.ResultCode.AgentNotFound:
-                return HttpErrors.Agent.NotFound(agentExternalId);
-
-            case AgentBoxAccessQuery.ResultCode.BoxNotFound:
-                return HttpErrors.Box.NotFound(boxExternalId);
-
-            default:
-                throw new UnexpectedOperationResultException(
-                    operationName: nameof(AgentBoxAccessQuery),
-                    resultValueStr: result.ToString());
-        }
-    }
-
-    private static async Task<Results<Ok, NotFound<HttpError>>> RevokeBoxAccess(
-        [FromRoute] AgentExtId agentExternalId,
-        [FromRoute] BoxExtId boxExternalId,
-        AgentBoxAccessQuery agentBoxAccessQuery,
-        HttpContext httpContext,
-        AuditLogService auditLogService,
-        CancellationToken cancellationToken)
-    {
-        var result = await agentBoxAccessQuery.Revoke(
-            agentExternalId: agentExternalId,
-            boxExternalId: boxExternalId,
-            cancellationToken: cancellationToken);
-
-        switch (result.Code)
-        {
-            case AgentBoxAccessQuery.ResultCode.Ok:
-                await auditLogService.Log(
-                    Audit.Agent.BoxAccessRevokedEntry(
-                        actor: httpContext.GetAuditLogActorContext(),
-                        agent: new Audit.AgentRef
-                        {
-                            ExternalId = agentExternalId,
-                            Name = result.AgentName!
-                        },
-                        box: new Audit.BoxRef
-                        {
-                            ExternalId = boxExternalId,
-                            Name = result.BoxName!
-                        }),
-                    cancellationToken);
-
-                return TypedResults.Ok();
-
-            case AgentBoxAccessQuery.ResultCode.AgentNotFound:
-                return HttpErrors.Agent.NotFound(agentExternalId);
-
-            case AgentBoxAccessQuery.ResultCode.BoxNotFound:
-                return HttpErrors.Box.NotFound(boxExternalId);
-
-            default:
-                throw new UnexpectedOperationResultException(
-                    operationName: nameof(AgentBoxAccessQuery),
-                    resultValueStr: result.ToString());
-        }
-    }
-
-    private static async Task<Results<Ok, NotFound<HttpError>>> UpdatePermissionsAndRoles(
-        [FromRoute] AgentExtId agentExternalId,
-        [FromBody] UpdateAgentPermissionsAndRolesRequestDto request,
-        UpdateAgentSettingsQuery updateAgentSettingsQuery,
-        AgentCache agentCache,
-        HttpContext httpContext,
-        AuditLogService auditLogService,
-        CancellationToken cancellationToken)
-    {
-        var result = await updateAgentSettingsQuery.UpdatePermissionsAndRoles(
-            agentExternalId: agentExternalId,
-            request: request,
-            cancellationToken: cancellationToken);
-
-        if (result.Code == UpdateAgentSettingsQuery.ResultCode.NotFound)
-            return HttpErrors.Agent.NotFound(agentExternalId);
-
-        await agentCache.InvalidateEntry(
-            agentExternalId,
-            cancellationToken);
-
-        await auditLogService.Log(
-            Audit.Agent.PermissionsAndRolesUpdatedEntry(
-                actor: httpContext.GetAuditLogActorContext(),
-                agent: new Audit.AgentRef { ExternalId = agentExternalId, Name = result.AgentName! }),
-            cancellationToken);
-
-        return TypedResults.Ok();
     }
 
     private static async Task<Results<Ok, NotFound<HttpError>>> UpdateMaxWorkspaceNumber(
@@ -802,11 +687,237 @@ public static class AgentsEndpoints
             result, agentExternalId, workspaceExternalId, httpContext, auditLogService, cancellationToken);
     }
 
+    private static ListWorkspaceBoxesResponseDto ListWorkspaceBoxes(
+        [FromRoute] WorkspaceExtId workspaceExternalId,
+        ListWorkspaceBoxesQuery listWorkspaceBoxesQuery)
+    {
+        return listWorkspaceBoxesQuery.Execute(
+            workspaceExternalId: workspaceExternalId);
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>>> GrantBoxAccess(
+        [FromRoute] AgentExtId agentExternalId,
+        [FromRoute] BoxExtId boxExternalId,
+        AgentBoxAccessQuery agentBoxAccessQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var result = await agentBoxAccessQuery.Grant(
+            agentExternalId: agentExternalId,
+            boxExternalId: boxExternalId,
+            cancellationToken: cancellationToken);
+
+        switch (result.Code)
+        {
+            case AgentBoxAccessQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Agent.BoxAccessGrantedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        agent: new Audit.AgentRef { ExternalId = agentExternalId, Name = result.AgentName! },
+                        box: new Audit.BoxRef { ExternalId = boxExternalId, Name = result.BoxName! }),
+                    cancellationToken);
+
+                return TypedResults.Ok();
+
+            case AgentBoxAccessQuery.ResultCode.AgentNotFound:
+                return HttpErrors.Agent.NotFound(agentExternalId);
+
+            case AgentBoxAccessQuery.ResultCode.BoxNotFound:
+                return HttpErrors.Box.NotFound(boxExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(AgentBoxAccessQuery),
+                    resultValueStr: result.Code.ToString());
+        }
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>>> RevokeBoxAccess(
+        [FromRoute] AgentExtId agentExternalId,
+        [FromRoute] BoxExtId boxExternalId,
+        AgentBoxAccessQuery agentBoxAccessQuery,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var result = await agentBoxAccessQuery.Revoke(
+            agentExternalId: agentExternalId,
+            boxExternalId: boxExternalId,
+            cancellationToken: cancellationToken);
+
+        switch (result.Code)
+        {
+            case AgentBoxAccessQuery.ResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Agent.BoxAccessRevokedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        agent: new Audit.AgentRef { ExternalId = agentExternalId, Name = result.AgentName! },
+                        box: new Audit.BoxRef { ExternalId = boxExternalId, Name = result.BoxName! }),
+                    cancellationToken);
+
+                return TypedResults.Ok();
+
+            case AgentBoxAccessQuery.ResultCode.AgentNotFound:
+                return HttpErrors.Agent.NotFound(agentExternalId);
+
+            case AgentBoxAccessQuery.ResultCode.BoxNotFound:
+                return HttpErrors.Box.NotFound(boxExternalId);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(AgentBoxAccessQuery),
+                    resultValueStr: result.Code.ToString());
+        }
+    }
+
+    private static async Task<Results<Ok<GetAgentBoxToolsResponseDto>, NotFound<HttpError>>> GetAgentBoxTools(
+        [FromRoute] AgentExtId agentExternalId,
+        [FromRoute] BoxExtId boxExternalId,
+        GetAgentBoxToolsQuery getAgentBoxToolsQuery,
+        CancellationToken cancellationToken)
+    {
+        var result = await getAgentBoxToolsQuery.Execute(
+            agentExternalId: agentExternalId,
+            boxExternalId: boxExternalId,
+            cancellationToken: cancellationToken);
+
+        return result.Code switch
+        {
+            GetAgentBoxToolsQuery.ResultCode.Ok =>
+                TypedResults.Ok(result.Response!),
+
+            GetAgentBoxToolsQuery.ResultCode.AgentNotFound =>
+                HttpErrors.Agent.NotFound(agentExternalId),
+
+            GetAgentBoxToolsQuery.ResultCode.BoxNotFound =>
+                HttpErrors.Box.NotFound(boxExternalId),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(GetAgentBoxToolsQuery),
+                resultValueStr: result.Code.ToString())
+        };
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateAgentBoxToolOverride(
+        [FromRoute] AgentExtId agentExternalId,
+        [FromRoute] BoxExtId boxExternalId,
+        [FromRoute] string toolName,
+        [FromBody] UpdateAgentBoxToolOverrideRequestDto request,
+        AgentToolBoxOverrideQuery agentToolBoxOverrideQuery,
+        CancellationToken cancellationToken)
+    {
+        var badRequest = ValidateBoxTool(toolName);
+
+        if (badRequest is not null)
+            return badRequest;
+
+        var result = await agentToolBoxOverrideQuery.Upsert(
+            agentExternalId: agentExternalId,
+            boxExternalId: boxExternalId,
+            toolName: toolName,
+            isEnabled: request.IsEnabled,
+            requiresApproval: request.RequiresApproval,
+            cancellationToken: cancellationToken);
+
+        return HandleBoxOverrideResult(result, agentExternalId, boxExternalId);
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> ResetAgentBoxToolOverride(
+        [FromRoute] AgentExtId agentExternalId,
+        [FromRoute] BoxExtId boxExternalId,
+        [FromRoute] string toolName,
+        AgentToolBoxOverrideQuery agentToolBoxOverrideQuery,
+        CancellationToken cancellationToken)
+    {
+        var badRequest = ValidateBoxTool(toolName);
+
+        if (badRequest is not null)
+            return badRequest;
+
+        var result = await agentToolBoxOverrideQuery.Reset(
+            agentExternalId: agentExternalId,
+            boxExternalId: boxExternalId,
+            toolName: toolName,
+            cancellationToken: cancellationToken);
+
+        return HandleBoxOverrideResult(result, agentExternalId, boxExternalId);
+    }
+
+    private static BadRequest<HttpError>? ValidateBoxTool(string toolName)
+    {
+        var definition = AgentToolCatalog.TryGet(toolName);
+
+        if (definition is null || !definition.IsWorkspaceOverridable)
+            return TypedResults.BadRequest(new HttpError
+            {
+                Code = "not-a-box-tool",
+                Message = $"'{toolName}' cannot be overridden per box."
+            });
+
+        return null;
+    }
+
+    private static Results<Ok, NotFound<HttpError>, BadRequest<HttpError>> HandleBoxOverrideResult(
+        AgentToolBoxOverrideQuery.Result result,
+        AgentExtId agentExternalId,
+        BoxExtId boxExternalId)
+    {
+        return result.Code switch
+        {
+            AgentToolBoxOverrideQuery.ResultCode.Ok =>
+                TypedResults.Ok(),
+
+            AgentToolBoxOverrideQuery.ResultCode.AgentNotFound =>
+                HttpErrors.Agent.NotFound(agentExternalId),
+
+            AgentToolBoxOverrideQuery.ResultCode.BoxNotFound =>
+                HttpErrors.Box.NotFound(boxExternalId),
+
+            _ => throw new UnexpectedOperationResultException(
+                operationName: nameof(AgentToolBoxOverrideQuery),
+                resultValueStr: result.Code.ToString())
+        };
+    }
+
 #if DEBUG
-    // Development-only helper: drops a pending bulk_delete into the ledger for one of your agents
-    // so the approval banner/inbox lights up without driving a real MCP agent. The dummy ids are
-    // never committed, so nothing is actually deleted. Compiled out of Release builds entirely.
+    // Development-only helper: drops a pending operation for the given tool (default bulk_delete) into
+    // the ledger for one of your agents, so the approval banner/inbox lights up without driving a real
+    // MCP agent. Reuses real folders/files/share-links from a workspace the owner owns so the resolved
+    // details show actual names; falls back to placeholder ids when none exist. Compiled out of Release.
     private static async Task<Results<Ok<string>, NotFound<HttpError>>> DevSeedOperation(
+        [FromRoute] AgentExtId agentExternalId,
+        [FromQuery] string? toolName,
+        AgentCache agentCache,
+        AgentOperationLedger operationLedger,
+        AgentOperationsOptions operationsOptions,
+        PlikShareDb plikShareDb,
+        IClock clock,
+        CancellationToken cancellationToken)
+    {
+        var agent = await agentCache.TryGetAgent(agentExternalId, cancellationToken);
+
+        if (agent is null)
+            return HttpErrors.Agent.NotFound(agentExternalId);
+
+        var tool = string.IsNullOrWhiteSpace(toolName) ? AgentToolNames.BulkDelete : toolName;
+        var target = FindDevSeedTarget(plikShareDb, agent.Owner.Id);
+        var (workspaceId, paramsJson) = BuildSeedOperation(tool, target);
+
+        var operationId = await operationLedger.CreatePending(
+            agentId: agent.Id,
+            workspaceId: workspaceId,
+            toolName: tool,
+            paramsJson: paramsJson,
+            expiresAt: clock.UtcNow.AddHours(operationsOptions.ApprovalWindowHours),
+            cancellationToken: cancellationToken);
+
+        return TypedResults.Ok(operationId.Value);
+    }
+
+    // Seeds one pending operation per catalog tool — the whole inbox lights up so every approval
+    // details view can be eyeballed (and approved/denied) at once.
+    private static async Task<Results<Ok<string[]>, NotFound<HttpError>>> DevSeedAllOperations(
         [FromRoute] AgentExtId agentExternalId,
         AgentCache agentCache,
         AgentOperationLedger operationLedger,
@@ -820,26 +931,148 @@ public static class AgentsEndpoints
         if (agent is null)
             return HttpErrors.Agent.NotFound(agentExternalId);
 
-        // Prefer real folders/files from a workspace the owner owns, so the resolved details show
-        // actual names. Falls back to placeholder ids (which resolve to nothing) if none exist.
         var target = FindDevSeedTarget(plikShareDb, agent.Owner.Id);
+        var expiresAt = clock.UtcNow.AddHours(operationsOptions.ApprovalWindowHours);
 
-        var parameters = new BulkDeleteParams
+        var ids = new List<string>();
+
+        foreach (var tool in AgentToolCatalog.Names)
         {
-            WorkspaceExternalId = target?.WorkspaceExternalId ?? "ws_dev_seed",
-            FolderExternalIds = target?.FolderExternalIds ?? ["fo_dev_seed_1", "fo_dev_seed_2"],
-            FileExternalIds = target?.FileExternalIds ?? ["fi_dev_seed_1"]
+            var (workspaceId, paramsJson) = BuildSeedOperation(tool, target);
+
+            var operationId = await operationLedger.CreatePending(
+                agentId: agent.Id,
+                workspaceId: workspaceId,
+                toolName: tool,
+                paramsJson: paramsJson,
+                expiresAt: expiresAt,
+                cancellationToken: cancellationToken);
+
+            ids.Add(operationId.Value);
+        }
+
+        return TypedResults.Ok(ids.ToArray());
+    }
+
+    // Builds plausible params for a seeded pending operation. Typed params on purpose — the compiler
+    // keeps these in lock-step with each tool's real param shape, so the details resolvers never choke.
+    private static (int? WorkspaceId, string ParamsJson) BuildSeedOperation(string toolName, DevSeedTarget? t)
+    {
+        var ws = t?.WorkspaceExternalId ?? "ws_dev_seed";
+        var wsId = t?.WorkspaceId;
+        string[] folders = t?.FolderExternalIds is { Length: > 0 } f ? f : ["fo_dev_seed_1", "fo_dev_seed_2"];
+        string[] files = t?.FileExternalIds is { Length: > 0 } fi ? fi : ["fi_dev_seed_1"];
+        var folder = folders[0];
+        var file = files[0];
+        var shareLink = t?.ShareLinkExternalId ?? "qsh_dev_seed";
+        var storage = t?.StorageExternalId ?? "s_dev_seed";
+
+        return toolName switch
+        {
+            AgentToolNames.BulkDelete => (wsId, Json.Serialize(new BulkDeleteParams
+            {
+                WorkspaceExternalId = ws, FolderExternalIds = folders, FileExternalIds = files
+            })),
+
+            AgentToolNames.DeleteShareLink => (wsId, Json.Serialize(new DeleteShareLinkParams
+            {
+                WorkspaceExternalId = ws, ShareLinkExternalId = shareLink
+            })),
+
+            AgentToolNames.RenameFolder => (wsId, Json.Serialize(new RenameFolderParams
+            {
+                WorkspaceExternalId = ws, FolderExternalId = folder, Name = "renamed-folder"
+            })),
+
+            AgentToolNames.RenameFile => (wsId, Json.Serialize(new RenameFileParams
+            {
+                WorkspaceExternalId = ws, FileExternalId = file, Name = "renamed-file"
+            })),
+
+            AgentToolNames.RenameWorkspace => (wsId, Json.Serialize(new RenameWorkspaceParams
+            {
+                WorkspaceExternalId = ws, Name = "renamed-workspace"
+            })),
+
+            AgentToolNames.CreateFolder => (wsId, Json.Serialize(new CreateFolderParams
+            {
+                WorkspaceExternalId = ws, FolderExternalId = FolderExtId.NewId().Value, Name = "new-folder", ParentFolderExternalId = folder
+            })),
+
+            AgentToolNames.CreateFile => (wsId, Json.Serialize(new CreateFileParams
+            {
+                WorkspaceExternalId = ws, Name = "notes.txt", Content = "dev seed content", FolderExternalId = folder, ContentType = "text/plain"
+            })),
+
+            AgentToolNames.MoveItems => (wsId, Json.Serialize(new MoveItemsParams
+            {
+                WorkspaceExternalId = ws, FolderExternalIds = [], FileExternalIds = files, DestinationFolderExternalId = folder
+            })),
+
+            AgentToolNames.CreateShareLink => (wsId, Json.Serialize(new CreateShareLinkParams
+            {
+                WorkspaceExternalId = ws, Name = "dev share", FileExternalIds = files, FolderExternalIds = folders,
+                ExcludedFileExternalIds = [], ExcludedFolderExternalIds = [], ExpiresAt = null, MaxDownloads = null,
+                PasswordHashBase64 = null, PasswordSalt = null
+            })),
+
+            AgentToolNames.UpdateShareLink => (wsId, Json.Serialize(new UpdateShareLinkParams
+            {
+                WorkspaceExternalId = ws, ShareLinkExternalId = shareLink, UpdateName = true, Name = "updated share",
+                UpdateExpiration = false, ExpiresAt = null, UpdateMaxDownloads = false, MaxDownloads = null,
+                UpdatePassword = false, PasswordHashBase64 = null, PasswordSalt = null, PasswordSet = false
+            })),
+
+            AgentToolNames.CreateWorkspace => (null, Json.Serialize(new CreateWorkspaceParams
+            {
+                Name = "dev workspace", StorageExternalId = storage
+            })),
+
+            AgentToolNames.GetFile => (wsId, Json.Serialize(new GetFileParams
+            {
+                FileExternalId = file
+            })),
+
+            AgentToolNames.ReadFile => (wsId, Json.Serialize(new ReadFileParams
+            {
+                FileExternalId = file, Offset = 0, MaxBytes = null
+            })),
+
+            AgentToolNames.GetFileDownloadLink => (wsId, Json.Serialize(new GetFileDownloadLinkParams
+            {
+                FileExternalId = file, ExpiresInMinutes = 15
+            })),
+
+            AgentToolNames.GetBulkDownloadLink => (wsId, Json.Serialize(new GetBulkDownloadLinkParams
+            {
+                WorkspaceExternalId = ws, FileExternalIds = files, FolderExternalIds = folders,
+                ExcludedFileExternalIds = [], ExcludedFolderExternalIds = [], ExpiresInMinutes = 15
+            })),
+
+            AgentToolNames.ListWorkspaceContent => (wsId, Json.Serialize(new ListWorkspaceContentParams
+            {
+                WorkspaceExternalId = ws, FolderExternalId = folder, Type = null, Cursor = null, Limit = null
+            })),
+
+            AgentToolNames.ListShareLinks => (wsId, Json.Serialize(new ListShareLinksParams
+            {
+                WorkspaceExternalId = ws
+            })),
+
+            AgentToolNames.GetShareLink => (wsId, Json.Serialize(new GetShareLinkParams
+            {
+                WorkspaceExternalId = ws, ShareLinkExternalId = shareLink
+            })),
+
+            AgentToolNames.Search => (null, Json.Serialize(new SearchParams
+            {
+                WorkspaceIds = null, FolderIds = null, ExcludeWorkspaceIds = null, ExcludeFolderIds = null,
+                Types = ["file"], NameContains = ["report"], Extensions = null, ContentTypes = null,
+                CreatedAfter = null, CreatedBefore = null, SizeMin = null, SizeMax = null, Cursor = null, Limit = null
+            })),
+
+            _ => (null, "{}")
         };
-
-        var operationId = await operationLedger.CreatePending(
-            agentId: agent.Id,
-            workspaceId: target?.WorkspaceId,
-            toolName: AgentToolNames.BulkDelete,
-            paramsJson: Json.Serialize(parameters),
-            expiresAt: clock.UtcNow.AddHours(operationsOptions.ApprovalWindowHours),
-            cancellationToken: cancellationToken);
-
-        return TypedResults.Ok(operationId.Value);
     }
 
     private static DevSeedTarget? FindDevSeedTarget(PlikShareDb plikShareDb, int ownerUserId)
@@ -890,18 +1123,46 @@ public static class AgentsEndpoints
             .WithParameter("$workspaceId", workspaceId)
             .Execute();
 
+        var shareLink = connection
+            .OneRowCmd(
+                sql: """
+                     SELECT qsh_external_id FROM qsh_quick_shares
+                     WHERE qsh_workspace_id = $workspaceId
+                     ORDER BY qsh_id DESC LIMIT 1
+                     """,
+                readRowFunc: reader => reader.GetString(0))
+            .WithParameter("$workspaceId", workspaceId)
+            .Execute();
+
+        var storage = connection
+            .OneRowCmd(
+                sql: """
+                     SELECT s.s_external_id
+                     FROM s_storages AS s
+                     INNER JOIN w_workspaces AS w ON w.w_storage_id = s.s_id
+                     WHERE w.w_id = $workspaceId
+                     LIMIT 1
+                     """,
+                readRowFunc: reader => reader.GetString(0))
+            .WithParameter("$workspaceId", workspaceId)
+            .Execute();
+
         return new DevSeedTarget(
             WorkspaceId: workspaceId,
             WorkspaceExternalId: workspace.Value.ExternalId,
             FolderExternalIds: folders.ToArray(),
-            FileExternalIds: files.ToArray());
+            FileExternalIds: files.ToArray(),
+            ShareLinkExternalId: shareLink.IsEmpty ? null : shareLink.Value,
+            StorageExternalId: storage.IsEmpty ? null : storage.Value);
     }
 
     private sealed record DevSeedTarget(
         int WorkspaceId,
         string WorkspaceExternalId,
         string[] FolderExternalIds,
-        string[] FileExternalIds);
+        string[] FileExternalIds,
+        string? ShareLinkExternalId,
+        string? StorageExternalId);
 #endif
 
     private static async Task<Results<Ok<AgentOperationDetails>, NotFound<HttpError>>> GetOperationDetails(

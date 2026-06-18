@@ -1,0 +1,115 @@
+.op-details__section-title {
+    font-size: var(--company-small-font);
+    font-weight: 600;
+    color: var(--company-grey-dark);
+    margin: 0.5rem 0 0.25rem;
+}
+
+.op-details__item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.3rem 0.5rem;
+}
+
+.op-details__item--clickable {
+    cursor: pointer;
+    border-radius: var(--mdc-filled-button-container-shape);
+
+    &:hover {
+        background-color: var(--company-grey-hover);
+    }
+}
+
+.op-details__icon {
+    flex: 0 0 auto;
+    color: var(--company-grey-font);
+}
+
+.op-details__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.op-details__name {
+    color: var(--company-grey-dark);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.op-details__path {
+    font-size: var(--company-small-font);
+    color: var(--company-grey-font);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.op-details__meta {
+    margin-top: 0.25rem;
+    border: 1px solid var(--company-grey-accent);
+    border-radius: var(--mdc-filled-button-container-shape);
+    overflow: hidden;
+}
+
+.op-details__meta-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    font-size: var(--company-small-font);
+    border-top: 1px solid var(--company-grey-accent);
+
+    &:first-child {
+        border-top: none;
+    }
+}
+
+.op-details__meta-label {
+    flex: 0 0 6rem;
+    color: var(--company-grey-font);
+}
+
+.op-details__meta-value {
+    color: var(--company-grey-dark);
+    font-weight: 500;
+    min-width: 0;
+    word-break: break-word;
+}
+
+.op-details__changes {
+    margin: 0.25rem 0 0;
+    padding-left: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: var(--company-small-font);
+    color: var(--company-grey-dark);
+
+    li {
+        line-height: 1.4;
+    }
+}
+
+.op-details__notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--mdc-filled-button-container-shape);
+    background: var(--company-blue-hover);
+    color: var(--company-grey-dark);
+    font-size: var(--company-small-font);
+    line-height: 1.4;
+}
+
+.op-details__notice-icon {
+    flex: 0 0 auto;
+    color: var(--company-blue);
+    margin-top: 1px;
+}

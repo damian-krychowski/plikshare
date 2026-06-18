@@ -113,8 +113,7 @@ public class SearchForAgentQuery(PlikShareDb plikShareDb)
             WHERE w_is_being_deleted = FALSE
                 AND w_encryption_salt IS NULL
                 AND (
-                    $isAdmin
-                    OR w_owner_agent_id = $agentId
+                    w_owner_agent_id = $agentId
                     OR EXISTS (
                         SELECT 1 FROM wa_workspace_agents
                         WHERE wa_workspace_id = w_id AND wa_agent_id = $agentId
@@ -239,7 +238,6 @@ public class SearchForAgentQuery(PlikShareDb plikShareDb)
                         WorkspaceExternalId = reader.GetString(8)
                     }),
                 name: "agent.search.files")
-            .WithParameter("$isAdmin", agent.HasAdminRole)
             .WithParameter("$agentId", agent.Id)
             .WithJsonParameter("$workspaceExternalIds", f.WorkspaceExternalIds)
             .WithJsonParameter("$folderExternalIds", f.FolderExternalIds)
@@ -332,7 +330,6 @@ public class SearchForAgentQuery(PlikShareDb plikShareDb)
                         WorkspaceExternalId = reader.GetString(5)
                     }),
                 name: "agent.search.folders")
-            .WithParameter("$isAdmin", agent.HasAdminRole)
             .WithParameter("$agentId", agent.Id)
             .WithJsonParameter("$workspaceExternalIds", f.WorkspaceExternalIds)
             .WithJsonParameter("$folderExternalIds", f.FolderExternalIds)

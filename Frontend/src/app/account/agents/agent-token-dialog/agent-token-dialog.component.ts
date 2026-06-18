@@ -3,6 +3,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { FormsModule } from '@angular/forms';
+import { ConfigCardComponent } from '../../../shared/config-card/config-card.component';
 
 export interface AgentTokenDialogData {
     title: string;
@@ -14,7 +15,8 @@ export interface AgentTokenDialogData {
     imports: [
         FormsModule,
         MatButtonModule,
-        MatCheckboxModule
+        MatCheckboxModule,
+        ConfigCardComponent
     ],
     templateUrl: './agent-token-dialog.component.html',
     styleUrl: './agent-token-dialog.component.scss',

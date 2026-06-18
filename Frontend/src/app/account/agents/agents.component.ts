@@ -105,7 +105,7 @@ export class AgentsComponent implements OnInit {
                 createdAt: new Date().toISOString()
             });
 
-            this.agents.update(items => [created, ...items]);
+            this.agents.update(items => [...items, created]);
 
             const data: AgentTokenDialogData = {
                 title: 'Agent created',

@@ -1,6 +1,9 @@
 @forward "./../../../styles/questionaire.scss";
 
 .recovery-code {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
     padding: 1.5rem 2rem 1rem;
     max-height: calc(100vh - 80px - 1rem);
     overflow-y: auto;
@@ -8,16 +11,25 @@
     &__title {
         font-size: 1.4rem;
         font-weight: 600;
-        margin-bottom: 1rem;
     }
 
-    &__warning {
-        background: #fff8e1;
-        border-left: 4px solid #f9a825;
-        padding: 0.75rem 1rem;
-        margin-bottom: 1rem;
-        font-size: 0.95rem;
-        line-height: 1.4;
+    &__code {
+        border: 1px solid var(--company-grey-accent);
+        border-radius: 8px;
+        background-color: white;
+        cursor: pointer;
+        overflow: hidden;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+
+        &:hover {
+            background-color: var(--company-grey-accent-light);
+            border-color: var(--company-grey-font);
+        }
+
+        &--copied {
+            border-color: var(--company-blue);
+            background-color: var(--company-blue-selected);
+        }
     }
 
     &__grid {
@@ -25,10 +37,6 @@
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 0.5rem 1rem;
         padding: 1rem;
-        background: #f5f5f5;
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
-        margin-bottom: 1rem;
         font-family: var(--company-monospace-font);
     }
 
@@ -42,7 +50,7 @@
     }
 
     &__word-number {
-        color: #888;
+        color: var(--company-grey-font);
         min-width: 1.8em;
         text-align: right;
         font-size: 0.85em;
@@ -52,24 +60,34 @@
         font-weight: 500;
     }
 
-    &__actions-row {
+    &__hint {
         display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0.5rem;
+        border-top: 1px solid var(--company-grey-accent);
+        font-size: var(--company-small-font);
+        color: var(--company-grey-font);
+    }
+
+    &__code--copied &__hint {
+        color: var(--company-blue);
+        border-top-color: var(--company-blue);
     }
 
     &__danger-notice {
-        background: #ffebee;
-        border-left: 4px solid #c62828;
+        border-left: 4px solid var(--company-danger);
+        background: var(--company-grey-accent-light);
+        color: var(--company-grey-dark);
         padding: 0.75rem 1rem;
-        margin-bottom: 1rem;
+        border-radius: 0 var(--mdc-filled-button-container-shape) var(--mdc-filled-button-container-shape) 0;
         font-size: 0.9rem;
         line-height: 1.4;
     }
 
     &__confirm {
         display: block;
-        margin-bottom: 1.25rem;
     }
 
     &__actions {

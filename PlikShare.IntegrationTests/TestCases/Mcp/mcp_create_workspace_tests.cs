@@ -389,29 +389,13 @@ public class mcp_create_workspace_tests : TestFixture
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
 
-        await Api.Agents.UpdatePermissionsAndRoles(
-            externalId: agent.ExternalId,
-            request: new UpdateAgentPermissionsAndRolesRequestDto
-            {
-                IsAdmin = false,
-                CanAddWorkspace = canAddWorkspace,
-                CanManageGeneralSettings = false,
-                CanManageUsers = false,
-                CanManageStorages = false,
-                CanManageEmailProviders = false,
-                CanManageAuth = false,
-                CanManageIntegrations = false,
-                CanManageAuditLog = false
-            },
-            cookie: owner.Cookie,
-            antiforgery: owner.Antiforgery);
-
+        // create_workspace defaults to disabled; the tool's enabled flag now is the create-workspace gate.
         await Api.Agents.UpdateToolConfig(
             externalId: agent.ExternalId,
             toolName: "create_workspace",
             request: new UpdateAgentToolConfigRequestDto
             {
-                IsEnabled = true,
+                IsEnabled = canAddWorkspace,
                 RequiresApproval = createWorkspaceRequiresApproval
             },
             cookie: owner.Cookie,

@@ -3,15 +3,19 @@
         Share link — its public URL stops working
     </div>
 
-    <div class="op-details__item">
-        <i class="icon icon-xl icon-nucleo-share op-details__icon"></i>
+    <div class="op-details__item"
+        [class.op-details__item--clickable]="workspaceExternalId()"
+        (click)="openShareLink()">
+        <i class="icon icon-xl icon-nucleo-link op-details__icon"></i>
         <div class="op-details__text">
             <div class="op-details__name">{{ details().name }}</div>
+            <div class="op-details__path">Public download link</div>
         </div>
     </div>
 
-    <div class="explanation">
-        The shared files and folders are not deleted — only the public link is removed.
+    <div class="op-details__notice">
+        <i class="icon icon-md icon-nucleo-info op-details__notice-icon"></i>
+        <span>The shared files and folders are not deleted — only the public link is removed.</span>
     </div>
 } @else {
     <div class="explanation">

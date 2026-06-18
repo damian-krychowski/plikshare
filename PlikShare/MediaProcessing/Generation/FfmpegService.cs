@@ -57,7 +57,7 @@ public class FfmpegService
     /// <summary>
     /// Generates all requested WebP thumbnail variants from a single source stream. The source is
     /// read ONCE (eg. straight from S3 via <paramref name="writeSourceTo"/>) and fanned out to one
-    /// ffmpeg process per variant over stdin — nothing is buffered in the managed heap or on disk,
+    /// ffmpeg process per variant over stdin - nothing is buffered in the managed heap or on disk,
     /// and the source is downloaded only once. Each variant succeeds or fails independently; a
     /// failure is reported in <see cref="ThumbnailVariantResult.Error"/> rather than thrown, so one bad
     /// variant never sinks the others.

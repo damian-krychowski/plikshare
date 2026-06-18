@@ -29,23 +29,6 @@ public class GetAgentWorkspacesQuery(
     {
         using var connection = plikShareDb.OpenConnection();
 
-        if (agent.HasAdminRole)
-        {
-            return connection
-                .Cmd(
-                    sql: """
-                         SELECT w_id, w_external_id, w_name
-                         FROM w_workspaces
-                         WHERE w_is_being_deleted = FALSE
-                         ORDER BY w_id ASC
-                         """,
-                    readRowFunc: reader => (
-                        Id: reader.GetInt32(0),
-                        ExternalId: reader.GetExtId<WorkspaceExtId>(1).Value,
-                        Name: reader.GetString(2)))
-                .Execute();
-        }
-
         return connection
             .Cmd(
                 sql: """

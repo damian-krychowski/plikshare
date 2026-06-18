@@ -18,5 +18,6 @@ public class GetBulkDownloadLinkOperationDetails : AgentOperationDetails
         public required string ExternalId { get; init; }
         public required string Name { get; init; }
         public string? Path { get; init; }
+        public string? FolderExternalId { get; init; }
     }
 }

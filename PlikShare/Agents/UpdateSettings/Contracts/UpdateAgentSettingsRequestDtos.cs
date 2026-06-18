@@ -2,19 +2,6 @@ using PlikShare.Users.StorageAccess;
 
 namespace PlikShare.Agents.UpdateSettings.Contracts;
 
-public class UpdateAgentPermissionsAndRolesRequestDto
-{
-    public required bool IsAdmin { get; init; }
-    public required bool CanAddWorkspace { get; init; }
-    public required bool CanManageGeneralSettings { get; init; }
-    public required bool CanManageUsers { get; init; }
-    public required bool CanManageStorages { get; init; }
-    public required bool CanManageEmailProviders { get; init; }
-    public required bool CanManageAuth { get; init; }
-    public required bool CanManageIntegrations { get; init; }
-    public required bool CanManageAuditLog { get; init; }
-}
-
 public class UpdateAgentMaxWorkspaceNumberRequestDto
 {
     public required int? MaxWorkspaceNumber { get; init; }

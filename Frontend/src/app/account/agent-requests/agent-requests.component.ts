@@ -24,10 +24,22 @@ import { AgentOperationDetailsComponent } from '../../shared/agent-operation-det
     styleUrl: './agent-requests.component.scss'
 })
 export class AgentRequestsComponent implements OnInit {
+    // Tools whose approval details carry no data beyond what the card header already shows — the card
+    // title/workspace says it all, so there's nothing worth expanding.
+    private static readonly TOOLS_WITHOUT_DETAILS = new Set<string>([
+        'list_workspaces',
+        'list_storages',
+        'list_share_links'
+    ]);
+
     isInitialized = signal(false);
 
     expandedId = signal<string | null>(null);
     private _details = signal<Map<string, AgentOperationDetails>>(new Map());
+
+    hasDetails(op: PendingAgentOperation): boolean {
+        return !AgentRequestsComponent.TOOLS_WITHOUT_DETAILS.has(op.toolName);
+    }
 
     constructor(
         public agentRequests: AgentRequestsService,
@@ -42,6 +54,9 @@ export class AgentRequestsComponent implements OnInit {
     }
 
     async toggle(op: PendingAgentOperation) {
+        if (!this.hasDetails(op))
+            return;
+
         if (this.expandedId() === op.externalId) {
             this.expandedId.set(null);
             this.syncExpandedToUrl(null);

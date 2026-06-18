@@ -16,7 +16,7 @@
         } @else {
             <div class="ws-tools__list">
                 @for (tool of visibleOverrides(); track tool.name) {
-                    <div class="tool-row" [class.tool-row--unavailable]="!tool.isAvailable">
+                    <div class="tool-row">
                         <div class="tool-row__info">
                             <div class="tool-row__name">{{ tool.name }}</div>
                             <div class="tool-row__description">{{ tool.description }}</div>
@@ -27,7 +27,6 @@
                                 <span>Enabled</span>
                                 <mat-slide-toggle
                                     [checked]="tool.effectiveIsEnabled"
-                                    [disabled]="!tool.isAvailable"
                                     (change)="onToggleEnabled(tool)">
                                 </mat-slide-toggle>
                             </label>
@@ -36,7 +35,6 @@
                                 <span>Approval</span>
                                 <mat-slide-toggle
                                     [checked]="tool.effectiveRequiresApproval"
-                                    [disabled]="!tool.isAvailable"
                                     (change)="onToggleApproval(tool)">
                                 </mat-slide-toggle>
                             </label>

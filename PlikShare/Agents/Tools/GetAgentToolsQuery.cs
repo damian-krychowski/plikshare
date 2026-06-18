@@ -42,10 +42,6 @@ public class GetAgentToolsQuery(AgentCache agentCache)
             Name = definition.Name,
             Description = definition.Description,
             Scope = definition.Group == AgentToolGroup.Workspace ? "workspace" : "instance",
-            RequiredPermission = definition.RequiredPermission == AgentToolPermission.AddWorkspace
-                ? "add_workspace"
-                : null,
-            IsAvailable = effective.IsAvailable,
             IsEnabled = effective.IsEnabled,
             RequiresApproval = effective.RequiresApproval,
             IsDefault = isDefault

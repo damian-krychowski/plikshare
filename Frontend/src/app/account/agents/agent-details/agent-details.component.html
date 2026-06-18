@@ -51,11 +51,7 @@
             <div class="mt-2"></div>
 
             <div class="item agent-details__identity">
-                @if(agentVal.agent.roles.isAdmin) {
-                    <i class="icon icon-xl icon-nucleo-user-crown" matTooltip="Admin agent" matTooltipPosition="above"></i>
-                } @else {
-                    <i class="icon icon-xl icon-nucleo-robot" matTooltip="Agent" matTooltipPosition="above"></i>
-                }
+                <i class="icon icon-xl icon-nucleo-robot" matTooltip="Agent" matTooltipPosition="above"></i>
 
                 <div class="item__details">
                     <div class="item__title">
@@ -112,21 +108,7 @@
                 </div>
             </div>
 
-            <div class="mt-2"></div>       
-
-            @if(permissionsModel(); as pm) {
-                <app-config-card
-                    title="Agent permissions"
-                    description="The permissions and roles granted to this agent.">
-                    <app-user-permissions-list
-                        [user]="pm"
-                        [canManageAgentsAvailable]="false"
-                        (configChanged)="onPermissionsChange($event)">
-                    </app-user-permissions-list>
-                </app-config-card>
-
-                <div class="mt-3"></div>
-            }     
+            <div class="mt-2"></div>
 
             @if (agent(); as agentData) {
                 <app-config-card
@@ -245,12 +227,12 @@
 
             <div class="title-header">
                 <div>
-                    Shared boxes:
+                    Boxes:
                 </div>
 
                 <div class="flex-row flex-gap-05 ml-auto">
                     <app-action-btn
-                        tooltip="Grant access to a box"
+                        tooltip="Invite to a box"
                         icon="icon-lucide-plus"
                         (clicked)="onGrantBox()">
                     </app-action-btn>
@@ -259,19 +241,40 @@
 
             <div class="mt-2"></div>
 
-            @if(sharedBoxItems().length > 0) {
-                @for(box of sharedBoxItems(); track box.boxExternalId()) {
-                    <app-external-box-item
-                        [externalBox]="box"
-                        [isAdminView]="true"
-                        (permissionsChange)="onSharedBoxPermissionsChange(box)"
-                        (accessRevoked)="onSharedBoxAccessRevoked(box)">
-                    </app-external-box-item>
+            @if(agentVal.sharedBoxes.length > 0) {
+                @for(box of agentVal.sharedBoxes; track box.boxExternalId) {
+                    <div class="item">
+                        <i class="icon icon-xl icon-nucleo-box"></i>
+
+                        <div class="item__details">
+                            <div class="item__title">
+                                {{ box.boxName }}
+                            </div>
+
+                            <div class="item__subtitle">
+                                {{ box.workspaceName }} · {{ box.owner.email }}
+                            </div>
+                        </div>
+
+                        <div class="flex-row flex-gap-05 ml-auto">
+                            <app-action-btn
+                                tooltip="{{ box.overriddenToolsCount > 0 ? 'Tool overrides (' + box.overriddenToolsCount + ')' : 'Tool overrides' }}"
+                                icon="icon-nucleo-settings"
+                                (clicked)="openBoxToolsDialog(box)">
+                            </app-action-btn>
+
+                            <app-action-btn
+                                tooltip="Revoke box access"
+                                icon="icon-nucleo-remove"
+                                (clicked)="onRevokeBox(box)">
+                            </app-action-btn>
+                        </div>
+                    </div>
                 }
             } @else {
                 <div class="nothing-to-show">
                     <div class="nothing-to-show__label">
-                        Agent does not have access to any box
+                        Agent is not invited to any box
                     </div>
                 </div>
             }

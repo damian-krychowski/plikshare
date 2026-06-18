@@ -6,8 +6,6 @@ import { MatSelectModule } from '@angular/material/select';
 import { FormsModule } from '@angular/forms';
 import { WorkspacesApi, AdminWorkspaceListItem } from '../../../services/workspaces.api';
 import { AgentsApi, WorkspaceBoxItem } from '../../../services/agents.api';
-import { AppBoxPermissions, BoxPermissionsListComponent, mapPermissionsToDto } from '../../../shared/box-permissions/box-permissions-list.component';
-import { BoxPermissions } from '../../../services/boxes.api';
 
 export interface GrantBoxAccessDialogData {
     alreadyGrantedBoxExternalIds?: string[];
@@ -16,7 +14,6 @@ export interface GrantBoxAccessDialogData {
 export interface GrantBoxAccessResult {
     boxExternalId: string;
     boxName: string;
-    permissions: BoxPermissions;
 }
 
 @Component({
@@ -25,8 +22,7 @@ export interface GrantBoxAccessResult {
         FormsModule,
         MatButtonModule,
         MatFormFieldModule,
-        MatSelectModule,
-        BoxPermissionsListComponent
+        MatSelectModule
     ],
     templateUrl: './grant-box-access-dialog.component.html',
     styleUrl: './grant-box-access-dialog.component.scss'
@@ -40,18 +36,6 @@ export class GrantBoxAccessDialogComponent implements OnInit {
 
     selectedWorkspaceExternalId = signal<string | null>(null);
     selectedBoxExternalId = signal<string | null>(null);
-
-    permissions: AppBoxPermissions = {
-        allowList: signal(true),
-        allowDownload: signal(true),
-        allowUpload: signal(false),
-        allowDeleteFile: signal(false),
-        allowDeleteFolder: signal(false),
-        allowRenameFile: signal(false),
-        allowRenameFolder: signal(false),
-        allowMoveItems: signal(false),
-        allowCreateFolder: signal(false)
-    };
 
     private _alreadyGrantedBoxExternalIds: Set<string>;
 
@@ -106,8 +90,7 @@ export class GrantBoxAccessDialogComponent implements OnInit {
 
         const result: GrantBoxAccessResult = {
             boxExternalId: box.externalId,
-            boxName: box.name,
-            permissions: mapPermissionsToDto(this.permissions)
+            boxName: box.name
         };
 
         this.dialogRef.close(result);

@@ -3,19 +3,29 @@
 </div>
 
 @if(details().nameContains.length > 0 || details().types.length > 0 || details().extensions.length > 0) {
-    <ul class="op-details__filters">
+    <div class="op-details__meta">
         @if(details().nameContains.length > 0) {
-            <li>name contains: {{ details().nameContains.join(', ') }}</li>
+            <div class="op-details__meta-row">
+                <span class="op-details__meta-label">Name contains</span>
+                <span class="op-details__meta-value">{{ details().nameContains.join(', ') }}</span>
+            </div>
         }
         @if(details().types.length > 0) {
-            <li>types: {{ details().types.join(', ') }}</li>
+            <div class="op-details__meta-row">
+                <span class="op-details__meta-label">Types</span>
+                <span class="op-details__meta-value">{{ details().types.join(', ') }}</span>
+            </div>
         }
         @if(details().extensions.length > 0) {
-            <li>extensions: {{ details().extensions.join(', ') }}</li>
+            <div class="op-details__meta-row">
+                <span class="op-details__meta-label">Extensions</span>
+                <span class="op-details__meta-value">{{ details().extensions.join(', ') }}</span>
+            </div>
         }
-    </ul>
+    </div>
 } @else {
-    <div class="explanation">
-        Searches everything the agent can access.
+    <div class="op-details__notice">
+        <i class="icon icon-md icon-nucleo-info op-details__notice-icon"></i>
+        <span>No filters — searches everything the agent can access.</span>
     </div>
 }

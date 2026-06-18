@@ -53,38 +53,30 @@ public class AgentSearchScopeResolver(
     {
         using var connection = plikShareDb.OpenConnection();
 
-        var accessClause = agent.HasAdminRole
-            ? ""
-            : """
-                  AND (
-                      w.w_owner_agent_id = $agentId
-                      OR EXISTS (
-                          SELECT 1
-                          FROM wa_workspace_agents
-                          WHERE wa_workspace_id = w.w_id
-                              AND wa_agent_id = $agentId
-                      )
-                  )
-              """;
-
-        var sql = $"""
-                   SELECT
-                       w.w_external_id,
-                       o.atwo_is_enabled,
-                       o.atwo_requires_approval
-                   FROM w_workspaces AS w
-                   LEFT JOIN atwo_agent_tool_workspace_overrides AS o
-                       ON o.atwo_workspace_id = w.w_id
-                       AND o.atwo_agent_id = $agentId
-                       AND o.atwo_tool_name = $toolName
-                   WHERE w.w_is_being_deleted = FALSE
-                       {accessClause}
-                   ORDER BY w.w_id ASC
-                   """;
-
         return connection
             .Cmd(
-                sql: sql,
+                sql: """
+                     SELECT
+                         w.w_external_id,
+                         o.atwo_is_enabled,
+                         o.atwo_requires_approval
+                     FROM w_workspaces AS w
+                     LEFT JOIN atwo_agent_tool_workspace_overrides AS o
+                         ON o.atwo_workspace_id = w.w_id
+                         AND o.atwo_agent_id = $agentId
+                         AND o.atwo_tool_name = $toolName
+                     WHERE w.w_is_being_deleted = FALSE
+                         AND (
+                             w.w_owner_agent_id = $agentId
+                             OR EXISTS (
+                                 SELECT 1
+                                 FROM wa_workspace_agents
+                                 WHERE wa_workspace_id = w.w_id
+                                     AND wa_agent_id = $agentId
+                             )
+                         )
+                     ORDER BY w.w_id ASC
+                     """,
                 readRowFunc: reader =>
                 {
                     var externalId = reader.GetExtId<WorkspaceExtId>(0).Value;

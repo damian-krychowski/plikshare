@@ -2266,7 +2266,7 @@ export class FilesExplorerComponent implements OnChanges, OnInit, OnDestroy, Aft
             const result = await this.filesApi().countThumbnailableFiles(request);
 
             if (result.fileCount === 0)
-                return 'No images or videos in the selection — nothing to process.';
+                return 'No images or videos in the selection - nothing to process.';
 
             const fileLabel = result.fileCount === 1 ? 'file' : 'files';
             const size = StorageSizeUtils.formatSize(result.totalSizeInBytes);

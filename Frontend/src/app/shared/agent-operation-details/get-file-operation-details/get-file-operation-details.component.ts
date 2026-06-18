@@ -1,4 +1,5 @@
 import { Component, input } from '@angular/core';
+import { Router } from '@angular/router';
 import { GetFileOperationDetails } from '../../../services/agents.api';
 
 @Component({
@@ -10,4 +11,19 @@ import { GetFileOperationDetails } from '../../../services/agents.api';
 })
 export class GetFileOperationDetailsComponent {
     details = input.required<GetFileOperationDetails>();
+    workspaceExternalId = input<string | null>(null);
+
+    constructor(private _router: Router) {
+    }
+
+    openFile() {
+        const workspaceExternalId = this.workspaceExternalId();
+
+        if (!workspaceExternalId)
+            return;
+
+        this._router.navigate(
+            ['workspaces', workspaceExternalId, 'explorer'],
+            { queryParams: { fileId: this.details().fileExternalId } });
+    }
 }

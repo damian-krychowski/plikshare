@@ -1,6 +1,6 @@
 <div class="grant-box">
     <div class="grant-box__title">
-        Grant box access
+        Invite agent to a box
     </div>
 
     <div class="grant-box__field">
@@ -29,7 +29,7 @@
                         <mat-option [value]="box.externalId" [disabled]="isBoxAlreadyGranted(box.externalId)">
                             {{ box.name }}
                             @if(isBoxAlreadyGranted(box.externalId)) {
-                                <span class="grant-box__granted-badge">already granted</span>
+                                <span class="grant-box__granted-badge">already invited</span>
                             }
                         </mat-option>
                     } @empty {
@@ -42,16 +42,6 @@
         </div>
     }
 
-    @if(selectedBoxExternalId()) {
-        <div class="grant-box__permissions-label">
-            Permissions:
-        </div>
-
-        <app-box-permissions-list
-            [permissions]="permissions">
-        </app-box-permissions-list>
-    }
-
     <div class="grant-box__actions">
         <button mat-stroked-button type="button"
             (click)="onCancel()">
@@ -61,7 +51,7 @@
         <button mat-flat-button type="button"
             [disabled]="!selectedBoxExternalId()"
             (click)="onGrant()">
-            Grant access
+            Invite
         </button>
     </div>
 </div>

@@ -94,7 +94,7 @@ export function collectSelectionFromChildren(children: StaticTreeNode[]): Static
             out.excludedFileIds.push(...sub.excludedFileIds);
         } else if (child.isExcluded()) {
             out.excludedFolderIds.push(child.id);
-            // excluded subtree pruned — nothing else to carry up
+            // excluded subtree pruned - nothing else to carry up
         } else {
             out.selectedFolderIds.push(...sub.selectedFolderIds);
             out.selectedFileIds.push(...sub.selectedFileIds);

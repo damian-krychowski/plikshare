@@ -2,7 +2,9 @@
     File — view details
 </div>
 
-<div class="op-details__item">
+<div class="op-details__item"
+    [class.op-details__item--clickable]="workspaceExternalId()"
+    (click)="openFile()">
     <i class="icon icon-xl icon-nucleo-file op-details__icon"></i>
     <div class="op-details__text">
         <div class="op-details__name">{{ details().name ?? details().fileExternalId }}</div>

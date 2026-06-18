@@ -2,6 +2,15 @@
 
 Release notes for PlikShare.
 
+## 1.2.0
+
+- [FEATURE] Agents — connect AI agents (e.g. Claude) to PlikShare over MCP. Create an agent, hand it a scoped API token (rotatable, shown only once at creation), and it can work only with the workspaces and boxes you explicitly grant it — its reach is your owned and shared workspaces, nothing more. Per-agent limits: how many workspaces it may create, the default size and team-member caps for those, and which storages it's allowed to use
+- [FEATURE] Agent toolset (MCP) — a full set of tools exposed at `/mcp`: list and search workspace content, read files, mint download links (single file and bulk ZIP), create files and folders, rename and move items, create/update/delete public share links, bulk delete, create workspaces, and list workspaces and storages. Agent-skills discovery is built in so a connected agent learns what it can do
+- [FEATURE] Human-in-the-loop approval — any tool can be set to require your approval before it runs. Pending operations land in a new Agent requests inbox with a structured preview of exactly what the agent wants to do — which files and folders, share-link settings, the file name/size and where it will be created — and every referenced item links straight into the explorer. Approve or deny each one; the agent polls and commits only once approved. Requests expire after a configurable window and are swept automatically
+- [FEATURE] Per-tool permissions on three levels — enable/disable each tool and require-or-not approval per agent globally, then override it per workspace, then per box (the most specific level wins). Destructive tools require approval by default, and creating workspaces is off until you turn it on
+- [FEATURE] Agents in boxes — invite an agent to individual boxes the same way you invite people, with its own per-box tool overrides
+- [IMPROVEMENT] One-time secret dialogs redesigned — the "agent created" token reveal (and the recovery-code dialog) now use a consistent, cleaner card with a single click-to-copy field
+
 ## 1.1.45
 
 - [FIX] Minimap height reworked to size correctly in every embedding context — the app, page-scrolling widgets and fixed-height widget containers. It no longer keeps growing as you scroll, no longer disappears after scrolling back up when there's content above or below the widget, and folders with only a few items no longer get a stray scrollbar. Long lists keep the full-height sticky rail; short lists now show a full-height rail track behind the (short) map, so it looks consistent everywhere

@@ -3,6 +3,8 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { FormsModule } from '@angular/forms';
+import { ConfigCardComponent } from '../config-card/config-card.component';
+import { ActionButtonComponent } from '../buttons/action-btn/action-btn.component';
 
 export interface RecoveryCodeDisplayDialogData {
     recoveryCode: string;
@@ -19,7 +21,9 @@ export interface RecoveryCodeDisplayDialogData {
     imports: [
         FormsModule,
         MatButtonModule,
-        MatCheckboxModule
+        MatCheckboxModule,
+        ConfigCardComponent,
+        ActionButtonComponent
     ],
     templateUrl: './recovery-code-display.component.html',
     styleUrl: './recovery-code-display.component.scss',

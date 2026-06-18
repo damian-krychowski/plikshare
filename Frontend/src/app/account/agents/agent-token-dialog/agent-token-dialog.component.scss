@@ -1,6 +1,9 @@
 @forward "./../../../../styles/questionaire.scss";
 
 .agent-token {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
     padding: 1.5rem 2rem 1rem;
     max-height: calc(100vh - 80px - 1rem);
     overflow-y: auto;
@@ -8,48 +11,74 @@
     &__title {
         font-size: 1.4rem;
         font-weight: 600;
-        margin-bottom: 1rem;
     }
 
-    &__warning {
-        background: #fff8e1;
-        border-left: 4px solid #f9a825;
-        padding: 0.75rem 1rem;
-        margin-bottom: 1rem;
-        font-size: 0.95rem;
-        line-height: 1.4;
+    &__link {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 0.75rem 0.75rem 1rem;
+        border: 1px solid var(--company-grey-accent);
+        border-radius: 8px;
+        background-color: white;
+        cursor: pointer;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+        word-break: break-all;
+
+        &:hover {
+            background-color: var(--company-grey-accent-light);
+            border-color: var(--company-grey-font);
+        }
+
+        &--copied {
+            border-color: var(--company-blue);
+            background-color: var(--company-blue-selected);
+        }
     }
 
-    &__value {
-        padding: 1rem;
-        background: #f5f5f5;
-        border: 1px solid #e0e0e0;
-        border-radius: 4px;
-        margin-bottom: 1rem;
+    &__link-leading {
+        color: var(--company-grey-font);
+        flex-shrink: 0;
+    }
+
+    &__link-value {
+        flex: 1;
         font-family: var(--company-monospace-font);
         font-size: 0.95rem;
-        word-break: break-all;
-        user-select: text;
+        font-weight: 500;
+        min-width: 0;
     }
 
-    &__actions-row {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
+    &__link-copy {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        background-color: var(--company-grey-accent-light);
+        color: var(--company-grey-font);
+        flex-shrink: 0;
+        transition: color 0.2s ease;
+    }
+
+    &__link--copied &__link-copy {
+        color: var(--company-blue);
     }
 
     &__danger-notice {
-        background: #ffebee;
-        border-left: 4px solid #c62828;
+        border-left: 4px solid var(--company-danger);
+        background: var(--company-grey-accent-light);
+        color: var(--company-grey-dark);
         padding: 0.75rem 1rem;
-        margin-bottom: 1rem;
+        border-radius: 0 var(--mdc-filled-button-container-shape) var(--mdc-filled-button-container-shape) 0;
         font-size: 0.9rem;
         line-height: 1.4;
     }
 
     &__confirm {
         display: block;
-        margin-bottom: 1.25rem;
     }
 
     &__actions {
@@ -59,5 +88,14 @@
 
     @media (max-width: 600px) {
         padding: 1rem;
+
+        &__link {
+            gap: 0.5rem;
+            padding: 0.5rem 0.5rem 0.5rem 0.75rem;
+        }
+
+        &__link-value {
+            font-size: 0.85rem;
+        }
     }
 }

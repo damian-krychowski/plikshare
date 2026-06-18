@@ -3,25 +3,27 @@
         {{ data.title }}
     </div>
 
-    <div class="agent-token__warning">
-        <strong>This is the only time you will see this token.</strong>
-        Copy it now and store it in a safe place. If you lose it, rotate the token to generate a new one.
-    </div>
-
-    <div class="agent-token__value">
-        {{ data.token }}
-    </div>
-
-    <div class="agent-token__actions-row">
-        <button mat-stroked-button type="button"
+    <app-config-card
+        title="API token"
+        description="Shown only once — copy it now and store it somewhere safe. If you lose it, rotate the token to generate a new one.">
+        <div class="agent-token__link"
+            [class.agent-token__link--copied]="copied()"
+            role="button"
+            tabindex="0"
             (click)="copyToClipboard()"
-            aria-label="Copy token to clipboard">
-            {{ copied() ? 'Copied' : 'Copy' }}
-        </button>
-    </div>
+            (keydown.enter)="copyToClipboard()"
+            (keydown.space)="copyToClipboard()"
+            [attr.aria-label]="copied() ? 'Token copied to clipboard' : 'Copy token to clipboard'">
+            <i class="icon icon-lg icon-nucleo-lock agent-token__link-leading"></i>
+            <span class="agent-token__link-value">{{ data.token }}</span>
+            <span class="agent-token__link-copy">
+                <i class="icon icon-sm" [class.icon-nucleo-copy]="!copied()" [class.icon-lucide-check]="copied()"></i>
+            </span>
+        </div>
+    </app-config-card>
 
     <div class="agent-token__danger-notice">
-        Anyone with this token can act as this agent with all granted permissions. Treat it like a password.
+        Anyone with this token can act as this agent. Treat it like a password.
     </div>
 
     <mat-checkbox class="agent-token__confirm"

@@ -28,6 +28,10 @@
     gap: 1rem;
 
     cursor: pointer;
+
+    &--static {
+        cursor: default;
+    }
 }
 
 .agent-request-card__text {
